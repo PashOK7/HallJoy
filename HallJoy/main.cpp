@@ -33,11 +33,12 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow)
     // Init GDI+ once for the entire application lifetime
     Gdiplus::GdiplusStartupInput gdiInput;
     ULONG_PTR gdiToken = 0;
-    Gdiplus::GdiplusStartup(&gdiToken, &gdiInput, nullptr);
+    Gdiplus::Status gdiStatus = Gdiplus::GdiplusStartup(&gdiToken, &gdiInput, nullptr);
 
     int result = App_Run(hInst, nCmdShow);
 
-    Gdiplus::GdiplusShutdown(gdiToken);
+    if (gdiStatus == Gdiplus::Ok && gdiToken != 0)
+        Gdiplus::GdiplusShutdown(gdiToken);
 
     return result;
 }

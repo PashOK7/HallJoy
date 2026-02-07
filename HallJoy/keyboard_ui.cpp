@@ -1,4 +1,4 @@
-// keyboard_ui.cpp
+﻿// keyboard_ui.cpp
 #ifndef _WIN32_IE
 #define _WIN32_IE 0x0600
 #endif
@@ -39,6 +39,7 @@ uint16_t g_dragHoverHid = 0;
 HWND g_hSubTab = nullptr;
 HWND g_hPageRemap = nullptr;
 HWND g_hPageConfig = nullptr;
+HWND g_hPageLayout = nullptr;
 HWND g_hPageTester = nullptr;
 int  g_activeSubTab = 0;
 

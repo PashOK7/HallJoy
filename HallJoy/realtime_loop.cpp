@@ -149,11 +149,16 @@ bool RealtimeLoop_Start()
     g_run.store(true, std::memory_order_relaxed);
 
     g_stopEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-    if (!g_stopEvent) return false;
+    if (!g_stopEvent)
+    {
+        g_run.store(false, std::memory_order_relaxed);
+        return false;
+    }
 
     g_thread = CreateThread(nullptr, 0, ThreadProc, nullptr, 0, nullptr);
     if (!g_thread)
     {
+        g_run.store(false, std::memory_order_relaxed);
         CloseHandle(g_stopEvent);
         g_stopEvent = nullptr;
         return false;

@@ -24,6 +24,13 @@
 using namespace Gdiplus;
 
 static int S(HWND hwnd, int px) { return WinUtil_ScalePx(hwnd, px); }
+static constexpr const wchar_t* CONFIG_SCROLLY_PROP = L"DD_ConfigScrollY";
+
+static int ParentScrollY(HWND parent)
+{
+    if (!parent) return 0;
+    return (int)(INT_PTR)GetPropW(parent, CONFIG_SCROLLY_PROP);
+}
 
 // ----------------------------------------------------------------------------
 // Drag state
@@ -79,6 +86,8 @@ bool KeySettingsPanel_GetGraphRect(HWND parent, RECT* outRc)
     *outRc = RECT{};
     if (!parent) return false;
     RECT r = GraphRectR(parent);
+    int scrollY = ParentScrollY(parent);
+    if (scrollY != 0) OffsetRect(&r, 0, -scrollY);
     InflateRect(&r, S(parent, 3), S(parent, 3));
     *outRc = r;
     return true;
@@ -97,6 +106,7 @@ bool KeySettingsPanel_GetCpWeightHintRect(HWND parent, RECT* outRc)
 
     int x = S(parent, 12);
     int y = S(parent, 286);
+    y -= ParentScrollY(parent);
 
     int h = S(parent, 20);
     int w = (rcClient.right - rcClient.left) - x - S(parent, 12);

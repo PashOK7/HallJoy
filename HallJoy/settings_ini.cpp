@@ -15,6 +15,7 @@
 #include "settings.h"
 #include "key_settings.h"
 #include "ini_util.h"
+#include "keyboard_layout.h"
 
 static float ClampF(float v, float lo, float hi)
 {
@@ -257,6 +258,8 @@ static void KeySettingsIni_LoadFromSettingsIni(const wchar_t* path)
 
 bool SettingsIni_Load(const wchar_t* path)
 {
+    if (!path) return false;
+
     DWORD attr = GetFileAttributesW(path);
     if (attr == INVALID_FILE_ATTRIBUTES) return false;
 
@@ -303,6 +306,7 @@ bool SettingsIni_Load(const wchar_t* path)
     Settings_SetUIRefreshMs(uiMs);
 
     KeySettingsIni_LoadFromSettingsIni(path);
+    KeyboardLayout_LoadFromIni(path);
     return true;
 }
 
@@ -334,6 +338,7 @@ static bool SettingsIni_Save_Internal(const wchar_t* tmpPath)
     IniWriteU32(L"Main", L"UIRefreshMs", Settings_GetUIRefreshMs(), tmpPath);
 
     KeySettingsIni_SaveToSettingsIni(tmpPath);
+    KeyboardLayout_SaveToIni(tmpPath);
     return true;
 }
 

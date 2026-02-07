@@ -154,6 +154,8 @@ static bool Profile_SaveIni_Internal(const wchar_t* path)
 
 bool Profile_SaveIni(const wchar_t* path)
 {
+    if (!path) return false;
+
     std::wstring tmp = std::wstring(path) + L".tmp";
 
     // Save to tmp file first
@@ -207,6 +209,8 @@ static void ResetAllBindingsBeforeLoad()
 
 bool Profile_LoadIni(const wchar_t* path)
 {
+    if (!path) return false;
+
     DWORD attr = GetFileAttributesW(path);
     if (attr == INVALID_FILE_ATTRIBUTES) return false;
 

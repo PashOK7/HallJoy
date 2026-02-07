@@ -26,8 +26,8 @@ static int ClampM01(int m) { return std::clamp(m, 0, 1000); }
 static std::atomic<uint32_t> g_inDzPacked{ PackDz(80, 980) };
 
 // Polling/UI
-static std::atomic<UINT> g_pollMs{ 5 };
-static std::atomic<UINT> g_uiRefreshMs{ 33 };
+static std::atomic<UINT> g_pollMs{ 1 };
+static std::atomic<UINT> g_uiRefreshMs{ 1 };
 
 // Global curve endpoints (Y)
 static std::atomic<int> g_globalAntiDzM{ 0 };

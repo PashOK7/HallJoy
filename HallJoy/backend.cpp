@@ -32,7 +32,11 @@
 #pragma comment(lib, "setupapi.lib")
 
 static PVIGEM_CLIENT g_client = nullptr;
-static PVIGEM_TARGET g_pad = nullptr;
+static constexpr int kMaxVirtualPads = 4;
+static std::array<PVIGEM_TARGET, kMaxVirtualPads> g_pads{};
+static std::atomic<int> g_virtualPadCount{ 1 };
+static std::atomic<bool> g_virtualPadsEnabled{ true };
+static int g_connectedPadCount = 0;
 
 static XUSB_REPORT   g_report{};
 
@@ -49,6 +53,11 @@ static std::array<std::atomic<uint64_t>, 4>   g_uiDirty{};   // dirty for filter
 // list of HID codes to track (provided by UI)
 static std::array<uint16_t, 256> g_trackedList{};
 static std::atomic<int>          g_trackedCount{ 0 };
+
+// bind-capture state (layout editor)
+static std::atomic<bool>         g_bindCaptureEnabled{ false };
+static std::atomic<uint32_t>     g_bindCapturedPacked{ 0 }; // low16=hid, high16=rawMilli
+static std::atomic<bool>         g_bindHadDown{ false };
 
 // ---- status / reconnect ----
 static std::atomic<bool>         g_vigemOk{ false };
@@ -199,33 +208,83 @@ static float ApplyCurveByHid(uint16_t hid, float x01Raw)
 
 static void Vigem_Destroy()
 {
-    if (g_client && g_pad) { vigem_target_remove(g_client, g_pad); vigem_target_free(g_pad); g_pad = nullptr; }
-    if (g_client) { vigem_disconnect(g_client); vigem_free(g_client); g_client = nullptr; }
+    if (g_client)
+    {
+        for (int i = 0; i < g_connectedPadCount; ++i)
+        {
+            if (g_pads[(size_t)i])
+            {
+                vigem_target_remove(g_client, g_pads[(size_t)i]);
+                vigem_target_free(g_pads[(size_t)i]);
+                g_pads[(size_t)i] = nullptr;
+            }
+        }
+    }
+
+    g_connectedPadCount = 0;
+
+    if (g_client)
+    {
+        vigem_disconnect(g_client);
+        vigem_free(g_client);
+        g_client = nullptr;
+    }
 }
 
-static bool Vigem_Create(VIGEM_ERROR* outErr)
+static bool Vigem_Create(int padCount, VIGEM_ERROR* outErr)
 {
+    padCount = std::clamp(padCount, 1, kMaxVirtualPads);
     if (outErr) *outErr = VIGEM_ERROR_NONE;
     g_client = vigem_alloc();
     if (!g_client) { if (outErr) *outErr = VIGEM_ERROR_BUS_NOT_FOUND; return false; }
     VIGEM_ERROR err = vigem_connect(g_client);
     if (!VIGEM_SUCCESS(err)) { if (outErr) *outErr = err; vigem_free(g_client); g_client = nullptr; return false; }
-    g_pad = vigem_target_x360_alloc();
-    if (!g_pad) { if (outErr) *outErr = VIGEM_ERROR_INVALID_TARGET; vigem_disconnect(g_client); vigem_free(g_client); g_client = nullptr; return false; }
-    err = vigem_target_add(g_client, g_pad);
-    if (!VIGEM_SUCCESS(err)) { if (outErr) *outErr = err; vigem_target_free(g_pad); g_pad = nullptr; vigem_disconnect(g_client); vigem_free(g_client); g_client = nullptr; return false; }
+
+    g_connectedPadCount = 0;
+    for (int i = 0; i < padCount; ++i)
+    {
+        PVIGEM_TARGET pad = vigem_target_x360_alloc();
+        if (!pad)
+        {
+            if (outErr) *outErr = VIGEM_ERROR_INVALID_TARGET;
+            Vigem_Destroy();
+            return false;
+        }
+
+        err = vigem_target_add(g_client, pad);
+        if (!VIGEM_SUCCESS(err))
+        {
+            if (outErr) *outErr = err;
+            vigem_target_free(pad);
+            Vigem_Destroy();
+            return false;
+        }
+
+        g_pads[(size_t)i] = pad;
+        g_connectedPadCount = i + 1;
+    }
+
     if (outErr) *outErr = VIGEM_ERROR_NONE;
     return true;
 }
 
-static bool Vigem_ReconnectThrottled()
+static bool Vigem_ReconnectThrottled(bool force = false)
 {
     ULONGLONG now = GetTickCount64();
-    if (now - g_lastReconnectAttemptMs < 1000) return false;
+    if (!force && now - g_lastReconnectAttemptMs < 1000) return false;
     g_lastReconnectAttemptMs = now;
     Vigem_Destroy();
+
+    if (!g_virtualPadsEnabled.load(std::memory_order_acquire))
+    {
+        g_vigemOk.store(true, std::memory_order_release);
+        g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
+        return true;
+    }
+
     VIGEM_ERROR err = VIGEM_ERROR_NONE;
-    bool ok = Vigem_Create(&err);
+    int wantedPads = std::clamp(g_virtualPadCount.load(std::memory_order_acquire), 1, kMaxVirtualPads);
+    bool ok = Vigem_Create(wantedPads, &err);
     g_vigemOk.store(ok, std::memory_order_release);
     g_vigemLastErr.store(ok ? VIGEM_ERROR_NONE : err, std::memory_order_release);
     return ok;
@@ -400,16 +459,27 @@ static bool BtnPressedFromMask(GameButton b, HidCache& cache)
 
 bool Backend_Init()
 {
+    g_virtualPadCount.store(std::clamp(Settings_GetVirtualGamepadCount(), 1, kMaxVirtualPads), std::memory_order_release);
+    g_virtualPadsEnabled.store(Settings_GetVirtualGamepadsEnabled(), std::memory_order_release);
+
     wooting_analog_initialise();
-    VIGEM_ERROR err = VIGEM_ERROR_NONE;
-    if (!Vigem_Create(&err)) {
-        g_vigemOk.store(false, std::memory_order_release);
-        g_vigemLastErr.store(err, std::memory_order_release);
-        wooting_analog_uninitialise();
-        return false;
+    if (g_virtualPadsEnabled.load(std::memory_order_acquire))
+    {
+        VIGEM_ERROR err = VIGEM_ERROR_NONE;
+        if (!Vigem_Create(g_virtualPadCount.load(std::memory_order_acquire), &err)) {
+            g_vigemOk.store(false, std::memory_order_release);
+            g_vigemLastErr.store(err, std::memory_order_release);
+            wooting_analog_uninitialise();
+            return false;
+        }
+        g_vigemOk.store(true, std::memory_order_release);
+        g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
     }
-    g_vigemOk.store(true, std::memory_order_release);
-    g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
+    else
+    {
+        g_vigemOk.store(true, std::memory_order_release);
+        g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
+    }
 
     for (auto& a : g_uiAnalogM) a.store(0, std::memory_order_relaxed);
     for (auto& a : g_uiRawM)    a.store(0, std::memory_order_relaxed);
@@ -427,7 +497,7 @@ void Backend_Shutdown()
 void Backend_Tick()
 {
     if (g_reconnectRequested.exchange(false, std::memory_order_acq_rel))
-        Vigem_ReconnectThrottled();
+        Vigem_ReconnectThrottled(true);
 
     HidCache cache;
 
@@ -458,6 +528,36 @@ void Backend_Tick()
             int bit = hid % 64;
             g_uiDirty[chunk].fetch_or(1ULL << bit, std::memory_order_relaxed);
         }
+    }
+
+    // Bind capture: scan all HID 1..255 and capture first edge above threshold.
+    if (g_bindCaptureEnabled.load(std::memory_order_acquire))
+    {
+        uint16_t bestHid = 0;
+        int bestRawM = 0;
+        for (uint16_t hid = 1; hid < 256; ++hid)
+        {
+            float raw = ReadRaw01Cached(hid, cache);
+            int rawM = (int)std::lround(raw * 1000.0f);
+            if (rawM > bestRawM)
+            {
+                bestRawM = rawM;
+                bestHid = hid;
+            }
+        }
+
+        bool down = (bestRawM >= 120);
+        bool hadDown = g_bindHadDown.load(std::memory_order_relaxed);
+        if (down && !hadDown && bestHid != 0)
+        {
+            uint32_t packed = (uint32_t)(bestHid & 0xFFFFu) | ((uint32_t)(bestRawM & 0xFFFFu) << 16);
+            g_bindCapturedPacked.store(packed, std::memory_order_release);
+        }
+        g_bindHadDown.store(down, std::memory_order_relaxed);
+    }
+    else
+    {
+        g_bindHadDown.store(false, std::memory_order_relaxed);
     }
 
     g_report.wButtons = 0;
@@ -499,22 +599,46 @@ void Backend_Tick()
     g_lastReport = g_report;
     g_lastSeq.fetch_add(1, std::memory_order_release);
 
-    if (g_client && g_pad) {
-        VIGEM_ERROR err = vigem_target_x360_update(g_client, g_pad, g_report);
-        if (!VIGEM_SUCCESS(err)) {
-            g_vigemOk.store(false, std::memory_order_release);
-            g_vigemLastErr.store(err, std::memory_order_release);
-            Vigem_ReconnectThrottled();
+    if (g_virtualPadsEnabled.load(std::memory_order_acquire))
+    {
+        if (g_client && g_connectedPadCount > 0) {
+            VIGEM_ERROR err = VIGEM_ERROR_NONE;
+            bool allOk = true;
+
+            for (int i = 0; i < g_connectedPadCount; ++i)
+            {
+                PVIGEM_TARGET pad = g_pads[(size_t)i];
+                if (!pad) continue;
+
+                err = vigem_target_x360_update(g_client, pad, g_report);
+                if (!VIGEM_SUCCESS(err))
+                {
+                    allOk = false;
+                    break;
+                }
+            }
+
+            if (!allOk) {
+                g_vigemOk.store(false, std::memory_order_release);
+                g_vigemLastErr.store(err, std::memory_order_release);
+                Vigem_ReconnectThrottled();
+            }
+            else {
+                g_vigemOk.store(true, std::memory_order_release);
+                g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
+            }
         }
         else {
-            g_vigemOk.store(true, std::memory_order_release);
-            g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
+            g_vigemOk.store(false, std::memory_order_release);
+            g_vigemLastErr.store(VIGEM_ERROR_BUS_NOT_FOUND, std::memory_order_release);
+            Vigem_ReconnectThrottled();
         }
     }
     else {
-        g_vigemOk.store(false, std::memory_order_release);
-        g_vigemLastErr.store(VIGEM_ERROR_BUS_NOT_FOUND, std::memory_order_release);
-        Vigem_ReconnectThrottled();
+        if (g_client || g_connectedPadCount > 0)
+            Vigem_Destroy();
+        g_vigemOk.store(true, std::memory_order_release);
+        g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
     }
 }
 
@@ -563,6 +687,25 @@ uint16_t BackendUI_GetRawMilli(uint16_t hid)
     return g_uiRawM[hid].load(std::memory_order_relaxed);
 }
 
+void BackendUI_SetBindCapture(bool enable)
+{
+    g_bindCaptureEnabled.store(enable, std::memory_order_release);
+    if (!enable)
+    {
+        g_bindCapturedPacked.store(0, std::memory_order_release);
+        g_bindHadDown.store(false, std::memory_order_relaxed);
+    }
+}
+
+bool BackendUI_ConsumeBindCapture(uint16_t* outHid, uint16_t* outRawMilli)
+{
+    uint32_t p = g_bindCapturedPacked.exchange(0, std::memory_order_acq_rel);
+    if (!p) return false;
+    if (outHid) *outHid = (uint16_t)(p & 0xFFFFu);
+    if (outRawMilli) *outRawMilli = (uint16_t)((p >> 16) & 0xFFFFu);
+    return true;
+}
+
 uint64_t BackendUI_ConsumeDirtyChunk(int chunk)
 {
     if (chunk < 0 || chunk >= 4) return 0;
@@ -578,3 +721,28 @@ BackendStatus Backend_GetStatus()
 }
 
 void Backend_NotifyDeviceChange() { g_reconnectRequested.store(true, std::memory_order_release); }
+
+void Backend_SetVirtualGamepadCount(int count)
+{
+    count = std::clamp(count, 1, kMaxVirtualPads);
+    int old = g_virtualPadCount.exchange(count, std::memory_order_acq_rel);
+    if (old != count)
+        g_reconnectRequested.store(true, std::memory_order_release);
+}
+
+int Backend_GetVirtualGamepadCount()
+{
+    return g_virtualPadCount.load(std::memory_order_acquire);
+}
+
+void Backend_SetVirtualGamepadsEnabled(bool on)
+{
+    bool old = g_virtualPadsEnabled.exchange(on, std::memory_order_acq_rel);
+    if (old != on)
+        g_reconnectRequested.store(true, std::memory_order_release);
+}
+
+bool Backend_GetVirtualGamepadsEnabled()
+{
+    return g_virtualPadsEnabled.load(std::memory_order_acquire);
+}

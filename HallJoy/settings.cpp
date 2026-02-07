@@ -28,6 +28,10 @@ static std::atomic<uint32_t> g_inDzPacked{ PackDz(80, 980) };
 // Polling/UI
 static std::atomic<UINT> g_pollMs{ 1 };
 static std::atomic<UINT> g_uiRefreshMs{ 1 };
+static std::atomic<int> g_virtualGamepadCount{ 1 };
+static std::atomic<bool> g_virtualGamepadsEnabled{ true };
+static std::atomic<int> g_mainWinW{ 0 };
+static std::atomic<int> g_mainWinH{ 0 };
 
 // Global curve endpoints (Y)
 static std::atomic<int> g_globalAntiDzM{ 0 };
@@ -53,6 +57,7 @@ static std::atomic<bool> g_globalInvert{ false };
 
 // ---------------- NEW: Snappy Joystick ----------------
 static std::atomic<bool> g_snappyJoystick{ false };
+static std::atomic<bool> g_blockBoundKeys{ true };
 
 // UI sizes (fixed)
 static constexpr UINT kRemapButtonSizePx = 43;
@@ -268,6 +273,16 @@ bool Settings_GetSnappyJoystick()
     return g_snappyJoystick.load(std::memory_order_acquire);
 }
 
+void Settings_SetBlockBoundKeys(bool on)
+{
+    g_blockBoundKeys.store(on, std::memory_order_release);
+}
+
+bool Settings_GetBlockBoundKeys()
+{
+    return g_blockBoundKeys.load(std::memory_order_acquire);
+}
+
 // ---------------- Polling / UI refresh ----------------
 void Settings_SetPollingMs(UINT ms)
 {
@@ -291,6 +306,27 @@ UINT Settings_GetUIRefreshMs()
     return g_uiRefreshMs.load(std::memory_order_acquire);
 }
 
+void Settings_SetVirtualGamepadCount(int count)
+{
+    count = std::clamp(count, 1, 4);
+    g_virtualGamepadCount.store(count, std::memory_order_release);
+}
+
+int Settings_GetVirtualGamepadCount()
+{
+    return g_virtualGamepadCount.load(std::memory_order_acquire);
+}
+
+void Settings_SetVirtualGamepadsEnabled(bool on)
+{
+    g_virtualGamepadsEnabled.store(on, std::memory_order_release);
+}
+
+bool Settings_GetVirtualGamepadsEnabled()
+{
+    return g_virtualGamepadsEnabled.load(std::memory_order_acquire);
+}
+
 // ---------------- Fixed UI sizes ----------------
 void Settings_SetRemapButtonSizePx(UINT) {}
 UINT Settings_GetRemapButtonSizePx() { return kRemapButtonSizePx; }
@@ -303,3 +339,25 @@ UINT Settings_GetBoundKeyIconSizePx() { return kBoundKeyIconPx; }
 
 void Settings_SetBoundKeyIconBacking(bool) {}
 bool Settings_GetBoundKeyIconBacking() { return kBoundIconBacking; }
+
+void Settings_SetMainWindowWidthPx(int px)
+{
+    px = std::clamp(px, 0, 10000);
+    g_mainWinW.store(px, std::memory_order_release);
+}
+
+int Settings_GetMainWindowWidthPx()
+{
+    return g_mainWinW.load(std::memory_order_acquire);
+}
+
+void Settings_SetMainWindowHeightPx(int px)
+{
+    px = std::clamp(px, 0, 10000);
+    g_mainWinH.store(px, std::memory_order_release);
+}
+
+int Settings_GetMainWindowHeightPx()
+{
+    return g_mainWinH.load(std::memory_order_acquire);
+}

@@ -23,6 +23,7 @@
 #include "profile_ini.h"
 #include "keyboard_ui.h"
 #include "keyboard_ui_state.h"
+#include "backend.h"
 #include "settings.h"
 #include "win_util.h"
 #include "app_paths.h"
@@ -34,12 +35,21 @@
 using namespace Gdiplus;
 
 static constexpr UINT WM_APP_REMAP_APPLY_SETTINGS = WM_APP + 42;
+static constexpr UINT WM_APP_REQUEST_SAVE = WM_APP + 1;
 
 static constexpr int ICON_GAP_X = 6;
 static constexpr int ICON_GAP_Y = 6;
 static constexpr int ICON_COLS = 13;
 
 static constexpr UINT_PTR DRAG_ANIM_TIMER_ID = 9009;
+static constexpr int REMAP_ID_ADD_GAMEPAD = 1901;
+static constexpr int REMAP_ID_TOGGLE_GAMEPADS = 1902;
+static constexpr int REMAP_ICON_ID_BASE = 2100;
+static constexpr int REMAP_ICON_ID_PACK_STRIDE = 128;
+static constexpr int REMAP_MAX_GAMEPADS = 4;
+
+static LRESULT CALLBACK IconSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR, DWORD_PTR dwRefData);
 
 static int S(HWND hwnd, int px) { return WinUtil_ScalePx(hwnd, px); }
 
@@ -207,6 +217,12 @@ enum class RemapPostAnimMode : int
 struct RemapPanelState
 {
     HWND hKeyboardHost = nullptr;
+    HWND txtHelp = nullptr;
+    HWND btnAddGamepad = nullptr;
+    HWND btnToggleGamepads = nullptr;
+    int gamepadPacks = 1;
+    int iconsPerPack = 0;
+    bool gamepadsEnabled = true;
 
     bool dragging = false;
     BindAction dragAction{};
@@ -964,6 +980,144 @@ static bool TryGetKeyUnderCursor(RemapPanelState* st, POINT ptScreen, uint16_t& 
 }
 
 // ---------------- Layout / sizing ----------------
+static void Remap_RequestSettingsSave(HWND hWnd)
+{
+    HWND root = GetAncestor(hWnd, GA_ROOT);
+    if (root)
+        PostMessageW(root, WM_APP_REQUEST_SAVE, 0, 0);
+}
+
+static void Remap_UpdateAddGamepadButtonText(RemapPanelState* st)
+{
+    if (!st || !st->btnAddGamepad) return;
+
+    wchar_t text[64]{};
+    int packs = std::clamp(st->gamepadPacks, 1, REMAP_MAX_GAMEPADS);
+    if (packs < REMAP_MAX_GAMEPADS)
+        swprintf_s(text, L"Add Gamepad (%d/%d)", packs, REMAP_MAX_GAMEPADS);
+    else
+        swprintf_s(text, L"Max Gamepads (%d/%d)", packs, REMAP_MAX_GAMEPADS);
+
+    bool canAdd = st->gamepadsEnabled && (packs < REMAP_MAX_GAMEPADS);
+    SetWindowTextW(st->btnAddGamepad, text);
+    EnableWindow(st->btnAddGamepad, canAdd);
+}
+
+static void Remap_UpdateToggleGamepadsButtonText(RemapPanelState* st)
+{
+    if (!st || !st->btnToggleGamepads) return;
+    SetWindowTextW(st->btnToggleGamepads, st->gamepadsEnabled ? L"Gamepads: ON" : L"Gamepads: OFF");
+}
+
+static void DrawAddGamepadButton(const DRAWITEMSTRUCT* dis)
+{
+    if (!dis) return;
+
+    RECT rc = dis->rcItem;
+    HBRUSH bg = CreateSolidBrush(UiTheme::Color_PanelBg());
+    FillRect(dis->hDC, &rc, bg);
+    DeleteObject(bg);
+
+    bool disabled = (dis->itemState & ODS_DISABLED) != 0;
+    bool pushed = (dis->itemState & ODS_SELECTED) != 0;
+
+    COLORREF fill = pushed ? RGB(44, 44, 48) : RGB(30, 30, 33);
+    COLORREF border = disabled ? RGB(70, 70, 76) : UiTheme::Color_Border();
+    COLORREF text = disabled ? UiTheme::Color_TextMuted() : UiTheme::Color_Text();
+
+    HBRUSH bFill = CreateSolidBrush(fill);
+    HPEN pBorder = CreatePen(PS_SOLID, 1, border);
+    HGDIOBJ oldPen = SelectObject(dis->hDC, pBorder);
+    HGDIOBJ oldBrush = SelectObject(dis->hDC, bFill);
+
+    Rectangle(dis->hDC, rc.left, rc.top, rc.right, rc.bottom);
+
+    SelectObject(dis->hDC, oldBrush);
+    SelectObject(dis->hDC, oldPen);
+    DeleteObject(bFill);
+    DeleteObject(pBorder);
+
+    wchar_t txt[96]{};
+    GetWindowTextW(dis->hwndItem, txt, (int)(sizeof(txt) / sizeof(txt[0])));
+
+    SetBkMode(dis->hDC, TRANSPARENT);
+    SetTextColor(dis->hDC, text);
+
+    RECT tr = rc;
+    DrawTextW(dis->hDC, txt, -1, &tr, DT_SINGLELINE | DT_CENTER | DT_VCENTER | DT_END_ELLIPSIS);
+}
+
+static void Remap_CreateIconPackButtons(HWND hWnd, RemapPanelState* st, HINSTANCE hInst, HFONT hFont, int packIdx)
+{
+    if (!st || packIdx < 0 || packIdx >= REMAP_MAX_GAMEPADS) return;
+
+    int iconsPerPack = std::max(0, RemapIcons_Count());
+    if (iconsPerPack <= 0) return;
+
+    if (st->iconsPerPack <= 0)
+        st->iconsPerPack = iconsPerPack;
+
+    int startX = S(hWnd, 12);
+    int startY = S(hWnd, 104);
+    int btnW = S(hWnd, (int)Settings_GetRemapButtonSizePx());
+    int btnH = btnW;
+    int gapX = S(hWnd, ICON_GAP_X);
+    int gapY = S(hWnd, ICON_GAP_Y);
+
+    for (int i = 0; i < iconsPerPack; ++i)
+    {
+        int row = packIdx * 2 + (i / ICON_COLS);
+        int col = i % ICON_COLS;
+
+        const RemapIconDef& idef = RemapIcons_Get(i);
+        int ctrlId = REMAP_ICON_ID_BASE + packIdx * REMAP_ICON_ID_PACK_STRIDE + i;
+
+        HWND b = CreateWindowW(L"BUTTON", L"",
+            WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+            startX + col * (btnW + gapX),
+            startY + row * (btnH + gapY),
+            btnW, btnH,
+            hWnd, (HMENU)(INT_PTR)ctrlId, hInst, nullptr);
+
+        SendMessageW(b, WM_SETFONT, (WPARAM)hFont, TRUE);
+        SetWindowLongPtrW(b, GWLP_USERDATA, (LONG_PTR)i);
+        SetWindowSubclass(b, IconSubclassProc, 1, (DWORD_PTR)idef.action);
+        st->iconBtns.push_back(b);
+    }
+}
+
+static void Remap_ToggleGamepads(HWND hWnd, RemapPanelState* st)
+{
+    if (!st) return;
+
+    st->gamepadsEnabled = !st->gamepadsEnabled;
+    Settings_SetVirtualGamepadsEnabled(st->gamepadsEnabled);
+    Backend_SetVirtualGamepadsEnabled(st->gamepadsEnabled);
+
+    Remap_UpdateToggleGamepadsButtonText(st);
+    Remap_UpdateAddGamepadButtonText(st);
+    Remap_RequestSettingsSave(hWnd);
+}
+
+static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st);
+
+static bool Remap_AddGamepadPack(HWND hWnd, RemapPanelState* st, HINSTANCE hInst, HFONT hFont)
+{
+    if (!st) return false;
+    if (st->gamepadPacks >= REMAP_MAX_GAMEPADS) return false;
+
+    int packIdx = st->gamepadPacks;
+    Remap_CreateIconPackButtons(hWnd, st, hInst, hFont, packIdx);
+    st->gamepadPacks = packIdx + 1;
+
+    Settings_SetVirtualGamepadCount(st->gamepadPacks);
+    Backend_SetVirtualGamepadCount(st->gamepadPacks);
+    Remap_UpdateAddGamepadButtonText(st);
+    ApplyRemapSizing(hWnd, st);
+    Remap_RequestSettingsSave(hWnd);
+    return true;
+}
+
 static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st)
 {
     if (!st) return;
@@ -974,8 +1128,32 @@ static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st)
     if (st->hGhost)
         Ghost_EnsureSurfaceAndResetCache(st);
 
+    if (st->txtHelp)
+    {
+        SetWindowPos(st->txtHelp, nullptr,
+            S(hWnd, 12), S(hWnd, 10),
+            S(hWnd, 860), S(hWnd, 52),
+            SWP_NOZORDER);
+    }
+
+    if (st->btnAddGamepad)
+    {
+        SetWindowPos(st->btnAddGamepad, nullptr,
+            S(hWnd, 12), S(hWnd, 66),
+            S(hWnd, 180), S(hWnd, 28),
+            SWP_NOZORDER);
+    }
+
+    if (st->btnToggleGamepads)
+    {
+        SetWindowPos(st->btnToggleGamepads, nullptr,
+            S(hWnd, 200), S(hWnd, 66),
+            S(hWnd, 180), S(hWnd, 28),
+            SWP_NOZORDER);
+    }
+
     const int startX = S(hWnd, 12);
-    const int startY = S(hWnd, 70);
+    const int startY = S(hWnd, 104);
     const int btnW = S(hWnd, (int)Settings_GetRemapButtonSizePx());
     const int btnH = btnW;
     const int gapX = S(hWnd, ICON_GAP_X);
@@ -986,8 +1164,11 @@ static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st)
     for (int i = 0; i < n; ++i)
     {
         if (!st->iconBtns[i]) continue;
-        int cx = i % cols;
-        int cy = i / cols;
+        int iconsPerPack = std::max(1, st->iconsPerPack);
+        int packIdx = i / iconsPerPack;
+        int localIdx = i % iconsPerPack;
+        int cx = localIdx % cols;
+        int cy = packIdx * 2 + (localIdx / cols);
 
         SetWindowPos(st->iconBtns[i], nullptr,
             startX + cx * (btnW + gapX),
@@ -1260,44 +1441,42 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
         HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
 
-        HWND txt = CreateWindowW(L"STATIC",
+        st->txtHelp = CreateWindowW(L"STATIC",
             L"Drag and drop a gamepad control onto a keyboard key to bind.\n"
             L"Right click a key on the keyboard to unbind.\n"
             L"Press ESC to cancel dragging.",
             WS_CHILD | WS_VISIBLE,
-            S(hWnd, 12), S(hWnd, 10), S(hWnd, 820), S(hWnd, 52),
+            S(hWnd, 12), S(hWnd, 10), S(hWnd, 860), S(hWnd, 52),
             hWnd, nullptr, cs->hInstance, nullptr);
-        SendMessageW(txt, WM_SETFONT, (WPARAM)hFont, TRUE);
+        SendMessageW(st->txtHelp, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        const int startX = S(hWnd, 12);
-        const int startY = S(hWnd, 70);
-        const int btnW = S(hWnd, (int)Settings_GetRemapButtonSizePx());
-        const int btnH = btnW;
-        const int gapX = S(hWnd, ICON_GAP_X);
-        const int gapY = S(hWnd, ICON_GAP_Y);
-        const int cols = ICON_COLS;
+        st->btnAddGamepad = CreateWindowW(L"BUTTON", L"Add Gamepad",
+            WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+            S(hWnd, 12), S(hWnd, 66), S(hWnd, 180), S(hWnd, 28),
+            hWnd, (HMENU)(INT_PTR)REMAP_ID_ADD_GAMEPAD, cs->hInstance, nullptr);
+        SendMessageW(st->btnAddGamepad, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        int n = RemapIcons_Count();
-        st->iconBtns.assign(n, nullptr);
+        st->btnToggleGamepads = CreateWindowW(L"BUTTON", L"Gamepads: ON",
+            WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+            S(hWnd, 200), S(hWnd, 66), S(hWnd, 180), S(hWnd, 28),
+            hWnd, (HMENU)(INT_PTR)REMAP_ID_TOGGLE_GAMEPADS, cs->hInstance, nullptr);
+        SendMessageW(st->btnToggleGamepads, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        for (int i = 0; i < n; ++i)
-        {
-            int cx = i % cols;
-            int cy = i / cols;
-            const RemapIconDef& idef = RemapIcons_Get(i);
+        st->iconsPerPack = RemapIcons_Count();
+        st->gamepadPacks = 1;
+        Remap_CreateIconPackButtons(hWnd, st, cs->hInstance, hFont, 0);
 
-            HWND b = CreateWindowW(L"BUTTON", L"",
-                WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-                startX + cx * (btnW + gapX),
-                startY + cy * (btnH + gapY),
-                btnW, btnH,
-                hWnd, (HMENU)(1000 + i), cs->hInstance, nullptr);
-
-            SendMessageW(b, WM_SETFONT, (WPARAM)hFont, TRUE);
-            SetWindowLongPtrW(b, GWLP_USERDATA, (LONG_PTR)i);
-            SetWindowSubclass(b, IconSubclassProc, 1, (DWORD_PTR)idef.action);
-            st->iconBtns[i] = b;
-        }
+        int savedPacks = std::clamp(Settings_GetVirtualGamepadCount(), 1, REMAP_MAX_GAMEPADS);
+        for (int p = 1; p < savedPacks; ++p)
+            Remap_CreateIconPackButtons(hWnd, st, cs->hInstance, hFont, p);
+        st->gamepadPacks = savedPacks;
+        st->gamepadsEnabled = Settings_GetVirtualGamepadsEnabled();
+        Settings_SetVirtualGamepadCount(st->gamepadPacks);
+        Settings_SetVirtualGamepadsEnabled(st->gamepadsEnabled);
+        Backend_SetVirtualGamepadCount(st->gamepadPacks);
+        Backend_SetVirtualGamepadsEnabled(st->gamepadsEnabled);
+        Remap_UpdateToggleGamepadsButtonText(st);
+        Remap_UpdateAddGamepadButtonText(st);
 
         ApplyRemapSizing(hWnd, st);
         return 0;
@@ -1311,6 +1490,23 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         if (wParam == VK_ESCAPE)
         {
             if (st) StopAllPanelAnim_Immediate(hWnd, st);
+            return 0;
+        }
+        return 0;
+
+    case WM_COMMAND:
+        if (st && LOWORD(wParam) == (UINT)REMAP_ID_ADD_GAMEPAD && HIWORD(wParam) == BN_CLICKED)
+        {
+            HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
+            HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+            if (Remap_AddGamepadPack(hWnd, st, hInst, hFont))
+                InvalidateRect(hWnd, nullptr, FALSE);
+            return 0;
+        }
+        if (st && LOWORD(wParam) == (UINT)REMAP_ID_TOGGLE_GAMEPADS && HIWORD(wParam) == BN_CLICKED)
+        {
+            Remap_ToggleGamepads(hWnd, st);
+            InvalidateRect(hWnd, nullptr, FALSE);
             return 0;
         }
         return 0;
@@ -1449,6 +1645,12 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
     {
         const DRAWITEMSTRUCT* dis = (const DRAWITEMSTRUCT*)lParam;
         if (!dis || dis->CtlType != ODT_BUTTON) return FALSE;
+
+        if (dis->CtlID == (UINT)REMAP_ID_ADD_GAMEPAD || dis->CtlID == (UINT)REMAP_ID_TOGGLE_GAMEPADS)
+        {
+            DrawAddGamepadButton(dis);
+            return TRUE;
+        }
 
         int idx = (int)GetWindowLongPtrW(dis->hwndItem, GWLP_USERDATA);
         if (idx < 0 || idx >= RemapIcons_Count()) return FALSE;

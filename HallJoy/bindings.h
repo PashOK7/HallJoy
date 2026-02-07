@@ -65,3 +65,6 @@ uint16_t Bindings_GetButton(GameButton b);
 // - triggers
 // - buttons (mask bits)
 void Bindings_ClearHid(uint16_t hid);
+
+// Returns true if HID is used by any gamepad binding (axis/trigger/button).
+bool Bindings_IsHidBound(uint16_t hid);

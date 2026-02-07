@@ -10,6 +10,12 @@ bool Backend_Init();
 void Backend_Shutdown();
 void Backend_Tick();
 
+// Virtual X360 gamepad count in ViGEm (1..4). Can be changed at runtime.
+void Backend_SetVirtualGamepadCount(int count);
+int Backend_GetVirtualGamepadCount();
+void Backend_SetVirtualGamepadsEnabled(bool on);
+bool Backend_GetVirtualGamepadsEnabled();
+
 SHORT Backend_GetLastRX();
 XUSB_REPORT Backend_GetLastReport();
 
@@ -24,6 +30,12 @@ uint16_t BackendUI_GetAnalogMilli(uint16_t hid);
 
 // NEW: raw analog value as reported by device (before invert/curve), milli-units [0..1000]
 uint16_t BackendUI_GetRawMilli(uint16_t hid);
+
+// Bind-capture helpers for layout editor:
+// - Enable capture mode
+// - Consume first newly-pressed HID (edge-triggered) and its raw milli value
+void BackendUI_SetBindCapture(bool enable);
+bool BackendUI_ConsumeBindCapture(uint16_t* outHid, uint16_t* outRawMilli);
 
 // dirty bits: which HID values changed since last consume.
 // chunk: 0..3 for HID ranges [0..63], [64..127], [128..191], [192..255]

@@ -32,6 +32,7 @@ extern "C" HWND KeyboardPageMain_CreatePage(HWND hParent, HINSTANCE hInst);
 // ---------- shared state (defined here) ----------
 std::array<HWND, 256> g_btnByHid{};
 std::vector<uint16_t> g_hids;
+std::vector<HWND> g_keyButtons;
 
 uint16_t g_selectedHid = 0;
 uint16_t g_dragHoverHid = 0;
@@ -41,6 +42,7 @@ HWND g_hPageRemap = nullptr;
 HWND g_hPageConfig = nullptr;
 HWND g_hPageLayout = nullptr;
 HWND g_hPageTester = nullptr;
+HWND g_hPageGlobal = nullptr;
 int  g_activeSubTab = 0;
 
 // expose selected HID to subpages module

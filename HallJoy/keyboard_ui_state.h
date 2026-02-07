@@ -11,6 +11,7 @@
 
 extern std::array<HWND, 256> g_btnByHid;
 extern std::vector<uint16_t> g_hids;
+extern std::vector<HWND> g_keyButtons;
 
 extern uint16_t g_selectedHid;
 extern uint16_t g_dragHoverHid;
@@ -20,4 +21,5 @@ extern HWND g_hPageRemap;
 extern HWND g_hPageConfig;
 extern HWND g_hPageLayout;
 extern HWND g_hPageTester;
+extern HWND g_hPageGlobal;
 extern int  g_activeSubTab;

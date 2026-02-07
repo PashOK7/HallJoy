@@ -190,3 +190,35 @@ void Bindings_ClearHid(uint16_t hid)
         }
     }
 }
+
+bool Bindings_IsHidBound(uint16_t hid)
+{
+    if (!hid) return false;
+
+    for (int i = 0; i < 4; ++i)
+    {
+        AxisBinding a = UnpackAxis(g_axes[(size_t)i].load(std::memory_order_acquire));
+        if (a.minusHid == hid || a.plusHid == hid)
+            return true;
+    }
+
+    for (int i = 0; i < 2; ++i)
+    {
+        if (g_triggers[(size_t)i].load(std::memory_order_acquire) == hid)
+            return true;
+    }
+
+    if (hid < 256)
+    {
+        const int chunk = (int)(hid / 64);
+        const int bit = (int)(hid % 64);
+        const uint64_t mask = (1ULL << bit);
+        for (size_t b = 0; b < g_btnMask.size(); ++b)
+        {
+            if (g_btnMask[b][(size_t)chunk].load(std::memory_order_acquire) & mask)
+                return true;
+        }
+    }
+
+    return false;
+}

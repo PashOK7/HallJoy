@@ -61,6 +61,12 @@ UINT Settings_GetPollingMs();
 void Settings_SetUIRefreshMs(UINT ms); // 1..200
 UINT Settings_GetUIRefreshMs();
 
+// Number of virtual X360 gamepads to expose through ViGEm (1..4).
+void Settings_SetVirtualGamepadCount(int count);
+int Settings_GetVirtualGamepadCount();
+void Settings_SetVirtualGamepadsEnabled(bool on);
+bool Settings_GetVirtualGamepadsEnabled();
+
 // ---------------- NEW: Snappy Joystick ----------------
 //
 // Behavior (per axis):
@@ -68,6 +74,10 @@ UINT Settings_GetUIRefreshMs();
 // - If values are equal, use the direction that was pressed last.
 void Settings_SetSnappyJoystick(bool on);
 bool Settings_GetSnappyJoystick();
+
+// Block physical keyboard events for keys that are currently bound to gamepad inputs.
+void Settings_SetBlockBoundKeys(bool on);
+bool Settings_GetBlockBoundKeys();
 
 // ---------------- DEBUG / TUNING (temporary) ----------------
 // All sizes are in "96-DPI pixels" (unscaled). UI scales them via WinUtil_ScalePx().
@@ -83,3 +93,10 @@ UINT Settings_GetBoundKeyIconSizePx();
 
 void Settings_SetBoundKeyIconBacking(bool on);  // extra opaque backing plate under icon (bound keys)
 bool Settings_GetBoundKeyIconBacking();
+
+// Main window size (pixels in current process DPI context).
+void Settings_SetMainWindowWidthPx(int px);
+int Settings_GetMainWindowWidthPx();
+
+void Settings_SetMainWindowHeightPx(int px);
+int Settings_GetMainWindowHeightPx();

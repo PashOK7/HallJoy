@@ -40,16 +40,183 @@
 
 // Scaling shortcut
 static int S(HWND hwnd, int px) { return WinUtil_ScalePx(hwnd, px); }
+static void SetSelectedHid(uint16_t hid);
+static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR, DWORD_PTR dwRefData);
 
-static int KeyboardBottomUnscaled()
+struct KeyboardViewMetrics
+{
+    float scale = 1.0f;
+    int offsetX = 0;
+    int offsetY = 0;
+    int scaledW = 0;
+    int scaledH = 0;
+};
+
+static void ComputeKeyboardViewMetrics(HWND hWnd, KeyboardViewMetrics& out)
 {
     const KeyDef* keys = KeyboardLayout_Data();
     int n = KeyboardLayout_Count();
-    int maxRow = 0;
-    for (int i = 0; i < n; ++i)
-        if (keys[i].row > maxRow) maxRow = keys[i].row;
 
-    return KEYBOARD_MARGIN_Y + maxRow * KEYBOARD_ROW_PITCH_Y + KEYBOARD_KEY_H;
+    int maxX = 1;
+    int maxBottom = KEYBOARD_KEY_H;
+    for (int i = 0; i < n; ++i)
+    {
+        maxX = std::max(maxX, keys[i].x + std::max(KEYBOARD_KEY_MIN_DIM, keys[i].w));
+        int bottom = keys[i].row * KEYBOARD_ROW_PITCH_Y + std::max(KEYBOARD_KEY_MIN_DIM, keys[i].h);
+        if (bottom > maxBottom) maxBottom = bottom;
+    }
+
+    int modelW = KEYBOARD_MARGIN_X + maxX + KEYBOARD_MARGIN_X;
+    int modelH = KEYBOARD_MARGIN_Y + maxBottom;
+
+    int baseW = std::max(1, S(hWnd, modelW));
+    int baseH = std::max(1, S(hWnd, modelH));
+
+    RECT rc{};
+    GetClientRect(hWnd, &rc);
+    int cw = std::max(1, (int)(rc.right - rc.left));
+    int ch = std::max(1, (int)(rc.bottom - rc.top));
+
+    int sidePad = S(hWnd, 24);
+    int topPad = S(hWnd, 8);
+    int bottomPad = S(hWnd, 12);
+    int minSubH = S(hWnd, 170);
+
+    int availW = std::max(1, cw - sidePad);
+    int availH = std::max(1, ch - topPad - bottomPad - minSubH);
+
+    float sx = (float)availW / (float)baseW;
+    float sy = (float)availH / (float)baseH;
+    out.scale = std::min(1.0f, std::min(sx, sy));
+    out.scale = std::clamp(out.scale, 0.01f, 1.0f);
+
+    out.scaledW = std::max(1, (int)std::lround((double)baseW * out.scale));
+    out.scaledH = std::max(1, (int)std::lround((double)baseH * out.scale));
+
+    if (out.scale >= 0.999f)
+        out.offsetX = 0; // keep stable position at native size to avoid resize jitter/flicker
+    else
+        out.offsetX = std::max(0, (cw - out.scaledW) / 2);
+    out.offsetY = topPad;
+    if (out.offsetY + out.scaledH > ch - bottomPad)
+        out.offsetY = std::max(0, (ch - bottomPad) - out.scaledH);
+}
+
+static void DestroyKeyboardButtons()
+{
+    for (HWND b : g_keyButtons)
+    {
+        if (b && IsWindow(b))
+            DestroyWindow(b);
+    }
+    g_keyButtons.clear();
+    g_btnByHid.fill(nullptr);
+    g_hids.clear();
+}
+
+static int KeyboardBottomPx(HWND hWnd)
+{
+    KeyboardViewMetrics m{};
+    ComputeKeyboardViewMetrics(hWnd, m);
+    return m.offsetY + m.scaledH;
+}
+
+static void LayoutKeyboardButtons(HWND hWnd)
+{
+    const KeyDef* keys = KeyboardLayout_Data();
+    int n = KeyboardLayout_Count();
+    if (!keys || n <= 0 || g_keyButtons.empty()) return;
+
+    KeyboardViewMetrics m{};
+    ComputeKeyboardViewMetrics(hWnd, m);
+
+    int cnt = std::min(n, (int)g_keyButtons.size());
+    HDWP hdwp = BeginDeferWindowPos(std::max(1, cnt));
+    bool anyChanged = false;
+    for (int i = 0; i < cnt; ++i)
+    {
+        HWND b = g_keyButtons[(size_t)i];
+        if (!b || !IsWindow(b)) continue;
+
+        const auto& k = keys[i];
+        int baseX = S(hWnd, KEYBOARD_MARGIN_X + k.x);
+        int baseY = S(hWnd, KEYBOARD_MARGIN_Y + k.row * KEYBOARD_ROW_PITCH_Y);
+        int baseW = S(hWnd, std::max(KEYBOARD_KEY_MIN_DIM, k.w));
+        int baseH = S(hWnd, std::max(KEYBOARD_KEY_MIN_DIM, k.h));
+
+        int px = m.offsetX + (int)std::lround((double)baseX * m.scale);
+        int py = m.offsetY + (int)std::lround((double)baseY * m.scale);
+        int pw = std::max(8, (int)std::lround((double)baseW * m.scale));
+        int ph = std::max(8, (int)std::lround((double)baseH * m.scale));
+
+        RECT cur{};
+        GetWindowRect(b, &cur);
+        MapWindowPoints(nullptr, hWnd, (LPPOINT)&cur, 2);
+        int cw = cur.right - cur.left;
+        int ch = cur.bottom - cur.top;
+        if (cur.left == px && cur.top == py && cw == pw && ch == ph)
+            continue;
+
+        anyChanged = true;
+        if (hdwp)
+        {
+            hdwp = DeferWindowPos(
+                hdwp, b, nullptr, px, py, pw, ph,
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOCOPYBITS | SWP_NOREDRAW);
+        }
+        else
+        {
+            SetWindowPos(
+                b, nullptr, px, py, pw, ph,
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOCOPYBITS | SWP_NOREDRAW);
+        }
+    }
+
+    if (hdwp)
+        EndDeferWindowPos(hdwp);
+
+    if (anyChanged)
+    {
+        RedrawWindow(hWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN);
+    }
+}
+
+static void RebuildKeyboardButtons(HWND hWnd)
+{
+    uint16_t keepSelected = g_selectedHid;
+    HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
+
+    DestroyKeyboardButtons();
+
+    const KeyDef* keys = KeyboardLayout_Data();
+    int n = KeyboardLayout_Count();
+    for (int i = 0; i < n; ++i)
+    {
+        const auto& k = keys[i];
+
+        HWND b = CreateWindowW(L"BUTTON", k.label,
+            WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+            0, 0, 10, 10,
+            hWnd, nullptr, hInst, nullptr);
+
+        SetWindowLongPtrW(b, GWLP_USERDATA, (LONG_PTR)k.hid);
+        SetWindowSubclass(b, KeyBtnSubclassProc, 1, (DWORD_PTR)k.hid);
+        g_keyButtons.push_back(b);
+
+        if (k.hid != 0 && k.hid < 256)
+        {
+            g_btnByHid[k.hid] = b;
+            g_hids.push_back((uint16_t)k.hid);
+        }
+    }
+
+    BackendUI_SetTrackedHids(g_hids.data(), (int)g_hids.size());
+    LayoutKeyboardButtons(hWnd);
+
+    if (keepSelected >= 256 || g_btnByHid[keepSelected] == nullptr)
+        keepSelected = 0;
+    SetSelectedHid(keepSelected);
 }
 
 static HWND GetBtnForHid(uint16_t hid)
@@ -92,6 +259,7 @@ static void ShowSubPage(int idx)
     if (g_hPageRemap)  ShowWindow(g_hPageRemap, idx == 0 ? SW_SHOW : SW_HIDE);
     if (g_hPageConfig) ShowWindow(g_hPageConfig, idx == 1 ? SW_SHOW : SW_HIDE);
     if (g_hPageTester) ShowWindow(g_hPageTester, idx == 2 ? SW_SHOW : SW_HIDE);
+    if (g_hPageGlobal) ShowWindow(g_hPageGlobal, idx == 3 ? SW_SHOW : SW_HIDE);
 
     if (g_hSubTab) InvalidateRect(g_hSubTab, nullptr, FALSE);
 }
@@ -103,7 +271,7 @@ static void ResizeSubUi(HWND hWnd)
     RECT rc{};
     GetClientRect(hWnd, &rc);
 
-    int kbBottom = S(hWnd, KeyboardBottomUnscaled());
+    int kbBottom = KeyboardBottomPx(hWnd);
     int x = S(hWnd, 12);
     int y = kbBottom + S(hWnd, 12);
 
@@ -129,6 +297,9 @@ static void ResizeSubUi(HWND hWnd)
 
     if (g_hPageTester)
         SetWindowPos(g_hPageTester, nullptr, tabRc.left, tabRc.top, pw, ph, SWP_NOZORDER);
+
+    if (g_hPageGlobal)
+        SetWindowPos(g_hPageGlobal, nullptr, tabRc.left, tabRc.top, pw, ph, SWP_NOZORDER);
 }
 
 // ----- Right-click unbind on key button + drag bound icon (subclass) -----
@@ -1316,39 +1487,11 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 
     case WM_CREATE:
     {
-        HINSTANCE hInst = (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE);
+        HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
 
         Profile_LoadIni(AppPaths_BindingsIni().c_str());
 
-        g_btnByHid.fill(nullptr);
-        g_hids.clear();
-
-        const KeyDef* keys = KeyboardLayout_Data();
-        int n = KeyboardLayout_Count();
-
-        for (int i = 0; i < n; i++)
-        {
-            const auto& k = keys[i];
-
-            int px = S(hWnd, KEYBOARD_MARGIN_X + k.x);
-            int py = S(hWnd, KEYBOARD_MARGIN_Y + k.row * KEYBOARD_ROW_PITCH_Y);
-
-            HWND b = CreateWindowW(L"BUTTON", k.label,
-                WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-                px, py, S(hWnd, k.w), S(hWnd, KEYBOARD_KEY_H),
-                hWnd, nullptr, hInst, nullptr);
-
-            SetWindowLongPtrW(b, GWLP_USERDATA, (LONG_PTR)k.hid);
-            SetWindowSubclass(b, KeyBtnSubclassProc, 1, (DWORD_PTR)k.hid);
-
-            if (k.hid != 0 && k.hid < 256)
-            {
-                g_btnByHid[k.hid] = b;
-                g_hids.push_back((uint16_t)k.hid);
-            }
-        }
-
-        BackendUI_SetTrackedHids(g_hids.data(), (int)g_hids.size());
+        RebuildKeyboardButtons(hWnd);
 
         g_hSubTab = CreateWindowW(WC_TABCONTROLW, L"",
             WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
@@ -1369,6 +1512,9 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 
         tie.pszText = (LPWSTR)L"Gamepad Tester";
         TabCtrl_InsertItem(g_hSubTab, 2, &tie);
+
+        tie.pszText = (LPWSTR)L"Global settings";
+        TabCtrl_InsertItem(g_hSubTab, 3, &tie);
 
         g_hPageRemap = RemapPanel_Create(g_hSubTab, hInst, hWnd);
 
@@ -1402,18 +1548,32 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         g_hPageTester = CreateWindowW(L"KeyboardSubTesterPage", L"",
             WS_CHILD | WS_CLIPCHILDREN, 0, 0, 100, 100, g_hSubTab, nullptr, hInst, nullptr);
 
+        static bool glbReg = false;
+        if (!glbReg)
+        {
+            WNDCLASSW wc{};
+            wc.lpfnWndProc = KeyboardSubpages_GlobalSettingsPageProc;
+            wc.hInstance = hInst;
+            wc.lpszClassName = L"KeyboardSubGlobalSettingsPage";
+            wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+            wc.hbrBackground = nullptr;
+            RegisterClassW(&wc);
+            glbReg = true;
+        }
+        g_hPageGlobal = CreateWindowW(L"KeyboardSubGlobalSettingsPage", L"",
+            WS_CHILD | WS_CLIPCHILDREN, 0, 0, 100, 100, g_hSubTab, nullptr, hInst, nullptr);
+
         ResizeSubUi(hWnd);
         TabCtrl_SetCurSel(g_hSubTab, 0);
         ShowSubPage(0);
 
         for (uint16_t hid2 : g_hids)
             InvalidateRect(g_btnByHid[hid2], nullptr, FALSE);
-
-        SetSelectedHid(0);
         return 0;
     }
 
     case WM_SIZE:
+        LayoutKeyboardButtons(hWnd);
         ResizeSubUi(hWnd);
         InvalidateRect(hWnd, nullptr, FALSE);
         return 0;
@@ -1604,6 +1764,18 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         }
         return 0;
 
+    case WM_APP_KEYBOARD_LAYOUT_CHANGED:
+        // Rebuild visible keyboard immediately when layout preset changes from subpages.
+        KeyDrag_Stop();
+        if (g_kdel.running) KeyDel_Stop();
+        if (g_swapfly.running) SwapFly_Stop(true);
+        KeyboardUI_SetDragHoverHid(0);
+
+        RebuildKeyboardButtons(hWnd);
+        ResizeSubUi(hWnd);
+        InvalidateRect(hWnd, nullptr, FALSE);
+        return 0;
+
     case WM_DRAWITEM:
     {
         const DRAWITEMSTRUCT* dis = (const DRAWITEMSTRUCT*)lParam;
@@ -1687,6 +1859,6 @@ extern "C" HWND KeyboardPageMain_CreatePage(HWND hParent, HINSTANCE hInst)
         registered = true;
     }
 
-    return CreateWindowW(L"PageMainClass", L"", WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN,
+    return CreateWindowExW(WS_EX_COMPOSITED, L"PageMainClass", L"", WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN,
         0, 0, 100, 100, hParent, nullptr, hInst, nullptr);
 }

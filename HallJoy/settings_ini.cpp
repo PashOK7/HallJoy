@@ -280,9 +280,14 @@ bool SettingsIni_Load(const wchar_t* path)
     UINT curveMode = IniReadU32(L"Input", L"CurveMode", Settings_GetInputCurveMode(), path);
     int invert = GetPrivateProfileIntW(L"Input", L"Invert", 0, path);
     int snappy = GetPrivateProfileIntW(L"Input", L"SnappyJoystick", Settings_GetSnappyJoystick() ? 1 : 0, path);
+    int blockBoundKeys = GetPrivateProfileIntW(L"Input", L"BlockBoundKeys", Settings_GetBlockBoundKeys() ? 1 : 0, path);
 
     UINT poll = IniReadU32(L"Main", L"PollingMs", Settings_GetPollingMs(), path);
     UINT uiMs = IniReadU32(L"Main", L"UIRefreshMs", Settings_GetUIRefreshMs(), path);
+    int vpadCount = GetPrivateProfileIntW(L"Main", L"VirtualGamepads", Settings_GetVirtualGamepadCount(), path);
+    int vpadEnabled = GetPrivateProfileIntW(L"Main", L"VirtualGamepadsEnabled", Settings_GetVirtualGamepadsEnabled() ? 1 : 0, path);
+    int winW = GetPrivateProfileIntW(L"Window", L"Width", Settings_GetMainWindowWidthPx(), path);
+    int winH = GetPrivateProfileIntW(L"Window", L"Height", Settings_GetMainWindowHeightPx(), path);
 
     Settings_SetInputDeadzoneLow(low);
     Settings_SetInputDeadzoneHigh(high);
@@ -301,9 +306,14 @@ bool SettingsIni_Load(const wchar_t* path)
     Settings_SetInputCurveMode(curveMode);
     Settings_SetInputInvert(invert != 0);
     Settings_SetSnappyJoystick(snappy != 0);
+    Settings_SetBlockBoundKeys(blockBoundKeys != 0);
 
     Settings_SetPollingMs(poll);
     Settings_SetUIRefreshMs(uiMs);
+    Settings_SetVirtualGamepadCount(vpadCount);
+    Settings_SetVirtualGamepadsEnabled(vpadEnabled != 0);
+    Settings_SetMainWindowWidthPx(winW);
+    Settings_SetMainWindowHeightPx(winH);
 
     KeySettingsIni_LoadFromSettingsIni(path);
     KeyboardLayout_LoadFromIni(path);
@@ -333,9 +343,14 @@ static bool SettingsIni_Save_Internal(const wchar_t* tmpPath)
     IniWriteU32(L"Input", L"CurveMode", Settings_GetInputCurveMode(), tmpPath);
     IniWriteI32(L"Input", L"Invert", Settings_GetInputInvert() ? 1 : 0, tmpPath);
     IniWriteI32(L"Input", L"SnappyJoystick", Settings_GetSnappyJoystick() ? 1 : 0, tmpPath);
+    IniWriteI32(L"Input", L"BlockBoundKeys", Settings_GetBlockBoundKeys() ? 1 : 0, tmpPath);
 
     IniWriteU32(L"Main", L"PollingMs", Settings_GetPollingMs(), tmpPath);
     IniWriteU32(L"Main", L"UIRefreshMs", Settings_GetUIRefreshMs(), tmpPath);
+    IniWriteI32(L"Main", L"VirtualGamepads", std::clamp(Settings_GetVirtualGamepadCount(), 1, 4), tmpPath);
+    IniWriteI32(L"Main", L"VirtualGamepadsEnabled", Settings_GetVirtualGamepadsEnabled() ? 1 : 0, tmpPath);
+    IniWriteI32(L"Window", L"Width", std::max(0, Settings_GetMainWindowWidthPx()), tmpPath);
+    IniWriteI32(L"Window", L"Height", std::max(0, Settings_GetMainWindowHeightPx()), tmpPath);
 
     KeySettingsIni_SaveToSettingsIni(tmpPath);
     KeyboardLayout_SaveToIni(tmpPath);

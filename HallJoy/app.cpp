@@ -81,6 +81,11 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 
         // Create the main keyboard UI page directly (no top-level tabs anymore)
         g_hPageMain = KeyboardUI_CreatePage(hwnd, hInst);
+        if (!g_hPageMain)
+        {
+            MessageBoxW(hwnd, L"Failed to create main UI page.", L"Error", MB_ICONERROR);
+            return -1; // abort window creation
+        }
 
         ResizeChildren(hwnd);
         ShowWindow(g_hPageMain, SW_SHOW);
@@ -88,8 +93,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         if (!Backend_Init())
         {
             MessageBoxW(hwnd, L"Failed to init backend (Wooting/ViGEm).", L"Error", MB_ICONERROR);
-            PostQuitMessage(1);
-            return 0;
+            return -1; // abort window creation
         }
 
         RealtimeLoop_Start();
@@ -97,6 +101,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 
         // Auto-detect refresh rate for UI timer
         int hz = WinUtil_GetMaxRefreshRate();
+        if (hz <= 0) hz = 60;
         UINT interval = (UINT)(1000 / hz);
         if (interval < 1) interval = 1;
         SetTimer(hwnd, UI_TIMER_ID, interval, nullptr);
@@ -183,9 +188,14 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
 
     ShowWindow(hwnd, nCmdShow);
 
-    MSG msg;
-    while (GetMessageW(&msg, nullptr, 0, 0))
+    MSG msg{};
+    while (true)
     {
+        BOOL gm = GetMessageW(&msg, nullptr, 0, 0);
+        if (gm == -1)
+            return 3;
+        if (gm == 0)
+            break;
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }

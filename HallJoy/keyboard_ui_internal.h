@@ -7,6 +7,9 @@
 
 uint16_t KeyboardUI_Internal_GetSelectedHid();
 
+static constexpr UINT WM_APP_KEYBOARD_LAYOUT_CHANGED = WM_APP + 260;
+
 // Subpage window procedures (implemented in keyboard_subpages.cpp)
 LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);

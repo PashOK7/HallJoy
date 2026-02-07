@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cwchar>
 #include <cmath>
+#include <vector>
 
 #ifdef min
 #undef min
@@ -254,8 +255,13 @@ static void Combo_GetSelectedText(HWND hCombo, wchar_t* out, int outCch)
 
     int sel = (int)SendMessageW(hCombo, CB_GETCURSEL, 0, 0);
     if (sel < 0) return;
+    int textLen = (int)SendMessageW(hCombo, CB_GETLBTEXTLEN, (WPARAM)sel, 0);
+    if (textLen < 0) return;
+    std::vector<wchar_t> tmp((size_t)textLen + 1u, 0);
+    if (tmp.empty()) return;
 
-    SendMessageW(hCombo, CB_GETLBTEXT, (WPARAM)sel, (LPARAM)out);
+    SendMessageW(hCombo, CB_GETLBTEXT, (WPARAM)sel, (LPARAM)tmp.data());
+    wcsncpy_s(out, (size_t)outCch, tmp.data(), _TRUNCATE);
 }
 
 static void Combo_PaintClosed_Impl(HWND hCombo, HDC hdc)
@@ -422,7 +428,18 @@ static void DrawComboListItem_Impl(const DRAWITEMSTRUCT* dis)
 
     wchar_t text[256]{};
     if (dis->itemID != (UINT)-1)
-        SendMessageW(dis->hwndItem, CB_GETLBTEXT, (WPARAM)dis->itemID, (LPARAM)text);
+    {
+        int textLen = (int)SendMessageW(dis->hwndItem, CB_GETLBTEXTLEN, (WPARAM)dis->itemID, 0);
+        if (textLen > 0)
+        {
+            std::vector<wchar_t> tmp((size_t)textLen + 1u, 0);
+            if (!tmp.empty())
+            {
+                SendMessageW(dis->hwndItem, CB_GETLBTEXT, (WPARAM)dis->itemID, (LPARAM)tmp.data());
+                wcsncpy_s(text, tmp.data(), _TRUNCATE);
+            }
+        }
+    }
 
     RectF tr = r;
     tr.Inflate(-8.0f, 0.0f);

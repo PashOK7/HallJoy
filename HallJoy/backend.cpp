@@ -494,7 +494,8 @@ void Backend_Tick()
     SetBtn(XUSB_GAMEPAD_DPAD_RIGHT, BtnPressedFromMask(GameButton::DpadRight, cache));
 
     g_lastRX.store(g_report.sThumbRX, std::memory_order_release);
-    g_lastSeq.fetch_add(1, std::memory_order_relaxed);
+    // Mark sequence as "write in progress" (odd) before touching payload.
+    g_lastSeq.fetch_add(1, std::memory_order_acq_rel);
     g_lastReport = g_report;
     g_lastSeq.fetch_add(1, std::memory_order_release);
 

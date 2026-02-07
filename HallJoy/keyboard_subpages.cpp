@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <cstdio>
 
 #ifdef min
 #undef min
@@ -31,6 +32,7 @@
 #include "win_util.h"
 #include "keyboard_profiles.h"
 #include "premium_combo.h"
+#include "keyboard_layout.h"
 
 using namespace Gdiplus;
 namespace fs = std::filesystem;
@@ -40,10 +42,30 @@ static constexpr UINT WM_APP_PROFILE_BEGIN_CREATE = WM_APP + 120;
 
 static constexpr UINT_PTR TOAST_TIMER_ID = 8811;
 static constexpr DWORD    TOAST_SHOW_MS = 1600;
+static constexpr const wchar_t* CONFIG_SCROLLY_PROP = L"DD_ConfigScrollY";
 
 static constexpr int ID_SNAPPY = 7003;
 
 static int S(HWND hwnd, int px) { return WinUtil_ScalePx(hwnd, px); }
+static Color Gp(COLORREF c, BYTE a = 255);
+
+static void SnappyDebugLog(const wchar_t* stage, HWND hBtn, int extraA = -1, int extraB = -1)
+{
+#if defined(_DEBUG)
+    int check = -1;
+    if (hBtn && IsWindow(hBtn))
+        check = (int)SendMessageW(hBtn, BM_GETCHECK, 0, 0);
+
+    int setting = Settings_GetSnappyJoystick() ? 1 : 0;
+
+    wchar_t buf[320]{};
+    swprintf_s(buf, L"[SnappyDbg] %s hwnd=%p check=%d setting=%d a=%d b=%d\n",
+        stage ? stage : L"(null)", (void*)hBtn, check, setting, extraA, extraB);
+    OutputDebugStringW(buf);
+#else
+    (void)stage; (void)hBtn; (void)extraA; (void)extraB;
+#endif
+}
 
 // ---------------- Double-buffer helpers ----------------
 static void BeginDoubleBufferPaint(HWND hWnd, PAINTSTRUCT& ps, HDC& outMemDC, HBITMAP& outBmp, HGDIOBJ& outOldBmp)
@@ -150,9 +172,417 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
 }
 
 // ============================================================================
+// Keyboard Layout page (preset picker + visual editor)
+// ============================================================================
+struct LayoutPageState
+{
+    HWND lblPreset = nullptr;
+    HWND cmbPreset = nullptr;
+    HWND btnReset = nullptr;
+    HWND lstKeys = nullptr;
+    HWND lblHint = nullptr;
+
+    int selectedIdx = -1;
+    bool dragging = false;
+    bool dirty = false;
+    int dragOffsetX = 0;
+    int dragOffsetY = 0;
+    RECT canvasRc{};
+};
+
+static constexpr int ID_LAYOUT_PRESET = 8111;
+static constexpr int ID_LAYOUT_RESET = 8112;
+static constexpr int ID_LAYOUT_KEYS = 8113;
+
+static void Layout_RequestSave(HWND hWnd)
+{
+    HWND root = GetAncestor(hWnd, GA_ROOT);
+    if (root) PostMessageW(root, WM_APP_REQUEST_SAVE, 0, 0);
+}
+
+static void Layout_NotifyMainPage(HWND hWnd)
+{
+    HWND tab = GetParent(hWnd);
+    HWND page = tab ? GetParent(tab) : nullptr;
+    if (page) PostMessageW(page, WM_APP_KEYBOARD_LAYOUT_CHANGED, 0, 0);
+}
+
+static void Layout_ComputeCanvasRect(HWND hWnd, LayoutPageState* st)
+{
+    RECT rc{};
+    GetClientRect(hWnd, &rc);
+
+    int margin = S(hWnd, 12);
+    int leftW = S(hWnd, 300);
+    int topY = S(hWnd, 56);
+
+    st->canvasRc.left = margin + leftW + S(hWnd, 12);
+    st->canvasRc.top = topY;
+    st->canvasRc.right = rc.right - margin;
+    st->canvasRc.bottom = rc.bottom - margin;
+}
+
+static void Layout_ComputeTransform(const RECT& canvas, float& scale, float& ox, float& oy)
+{
+    int n = KeyboardLayout_Count();
+    const KeyDef* keys = KeyboardLayout_Data();
+
+    int maxX = 1;
+    int maxRow = 0;
+    for (int i = 0; i < n; ++i)
+    {
+        maxX = std::max(maxX, keys[i].x + keys[i].w);
+        maxRow = std::max(maxRow, keys[i].row);
+    }
+
+    int modelW = KEYBOARD_MARGIN_X + maxX + KEYBOARD_MARGIN_X;
+    int modelH = KEYBOARD_MARGIN_Y + (maxRow + 1) * KEYBOARD_ROW_PITCH_Y + KEYBOARD_KEY_H + KEYBOARD_MARGIN_Y;
+
+    float cw = (float)(canvas.right - canvas.left);
+    float ch = (float)(canvas.bottom - canvas.top);
+    float sx = cw / (float)std::max(1, modelW);
+    float sy = ch / (float)std::max(1, modelH);
+    scale = std::max(0.1f, std::min(sx, sy));
+
+    float drawW = (float)modelW * scale;
+    float drawH = (float)modelH * scale;
+
+    ox = (float)canvas.left + (cw - drawW) * 0.5f;
+    oy = (float)canvas.top + (ch - drawH) * 0.5f;
+}
+
+static RECT Layout_KeyRectOnCanvas(int idx, const RECT& canvas)
+{
+    RECT r{};
+    KeyDef k{};
+    if (!KeyboardLayout_GetKey(idx, k)) return r;
+
+    float scale = 1.0f, ox = 0.0f, oy = 0.0f;
+    Layout_ComputeTransform(canvas, scale, ox, oy);
+
+    int x = (int)std::lround(ox + (KEYBOARD_MARGIN_X + k.x) * scale);
+    int y = (int)std::lround(oy + (KEYBOARD_MARGIN_Y + k.row * KEYBOARD_ROW_PITCH_Y) * scale);
+    int w = std::max(10, (int)std::lround(k.w * scale));
+    int h = std::max(10, (int)std::lround(KEYBOARD_KEY_H * scale));
+    r = RECT{ x, y, x + w, y + h };
+    return r;
+}
+
+static int Layout_HitTestKey(LayoutPageState* st, POINT pt)
+{
+    int n = KeyboardLayout_Count();
+    for (int i = n - 1; i >= 0; --i)
+    {
+        RECT r = Layout_KeyRectOnCanvas(i, st->canvasRc);
+        if (PtInRect(&r, pt)) return i;
+    }
+    return -1;
+}
+
+static void Layout_RefreshKeyList(HWND hWnd, LayoutPageState* st)
+{
+    if (!st || !st->lstKeys) return;
+    SendMessageW(st->lstKeys, LB_RESETCONTENT, 0, 0);
+
+    int n = KeyboardLayout_Count();
+    for (int i = 0; i < n; ++i)
+    {
+        KeyDef k{};
+        if (!KeyboardLayout_GetKey(i, k)) continue;
+
+        wchar_t line[256]{};
+        swprintf_s(line, L"%2d. %-7ls HID:%3u  row:%d x:%d w:%d", i + 1,
+            (k.label ? k.label : L""), (unsigned)k.hid, k.row, k.x, k.w);
+        SendMessageW(st->lstKeys, LB_ADDSTRING, 0, (LPARAM)line);
+    }
+
+    if (st->selectedIdx >= n) st->selectedIdx = -1;
+    if (st->selectedIdx >= 0)
+        SendMessageW(st->lstKeys, LB_SETCURSEL, (WPARAM)st->selectedIdx, 0);
+}
+
+static void Layout_DrawCanvas(HWND hWnd, HDC hdc, LayoutPageState* st)
+{
+    if (!st) return;
+    Layout_ComputeCanvasRect(hWnd, st);
+
+    Graphics g(hdc);
+    g.SetSmoothingMode(SmoothingModeAntiAlias);
+    g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+    g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
+
+    RectF canvas((REAL)st->canvasRc.left, (REAL)st->canvasRc.top,
+        (REAL)(st->canvasRc.right - st->canvasRc.left), (REAL)(st->canvasRc.bottom - st->canvasRc.top));
+
+    SolidBrush bg(Gp(RGB(28, 28, 30)));
+    g.FillRectangle(&bg, canvas);
+    Pen border(Gp(UiTheme::Color_Border()), 1.0f);
+    g.DrawRectangle(&border, canvas);
+
+    int n = KeyboardLayout_Count();
+    for (int i = 0; i < n; ++i)
+    {
+        KeyDef k{};
+        if (!KeyboardLayout_GetKey(i, k)) continue;
+
+        RECT rr = Layout_KeyRectOnCanvas(i, st->canvasRc);
+        RectF r((REAL)rr.left, (REAL)rr.top, (REAL)(rr.right - rr.left), (REAL)(rr.bottom - rr.top));
+        r.Inflate(-1.0f, -1.0f);
+
+        bool sel = (i == st->selectedIdx);
+        SolidBrush fill(sel ? Gp(UiTheme::Color_Accent(), 210) : Gp(RGB(48, 48, 52), 230));
+        g.FillRectangle(&fill, r);
+
+        Pen keyBorder(sel ? Gp(RGB(245, 245, 245)) : Gp(UiTheme::Color_Border()), sel ? 2.0f : 1.0f);
+        g.DrawRectangle(&keyBorder, r);
+
+        if (k.label && k.label[0])
+        {
+            FontFamily ff(L"Segoe UI");
+            float em = std::clamp(r.Height * 0.36f, 9.0f, 13.0f);
+            Font font(&ff, em, FontStyleRegular, UnitPixel);
+            StringFormat fmt;
+            fmt.SetAlignment(StringAlignmentCenter);
+            fmt.SetLineAlignment(StringAlignmentCenter);
+            fmt.SetFormatFlags(StringFormatFlagsNoWrap);
+            SolidBrush txt(sel ? Gp(RGB(12, 12, 12)) : Gp(UiTheme::Color_Text()));
+            g.DrawString(k.label, -1, &font, r, &fmt, &txt);
+        }
+    }
+}
+
+static void Layout_ApplyDrag(HWND hWnd, LayoutPageState* st, POINT ptClient)
+{
+    if (!st || st->selectedIdx < 0) return;
+
+    KeyDef k{};
+    if (!KeyboardLayout_GetKey(st->selectedIdx, k)) return;
+
+    float scale = 1.0f, ox = 0.0f, oy = 0.0f;
+    Layout_ComputeTransform(st->canvasRc, scale, ox, oy);
+    if (scale <= 0.0001f) return;
+
+    int left = ptClient.x - st->dragOffsetX;
+    int top = ptClient.y - st->dragOffsetY;
+
+    int modelX = (int)std::lround(((float)left - ox) / scale) - KEYBOARD_MARGIN_X;
+    float rowPitch = (float)KEYBOARD_ROW_PITCH_Y * scale;
+    int modelRow = (int)std::lround((((float)top - oy) - (float)KEYBOARD_MARGIN_Y * scale) / std::max(1.0f, rowPitch));
+
+    if (KeyboardLayout_SetKeyGeometry(st->selectedIdx, modelRow, modelX, k.w))
+    {
+        st->dirty = true;
+        Layout_RefreshKeyList(hWnd, st);
+        InvalidateRect(hWnd, &st->canvasRc, FALSE);
+    }
+}
+
+LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    auto* st = (LayoutPageState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+
+    switch (msg)
+    {
+    case WM_ERASEBKGND:
+        return 1;
+
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps{};
+        HDC memDC = nullptr;
+        HBITMAP bmp = nullptr;
+        HGDIOBJ oldBmp = nullptr;
+        BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+
+        Layout_DrawCanvas(hWnd, memDC, st);
+
+        EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        return 0;
+    }
+
+    case WM_CTLCOLORSTATIC:
+    {
+        HDC hdc = (HDC)wParam;
+        SetBkMode(hdc, TRANSPARENT);
+        SetTextColor(hdc, UiTheme::Color_TextMuted());
+        return (LRESULT)UiTheme::Brush_PanelBg();
+    }
+
+    case WM_CREATE:
+    {
+        HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
+        HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+
+        st = new LayoutPageState();
+        SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)st);
+
+        st->lblPreset = CreateWindowW(L"STATIC", L"Keyboard model", WS_CHILD | WS_VISIBLE,
+            0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblPreset, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->cmbPreset = CreateWindowW(WC_COMBOBOXW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST,
+            0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)ID_LAYOUT_PRESET, hInst, nullptr);
+        SendMessageW(st->cmbPreset, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->btnReset = CreateWindowW(L"BUTTON", L"Reset To Preset", WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+            0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)ID_LAYOUT_RESET, hInst, nullptr);
+        SendMessageW(st->btnReset, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->lstKeys = CreateWindowW(L"LISTBOX", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | LBS_NOTIFY | WS_VSCROLL | WS_BORDER,
+            0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)ID_LAYOUT_KEYS, hInst, nullptr);
+        SendMessageW(st->lstKeys, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->lblHint = CreateWindowW(L"STATIC",
+            L"Drag keys in preview to move them. Mouse wheel over selected key changes width.", WS_CHILD | WS_VISIBLE,
+            0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblHint, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        int presetCount = KeyboardLayout_GetPresetCount();
+        for (int i = 0; i < presetCount; ++i)
+            SendMessageW(st->cmbPreset, CB_ADDSTRING, 0, (LPARAM)KeyboardLayout_GetPresetName(i));
+        SendMessageW(st->cmbPreset, CB_SETCURSEL, (WPARAM)KeyboardLayout_GetCurrentPresetIndex(), 0);
+
+        Layout_RefreshKeyList(hWnd, st);
+        return 0;
+    }
+
+    case WM_SIZE:
+        if (st)
+        {
+            RECT rc{};
+            GetClientRect(hWnd, &rc);
+            int margin = S(hWnd, 12);
+            int leftW = S(hWnd, 300);
+            int topY = S(hWnd, 56);
+
+            SetWindowPos(st->lblPreset, nullptr, margin, margin, leftW, S(hWnd, 18), SWP_NOZORDER);
+            SetWindowPos(st->cmbPreset, nullptr, margin, margin + S(hWnd, 20), leftW - S(hWnd, 110), S(hWnd, 340), SWP_NOZORDER);
+            SetWindowPos(st->btnReset, nullptr, margin + leftW - S(hWnd, 104), margin + S(hWnd, 20), S(hWnd, 104), S(hWnd, 26), SWP_NOZORDER);
+            int listH = std::max(S(hWnd, 80), (int)rc.bottom - topY - margin - S(hWnd, 34));
+            SetWindowPos(st->lstKeys, nullptr, margin, topY, leftW, listH, SWP_NOZORDER);
+            SetWindowPos(st->lblHint, nullptr, margin, rc.bottom - margin - S(hWnd, 22), leftW, S(hWnd, 20), SWP_NOZORDER);
+
+            Layout_ComputeCanvasRect(hWnd, st);
+        }
+        InvalidateRect(hWnd, nullptr, FALSE);
+        return 0;
+
+    case WM_COMMAND:
+        if (!st) return 0;
+        if (LOWORD(wParam) == ID_LAYOUT_PRESET && HIWORD(wParam) == CBN_SELCHANGE)
+        {
+            int sel = (int)SendMessageW(st->cmbPreset, CB_GETCURSEL, 0, 0);
+            KeyboardLayout_SetPresetIndex(sel);
+            st->selectedIdx = -1;
+            Layout_RefreshKeyList(hWnd, st);
+            Layout_NotifyMainPage(hWnd);
+            Layout_RequestSave(hWnd);
+            InvalidateRect(hWnd, nullptr, FALSE);
+            return 0;
+        }
+        if (LOWORD(wParam) == ID_LAYOUT_RESET && HIWORD(wParam) == BN_CLICKED)
+        {
+            KeyboardLayout_ResetActiveToPreset();
+            st->selectedIdx = -1;
+            Layout_RefreshKeyList(hWnd, st);
+            Layout_NotifyMainPage(hWnd);
+            Layout_RequestSave(hWnd);
+            InvalidateRect(hWnd, nullptr, FALSE);
+            return 0;
+        }
+        if (LOWORD(wParam) == ID_LAYOUT_KEYS && HIWORD(wParam) == LBN_SELCHANGE)
+        {
+            st->selectedIdx = (int)SendMessageW(st->lstKeys, LB_GETCURSEL, 0, 0);
+            InvalidateRect(hWnd, &st->canvasRc, FALSE);
+            return 0;
+        }
+        return 0;
+
+    case WM_LBUTTONDOWN:
+        if (st)
+        {
+            POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            if (PtInRect(&st->canvasRc, pt))
+            {
+                int hit = Layout_HitTestKey(st, pt);
+                if (hit >= 0)
+                {
+                    st->selectedIdx = hit;
+                    SendMessageW(st->lstKeys, LB_SETCURSEL, (WPARAM)hit, 0);
+                    RECT rr = Layout_KeyRectOnCanvas(hit, st->canvasRc);
+                    st->dragOffsetX = pt.x - rr.left;
+                    st->dragOffsetY = pt.y - rr.top;
+                    st->dragging = true;
+                    st->dirty = false;
+                    SetCapture(hWnd);
+                    InvalidateRect(hWnd, &st->canvasRc, FALSE);
+                }
+            }
+        }
+        return 0;
+
+    case WM_MOUSEMOVE:
+        if (st && st->dragging)
+        {
+            POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            Layout_ApplyDrag(hWnd, st, pt);
+        }
+        return 0;
+
+    case WM_LBUTTONUP:
+        if (st && st->dragging)
+        {
+            st->dragging = false;
+            ReleaseCapture();
+            if (st->dirty)
+            {
+                Layout_NotifyMainPage(hWnd);
+                Layout_RequestSave(hWnd);
+                st->dirty = false;
+            }
+        }
+        return 0;
+
+    case WM_MOUSEWHEEL:
+        if (st && st->selectedIdx >= 0)
+        {
+            KeyDef k{};
+            if (KeyboardLayout_GetKey(st->selectedIdx, k))
+            {
+                int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+                int newW = k.w + ((delta > 0) ? 4 : -4);
+                if (KeyboardLayout_SetKeyGeometry(st->selectedIdx, k.row, k.x, newW))
+                {
+                    Layout_RefreshKeyList(hWnd, st);
+                    Layout_NotifyMainPage(hWnd);
+                    Layout_RequestSave(hWnd);
+                    InvalidateRect(hWnd, &st->canvasRc, FALSE);
+                }
+            }
+            return 0;
+        }
+        break;
+
+    case WM_CAPTURECHANGED:
+        if (st) st->dragging = false;
+        return 0;
+
+    case WM_NCDESTROY:
+        if (st)
+        {
+            delete st;
+            SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);
+        }
+        return 0;
+    }
+
+    return DefWindowProcW(hWnd, msg, wParam, lParam);
+}
+
+// ============================================================================
 // Premium slider + value chip
 // ============================================================================
-static Color Gp(COLORREF c, BYTE a = 255) { return Color(a, GetRValue(c), GetGValue(c), GetBValue(c)); }
+static Color Gp(COLORREF c, BYTE a) { return Color(a, GetRValue(c), GetGValue(c), GetBValue(c)); }
 
 struct PremiumSliderState
 {
@@ -588,6 +1018,27 @@ static void SnappyToggle_Free(HWND hBtn)
 
 static float SnappyClamp01(float v) { return std::clamp(v, 0.0f, 1.0f); }
 
+static bool SnappyToggle_HitTestSwitchOnly(HWND hBtn, POINT ptClient)
+{
+    RECT rc{};
+    GetClientRect(hBtn, &rc);
+    int w = rc.right - rc.left;
+    int h = rc.bottom - rc.top;
+    if (w <= 0 || h <= 0) return false;
+
+    float sw = std::clamp((float)h * 1.55f, 36.0f, 54.0f);
+    float sh = std::clamp((float)h * 0.78f, 18.0f, 28.0f);
+    float sy = ((float)h - sh) * 0.5f;
+
+    RECT r{};
+    r.left = 0;
+    r.right = (int)std::lround(sw);
+    r.top = (int)std::lround(sy);
+    r.bottom = (int)std::lround(sy + sh);
+
+    return (ptClient.x >= r.left && ptClient.x < r.right && ptClient.y >= r.top && ptClient.y < r.bottom);
+}
+
 static void SnappyToggle_StartAnim(HWND hBtn, bool checked, bool animate)
 {
     auto* st = SnappyToggle_Get(hBtn);
@@ -652,11 +1103,31 @@ static LRESULT CALLBACK SnappyToggle_SubclassProc(HWND hBtn, UINT msg, WPARAM wP
 {
     switch (msg)
     {
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONDBLCLK:
+    {
+        POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+        bool onSwitch = SnappyToggle_HitTestSwitchOnly(hBtn, pt);
+        SnappyDebugLog(L"WM_LBUTTONDOWN", hBtn, onSwitch ? 1 : 0, (int)wParam);
+        if (!onSwitch) { SetFocus(hBtn); return 0; }
+        break;
+    }
+
+    case WM_SETCURSOR:
+    {
+        POINT pt{};
+        GetCursorPos(&pt);
+        ScreenToClient(hBtn, &pt);
+        if (SnappyToggle_HitTestSwitchOnly(hBtn, pt)) { SetCursor(LoadCursorW(nullptr, IDC_HAND)); return TRUE; }
+        break;
+    }
+
     case WM_TIMER:
         if (wParam == 1) { SnappyToggle_Tick(hBtn); return 0; }
         break;
 
     case WM_NCDESTROY:
+        SnappyDebugLog(L"WM_NCDESTROY", hBtn);
         KillTimer(hBtn, 1);
         SnappyToggle_Free(hBtn);
         RemoveWindowSubclass(hBtn, SnappyToggle_SubclassProc, 1);
@@ -665,7 +1136,7 @@ static LRESULT CALLBACK SnappyToggle_SubclassProc(HWND hBtn, UINT msg, WPARAM wP
     return DefSubclassProc(hBtn, msg, wParam, lParam);
 }
 
-static void DrawSnappyToggleOwnerDraw(const DRAWITEMSTRUCT* dis)
+static void DrawSnappyToggleOwnerDraw_Impl(const DRAWITEMSTRUCT* dis)
 {
     const bool disabled = (dis->itemState & ODS_DISABLED) != 0;
 
@@ -748,6 +1219,47 @@ static void DrawSnappyToggleOwnerDraw(const DRAWITEMSTRUCT* dis)
     }
 }
 
+static void DrawSnappyToggleOwnerDraw(const DRAWITEMSTRUCT* dis)
+{
+    if (!dis) return;
+
+    RECT rc = dis->rcItem;
+    int w = rc.right - rc.left;
+    int h = rc.bottom - rc.top;
+    if (w <= 2 || h <= 2)
+    {
+        DrawSnappyToggleOwnerDraw_Impl(dis);
+        return;
+    }
+
+    HDC memDC = CreateCompatibleDC(dis->hDC);
+    if (!memDC)
+    {
+        DrawSnappyToggleOwnerDraw_Impl(dis);
+        return;
+    }
+
+    HBITMAP bmp = CreateCompatibleBitmap(dis->hDC, w, h);
+    if (!bmp)
+    {
+        DeleteDC(memDC);
+        DrawSnappyToggleOwnerDraw_Impl(dis);
+        return;
+    }
+
+    HGDIOBJ oldBmp = SelectObject(memDC, bmp);
+    DRAWITEMSTRUCT di = *dis;
+    di.hDC = memDC;
+    di.rcItem = RECT{ 0, 0, w, h };
+
+    DrawSnappyToggleOwnerDraw_Impl(&di);
+    BitBlt(dis->hDC, rc.left, rc.top, w, h, memDC, 0, 0, SRCCOPY);
+
+    SelectObject(memDC, oldBmp);
+    DeleteObject(bmp);
+    DeleteDC(memDC);
+}
+
 // ============================================================================
 // Config page
 // ============================================================================
@@ -770,7 +1282,20 @@ struct ConfigPageState
     HWND hToast = nullptr;
     std::wstring toastText;
     DWORD toastHideAt = 0;
+
+    // vertical scroll state for Configuration page
+    int scrollY = 0;
+    int contentHeight = 0;
+    bool scrollDrag = false;
+    int  scrollDragStartY = 0;
+    int  scrollDragStartScrollY = 0;
+    int  scrollDragGrabOffsetY = 0;
+    int  scrollDragThumbHeight = 0;
+    int  scrollDragMax = 0;
 };
+
+static int Config_ScrollbarWidthPx(HWND hWnd) { return S(hWnd, 12); }
+static int Config_ScrollbarMarginPx(HWND hWnd) { return S(hWnd, 8); }
 
 static void RequestSave(HWND hWnd)
 {
@@ -841,6 +1366,230 @@ static void LayoutConfigControls(HWND hWnd, ConfigPageState* st)
     {
         SetWindowPos(st->lblProfileStatus, nullptr, x, yAfterSlider,
             (int)std::max(10, (int)totalW), S(hWnd, 18), SWP_NOZORDER);
+    }
+}
+
+static void Config_OffsetAllChildren(HWND hWnd, int dy)
+{
+    if (dy == 0) return;
+
+    int count = 0;
+    for (HWND child = GetWindow(hWnd, GW_CHILD); child; child = GetWindow(child, GW_HWNDNEXT))
+        ++count;
+    if (count <= 0) return;
+
+    HDWP hdwp = BeginDeferWindowPos(count);
+    for (HWND child = GetWindow(hWnd, GW_CHILD); child; child = GetWindow(child, GW_HWNDNEXT))
+    {
+        RECT rc{};
+        if (!GetWindowRect(child, &rc)) continue;
+        MapWindowPoints(nullptr, hWnd, (LPPOINT)&rc, 2);
+        if (hdwp)
+        {
+            hdwp = DeferWindowPos(hdwp, child, nullptr,
+                rc.left, rc.top + dy, 0, 0,
+                SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+        else
+        {
+            SetWindowPos(child, nullptr,
+                rc.left, rc.top + dy, 0, 0,
+                SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+    }
+
+    if (hdwp) EndDeferWindowPos(hdwp);
+}
+
+static void Config_RequestFullRepaint(HWND hWnd)
+{
+    RedrawWindow(hWnd, nullptr, nullptr,
+        RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+}
+
+static int Config_GetViewportHeight(HWND hWnd)
+{
+    RECT rc{};
+    GetClientRect(hWnd, &rc);
+    int h = (int)(rc.bottom - rc.top);
+    return std::max(0, h);
+}
+
+static int Config_ComputeBaseContentBottom(HWND hWnd)
+{
+    int margin = S(hWnd, 12);
+
+    // Graph + CP hint region (painted on parent, not child controls)
+    int graphBottom = S(hWnd, 86) + S(hWnd, 160) + margin;
+    int cpHintBottom = S(hWnd, 286) + S(hWnd, 20) + margin;
+
+    // Explicit controls below graph
+    int y = S(hWnd, 310);
+    int bottom = y + S(hWnd, 22) + S(hWnd, 34) + S(hWnd, 10) + S(hWnd, 26) + S(hWnd, 10) + S(hWnd, 18) + margin;
+
+    return std::max(bottom, std::max(graphBottom, cpHintBottom));
+}
+
+static int Config_RecalcContentHeight(HWND hWnd, ConfigPageState* st)
+{
+    if (!st) return 0;
+
+    int bottom = Config_ComputeBaseContentBottom(hWnd);
+    int margin = S(hWnd, 12);
+
+    struct EnumCtx
+    {
+        HWND parent = nullptr;
+        int bottom = 0;
+        int margin = 0;
+        int scrollY = 0;
+    } ctx;
+    ctx.parent = hWnd;
+    ctx.bottom = bottom;
+    ctx.margin = margin;
+    ctx.scrollY = st->scrollY;
+
+    EnumChildWindows(hWnd,
+        [](HWND child, LPARAM lp) -> BOOL
+        {
+            auto* c = (EnumCtx*)lp;
+            if (!c || !c->parent) return TRUE;
+            if (!IsWindowVisible(child)) return TRUE;
+
+            RECT rc{};
+            if (!GetWindowRect(child, &rc)) return TRUE;
+            MapWindowPoints(nullptr, c->parent, (LPPOINT)&rc, 2);
+            int childBottom = (int)rc.bottom + c->margin + c->scrollY;
+            c->bottom = std::max(c->bottom, childBottom);
+            return TRUE;
+        },
+        (LPARAM)&ctx);
+
+    st->contentHeight = std::max(0, ctx.bottom);
+    return st->contentHeight;
+}
+
+static int Config_GetMaxScroll(HWND hWnd, ConfigPageState* st)
+{
+    if (!st) return 0;
+    int viewH = Config_GetViewportHeight(hWnd);
+    int contentH = Config_RecalcContentHeight(hWnd, st);
+    return std::max(0, contentH - viewH);
+}
+
+static RECT Config_GetScrollTrackRect(HWND hWnd)
+{
+    RECT rc{};
+    GetClientRect(hWnd, &rc);
+    int w = Config_ScrollbarWidthPx(hWnd);
+    int m = Config_ScrollbarMarginPx(hWnd);
+    int rcRight = (int)rc.right;
+    int rcBottom = (int)rc.bottom;
+    RECT tr{};
+    int left = std::max(0, rcRight - m - w);
+    tr.left = (LONG)left;
+    tr.right = (LONG)std::max(left + 1, rcRight - m);
+    tr.top = m;
+    int top = (int)tr.top;
+    tr.bottom = (LONG)std::max(top + 1, rcBottom - m);
+    return tr;
+}
+
+static RECT Config_GetScrollThumbRect(HWND hWnd, ConfigPageState* st)
+{
+    RECT tr = Config_GetScrollTrackRect(hWnd);
+    if (!st) return tr;
+
+    int trackHRaw = (int)tr.bottom - (int)tr.top;
+    int trackH = std::max(1, trackHRaw);
+    int viewH = std::max(1, Config_GetViewportHeight(hWnd));
+    int maxScroll = Config_GetMaxScroll(hWnd, st);
+    int contentH = std::max(1, st->contentHeight);
+
+    int thumbH = (int)std::lround((double)trackH * (double)viewH / (double)contentH);
+    thumbH = std::clamp(thumbH, S(hWnd, 36), trackH);
+
+    int travel = std::max(0, trackH - thumbH);
+    int top = tr.top;
+    if (travel > 0 && maxScroll > 0)
+    {
+        double t = (double)std::clamp(st->scrollY, 0, maxScroll) / (double)maxScroll;
+        top = tr.top + (int)std::lround(t * (double)travel);
+    }
+
+    RECT th{ tr.left, top, tr.right, top + thumbH };
+    return th;
+}
+
+static void Config_SetScrollY(HWND hWnd, ConfigPageState* st, int newScrollY)
+{
+    if (!st) return;
+
+    int maxScroll = Config_GetMaxScroll(hWnd, st);
+
+    int target = std::clamp(newScrollY, 0, maxScroll);
+    if (target != st->scrollY)
+    {
+        int dy = st->scrollY - target;
+        Config_OffsetAllChildren(hWnd, dy);
+        st->scrollY = target;
+        SetPropW(hWnd, CONFIG_SCROLLY_PROP, (HANDLE)(INT_PTR)st->scrollY);
+    }
+    Config_RequestFullRepaint(hWnd);
+}
+
+static LPARAM Config_AdjustClientMouseLParamForScroll(ConfigPageState* st, LPARAM lParam)
+{
+    if (!st || st->scrollY == 0) return lParam;
+    int x = (short)LOWORD(lParam);
+    int y = (short)HIWORD(lParam);
+    y += st->scrollY;
+    return MAKELPARAM((short)x, (short)y);
+}
+
+static LPARAM Config_AdjustWheelLParamForScroll(HWND hWnd, ConfigPageState* st, LPARAM lParam)
+{
+    if (!st || st->scrollY == 0) return lParam;
+
+    POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+    ScreenToClient(hWnd, &pt);
+    pt.y += st->scrollY;
+    ClientToScreen(hWnd, &pt);
+    return MAKELPARAM((short)pt.x, (short)pt.y);
+}
+
+static void DrawConfigScrollbar(HWND hWnd, HDC hdc, ConfigPageState* st)
+{
+    if (!st) return;
+    int maxScroll = Config_GetMaxScroll(hWnd, st);
+    if (maxScroll <= 0) return;
+
+    RECT trR = Config_GetScrollTrackRect(hWnd);
+    RECT thR = Config_GetScrollThumbRect(hWnd, st);
+
+    Graphics g(hdc);
+    g.SetSmoothingMode(SmoothingModeAntiAlias);
+    g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+
+    RectF tr((REAL)trR.left, (REAL)trR.top, (REAL)(trR.right - trR.left), (REAL)(trR.bottom - trR.top));
+    RectF th((REAL)thR.left, (REAL)thR.top, (REAL)(thR.right - thR.left), (REAL)(thR.bottom - thR.top));
+
+    float rTrack = std::max(2.0f, tr.Width * 0.5f);
+    float rThumb = std::max(2.0f, th.Width * 0.5f);
+
+    {
+        SolidBrush bg(Gp(RGB(44, 44, 48), 180));
+        GraphicsPath p;
+        AddRoundRectPath(p, tr, rTrack);
+        g.FillPath(&bg, &p);
+    }
+
+    {
+        Color thumbC = st->scrollDrag ? Gp(UiTheme::Color_Accent(), 240) : Gp(UiTheme::Color_Accent(), 205);
+        SolidBrush br(thumbC);
+        GraphicsPath p;
+        AddRoundRectPath(p, th, rThumb);
+        g.FillPath(&br, &p);
     }
 }
 
@@ -1229,6 +1978,10 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
         // 2) forward other timers to KeySettings panel (morph etc.)
         KeySettingsPanel_HandleTimer(hWnd, wParam);
+        // When page is scrolled, graph internals invalidate fixed (content) rects.
+        // Force full repaint to avoid stale fragments during morph/toggle animations.
+        if (st && st->scrollY != 0)
+            Config_RequestFullRepaint(hWnd);
         return 0;
     }
 
@@ -1486,9 +2239,15 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         RECT rc{};
         GetClientRect(hWnd, &rc);
 
+        SaveDC(memDC);
+        if (st && st->scrollY != 0)
+            SetViewportOrgEx(memDC, 0, -st->scrollY, nullptr);
+
         KeySettingsPanel_DrawGraph(memDC, rc);
         DrawCpWeightHintIfNeeded(hWnd, memDC);
 
+        RestoreDC(memDC, -1);
+        DrawConfigScrollbar(hWnd, memDC, st);
         EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
         return 0;
     }
@@ -1527,6 +2286,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
         st = new ConfigPageState();
         SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)st);
+        SetPropW(hWnd, CONFIG_SCROLLY_PROP, (HANDLE)(INT_PTR)0);
 
         KeySettingsPanel_Create(hWnd, hInst);
         KeySettingsPanel_SetSelectedHid(KeyboardUI_Internal_GetSelectedHid());
@@ -1558,6 +2318,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
         // initial state
         SendMessageW(st->chkSnappy, BM_SETCHECK, Settings_GetSnappyJoystick() ? BST_CHECKED : BST_UNCHECKED, 0);
+        SnappyDebugLog(L"WM_CREATE_INIT", st->chkSnappy);
 
         // anim init (snap, no boot-animation)
         SetWindowSubclass(st->chkSnappy, SnappyToggle_SubclassProc, 1, 0);
@@ -1565,13 +2326,30 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
         UpdatePollingUi(st, Settings_GetPollingMs());
         LayoutConfigControls(hWnd, st);
+        Config_SetScrollY(hWnd, st, 0);
 
         SetProfileStatus(st, L"");
         return 0;
     }
 
     case WM_SIZE:
-        LayoutConfigControls(hWnd, st);
+        if (st)
+        {
+            int keepScroll = st->scrollY;
+            if (keepScroll != 0)
+            {
+                // normalize current child coordinates back to "content space"
+                Config_OffsetAllChildren(hWnd, keepScroll);
+                st->scrollY = 0;
+            }
+
+            LayoutConfigControls(hWnd, st);
+            Config_SetScrollY(hWnd, st, keepScroll);
+        }
+        else
+        {
+            LayoutConfigControls(hWnd, st);
+        }
         break;
 
     case WM_MEASUREITEM:
@@ -1600,12 +2378,154 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
     }
 
     case WM_LBUTTONDOWN:
-    case WM_LBUTTONUP:
-    case WM_MOUSEMOVE:
-    case WM_MOUSEWHEEL:
-        if (KeySettingsPanel_HandleMouse(hWnd, msg, wParam, lParam))
+    {
+        if (st)
+        {
+            POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            RECT thumb = Config_GetScrollThumbRect(hWnd, st);
+            RECT track = Config_GetScrollTrackRect(hWnd);
+            int maxScroll = Config_GetMaxScroll(hWnd, st);
+
+            if (maxScroll > 0 && PtInRect(&thumb, pt))
+            {
+                st->scrollDrag = true;
+                st->scrollDragStartY = pt.y;
+                st->scrollDragStartScrollY = st->scrollY;
+                st->scrollDragGrabOffsetY = pt.y - thumb.top;
+                st->scrollDragThumbHeight = std::max(1, (int)thumb.bottom - (int)thumb.top);
+                st->scrollDragMax = maxScroll;
+                SetCapture(hWnd);
+                InvalidateRect(hWnd, nullptr, FALSE);
+                return 0;
+            }
+
+            if (maxScroll > 0 && PtInRect(&track, pt))
+            {
+                if (pt.y < thumb.top)
+                    Config_SetScrollY(hWnd, st, st->scrollY - std::max(1, Config_GetViewportHeight(hWnd) - S(hWnd, 48)));
+                else if (pt.y >= thumb.bottom)
+                    Config_SetScrollY(hWnd, st, st->scrollY + std::max(1, Config_GetViewportHeight(hWnd) - S(hWnd, 48)));
+                InvalidateRect(hWnd, nullptr, FALSE);
+                return 0;
+            }
+        }
+
+        LPARAM lpAdj = Config_AdjustClientMouseLParamForScroll(st, lParam);
+        if (KeySettingsPanel_HandleMouse(hWnd, WM_LBUTTONDOWN, wParam, lpAdj))
+        {
+            InvalidateRect(hWnd, nullptr, FALSE);
             return 0;
+        }
         break;
+    }
+
+    case WM_MOUSEMOVE:
+    {
+        if (st && st->scrollDrag)
+        {
+            POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            RECT track = Config_GetScrollTrackRect(hWnd);
+            int trackH = std::max(1, (int)track.bottom - (int)track.top);
+            int thumbH = std::max(1, st->scrollDragThumbHeight);
+            int travel = std::max(1, trackH - thumbH);
+            int maxScroll = std::max(1, st->scrollDragMax);
+
+            int topWanted = pt.y - st->scrollDragGrabOffsetY;
+            int topMin = (int)track.top;
+            int topMax = (int)track.bottom - thumbH;
+            if (topMax < topMin) topMax = topMin;
+            int top = std::clamp(topWanted, topMin, topMax);
+            double t = (double)(top - topMin) / (double)travel;
+            int target = (int)std::lround(t * (double)maxScroll);
+
+            Config_SetScrollY(hWnd, st, target);
+            return 0;
+        }
+
+        LPARAM lpAdj = Config_AdjustClientMouseLParamForScroll(st, lParam);
+        if (KeySettingsPanel_HandleMouse(hWnd, WM_MOUSEMOVE, wParam, lpAdj))
+        {
+            InvalidateRect(hWnd, nullptr, FALSE);
+            return 0;
+        }
+        break;
+    }
+
+    case WM_LBUTTONUP:
+    {
+        if (st && st->scrollDrag)
+        {
+            st->scrollDrag = false;
+            if (GetCapture() == hWnd) ReleaseCapture();
+            InvalidateRect(hWnd, nullptr, FALSE);
+            return 0;
+        }
+
+        LPARAM lpAdj = Config_AdjustClientMouseLParamForScroll(st, lParam);
+        if (KeySettingsPanel_HandleMouse(hWnd, WM_LBUTTONUP, wParam, lpAdj))
+        {
+            InvalidateRect(hWnd, nullptr, FALSE);
+            return 0;
+        }
+        break;
+    }
+
+    case WM_MOUSEWHEEL:
+    {
+        LPARAM lpAdj = Config_AdjustWheelLParamForScroll(hWnd, st, lParam);
+        if (KeySettingsPanel_HandleMouse(hWnd, msg, wParam, lpAdj))
+        {
+            InvalidateRect(hWnd, nullptr, FALSE);
+            return 0;
+        }
+
+        if (st)
+        {
+            int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+            int lines = 3;
+            SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &lines, 0);
+            if (lines <= 0) lines = 3;
+
+            int linePx = S(hWnd, 18);
+            int step = std::max(S(hWnd, 24), lines * linePx);
+            int next = st->scrollY - ((delta / WHEEL_DELTA) * step);
+            Config_SetScrollY(hWnd, st, next);
+            InvalidateRect(hWnd, nullptr, FALSE);
+            return 0;
+        }
+        break;
+    }
+
+    case WM_CAPTURECHANGED:
+    {
+        if (st && st->scrollDrag)
+        {
+            st->scrollDrag = false;
+            InvalidateRect(hWnd, nullptr, FALSE);
+        }
+        return 0;
+    }
+
+    case WM_SETCURSOR:
+    {
+        if (!st) break;
+        if ((HWND)wParam != hWnd) break;
+
+        POINT pt{};
+        GetCursorPos(&pt);
+        ScreenToClient(hWnd, &pt);
+
+        RECT thumb = Config_GetScrollThumbRect(hWnd, st);
+        RECT track = Config_GetScrollTrackRect(hWnd);
+        int maxScroll = Config_GetMaxScroll(hWnd, st);
+
+        if (maxScroll > 0 && (PtInRect(&thumb, pt) || PtInRect(&track, pt)))
+        {
+            SetCursor(LoadCursorW(nullptr, IDC_HAND));
+            return TRUE;
+        }
+        break;
+    }
 
     case WM_GETDLGCODE:
         return DLGC_WANTALLKEYS;
@@ -1711,10 +2631,14 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         // Snappy toggle
         if (LOWORD(wParam) == (UINT)ID_SNAPPY && HIWORD(wParam) == BN_CLICKED && st && st->chkSnappy)
         {
-            bool on = (SendMessageW(st->chkSnappy, BM_GETCHECK, 0, 0) == BST_CHECKED);
+            SnappyDebugLog(L"WM_COMMAND_BN_CLICKED_BEFORE", st->chkSnappy, (int)LOWORD(wParam), (int)HIWORD(wParam));
+            bool on = !Settings_GetSnappyJoystick();
+            SendMessageW(st->chkSnappy, BM_SETCHECK, on ? BST_CHECKED : BST_UNCHECKED, 0);
 
             Settings_SetSnappyJoystick(on);
             SnappyToggle_StartAnim(st->chkSnappy, on, true);
+            SetProfileStatus(st, on ? L"Snappy: ON" : L"Snappy: OFF");
+            SnappyDebugLog(L"WM_COMMAND_BN_CLICKED_AFTER", st->chkSnappy, on ? 1 : 0, 0);
 
             RequestSave(hWnd);
             return 0;
@@ -1739,7 +2663,11 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         }
 
         if (KeySettingsPanel_HandleCommand(hWnd, wParam, lParam))
+        {
+            if (st && st->scrollY != 0)
+                Config_RequestFullRepaint(hWnd);
             return 0;
+        }
 
         return 0;
     }
@@ -1747,6 +2675,8 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
     case WM_NCDESTROY:
         // FIX: free cached GDI resources used by graph renderer
         KeySettingsPanel_Shutdown();
+
+        RemovePropW(hWnd, CONFIG_SCROLLY_PROP);
 
         if (st)
         {

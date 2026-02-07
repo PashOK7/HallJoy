@@ -1,5 +1,7 @@
 # HallJoy
 
+This project is entirely made using AI, including this README.md, I am not a programmer and did not write a single line of code🙂
+
 HallJoy is a Windows desktop app that turns an analog keyboard into a virtual Xbox 360-style gamepad. It reads per-key analog values through the Wooting Analog SDK and publishes an XInput-compatible controller via ViGEm, making analog movement possible in games that expect a gamepad.
 
 ## Features

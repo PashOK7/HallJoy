@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{2c32dca8-7c8e-4a7c-ac2e-46b7ea604942}</ProjectGuid>
+    <RootNamespace>HallJoy</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\include;$(ProjectDir)..\third_party\ViGEmClient\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreBuildEvent>
+      <Command>xcopy /y /d "$(ProjectDir)..\runtime\wooting_analog_wrapper.dll" "$(TargetDir)"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\include;$(ProjectDir)..\third_party\ViGEmClient\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreBuildEvent>
+      <Command>xcopy /y /d "$(ProjectDir)..\runtime\wooting_analog_wrapper.dll" "$(TargetDir)"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\include;$(ProjectDir)..\third_party\ViGEmClient\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreBuildEvent>
+      <Command>xcopy /y /d "$(ProjectDir)..\runtime\wooting_analog_wrapper.dll" "$(TargetDir)"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\include;$(ProjectDir)..\third_party\ViGEmClient\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreBuildEvent>
+      <Command>xcopy /y /d "$(ProjectDir)..\runtime\wooting_analog_wrapper.dll" "$(TargetDir)"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="app.h" />
+    <ClInclude Include="app_paths.h" />
+    <ClInclude Include="backend.h" />
+    <ClInclude Include="bindings.h" />
+    <ClInclude Include="binding_actions.h" />
+    <ClInclude Include="curve_clipboard.h" />
+    <ClInclude Include="curve_math.h" />
+    <ClInclude Include="HallJoy.h" />
+    <ClInclude Include="framework.h" />
+    <ClInclude Include="gamepad_render.h" />
+    <ClInclude Include="ini_util.h" />
+    <ClInclude Include="keyboard_bind_panel.h" />
+    <ClInclude Include="keyboard_keysettings_panel.h" />
+    <ClInclude Include="keyboard_keysettings_panel_internal.h" />
+    <ClInclude Include="keyboard_layout.h" />
+    <ClInclude Include="keyboard_profiles.h" />
+    <ClInclude Include="keyboard_render.h" />
+    <ClInclude Include="keyboard_ui.h" />
+    <ClInclude Include="keyboard_ui_internal.h" />
+    <ClInclude Include="keyboard_ui_state.h" />
+    <ClInclude Include="key_settings.h" />
+    <ClInclude Include="premium_combo.h" />
+    <ClInclude Include="premium_combo_internal.h" />
+    <ClInclude Include="profile_ini.h" />
+    <ClInclude Include="realtime_loop.h" />
+    <ClInclude Include="remap_abxy.h" />
+    <ClInclude Include="remap_bumpers.h" />
+    <ClInclude Include="remap_dpad.h" />
+    <ClInclude Include="remap_guide.h" />
+    <ClInclude Include="remap_icons.h" />
+    <ClInclude Include="remap_panel.h" />
+    <ClInclude Include="remap_startselect.h" />
+    <ClInclude Include="remap_sticks.h" />
+    <ClInclude Include="remap_triggers.h" />
+    <ClInclude Include="Resource.h" />
+    <ClInclude Include="settings.h" />
+    <ClInclude Include="settings_ini.h" />
+    <ClInclude Include="tab_dark.h" />
+    <ClInclude Include="targetver.h" />
+    <ClInclude Include="ui_theme.h" />
+    <ClInclude Include="win_util.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="HallJoy.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="HallJoy.ico" />
+    <Image Include="small.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="app.cpp" />
+    <ClCompile Include="app_paths.cpp" />
+    <ClCompile Include="backend.cpp" />
+    <ClCompile Include="bindings.cpp" />
+    <ClCompile Include="binding_actions.cpp" />
+    <ClCompile Include="curve_math.cpp" />
+    <ClCompile Include="gamepad_render.cpp" />
+    <ClCompile Include="ini_util.cpp" />
+    <ClCompile Include="keyboard_bind_panel.cpp" />
+    <ClCompile Include="keyboard_keysettings_panel.cpp" />
+    <ClCompile Include="keyboard_keysettings_panel_graph.cpp" />
+    <ClCompile Include="keyboard_keysettings_panel_logic.cpp" />
+    <ClCompile Include="keyboard_keysettings_panel_style.cpp" />
+    <ClCompile Include="keyboard_layout.cpp" />
+    <ClCompile Include="keyboard_page_main.cpp" />
+    <ClCompile Include="keyboard_profiles.cpp" />
+    <ClCompile Include="keyboard_render.cpp" />
+    <ClCompile Include="keyboard_subpages.cpp" />
+    <ClCompile Include="keyboard_ui.cpp" />
+    <ClCompile Include="key_settings.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="premium_combo_anim.cpp" />
+    <ClCompile Include="premium_combo_core.cpp" />
+    <ClCompile Include="premium_combo_logic.cpp" />
+    <ClCompile Include="premium_combo_paint.cpp" />
+    <ClCompile Include="profile_ini.cpp" />
+    <ClCompile Include="realtime_loop.cpp" />
+    <ClCompile Include="remap_abxy.cpp" />
+    <ClCompile Include="remap_bumpers.cpp" />
+    <ClCompile Include="remap_dpad.cpp" />
+    <ClCompile Include="remap_guide.cpp" />
+    <ClCompile Include="remap_icons.cpp" />
+    <ClCompile Include="remap_panel.cpp" />
+    <ClCompile Include="remap_startselect.cpp" />
+    <ClCompile Include="remap_sticks.cpp" />
+    <ClCompile Include="remap_triggers.cpp" />
+    <ClCompile Include="settings.cpp" />
+    <ClCompile Include="settings_ini.cpp" />
+    <ClCompile Include="ui_theme.cpp" />
+    <ClCompile Include="win_util.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

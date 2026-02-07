@@ -1,0 +1,40 @@
+# Visual Studio / MSVC
+.vs/
+*.user
+*.suo
+*.VC.db
+*.VC.VC.opendb
+*.ipch
+
+# Build folders
+**/Debug/
+**/Release/
+**/x64/
+**/x86/
+**/ARM64/
+**/bin/
+**/obj/
+
+# MSBuild/VS intermediates
+*.obj
+*.pdb
+*.idb
+*.iobj
+*.ipdb
+*.tlog
+*.log
+*.res
+*.ilk
+*.exp
+*.lib.recipe
+*.exe.recipe
+*.lastbuildstate
+
+# CMake (на будущее, даже если пока не используешь)
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+
+# Windows junk
+Thumbs.db
+Desktop.ini

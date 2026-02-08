@@ -323,7 +323,14 @@ KspGraphMode Ksp_GetActiveMode()
 void Ksp_SetActiveMode(KspGraphMode m)
 {
     KeyDeadzone ks = Ksp_GetActiveSettings();
-    ks.curveMode = (uint8_t)((m == KspGraphMode::SmoothBezier) ? 0 : 1);
+    uint8_t newMode = (uint8_t)((m == KspGraphMode::SmoothBezier) ? 0 : 1);
+    bool modeChanged = (ks.curveMode != newMode);
+    ks.curveMode = newMode;
+    if (modeChanged && newMode == 0)
+    {
+        ks.cp1_w = 0.5f;
+        ks.cp2_w = 0.5f;
+    }
     Ksp_SaveActiveSettings(ks);
 }
 

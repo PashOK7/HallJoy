@@ -697,27 +697,45 @@ static void DrawLiveMarkerOverlay(Graphics& g, const RectF& inner, const KeyDead
     float x = ks.invert ? (1.0f - raw) : raw;
     x = std::clamp(x, 0.0f, 1.0f);
 
-    float y = 0.0f;
+    auto evalExactY = [&](const KeyDeadzone& one) -> float
+    {
+        if (one.curveMode == 1)
+            return EvalLinear(x, one);
+        CurveMath::Curve01 c = CurveMath::FromKeyDeadzone(one);
+        float y = CurveMath::EvalRationalYForX(c, x, 24);
+        if (!std::isfinite(y))
+            y = SampleSmoothY_Stable(one, x);
+        return y;
+    };
 
+    float yCurve = 0.0f;
     if (morphing)
     {
         float e = MorphEase01();
-
-        float y1 = 0.0f;
-        if (g_kspMorph.fromKs.curveMode == 1) y1 = EvalLinear(x, g_kspMorph.fromKs);
-        else y1 = SampleSmoothY_Stable(g_kspMorph.fromKs, x);
-
-        float y2 = 0.0f;
-        if (g_kspMorph.toKs.curveMode == 1) y2 = EvalLinear(x, g_kspMorph.toKs);
-        else y2 = SampleSmoothY_Stable(g_kspMorph.toKs, x);
-
-        y = y1 + (y2 - y1) * e;
+        float y1 = evalExactY(g_kspMorph.fromKs);
+        float y2 = evalExactY(g_kspMorph.toKs);
+        yCurve = y1 + (y2 - y1) * e;
     }
     else
     {
-        if (ks.curveMode == 1) y = EvalLinear(x, ks);
-        else y = SampleSmoothY_Stable(ks, x);
+        yCurve = evalExactY(ks);
     }
+
+    // Backend output is authoritative, but it's quantized to milli-units.
+    // Near the top edge this can snap to 100% one step early, so keep the
+    // marker on the exact curve until x reaches the high endpoint.
+    float y = out;
+    if (!std::isfinite(y))
+    {
+        y = yCurve;
+    }
+    else
+    {
+        float xHigh = std::clamp(ks.high, 0.0f, 1.0f);
+        if (y >= 0.9995f && x < (xHigh - 0.0005f))
+            y = std::min(y, yCurve);
+    }
+    y = std::clamp(y, 0.0f, 1.0f);
 
     PointF p(inner.X + x * inner.Width, inner.GetBottom() - y * inner.Height);
 

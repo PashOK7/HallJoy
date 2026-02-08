@@ -124,21 +124,122 @@ namespace
         {L"Right", 79,5, 720,42},
     };
 
-    static std::array<KeyDef, sizeof(g_a75Keys) / sizeof(g_a75Keys[0])> g_generic75Keys = [] {
-        std::array<KeyDef, sizeof(g_a75Keys) / sizeof(g_a75Keys[0])> out{};
-        for (size_t i = 0; i < out.size(); ++i) out[i] = g_a75Keys[i];
-        for (auto& k : out)
-        {
-            if (k.hid == 74 || k.hid == 75 || k.hid == 76 || k.hid == 77 || k.hid == 78)
-                k.x -= 20;
-        }
-        return out;
-    }();
+    static const KeyDef g_generic100Keys[] =
+    {
+        {L"Esc",   41, 0,    0, 42},
+        {L"F1",    58, 0,   64, 46},
+        {L"F2",    59, 0,  116, 46},
+        {L"F3",    60, 0,  168, 46},
+        {L"F4",    61, 0,  220, 46},
+        {L"F5",    62, 0,  290, 46},
+        {L"F6",    63, 0,  342, 46},
+        {L"F7",    64, 0,  394, 46},
+        {L"F8",    65, 0,  446, 46},
+        {L"F9",    66, 0,  512, 46},
+        {L"F10",   67, 0,  564, 46},
+        {L"F11",   68, 0,  616, 46},
+        {L"F12",   69, 0,  668, 46},
+        {L"PrtSc", 70, 0,  732, 42},
+        {L"ScrLk", 71, 0,  780, 42},
+        {L"Pause", 72, 0,  828, 42},
+
+        {L"`",     53, 1,    0, 42},
+        {L"1",     30, 1,   48, 42},
+        {L"2",     31, 1,   96, 42},
+        {L"3",     32, 1,  144, 42},
+        {L"4",     33, 1,  192, 42},
+        {L"5",     34, 1,  240, 42},
+        {L"6",     35, 1,  288, 42},
+        {L"7",     36, 1,  336, 42},
+        {L"8",     37, 1,  384, 42},
+        {L"9",     38, 1,  432, 42},
+        {L"0",     39, 1,  480, 42},
+        {L"-",     45, 1,  528, 42},
+        {L"=",     46, 1,  576, 42},
+        {L"Back",  42, 1,  624, 90},
+        {L"Ins",   73, 1,  732, 42},
+        {L"Home",  74, 1,  780, 42},
+        {L"PgUp",  75, 1,  828, 42},
+        {L"Num",   83, 1,  900, 42},
+        {L"/",     84, 1,  948, 42},
+        {L"*",     85, 1,  996, 42},
+        {L"-",     86, 1, 1044, 42},
+
+        {L"Tab",   43, 2,    0, 74},
+        {L"Q",     20, 2,   80, 42},
+        {L"W",     26, 2,  128, 42},
+        {L"E",      8, 2,  176, 42},
+        {L"R",     21, 2,  224, 42},
+        {L"T",     23, 2,  272, 42},
+        {L"Y",     28, 2,  320, 42},
+        {L"U",     24, 2,  368, 42},
+        {L"I",     12, 2,  416, 42},
+        {L"O",     18, 2,  464, 42},
+        {L"P",     19, 2,  512, 42},
+        {L"[",     47, 2,  560, 42},
+        {L"]",     48, 2,  608, 42},
+        {L"\\",    49, 2,  656, 58},
+        {L"Del",   76, 2,  732, 42},
+        {L"End",   77, 2,  780, 42},
+        {L"PgDn",  78, 2,  828, 42},
+        {L"7",     95, 2,  900, 42},
+        {L"8",     96, 2,  948, 42},
+        {L"9",     97, 2,  996, 42},
+        {L"Num+",  87, 2, 1044, 42, 88},
+
+        {L"Caps",  57, 3,    0, 84},
+        {L"A",      4, 3,   90, 42},
+        {L"S",     22, 3,  138, 42},
+        {L"D",      7, 3,  186, 42},
+        {L"F",      9, 3,  234, 42},
+        {L"G",     10, 3,  282, 42},
+        {L"H",     11, 3,  330, 42},
+        {L"J",     13, 3,  378, 42},
+        {L"K",     14, 3,  426, 42},
+        {L"L",     15, 3,  474, 42},
+        {L";",     51, 3,  522, 42},
+        {L"'",     52, 3,  570, 42},
+        {L"Enter", 40, 3,  618, 96},
+        {L"4",     92, 3,  900, 42},
+        {L"5",     93, 3,  948, 42},
+        {L"6",     94, 3,  996, 42},
+
+        {L"Shift",225, 4,    0,106},
+        {L"Z",     29, 4,  112, 42},
+        {L"X",     27, 4,  160, 42},
+        {L"C",      6, 4,  208, 42},
+        {L"V",     25, 4,  256, 42},
+        {L"B",      5, 4,  304, 42},
+        {L"N",     17, 4,  352, 42},
+        {L"M",     16, 4,  400, 42},
+        {L",",     54, 4,  448, 42},
+        {L".",     55, 4,  496, 42},
+        {L"/",     56, 4,  544, 42},
+        {L"Shift",229, 4,  592,122},
+        {L"Up",    82, 4,  780, 42},
+        {L"1",     89, 4,  900, 42},
+        {L"2",     90, 4,  948, 42},
+        {L"3",     91, 4,  996, 42},
+        {L"NEnt",  88, 4, 1044, 42, 88},
+
+        {L"Ctrl", 224, 5,    0, 54},
+        {L"Win",  227, 5,   60, 54},
+        {L"Alt",  226, 5,  120, 54},
+        {L"Space", 44, 5,  180,354},
+        {L"Alt",  230, 5,  540, 54},
+        {L"Menu", 101, 5,  601, 54},
+        {L"Ctrl", 228, 5,  661, 54},
+        {L"Left",  80, 5,  732, 42},
+        {L"Down",  81, 5,  780, 42},
+        {L"Right", 79, 5,  828, 42},
+        {L"0",     98, 5,  900, 90},
+        {L".",     99, 5,  996, 42},
+    };
 
     static const PresetDef g_builtinPresets[] =
     {
         { L"DrunkDeer A75 Pro", g_a75Keys, (int)(sizeof(g_a75Keys) / sizeof(g_a75Keys[0])) },
-        { L"Generic 75% ANSI", g_generic75Keys.data(), (int)g_generic75Keys.size() },
+        { L"Generic 100% ANSI", g_generic100Keys, (int)(sizeof(g_generic100Keys) / sizeof(g_generic100Keys[0])) },
     };
 
     static std::vector<PresetStore> g_presets;
@@ -339,37 +440,7 @@ namespace
             {
                 keys.push_back(kd);
                 labels.push_back(std::move(label));
-                continue;
             }
-
-            swprintf_s(k, L"K%d_Hid", i);
-            int hid = GetPrivateProfileIntW(L"LayoutPreset", k, -1, path);
-            if (hid < 0) continue;
-
-            swprintf_s(k, L"K%d_Row", i);
-            int row = GetPrivateProfileIntW(L"LayoutPreset", k, 0, path);
-
-            swprintf_s(k, L"K%d_X", i);
-            int x = GetPrivateProfileIntW(L"LayoutPreset", k, 0, path);
-
-            swprintf_s(k, L"K%d_W", i);
-            int w = GetPrivateProfileIntW(L"LayoutPreset", k, 42, path);
-
-            swprintf_s(k, L"K%d_H", i);
-            int h = GetPrivateProfileIntW(L"LayoutPreset", k, KEYBOARD_KEY_H, path);
-
-            swprintf_s(k, L"K%d_Label", i);
-            wchar_t lb[256]{};
-            GetPrivateProfileStringW(L"LayoutPreset", k, L"Key", lb, (DWORD)_countof(lb), path);
-            labels.emplace_back(lb);
-
-            kd.hid = (uint16_t)std::clamp(hid, 0, 65535);
-            kd.row = std::clamp(row, 0, 20);
-            kd.x = std::clamp(x, 0, 4000);
-            kd.w = ClampKeyDim(w);
-            kd.h = ClampKeyDim(h);
-            kd.label = nullptr;
-            keys.push_back(kd);
         }
 
         if (keys.empty()) return false;
@@ -891,8 +962,7 @@ bool KeyboardLayout_LoadFromIni(const wchar_t* path)
         }
     }
 
-    int legacyIdx = GetPrivateProfileIntW(L"KeyboardLayout", L"Preset", g_currentPresetIdx, path);
-    ActivatePreset(legacyIdx);
+    ActivatePreset(0);
     return true;
 }
 

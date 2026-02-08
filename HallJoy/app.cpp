@@ -373,8 +373,8 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
 
     UINT dpi = WinUtil_GetSystemDpiCompat();
 
-    int defaultW = MulDiv(820, (int)dpi, 96);
-    int defaultH = MulDiv(750, (int)dpi, 96);
+    int defaultW = MulDiv(821, (int)dpi, 96);
+    int defaultH = MulDiv(832, (int)dpi, 96);
 
     int w = Settings_GetMainWindowWidthPx();
     int h = Settings_GetMainWindowHeightPx();

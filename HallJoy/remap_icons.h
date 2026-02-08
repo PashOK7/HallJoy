@@ -25,4 +25,8 @@ COLORREF RemapIcons_Brighten(COLORREF c, int add = 15);
 // - No square tile/background.
 // - brightFill=true uses Brighten(color) for a "ghost/pressed" look.
 // - padRatio controls inner padding (default 0.135 like ghost); smaller => fatter icon.
-void RemapIcons_DrawGlyphAA(HDC hdc, const RECT& rc, int iconIdx, bool brightFill, float padRatio = 0.135f);
+// - styleVariant:
+//   0 = neutral single-gamepad style (no accent color),
+//   1 = gamepad #1 accent style (yellow),
+//   2..4 = gamepad #2..#4 accent styles (extended accent outlines).
+void RemapIcons_DrawGlyphAA(HDC hdc, const RECT& rc, int iconIdx, bool brightFill, float padRatio = 0.135f, int styleVariant = 0);

@@ -18,6 +18,7 @@ bool Backend_GetVirtualGamepadsEnabled();
 
 SHORT Backend_GetLastRX();
 XUSB_REPORT Backend_GetLastReport();
+XUSB_REPORT Backend_GetLastReportForPad(int padIndex);
 
 // ---- UI snapshot API (HID < 256) ----
 

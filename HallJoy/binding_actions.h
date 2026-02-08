@@ -23,7 +23,9 @@ enum class BindAction : uint32_t
 
 // Clears existing usage of this HID, then applies the binding.
 void BindingActions_Apply(BindAction a, uint16_t hid);
+void BindingActions_ApplyForPad(int padIndex, BindAction a, uint16_t hid);
 
 // NEW: reverse query (HID -> current action).
 // Returns true if this HID is currently bound to some action.
 bool BindingActions_TryGetByHid(uint16_t hid, BindAction& outAction);
+bool BindingActions_TryGetByHidForPad(int padIndex, uint16_t hid, BindAction& outAction);

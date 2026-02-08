@@ -50,6 +50,9 @@ static constexpr bool kEnableSnappyDebug = false; // set true for temporary snap
 
 static constexpr int ID_SNAPPY = 7003;
 static constexpr int ID_BLOCK_BOUND_KEYS = 7004;
+static constexpr int ID_LAST_KEY_PRIORITY = 7005;
+static constexpr int ID_LAST_KEY_PRIORITY_SENS_SLIDER = 7006;
+static constexpr int ID_LAST_KEY_PRIORITY_SENS_CHIP = 7007;
 
 static int S(HWND hwnd, int px) { return WinUtil_ScalePx(hwnd, px); }
 static Color Gp(COLORREF c, BYTE a = 255);
@@ -115,61 +118,95 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
         HGDIOBJ oldBmp = nullptr;
         BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
 
-        XUSB_REPORT r = Backend_GetLastReport();
+        RECT rcClient{};
+        GetClientRect(hWnd, &rcClient);
+
+        int padCount = std::clamp(Backend_GetVirtualGamepadCount(), 1, 4);
+        int cols = (padCount >= 3) ? 2 : padCount;
+        cols = std::max(1, cols);
+        int rows = (padCount + cols - 1) / cols;
+
+        const int margin = S(hWnd, 12);
+        const int cardGap = S(hWnd, 12);
+        int clientW = (int)(rcClient.right - rcClient.left);
+        int clientH = (int)(rcClient.bottom - rcClient.top);
+        int availW = std::max(1, clientW - margin * 2 - cardGap * (cols - 1));
+        int availH = std::max(1, clientH - margin * 2 - cardGap * (rows - 1));
+        int cardW = std::max(1, availW / cols);
+        int cardH = std::max(1, availH / rows);
+
+        HPEN cardPen = CreatePen(PS_SOLID, 1, UiTheme::Color_Border());
+        HGDIOBJ oldPenGlobal = SelectObject(memDC, cardPen);
+        HGDIOBJ oldBrushGlobal = SelectObject(memDC, GetStockObject(HOLLOW_BRUSH));
+
         HFONT font = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
         HGDIOBJ oldFont = SelectObject(memDC, font);
         SetBkMode(memDC, TRANSPARENT);
         SetTextColor(memDC, UiTheme::Color_Text());
 
-        const int x0 = S(hWnd, 12);
-        int y = S(hWnd, 12);
-
-        const int lineH = S(hWnd, 18);
-        const int gapAfterText = S(hWnd, 10);
-
-        auto textLine = [&](const std::wstring& t)
+        auto textLine = [&](int x, int& y, const std::wstring& t, int lineH)
             {
-                TextOutW(memDC, x0, y, t.c_str(), (int)t.size());
+                TextOutW(memDC, x, y, t.c_str(), (int)t.size());
                 y += lineH;
             };
 
-        wchar_t buf[256]{};
+        for (int pad = 0; pad < padCount; ++pad)
+        {
+            int col = pad % cols;
+            int row = pad / cols;
+            int left = margin + col * (cardW + cardGap);
+            int top = margin + row * (cardH + cardGap);
 
-        swprintf_s(buf, L"LX: %6d   LY: %6d", (int)r.sThumbLX, (int)r.sThumbLY);
-        textLine(buf);
+            RECT card{ left, top, left + cardW, top + cardH };
+            FillRect(memDC, &card, UiTheme::Brush_ControlBg());
+            Rectangle(memDC, card.left, card.top, card.right, card.bottom);
 
-        const int barW = S(hWnd, 360);
-        const int barH = S(hWnd, 20);
-        const int barGapX = S(hWnd, 20);
-        RECT barLX{ x0, y, x0 + barW, y + barH };
-        RECT barLY{ x0 + barW + barGapX, y, x0 + barW + barGapX + barW, y + barH };
-        GamepadRender_DrawAxisBarCentered(memDC, barLX, r.sThumbLX);
-        GamepadRender_DrawAxisBarCentered(memDC, barLY, r.sThumbLY);
-        y += barH + S(hWnd, 8);
+            XUSB_REPORT r = Backend_GetLastReportForPad(pad);
 
-        swprintf_s(buf, L"RX: %6d   RY: %6d", (int)r.sThumbRX, (int)r.sThumbRY);
-        textLine(buf);
+            int x0 = left + S(hWnd, 10);
+            int y = top + S(hWnd, 8);
+            int lineH = S(hWnd, 16);
+            int barH = S(hWnd, 14);
+            int trigH = S(hWnd, 12);
+            int barGapX = S(hWnd, 8);
+            int contentW = std::max(40, (int)(card.right - card.left) - S(hWnd, 20));
+            int halfW = std::max(16, (contentW - barGapX) / 2);
 
-        RECT barRX{ x0, y, x0 + barW, y + barH };
-        RECT barRY{ x0 + barW + barGapX, y, x0 + barW + barGapX + barW, y + barH };
-        GamepadRender_DrawAxisBarCentered(memDC, barRX, r.sThumbRX);
-        GamepadRender_DrawAxisBarCentered(memDC, barRY, r.sThumbRY);
-        y += barH + S(hWnd, 8);
+            wchar_t buf[256]{};
+            swprintf_s(buf, L"Gamepad %d", pad + 1);
+            textLine(x0, y, buf, lineH + S(hWnd, 2));
 
-        swprintf_s(buf, L"LT: %3u   RT: %3u", (unsigned)r.bLeftTrigger, (unsigned)r.bRightTrigger);
-        textLine(buf);
+            swprintf_s(buf, L"LX:%6d  LY:%6d", (int)r.sThumbLX, (int)r.sThumbLY);
+            textLine(x0, y, buf, lineH);
+            RECT barLX{ x0, y, x0 + halfW, y + barH };
+            RECT barLY{ x0 + halfW + barGapX, y, x0 + halfW + barGapX + halfW, y + barH };
+            GamepadRender_DrawAxisBarCentered(memDC, barLX, r.sThumbLX);
+            GamepadRender_DrawAxisBarCentered(memDC, barLY, r.sThumbLY);
+            y += barH + S(hWnd, 6);
 
-        const int trigH = S(hWnd, 18);
-        RECT barLT{ x0, y, x0 + barW, y + trigH };
-        RECT barRT{ x0 + barW + barGapX, y, x0 + barW + barGapX + barW, y + trigH };
-        GamepadRender_DrawTriggerBar01(memDC, barLT, r.bLeftTrigger);
-        GamepadRender_DrawTriggerBar01(memDC, barRT, r.bRightTrigger);
-        y += trigH + S(hWnd, 8);
+            swprintf_s(buf, L"RX:%6d  RY:%6d", (int)r.sThumbRX, (int)r.sThumbRY);
+            textLine(x0, y, buf, lineH);
+            RECT barRX{ x0, y, x0 + halfW, y + barH };
+            RECT barRY{ x0 + halfW + barGapX, y, x0 + halfW + barGapX + halfW, y + barH };
+            GamepadRender_DrawAxisBarCentered(memDC, barRX, r.sThumbRX);
+            GamepadRender_DrawAxisBarCentered(memDC, barRY, r.sThumbRY);
+            y += barH + S(hWnd, 6);
 
-        y += gapAfterText;
-        textLine(L"Buttons: " + GamepadRender_ButtonsToString(r.wButtons));
+            swprintf_s(buf, L"LT:%3u  RT:%3u", (unsigned)r.bLeftTrigger, (unsigned)r.bRightTrigger);
+            textLine(x0, y, buf, lineH);
+            RECT barLT{ x0, y, x0 + halfW, y + trigH };
+            RECT barRT{ x0 + halfW + barGapX, y, x0 + halfW + barGapX + halfW, y + trigH };
+            GamepadRender_DrawTriggerBar01(memDC, barLT, r.bLeftTrigger);
+            GamepadRender_DrawTriggerBar01(memDC, barRT, r.bRightTrigger);
+            y += trigH + S(hWnd, 6);
+
+            textLine(x0, y, L"Buttons: " + GamepadRender_ButtonsToString(r.wButtons), lineH);
+        }
 
         SelectObject(memDC, oldFont);
+        SelectObject(memDC, oldBrushGlobal);
+        SelectObject(memDC, oldPenGlobal);
+        DeleteObject(cardPen);
         EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
         return 0;
     }
@@ -1301,10 +1338,19 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
         EnableWindow(st->btnDelete, FALSE);
         Layout_SetUnsaved(st, false);
         Layout_UpdateMetaControls(st);
-        SetTimer(hWnd, ID_LAYOUT_UI_TIMER, 16, nullptr);
 
         return 0;
     }
+
+    case WM_SHOWWINDOW:
+        if (st)
+        {
+            if (wParam)
+                SetTimer(hWnd, ID_LAYOUT_UI_TIMER, 16, nullptr);
+            else
+                KillTimer(hWnd, ID_LAYOUT_UI_TIMER);
+        }
+        return 0;
 
     case WM_SIZE:
         if (st)
@@ -3195,7 +3241,10 @@ static void DrawSnappyToggleOwnerDraw_Impl(const DRAWITEMSTRUCT* dis)
     // label
     {
         const wchar_t* label = L"Snap Stick";
-        if (GetDlgCtrlID(dis->hwndItem) == ID_BLOCK_BOUND_KEYS)
+        const int ctrlId = GetDlgCtrlID(dis->hwndItem);
+        if (ctrlId == ID_LAST_KEY_PRIORITY)
+            label = L"Last Key Priority";
+        else if (ctrlId == ID_BLOCK_BOUND_KEYS)
             label = L"Block Bound Keys";
         Gdiplus::RectF textR(track.GetRight() + 10.0f, bounds.Y,
             bounds.GetRight() - (track.GetRight() + 10.0f), bounds.Height);
@@ -3262,6 +3311,9 @@ static void DrawSnappyToggleOwnerDraw(const DRAWITEMSTRUCT* dis)
 struct ConfigPageState
 {
     HWND chkSnappy = nullptr;
+    HWND chkLastKeyPriority = nullptr;
+    HWND sldLastKeyPrioritySensitivity = nullptr;
+    HWND chipLastKeyPrioritySensitivity = nullptr;
     HWND chkBlockBoundKeys = nullptr;
 
     // status label for presets
@@ -3289,6 +3341,40 @@ struct ConfigPageState
 
 static int Config_ScrollbarWidthPx(HWND hWnd) { return S(hWnd, 12); }
 static int Config_ScrollbarMarginPx(HWND hWnd) { return S(hWnd, 8); }
+
+static int Config_LkpSensitivityToSlider(float v01)
+{
+    int pct = (int)lroundf(std::clamp(v01, 0.02f, 0.30f) * 100.0f);
+    return std::clamp(pct, 2, 30);
+}
+
+static float Config_SliderToLkpSensitivity(int sliderPos)
+{
+    int pct = std::clamp(sliderPos, 2, 30);
+    return (float)pct / 100.0f;
+}
+
+static void Config_UpdateLkpSensitivityUi(ConfigPageState* st)
+{
+    if (!st) return;
+
+    int sliderPos = Config_LkpSensitivityToSlider(Settings_GetLastKeyPrioritySensitivity());
+    if (st->sldLastKeyPrioritySensitivity && IsWindow(st->sldLastKeyPrioritySensitivity))
+    {
+        int cur = (int)SendMessageW(st->sldLastKeyPrioritySensitivity, TBM_GETPOS, 0, 0);
+        if (cur != sliderPos)
+            SendMessageW(st->sldLastKeyPrioritySensitivity, TBM_SETPOS, TRUE, (LPARAM)sliderPos);
+        EnableWindow(st->sldLastKeyPrioritySensitivity, Settings_GetLastKeyPriority() ? TRUE : FALSE);
+    }
+
+    if (st->chipLastKeyPrioritySensitivity && IsWindow(st->chipLastKeyPrioritySensitivity))
+    {
+        wchar_t b[32]{};
+        swprintf_s(b, L"%d%%", sliderPos);
+        SetWindowTextW(st->chipLastKeyPrioritySensitivity, b);
+        EnableWindow(st->chipLastKeyPrioritySensitivity, Settings_GetLastKeyPriority() ? TRUE : FALSE);
+    }
+}
 
 static void RequestSave(HWND hWnd)
 {
@@ -3319,6 +3405,28 @@ static void LayoutConfigControls(HWND hWnd, ConfigPageState* st)
         int toggleH = S(hWnd, 26);
         SetWindowPos(st->chkSnappy, nullptr, x, yAfter,
             totalW, toggleH, SWP_NOZORDER);
+
+        yAfter += toggleH + S(hWnd, 10);
+    }
+
+    if (st->chkLastKeyPriority)
+    {
+        int toggleH = S(hWnd, 26);
+        int gap = S(hWnd, 8);
+        int chipW = S(hWnd, 68);
+        int sliderW = S(hWnd, 140);
+        int rightW = sliderW + gap + chipW;
+        int toggleW = std::max(S(hWnd, 110), totalW - rightW - gap);
+
+        SetWindowPos(st->chkLastKeyPriority, nullptr, x, yAfter,
+            toggleW, toggleH, SWP_NOZORDER);
+
+        if (st->sldLastKeyPrioritySensitivity)
+            SetWindowPos(st->sldLastKeyPrioritySensitivity, nullptr, x + toggleW + gap, yAfter,
+                sliderW, toggleH, SWP_NOZORDER);
+        if (st->chipLastKeyPrioritySensitivity)
+            SetWindowPos(st->chipLastKeyPrioritySensitivity, nullptr, x + toggleW + gap + sliderW + gap, yAfter,
+                chipW, toggleH, SWP_NOZORDER);
 
         yAfter += toggleH + S(hWnd, 10);
     }
@@ -3395,7 +3503,11 @@ static int Config_ComputeBaseContentBottom(HWND hWnd)
 
     // Explicit controls below graph
     int y = S(hWnd, 310);
-    int bottom = y + S(hWnd, 26) + S(hWnd, 10) + S(hWnd, 26) + S(hWnd, 10) + S(hWnd, 18) + margin;
+    int bottom = y
+        + (S(hWnd, 26) + S(hWnd, 10)) // Snap Stick
+        + (S(hWnd, 26) + S(hWnd, 10)) // Last Key Priority + sensitivity slider
+        + (S(hWnd, 26) + S(hWnd, 10)) // Block Bound Keys
+        + S(hWnd, 18) + margin;       // profile status
 
     return std::max(bottom, std::max(graphBottom, cpHintBottom));
 }
@@ -4278,16 +4390,36 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             hWnd, (HMENU)(INT_PTR)ID_BLOCK_BOUND_KEYS, hInst, nullptr);
         SendMessageW(st->chkBlockBoundKeys, WM_SETFONT, (WPARAM)hFont, TRUE);
 
+        st->chkLastKeyPriority = CreateWindowW(L"BUTTON", L"Last Key Priority",
+            WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_OWNERDRAW,
+            0, 0, 10, 10,
+            hWnd, (HMENU)(INT_PTR)ID_LAST_KEY_PRIORITY, hInst, nullptr);
+        SendMessageW(st->chkLastKeyPriority, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->sldLastKeyPrioritySensitivity = PremiumSlider_Create(
+            hWnd, hInst, 0, 0, 10, 10, ID_LAST_KEY_PRIORITY_SENS_SLIDER);
+        SendMessageW(st->sldLastKeyPrioritySensitivity, TBM_SETRANGE, TRUE, MAKELONG(2, 30));
+        SendMessageW(st->sldLastKeyPrioritySensitivity, TBM_SETPOS, TRUE,
+            (LPARAM)Config_LkpSensitivityToSlider(Settings_GetLastKeyPrioritySensitivity()));
+
+        st->chipLastKeyPrioritySensitivity = PremiumChip_Create(
+            hWnd, hInst, 0, 0, 10, 10, ID_LAST_KEY_PRIORITY_SENS_CHIP);
+        SendMessageW(st->chipLastKeyPrioritySensitivity, WM_SETFONT, (WPARAM)hFont, TRUE);
+
         // initial state
         SendMessageW(st->chkSnappy, BM_SETCHECK, Settings_GetSnappyJoystick() ? BST_CHECKED : BST_UNCHECKED, 0);
+        SendMessageW(st->chkLastKeyPriority, BM_SETCHECK, Settings_GetLastKeyPriority() ? BST_CHECKED : BST_UNCHECKED, 0);
         SendMessageW(st->chkBlockBoundKeys, BM_SETCHECK, Settings_GetBlockBoundKeys() ? BST_CHECKED : BST_UNCHECKED, 0);
         SnappyDebugLog(L"WM_CREATE_INIT", st->chkSnappy);
 
         // anim init (snap, no boot-animation)
         SetWindowSubclass(st->chkSnappy, SnappyToggle_SubclassProc, 1, 0);
         SnappyToggle_StartAnim(st->chkSnappy, Settings_GetSnappyJoystick(), false);
+        SetWindowSubclass(st->chkLastKeyPriority, SnappyToggle_SubclassProc, 1, 0);
+        SnappyToggle_StartAnim(st->chkLastKeyPriority, Settings_GetLastKeyPriority(), false);
         SetWindowSubclass(st->chkBlockBoundKeys, SnappyToggle_SubclassProc, 1, 0);
         SnappyToggle_StartAnim(st->chkBlockBoundKeys, Settings_GetBlockBoundKeys(), false);
+        Config_UpdateLkpSensitivityUi(st);
 
         LayoutConfigControls(hWnd, st);
         Config_SetScrollY(hWnd, st, 0);
@@ -4316,6 +4448,20 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         }
         break;
 
+    case WM_HSCROLL:
+    {
+        if (st && (HWND)lParam == st->sldLastKeyPrioritySensitivity)
+        {
+            int sv = (int)SendMessageW(st->sldLastKeyPrioritySensitivity, TBM_GETPOS, 0, 0);
+            sv = std::clamp(sv, 2, 30);
+            Settings_SetLastKeyPrioritySensitivity(Config_SliderToLkpSensitivity(sv));
+            Config_UpdateLkpSensitivityUi(st);
+            RequestSave(hWnd);
+            return 0;
+        }
+        break;
+    }
+
     case WM_MEASUREITEM:
     {
         MEASUREITEMSTRUCT* mis = (MEASUREITEMSTRUCT*)lParam;
@@ -4335,6 +4481,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         // 2) Config toggles
         if (st && dis && dis->CtlType == ODT_BUTTON &&
             ((dis->CtlID == ID_SNAPPY && st->chkSnappy == dis->hwndItem) ||
+             (dis->CtlID == ID_LAST_KEY_PRIORITY && st->chkLastKeyPriority == dis->hwndItem) ||
              (dis->CtlID == ID_BLOCK_BOUND_KEYS && st->chkBlockBoundKeys == dis->hwndItem)))
         {
             DrawSnappyToggleOwnerDraw(dis);
@@ -4602,6 +4749,17 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             return 0;
         }
 
+        if (LOWORD(wParam) == (UINT)ID_LAST_KEY_PRIORITY && HIWORD(wParam) == BN_CLICKED && st && st->chkLastKeyPriority)
+        {
+            bool on = !Settings_GetLastKeyPriority();
+            SendMessageW(st->chkLastKeyPriority, BM_SETCHECK, on ? BST_CHECKED : BST_UNCHECKED, 0);
+            Settings_SetLastKeyPriority(on);
+            SnappyToggle_StartAnim(st->chkLastKeyPriority, on, true);
+            Config_UpdateLkpSensitivityUi(st);
+            RequestSave(hWnd);
+            return 0;
+        }
+
         // Preset selection:
         // If user selected "+ Create New..." row, start inline create (deferred).
         if (LOWORD(wParam) == (UINT)KSP_ID_PROFILE && HIWORD(wParam) == CBN_SELCHANGE)
@@ -4653,6 +4811,10 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             if (st->chkBlockBoundKeys && IsWindow(st->chkBlockBoundKeys))
             {
                 SnappyToggle_Free(st->chkBlockBoundKeys);
+            }
+            if (st->chkLastKeyPriority && IsWindow(st->chkLastKeyPriority))
+            {
+                SnappyToggle_Free(st->chkLastKeyPriority);
             }
 
             delete st;

@@ -193,7 +193,8 @@ static void ComputeCornerRadiiXY(BindAction action, const RectF& bumper,
 
 void RemapBumpers_DrawGlyphAA(HDC hdc, const RECT& rc,
     BindAction action, COLORREF baseColor,
-    bool brightFill, float padRatioIncoming)
+    bool brightFill, float padRatioIncoming,
+    COLORREF borderOverride)
 {
     (void)brightFill; // intentionally ignored
 
@@ -237,6 +238,8 @@ void RemapBumpers_DrawGlyphAA(HDC hdc, const RECT& rc,
         borderRef = DarkenMul(fillRef, kDeriveBorderMul);
         textRef = kText;
     }
+
+    if (borderOverride != CLR_INVALID) borderRef = borderOverride;
 
     float borderW = std::max(kBorderWidthPxMin, (float)std::lround(s * kBorderWidthRatio));
 

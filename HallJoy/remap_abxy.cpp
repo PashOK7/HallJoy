@@ -110,7 +110,8 @@ static COLORREF GetBorderForLetter(const wchar_t* letter, COLORREF derivedBorder
 
 void RemapABXY_DrawGlyphAA(HDC hdc, const RECT& rc,
     const wchar_t* letter, COLORREF color,
-    bool brightFill, float padRatio)
+    bool brightFill, float padRatio,
+    COLORREF borderOverride)
 {
     int w = rc.right - rc.left;
     int h = rc.bottom - rc.top;
@@ -139,7 +140,7 @@ void RemapABXY_DrawGlyphAA(HDC hdc, const RECT& rc,
     COLORREF fillRef = brightFill ? Brighten(baseFill, kBrightenAdd) : baseFill;
 
     COLORREF derivedBorder = DarkenMul(fillRef, kBorderDarkMul);
-    COLORREF borderRef = GetBorderForLetter(letter, derivedBorder);
+    COLORREF borderRef = (borderOverride != CLR_INVALID) ? borderOverride : GetBorderForLetter(letter, derivedBorder);
 
     SolidBrush fill(Gp(fillRef, 255));
 

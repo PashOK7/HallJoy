@@ -23,6 +23,7 @@
 #include "ui_theme.h"
 
 #include "binding_actions.h"
+#include "bindings.h"
 #include "remap_icons.h"
 #include "win_util.h"
 #include "key_settings.h"
@@ -569,6 +570,30 @@ static int FindIconIndexByAction(BindAction a)
     return -1;
 }
 
+static int GetStyleVariantForPad(int padIndex, int totalPads)
+{
+    totalPads = std::clamp(totalPads, 1, 4);
+    padIndex = std::clamp(padIndex, 0, 3);
+    if (totalPads <= 1) return 0;
+    return std::clamp(Bindings_GetPadStyleVariant(padIndex), 1, 4);
+}
+
+static bool TryGetDisplayedActionByHid(uint16_t hid, BindAction& outAction, int& outPadIndex)
+{
+    outPadIndex = 0;
+    if (!hid) return false;
+    int pads = std::clamp(Backend_GetVirtualGamepadCount(), 1, 4);
+    for (int pad = 0; pad < pads; ++pad)
+    {
+        if (BindingActions_TryGetByHidForPad(pad, hid, outAction))
+        {
+            outPadIndex = pad;
+            return true;
+        }
+    }
+    return false;
+}
+
 // ---------------- Bound icon cache ----------------
 struct CachedGlyph
 {
@@ -581,9 +606,12 @@ struct CachedGlyph
 
 static std::unordered_map<uint64_t, CachedGlyph> g_glyphCache;
 
-static uint64_t MakeGlyphKey(int iconIdx, int size)
+static uint64_t MakeGlyphKey(int iconIdx, int size, int styleVariant)
 {
-    return (uint64_t)(uint32_t)iconIdx | ((uint64_t)(uint32_t)size << 32);
+    styleVariant = std::clamp(styleVariant, 0, 15);
+    return (uint64_t)(uint32_t)iconIdx |
+        ((uint64_t)(uint32_t)styleVariant << 16) |
+        ((uint64_t)(uint32_t)size << 32);
 }
 
 static void Glyph_Free(CachedGlyph& g)
@@ -607,11 +635,11 @@ static void Glyph_Free(CachedGlyph& g)
     g.size = 0;
 }
 
-static CachedGlyph* Glyph_GetOrCreate(int iconIdx, int size)
+static CachedGlyph* Glyph_GetOrCreate(int iconIdx, int size, int styleVariant)
 {
     if (iconIdx < 0 || size <= 0) return nullptr;
 
-    uint64_t key = MakeGlyphKey(iconIdx, size);
+    uint64_t key = MakeGlyphKey(iconIdx, size, styleVariant);
     auto it = g_glyphCache.find(key);
     if (it != g_glyphCache.end())
         return &it->second;
@@ -644,7 +672,7 @@ static CachedGlyph* Glyph_GetOrCreate(int iconIdx, int size)
     std::memset(cg.bits, 0, (size_t)size * (size_t)size * 4);
 
     RECT rc{ 0, 0, size, size };
-    RemapIcons_DrawGlyphAA(cg.dc, rc, iconIdx, false, 0.075f);
+    RemapIcons_DrawGlyphAA(cg.dc, rc, iconIdx, false, 0.075f, styleVariant);
 
     auto [insIt, ok] = g_glyphCache.emplace(key, cg);
     if (!ok)
@@ -659,12 +687,16 @@ static CachedGlyph* Glyph_GetOrCreate(int iconIdx, int size)
 static bool DrawBoundIconOnKey_Cached(HWND hwndForDpi, HDC hdc, const RECT& keyRectForIcon, uint16_t hid)
 {
     BindAction act{};
-    if (!BindingActions_TryGetByHid(hid, act))
+    int padIndex = 0;
+    if (!TryGetDisplayedActionByHid(hid, act, padIndex))
         return false;
 
     int iconIdx = FindIconIndexByAction(act);
     if (iconIdx < 0)
         return false;
+
+    int totalPads = std::clamp(Backend_GetVirtualGamepadCount(), 1, 4);
+    int styleVariant = GetStyleVariantForPad(padIndex, totalPads);
 
     int iw = keyRectForIcon.right - keyRectForIcon.left;
     int ih = keyRectForIcon.bottom - keyRectForIcon.top;
@@ -675,7 +707,7 @@ static bool DrawBoundIconOnKey_Cached(HWND hwndForDpi, HDC hdc, const RECT& keyR
     int size = WinUtil_ScalePx(hwndForDpi, want);
     size = std::clamp(size, 10, std::min(iw, ih));
 
-    CachedGlyph* cg = Glyph_GetOrCreate(iconIdx, size);
+    CachedGlyph* cg = Glyph_GetOrCreate(iconIdx, size, styleVariant);
     if (!cg || !cg->dc || !cg->bmp)
     {
         RECT rcIcon{};
@@ -684,7 +716,7 @@ static bool DrawBoundIconOnKey_Cached(HWND hwndForDpi, HDC hdc, const RECT& keyR
         rcIcon.right = rcIcon.left + size;
         rcIcon.bottom = rcIcon.top + size;
 
-        RemapIcons_DrawGlyphAA(hdc, rcIcon, iconIdx, false, 0.075f);
+        RemapIcons_DrawGlyphAA(hdc, rcIcon, iconIdx, false, 0.075f, styleVariant);
         return true;
     }
 

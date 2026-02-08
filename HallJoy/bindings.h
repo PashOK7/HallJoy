@@ -30,6 +30,34 @@ enum class GameButton
     DpadUp, DpadDown, DpadLeft, DpadRight
 };
 
+constexpr int BINDINGS_MAX_GAMEPADS = 4;
+
+// ---- Per-gamepad API ----
+void Bindings_SetAxisMinusForPad(int padIndex, Axis a, uint16_t hid);
+void Bindings_SetAxisPlusForPad(int padIndex, Axis a, uint16_t hid);
+AxisBinding Bindings_GetAxisForPad(int padIndex, Axis a);
+
+void Bindings_SetTriggerForPad(int padIndex, Trigger t, uint16_t hid);
+uint16_t Bindings_GetTriggerForPad(int padIndex, Trigger t);
+
+void Bindings_AddButtonHidForPad(int padIndex, GameButton b, uint16_t hid);
+void Bindings_RemoveButtonHidForPad(int padIndex, GameButton b, uint16_t hid);
+bool Bindings_ButtonHasHidForPad(int padIndex, GameButton b, uint16_t hid);
+uint64_t Bindings_GetButtonMaskChunkForPad(int padIndex, GameButton b, int chunk);
+uint16_t Bindings_GetButtonForPad(int padIndex, GameButton b);
+
+void Bindings_ClearHidForPad(int padIndex, uint16_t hid);
+bool Bindings_IsHidBoundForPad(int padIndex, uint16_t hid);
+
+// Visual style (accent color identity) bound to pad slot.
+// styleVariant: 1..4
+void Bindings_SetPadStyleVariant(int padIndex, int styleVariant);
+int  Bindings_GetPadStyleVariant(int padIndex);
+
+// Removes one virtual gamepad slot and compacts following slots to the left.
+// Example: removePadIndex=2, activePadCount=4 => old pad3 becomes pad2.
+void Bindings_RemovePadAndCompact(int removePadIndex, int activePadCount);
+
 // ---- Axes (unchanged: 1 key per direction) ----
 void Bindings_SetAxisMinus(Axis a, uint16_t hid);
 void Bindings_SetAxisPlus(Axis a, uint16_t hid);
@@ -64,7 +92,9 @@ uint16_t Bindings_GetButton(GameButton b);
 // - axes (minus/plus)
 // - triggers
 // - buttons (mask bits)
+// across ALL virtual gamepads.
 void Bindings_ClearHid(uint16_t hid);
 
 // Returns true if HID is used by any gamepad binding (axis/trigger/button).
+// across ALL virtual gamepads.
 bool Bindings_IsHidBound(uint16_t hid);

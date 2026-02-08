@@ -75,6 +75,13 @@ bool Settings_GetVirtualGamepadsEnabled();
 void Settings_SetSnappyJoystick(bool on);
 bool Settings_GetSnappyJoystick();
 
+// Last Key Priority for opposite directions on the same axis.
+// When both directions are pressed, the most recently pressed direction wins.
+void Settings_SetLastKeyPriority(bool on);
+bool Settings_GetLastKeyPriority();
+void Settings_SetLastKeyPrioritySensitivity(float v01); // 0.02..0.30
+float Settings_GetLastKeyPrioritySensitivity();
+
 // Block physical keyboard events for keys that are currently bound to gamepad inputs.
 void Settings_SetBlockBoundKeys(bool on);
 bool Settings_GetBlockBoundKeys();

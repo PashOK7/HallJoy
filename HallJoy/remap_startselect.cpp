@@ -154,7 +154,8 @@ void RemapStartSelect_DrawGlyphAA(HDC hdc, const RECT& rc,
     BindAction action,
     COLORREF baseColor,
     bool brightFill,
-    float padRatioIncoming)
+    float padRatioIncoming,
+    COLORREF borderOverride)
 {
     int w0 = rc.right - rc.left;
     int h0 = rc.bottom - rc.top;
@@ -201,6 +202,8 @@ void RemapStartSelect_DrawGlyphAA(HDC hdc, const RECT& rc,
         frameRef = brightFill ? kFramePressed : kFrameNormal;
         glyphRef = brightFill ? kGlyphPressed : kGlyphNormal;
     }
+
+    if (borderOverride != CLR_INVALID) frameRef = borderOverride;
 
     DrawButtonTile(g, buttonRect, bgRef, frameRef, frameW);
 

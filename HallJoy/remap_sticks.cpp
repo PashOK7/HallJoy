@@ -34,6 +34,16 @@ static constexpr float kFixedOuterPadRatio = 0.12f;
 static constexpr float kOuterPadMin = 0.04f;
 static constexpr float kOuterPadMax = 0.30f;
 
+static int Clamp255(int v) { return (v < 0) ? 0 : (v > 255) ? 255 : v; }
+
+static COLORREF Brighten(COLORREF c, int add)
+{
+    return RGB(
+        Clamp255((int)GetRValue(c) + add),
+        Clamp255((int)GetGValue(c) + add),
+        Clamp255((int)GetBValue(c) + add));
+}
+
 static Color Gp(COLORREF c, BYTE a = 255)
 {
     return Color(a, GetRValue(c), GetGValue(c), GetBValue(c));
@@ -110,8 +120,8 @@ void RemapSticks_DrawGlyphAA(HDC hdc, const RECT& rc,
     bool brightFill,
     float padRatioIncoming)
 {
-    (void)baseColor;
-    (void)brightFill;
+    COLORREF activeFill = (baseColor == CLR_INVALID) ? kFillActive : baseColor;
+    if (brightFill) activeFill = Brighten(activeFill, 8);
 
     int w0 = rc.right - rc.left;
     int h0 = rc.bottom - rc.top;
@@ -164,7 +174,7 @@ void RemapSticks_DrawGlyphAA(HDC hdc, const RECT& rc,
             AddAnnularSectorPath(pathHl, cx, cy, rOuter, rInner, info.angle, kAxisArcAngle);
         }
 
-        SolidBrush brActive(Gp(kFillActive, 255));
+        SolidBrush brActive(Gp(activeFill, 255));
         g.FillPath(&brActive, &pathHl);
     }
 

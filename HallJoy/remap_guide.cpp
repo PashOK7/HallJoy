@@ -230,7 +230,7 @@ static void AddRoundRectPath(GraphicsPath& path, const RectF& r, float radius)
 // ============================================================================
 // Public
 // ============================================================================
-void RemapGuide_DrawGlyphAA(HDC hdc, const RECT& rc, bool brightFill, float padRatio)
+void RemapGuide_DrawGlyphAA(HDC hdc, const RECT& rc, bool brightFill, float padRatio, COLORREF homeAccentOverride)
 {
     int w = rc.right - rc.left;
     int h = rc.bottom - rc.top;
@@ -277,6 +277,7 @@ void RemapGuide_DrawGlyphAA(HDC hdc, const RECT& rc, bool brightFill, float padR
 
     // -------------------- House colors --------------------
     COLORREF homeFill = brightFill ? RemapGuideCfg::kHomeFill_Bright : RemapGuideCfg::kHomeFill_Dim;
+    if (homeAccentOverride != CLR_INVALID) homeFill = homeAccentOverride;
 
     SolidBrush brHouse(GpFromColorRef(homeFill, RemapGuideCfg::kHomeFill_A));
 

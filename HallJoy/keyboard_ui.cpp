@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <array>
 #include <vector>
+#include <algorithm>
 
 #if defined(_MSC_VER)
 #include <intrin.h>
@@ -166,6 +167,11 @@ static void TickOverrideGearAnim()
 
 void KeyboardUI_OnTimerTick(HWND)
 {
+    HWND root = nullptr;
+    if (g_hPageRemap) root = GetAncestor(g_hPageRemap, GA_ROOT);
+    if (!root || !IsWindowVisible(root) || IsIconic(root))
+        return;
+
     for (int chunk = 0; chunk < 4; ++chunk)
     {
         uint64_t bits = BackendUI_ConsumeDirtyChunk(chunk);
@@ -181,5 +187,30 @@ void KeyboardUI_OnTimerTick(HWND)
     TickConfigLiveMarker();
 
     if (g_activeSubTab == 2 && g_hPageTester)
-        InvalidateRect(g_hPageTester, nullptr, FALSE);
+    {
+        static uint32_t s_lastTesterHash = 0;
+
+        int pads = std::clamp(Backend_GetVirtualGamepadCount(), 1, 4);
+        uint32_t h = 2166136261u ^ (uint32_t)pads;
+        for (int i = 0; i < pads; ++i)
+        {
+            XUSB_REPORT r = Backend_GetLastReportForPad(i);
+            auto mix = [&](uint32_t v) {
+                h ^= v;
+                h *= 16777619u;
+                };
+            mix((uint32_t)(uint16_t)r.wButtons);
+            mix((uint32_t)(uint16_t)r.sThumbLX);
+            mix((uint32_t)(uint16_t)r.sThumbLY);
+            mix((uint32_t)(uint16_t)r.sThumbRX);
+            mix((uint32_t)(uint16_t)r.sThumbRY);
+            mix((uint32_t)r.bLeftTrigger | ((uint32_t)r.bRightTrigger << 8));
+        }
+
+        if (h != s_lastTesterHash)
+        {
+            s_lastTesterHash = h;
+            InvalidateRect(g_hPageTester, nullptr, FALSE);
+        }
+    }
 }

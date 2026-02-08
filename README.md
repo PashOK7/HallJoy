@@ -72,3 +72,14 @@ Stored near the executable:
 - ViGEmBus: https://github.com/ViGEm/ViGEmBus
 - Wooting Analog SDK: https://github.com/WootingKb/wooting-analog-sdk
 - Universal Analog Plugin: https://github.com/AnalogSense/universal-analog-plugin
+
+## License
+
+HallJoy uses dual licensing:
+
+- Open source: `AGPL-3.0` (see `LICENSE`)
+- Commercial licensing: see `COMMERCIAL_LICENSE.md`
+
+For commercial licensing inquiries:
+
+- Discord: `pash.ok`

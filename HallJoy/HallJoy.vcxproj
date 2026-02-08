@@ -84,7 +84,8 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;delayimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>wooting_analog_wrapper.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PreBuildEvent>
       <Command>xcopy /y /d "$(ProjectDir)..\runtime\wooting_analog_wrapper.dll" "$(TargetDir)"</Command>
@@ -106,7 +107,8 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;delayimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>wooting_analog_wrapper.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PreBuildEvent>
       <Command>xcopy /y /d "$(ProjectDir)..\runtime\wooting_analog_wrapper.dll" "$(TargetDir)"</Command>
@@ -126,7 +128,8 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;delayimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>wooting_analog_wrapper.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PreBuildEvent>
       <Command>xcopy /y /d "$(ProjectDir)..\runtime\wooting_analog_wrapper.dll" "$(TargetDir)"</Command>
@@ -148,7 +151,8 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;delayimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>wooting_analog_wrapper.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PreBuildEvent>
       <Command>xcopy /y /d "$(ProjectDir)..\runtime\wooting_analog_wrapper.dll" "$(TargetDir)"</Command>

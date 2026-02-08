@@ -221,7 +221,7 @@ static void KeySettingsIni_LoadFromSettingsIni(const wchar_t* path)
         int mode = GetPrivateProfileIntW(L"KeyDeadzone", kMode, 0, path);
 
         int lowM = GetPrivateProfileIntW(L"KeyDeadzone", kLow, 80, path);
-        int higM = GetPrivateProfileIntW(L"KeyDeadzone", kHigh, 980, path);
+        int higM = GetPrivateProfileIntW(L"KeyDeadzone", kHigh, 900, path);
 
         int adzM = GetPrivateProfileIntW(L"KeyDeadzone", kADZ, 0, path);
         int capM = GetPrivateProfileIntW(L"KeyDeadzone", kCap, 1000, path);

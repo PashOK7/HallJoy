@@ -475,7 +475,7 @@ void KeySettingsPanel_Create(HWND parent, HINSTANCE hInst)
     PremiumCombo::SetFont(g_kspComboMode, hFont, true);
     PremiumCombo::AddString(g_kspComboMode, L"Smooth (Bezier)");
     PremiumCombo::AddString(g_kspComboMode, L"Linear (Segments)");
-    PremiumCombo::SetCurSel(g_kspComboMode, 0, false);
+    PremiumCombo::SetCurSel(g_kspComboMode, 1, false);
     PremiumCombo::SetDropMaxVisible(g_kspComboMode, 8);
     cx += modeComboW + S(parent, 20);
 
@@ -566,7 +566,15 @@ bool KeySettingsPanel_HandleCommand(HWND parent, WPARAM wParam, LPARAM lParam)
 
         // BUG #3 FIX: morph must start BEFORE storage changes, otherwise from==to and it snaps.
         KeyDeadzone target = Ksp_GetActiveSettings();
-        target.curveMode = (uint8_t)((sel == 0) ? 0 : 1);
+        uint8_t newMode = (uint8_t)((sel == 0) ? 0 : 1);
+        bool modeChanged = (target.curveMode != newMode);
+        target.curveMode = newMode;
+        if (modeChanged && newMode == 0)
+        {
+            // Smooth starts from neutral CP influence by default.
+            target.cp1_w = 0.5f;
+            target.cp2_w = 0.5f;
+        }
 
         Ksp_StartCurveMorph(target, true);
         Ksp_SaveActiveSettings(target);

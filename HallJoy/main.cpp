@@ -2,10 +2,97 @@
 #include <windows.h>
 #include <objidl.h>
 #include <gdiplus.h>
+#include <string>
 
 #include "app.h"
+#include "win_util.h"
+#include "Resource.h"
 
 #pragma comment(lib, "gdiplus.lib")
+
+static HMODULE g_wootingWrapperModule = nullptr;
+
+static bool FileExistsNoDir(const std::wstring& path)
+{
+    DWORD a = GetFileAttributesW(path.c_str());
+    return (a != INVALID_FILE_ATTRIBUTES) && ((a & FILE_ATTRIBUTE_DIRECTORY) == 0);
+}
+
+static bool WriteBufferToFile(const std::wstring& path, const void* data, DWORD size)
+{
+    HANDLE h = CreateFileW(path.c_str(),
+        GENERIC_WRITE,
+        FILE_SHARE_READ,
+        nullptr,
+        CREATE_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr);
+    if (h == INVALID_HANDLE_VALUE) return false;
+
+    const BYTE* p = (const BYTE*)data;
+    DWORD total = 0;
+    while (total < size)
+    {
+        DWORD n = 0;
+        DWORD chunk = size - total;
+        if (!WriteFile(h, p + total, chunk, &n, nullptr) || n == 0)
+        {
+            CloseHandle(h);
+            return false;
+        }
+        total += n;
+    }
+
+    FlushFileBuffers(h);
+    CloseHandle(h);
+    return true;
+}
+
+static bool ExtractResourceToFile(HINSTANCE hInst, int resId, const std::wstring& dstPath)
+{
+    HRSRC hRes = FindResourceW(hInst, MAKEINTRESOURCEW(resId), RT_RCDATA);
+    if (!hRes) return false;
+
+    DWORD sz = SizeofResource(hInst, hRes);
+    if (sz == 0) return false;
+
+    HGLOBAL hData = LoadResource(hInst, hRes);
+    if (!hData) return false;
+
+    const void* p = LockResource(hData);
+    if (!p) return false;
+
+    std::wstring tmp = dstPath + L".tmp";
+    DeleteFileW(tmp.c_str());
+
+    if (!WriteBufferToFile(tmp, p, sz))
+    {
+        DeleteFileW(tmp.c_str());
+        return false;
+    }
+
+    if (!MoveFileExW(tmp.c_str(), dstPath.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+    {
+        DeleteFileW(tmp.c_str());
+        return false;
+    }
+
+    return true;
+}
+
+static bool EnsureWootingWrapperReady(HINSTANCE hInst)
+{
+    const std::wstring dllPath = WinUtil_BuildPathNearExe(L"wooting_analog_wrapper.dll");
+
+    if (!FileExistsNoDir(dllPath))
+    {
+        if (!ExtractResourceToFile(hInst, IDR_WOOTING_WRAPPER, dllPath))
+            return false;
+    }
+
+    g_wootingWrapperModule = LoadLibraryW(dllPath.c_str());
+    return (g_wootingWrapperModule != nullptr);
+}
 
 static void InitDpiAwareness()
 {
@@ -28,6 +115,15 @@ static void InitDpiAwareness()
 
 int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow)
 {
+    if (!EnsureWootingWrapperReady(hInst))
+    {
+        MessageBoxW(nullptr,
+            L"Failed to prepare wooting_analog_wrapper.dll near the executable.",
+            L"HallJoy",
+            MB_ICONERROR | MB_OK);
+        return 1;
+    }
+
     InitDpiAwareness();
 
     // Init GDI+ once for the entire application lifetime

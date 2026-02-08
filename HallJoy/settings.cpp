@@ -23,15 +23,15 @@ static void UnpackDz(uint32_t p, int& lowM, int& highM)
 static int ClampM01(int m) { return std::clamp(m, 0, 1000); }
 
 // Input deadzones X (packed low/high to read consistently)
-static std::atomic<uint32_t> g_inDzPacked{ PackDz(80, 980) };
+static std::atomic<uint32_t> g_inDzPacked{ PackDz(80, 900) };
 
 // Polling/UI
 static std::atomic<UINT> g_pollMs{ 1 };
 static std::atomic<UINT> g_uiRefreshMs{ 1 };
 static std::atomic<int> g_virtualGamepadCount{ 1 };
 static std::atomic<bool> g_virtualGamepadsEnabled{ true };
-static std::atomic<int> g_mainWinW{ 0 };
-static std::atomic<int> g_mainWinH{ 0 };
+static std::atomic<int> g_mainWinW{ 821 };
+static std::atomic<int> g_mainWinH{ 832 };
 
 // Global curve endpoints (Y)
 static std::atomic<int> g_globalAntiDzM{ 0 };
@@ -49,8 +49,8 @@ static std::atomic<int> g_globalC2yM{ 660 };
 static std::atomic<int> g_globalC1wM{ 1000 };
 static std::atomic<int> g_globalC2wM{ 1000 };
 
-// Global curve mode
-static std::atomic<UINT> g_globalCurveMode{ 0 };
+// Global curve mode (default: Linear)
+static std::atomic<UINT> g_globalCurveMode{ 1 };
 
 // Global invert
 static std::atomic<bool> g_globalInvert{ false };
@@ -59,7 +59,7 @@ static std::atomic<bool> g_globalInvert{ false };
 static std::atomic<bool> g_snappyJoystick{ false };
 static std::atomic<bool> g_lastKeyPriority{ false };
 static std::atomic<int> g_lastKeyPrioritySensitivityM{ 120 }; // 0.120 default
-static std::atomic<bool> g_blockBoundKeys{ true };
+static std::atomic<bool> g_blockBoundKeys{ false };
 
 // UI sizes (fixed)
 static constexpr UINT kRemapButtonSizePx = 43;

@@ -16,7 +16,7 @@ struct KeyDeadzone
     float antiDeadzone = 0.0f;   // Y
 
     // End Point (P3)
-    float high = 0.98f;          // X
+    float high = 0.90f;          // X
     float outputCap = 1.0f;      // Y
 
     // Control Point 1 (P1) - for Bezier curve
@@ -38,7 +38,7 @@ struct KeyDeadzone
     // NEW: per-key curve mode (used only when useUnique==true)
     // 0 = Smooth (Bezier)
     // 1 = Linear (Segments)
-    uint8_t curveMode = 0;
+    uint8_t curveMode = 1;
 };
 
 // set/get by HID

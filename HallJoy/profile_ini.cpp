@@ -177,25 +177,18 @@ bool Profile_SaveIni(const wchar_t* path)
     return IniUtil_AtomicReplace(tmp.c_str(), path);
 }
 
-static void LoadButtonCsvOrSingleForPad(int padIndex, const wchar_t* section, GameButton b, const wchar_t* keyName, const wchar_t* path)
+static void LoadButtonCsvForPad(int padIndex, const wchar_t* section, GameButton b, const wchar_t* keyName, const wchar_t* path)
 {
-    // Try CSV string first
     wchar_t buf[2048]{};
     DWORD n = GetPrivateProfileStringW(section, keyName, L"", buf, (DWORD)(sizeof(buf) / sizeof(buf[0])), path);
 
-    std::vector<uint16_t> hids;
-    if (n > 0 && buf[0] != 0)
-    {
-        ParseHidList256(buf, hids);
-        for (uint16_t hid : hids)
-            Bindings_AddButtonHidForPad(padIndex, b, hid);
+    if (n == 0 || buf[0] == 0)
         return;
-    }
 
-    // Backward compatibility: old single integer format
-    uint16_t one = (uint16_t)GetPrivateProfileIntW(section, keyName, 0, path);
-    if (one > 0 && one < 256)
-        Bindings_AddButtonHidForPad(padIndex, b, one);
+    std::vector<uint16_t> hids;
+    ParseHidList256(buf, hids);
+    for (uint16_t hid : hids)
+        Bindings_AddButtonHidForPad(padIndex, b, hid);
 }
 
 // NEW: full reset of axes/triggers + button masks (HID<256)
@@ -218,13 +211,6 @@ static void ResetAllBindingsBeforeLoad()
         Bindings_ClearHid(hid);
 }
 
-static bool SectionHasAnyKey(const wchar_t* section, const wchar_t* path)
-{
-    wchar_t names[4]{};
-    DWORD n = GetPrivateProfileStringW(section, nullptr, L"", names, (DWORD)_countof(names), path);
-    return n > 0;
-}
-
 static void LoadPadBindingsFromSections(int padIndex, const wchar_t* axesSection, const wchar_t* triggersSection, const wchar_t* buttonsSection, const wchar_t* path)
 {
     auto rAxis = [&](Axis a, const wchar_t* name)
@@ -245,22 +231,22 @@ static void LoadPadBindingsFromSections(int padIndex, const wchar_t* axesSection
     Bindings_SetTriggerForPad(padIndex, Trigger::LT, ReadU16(triggersSection, L"LT", 0, path));
     Bindings_SetTriggerForPad(padIndex, Trigger::RT, ReadU16(triggersSection, L"RT", 0, path));
 
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::A, L"A", path);
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::B, L"B", path);
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::X, L"X", path);
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::Y, L"Y", path);
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::LB, L"LB", path);
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::RB, L"RB", path);
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::Back, L"Back", path);
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::Start, L"Start", path);
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::Guide, L"Guide", path);
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::LS, L"LS", path);
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::RS, L"RS", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::A, L"A", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::B, L"B", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::X, L"X", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::Y, L"Y", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::LB, L"LB", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::RB, L"RB", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::Back, L"Back", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::Start, L"Start", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::Guide, L"Guide", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::LS, L"LS", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::RS, L"RS", path);
 
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::DpadUp, L"DpadUp", path);
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::DpadDown, L"DpadDown", path);
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::DpadLeft, L"DpadLeft", path);
-    LoadButtonCsvOrSingleForPad(padIndex, buttonsSection, GameButton::DpadRight, L"DpadRight", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::DpadUp, L"DpadUp", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::DpadDown, L"DpadDown", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::DpadLeft, L"DpadLeft", path);
+    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::DpadRight, L"DpadRight", path);
 }
 
 bool Profile_LoadIni(const wchar_t* path)
@@ -272,36 +258,16 @@ bool Profile_LoadIni(const wchar_t* path)
 
     ResetAllBindingsBeforeLoad();
 
-    bool hasNewPadSections = false;
     for (int pad = 0; pad < BINDINGS_MAX_GAMEPADS; ++pad)
     {
         wchar_t secAxes[32]{};
+        wchar_t secTriggers[32]{};
+        wchar_t secButtons[32]{};
         swprintf_s(secAxes, L"Pad%d_Axes", pad + 1);
-        if (SectionHasAnyKey(secAxes, path))
-        {
-            hasNewPadSections = true;
-            break;
-        }
+        swprintf_s(secTriggers, L"Pad%d_Triggers", pad + 1);
+        swprintf_s(secButtons, L"Pad%d_Buttons", pad + 1);
+        LoadPadBindingsFromSections(pad, secAxes, secTriggers, secButtons, path);
     }
-
-    if (hasNewPadSections)
-    {
-        for (int pad = 0; pad < BINDINGS_MAX_GAMEPADS; ++pad)
-        {
-            wchar_t secAxes[32]{};
-            wchar_t secTriggers[32]{};
-            wchar_t secButtons[32]{};
-            swprintf_s(secAxes, L"Pad%d_Axes", pad + 1);
-            swprintf_s(secTriggers, L"Pad%d_Triggers", pad + 1);
-            swprintf_s(secButtons, L"Pad%d_Buttons", pad + 1);
-
-            LoadPadBindingsFromSections(pad, secAxes, secTriggers, secButtons, path);
-        }
-        return true;
-    }
-
-    // Legacy fallback: single gamepad sections.
-    LoadPadBindingsFromSections(0, L"Axes", L"Triggers", L"Buttons", path);
 
     return true;
 }

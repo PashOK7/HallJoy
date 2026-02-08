@@ -6,6 +6,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 static uint32_t PackDz(int lowM, int highM)
 {
@@ -32,6 +33,8 @@ static std::atomic<int> g_virtualGamepadCount{ 1 };
 static std::atomic<bool> g_virtualGamepadsEnabled{ true };
 static std::atomic<int> g_mainWinW{ 821 };
 static std::atomic<int> g_mainWinH{ 832 };
+static std::atomic<int> g_mainWinX{ std::numeric_limits<int>::min() };
+static std::atomic<int> g_mainWinY{ std::numeric_limits<int>::min() };
 
 // Global curve endpoints (Y)
 static std::atomic<int> g_globalAntiDzM{ 0 };
@@ -385,4 +388,28 @@ void Settings_SetMainWindowHeightPx(int px)
 int Settings_GetMainWindowHeightPx()
 {
     return g_mainWinH.load(std::memory_order_acquire);
+}
+
+void Settings_SetMainWindowPosXPx(int px)
+{
+    if (px != std::numeric_limits<int>::min())
+        px = std::clamp(px, -100000, 100000);
+    g_mainWinX.store(px, std::memory_order_release);
+}
+
+int Settings_GetMainWindowPosXPx()
+{
+    return g_mainWinX.load(std::memory_order_acquire);
+}
+
+void Settings_SetMainWindowPosYPx(int px)
+{
+    if (px != std::numeric_limits<int>::min())
+        px = std::clamp(px, -100000, 100000);
+    g_mainWinY.store(px, std::memory_order_release);
+}
+
+int Settings_GetMainWindowPosYPx()
+{
+    return g_mainWinY.load(std::memory_order_acquire);
 }

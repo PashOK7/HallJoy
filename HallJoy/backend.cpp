@@ -66,6 +66,7 @@ static std::atomic<bool>         g_bindHadDown{ false };
 // ---- status / reconnect ----
 static std::atomic<bool>         g_vigemOk{ false };
 static std::atomic<VIGEM_ERROR>  g_vigemLastErr{ VIGEM_ERROR_NONE };
+static std::atomic<uint32_t>     g_lastInitIssues{ BackendInitIssue_None };
 static std::atomic<bool>         g_reconnectRequested{ false }; // immediate reconnect (settings change)
 static std::atomic<bool>         g_deviceChangeReconnectRequested{ false }; // throttled reconnect (WM_DEVICECHANGE)
 static std::atomic<ULONGLONG>    g_ignoreDeviceChangeUntilMs{ 0 };
@@ -607,12 +608,34 @@ bool Backend_Init()
 {
     g_virtualPadCount.store(std::clamp(Settings_GetVirtualGamepadCount(), 1, kMaxVirtualPads), std::memory_order_release);
     g_virtualPadsEnabled.store(Settings_GetVirtualGamepadsEnabled(), std::memory_order_release);
+    g_lastInitIssues.store(BackendInitIssue_None, std::memory_order_release);
     g_reconnectRequested.store(false, std::memory_order_release);
     g_deviceChangeReconnectRequested.store(false, std::memory_order_release);
     g_ignoreDeviceChangeUntilMs.store(0, std::memory_order_release);
     g_vigemUpdateFailStreak = 0;
 
-    wooting_analog_initialise();
+    uint32_t initIssues = BackendInitIssue_None;
+    int wootingInit = wooting_analog_initialise();
+    if (wootingInit < 0)
+    {
+        switch ((WootingAnalogResult)wootingInit)
+        {
+        case WootingAnalogResult_DLLNotFound:
+        case WootingAnalogResult_FunctionNotFound:
+            initIssues |= BackendInitIssue_WootingSdkMissing;
+            break;
+        case WootingAnalogResult_NoPlugins:
+            initIssues |= BackendInitIssue_WootingNoPlugins;
+            break;
+        case WootingAnalogResult_IncompatibleVersion:
+            initIssues |= BackendInitIssue_WootingIncompatible;
+            break;
+        default:
+            initIssues |= BackendInitIssue_Unknown;
+            break;
+        }
+    }
+
     if (g_virtualPadsEnabled.load(std::memory_order_acquire))
     {
         // Initial virtual pad creation may also broadcast device changes.
@@ -621,16 +644,29 @@ bool Backend_Init()
         if (!Vigem_Create(g_virtualPadCount.load(std::memory_order_acquire), &err)) {
             g_vigemOk.store(false, std::memory_order_release);
             g_vigemLastErr.store(err, std::memory_order_release);
-            wooting_analog_uninitialise();
-            return false;
+            if (err == VIGEM_ERROR_BUS_NOT_FOUND)
+                initIssues |= BackendInitIssue_VigemBusMissing;
+            else
+                initIssues |= BackendInitIssue_Unknown;
         }
-        g_vigemOk.store(true, std::memory_order_release);
-        g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
+        else
+        {
+            g_vigemOk.store(true, std::memory_order_release);
+            g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
+        }
     }
     else
     {
         g_vigemOk.store(true, std::memory_order_release);
         g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
+    }
+
+    if (initIssues != BackendInitIssue_None)
+    {
+        g_lastInitIssues.store(initIssues, std::memory_order_release);
+        Vigem_Destroy();
+        wooting_analog_uninitialise();
+        return false;
     }
 
     for (auto& a : g_uiAnalogM) a.store(0, std::memory_order_relaxed);
@@ -950,4 +986,9 @@ void Backend_SetVirtualGamepadsEnabled(bool on)
 bool Backend_GetVirtualGamepadsEnabled()
 {
     return g_virtualPadsEnabled.load(std::memory_order_acquire);
+}
+
+uint32_t Backend_GetLastInitIssues()
+{
+    return g_lastInitIssues.load(std::memory_order_acquire);
 }

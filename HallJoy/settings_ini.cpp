@@ -10,6 +10,7 @@
 #include <cmath>
 #include <unordered_set>
 #include <algorithm>
+#include <limits>
 
 #include "settings_ini.h"
 #include "settings.h"
@@ -56,6 +57,15 @@ static void IniWriteI32(const wchar_t* section, const wchar_t* key, int v, const
     wchar_t buf[32]{};
     swprintf_s(buf, L"%d", v);
     WritePrivateProfileStringW(section, key, buf, path);
+}
+
+static int IniReadI32(const wchar_t* section, const wchar_t* key, int def, const wchar_t* path)
+{
+    wchar_t buf[64]{};
+    GetPrivateProfileStringW(section, key, L"", buf, (DWORD)_countof(buf), path);
+    if (buf[0] == 0)
+        return def;
+    return _wtoi(buf);
 }
 
 static bool ReadSectionKeys(const wchar_t* section, const wchar_t* path, std::vector<std::wstring>& keysOut)
@@ -292,6 +302,8 @@ bool SettingsIni_Load(const wchar_t* path)
     int vpadEnabled = GetPrivateProfileIntW(L"Main", L"VirtualGamepadsEnabled", Settings_GetVirtualGamepadsEnabled() ? 1 : 0, path);
     int winW = GetPrivateProfileIntW(L"Window", L"Width", Settings_GetMainWindowWidthPx(), path);
     int winH = GetPrivateProfileIntW(L"Window", L"Height", Settings_GetMainWindowHeightPx(), path);
+    int winX = IniReadI32(L"Window", L"PosX", std::numeric_limits<int>::min(), path);
+    int winY = IniReadI32(L"Window", L"PosY", std::numeric_limits<int>::min(), path);
 
     Settings_SetInputDeadzoneLow(low);
     Settings_SetInputDeadzoneHigh(high);
@@ -320,6 +332,8 @@ bool SettingsIni_Load(const wchar_t* path)
     Settings_SetVirtualGamepadsEnabled(vpadEnabled != 0);
     Settings_SetMainWindowWidthPx(winW);
     Settings_SetMainWindowHeightPx(winH);
+    Settings_SetMainWindowPosXPx(winX);
+    Settings_SetMainWindowPosYPx(winY);
 
     KeySettingsIni_LoadFromSettingsIni(path);
     KeyboardLayout_LoadFromIni(path);
@@ -359,6 +373,16 @@ static bool SettingsIni_Save_Internal(const wchar_t* tmpPath)
     IniWriteI32(L"Main", L"VirtualGamepadsEnabled", Settings_GetVirtualGamepadsEnabled() ? 1 : 0, tmpPath);
     IniWriteI32(L"Window", L"Width", std::max(0, Settings_GetMainWindowWidthPx()), tmpPath);
     IniWriteI32(L"Window", L"Height", std::max(0, Settings_GetMainWindowHeightPx()), tmpPath);
+    const int winX = Settings_GetMainWindowPosXPx();
+    const int winY = Settings_GetMainWindowPosYPx();
+    if (winX == std::numeric_limits<int>::min())
+        WritePrivateProfileStringW(L"Window", L"PosX", nullptr, tmpPath);
+    else
+        IniWriteI32(L"Window", L"PosX", winX, tmpPath);
+    if (winY == std::numeric_limits<int>::min())
+        WritePrivateProfileStringW(L"Window", L"PosY", nullptr, tmpPath);
+    else
+        IniWriteI32(L"Window", L"PosY", winY, tmpPath);
 
     KeySettingsIni_SaveToSettingsIni(tmpPath);
     KeyboardLayout_SaveToIni(tmpPath);

@@ -1,6 +1,7 @@
 #pragma once
 #include <windows.h>
 #include <cstdint>
+#include "binding_actions.h"
 
 // reads analog with key-specific deadzones + global fallback
 float KeyboardRender_ReadAnalog01(uint16_t hid);
@@ -31,3 +32,8 @@ void KeyboardRender_NotifySelectedHid(uint16_t hid);
 // - Called by UI when user clicks the gear marker on a key that has Override enabled.
 //   Starts a smooth "fast burst -> slow idle spin" while the key remains selected/edited.
 void KeyboardRender_OnGearClicked(uint16_t hid);
+
+// Temporarily suppress one specific bound icon while drawing key(s), used by drag UX.
+// Call KeyboardRender_ClearSuppressedBinding() after drawing.
+void KeyboardRender_SetSuppressedBinding(uint16_t hid, int padIndex, BindAction action);
+void KeyboardRender_ClearSuppressedBinding();

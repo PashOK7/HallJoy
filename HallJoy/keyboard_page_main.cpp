@@ -349,20 +349,153 @@ static bool ActionToGameButton(BindAction a, GameButton& out)
     }
 }
 
+static int FindIconIdxForAction(BindAction a);
+
+struct DisplayedKeyIconEntry
+{
+    BindAction action{};
+    int padIndex = 0;
+    int iconIdx = -1;
+};
+
+static int CollectDisplayedActionsByHid(uint16_t hid, DisplayedKeyIconEntry out[4])
+{
+    if (out)
+    {
+        for (int i = 0; i < 4; ++i) out[i] = DisplayedKeyIconEntry{};
+    }
+    if (!hid) return 0;
+
+    int pads = std::clamp(Backend_GetVirtualGamepadCount(), 1, 4);
+    int count = 0;
+    for (int pad = 0; pad < pads; ++pad)
+    {
+        if (count >= 4) break;
+        BindAction act{};
+        if (BindingActions_TryGetByHidForPad(pad, hid, act))
+        {
+            int iconIdx = FindIconIdxForAction(act);
+            if (iconIdx < 0) continue;
+            if (out)
+            {
+                out[count].action = act;
+                out[count].padIndex = std::clamp(pad, 0, 3);
+                out[count].iconIdx = iconIdx;
+            }
+            ++count;
+        }
+    }
+    return count;
+}
+
 static bool FindDisplayedActionByHid(uint16_t hid, BindAction& outAction, int& outPadIndex)
 {
     outPadIndex = 0;
-    if (!hid) return false;
+    DisplayedKeyIconEntry e[4]{};
+    int n = CollectDisplayedActionsByHid(hid, e);
+    if (n <= 0) return false;
+    outAction = e[0].action;
+    outPadIndex = e[0].padIndex;
+    return true;
+}
 
-    int pads = std::clamp(Backend_GetVirtualGamepadCount(), 1, 4);
-    for (int pad = 0; pad < pads; ++pad)
+static int BuildMiniIconRectsForButton(HWND hBtn, int iconCount, RECT outRects[4])
+{
+    if (!hBtn || !outRects) return 0;
+    iconCount = std::clamp(iconCount, 0, 4);
+    if (iconCount <= 0) return 0;
+
+    RECT rc{};
+    GetClientRect(hBtn, &rc);
+    RECT iconArea = rc;
+    InflateRect(&iconArea, -1, -1);
+
+    int iw = iconArea.right - iconArea.left;
+    int ih = iconArea.bottom - iconArea.top;
+    if (iw <= 10 || ih <= 10) return 0;
+
+    int baseSize = WinUtil_ScalePx(hBtn, (int)Settings_GetBoundKeyIconSizePx());
+    baseSize = std::clamp(baseSize, 8, std::min(iw, ih));
+    int gap = std::clamp(WinUtil_ScalePx(hBtn, 2), 1, 5);
+
+    for (int i = 0; i < 4; ++i) outRects[i] = RECT{};
+
+    if (iconCount == 1)
     {
-        if (BindingActions_TryGetByHidForPad(pad, hid, outAction))
+        int size = std::clamp(baseSize, 8, std::min(iw, ih));
+        int x = (iconArea.left + iconArea.right - size) / 2;
+        int y = (iconArea.top + iconArea.bottom - size) / 2;
+        outRects[0] = RECT{ x, y, x + size, y + size };
+        return 1;
+    }
+
+    if (iconCount == 2)
+    {
+        int cellW = std::max(8, (iw - gap) / 2);
+        int size = std::clamp(baseSize, 8, std::min(cellW, ih));
+        int y = iconArea.top + (ih - size) / 2;
+        int x0 = iconArea.left + (cellW - size) / 2;
+        int x1 = iconArea.left + cellW + gap + (cellW - size) / 2;
+        outRects[0] = RECT{ x0, y, x0 + size, y + size };
+        outRects[1] = RECT{ x1, y, x1 + size, y + size };
+        return 2;
+    }
+
+    if (iconCount == 3)
+    {
+        int rowH = std::max(8, (ih - gap) / 2);
+        int topCellW = std::max(8, (iw - gap) / 2);
+        int size = std::clamp(baseSize, 8, std::min(topCellW, rowH));
+        int topY = iconArea.top + (rowH - size) / 2;
+        int x0 = iconArea.left + (topCellW - size) / 2;
+        int x1 = iconArea.left + topCellW + gap + (topCellW - size) / 2;
+        int botY = iconArea.top + rowH + gap + (rowH - size) / 2;
+        int x2 = iconArea.left + (iw - size) / 2;
+        outRects[0] = RECT{ x0, topY, x0 + size, topY + size };
+        outRects[1] = RECT{ x1, topY, x1 + size, topY + size };
+        outRects[2] = RECT{ x2, botY, x2 + size, botY + size };
+        return 3;
+    }
+
+    int cellW = std::max(8, (iw - gap) / 2);
+    int cellH = std::max(8, (ih - gap) / 2);
+    int size = std::clamp(baseSize, 8, std::min(cellW, cellH));
+    for (int i = 0; i < 4; ++i)
+    {
+        int col = i % 2;
+        int row = i / 2;
+        int cellX = iconArea.left + col * (cellW + gap);
+        int cellY = iconArea.top + row * (cellH + gap);
+        int x = cellX + (cellW - size) / 2;
+        int y = cellY + (cellH - size) / 2;
+        outRects[i] = RECT{ x, y, x + size, y + size };
+    }
+    return 4;
+}
+
+static bool HitTestDisplayedIconOnButton(HWND hBtn, uint16_t hid, POINT ptClient, DisplayedKeyIconEntry& outEntry, RECT& outRect)
+{
+    outEntry = DisplayedKeyIconEntry{};
+    outRect = RECT{};
+
+    DisplayedKeyIconEntry entries[4]{};
+    int count = CollectDisplayedActionsByHid(hid, entries);
+    if (count <= 0) return false;
+
+    RECT rects[4]{};
+    int rectCount = BuildMiniIconRectsForButton(hBtn, count, rects);
+    if (rectCount <= 0) return false;
+
+    for (int i = 0; i < rectCount && i < count; ++i)
+    {
+        if (PtInRect(&rects[i], ptClient))
         {
-            outPadIndex = pad;
+            outEntry = entries[i];
+            outRect = rects[i];
             return true;
         }
     }
+
     return false;
 }
 
@@ -892,6 +1025,7 @@ static void KeyDel_Tick()
 struct KeyIconDragState
 {
     bool dragging = false;
+    bool growing = false;
 
     uint16_t srcHid = 0;
     uint16_t hoverHid = 0;
@@ -914,6 +1048,9 @@ struct KeyIconDragState
     float gx = 0.0f, gy = 0.0f;
     float tx = 0.0f, ty = 0.0f;
     DWORD lastTick = 0;
+    DWORD growStartTick = 0;
+    DWORD growDurationMs = 0;
+    float growFromScale = 1.0f;
 
     // NEW: shrink-out animation when dropping to empty (unbind)
     bool shrinking = false;
@@ -992,22 +1129,11 @@ static void KeyDrag_EnsureGhostWindow(HINSTANCE hInst, HWND hOwnerTop)
         ShowWindow(g_kdrag.hGhost, SW_HIDE);
 }
 
-static void KeyDrag_RenderGlyphToSurface()
-{
-    if (!g_kdrag.memDC || !g_kdrag.bits) return;
-
-    std::memset(g_kdrag.bits, 0, (size_t)g_kdrag.ghostW * (size_t)g_kdrag.ghostH * 4);
-
-    RECT rc{ 0,0,g_kdrag.ghostW, g_kdrag.ghostH };
-    int styleVariant = GetRemapStyleVariantForPad(g_kdrag.srcPadIndex);
-    RemapIcons_DrawGlyphAA(g_kdrag.memDC, rc, g_kdrag.iconIdx, true, 0.135f, styleVariant);
-}
-
 static void KeyDrag_UpdateLayered(int x, int y)
 {
     if (!g_kdrag.hGhost || !g_kdrag.memDC) return;
 
-    BYTE alpha = (g_kdrag.hoverHid != 0) ? 215 : 190;
+    BYTE alpha = 255;
 
     HDC screen = GetDC(nullptr);
 
@@ -1039,6 +1165,7 @@ static void KeyDrag_Stop()
     uint16_t oldSrc = g_kdrag.srcHid;
 
     g_kdrag.dragging = false;
+    g_kdrag.growing = false;
     g_kdrag.shrinking = false;
 
     if (g_kdrag.hPage)
@@ -1057,6 +1184,9 @@ static void KeyDrag_Stop()
     g_kdrag.action = {};
     g_kdrag.iconIdx = -1;
     g_kdrag.lastTick = 0;
+    g_kdrag.growStartTick = 0;
+    g_kdrag.growDurationMs = 0;
+    g_kdrag.growFromScale = 1.0f;
     g_kdrag.hPage = nullptr;
 
     InvalidateKeyByHid(oldSrc);
@@ -1161,6 +1291,7 @@ static void KeyDrag_BeginShrinkOut()
     if (!g_kdrag.hGhost) return;
 
     g_kdrag.dragging = false;
+    g_kdrag.growing = false;
     g_kdrag.shrinking = true;
     g_kdrag.shrinkStartTick = GetTickCount();
     g_kdrag.shrinkDurationMs = 140;
@@ -1210,6 +1341,10 @@ static void KeyDrag_ShrinkTick()
         g_kdrag.action = {};
         g_kdrag.iconIdx = -1;
         g_kdrag.lastTick = 0;
+        g_kdrag.growing = false;
+        g_kdrag.growStartTick = 0;
+        g_kdrag.growDurationMs = 0;
+        g_kdrag.growFromScale = 1.0f;
         g_kdrag.hPage = nullptr;
     }
 }
@@ -1264,29 +1399,23 @@ static void KeyDrag_Tick()
     g_kdrag.gx += (g_kdrag.tx - g_kdrag.gx) * a;
     g_kdrag.gy += (g_kdrag.ty - g_kdrag.gy) * a;
 
-    KeyDrag_RenderGlyphToSurface();
+    float renderScale = 1.0f;
+    if (g_kdrag.growing)
+    {
+        DWORD growDt = now - g_kdrag.growStartTick;
+        float gt = (g_kdrag.growDurationMs > 0) ? (float)growDt / (float)g_kdrag.growDurationMs : 1.0f;
+        gt = std::clamp(gt, 0.0f, 1.0f);
+        float ge = EaseOutCubic01(gt);
+        renderScale = g_kdrag.growFromScale + (1.0f - g_kdrag.growFromScale) * ge;
+        if (gt >= 1.0f - 1e-4f)
+        {
+            g_kdrag.growing = false;
+            renderScale = 1.0f;
+        }
+    }
+
+    KeyDrag_RenderGlyphToSurfaceScaled(renderScale);
     KeyDrag_UpdateLayered((int)lroundf(g_kdrag.gx), (int)lroundf(g_kdrag.gy));
-}
-
-static bool PointInCenteredIconRect(HWND hBtn, POINT ptClient)
-{
-    RECT rc{};
-    GetClientRect(hBtn, &rc);
-
-    int w = rc.right - rc.left;
-    int h = rc.bottom - rc.top;
-
-    int size = WinUtil_ScalePx(hBtn, (int)Settings_GetBoundKeyIconSizePx());
-    size = std::clamp(size, 10, std::min(w, h));
-
-    RECT icon{};
-    icon.left = (w - size) / 2;
-    icon.top = (h - size) / 2;
-    icon.right = icon.left + size;
-    icon.bottom = icon.top + size;
-
-    return (ptClient.x >= icon.left && ptClient.x < icon.right &&
-        ptClient.y >= icon.top && ptClient.y < icon.bottom);
 }
 
 static bool HitTestGearMarker(HWND hBtn, POINT ptClient)
@@ -1326,15 +1455,14 @@ static bool StartKeyDragFromButton(HWND hBtn, uint16_t hid, POINT ptClient)
         SwapFly_Stop(true);
 
     if (!hid) return false;
-    if (!PointInCenteredIconRect(hBtn, ptClient))
+    DisplayedKeyIconEntry picked{};
+    RECT pickedRc{};
+    if (!HitTestDisplayedIconOnButton(hBtn, hid, ptClient, picked, pickedRc))
         return false;
 
-    BindAction act{};
-    int srcPadIndex = 0;
-    if (!FindDisplayedActionByHid(hid, act, srcPadIndex))
-        return false;
-
-    int iconIdx = FindIconIdxForAction(act);
+    BindAction act = picked.action;
+    int srcPadIndex = picked.padIndex;
+    int iconIdx = picked.iconIdx;
     if (iconIdx < 0)
         return false;
 
@@ -1347,6 +1475,7 @@ static bool StartKeyDragFromButton(HWND hBtn, uint16_t hid, POINT ptClient)
     KeyDrag_Stop();
 
     g_kdrag.dragging = true;
+    g_kdrag.growing = false;
     g_kdrag.shrinking = false;
     g_kdrag.srcHid = hid;
     g_kdrag.hoverHid = 0;
@@ -1362,16 +1491,21 @@ static bool StartKeyDragFromButton(HWND hBtn, uint16_t hid, POINT ptClient)
     if (!KeyDrag_EnsureSurface())
         return false;
 
-    RECT rcBtn{};
-    GetWindowRect(hBtn, &rcBtn);
-    int cx = (rcBtn.left + rcBtn.right) / 2;
-    int cy = (rcBtn.top + rcBtn.bottom) / 2;
+    POINT iconCenter{
+        (pickedRc.left + pickedRc.right) / 2,
+        (pickedRc.top + pickedRc.bottom) / 2 };
+    ClientToScreen(hBtn, &iconCenter);
 
-    g_kdrag.gx = (float)(cx - g_kdrag.ghostW / 2);
-    g_kdrag.gy = (float)(cy - g_kdrag.ghostH / 2);
+    g_kdrag.gx = (float)(iconCenter.x - g_kdrag.ghostW / 2);
+    g_kdrag.gy = (float)(iconCenter.y - g_kdrag.ghostH / 2);
     g_kdrag.tx = g_kdrag.gx;
     g_kdrag.ty = g_kdrag.gy;
     g_kdrag.lastTick = 0;
+    int miniW = std::max<int>(1, (int)(pickedRc.right - pickedRc.left));
+    g_kdrag.growFromScale = std::clamp((float)miniW / (float)std::max<int>(1, g_kdrag.ghostW), 0.20f, 1.0f);
+    g_kdrag.growStartTick = GetTickCount();
+    g_kdrag.growDurationMs = 120;
+    g_kdrag.growing = (g_kdrag.growFromScale < 0.995f);
 
     SetFocus(hPage);
     SetCapture(hPage);
@@ -1383,7 +1517,7 @@ static bool StartKeyDragFromButton(HWND hBtn, uint16_t hid, POINT ptClient)
     InvalidateRect(hBtn, nullptr, FALSE);
     UpdateWindow(hBtn);
 
-    KeyDrag_RenderGlyphToSurface();
+    KeyDrag_RenderGlyphToSurfaceScaled(g_kdrag.growing ? g_kdrag.growFromScale : 1.0f);
     KeyDrag_UpdateLayered((int)lroundf(g_kdrag.gx), (int)lroundf(g_kdrag.gy));
 
     return true;
@@ -1420,17 +1554,30 @@ static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, L
     {
         if (hid != 0 && g_activeSubTab == 0)
         {
+            POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            DisplayedKeyIconEntry picked{};
+            RECT pickedRc{};
+            bool pickedSpecific = HitTestDisplayedIconOnButton(hBtn, hid, pt, picked, pickedRc);
+
             // If key has a bound icon, play shrink animation on top of the key.
             BindAction act{};
             int padIndex = 0;
-            if (FindDisplayedActionByHid(hid, act, padIndex))
+            int iconIdx = -1;
+            if (pickedSpecific)
             {
-                int iconIdx = FindIconIdxForAction(act);
-                if (iconIdx >= 0)
-                {
-                    HWND hPage = GetParent(hBtn);
-                    KeyDel_Start(hPage, hBtn, iconIdx, padIndex);
-                }
+                act = picked.action;
+                padIndex = picked.padIndex;
+                iconIdx = picked.iconIdx;
+            }
+            else if (FindDisplayedActionByHid(hid, act, padIndex))
+            {
+                iconIdx = FindIconIdxForAction(act);
+            }
+
+            if (iconIdx >= 0)
+            {
+                HWND hPage = GetParent(hBtn);
+                KeyDel_Start(hPage, hBtn, iconIdx, padIndex);
 
                 // Logical unbind happens immediately (visual is handled by overlay ghost)
                 Bindings_ClearHidForPad(padIndex, hid);
@@ -1828,20 +1975,27 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                 uint16_t hid = (uint16_t)GetWindowLongPtrW(dis->hwndItem, GWLP_USERDATA);
                 uint16_t renderHid = hid;
 
-                // Hide source icon only when it's a MOVE.
-                // For COPY mode (Ctrl + button action), keep source visible.
+                bool suppressDraggedMiniIcon = false;
                 if (g_kdrag.dragging && hid != 0 && hid == g_kdrag.srcHid)
                 {
                     bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
                     bool copyMode = ctrl && IsButtonAction(g_kdrag.action);
+                    suppressDraggedMiniIcon = !copyMode;
+                }
 
-                    if (!copyMode)
-                        renderHid = 0; // move mode
+                KeyboardRender_ClearSuppressedBinding();
+                if (suppressDraggedMiniIcon)
+                {
+                    KeyboardRender_SetSuppressedBinding(
+                        g_kdrag.srcHid,
+                        g_kdrag.srcPadIndex,
+                        g_kdrag.action);
                 }
 
                 // Selection highlight only in Configuration tab
                 bool sel = (g_activeSubTab == 1 && hid != 0 && hid == g_selectedHid);
                 KeyboardRender_DrawKey(dis, renderHid, sel, -1.0f);
+                KeyboardRender_ClearSuppressedBinding();
 
                 if (hid != 0 && hid == g_dragHoverHid)
                     DrawDropHoverOutline(dis);

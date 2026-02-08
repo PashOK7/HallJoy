@@ -15,6 +15,12 @@
 **/bin/
 **/obj/
 
+# Keep required third-party import lib in repository
+!third_party/ViGEmClient/lib/
+!third_party/ViGEmClient/lib/release/
+!third_party/ViGEmClient/lib/release/x64/
+!third_party/ViGEmClient/lib/release/x64/ViGEmClient.lib
+
 # MSBuild/VS intermediates
 *.obj
 *.pdb

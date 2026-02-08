@@ -107,3 +107,11 @@ int Settings_GetMainWindowWidthPx();
 
 void Settings_SetMainWindowHeightPx(int px);
 int Settings_GetMainWindowHeightPx();
+
+// Main window top-left position in virtual-screen coordinates.
+// INT_MIN means "not set yet".
+void Settings_SetMainWindowPosXPx(int px);
+int Settings_GetMainWindowPosXPx();
+
+void Settings_SetMainWindowPosYPx(int px);
+int Settings_GetMainWindowPosYPx();

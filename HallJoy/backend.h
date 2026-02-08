@@ -6,9 +6,20 @@
 
 #include <ViGEm/Client.h>
 
+enum BackendInitIssue : uint32_t
+{
+    BackendInitIssue_None = 0,
+    BackendInitIssue_WootingSdkMissing = 1u << 0,
+    BackendInitIssue_WootingNoPlugins = 1u << 1,
+    BackendInitIssue_WootingIncompatible = 1u << 2,
+    BackendInitIssue_VigemBusMissing = 1u << 3,
+    BackendInitIssue_Unknown = 1u << 31,
+};
+
 bool Backend_Init();
 void Backend_Shutdown();
 void Backend_Tick();
+uint32_t Backend_GetLastInitIssues();
 
 // Virtual X360 gamepad count in ViGEm (1..4). Can be changed at runtime.
 void Backend_SetVirtualGamepadCount(int count);

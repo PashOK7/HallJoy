@@ -22,6 +22,7 @@
 #include <gdiplus.h>
 #include <shellapi.h>
 
+#include "Resource.h"
 #include "keyboard_ui_internal.h"
 #include "keyboard_keysettings_panel.h"
 #include "keyboard_keysettings_panel_internal.h"
@@ -1893,6 +1894,7 @@ static void LayoutEditor_OpenWindow(HWND hOwnerPage)
         wc.lpszClassName = L"KeyboardLayoutEditorHost";
         wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
         wc.hbrBackground = UiTheme::Brush_PanelBg();
+        wc.hIcon = (HICON)LoadImageW(hInst, MAKEINTRESOURCEW(IDI_HALLJOY), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE);
         RegisterClassW(&wc);
         hostReg = true;
     }
@@ -1911,7 +1913,13 @@ static void LayoutEditor_OpenWindow(HWND hOwnerPage)
         hOwnerTop, nullptr, hInst, nullptr);
 
     if (g_hLayoutEditorWindow)
+    {
+        HICON hBig = (HICON)LoadImageW(hInst, MAKEINTRESOURCEW(IDI_HALLJOY), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE);
+        HICON hSmall = (HICON)LoadImageW(hInst, MAKEINTRESOURCEW(IDI_SMALL), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE);
+        if (hBig) SendMessageW(g_hLayoutEditorWindow, WM_SETICON, ICON_BIG, (LPARAM)hBig);
+        if (hSmall) SendMessageW(g_hLayoutEditorWindow, WM_SETICON, ICON_SMALL, (LPARAM)hSmall);
         LayoutEditor_ApplyDarkFrame(g_hLayoutEditorWindow);
+    }
 }
 
 // ============================================================================

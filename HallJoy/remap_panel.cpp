@@ -952,7 +952,64 @@ static void DrawIconButton(const DRAWITEMSTRUCT* dis, int iconIdx, RemapPanelSta
     HBITMAP bmp = nullptr;
     HGDIOBJ oldBmp = nullptr;
     if (!BeginBuffered(out, w, h, mem, bmp, oldBmp))
+    {
+        // Fallback for transient GDI allocation failures during heavy scrolling:
+        // render directly so we never show white empty tiles.
+        bool pressed = (dis->itemState & ODS_SELECTED) != 0;
+        bool srcDragging = (st && st->dragSrcIconBtn && dis->hwndItem == st->dragSrcIconBtn &&
+            (st->dragging || st->postMode == RemapPostAnimMode::FlyBack));
+
+        COLORREF tileBg = UiTheme::Color_PanelBg();
+        if (st && dis->CtlID >= (UINT)REMAP_ICON_ID_BASE)
+        {
+            int packIdx = ((int)dis->CtlID - REMAP_ICON_ID_BASE) / REMAP_ICON_ID_PACK_STRIDE;
+            bool stronger = (pressed && !srcDragging);
+            tileBg = Remap_GetPackTileColor(st, packIdx, stronger);
+        }
+        HBRUSH bTile = CreateSolidBrush(tileBg);
+        FillRect(out, &rc, bTile);
+        DeleteObject(bTile);
+
+        float scale = 1.0f;
+        if (st && st->dragSrcIconBtn && dis->hwndItem == st->dragSrcIconBtn &&
+            (st->dragging || st->postMode == RemapPostAnimMode::FlyBack))
+        {
+            scale = std::clamp(st->srcIconScale, 0.0f, 1.0f);
+        }
+
+        int size = std::min(w, h);
+        int styleVariant = 0;
+        if (dis->CtlID >= (UINT)REMAP_ICON_ID_BASE)
+        {
+            int packIdx = ((int)dis->CtlID - REMAP_ICON_ID_BASE) / REMAP_ICON_ID_PACK_STRIDE;
+            int totalPacks = st ? st->gamepadPacks : 1;
+            styleVariant = Remap_GetIconStyleVariantForPack(packIdx, totalPacks);
+        }
+
+        int dstSize = (int)std::lround((float)size * std::clamp(scale, 0.0f, 1.0f));
+        if (dstSize <= 1) return;
+        dstSize = std::clamp(dstSize, 2, size);
+
+        int x = rc.left + (w - dstSize) / 2;
+        int y = rc.top + (h - dstSize) / 2;
+
+        CachedGlyph* cg = Icon_GetOrCreate(iconIdx, size, pressed, 0.135f, styleVariant);
+        if (cg && cg->dc)
+        {
+            BLENDFUNCTION bf{};
+            bf.BlendOp = AC_SRC_OVER;
+            bf.BlendFlags = 0;
+            bf.SourceConstantAlpha = 255;
+            bf.AlphaFormat = AC_SRC_ALPHA;
+            AlphaBlend(out, x, y, dstSize, dstSize, cg->dc, 0, 0, size, size, bf);
+        }
+        else
+        {
+            RECT rcIcon{ x, y, x + dstSize, y + dstSize };
+            RemapIcons_DrawGlyphAA(out, rcIcon, iconIdx, pressed, 0.135f, styleVariant);
+        }
         return;
+    }
 
     bool pressed = (dis->itemState & ODS_SELECTED) != 0;
     bool srcDragging = (st && st->dragSrcIconBtn && dis->hwndItem == st->dragSrcIconBtn &&
@@ -1500,19 +1557,10 @@ static RECT Remap_GetScrollThumbRect(HWND hWnd, RemapPanelState* st)
     return th;
 }
 
-static void Remap_OffsetAllChildren(HWND hWnd, int dy)
-{
-    if (dy == 0) return;
-
-    RECT rc{};
-    GetClientRect(hWnd, &rc);
-    ScrollWindowEx(hWnd, 0, dy, nullptr, &rc, nullptr, nullptr, SW_INVALIDATE | SW_SCROLLCHILDREN);
-}
-
 static void Remap_RequestFullRepaint(HWND hWnd)
 {
     RedrawWindow(hWnd, nullptr, nullptr,
-        RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
+        RDW_INVALIDATE | RDW_ALLCHILDREN);
 }
 
 static void Remap_SetScrollY(HWND hWnd, RemapPanelState* st, int newScrollY)
@@ -1525,9 +1573,13 @@ static void Remap_SetScrollY(HWND hWnd, RemapPanelState* st, int newScrollY)
     int target = std::clamp(newScrollY, 0, maxScroll);
     if (target != st->scrollY)
     {
-        int dy = st->scrollY - target;
-        Remap_OffsetAllChildren(hWnd, dy);
         st->scrollY = target;
+
+        // Keep scrolling deterministic: recompute child positions instead of pixel-scroll.
+        // This avoids owner-draw icon loss and scrollbar smear artifacts.
+        ApplyRemapSizing(hWnd, st);
+        RedrawWindow(hWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+        return;
     }
 
     RECT tr = Remap_GetScrollTrackRect(hWnd);
@@ -1580,12 +1632,16 @@ static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st)
     auto Move = [&](HWND w, int x, int y, int ww, int hh)
     {
         if (!w || !IsWindow(w)) return;
-        UINT flags = SWP_NOZORDER | SWP_NOACTIVATE;
+        UINT flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW;
         if (hdwp) hdwp = DeferWindowPos(hdwp, w, nullptr, x, y, ww, hh, flags);
         else SetWindowPos(w, nullptr, x, y, ww, hh, flags);
     };
 
-    Move(st->txtHelp, S(hWnd, 12), yOff + S(hWnd, 10), S(hWnd, 860), S(hWnd, 52));
+    int helpX = S(hWnd, 12);
+    RECT trackForHelp = Remap_GetScrollTrackRect(hWnd);
+    int helpRight = std::max(helpX + S(hWnd, 220), (int)trackForHelp.left - S(hWnd, 8));
+    int helpW = std::max(S(hWnd, 220), helpRight - helpX);
+    Move(st->txtHelp, helpX, yOff + S(hWnd, 10), helpW, S(hWnd, 52));
     Move(st->btnAddGamepad, S(hWnd, 12), yOff + S(hWnd, 66), S(hWnd, 210), S(hWnd, 28));
 
     const int startX = S(hWnd, 12);
@@ -1635,8 +1691,7 @@ static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st)
     }
 
     if (hdwp) EndDeferWindowPos(hdwp);
-    RECT tr = Remap_GetScrollTrackRect(hWnd);
-    InvalidateRect(hWnd, &tr, FALSE);
+    InvalidateRect(hWnd, nullptr, FALSE);
 }
 
 // ---------------- Drag tick (while dragging only) ----------------
@@ -1801,9 +1856,39 @@ static void PaintPanelBg(HWND hWnd, RemapPanelState* st)
     HDC hdc = BeginPaint(hWnd, &ps);
     RECT rc{};
     GetClientRect(hWnd, &rc);
-    FillRect(hdc, &rc, UiTheme::Brush_PanelBg());
-    DrawPackBackgrounds(hWnd, hdc, st);
-    DrawRemapScrollbar(hWnd, hdc, st);
+
+    int w = (int)(rc.right - rc.left);
+    int h = (int)(rc.bottom - rc.top);
+    if (w <= 0 || h <= 0)
+    {
+        EndPaint(hWnd, &ps);
+        return;
+    }
+
+    HDC mem = CreateCompatibleDC(hdc);
+    HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
+    if (!mem || !bmp)
+    {
+        if (bmp) DeleteObject(bmp);
+        if (mem) DeleteDC(mem);
+        FillRect(hdc, &rc, UiTheme::Brush_PanelBg());
+        DrawPackBackgrounds(hWnd, hdc, st);
+        DrawRemapScrollbar(hWnd, hdc, st);
+        EndPaint(hWnd, &ps);
+        return;
+    }
+
+    HGDIOBJ oldBmp = SelectObject(mem, bmp);
+    RECT local{ 0,0,w,h };
+    FillRect(mem, &local, UiTheme::Brush_PanelBg());
+    DrawPackBackgrounds(hWnd, mem, st);
+    DrawRemapScrollbar(hWnd, mem, st);
+
+    BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
+
+    SelectObject(mem, oldBmp);
+    DeleteObject(bmp);
+    DeleteDC(mem);
     EndPaint(hWnd, &ps);
 }
 

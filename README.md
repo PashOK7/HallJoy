@@ -13,6 +13,8 @@ It reads per-key analog values through the Wooting Analog SDK and publishes XInp
 I bought a DrunkDeer A75 Pro HE and wanted a native gamepad mode, but could not find one that matched what I needed.
 So I built HallJoy with heavy AI assistance (ChatGPT), then kept improving it feature by feature.
 
+I didn't write a single line of code, I'm not a programmer, even this readme file was written by chatgpt completely except for this paragraph 🙂
+
 ## Key Features
 
 - Analog keyboard -> virtual gamepad bridge with real-time updates.

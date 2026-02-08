@@ -13,4 +13,5 @@ void RemapStartSelect_DrawGlyphAA(HDC hdc, const RECT& rc,
     BindAction action,
     COLORREF baseColor,
     bool brightFill,
-    float padRatio);
+    float padRatio,
+    COLORREF borderOverride = CLR_INVALID);

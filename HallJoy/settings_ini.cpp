@@ -280,6 +280,10 @@ bool SettingsIni_Load(const wchar_t* path)
     UINT curveMode = IniReadU32(L"Input", L"CurveMode", Settings_GetInputCurveMode(), path);
     int invert = GetPrivateProfileIntW(L"Input", L"Invert", 0, path);
     int snappy = GetPrivateProfileIntW(L"Input", L"SnappyJoystick", Settings_GetSnappyJoystick() ? 1 : 0, path);
+    int lastKeyPriority = GetPrivateProfileIntW(L"Input", L"LastKeyPriority", Settings_GetLastKeyPriority() ? 1 : 0, path);
+    float lastKeyPrioritySensitivity = IniReadFloat1000(
+        L"Input", L"LastKeyPrioritySensitivity",
+        Settings_GetLastKeyPrioritySensitivity(), path);
     int blockBoundKeys = GetPrivateProfileIntW(L"Input", L"BlockBoundKeys", Settings_GetBlockBoundKeys() ? 1 : 0, path);
 
     UINT poll = IniReadU32(L"Main", L"PollingMs", Settings_GetPollingMs(), path);
@@ -306,6 +310,8 @@ bool SettingsIni_Load(const wchar_t* path)
     Settings_SetInputCurveMode(curveMode);
     Settings_SetInputInvert(invert != 0);
     Settings_SetSnappyJoystick(snappy != 0);
+    Settings_SetLastKeyPriority(lastKeyPriority != 0);
+    Settings_SetLastKeyPrioritySensitivity(lastKeyPrioritySensitivity);
     Settings_SetBlockBoundKeys(blockBoundKeys != 0);
 
     Settings_SetPollingMs(poll);
@@ -343,6 +349,8 @@ static bool SettingsIni_Save_Internal(const wchar_t* tmpPath)
     IniWriteU32(L"Input", L"CurveMode", Settings_GetInputCurveMode(), tmpPath);
     IniWriteI32(L"Input", L"Invert", Settings_GetInputInvert() ? 1 : 0, tmpPath);
     IniWriteI32(L"Input", L"SnappyJoystick", Settings_GetSnappyJoystick() ? 1 : 0, tmpPath);
+    IniWriteI32(L"Input", L"LastKeyPriority", Settings_GetLastKeyPriority() ? 1 : 0, tmpPath);
+    IniWriteFloat1000(L"Input", L"LastKeyPrioritySensitivity", Settings_GetLastKeyPrioritySensitivity(), tmpPath);
     IniWriteI32(L"Input", L"BlockBoundKeys", Settings_GetBlockBoundKeys() ? 1 : 0, tmpPath);
 
     IniWriteU32(L"Main", L"PollingMs", Settings_GetPollingMs(), tmpPath);

@@ -349,6 +349,31 @@ static bool ActionToGameButton(BindAction a, GameButton& out)
     }
 }
 
+static bool FindDisplayedActionByHid(uint16_t hid, BindAction& outAction, int& outPadIndex)
+{
+    outPadIndex = 0;
+    if (!hid) return false;
+
+    int pads = std::clamp(Backend_GetVirtualGamepadCount(), 1, 4);
+    for (int pad = 0; pad < pads; ++pad)
+    {
+        if (BindingActions_TryGetByHidForPad(pad, hid, outAction))
+        {
+            outPadIndex = pad;
+            return true;
+        }
+    }
+    return false;
+}
+
+static int GetRemapStyleVariantForPad(int padIndex)
+{
+    int totalPads = std::clamp(Backend_GetVirtualGamepadCount(), 1, 4);
+    padIndex = std::clamp(padIndex, 0, 3);
+    if (totalPads <= 1) return 0;
+    return std::clamp(Bindings_GetPadStyleVariant(padIndex), 1, 4);
+}
+
 // -----------------------------------------------------------------------------
 // Swap "fly back" animation (dst icon flies to src)
 // -----------------------------------------------------------------------------
@@ -362,6 +387,7 @@ struct SwapFlyState
     uint16_t dstHid = 0;
 
     BindAction pendingAct{}; // the action that should end up on src
+    int pendingPadIndex = 0;
     int iconIdx = -1;
 
     DWORD startTick = 0;
@@ -489,7 +515,8 @@ static void SwapFly_RenderIcon()
 
     std::memset(g_swapfly.bits, 0, (size_t)sz * (size_t)sz * 4);
     RECT rc{ 0,0,sz,sz };
-    RemapIcons_DrawGlyphAA(g_swapfly.memDC, rc, g_swapfly.iconIdx, true, 0.075f);
+    int styleVariant = GetRemapStyleVariantForPad(g_swapfly.pendingPadIndex);
+    RemapIcons_DrawGlyphAA(g_swapfly.memDC, rc, g_swapfly.iconIdx, true, 0.075f, styleVariant);
 }
 
 static void SwapFly_UpdateLayered(int x, int y, BYTE alpha)
@@ -535,7 +562,7 @@ static void SwapFly_Stop(bool commit)
     {
         if (g_swapfly.srcHid != 0)
         {
-            BindingActions_Apply(g_swapfly.pendingAct, g_swapfly.srcHid);
+            BindingActions_ApplyForPad(g_swapfly.pendingPadIndex, g_swapfly.pendingAct, g_swapfly.srcHid);
             Profile_SaveIni(AppPaths_BindingsIni().c_str());
         }
 
@@ -546,6 +573,7 @@ static void SwapFly_Stop(bool commit)
     g_swapfly.srcHid = 0;
     g_swapfly.dstHid = 0;
     g_swapfly.pendingAct = {};
+    g_swapfly.pendingPadIndex = 0;
     g_swapfly.iconIdx = -1;
     g_swapfly.hPage = nullptr;
     g_swapfly.startTick = 0;
@@ -571,7 +599,7 @@ static void SwapFly_Tick()
         SwapFly_Stop(true);
 }
 
-static bool SwapFly_Start(HWND hPage, uint16_t srcHid, uint16_t dstHid, BindAction pendingAct)
+static bool SwapFly_Start(HWND hPage, uint16_t srcHid, uint16_t dstHid, BindAction pendingAct, int pendingPadIndex)
 {
     if (!hPage) return false;
     if (!srcHid || !dstHid) return false;
@@ -598,6 +626,7 @@ static bool SwapFly_Start(HWND hPage, uint16_t srcHid, uint16_t dstHid, BindActi
     g_swapfly.srcHid = srcHid;
     g_swapfly.dstHid = dstHid;
     g_swapfly.pendingAct = pendingAct;
+    g_swapfly.pendingPadIndex = std::clamp(pendingPadIndex, 0, 3);
     g_swapfly.iconIdx = iconIdx;
     g_swapfly.startTick = GetTickCount();
     g_swapfly.durationMs = 170;
@@ -644,6 +673,7 @@ struct KeyDeleteShrinkState
     void* bits = nullptr;
 
     int iconIdx = -1;
+    int padIndex = 0;
 
     float x = 0.0f; // top-left screen
     float y = 0.0f;
@@ -752,7 +782,8 @@ static void KeyDel_RenderScaled(float scale01)
     int y = (sz - d) / 2;
     RECT rc{ x, y, x + d, y + d };
 
-    RemapIcons_DrawGlyphAA(g_kdel.memDC, rc, g_kdel.iconIdx, true, 0.075f);
+    int styleVariant = GetRemapStyleVariantForPad(g_kdel.padIndex);
+    RemapIcons_DrawGlyphAA(g_kdel.memDC, rc, g_kdel.iconIdx, true, 0.075f, styleVariant);
 }
 
 static void KeyDel_UpdateLayered(BYTE alpha = 225)
@@ -789,10 +820,11 @@ static void KeyDel_Stop()
     g_kdel.running = false;
     g_kdel.hPage = nullptr;
     g_kdel.iconIdx = -1;
+    g_kdel.padIndex = 0;
     g_kdel.startTick = 0;
 }
 
-static bool KeyDel_Start(HWND hPage, HWND hBtn, int iconIdx)
+static bool KeyDel_Start(HWND hPage, HWND hBtn, int iconIdx, int padIndex)
 {
     if (!hPage || !hBtn) return false;
     if (iconIdx < 0) return false;
@@ -816,6 +848,7 @@ static bool KeyDel_Start(HWND hPage, HWND hBtn, int iconIdx)
     g_kdel.hPage = hPage;
     g_kdel.running = true;
     g_kdel.iconIdx = iconIdx;
+    g_kdel.padIndex = std::clamp(padIndex, 0, 3);
 
     g_kdel.x = (float)(cx - g_kdel.size / 2);
     g_kdel.y = (float)(cy - g_kdel.size / 2);
@@ -862,6 +895,7 @@ struct KeyIconDragState
 
     uint16_t srcHid = 0;
     uint16_t hoverHid = 0;
+    int srcPadIndex = 0;
 
     BindAction action{};
     int iconIdx = -1;
@@ -965,7 +999,8 @@ static void KeyDrag_RenderGlyphToSurface()
     std::memset(g_kdrag.bits, 0, (size_t)g_kdrag.ghostW * (size_t)g_kdrag.ghostH * 4);
 
     RECT rc{ 0,0,g_kdrag.ghostW, g_kdrag.ghostH };
-    RemapIcons_DrawGlyphAA(g_kdrag.memDC, rc, g_kdrag.iconIdx, true, 0.135f);
+    int styleVariant = GetRemapStyleVariantForPad(g_kdrag.srcPadIndex);
+    RemapIcons_DrawGlyphAA(g_kdrag.memDC, rc, g_kdrag.iconIdx, true, 0.135f, styleVariant);
 }
 
 static void KeyDrag_UpdateLayered(int x, int y)
@@ -1018,6 +1053,7 @@ static void KeyDrag_Stop()
 
     g_kdrag.srcHid = 0;
     g_kdrag.hoverHid = 0;
+    g_kdrag.srcPadIndex = 0;
     g_kdrag.action = {};
     g_kdrag.iconIdx = -1;
     g_kdrag.lastTick = 0;
@@ -1115,7 +1151,8 @@ static void KeyDrag_RenderGlyphToSurfaceScaled(float scale01)
     int y = (sz - d) / 2;
     RECT rc{ x, y, x + d, y + d };
 
-    RemapIcons_DrawGlyphAA(g_kdrag.memDC, rc, g_kdrag.iconIdx, true, 0.135f);
+    int styleVariant = GetRemapStyleVariantForPad(g_kdrag.srcPadIndex);
+    RemapIcons_DrawGlyphAA(g_kdrag.memDC, rc, g_kdrag.iconIdx, true, 0.135f, styleVariant);
 }
 
 static void KeyDrag_BeginShrinkOut()
@@ -1169,6 +1206,7 @@ static void KeyDrag_ShrinkTick()
         // fully reset state
         g_kdrag.srcHid = 0;
         g_kdrag.hoverHid = 0;
+        g_kdrag.srcPadIndex = 0;
         g_kdrag.action = {};
         g_kdrag.iconIdx = -1;
         g_kdrag.lastTick = 0;
@@ -1292,7 +1330,8 @@ static bool StartKeyDragFromButton(HWND hBtn, uint16_t hid, POINT ptClient)
         return false;
 
     BindAction act{};
-    if (!BindingActions_TryGetByHid(hid, act))
+    int srcPadIndex = 0;
+    if (!FindDisplayedActionByHid(hid, act, srcPadIndex))
         return false;
 
     int iconIdx = FindIconIdxForAction(act);
@@ -1311,6 +1350,7 @@ static bool StartKeyDragFromButton(HWND hBtn, uint16_t hid, POINT ptClient)
     g_kdrag.shrinking = false;
     g_kdrag.srcHid = hid;
     g_kdrag.hoverHid = 0;
+    g_kdrag.srcPadIndex = srcPadIndex;
     g_kdrag.action = act;
     g_kdrag.iconIdx = iconIdx;
     g_kdrag.hPage = hPage;
@@ -1382,20 +1422,21 @@ static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, L
         {
             // If key has a bound icon, play shrink animation on top of the key.
             BindAction act{};
-            if (BindingActions_TryGetByHid(hid, act))
+            int padIndex = 0;
+            if (FindDisplayedActionByHid(hid, act, padIndex))
             {
                 int iconIdx = FindIconIdxForAction(act);
                 if (iconIdx >= 0)
                 {
                     HWND hPage = GetParent(hBtn);
-                    KeyDel_Start(hPage, hBtn, iconIdx);
+                    KeyDel_Start(hPage, hBtn, iconIdx, padIndex);
                 }
-            }
 
-            // Logical unbind happens immediately (visual is handled by overlay ghost)
-            Bindings_ClearHid(hid);
-            Profile_SaveIni(AppPaths_BindingsIni().c_str());
-            InvalidateRect(hBtn, nullptr, FALSE);
+                // Logical unbind happens immediately (visual is handled by overlay ghost)
+                Bindings_ClearHidForPad(padIndex, hid);
+                Profile_SaveIni(AppPaths_BindingsIni().c_str());
+                InvalidateRect(hBtn, nullptr, FALSE);
+            }
         }
         return 0;
     }
@@ -1613,12 +1654,13 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         {
             uint16_t src = g_kdrag.srcHid;
             uint16_t dst = g_kdrag.hoverHid;
+            int srcPadIndex = std::clamp(g_kdrag.srcPadIndex, 0, 3);
             BindAction srcAct = g_kdrag.action;
 
             bool copy = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
 
             BindAction dstAct{};
-            bool dstHasAction = (dst != 0) && BindingActions_TryGetByHid(dst, dstAct);
+            bool dstHasAction = (dst != 0) && BindingActions_TryGetByHidForPad(srcPadIndex, dst, dstAct);
 
             // Drop to empty:
             if (dst == 0)
@@ -1626,7 +1668,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                 if (!copy)
                 {
                     // Unbind immediately
-                    Bindings_ClearHid(src);
+                    Bindings_ClearHidForPad(srcPadIndex, src);
                     Profile_SaveIni(AppPaths_BindingsIni().c_str());
                     InvalidateKeyByHid(src);
 
@@ -1654,15 +1696,15 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
             {
                 if (!copy && dstHasAction && dstAct != srcAct)
                 {
-                    Bindings_ClearHid(src);
-                    Bindings_ClearHid(dst);
+                    Bindings_ClearHidForPad(srcPadIndex, src);
+                    Bindings_ClearHidForPad(srcPadIndex, dst);
 
-                    BindingActions_Apply(srcAct, dst);
+                    BindingActions_ApplyForPad(srcPadIndex, srcAct, dst);
                     InvalidateKeyByHid(dst);
 
-                    if (!SwapFly_Start(hWnd, src, dst, dstAct))
+                    if (!SwapFly_Start(hWnd, src, dst, dstAct, srcPadIndex))
                     {
-                        BindingActions_Apply(dstAct, src);
+                        BindingActions_ApplyForPad(srcPadIndex, dstAct, src);
                         Profile_SaveIni(AppPaths_BindingsIni().c_str());
                         InvalidateKeyByHid(src);
                         InvalidateKeyByHid(dst);
@@ -1679,7 +1721,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                     GameButton gb{};
                     if (ActionToGameButton(srcAct, gb))
                     {
-                        Bindings_RemoveButtonHid(gb, src);
+                        Bindings_RemoveButtonHidForPad(srcPadIndex, gb, src);
                         Profile_SaveIni(AppPaths_BindingsIni().c_str());
                         InvalidateKeyByHid(src);
                         InvalidateKeyByHid(dst);
@@ -1693,15 +1735,15 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                     if (ActionToGameButton(srcAct, gb))
                     {
                         if (!copy)
-                            Bindings_RemoveButtonHid(gb, src);
+                            Bindings_RemoveButtonHidForPad(srcPadIndex, gb, src);
 
-                        BindingActions_Apply(srcAct, dst);
+                        BindingActions_ApplyForPad(srcPadIndex, srcAct, dst);
                         Profile_SaveIni(AppPaths_BindingsIni().c_str());
                     }
                 }
                 else
                 {
-                    BindingActions_Apply(srcAct, dst);
+                    BindingActions_ApplyForPad(srcPadIndex, srcAct, dst);
                     Profile_SaveIni(AppPaths_BindingsIni().c_str());
                 }
 
@@ -1859,6 +1901,6 @@ extern "C" HWND KeyboardPageMain_CreatePage(HWND hParent, HINSTANCE hInst)
         registered = true;
     }
 
-    return CreateWindowExW(WS_EX_COMPOSITED, L"PageMainClass", L"", WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN,
+    return CreateWindowExW(0, L"PageMainClass", L"", WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN,
         0, 0, 100, 100, hParent, nullptr, hInst, nullptr);
 }

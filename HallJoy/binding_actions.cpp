@@ -2,62 +2,67 @@
 
 #include "bindings.h"
 
-void BindingActions_Apply(BindAction a, uint16_t hid)
+void BindingActions_ApplyForPad(int padIndex, BindAction a, uint16_t hid)
 {
     if (!hid) return;
 
     // Ensure uniqueness by KEY:
     // one keyboard key (HID) cannot be bound to multiple actions.
     // This does NOT remove other keys from the same gamepad button anymore.
-    Bindings_ClearHid(hid);
+    Bindings_ClearHidForPad(padIndex, hid);
 
     switch (a)
     {
         // ---- Axes (still single HID per direction) ----
-    case BindAction::Axis_LX_Minus: Bindings_SetAxisMinus(Axis::LX, hid); break;
-    case BindAction::Axis_LX_Plus:  Bindings_SetAxisPlus(Axis::LX, hid);  break;
-    case BindAction::Axis_LY_Minus: Bindings_SetAxisMinus(Axis::LY, hid); break;
-    case BindAction::Axis_LY_Plus:  Bindings_SetAxisPlus(Axis::LY, hid);  break;
-    case BindAction::Axis_RX_Minus: Bindings_SetAxisMinus(Axis::RX, hid); break;
-    case BindAction::Axis_RX_Plus:  Bindings_SetAxisPlus(Axis::RX, hid);  break;
-    case BindAction::Axis_RY_Minus: Bindings_SetAxisMinus(Axis::RY, hid); break;
-    case BindAction::Axis_RY_Plus:  Bindings_SetAxisPlus(Axis::RY, hid);  break;
+    case BindAction::Axis_LX_Minus: Bindings_SetAxisMinusForPad(padIndex, Axis::LX, hid); break;
+    case BindAction::Axis_LX_Plus:  Bindings_SetAxisPlusForPad(padIndex, Axis::LX, hid);  break;
+    case BindAction::Axis_LY_Minus: Bindings_SetAxisMinusForPad(padIndex, Axis::LY, hid); break;
+    case BindAction::Axis_LY_Plus:  Bindings_SetAxisPlusForPad(padIndex, Axis::LY, hid);  break;
+    case BindAction::Axis_RX_Minus: Bindings_SetAxisMinusForPad(padIndex, Axis::RX, hid); break;
+    case BindAction::Axis_RX_Plus:  Bindings_SetAxisPlusForPad(padIndex, Axis::RX, hid);  break;
+    case BindAction::Axis_RY_Minus: Bindings_SetAxisMinusForPad(padIndex, Axis::RY, hid); break;
+    case BindAction::Axis_RY_Plus:  Bindings_SetAxisPlusForPad(padIndex, Axis::RY, hid);  break;
 
         // ---- Triggers (still single HID) ----
-    case BindAction::Trigger_LT: Bindings_SetTrigger(Trigger::LT, hid); break;
-    case BindAction::Trigger_RT: Bindings_SetTrigger(Trigger::RT, hid); break;
+    case BindAction::Trigger_LT: Bindings_SetTriggerForPad(padIndex, Trigger::LT, hid); break;
+    case BindAction::Trigger_RT: Bindings_SetTriggerForPad(padIndex, Trigger::RT, hid); break;
 
         // ---- Buttons (NOW: add HID into mask, no overwriting) ----
-    case BindAction::Btn_A: Bindings_AddButtonHid(GameButton::A, hid); break;
-    case BindAction::Btn_B: Bindings_AddButtonHid(GameButton::B, hid); break;
-    case BindAction::Btn_X: Bindings_AddButtonHid(GameButton::X, hid); break;
-    case BindAction::Btn_Y: Bindings_AddButtonHid(GameButton::Y, hid); break;
+    case BindAction::Btn_A: Bindings_AddButtonHidForPad(padIndex, GameButton::A, hid); break;
+    case BindAction::Btn_B: Bindings_AddButtonHidForPad(padIndex, GameButton::B, hid); break;
+    case BindAction::Btn_X: Bindings_AddButtonHidForPad(padIndex, GameButton::X, hid); break;
+    case BindAction::Btn_Y: Bindings_AddButtonHidForPad(padIndex, GameButton::Y, hid); break;
 
-    case BindAction::Btn_LB: Bindings_AddButtonHid(GameButton::LB, hid); break;
-    case BindAction::Btn_RB: Bindings_AddButtonHid(GameButton::RB, hid); break;
+    case BindAction::Btn_LB: Bindings_AddButtonHidForPad(padIndex, GameButton::LB, hid); break;
+    case BindAction::Btn_RB: Bindings_AddButtonHidForPad(padIndex, GameButton::RB, hid); break;
 
-    case BindAction::Btn_Back:  Bindings_AddButtonHid(GameButton::Back, hid); break;
-    case BindAction::Btn_Start: Bindings_AddButtonHid(GameButton::Start, hid); break;
-    case BindAction::Btn_Guide: Bindings_AddButtonHid(GameButton::Guide, hid); break;
+    case BindAction::Btn_Back:  Bindings_AddButtonHidForPad(padIndex, GameButton::Back, hid); break;
+    case BindAction::Btn_Start: Bindings_AddButtonHidForPad(padIndex, GameButton::Start, hid); break;
+    case BindAction::Btn_Guide: Bindings_AddButtonHidForPad(padIndex, GameButton::Guide, hid); break;
 
-    case BindAction::Btn_LS: Bindings_AddButtonHid(GameButton::LS, hid); break;
-    case BindAction::Btn_RS: Bindings_AddButtonHid(GameButton::RS, hid); break;
+    case BindAction::Btn_LS: Bindings_AddButtonHidForPad(padIndex, GameButton::LS, hid); break;
+    case BindAction::Btn_RS: Bindings_AddButtonHidForPad(padIndex, GameButton::RS, hid); break;
 
-    case BindAction::Btn_DU: Bindings_AddButtonHid(GameButton::DpadUp, hid); break;
-    case BindAction::Btn_DD: Bindings_AddButtonHid(GameButton::DpadDown, hid); break;
-    case BindAction::Btn_DL: Bindings_AddButtonHid(GameButton::DpadLeft, hid); break;
-    case BindAction::Btn_DR: Bindings_AddButtonHid(GameButton::DpadRight, hid); break;
+    case BindAction::Btn_DU: Bindings_AddButtonHidForPad(padIndex, GameButton::DpadUp, hid); break;
+    case BindAction::Btn_DD: Bindings_AddButtonHidForPad(padIndex, GameButton::DpadDown, hid); break;
+    case BindAction::Btn_DL: Bindings_AddButtonHidForPad(padIndex, GameButton::DpadLeft, hid); break;
+    case BindAction::Btn_DR: Bindings_AddButtonHidForPad(padIndex, GameButton::DpadRight, hid); break;
     }
 }
 
-bool BindingActions_TryGetByHid(uint16_t hid, BindAction& outAction)
+void BindingActions_Apply(BindAction a, uint16_t hid)
+{
+    BindingActions_ApplyForPad(0, a, hid);
+}
+
+bool BindingActions_TryGetByHidForPad(int padIndex, uint16_t hid, BindAction& outAction)
 {
     if (!hid) return false;
 
     // Axes
     auto ax = [&](Axis a, BindAction minusA, BindAction plusA) -> bool
         {
-            AxisBinding b = Bindings_GetAxis(a);
+            AxisBinding b = Bindings_GetAxisForPad(padIndex, a);
             if (hid == b.minusHid) { outAction = minusA; return true; }
             if (hid == b.plusHid) { outAction = plusA;  return true; }
             return false;
@@ -69,13 +74,13 @@ bool BindingActions_TryGetByHid(uint16_t hid, BindAction& outAction)
     if (ax(Axis::RY, BindAction::Axis_RY_Minus, BindAction::Axis_RY_Plus)) return true;
 
     // Triggers
-    if (hid == Bindings_GetTrigger(Trigger::LT)) { outAction = BindAction::Trigger_LT; return true; }
-    if (hid == Bindings_GetTrigger(Trigger::RT)) { outAction = BindAction::Trigger_RT; return true; }
+    if (hid == Bindings_GetTriggerForPad(padIndex, Trigger::LT)) { outAction = BindAction::Trigger_LT; return true; }
+    if (hid == Bindings_GetTriggerForPad(padIndex, Trigger::RT)) { outAction = BindAction::Trigger_RT; return true; }
 
     // Buttons (mask-based)
     auto bt = [&](GameButton b, BindAction a) -> bool
         {
-            if (Bindings_ButtonHasHid(b, hid)) { outAction = a; return true; }
+            if (Bindings_ButtonHasHidForPad(padIndex, b, hid)) { outAction = a; return true; }
             return false;
         };
 
@@ -100,4 +105,9 @@ bool BindingActions_TryGetByHid(uint16_t hid, BindAction& outAction)
     if (bt(GameButton::DpadRight, BindAction::Btn_DR)) return true;
 
     return false;
+}
+
+bool BindingActions_TryGetByHid(uint16_t hid, BindAction& outAction)
+{
+    return BindingActions_TryGetByHidForPad(0, hid, outAction);
 }

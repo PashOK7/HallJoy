@@ -6,6 +6,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include <dbt.h>
 #include <commctrl.h>
 
 #include <string>
@@ -207,7 +208,8 @@ static void RequestSettingsSave(HWND hMainWnd)
 
 static void ApplyTimingSettings(HWND hMainWnd)
 {
-    RealtimeLoop_SetIntervalMs(Settings_GetPollingMs());
+    UINT pollMs = std::clamp(Settings_GetPollingMs(), 1u, 20u);
+    RealtimeLoop_SetIntervalMs(pollMs);
 
     UINT uiMs = std::clamp(Settings_GetUIRefreshMs(), 1u, 200u);
     SetTimer(hMainWnd, UI_TIMER_ID, uiMs, nullptr);
@@ -277,7 +279,12 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         return 0;
 
     case WM_DEVICECHANGE:
-        Backend_NotifyDeviceChange();
+        if (wParam == DBT_DEVNODES_CHANGED ||
+            wParam == DBT_DEVICEARRIVAL ||
+            wParam == DBT_DEVICEREMOVECOMPLETE)
+        {
+            Backend_NotifyDeviceChange();
+        }
         return 0;
 
     case WM_TIMER:
@@ -378,7 +385,7 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     h = std::max(h, minH);
 
     HWND hwnd = CreateWindowExW(
-        WS_EX_COMPOSITED,
+        0,
         wc.lpszClassName,
         L"HallJoy",
         WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,

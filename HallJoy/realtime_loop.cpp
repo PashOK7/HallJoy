@@ -59,14 +59,20 @@ static bool ArmTimer(HANDLE hTimer, UINT periodMs)
 
 static DWORD WINAPI ThreadProc(LPVOID)
 {
-    timeBeginPeriod(1);
-
     g_mmcssHandle = AvSetMmThreadCharacteristicsW(L"Games", &g_mmcssTaskIndex);
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
     g_timer = CreateWaitableTimerHighResCompat();
 
     UINT last = g_intervalMs.load(std::memory_order_relaxed);
+    last = std::clamp(last, 1u, 20u);
+    UINT timerPeriodMs = last;
+    MMRESULT periodRes = timeBeginPeriod(timerPeriodMs);
+    if (periodRes != TIMERR_NOERROR)
+    {
+        timerPeriodMs = 1;
+        timeBeginPeriod(timerPeriodMs);
+    }
     bool timerOk = ArmTimer(g_timer, last);
 
     // Fallback mode: no waitable timer available
@@ -84,6 +90,18 @@ static DWORD WINAPI ThreadProc(LPVOID)
             UINT cur = g_intervalMs.load(std::memory_order_relaxed);
             cur = std::clamp(cur, 1u, 20u);
 
+            if (cur != timerPeriodMs)
+            {
+                timeEndPeriod(timerPeriodMs);
+                timerPeriodMs = cur;
+                MMRESULT r = timeBeginPeriod(timerPeriodMs);
+                if (r != TIMERR_NOERROR)
+                {
+                    timerPeriodMs = 1;
+                    timeBeginPeriod(timerPeriodMs);
+                }
+            }
+
             // Wait for stop event with timeout = interval
             DWORD w = WaitForSingleObject(g_stopEvent, cur);
             if (w == WAIT_OBJECT_0)
@@ -99,7 +117,7 @@ static DWORD WINAPI ThreadProc(LPVOID)
             g_mmcssTaskIndex = 0;
         }
 
-        timeEndPeriod(1);
+        timeEndPeriod(timerPeriodMs);
         return 0;
     }
 
@@ -119,6 +137,17 @@ static DWORD WINAPI ThreadProc(LPVOID)
         if (cur != last)
         {
             last = cur;
+            if (cur != timerPeriodMs)
+            {
+                timeEndPeriod(timerPeriodMs);
+                timerPeriodMs = cur;
+                MMRESULT r = timeBeginPeriod(timerPeriodMs);
+                if (r != TIMERR_NOERROR)
+                {
+                    timerPeriodMs = 1;
+                    timeBeginPeriod(timerPeriodMs);
+                }
+            }
             ArmTimer(g_timer, cur); // if it fails, we still continue (next wake might be delayed)
         }
     }
@@ -137,7 +166,7 @@ static DWORD WINAPI ThreadProc(LPVOID)
         g_mmcssTaskIndex = 0;
     }
 
-    timeEndPeriod(1);
+    timeEndPeriod(timerPeriodMs);
     return 0;
 }
 

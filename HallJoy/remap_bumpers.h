@@ -12,4 +12,5 @@ void RemapBumpers_DrawGlyphAA(HDC hdc, const RECT& rc,
     BindAction action,        // Btn_LB / Btn_RB
     COLORREF baseColor,       // из RemapIconDef (можно использовать в режиме derive)
     bool brightFill,          // pressed/ghost
-    float padRatio);          // внешний паддинг как у остальных иконок
+    float padRatio,           // внешний паддинг как у остальных иконок
+    COLORREF borderOverride = CLR_INVALID);

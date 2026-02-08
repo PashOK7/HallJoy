@@ -7,4 +7,5 @@
 // Assumes GDI+ is already initialized somewhere in the app.
 void RemapABXY_DrawGlyphAA(HDC hdc, const RECT& rc,
     const wchar_t* letter, COLORREF color,
-    bool brightFill, float padRatio);
+    bool brightFill, float padRatio,
+    COLORREF borderOverride = CLR_INVALID);

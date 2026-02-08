@@ -57,6 +57,8 @@ static std::atomic<bool> g_globalInvert{ false };
 
 // ---------------- NEW: Snappy Joystick ----------------
 static std::atomic<bool> g_snappyJoystick{ false };
+static std::atomic<bool> g_lastKeyPriority{ false };
+static std::atomic<int> g_lastKeyPrioritySensitivityM{ 120 }; // 0.120 default
 static std::atomic<bool> g_blockBoundKeys{ true };
 
 // UI sizes (fixed)
@@ -271,6 +273,29 @@ void Settings_SetSnappyJoystick(bool on)
 bool Settings_GetSnappyJoystick()
 {
     return g_snappyJoystick.load(std::memory_order_acquire);
+}
+
+void Settings_SetLastKeyPriority(bool on)
+{
+    g_lastKeyPriority.store(on, std::memory_order_release);
+}
+
+bool Settings_GetLastKeyPriority()
+{
+    return g_lastKeyPriority.load(std::memory_order_acquire);
+}
+
+void Settings_SetLastKeyPrioritySensitivity(float v01)
+{
+    int m = (int)lroundf(std::clamp(v01, 0.02f, 0.30f) * 1000.0f);
+    g_lastKeyPrioritySensitivityM.store(std::clamp(m, 20, 300), std::memory_order_release);
+}
+
+float Settings_GetLastKeyPrioritySensitivity()
+{
+    int m = g_lastKeyPrioritySensitivityM.load(std::memory_order_acquire);
+    m = std::clamp(m, 20, 300);
+    return (float)m / 1000.0f;
 }
 
 void Settings_SetBlockBoundKeys(bool on)

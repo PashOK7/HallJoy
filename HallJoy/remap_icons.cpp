@@ -65,8 +65,26 @@ static const RemapIconDef g_icons[] =
     {L"Select",BindAction::Btn_Back,      RGB(180, 180, 180), false}, // select
 
 
-    // (ничего больше — мы намеренно убрали старую "группировку", тут только нужный порядок)
+    // (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ", пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
 };
+
+struct RemapIconStyle
+{
+    COLORREF accent = RGB(255, 212, 92); // default legacy accent (single gamepad)
+    bool extendedAccent = false;          // extra accent outline for ABXY/LT/RT/LB/RB/Start/Select
+};
+
+static RemapIconStyle ResolveStyleVariant(int styleVariant)
+{
+    switch (styleVariant)
+    {
+    case 1: return { RGB(255, 212, 92),  true  }; // gamepad #1 in multi-pad mode (yellow + extended outlines)
+    case 2: return { RGB(96, 178, 255),  true  }; // gamepad #2 (sapphire)
+    case 3: return { RGB(90, 255, 144), true  }; // gamepad #3 (emerald)
+    case 4: return { RGB(255, 111, 135), true  }; // gamepad #4 (ruby)
+    default: return { RGB(255, 212, 92), false }; // single gamepad mode: legacy default look
+    }
+}
 
 int RemapIcons_Count()
 {
@@ -119,41 +137,43 @@ static void AddRoundRectPath(GraphicsPath& path, const RectF& r, float radius)
     path.CloseFigure();
 }
 
-void RemapIcons_DrawGlyphAA(HDC hdc, const RECT& rc, int iconIdx, bool brightFill, float padRatio)
+void RemapIcons_DrawGlyphAA(HDC hdc, const RECT& rc, int iconIdx, bool brightFill, float padRatio, int styleVariant)
 {
     const RemapIconDef& def = RemapIcons_Get(iconIdx);
+    const RemapIconStyle style = ResolveStyleVariant(styleVariant);
+    COLORREF borderAccent = style.extendedAccent ? style.accent : CLR_INVALID;
 
     if (def.action == BindAction::Btn_A ||
         def.action == BindAction::Btn_B ||
         def.action == BindAction::Btn_X ||
         def.action == BindAction::Btn_Y)
     {
-        RemapABXY_DrawGlyphAA(hdc, rc, def.label, def.color, brightFill, padRatio);
+        RemapABXY_DrawGlyphAA(hdc, rc, def.label, def.color, brightFill, padRatio, borderAccent);
         return;
     }
 
     if (def.action == BindAction::Btn_Start || def.action == BindAction::Btn_Back)
     {
-        RemapStartSelect_DrawGlyphAA(hdc, rc, def.action, def.color, brightFill, padRatio);
+        RemapStartSelect_DrawGlyphAA(hdc, rc, def.action, def.color, brightFill, padRatio, borderAccent);
         return;
     }
 
     // Guide/Home icon (moved to remap_guide.*)
     if (def.action == BindAction::Btn_Guide)
     {
-        RemapGuide_DrawGlyphAA(hdc, rc, brightFill, padRatio);
+        RemapGuide_DrawGlyphAA(hdc, rc, brightFill, padRatio, style.accent);
         return;
     }
 
     if (def.action == BindAction::Btn_LB || def.action == BindAction::Btn_RB)
     {
-        RemapBumpers_DrawGlyphAA(hdc, rc, def.action, def.color, brightFill, padRatio);
+        RemapBumpers_DrawGlyphAA(hdc, rc, def.action, def.color, brightFill, padRatio, borderAccent);
         return;
     }
 
     if (def.action == BindAction::Trigger_LT || def.action == BindAction::Trigger_RT)
     {
-        RemapTriggers_DrawGlyphAA(hdc, rc, def.action, def.color, brightFill, padRatio);
+        RemapTriggers_DrawGlyphAA(hdc, rc, def.action, def.color, brightFill, padRatio, borderAccent);
         return;
     }
 
@@ -162,7 +182,7 @@ void RemapIcons_DrawGlyphAA(HDC hdc, const RECT& rc, int iconIdx, bool brightFil
         def.action == BindAction::Btn_DL ||
         def.action == BindAction::Btn_DR)
     {
-        RemapDpad_DrawGlyphAA(hdc, rc, def.action, def.color, brightFill, padRatio);
+        RemapDpad_DrawGlyphAA(hdc, rc, def.action, style.accent, brightFill, padRatio);
         return;
     }
 
@@ -182,7 +202,7 @@ void RemapIcons_DrawGlyphAA(HDC hdc, const RECT& rc, int iconIdx, bool brightFil
 
     if (isStick)
     {
-        RemapSticks_DrawGlyphAA(hdc, rc, def.action, def.color, brightFill, padRatio);
+        RemapSticks_DrawGlyphAA(hdc, rc, def.action, style.accent, brightFill, padRatio);
         return;
     }
 

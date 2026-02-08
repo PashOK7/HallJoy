@@ -4,4 +4,4 @@
 #include <windows.h>
 
 // Guide/Home icon
-void RemapGuide_DrawGlyphAA(HDC hdc, const RECT& rc, bool brightFill, float padRatio);
+void RemapGuide_DrawGlyphAA(HDC hdc, const RECT& rc, bool brightFill, float padRatio, COLORREF homeAccentOverride = CLR_INVALID);

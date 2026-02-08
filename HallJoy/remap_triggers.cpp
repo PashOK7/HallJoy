@@ -164,7 +164,8 @@ static void DrawTextCenteredNoOutline(Graphics& g, const WCHAR* txt, const RectF
 
 void RemapTriggers_DrawGlyphAA(HDC hdc, const RECT& rc,
     BindAction action, COLORREF baseColor,
-    bool brightFill, float padRatioIncoming)
+    bool brightFill, float padRatioIncoming,
+    COLORREF borderOverride)
 {
     int w0 = rc.right - rc.left;
     int h0 = rc.bottom - rc.top;
@@ -209,6 +210,8 @@ void RemapTriggers_DrawGlyphAA(HDC hdc, const RECT& rc,
 
     if (!kIgnoreBrightFill && brightFill)
         fillRef = Brighten(fillRef, kBrightenAddIfPressed);
+
+    if (borderOverride != CLR_INVALID) borderRef = borderOverride;
 
     float borderW = std::max(kBorderWidthPxMin, (float)std::lround(s * kBorderWidthRatio));
 

@@ -15,6 +15,7 @@
 #include <cstdint>
 
 #include "app.h"
+#include "Resource.h"
 #include "backend.h"
 #include "bindings.h"
 #include "keyboard_ui.h"
@@ -365,6 +366,7 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     wc.lpszClassName = L"WootingVigemGui";
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wc.hbrBackground = nullptr;
+    wc.hIcon = (HICON)LoadImageW(hInst, MAKEINTRESOURCEW(IDI_HALLJOY), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE);
 
     if (!RegisterClassW(&wc))
         return 1;
@@ -394,6 +396,12 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
         nullptr, nullptr, hInst, nullptr);
 
     if (!hwnd) return 2;
+
+    if (wc.hIcon)
+        SendMessageW(hwnd, WM_SETICON, ICON_BIG, (LPARAM)wc.hIcon);
+    HICON hSmall = (HICON)LoadImageW(hInst, MAKEINTRESOURCEW(IDI_SMALL), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE);
+    if (hSmall)
+        SendMessageW(hwnd, WM_SETICON, (WPARAM)ICON_SMALL, (LPARAM)hSmall);
 
     ShowWindow(hwnd, nCmdShow);
 

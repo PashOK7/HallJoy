@@ -287,14 +287,14 @@ bool Settings_GetLastKeyPriority()
 
 void Settings_SetLastKeyPrioritySensitivity(float v01)
 {
-    int m = (int)lroundf(std::clamp(v01, 0.02f, 0.30f) * 1000.0f);
-    g_lastKeyPrioritySensitivityM.store(std::clamp(m, 20, 300), std::memory_order_release);
+    int m = (int)lroundf(std::clamp(v01, 0.02f, 0.95f) * 1000.0f);
+    g_lastKeyPrioritySensitivityM.store(std::clamp(m, 20, 950), std::memory_order_release);
 }
 
 float Settings_GetLastKeyPrioritySensitivity()
 {
     int m = g_lastKeyPrioritySensitivityM.load(std::memory_order_acquire);
-    m = std::clamp(m, 20, 300);
+    m = std::clamp(m, 20, 950);
     return (float)m / 1000.0f;
 }
 

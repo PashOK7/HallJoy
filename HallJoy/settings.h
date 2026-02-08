@@ -79,7 +79,7 @@ bool Settings_GetSnappyJoystick();
 // When both directions are pressed, the most recently pressed direction wins.
 void Settings_SetLastKeyPriority(bool on);
 bool Settings_GetLastKeyPriority();
-void Settings_SetLastKeyPrioritySensitivity(float v01); // 0.02..0.30
+void Settings_SetLastKeyPrioritySensitivity(float v01); // 0.02..0.95
 float Settings_GetLastKeyPrioritySensitivity();
 
 // Block physical keyboard events for keys that are currently bound to gamepad inputs.

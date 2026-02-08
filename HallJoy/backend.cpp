@@ -422,7 +422,7 @@ static float AxisValue_WithConflictModes(int padIndex, Axis a, float minusV, flo
     {
         // Re-trigger threshold for analog "re-press" while key is still logically down.
         // Example: user slightly releases key and presses again without crossing Pressed() threshold.
-        const float repDelta = std::clamp(Settings_GetLastKeyPrioritySensitivity(), 0.02f, 0.30f);
+        const float repDelta = std::clamp(Settings_GetLastKeyPrioritySensitivity(), 0.02f, 0.95f);
 
         if (!minusDown)
         {
@@ -469,6 +469,15 @@ static float AxisValue_WithConflictModes(int padIndex, Axis a, float minusV, flo
     float maxV = std::max(minusV, plusV);
     if (maxV <= 0.0001f)
         return 0.0f;
+
+    if (lastKeyPriority)
+    {
+        // While only one side is logically pressed, keep output fully bound to that side.
+        // This prevents partial cancellation when the opposite side starts moving but
+        // has not crossed the press threshold yet.
+        if (minusDown && !plusDown) return -minusV;
+        if (plusDown && !minusDown) return +plusV;
+    }
 
     // Last Key Priority: when both directions are down, most recent press wins.
     if (lastKeyPriority && minusDown && plusDown)

@@ -3312,6 +3312,7 @@ struct ConfigPageState
 {
     HWND chkSnappy = nullptr;
     HWND chkLastKeyPriority = nullptr;
+    HWND lblLastKeyPrioritySensitivity = nullptr;
     HWND sldLastKeyPrioritySensitivity = nullptr;
     HWND chipLastKeyPrioritySensitivity = nullptr;
     HWND chkBlockBoundKeys = nullptr;
@@ -3344,14 +3345,23 @@ static int Config_ScrollbarMarginPx(HWND hWnd) { return S(hWnd, 8); }
 
 static int Config_LkpSensitivityToSlider(float v01)
 {
-    int pct = (int)lroundf(std::clamp(v01, 0.02f, 0.30f) * 100.0f);
-    return std::clamp(pct, 2, 30);
+    // Stored value is retrigger threshold (0.02..0.95), where lower threshold
+    // means "more sensitive". UI slider is inverted to show intuitive sensitivity.
+    const float lo = 0.02f;
+    const float hi = 0.95f;
+    float th = std::clamp(v01, lo, hi);
+    float t = (hi - th) / (hi - lo); // 0..1
+    int pct = 1 + (int)lroundf(t * 99.0f);
+    return std::clamp(pct, 1, 100);
 }
 
 static float Config_SliderToLkpSensitivity(int sliderPos)
 {
-    int pct = std::clamp(sliderPos, 2, 30);
-    return (float)pct / 100.0f;
+    const float lo = 0.02f;
+    const float hi = 0.95f;
+    int pct = std::clamp(sliderPos, 1, 100);
+    float t = (float)(pct - 1) / 99.0f;   // 0..1
+    return hi - t * (hi - lo);       // inverted
 }
 
 static void Config_UpdateLkpSensitivityUi(ConfigPageState* st)
@@ -3365,6 +3375,10 @@ static void Config_UpdateLkpSensitivityUi(ConfigPageState* st)
         if (cur != sliderPos)
             SendMessageW(st->sldLastKeyPrioritySensitivity, TBM_SETPOS, TRUE, (LPARAM)sliderPos);
         EnableWindow(st->sldLastKeyPrioritySensitivity, Settings_GetLastKeyPriority() ? TRUE : FALSE);
+    }
+    if (st->lblLastKeyPrioritySensitivity && IsWindow(st->lblLastKeyPrioritySensitivity))
+    {
+        EnableWindow(st->lblLastKeyPrioritySensitivity, Settings_GetLastKeyPriority() ? TRUE : FALSE);
     }
 
     if (st->chipLastKeyPrioritySensitivity && IsWindow(st->chipLastKeyPrioritySensitivity))
@@ -3413,19 +3427,24 @@ static void LayoutConfigControls(HWND hWnd, ConfigPageState* st)
     {
         int toggleH = S(hWnd, 26);
         int gap = S(hWnd, 8);
+        int gapAfterToggle = S(hWnd, 14);
+        int labelW = S(hWnd, 72);
         int chipW = S(hWnd, 68);
-        int sliderW = S(hWnd, 140);
-        int rightW = sliderW + gap + chipW;
-        int toggleW = std::max(S(hWnd, 110), totalW - rightW - gap);
+        int sliderW = S(hWnd, 96);
+        int rightW = labelW + gap + sliderW + gap + chipW;
+        int toggleW = std::max(S(hWnd, 140), totalW - rightW - gapAfterToggle);
 
         SetWindowPos(st->chkLastKeyPriority, nullptr, x, yAfter,
             toggleW, toggleH, SWP_NOZORDER);
 
+        if (st->lblLastKeyPrioritySensitivity)
+            SetWindowPos(st->lblLastKeyPrioritySensitivity, nullptr, x + toggleW + gapAfterToggle, yAfter,
+                labelW, toggleH, SWP_NOZORDER);
         if (st->sldLastKeyPrioritySensitivity)
-            SetWindowPos(st->sldLastKeyPrioritySensitivity, nullptr, x + toggleW + gap, yAfter,
+            SetWindowPos(st->sldLastKeyPrioritySensitivity, nullptr, x + toggleW + gapAfterToggle + labelW + gap, yAfter,
                 sliderW, toggleH, SWP_NOZORDER);
         if (st->chipLastKeyPrioritySensitivity)
-            SetWindowPos(st->chipLastKeyPrioritySensitivity, nullptr, x + toggleW + gap + sliderW + gap, yAfter,
+            SetWindowPos(st->chipLastKeyPrioritySensitivity, nullptr, x + toggleW + gapAfterToggle + labelW + gap + sliderW + gap, yAfter,
                 chipW, toggleH, SWP_NOZORDER);
 
         yAfter += toggleH + S(hWnd, 10);
@@ -4396,9 +4415,15 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             hWnd, (HMENU)(INT_PTR)ID_LAST_KEY_PRIORITY, hInst, nullptr);
         SendMessageW(st->chkLastKeyPriority, WM_SETFONT, (WPARAM)hFont, TRUE);
 
+        st->lblLastKeyPrioritySensitivity = CreateWindowW(L"STATIC", L"Sensivity",
+            WS_CHILD | WS_VISIBLE | SS_LEFT | SS_CENTERIMAGE,
+            0, 0, 10, 10,
+            hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblLastKeyPrioritySensitivity, WM_SETFONT, (WPARAM)hFont, TRUE);
+
         st->sldLastKeyPrioritySensitivity = PremiumSlider_Create(
             hWnd, hInst, 0, 0, 10, 10, ID_LAST_KEY_PRIORITY_SENS_SLIDER);
-        SendMessageW(st->sldLastKeyPrioritySensitivity, TBM_SETRANGE, TRUE, MAKELONG(2, 30));
+        SendMessageW(st->sldLastKeyPrioritySensitivity, TBM_SETRANGE, TRUE, MAKELONG(1, 100));
         SendMessageW(st->sldLastKeyPrioritySensitivity, TBM_SETPOS, TRUE,
             (LPARAM)Config_LkpSensitivityToSlider(Settings_GetLastKeyPrioritySensitivity()));
 
@@ -4453,7 +4478,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         if (st && (HWND)lParam == st->sldLastKeyPrioritySensitivity)
         {
             int sv = (int)SendMessageW(st->sldLastKeyPrioritySensitivity, TBM_GETPOS, 0, 0);
-            sv = std::clamp(sv, 2, 30);
+            sv = std::clamp(sv, 1, 100);
             Settings_SetLastKeyPrioritySensitivity(Config_SliderToLkpSensitivity(sv));
             Config_UpdateLkpSensitivityUi(st);
             RequestSave(hWnd);

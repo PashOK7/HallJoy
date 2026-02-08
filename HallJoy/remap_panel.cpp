@@ -43,7 +43,6 @@ static constexpr int ICON_COLS = 13;
 
 static constexpr UINT_PTR DRAG_ANIM_TIMER_ID = 9009;
 static constexpr int REMAP_ID_ADD_GAMEPAD = 1901;
-static constexpr int REMAP_ID_TOGGLE_GAMEPADS = 1902;
 static constexpr int REMAP_ID_REMOVE_GAMEPAD_BASE = 3000;
 static constexpr int REMAP_ICON_ID_BASE = 2100;
 static constexpr int REMAP_ICON_ID_PACK_STRIDE = 128;
@@ -128,9 +127,6 @@ static void ClampRectToMonitorFromPoint(int& x, int& y, int w, int h)
     }
 }
 
-static constexpr BYTE GHOST_ALPHA_FREE = 190;
-static constexpr BYTE GHOST_ALPHA_SNAP = 215;
-
 // ---------------- anim helpers ----------------
 static inline float Clamp01(float v) { return (v < 0.0f) ? 0.0f : (v > 1.0f ? 1.0f : v); }
 
@@ -142,6 +138,32 @@ static inline float EaseOutCubic(float t)
 }
 
 static inline float Lerp(float a, float b, float t) { return a + (b - a) * t; }
+
+static COLORREF LerpColor(COLORREF a, COLORREF b, float t)
+{
+    t = Clamp01(t);
+    int ar = (int)GetRValue(a), ag = (int)GetGValue(a), ab = (int)GetBValue(a);
+    int br = (int)GetRValue(b), bg = (int)GetGValue(b), bb = (int)GetBValue(b);
+    int rr = (int)std::lround((float)ar + ((float)br - (float)ar) * t);
+    int rg = (int)std::lround((float)ag + ((float)bg - (float)ag) * t);
+    int rb = (int)std::lround((float)ab + ((float)bb - (float)ab) * t);
+    rr = std::clamp(rr, 0, 255);
+    rg = std::clamp(rg, 0, 255);
+    rb = std::clamp(rb, 0, 255);
+    return RGB(rr, rg, rb);
+}
+
+static COLORREF Remap_GetAccentColorForStyleVariant(int styleVariant)
+{
+    switch (styleVariant)
+    {
+    case 1: return RGB(255, 212, 92);   // yellow
+    case 2: return RGB(96, 178, 255);   // sapphire
+    case 3: return RGB(90, 255, 144);   // emerald
+    case 4: return RGB(255, 111, 135);  // ruby
+    default: return RGB(128, 136, 150); // neutral
+    }
+}
 
 // ---------------- Icon glyph cache ----------------
 // key = (size<<40) | (iconIdx<<8) | (styleVariant<<1) | (pressed?1:0)
@@ -264,10 +286,8 @@ struct RemapPanelState
     HWND hKeyboardHost = nullptr;
     HWND txtHelp = nullptr;
     HWND btnAddGamepad = nullptr;
-    HWND btnToggleGamepads = nullptr;
     int gamepadPacks = 1;
     int iconsPerPack = 0;
-    bool gamepadsEnabled = true;
     int scrollY = 0;
     int scrollMax = 0;
     int contentHeight = 0;
@@ -332,6 +352,43 @@ struct RemapPanelState
     float postX0 = 0.0f, postY0 = 0.0f;
     float postX1 = 0.0f, postY1 = 0.0f;
 };
+
+static COLORREF Remap_GetPackTileColor(RemapPanelState* st, int packIdx, bool stronger);
+
+static HBRUSH g_packHeaderBrushes[REMAP_MAX_GAMEPADS]{};
+static COLORREF g_packHeaderBrushColors[REMAP_MAX_GAMEPADS]{};
+
+static HBRUSH Remap_GetPackHeaderBrush(RemapPanelState* st, int packIdx)
+{
+    packIdx = std::clamp(packIdx, 0, REMAP_MAX_GAMEPADS - 1);
+    COLORREF want = Remap_GetPackTileColor(st, packIdx, false);
+
+    if (g_packHeaderBrushes[packIdx] && g_packHeaderBrushColors[packIdx] == want)
+        return g_packHeaderBrushes[packIdx];
+
+    if (g_packHeaderBrushes[packIdx])
+    {
+        DeleteObject(g_packHeaderBrushes[packIdx]);
+        g_packHeaderBrushes[packIdx] = nullptr;
+    }
+
+    g_packHeaderBrushes[packIdx] = CreateSolidBrush(want);
+    g_packHeaderBrushColors[packIdx] = want;
+    return g_packHeaderBrushes[packIdx] ? g_packHeaderBrushes[packIdx] : (HBRUSH)UiTheme::Brush_PanelBg();
+}
+
+static void Remap_FreePackHeaderBrushes()
+{
+    for (int i = 0; i < REMAP_MAX_GAMEPADS; ++i)
+    {
+        if (g_packHeaderBrushes[i])
+        {
+            DeleteObject(g_packHeaderBrushes[i]);
+            g_packHeaderBrushes[i] = nullptr;
+        }
+        g_packHeaderBrushColors[i] = RGB(0, 0, 0);
+    }
+}
 
 static void Ghost_FreeSurface(RemapPanelState* st)
 {
@@ -902,7 +959,16 @@ static void DrawIconButton(const DRAWITEMSTRUCT* dis, int iconIdx, RemapPanelSta
         (st->dragging || st->postMode == RemapPostAnimMode::FlyBack));
 
     RECT local{ 0,0,w,h };
-    FillRect(mem, &local, (pressed && !srcDragging) ? UiTheme::Brush_ControlBg() : UiTheme::Brush_PanelBg());
+    COLORREF tileBg = UiTheme::Color_PanelBg();
+    if (st && dis->CtlID >= (UINT)REMAP_ICON_ID_BASE)
+    {
+        int packIdx = ((int)dis->CtlID - REMAP_ICON_ID_BASE) / REMAP_ICON_ID_PACK_STRIDE;
+        bool stronger = (pressed && !srcDragging);
+        tileBg = Remap_GetPackTileColor(st, packIdx, stronger);
+    }
+    HBRUSH bTile = CreateSolidBrush(tileBg);
+    FillRect(mem, &local, bTile);
+    DeleteObject(bTile);
 
     // scale logic for the source button only
     float scale = 1.0f;
@@ -1074,15 +1140,9 @@ static void Remap_UpdateAddGamepadButtonText(RemapPanelState* st)
     else
         swprintf_s(text, L"Max Gamepads (%d/%d)", packs, REMAP_MAX_GAMEPADS);
 
-    bool canAdd = st->gamepadsEnabled && (packs < REMAP_MAX_GAMEPADS);
+    bool canAdd = (packs < REMAP_MAX_GAMEPADS);
     SetWindowTextW(st->btnAddGamepad, text);
     EnableWindow(st->btnAddGamepad, canAdd);
-}
-
-static void Remap_UpdateToggleGamepadsButtonText(RemapPanelState* st)
-{
-    if (!st || !st->btnToggleGamepads) return;
-    SetWindowTextW(st->btnToggleGamepads, st->gamepadsEnabled ? L"Gamepads: ON" : L"Gamepads: OFF");
 }
 
 static void DrawAddGamepadButton(const DRAWITEMSTRUCT* dis)
@@ -1123,6 +1183,42 @@ static void DrawAddGamepadButton(const DRAWITEMSTRUCT* dis)
     DrawTextW(dis->hDC, txt, -1, &tr, DT_SINGLELINE | DT_CENTER | DT_VCENTER | DT_END_ELLIPSIS);
 }
 
+static void DrawDisableGamepadIconButton(const DRAWITEMSTRUCT* dis, RemapPanelState* st, int packIdx)
+{
+    if (!dis) return;
+
+    RECT rc = dis->rcItem;
+    COLORREF bgC = st ? Remap_GetPackTileColor(st, packIdx, false) : UiTheme::Color_PanelBg();
+    HBRUSH bg = CreateSolidBrush(bgC);
+    FillRect(dis->hDC, &rc, bg);
+    DeleteObject(bg);
+
+    bool disabled = (dis->itemState & ODS_DISABLED) != 0;
+    bool pushed = (dis->itemState & ODS_SELECTED) != 0;
+    COLORREF glyph = disabled ? UiTheme::Color_TextMuted() : UiTheme::Color_Text();
+    if (pushed && !disabled)
+        glyph = LerpColor(glyph, UiTheme::Color_Accent(), 0.45f);
+
+    Graphics g(dis->hDC);
+    g.SetSmoothingMode(SmoothingModeHighQuality);
+    g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+
+    const int w = rc.right - rc.left;
+    const int h = rc.bottom - rc.top;
+    const float cx = (float)(rc.left + rc.right) * 0.5f;
+    const float cy = (float)(rc.top + rc.bottom) * 0.5f;
+    const float radius = std::max(4.0f, std::min((float)w, (float)h) * 0.38f);
+
+    Pen penPower(Gp(glyph, 248), std::max(2.0f, (float)S(dis->hwndItem, 2)));
+    penPower.SetStartCap(LineCapRound);
+    penPower.SetEndCap(LineCapRound);
+
+    // Power icon: open ring + top vertical stem.
+    // Rotate the open ring by -90 deg (CCW) so the gap is at the top.
+    g.DrawArc(&penPower, cx - radius, cy - radius, radius * 2.0f, radius * 2.0f, -48.0f, 276.0f);
+    g.DrawLine(&penPower, cx, cy - radius * 1.03f, cx, cy - radius * 0.18f);
+}
+
 static void Remap_CreateIconPackButtons(HWND hWnd, RemapPanelState* st, HINSTANCE hInst, HFONT hFont, int packIdx)
 {
     if (!st || packIdx < 0 || packIdx >= REMAP_MAX_GAMEPADS) return;
@@ -1145,7 +1241,7 @@ static void Remap_CreateIconPackButtons(HWND hWnd, RemapPanelState* st, HINSTANC
     int packStrideY = headerH + rowsPerPack * btnH + (rowsPerPack - 1) * gapY + packGapY;
 
     HWND lbl = CreateWindowW(L"STATIC", L"",
-        WS_CHILD | WS_VISIBLE,
+        WS_CHILD | WS_VISIBLE | SS_LEFT | SS_CENTERIMAGE,
         startX, startY + packIdx * packStrideY, S(hWnd, 220), headerH,
         hWnd, nullptr, hInst, nullptr);
     SendMessageW(lbl, WM_SETFONT, (WPARAM)hFont, TRUE);
@@ -1158,11 +1254,10 @@ static void Remap_CreateIconPackButtons(HWND hWnd, RemapPanelState* st, HINSTANC
     HWND removeBtn = nullptr;
     if (packIdx > 0)
     {
-        wchar_t disableText[64]{};
-        swprintf_s(disableText, L"Disable %d", packIdx + 1);
-        removeBtn = CreateWindowW(L"BUTTON", disableText,
+        int removeX = startX + S(hWnd, 98);
+        removeBtn = CreateWindowW(L"BUTTON", L"",
             WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-            startX + S(hWnd, 230), startY + packIdx * packStrideY, S(hWnd, 150), S(hWnd, 22),
+            removeX, startY + packIdx * packStrideY, S(hWnd, 22), S(hWnd, 22),
             hWnd, (HMENU)(INT_PTR)(REMAP_ID_REMOVE_GAMEPAD_BASE + packIdx), hInst, nullptr);
         SendMessageW(removeBtn, WM_SETFONT, (WPARAM)hFont, TRUE);
     }
@@ -1218,19 +1313,6 @@ static void Remap_RebuildGamepadPacks(HWND hWnd, RemapPanelState* st, HINSTANCE 
 
     for (int p = 0; p < st->gamepadPacks; ++p)
         Remap_CreateIconPackButtons(hWnd, st, hInst, hFont, p);
-}
-
-static void Remap_ToggleGamepads(HWND hWnd, RemapPanelState* st)
-{
-    if (!st) return;
-
-    st->gamepadsEnabled = !st->gamepadsEnabled;
-    Settings_SetVirtualGamepadsEnabled(st->gamepadsEnabled);
-    Backend_SetVirtualGamepadsEnabled(st->gamepadsEnabled);
-
-    Remap_UpdateToggleGamepadsButtonText(st);
-    Remap_UpdateAddGamepadButtonText(st);
-    Remap_RequestSettingsSave(hWnd);
 }
 
 static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st);
@@ -1295,6 +1377,84 @@ static int Remap_GetMaxScroll(HWND hWnd, RemapPanelState* st)
     int viewH = Remap_GetViewportHeight(hWnd);
     int contentH = Remap_RecalcContentHeight(hWnd, st);
     return std::max(0, contentH - viewH);
+}
+
+static RECT Remap_GetPackRectClient(HWND hWnd, RemapPanelState* st, int packIdx)
+{
+    RECT rcClient{};
+    GetClientRect(hWnd, &rcClient);
+
+    const int yOff = st ? -st->scrollY : 0;
+    const int startY = S(hWnd, 104);
+    const int packGapY = S(hWnd, 16);
+    const int headerH = S(hWnd, 22);
+    const int btnW = S(hWnd, (int)Settings_GetRemapButtonSizePx());
+    const int btnH = btnW;
+    const int gapY = S(hWnd, ICON_GAP_Y);
+    const int rowsPerPack = 2;
+    const int packStrideY = headerH + rowsPerPack * btnH + (rowsPerPack - 1) * gapY + packGapY;
+
+    RECT r{};
+    const int topPad = S(hWnd, 2);
+    const int gridBottomPad = S(hWnd, 6);
+    r.left = S(hWnd, 8);
+    // Include the "Gamepad N" header line inside the colored card.
+    r.top = yOff + startY + packIdx * packStrideY - topPad;
+    r.right = rcClient.right - Remap_ScrollbarWidthPx(hWnd) - Remap_ScrollbarMarginPx(hWnd) * 2;
+    r.bottom = yOff + startY + packIdx * packStrideY + headerH + rowsPerPack * btnH + (rowsPerPack - 1) * gapY + gridBottomPad;
+
+    if (r.right <= r.left)
+        r.right = r.left + S(hWnd, 320);
+
+    return r;
+}
+
+static COLORREF Remap_GetPackTileColor(RemapPanelState* st, int packIdx, bool stronger)
+{
+    int total = st ? std::max(1, st->gamepadPacks) : 1;
+    int styleVariant = Remap_GetIconStyleVariantForPack(packIdx, total);
+    COLORREF accent = Remap_GetAccentColorForStyleVariant(styleVariant);
+    COLORREF base = UiTheme::Color_PanelBg();
+    float t = stronger ? 0.16f : 0.09f;
+    return LerpColor(base, accent, t);
+}
+
+static void DrawPackBackgrounds(HWND hWnd, HDC hdc, RemapPanelState* st)
+{
+    if (!st) return;
+
+    RECT rcClient{};
+    GetClientRect(hWnd, &rcClient);
+
+    Graphics g(hdc);
+    g.SetSmoothingMode(SmoothingModeHighQuality);
+    g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+
+    int packs = std::max(1, st->gamepadPacks);
+    for (int p = 0; p < packs; ++p)
+    {
+        RECT rr = Remap_GetPackRectClient(hWnd, st, p);
+        if (rr.bottom <= 0 || rr.top >= rcClient.bottom)
+            continue;
+
+        int total = std::max(1, st->gamepadPacks);
+        int styleVariant = Remap_GetIconStyleVariantForPack(p, total);
+        COLORREF accent = Remap_GetAccentColorForStyleVariant(styleVariant);
+
+        COLORREF fill = LerpColor(UiTheme::Color_PanelBg(), accent, 0.10f);
+        COLORREF border = LerpColor(UiTheme::Color_Border(), accent, 0.36f);
+
+        RectF rf((REAL)rr.left, (REAL)rr.top, (REAL)(rr.right - rr.left), (REAL)(rr.bottom - rr.top));
+        float rad = (float)std::max(4, S(hWnd, 10));
+
+        SolidBrush brFill(Gp(fill, 232));
+        Pen penBorder(Gp(border, 165), 1.0f);
+
+        GraphicsPath pth;
+        AddRoundRectPath(pth, rf, rad);
+        g.FillPath(&brFill, &pth);
+        g.DrawPath(&penBorder, &pth);
+    }
 }
 
 static RECT Remap_GetScrollTrackRect(HWND hWnd)
@@ -1412,7 +1572,6 @@ static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st)
     int wndCount = 0;
     if (st->txtHelp && IsWindow(st->txtHelp)) ++wndCount;
     if (st->btnAddGamepad && IsWindow(st->btnAddGamepad)) ++wndCount;
-    if (st->btnToggleGamepads && IsWindow(st->btnToggleGamepads)) ++wndCount;
     for (HWND h : st->packLabels) if (h && IsWindow(h)) ++wndCount;
     for (HWND h : st->packRemoveBtns) if (h && IsWindow(h)) ++wndCount;
     for (HWND h : st->iconBtns) if (h && IsWindow(h)) ++wndCount;
@@ -1427,8 +1586,7 @@ static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st)
     };
 
     Move(st->txtHelp, S(hWnd, 12), yOff + S(hWnd, 10), S(hWnd, 860), S(hWnd, 52));
-    Move(st->btnAddGamepad, S(hWnd, 12), yOff + S(hWnd, 66), S(hWnd, 180), S(hWnd, 28));
-    Move(st->btnToggleGamepads, S(hWnd, 200), yOff + S(hWnd, 66), S(hWnd, 180), S(hWnd, 28));
+    Move(st->btnAddGamepad, S(hWnd, 12), yOff + S(hWnd, 66), S(hWnd, 210), S(hWnd, 28));
 
     const int startX = S(hWnd, 12);
     const int startY = S(hWnd, 104);
@@ -1455,7 +1613,7 @@ static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st)
             HWND rb = st->packRemoveBtns[(size_t)p];
             if (rb && IsWindow(rb))
             {
-                Move(rb, startX + S(hWnd, 230), yOff + startY + p * packStrideY, S(hWnd, 150), S(hWnd, 22));
+                Move(rb, startX + S(hWnd, 68), yOff + startY + p * packStrideY, S(hWnd, 22), S(hWnd, 22));
             }
         }
     }
@@ -1644,6 +1802,7 @@ static void PaintPanelBg(HWND hWnd, RemapPanelState* st)
     RECT rc{};
     GetClientRect(hWnd, &rc);
     FillRect(hdc, &rc, UiTheme::Brush_PanelBg());
+    DrawPackBackgrounds(hWnd, hdc, st);
     DrawRemapScrollbar(hWnd, hdc, st);
     EndPaint(hWnd, &ps);
 }
@@ -1757,8 +1916,23 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
     case WM_CTLCOLORSTATIC:
     {
         HDC hdc = (HDC)wParam;
-        SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, UiTheme::Color_Text());
+        HWND hCtl = (HWND)lParam;
+        if (st)
+        {
+            for (int i = 0; i < (int)st->packLabels.size(); ++i)
+            {
+                HWND h = st->packLabels[(size_t)i];
+                if (h && h == hCtl)
+                {
+                    SetBkMode(hdc, OPAQUE);
+                    HBRUSH hb = Remap_GetPackHeaderBrush(st, i);
+                    SetBkColor(hdc, g_packHeaderBrushColors[std::clamp(i, 0, REMAP_MAX_GAMEPADS - 1)]);
+                    return (LRESULT)hb;
+                }
+            }
+        }
+        SetBkMode(hdc, TRANSPARENT);
         return (LRESULT)UiTheme::Brush_PanelBg();
     }
 
@@ -1897,24 +2071,16 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
         st->btnAddGamepad = CreateWindowW(L"BUTTON", L"Add Gamepad",
             WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-            S(hWnd, 12), S(hWnd, 66), S(hWnd, 180), S(hWnd, 28),
+            S(hWnd, 12), S(hWnd, 66), S(hWnd, 210), S(hWnd, 28),
             hWnd, (HMENU)(INT_PTR)REMAP_ID_ADD_GAMEPAD, cs->hInstance, nullptr);
         SendMessageW(st->btnAddGamepad, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->btnToggleGamepads = CreateWindowW(L"BUTTON", L"Gamepads: ON",
-            WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-            S(hWnd, 200), S(hWnd, 66), S(hWnd, 180), S(hWnd, 28),
-            hWnd, (HMENU)(INT_PTR)REMAP_ID_TOGGLE_GAMEPADS, cs->hInstance, nullptr);
-        SendMessageW(st->btnToggleGamepads, WM_SETFONT, (WPARAM)hFont, TRUE);
-
         int savedPacks = std::clamp(Settings_GetVirtualGamepadCount(), 1, REMAP_MAX_GAMEPADS);
         Remap_RebuildGamepadPacks(hWnd, st, cs->hInstance, hFont, savedPacks);
-        st->gamepadsEnabled = Settings_GetVirtualGamepadsEnabled();
         Settings_SetVirtualGamepadCount(st->gamepadPacks);
-        Settings_SetVirtualGamepadsEnabled(st->gamepadsEnabled);
+        Settings_SetVirtualGamepadsEnabled(true);
         Backend_SetVirtualGamepadCount(st->gamepadPacks);
-        Backend_SetVirtualGamepadsEnabled(st->gamepadsEnabled);
-        Remap_UpdateToggleGamepadsButtonText(st);
+        Backend_SetVirtualGamepadsEnabled(true);
         Remap_UpdateAddGamepadButtonText(st);
 
         ApplyRemapSizing(hWnd, st);
@@ -1970,14 +2136,6 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
                 }
                 return 0;
             }
-        }
-        if (st && LOWORD(wParam) == (UINT)REMAP_ID_TOGGLE_GAMEPADS && HIWORD(wParam) == BN_CLICKED)
-        {
-            Remap_ToggleGamepads(hWnd, st);
-            if (st->hKeyboardHost)
-                RedrawWindow(st->hKeyboardHost, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
-            InvalidateRect(hWnd, nullptr, FALSE);
-            return 0;
         }
         return 0;
 
@@ -2123,6 +2281,7 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
             SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);
         }
 
+        Remap_FreePackHeaderBrushes();
         IconCache_Clear();
         return 0;
 
@@ -2131,12 +2290,17 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         const DRAWITEMSTRUCT* dis = (const DRAWITEMSTRUCT*)lParam;
         if (!dis || dis->CtlType != ODT_BUTTON) return FALSE;
 
-        if (dis->CtlID == (UINT)REMAP_ID_ADD_GAMEPAD ||
-            dis->CtlID == (UINT)REMAP_ID_TOGGLE_GAMEPADS ||
-            (dis->CtlID >= (UINT)REMAP_ID_REMOVE_GAMEPAD_BASE &&
-             dis->CtlID < (UINT)(REMAP_ID_REMOVE_GAMEPAD_BASE + REMAP_MAX_GAMEPADS)))
+        if (dis->CtlID == (UINT)REMAP_ID_ADD_GAMEPAD)
         {
             DrawAddGamepadButton(dis);
+            return TRUE;
+        }
+
+        if (dis->CtlID >= (UINT)REMAP_ID_REMOVE_GAMEPAD_BASE &&
+            dis->CtlID < (UINT)(REMAP_ID_REMOVE_GAMEPAD_BASE + REMAP_MAX_GAMEPADS))
+        {
+            int packIdx = (int)dis->CtlID - REMAP_ID_REMOVE_GAMEPAD_BASE;
+            DrawDisableGamepadIconButton(dis, st, packIdx);
             return TRUE;
         }
 

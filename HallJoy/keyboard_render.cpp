@@ -578,20 +578,71 @@ static int GetStyleVariantForPad(int padIndex, int totalPads)
     return std::clamp(Bindings_GetPadStyleVariant(padIndex), 1, 4);
 }
 
-static bool TryGetDisplayedActionByHid(uint16_t hid, BindAction& outAction, int& outPadIndex)
+struct BoundIconEntry
 {
-    outPadIndex = 0;
-    if (!hid) return false;
+    int iconIdx = -1;
+    int styleVariant = 0;
+};
+
+struct SuppressedBindingState
+{
+    bool enabled = false;
+    uint16_t hid = 0;
+    int padIndex = 0;
+    BindAction action{};
+};
+
+static SuppressedBindingState g_suppressedBinding;
+
+void KeyboardRender_SetSuppressedBinding(uint16_t hid, int padIndex, BindAction action)
+{
+    g_suppressedBinding.enabled = (hid != 0);
+    g_suppressedBinding.hid = hid;
+    g_suppressedBinding.padIndex = std::clamp(padIndex, 0, 3);
+    g_suppressedBinding.action = action;
+}
+
+void KeyboardRender_ClearSuppressedBinding()
+{
+    g_suppressedBinding = SuppressedBindingState{};
+}
+
+static int CollectDisplayedIconsByHid(uint16_t hid, BoundIconEntry out[4])
+{
+    if (out)
+    {
+        for (int i = 0; i < 4; ++i) out[i] = BoundIconEntry{};
+    }
+    if (!hid) return 0;
+
     int pads = std::clamp(Backend_GetVirtualGamepadCount(), 1, 4);
+    int count = 0;
     for (int pad = 0; pad < pads; ++pad)
     {
-        if (BindingActions_TryGetByHidForPad(pad, hid, outAction))
+        if (count >= 4) break;
+        BindAction act{};
+        if (BindingActions_TryGetByHidForPad(pad, hid, act))
         {
-            outPadIndex = pad;
-            return true;
+            if (g_suppressedBinding.enabled &&
+                g_suppressedBinding.hid == hid &&
+                g_suppressedBinding.padIndex == pad &&
+                g_suppressedBinding.action == act)
+            {
+                continue;
+            }
+
+            int iconIdx = FindIconIndexByAction(act);
+            if (iconIdx < 0) continue;
+
+            if (out)
+            {
+                out[count].iconIdx = iconIdx;
+                out[count].styleVariant = GetStyleVariantForPad(pad, pads);
+            }
+            ++count;
         }
     }
-    return false;
+    return count;
 }
 
 // ---------------- Bound icon cache ----------------
@@ -686,17 +737,10 @@ static CachedGlyph* Glyph_GetOrCreate(int iconIdx, int size, int styleVariant)
 
 static bool DrawBoundIconOnKey_Cached(HWND hwndForDpi, HDC hdc, const RECT& keyRectForIcon, uint16_t hid)
 {
-    BindAction act{};
-    int padIndex = 0;
-    if (!TryGetDisplayedActionByHid(hid, act, padIndex))
+    BoundIconEntry entries[4]{};
+    int iconCount = CollectDisplayedIconsByHid(hid, entries);
+    if (iconCount <= 0)
         return false;
-
-    int iconIdx = FindIconIndexByAction(act);
-    if (iconIdx < 0)
-        return false;
-
-    int totalPads = std::clamp(Backend_GetVirtualGamepadCount(), 1, 4);
-    int styleVariant = GetStyleVariantForPad(padIndex, totalPads);
 
     int iw = keyRectForIcon.right - keyRectForIcon.left;
     int ih = keyRectForIcon.bottom - keyRectForIcon.top;
@@ -704,32 +748,83 @@ static bool DrawBoundIconOnKey_Cached(HWND hwndForDpi, HDC hdc, const RECT& keyR
         return true;
 
     int want = (int)Settings_GetBoundKeyIconSizePx();
-    int size = WinUtil_ScalePx(hwndForDpi, want);
-    size = std::clamp(size, 10, std::min(iw, ih));
+    int baseSize = WinUtil_ScalePx(hwndForDpi, want);
+    baseSize = std::clamp(baseSize, 8, std::min(iw, ih));
 
-    CachedGlyph* cg = Glyph_GetOrCreate(iconIdx, size, styleVariant);
-    if (!cg || !cg->dc || !cg->bmp)
+    auto drawIconAt = [&](const BoundIconEntry& e, int x, int y, int size)
     {
-        RECT rcIcon{};
-        rcIcon.left = (keyRectForIcon.left + keyRectForIcon.right - size) / 2;
-        rcIcon.top = (keyRectForIcon.top + keyRectForIcon.bottom - size) / 2;
-        rcIcon.right = rcIcon.left + size;
-        rcIcon.bottom = rcIcon.top + size;
+        size = std::clamp(size, 8, std::min(iw, ih));
+        CachedGlyph* cg = Glyph_GetOrCreate(e.iconIdx, size, e.styleVariant);
+        if (!cg || !cg->dc || !cg->bmp)
+        {
+            RECT rcIcon{ x, y, x + size, y + size };
+            RemapIcons_DrawGlyphAA(hdc, rcIcon, e.iconIdx, false, 0.075f, e.styleVariant);
+            return;
+        }
 
-        RemapIcons_DrawGlyphAA(hdc, rcIcon, iconIdx, false, 0.075f, styleVariant);
+        BLENDFUNCTION bf{};
+        bf.BlendOp = AC_SRC_OVER;
+        bf.BlendFlags = 0;
+        bf.SourceConstantAlpha = 255;
+        bf.AlphaFormat = AC_SRC_ALPHA;
+        AlphaBlend(hdc, x, y, size, size, cg->dc, 0, 0, size, size, bf);
+    };
+
+    int gap = std::clamp(WinUtil_ScalePx(hwndForDpi, 2), 1, 5);
+
+    if (iconCount == 1)
+    {
+        int size = std::clamp(baseSize, 8, std::min(iw, ih));
+        int x = (keyRectForIcon.left + keyRectForIcon.right - size) / 2;
+        int y = (keyRectForIcon.top + keyRectForIcon.bottom - size) / 2;
+        drawIconAt(entries[0], x, y, size);
         return true;
     }
 
-    int x = (keyRectForIcon.left + keyRectForIcon.right - size) / 2;
-    int y = (keyRectForIcon.top + keyRectForIcon.bottom - size) / 2;
+    if (iconCount == 2)
+    {
+        int cellW = std::max(8, (iw - gap) / 2);
+        int size = std::clamp(baseSize, 8, std::min(cellW, ih));
+        int y = keyRectForIcon.top + (ih - size) / 2;
+        int x0 = keyRectForIcon.left + (cellW - size) / 2;
+        int x1 = keyRectForIcon.left + cellW + gap + (cellW - size) / 2;
+        drawIconAt(entries[0], x0, y, size);
+        drawIconAt(entries[1], x1, y, size);
+        return true;
+    }
 
-    BLENDFUNCTION bf{};
-    bf.BlendOp = AC_SRC_OVER;
-    bf.BlendFlags = 0;
-    bf.SourceConstantAlpha = 255;
-    bf.AlphaFormat = AC_SRC_ALPHA;
+    if (iconCount == 3)
+    {
+        int rowH = std::max(8, (ih - gap) / 2);
+        int topCellW = std::max(8, (iw - gap) / 2);
+        int size = std::clamp(baseSize, 8, std::min(topCellW, rowH));
 
-    AlphaBlend(hdc, x, y, size, size, cg->dc, 0, 0, size, size, bf);
+        int topY = keyRectForIcon.top + (rowH - size) / 2;
+        int x0 = keyRectForIcon.left + (topCellW - size) / 2;
+        int x1 = keyRectForIcon.left + topCellW + gap + (topCellW - size) / 2;
+        drawIconAt(entries[0], x0, topY, size);
+        drawIconAt(entries[1], x1, topY, size);
+
+        int botY = keyRectForIcon.top + rowH + gap + (rowH - size) / 2;
+        int x2 = keyRectForIcon.left + (iw - size) / 2;
+        drawIconAt(entries[2], x2, botY, size);
+        return true;
+    }
+
+    // 4+ icons: compact 2x2 grid
+    int cellW = std::max(8, (iw - gap) / 2);
+    int cellH = std::max(8, (ih - gap) / 2);
+    int size = std::clamp(baseSize, 8, std::min(cellW, cellH));
+    for (int i = 0; i < 4 && i < iconCount; ++i)
+    {
+        int col = i % 2;
+        int row = i / 2;
+        int cellX = keyRectForIcon.left + col * (cellW + gap);
+        int cellY = keyRectForIcon.top + row * (cellH + gap);
+        int x = cellX + (cellW - size) / 2;
+        int y = cellY + (cellH - size) / 2;
+        drawIconAt(entries[i], x, y, size);
+    }
     return true;
 }
 

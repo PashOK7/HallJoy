@@ -30,6 +30,7 @@
 #include "app_paths.h"
 #include "ui_theme.h"
 #include "tab_dark.h"
+#include "debug_log.h"
 
 #include "binding_actions.h"
 #include "remap_icons.h"
@@ -211,6 +212,7 @@ static void RebuildKeyboardButtons(HWND hWnd)
         }
     }
 
+    DebugLog_Write(L"[ui.keyboard] rebuild keys=%d tracked=%d", n, (int)g_hids.size());
     BackendUI_SetTrackedHids(g_hids.data(), (int)g_hids.size());
     LayoutKeyboardButtons(hWnd);
 

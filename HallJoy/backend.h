@@ -62,5 +62,30 @@ struct BackendStatus
 
 BackendStatus Backend_GetStatus();
 
+struct BackendAnalogTelemetry
+{
+    bool sdkInitialised = false;
+    int deviceCount = 0;                 // unique SDK device ids
+    int keycodeMode = 0;                 // WootingAnalog_KeycodeType
+    uint32_t keyboardEventSeq = 0;       // increments on physical key-down events
+    uint16_t trackedMaxRawMilli = 0;     // last tracked-page max raw [0..1000]
+    uint16_t trackedMaxOutMilli = 0;     // last tracked-page max filtered [0..1000]
+    int fullBufferRet = 0;               // last read_full_buffer return
+    uint16_t fullBufferMaxMilli = 0;     // last max value from read_full_buffer
+    int fullBufferDeviceBestRet = 0;     // best return among read_full_buffer_device
+    uint16_t fullBufferDeviceBestMaxMilli = 0; // best max among device buffers
+    int lastAnalogError = 0;             // last negative read_analog code (if any)
+};
+
+void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out);
+
 // request reconnect attempt on next tick (e.g. on WM_DEVICECHANGE)
 void Backend_NotifyDeviceChange();
+
+// Optional hint from low-level keyboard hook for adaptive diagnostics/autofix.
+void Backend_NotifyKeyboardEvent(
+    uint16_t hidHint,
+    uint16_t scanCode,
+    uint16_t vkCode,
+    bool isKeyDown,
+    bool isInjected);

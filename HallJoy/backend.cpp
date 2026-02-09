@@ -26,6 +26,7 @@
 #include "bindings.h"
 #include "settings.h"
 #include "key_settings.h"
+#include "debug_log.h"
 
 // shared curve math (single source of truth with UI)
 #include "curve_math.h"
@@ -72,6 +73,410 @@ static std::atomic<bool>         g_deviceChangeReconnectRequested{ false }; // t
 static std::atomic<ULONGLONG>    g_ignoreDeviceChangeUntilMs{ 0 };
 static int                       g_vigemUpdateFailStreak = 0;
 static ULONGLONG                 g_lastReconnectAttemptMs = 0;
+static std::atomic<int>          g_lastAnalogErrorCode{ 0 };
+static std::atomic<ULONGLONG>    g_lastAnalogErrorLogMs{ 0 };
+static std::atomic<ULONGLONG>    g_lastWootingStateLogMs{ 0 };
+static std::atomic<ULONGLONG>    g_lastInputStateLogMs{ 0 };
+static std::atomic<int>          g_keycodeMode{ (int)WootingAnalog_KeycodeType_HID };
+static std::atomic<ULONGLONG>    g_lastKeycodeSwitchMs{ 0 };
+static std::atomic<uint32_t>     g_keyboardEventSeq{ 0 };
+static std::atomic<uint16_t>     g_keyboardEventHid{ 0 };
+static std::atomic<uint16_t>     g_keyboardEventScan{ 0 };
+static std::atomic<uint16_t>     g_keyboardEventVk{ 0 };
+static std::array<std::atomic<uint16_t>, 256> g_hidToScan{};
+static std::array<std::atomic<uint16_t>, 256> g_hidToVk{};
+static std::atomic<ULONGLONG>    g_lastFullBufferLogMs{ 0 };
+static std::atomic<int>          g_zeroProbeStreak{ 0 };
+static std::atomic<bool>         g_autoRecoverTried{ false };
+static std::array<WootingAnalog_DeviceID, 16> g_knownDeviceIds{};
+static std::atomic<int>          g_knownDeviceCount{ 0 };
+static std::atomic<uint16_t>     g_tmTrackedMaxRawMilli{ 0 };
+static std::atomic<uint16_t>     g_tmTrackedMaxOutMilli{ 0 };
+static std::atomic<int>          g_tmFullBufferRet{ 0 };
+static std::atomic<uint16_t>     g_tmFullBufferMaxMilli{ 0 };
+static std::atomic<int>          g_tmFullBufferDeviceBestRet{ 0 };
+static std::atomic<uint16_t>     g_tmFullBufferDeviceBestMaxMilli{ 0 };
+
+static const wchar_t* KeycodeModeName(int mode)
+{
+    switch ((WootingAnalog_KeycodeType)mode)
+    {
+    case WootingAnalog_KeycodeType_HID: return L"HID";
+    case WootingAnalog_KeycodeType_ScanCode1: return L"ScanCode1";
+    case WootingAnalog_KeycodeType_VirtualKey: return L"VirtualKey";
+    case WootingAnalog_KeycodeType_VirtualKeyTranslate: return L"VirtualKeyTranslate";
+    default: return L"Unknown";
+    }
+}
+
+static WootingAnalog_KeycodeType NextKeycodeMode(WootingAnalog_KeycodeType mode)
+{
+    switch (mode)
+    {
+    case WootingAnalog_KeycodeType_HID: return WootingAnalog_KeycodeType_ScanCode1;
+    case WootingAnalog_KeycodeType_ScanCode1: return WootingAnalog_KeycodeType_VirtualKey;
+    case WootingAnalog_KeycodeType_VirtualKey: return WootingAnalog_KeycodeType_VirtualKeyTranslate;
+    case WootingAnalog_KeycodeType_VirtualKeyTranslate: return WootingAnalog_KeycodeType_HID;
+    default: return WootingAnalog_KeycodeType_HID;
+    }
+}
+
+static bool SetKeycodeModeWithLog(WootingAnalog_KeycodeType mode, const wchar_t* reason, uint16_t hidHint)
+{
+    WootingAnalogResult r = wooting_analog_set_keycode_mode(mode);
+    DebugLog_Write(
+        L"[backend.mode] set mode=%s(%d) reason=%s hid_hint=%u ret=%d",
+        KeycodeModeName((int)mode), (int)mode,
+        reason ? reason : L"-",
+        (unsigned)hidHint,
+        (int)r);
+    if (r >= 0)
+    {
+        g_keycodeMode.store((int)mode, std::memory_order_relaxed);
+        g_lastKeycodeSwitchMs.store(GetTickCount64(), std::memory_order_relaxed);
+        return true;
+    }
+    return false;
+}
+
+static void LogConnectedDevicesDetailed(const wchar_t* stage)
+{
+    WootingAnalog_DeviceInfo_FFI* devs[16]{};
+    int n = wooting_analog_get_connected_devices_info(devs, (unsigned)_countof(devs));
+    if (n < 0)
+    {
+        g_knownDeviceCount.store(0, std::memory_order_relaxed);
+        DebugLog_Write(L"[backend.devices] %s get_devices_ret=%d", stage ? stage : L"-", n);
+        return;
+    }
+
+    DebugLog_Write(L"[backend.devices] %s count=%d", stage ? stage : L"-", n);
+    g_knownDeviceCount.store(0, std::memory_order_relaxed);
+    int uniqueCount = 0;
+    for (int i = 0; i < n && i < (int)_countof(devs); ++i)
+    {
+        const WootingAnalog_DeviceInfo_FFI* d = devs[i];
+        if (!d) continue;
+        const char* m = d->manufacturer_name ? d->manufacturer_name : "";
+        const char* name = d->device_name ? d->device_name : "";
+        DebugLog_Write(
+            L"[backend.devices] #%d type=%d vid=0x%04X pid=0x%04X id=%llu mfr=%S name=%S",
+            i,
+            (int)d->device_type,
+            (unsigned)d->vendor_id,
+            (unsigned)d->product_id,
+            (unsigned long long)d->device_id,
+            m,
+            name);
+
+        bool dup = false;
+        for (int k = 0; k < uniqueCount; ++k)
+        {
+            if (g_knownDeviceIds[k] == d->device_id)
+            {
+                dup = true;
+                break;
+            }
+        }
+        if (!dup && uniqueCount < (int)g_knownDeviceIds.size())
+            g_knownDeviceIds[uniqueCount++] = d->device_id;
+    }
+    g_knownDeviceCount.store(uniqueCount, std::memory_order_relaxed);
+    DebugLog_Write(L"[backend.devices] unique_ids=%d", uniqueCount);
+}
+
+static uint16_t HidFallbackToVk(uint16_t hid)
+{
+    if (hid >= 4 && hid <= 29)  return (uint16_t)('A' + (hid - 4)); // A..Z
+    if (hid >= 30 && hid <= 38) return (uint16_t)('1' + (hid - 30)); // 1..9
+    if (hid == 39) return (uint16_t)'0';
+    switch (hid)
+    {
+    case 40: return VK_RETURN;
+    case 41: return VK_ESCAPE;
+    case 42: return VK_BACK;
+    case 43: return VK_TAB;
+    case 44: return VK_SPACE;
+    case 45: return VK_OEM_MINUS;
+    case 46: return VK_OEM_PLUS;
+    case 47: return VK_OEM_4;
+    case 48: return VK_OEM_6;
+    case 49: return VK_OEM_5;
+    case 51: return VK_OEM_1;
+    case 52: return VK_OEM_7;
+    case 54: return VK_OEM_COMMA;
+    case 55: return VK_OEM_PERIOD;
+    case 56: return VK_OEM_2;
+    case 57: return VK_CAPITAL;
+    case 58: return VK_F1;
+    case 59: return VK_F2;
+    case 60: return VK_F3;
+    case 61: return VK_F4;
+    case 62: return VK_F5;
+    case 63: return VK_F6;
+    case 64: return VK_F7;
+    case 65: return VK_F8;
+    case 66: return VK_F9;
+    case 67: return VK_F10;
+    case 68: return VK_F11;
+    case 69: return VK_F12;
+    case 73: return VK_INSERT;
+    case 74: return VK_HOME;
+    case 75: return VK_PRIOR;
+    case 76: return VK_DELETE;
+    case 77: return VK_END;
+    case 78: return VK_NEXT;
+    case 79: return VK_RIGHT;
+    case 80: return VK_LEFT;
+    case 81: return VK_DOWN;
+    case 82: return VK_UP;
+    case 83: return VK_NUMLOCK;
+    case 84: return VK_DIVIDE;
+    case 85: return VK_MULTIPLY;
+    case 86: return VK_SUBTRACT;
+    case 87: return VK_ADD;
+    case 89: return VK_NUMPAD1;
+    case 90: return VK_NUMPAD2;
+    case 91: return VK_NUMPAD3;
+    case 92: return VK_NUMPAD4;
+    case 93: return VK_NUMPAD5;
+    case 94: return VK_NUMPAD6;
+    case 95: return VK_NUMPAD7;
+    case 96: return VK_NUMPAD8;
+    case 97: return VK_NUMPAD9;
+    case 98: return VK_NUMPAD0;
+    case 99: return VK_DECIMAL;
+    case 224: return VK_LCONTROL;
+    case 225: return VK_LSHIFT;
+    case 226: return VK_LMENU;
+    case 227: return VK_LWIN;
+    case 228: return VK_RCONTROL;
+    case 229: return VK_RSHIFT;
+    case 230: return VK_RMENU;
+    case 231: return VK_RWIN;
+    default: return 0;
+    }
+}
+
+static uint16_t HidToModeCode(uint16_t hid, WootingAnalog_KeycodeType mode)
+{
+    if (hid == 0) return 0;
+    if (mode == WootingAnalog_KeycodeType_HID)
+        return hid;
+
+    if (hid < 256)
+    {
+        if (mode == WootingAnalog_KeycodeType_ScanCode1)
+        {
+            uint16_t sc = g_hidToScan[hid].load(std::memory_order_relaxed);
+            return sc;
+        }
+        if (mode == WootingAnalog_KeycodeType_VirtualKey || mode == WootingAnalog_KeycodeType_VirtualKeyTranslate)
+        {
+            uint16_t vk = g_hidToVk[hid].load(std::memory_order_relaxed);
+            if (vk != 0) return vk;
+            return HidFallbackToVk(hid);
+        }
+    }
+    return 0;
+}
+
+static float SafeReadAnalogByCode(uint16_t code)
+{
+    if (code == 0) return 0.0f;
+    float v = wooting_analog_read_analog(code);
+    if (!std::isfinite(v) || v < 0.0f) return 0.0f;
+    return std::clamp(v, 0.0f, 1.0f);
+}
+
+static float ReadAnalogByCodeWithDeviceFallback(uint16_t code, uint16_t hidForLog)
+{
+    if (code == 0) return 0.0f;
+    float base = wooting_analog_read_analog(code);
+    float best = (std::isfinite(base) ? base : 0.0f);
+
+    int n = std::clamp(g_knownDeviceCount.load(std::memory_order_relaxed), 0, (int)g_knownDeviceIds.size());
+    for (int i = 0; i < n; ++i)
+    {
+        WootingAnalog_DeviceID id = g_knownDeviceIds[i];
+        float dv = wooting_analog_read_analog_device(code, id);
+        if (!std::isfinite(dv)) continue;
+        if (dv > best)
+            best = dv;
+    }
+
+    if (best > base + 0.0005f)
+    {
+        DebugLog_Write(
+            L"[backend.analog] device_fallback improved hid=%u code=%u base=%.3f best=%.3f",
+            (unsigned)hidForLog,
+            (unsigned)code,
+            base,
+            best);
+    }
+
+    return best;
+}
+
+static void AutoProbeKeycodeModeFromEvent(uint16_t hidHint, uint16_t scanCode, uint16_t vkCode)
+{
+    if (hidHint == 0) return;
+
+    struct ProbeItem { WootingAnalog_KeycodeType mode; uint16_t code; float value; int setRet; };
+    ProbeItem items[] = {
+        { WootingAnalog_KeycodeType_HID, hidHint, 0.0f, 0 },
+        { WootingAnalog_KeycodeType_ScanCode1, scanCode, 0.0f, 0 },
+        { WootingAnalog_KeycodeType_VirtualKey, vkCode, 0.0f, 0 },
+        { WootingAnalog_KeycodeType_VirtualKeyTranslate, vkCode, 0.0f, 0 },
+    };
+
+    int currentMode = g_keycodeMode.load(std::memory_order_relaxed);
+    int bestIdx = -1;
+    float bestVal = 0.0f;
+
+    for (int i = 0; i < (int)_countof(items); ++i)
+    {
+        if (items[i].code == 0)
+            continue;
+        WootingAnalogResult sr = wooting_analog_set_keycode_mode(items[i].mode);
+        items[i].setRet = (int)sr;
+        if (sr < 0)
+            continue;
+        items[i].value = SafeReadAnalogByCode(items[i].code);
+        if (items[i].value > bestVal)
+        {
+            bestVal = items[i].value;
+            bestIdx = i;
+        }
+    }
+
+    DebugLog_Write(
+        L"[backend.mode] probe hid=%u scan=%u vk=%u values: HID=%.3f SC=%.3f VK=%.3f VKT=%.3f",
+        (unsigned)hidHint, (unsigned)scanCode, (unsigned)vkCode,
+        items[0].value, items[1].value, items[2].value, items[3].value);
+
+    WootingAnalog_KeycodeType targetMode = (WootingAnalog_KeycodeType)currentMode;
+    if (bestIdx >= 0 && bestVal >= 0.015f)
+        targetMode = items[bestIdx].mode;
+    else
+        targetMode = NextKeycodeMode((WootingAnalog_KeycodeType)currentMode);
+
+    if ((int)targetMode != currentMode)
+    {
+        SetKeycodeModeWithLog(targetMode, L"auto_probe", hidHint);
+    }
+    else
+    {
+        // Restore current mode after temporary probe switching.
+        wooting_analog_set_keycode_mode((WootingAnalog_KeycodeType)currentMode);
+    }
+}
+
+static void LogFullBufferSnapshot(const wchar_t* stage)
+{
+    unsigned short codes[64]{};
+    float vals[64]{};
+    int ret = wooting_analog_read_full_buffer(codes, vals, (unsigned)_countof(codes));
+    if (ret < 0)
+    {
+        g_tmFullBufferRet.store(ret, std::memory_order_relaxed);
+        g_tmFullBufferMaxMilli.store(0, std::memory_order_relaxed);
+        g_tmFullBufferDeviceBestRet.store(ret, std::memory_order_relaxed);
+        g_tmFullBufferDeviceBestMaxMilli.store(0, std::memory_order_relaxed);
+        DebugLog_Write(
+            L"[backend.full] %s ret=%d mode=%s",
+            stage ? stage : L"-",
+            ret,
+            KeycodeModeName(g_keycodeMode.load(std::memory_order_relaxed)));
+        return;
+    }
+
+    int n = std::min(ret, (int)_countof(codes));
+    float maxV = 0.0f;
+    unsigned short maxCode = 0;
+    for (int i = 0; i < n; ++i)
+    {
+        float v = vals[i];
+        if (std::isfinite(v) && v > maxV)
+        {
+            maxV = v;
+            maxCode = codes[i];
+        }
+    }
+
+    DebugLog_Write(
+        L"[backend.full] %s ret=%d max=%.3f code=%u mode=%s",
+        stage ? stage : L"-",
+        ret,
+        maxV,
+        (unsigned)maxCode,
+        KeycodeModeName(g_keycodeMode.load(std::memory_order_relaxed)));
+    g_tmFullBufferRet.store(ret, std::memory_order_relaxed);
+    g_tmFullBufferMaxMilli.store((uint16_t)std::clamp((int)std::lround(maxV * 1000.0f), 0, 1000), std::memory_order_relaxed);
+
+    int ndev = std::clamp(g_knownDeviceCount.load(std::memory_order_relaxed), 0, (int)g_knownDeviceIds.size());
+    int bestDevRet = ret;
+    uint16_t bestDevMilli = (uint16_t)std::clamp((int)std::lround(maxV * 1000.0f), 0, 1000);
+    for (int di = 0; di < ndev; ++di)
+    {
+        WootingAnalog_DeviceID id = g_knownDeviceIds[di];
+        unsigned short dcodes[64]{};
+        float dvals[64]{};
+        int dret = wooting_analog_read_full_buffer_device(dcodes, dvals, (unsigned)_countof(dcodes), id);
+        if (dret < 0)
+        {
+            DebugLog_Write(
+                L"[backend.full.dev] %s dev#%d id=%llu ret=%d",
+                stage ? stage : L"-",
+                di,
+                (unsigned long long)id,
+                dret);
+            continue;
+        }
+        int dn = std::min(dret, (int)_countof(dcodes));
+        float dmax = 0.0f;
+        unsigned short dcode = 0;
+        for (int i = 0; i < dn; ++i)
+        {
+            float v = dvals[i];
+            if (std::isfinite(v) && v > dmax)
+            {
+                dmax = v;
+                dcode = dcodes[i];
+            }
+        }
+        DebugLog_Write(
+            L"[backend.full.dev] %s dev#%d id=%llu ret=%d max=%.3f code=%u",
+            stage ? stage : L"-",
+            di,
+            (unsigned long long)id,
+            dret,
+            dmax,
+            (unsigned)dcode);
+
+        uint16_t dm = (uint16_t)std::clamp((int)std::lround(dmax * 1000.0f), 0, 1000);
+        if (dm > bestDevMilli)
+        {
+            bestDevMilli = dm;
+            bestDevRet = dret;
+        }
+    }
+    g_tmFullBufferDeviceBestRet.store(bestDevRet, std::memory_order_relaxed);
+    g_tmFullBufferDeviceBestMaxMilli.store(bestDevMilli, std::memory_order_relaxed);
+}
+
+static void LogWootingStateSnapshot(const wchar_t* stage)
+{
+    WootingAnalog_DeviceInfo_FFI* devs[16]{};
+    int devRet = wooting_analog_get_connected_devices_info(devs, (unsigned)_countof(devs));
+    bool inited = wooting_analog_is_initialised();
+    DebugLog_Write(
+        L"[backend.wooting] %s init=%d get_devices_ret=%d keycode_mode=%d",
+        stage ? stage : L"(null)",
+        inited ? 1 : 0,
+        devRet,
+        g_keycodeMode.load(std::memory_order_relaxed));
+}
 
 // ------------------------------------------------------------
 // Curve logic (shared with UI via CurveMath)
@@ -317,13 +722,34 @@ struct HidCache
 static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
 {
     if (hidKeycode == 0) return 0.0f;
+    WootingAnalog_KeycodeType mode = (WootingAnalog_KeycodeType)g_keycodeMode.load(std::memory_order_relaxed);
+    uint16_t modeCode = HidToModeCode(hidKeycode, mode);
+    if (modeCode == 0) return 0.0f;
 
     if (hidKeycode < 256)
     {
         if (cache.hasRaw.test(hidKeycode))
             return cache.raw[hidKeycode];
 
-        float v = wooting_analog_read_analog(hidKeycode);
+        float v = ReadAnalogByCodeWithDeviceFallback(modeCode, hidKeycode);
+        if (v < 0.0f)
+        {
+            int err = (int)std::lround(v);
+            ULONGLONG now = GetTickCount64();
+            int prev = g_lastAnalogErrorCode.load(std::memory_order_relaxed);
+            ULONGLONG prevMs = g_lastAnalogErrorLogMs.load(std::memory_order_relaxed);
+            if (err != prev || now - prevMs >= 5000)
+            {
+                DebugLog_Write(
+                    L"[backend.analog] read_analog hid=%u code=%u mode=%s err=%d",
+                    (unsigned)hidKeycode,
+                    (unsigned)modeCode,
+                    KeycodeModeName((int)mode),
+                    err);
+                g_lastAnalogErrorCode.store(err, std::memory_order_relaxed);
+                g_lastAnalogErrorLogMs.store(now, std::memory_order_relaxed);
+            }
+        }
         if (!std::isfinite(v)) v = 0.0f;
         v = Clamp01(v);
 
@@ -333,7 +759,25 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
     }
 
     // HID>=256: no caching needed in this project (UI tracks <256 anyway)
-    float v = wooting_analog_read_analog(hidKeycode);
+    float v = ReadAnalogByCodeWithDeviceFallback(modeCode, hidKeycode);
+    if (v < 0.0f)
+    {
+        int err = (int)std::lround(v);
+        ULONGLONG now = GetTickCount64();
+        int prev = g_lastAnalogErrorCode.load(std::memory_order_relaxed);
+        ULONGLONG prevMs = g_lastAnalogErrorLogMs.load(std::memory_order_relaxed);
+        if (err != prev || now - prevMs >= 5000)
+        {
+            DebugLog_Write(
+                L"[backend.analog] read_analog hid=%u code=%u mode=%s err=%d",
+                (unsigned)hidKeycode,
+                (unsigned)modeCode,
+                KeycodeModeName((int)mode),
+                err);
+            g_lastAnalogErrorCode.store(err, std::memory_order_relaxed);
+            g_lastAnalogErrorLogMs.store(now, std::memory_order_relaxed);
+        }
+    }
     if (!std::isfinite(v)) v = 0.0f;
     return Clamp01(v);
 }
@@ -606,6 +1050,13 @@ static bool IsReportSignificantlyDifferent(const XUSB_REPORT& a, const XUSB_REPO
 
 bool Backend_Init()
 {
+    DebugLog_Write(L"[backend.init] begin");
+    g_tmTrackedMaxRawMilli.store(0, std::memory_order_relaxed);
+    g_tmTrackedMaxOutMilli.store(0, std::memory_order_relaxed);
+    g_tmFullBufferRet.store(0, std::memory_order_relaxed);
+    g_tmFullBufferMaxMilli.store(0, std::memory_order_relaxed);
+    g_tmFullBufferDeviceBestRet.store(0, std::memory_order_relaxed);
+    g_tmFullBufferDeviceBestMaxMilli.store(0, std::memory_order_relaxed);
     g_virtualPadCount.store(std::clamp(Settings_GetVirtualGamepadCount(), 1, kMaxVirtualPads), std::memory_order_release);
     g_virtualPadsEnabled.store(Settings_GetVirtualGamepadsEnabled(), std::memory_order_release);
     g_lastInitIssues.store(BackendInitIssue_None, std::memory_order_release);
@@ -616,6 +1067,13 @@ bool Backend_Init()
 
     uint32_t initIssues = BackendInitIssue_None;
     int wootingInit = wooting_analog_initialise();
+    DebugLog_Write(L"[backend.init] wooting_analog_initialise ret=%d", wootingInit);
+    if (wootingInit >= 0)
+    {
+        SetKeycodeModeWithLog(WootingAnalog_KeycodeType_HID, L"init", 0);
+    }
+    LogWootingStateSnapshot(L"after_init_call");
+    LogConnectedDevicesDetailed(L"after_init_call");
     if (wootingInit < 0)
     {
         switch ((WootingAnalogResult)wootingInit)
@@ -642,6 +1100,7 @@ bool Backend_Init()
         g_ignoreDeviceChangeUntilMs.store(GetTickCount64() + 1500, std::memory_order_release);
         VIGEM_ERROR err = VIGEM_ERROR_NONE;
         if (!Vigem_Create(g_virtualPadCount.load(std::memory_order_acquire), &err)) {
+            DebugLog_Write(L"[backend.init] Vigem_Create failed err=%d", (int)err);
             g_vigemOk.store(false, std::memory_order_release);
             g_vigemLastErr.store(err, std::memory_order_release);
             if (err == VIGEM_ERROR_BUS_NOT_FOUND)
@@ -651,6 +1110,7 @@ bool Backend_Init()
         }
         else
         {
+            DebugLog_Write(L"[backend.init] Vigem_Create ok pads=%d", g_virtualPadCount.load(std::memory_order_acquire));
             g_vigemOk.store(true, std::memory_order_release);
             g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
         }
@@ -663,6 +1123,7 @@ bool Backend_Init()
 
     if (initIssues != BackendInitIssue_None)
     {
+        DebugLog_Write(L"[backend.init] fail issues=0x%08X", initIssues);
         g_lastInitIssues.store(initIssues, std::memory_order_release);
         Vigem_Destroy();
         wooting_analog_uninitialise();
@@ -679,11 +1140,14 @@ bool Backend_Init()
         g_lastSentReports[(size_t)i] = XUSB_REPORT{};
     }
 
+    DebugLog_Write(L"[backend.init] success");
     return true;
 }
 
 void Backend_Shutdown()
 {
+    DebugLog_Write(L"[backend] shutdown");
+    g_knownDeviceCount.store(0, std::memory_order_relaxed);
     g_reconnectRequested.store(false, std::memory_order_release);
     g_deviceChangeReconnectRequested.store(false, std::memory_order_release);
     g_vigemUpdateFailStreak = 0;
@@ -693,20 +1157,35 @@ void Backend_Shutdown()
 
 void Backend_Tick()
 {
+    ULONGLONG nowMs = GetTickCount64();
+    ULONGLONG lastStateLog = g_lastWootingStateLogMs.load(std::memory_order_relaxed);
+    if (nowMs - lastStateLog >= 10000)
+    {
+        g_lastWootingStateLogMs.store(nowMs, std::memory_order_relaxed);
+        LogWootingStateSnapshot(L"tick_heartbeat");
+    }
+
     if (g_reconnectRequested.exchange(false, std::memory_order_acq_rel))
     {
+        DebugLog_Write(L"[backend.tick] reconnect requested (force)");
         g_deviceChangeReconnectRequested.store(false, std::memory_order_release);
         Vigem_ReconnectThrottled(true);
     }
     else if (g_deviceChangeReconnectRequested.exchange(false, std::memory_order_acq_rel))
     {
+        DebugLog_Write(L"[backend.tick] reconnect requested (device change)");
         Vigem_ReconnectThrottled(false);
     }
 
     HidCache cache;
+    static uint32_t s_lastHandledKeyEventSeq = 0;
 
     int cnt = g_trackedCount.load(std::memory_order_acquire);
     cnt = std::clamp(cnt, 0, 256);
+    uint16_t maxRawM = 0;
+    uint16_t maxOutM = 0;
+    uint16_t maxRawHid = 0;
+    uint16_t maxOutHid = 0;
 
     // UI snapshot update
     for (int i = 0; i < cnt; ++i)
@@ -720,9 +1199,19 @@ void Backend_Tick()
         int rawM = (int)std::lround(raw * 1000.0f);
         rawM = std::clamp(rawM, 0, 1000);
         g_uiRawM[hid].store((uint16_t)rawM, std::memory_order_relaxed);
+        if ((uint16_t)rawM >= maxRawM)
+        {
+            maxRawM = (uint16_t)rawM;
+            maxRawHid = hid;
+        }
 
         int outM = (int)std::lround(filtered * 1000.0f);
         outM = std::clamp(outM, 0, 1000);
+        if ((uint16_t)outM >= maxOutM)
+        {
+            maxOutM = (uint16_t)outM;
+            maxOutHid = hid;
+        }
 
         uint16_t newV = (uint16_t)outM;
         uint16_t oldV = g_uiAnalogM[hid].load(std::memory_order_relaxed);
@@ -736,6 +1225,75 @@ void Backend_Tick()
                 int bit = hid % 64;
                 g_uiDirty[chunk].fetch_or(1ULL << bit, std::memory_order_relaxed);
             }
+        }
+    }
+    g_tmTrackedMaxRawMilli.store(maxRawM, std::memory_order_relaxed);
+    g_tmTrackedMaxOutMilli.store(maxOutM, std::memory_order_relaxed);
+    ULONGLONG lastInputLog = g_lastInputStateLogMs.load(std::memory_order_relaxed);
+    if (nowMs - lastInputLog >= 2000)
+    {
+        g_lastInputStateLogMs.store(nowMs, std::memory_order_relaxed);
+        DebugLog_Write(
+            L"[backend.input] tracked=%d max_raw=%u(hid=%u) max_out=%u(hid=%u)",
+            cnt,
+            (unsigned)maxRawM, (unsigned)maxRawHid,
+            (unsigned)maxOutM, (unsigned)maxOutHid);
+    }
+    ULONGLONG lastFullLog = g_lastFullBufferLogMs.load(std::memory_order_relaxed);
+    if (nowMs - lastFullLog >= 2000)
+    {
+        g_lastFullBufferLogMs.store(nowMs, std::memory_order_relaxed);
+        LogFullBufferSnapshot(L"periodic");
+    }
+
+    // Adaptive mode probe: if we see a physical key-down but still read zero analog
+    // for that HID in the current mode, cycle keycode mode once.
+    uint32_t keySeq = g_keyboardEventSeq.load(std::memory_order_acquire);
+    if (keySeq != s_lastHandledKeyEventSeq)
+    {
+        s_lastHandledKeyEventSeq = keySeq;
+        uint16_t hidHint = g_keyboardEventHid.load(std::memory_order_relaxed);
+        uint16_t scanHint = g_keyboardEventScan.load(std::memory_order_relaxed);
+        uint16_t vkHint = g_keyboardEventVk.load(std::memory_order_relaxed);
+        float probe = 0.0f;
+        if (hidHint != 0)
+            probe = ReadRaw01Cached(hidHint, cache);
+
+        DebugLog_Write(
+            L"[backend.mode] key_event seq=%u hid=%u scan=%u vk=%u probe=%.3f mode=%s",
+            (unsigned)keySeq,
+            (unsigned)hidHint,
+            (unsigned)scanHint,
+            (unsigned)vkHint,
+            probe,
+            KeycodeModeName(g_keycodeMode.load(std::memory_order_relaxed)));
+
+        ULONGLONG now = GetTickCount64();
+        ULONGLONG lastSwitch = g_lastKeycodeSwitchMs.load(std::memory_order_relaxed);
+        if (hidHint != 0 && probe <= 0.001f && now - lastSwitch >= 250)
+        {
+            int streak = g_zeroProbeStreak.fetch_add(1, std::memory_order_relaxed) + 1;
+            AutoProbeKeycodeModeFromEvent(hidHint, scanHint, vkHint);
+            LogFullBufferSnapshot(L"after_probe");
+
+            if (streak >= 24 && !g_autoRecoverTried.exchange(true, std::memory_order_relaxed))
+            {
+                DebugLog_Write(L"[backend.recover] zero_probe_streak=%d -> reinit sdk", streak);
+                wooting_analog_uninitialise();
+                int re = wooting_analog_initialise();
+                DebugLog_Write(L"[backend.recover] reinit ret=%d", re);
+                if (re >= 0)
+                {
+                    SetKeycodeModeWithLog(WootingAnalog_KeycodeType_HID, L"reinit", hidHint);
+                    LogWootingStateSnapshot(L"after_reinit");
+                    LogConnectedDevicesDetailed(L"after_reinit");
+                    LogFullBufferSnapshot(L"after_reinit");
+                }
+            }
+        }
+        else if (probe > 0.001f)
+        {
+            g_zeroProbeStreak.store(0, std::memory_order_relaxed);
         }
     }
 
@@ -830,6 +1388,7 @@ void Backend_Tick()
             }
 
             if (!allOk) {
+                DebugLog_Write(L"[backend.tick] vigem update failed err=%d streak=%d", (int)err, g_vigemUpdateFailStreak + 1);
                 g_vigemOk.store(false, std::memory_order_release);
                 g_vigemLastErr.store(err, std::memory_order_release);
                 ++g_vigemUpdateFailStreak;
@@ -846,6 +1405,7 @@ void Backend_Tick()
             }
         }
         else {
+            DebugLog_Write(L"[backend.tick] no vigem client/targets, reconnect");
             g_vigemUpdateFailStreak = 0;
             g_vigemOk.store(false, std::memory_order_release);
             g_vigemLastErr.store(VIGEM_ERROR_BUS_NOT_FOUND, std::memory_order_release);
@@ -896,9 +1456,26 @@ void BackendUI_SetTrackedHids(const uint16_t* hids, int count)
     }
 
     g_trackedCount.store(outN, std::memory_order_release);
+    wchar_t sample[256]{};
+    size_t used = 0;
+    int sampleN = std::min(outN, 12);
+    for (int i = 0; i < sampleN; ++i)
+    {
+        wchar_t t[16]{};
+        _snwprintf_s(t, _countof(t), _TRUNCATE, (i == 0) ? L"%u" : L",%u", (unsigned)g_trackedList[i]);
+        size_t left = _countof(sample) - 1 - used;
+        if (left == 0) break;
+        wcsncat_s(sample, _countof(sample), t, _TRUNCATE);
+        used = wcslen(sample);
+    }
+    DebugLog_Write(L"[backend.ui] tracked set count=%d sample=%s", outN, sample[0] ? sample : L"-");
 }
 
-void BackendUI_ClearTrackedHids() { g_trackedCount.store(0, std::memory_order_release); }
+void BackendUI_ClearTrackedHids()
+{
+    g_trackedCount.store(0, std::memory_order_release);
+    DebugLog_Write(L"[backend.ui] tracked cleared");
+}
 
 uint16_t BackendUI_GetAnalogMilli(uint16_t hid)
 {
@@ -945,6 +1522,24 @@ BackendStatus Backend_GetStatus()
     return s;
 }
 
+void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
+{
+    if (!out) return;
+    BackendAnalogTelemetry t{};
+    t.sdkInitialised = wooting_analog_is_initialised();
+    t.deviceCount = std::clamp(g_knownDeviceCount.load(std::memory_order_relaxed), 0, (int)g_knownDeviceIds.size());
+    t.keycodeMode = g_keycodeMode.load(std::memory_order_relaxed);
+    t.keyboardEventSeq = g_keyboardEventSeq.load(std::memory_order_acquire);
+    t.trackedMaxRawMilli = g_tmTrackedMaxRawMilli.load(std::memory_order_relaxed);
+    t.trackedMaxOutMilli = g_tmTrackedMaxOutMilli.load(std::memory_order_relaxed);
+    t.fullBufferRet = g_tmFullBufferRet.load(std::memory_order_relaxed);
+    t.fullBufferMaxMilli = g_tmFullBufferMaxMilli.load(std::memory_order_relaxed);
+    t.fullBufferDeviceBestRet = g_tmFullBufferDeviceBestRet.load(std::memory_order_relaxed);
+    t.fullBufferDeviceBestMaxMilli = g_tmFullBufferDeviceBestMaxMilli.load(std::memory_order_relaxed);
+    t.lastAnalogError = g_lastAnalogErrorCode.load(std::memory_order_relaxed);
+    *out = t;
+}
+
 void Backend_NotifyDeviceChange()
 {
     if (!g_virtualPadsEnabled.load(std::memory_order_acquire))
@@ -961,6 +1556,29 @@ void Backend_NotifyDeviceChange()
         return;
 
     g_deviceChangeReconnectRequested.store(true, std::memory_order_release);
+}
+
+void Backend_NotifyKeyboardEvent(
+    uint16_t hidHint,
+    uint16_t scanCode,
+    uint16_t vkCode,
+    bool isKeyDown,
+    bool isInjected)
+{
+    if (hidHint == 0 || isInjected) return;
+
+    if (hidHint < 256)
+    {
+        if (scanCode != 0) g_hidToScan[hidHint].store(scanCode, std::memory_order_relaxed);
+        if (vkCode != 0) g_hidToVk[hidHint].store(vkCode, std::memory_order_relaxed);
+    }
+
+    if (!isKeyDown) return;
+
+    g_keyboardEventHid.store(hidHint, std::memory_order_relaxed);
+    g_keyboardEventScan.store(scanCode, std::memory_order_relaxed);
+    g_keyboardEventVk.store(vkCode, std::memory_order_relaxed);
+    g_keyboardEventSeq.fetch_add(1u, std::memory_order_release);
 }
 
 void Backend_SetVirtualGamepadCount(int count)

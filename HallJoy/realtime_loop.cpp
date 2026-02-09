@@ -10,12 +10,14 @@
 #include "realtime_loop.h"
 #include "backend.h"
 #include "settings.h"
+#include "debug_log.h"
 
 #pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "avrt.lib")
 
 static std::atomic<bool> g_run{ false };
 static std::atomic<UINT> g_intervalMs{ 5 };
+static std::atomic<UINT> g_lastLoggedIntervalMs{ 0 };
 
 static HANDLE g_thread = nullptr;
 static HANDLE g_timer = nullptr;
@@ -59,6 +61,7 @@ static bool ArmTimer(HANDLE hTimer, UINT periodMs)
 
 static DWORD WINAPI ThreadProc(LPVOID)
 {
+    DebugLog_Write(L"[rt] thread start");
     g_mmcssHandle = AvSetMmThreadCharacteristicsW(L"Games", &g_mmcssTaskIndex);
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
@@ -74,10 +77,12 @@ static DWORD WINAPI ThreadProc(LPVOID)
         timeBeginPeriod(timerPeriodMs);
     }
     bool timerOk = ArmTimer(g_timer, last);
+    DebugLog_Write(L"[rt] timer create=%d arm=%d interval=%u", g_timer ? 1 : 0, timerOk ? 1 : 0, last);
 
     // Fallback mode: no waitable timer available
     if (!g_timer || !timerOk)
     {
+        DebugLog_Write(L"[rt] fallback mode (WaitForSingleObject)");
         if (g_timer)
         {
             // Clean up timer handle if it exists but can't be armed
@@ -100,6 +105,7 @@ static DWORD WINAPI ThreadProc(LPVOID)
                     timerPeriodMs = 1;
                     timeBeginPeriod(timerPeriodMs);
                 }
+                DebugLog_Write(L"[rt] fallback timer period changed to %u", timerPeriodMs);
             }
 
             // Wait for stop event with timeout = interval
@@ -118,6 +124,7 @@ static DWORD WINAPI ThreadProc(LPVOID)
         }
 
         timeEndPeriod(timerPeriodMs);
+        DebugLog_Write(L"[rt] thread exit");
         return 0;
     }
 
@@ -149,6 +156,7 @@ static DWORD WINAPI ThreadProc(LPVOID)
                 }
             }
             ArmTimer(g_timer, cur); // if it fails, we still continue (next wake might be delayed)
+            DebugLog_Write(L"[rt] timer interval changed to %u", cur);
         }
     }
 
@@ -167,20 +175,27 @@ static DWORD WINAPI ThreadProc(LPVOID)
     }
 
     timeEndPeriod(timerPeriodMs);
+    DebugLog_Write(L"[rt] thread exit");
     return 0;
 }
 
 bool RealtimeLoop_Start()
 {
-    if (g_thread) return true;
+    if (g_thread) {
+        DebugLog_Write(L"[rt] start ignored (already running)");
+        return true;
+    }
 
     g_intervalMs.store(Settings_GetPollingMs(), std::memory_order_relaxed);
+    g_lastLoggedIntervalMs.store(g_intervalMs.load(std::memory_order_relaxed), std::memory_order_relaxed);
     g_run.store(true, std::memory_order_relaxed);
+    DebugLog_Write(L"[rt] start requested interval=%u", g_intervalMs.load(std::memory_order_relaxed));
 
     g_stopEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     if (!g_stopEvent)
     {
         g_run.store(false, std::memory_order_relaxed);
+        DebugLog_Write(L"[rt] CreateEvent failed err=%lu", GetLastError());
         return false;
     }
 
@@ -190,15 +205,21 @@ bool RealtimeLoop_Start()
         g_run.store(false, std::memory_order_relaxed);
         CloseHandle(g_stopEvent);
         g_stopEvent = nullptr;
+        DebugLog_Write(L"[rt] CreateThread failed err=%lu", GetLastError());
         return false;
     }
 
+    DebugLog_Write(L"[rt] start ok thread=%p", g_thread);
     return true;
 }
 
 void RealtimeLoop_Stop()
 {
-    if (!g_thread) return;
+    if (!g_thread) {
+        DebugLog_Write(L"[rt] stop ignored (not running)");
+        return;
+    }
+    DebugLog_Write(L"[rt] stop requested");
 
     g_run.store(false, std::memory_order_relaxed);
     if (g_stopEvent) SetEvent(g_stopEvent);
@@ -212,12 +233,16 @@ void RealtimeLoop_Stop()
         CloseHandle(g_stopEvent);
         g_stopEvent = nullptr;
     }
+    DebugLog_Write(L"[rt] stop complete");
 }
 
 void RealtimeLoop_SetIntervalMs(UINT ms)
 {
     ms = std::clamp(ms, 1u, 20u);
     g_intervalMs.store(ms, std::memory_order_relaxed);
+    UINT prev = g_lastLoggedIntervalMs.exchange(ms, std::memory_order_relaxed);
+    if (prev != ms)
+        DebugLog_Write(L"[rt] interval set to %u", ms);
 }
 
 UINT RealtimeLoop_GetIntervalMs()

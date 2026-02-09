@@ -32,6 +32,7 @@
 #include "win_util.h"
 #include "app_paths.h"
 #include "ui_theme.h"
+#include "debug_log.h"
 
 #pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "Urlmon.lib")
@@ -50,6 +51,7 @@ static const UINT SETTINGS_SAVE_TIMER_MS = 350;
 
 static HWND g_hPageMain = nullptr;
 static HHOOK g_hKeyboardHook = nullptr;
+static bool g_backendReady = false;
 
 static bool IsWindowRectVisibleOnAnyScreen(int x, int y, int w, int h)
 {
@@ -130,6 +132,7 @@ static std::wstring JsonUnescapeBasic(std::wstring s)
 static bool HttpGetUtf8(const std::wstring& url, std::string& outBody)
 {
     outBody.clear();
+    DebugLog_Write(L"[deps.http] GET %s", url.c_str());
 
     URL_COMPONENTSW uc{};
     uc.dwStructSize = sizeof(uc);
@@ -138,7 +141,10 @@ static bool HttpGetUtf8(const std::wstring& url, std::string& outBody)
     uc.dwUrlPathLength = (DWORD)-1;
     uc.dwExtraInfoLength = (DWORD)-1;
     if (!WinHttpCrackUrl(url.c_str(), 0, 0, &uc))
+    {
+        DebugLog_Write(L"[deps.http] WinHttpCrackUrl failed err=%lu", GetLastError());
         return false;
+    }
 
     std::wstring host(uc.lpszHostName, uc.dwHostNameLength);
     std::wstring path = (uc.dwUrlPathLength > 0) ? std::wstring(uc.lpszUrlPath, uc.dwUrlPathLength) : L"/";
@@ -150,11 +156,12 @@ static bool HttpGetUtf8(const std::wstring& url, std::string& outBody)
         WINHTTP_NO_PROXY_NAME,
         WINHTTP_NO_PROXY_BYPASS,
         0);
-    if (!hSession) return false;
+    if (!hSession) { DebugLog_Write(L"[deps.http] WinHttpOpen failed err=%lu", GetLastError()); return false; }
 
     HINTERNET hConnect = WinHttpConnect(hSession, host.c_str(), uc.nPort, 0);
     if (!hConnect)
     {
+        DebugLog_Write(L"[deps.http] WinHttpConnect failed err=%lu", GetLastError());
         WinHttpCloseHandle(hSession);
         return false;
     }
@@ -164,6 +171,7 @@ static bool HttpGetUtf8(const std::wstring& url, std::string& outBody)
         WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
     if (!hReq)
     {
+        DebugLog_Write(L"[deps.http] WinHttpOpenRequest failed err=%lu", GetLastError());
         WinHttpCloseHandle(hConnect);
         WinHttpCloseHandle(hSession);
         return false;
@@ -185,7 +193,10 @@ static bool HttpGetUtf8(const std::wstring& url, std::string& outBody)
             WINHTTP_NO_HEADER_INDEX) != FALSE;
     }
     if (ok && statusCode >= 400)
+    {
+        DebugLog_Write(L"[deps.http] status=%lu", statusCode);
         ok = false;
+    }
 
     while (ok)
     {
@@ -211,6 +222,7 @@ static bool HttpGetUtf8(const std::wstring& url, std::string& outBody)
     WinHttpCloseHandle(hReq);
     WinHttpCloseHandle(hConnect);
     WinHttpCloseHandle(hSession);
+    DebugLog_Write(L"[deps.http] done ok=%d bytes=%u", ok ? 1 : 0, (unsigned)outBody.size());
     return ok;
 }
 
@@ -365,12 +377,19 @@ static bool DownloadLatestAssetToTemp(
     outFilePath.clear();
     std::wstring assetUrl;
     if (!ResolveLatestAssetUrl(apiUrls, requiredTokens, preferredTokens, allowedExtensions, assetUrl))
+    {
+        DebugLog_Write(L"[deps] failed resolve latest asset url");
         return false;
+    }
 
     std::wstring fileName = FileNameFromUrl(assetUrl);
     std::wstring dst = BuildTempInstallerPath(fileName);
+    DebugLog_Write(L"[deps] download asset=%s -> %s", assetUrl.c_str(), dst.c_str());
     if (!DownloadUrlToFilePath(assetUrl, dst))
+    {
+        DebugLog_Write(L"[deps] URLDownloadToFile failed");
         return false;
+    }
     outFilePath = dst;
     return true;
 }
@@ -389,6 +408,7 @@ static std::wstring QuoteForCmdArg(const std::wstring& s)
 
 static bool RunCommandElevatedAndWait(HWND hwnd, const std::wstring& file, const std::wstring& params)
 {
+    DebugLog_Write(L"[deps.exec] runas file=%s params=%s", file.c_str(), params.c_str());
     SHELLEXECUTEINFOW sei{};
     sei.cbSize = sizeof(sei);
     sei.fMask = SEE_MASK_NOCLOSEPROCESS;
@@ -399,7 +419,10 @@ static bool RunCommandElevatedAndWait(HWND hwnd, const std::wstring& file, const
     sei.nShow = SW_SHOWNORMAL;
 
     if (!ShellExecuteExW(&sei))
+    {
+        DebugLog_Write(L"[deps.exec] ShellExecuteEx failed err=%lu", GetLastError());
         return false;
+    }
 
     if (sei.hProcess)
     {
@@ -407,6 +430,7 @@ static bool RunCommandElevatedAndWait(HWND hwnd, const std::wstring& file, const
         DWORD code = 1;
         GetExitCodeProcess(sei.hProcess, &code);
         CloseHandle(sei.hProcess);
+        DebugLog_Write(L"[deps.exec] exit_code=%lu", code);
         return (code == 0 || code == 3010 || code == 1641);
     }
     return true;
@@ -504,6 +528,7 @@ enum class DependencyInstallResult
 
 static DependencyInstallResult TryInstallMissingDependencies(HWND hwnd, uint32_t issues)
 {
+    DebugLog_Write(L"[deps] begin install flow issues=0x%08X", issues);
     const bool needVigem = (issues & BackendInitIssue_VigemBusMissing) != 0;
     const bool needWootingSdk = (issues & (BackendInitIssue_WootingSdkMissing |
                                            BackendInitIssue_WootingIncompatible |
@@ -519,7 +544,10 @@ static DependencyInstallResult TryInstallMissingDependencies(HWND hwnd, uint32_t
     prompt += BuildIssuesText(issues);
     prompt += L"\nDownload and run the latest installers from GitHub now?";
     if (MessageBoxW(hwnd, prompt.c_str(), L"HallJoy", MB_ICONQUESTION | MB_YESNO) != IDYES)
+    {
+        DebugLog_Write(L"[deps] user declined install");
         return DependencyInstallResult::Skipped;
+    }
 
     if (needVigem)
     {
@@ -533,12 +561,14 @@ static DependencyInstallResult TryInstallMissingDependencies(HWND hwnd, uint32_t
             installerPath))
         {
             MessageBoxW(hwnd, L"Failed to download latest ViGEm Bus installer from GitHub.", L"HallJoy", MB_ICONERROR);
+            DebugLog_Write(L"[deps] ViGEm installer download failed");
             return DependencyInstallResult::Failed;
         }
 
         if (!RunInstallerElevatedAndWait(hwnd, installerPath))
         {
             MessageBoxW(hwnd, L"ViGEm Bus installation did not complete successfully.", L"HallJoy", MB_ICONERROR);
+            DebugLog_Write(L"[deps] ViGEm installer failed");
             return DependencyInstallResult::Failed;
         }
     }
@@ -554,12 +584,14 @@ static DependencyInstallResult TryInstallMissingDependencies(HWND hwnd, uint32_t
             installerPath))
         {
             MessageBoxW(hwnd, L"Failed to download latest Wooting Analog SDK installer from GitHub.", L"HallJoy", MB_ICONERROR);
+            DebugLog_Write(L"[deps] Wooting SDK installer download failed");
             return DependencyInstallResult::Failed;
         }
 
         if (!RunInstallerElevatedAndWait(hwnd, installerPath))
         {
             MessageBoxW(hwnd, L"Wooting Analog SDK installation did not complete successfully.", L"HallJoy", MB_ICONERROR);
+            DebugLog_Write(L"[deps] Wooting SDK installer failed");
             return DependencyInstallResult::Failed;
         }
     }
@@ -598,7 +630,10 @@ static bool RelaunchSelf()
     wchar_t exePath[MAX_PATH]{};
     DWORD n = GetModuleFileNameW(nullptr, exePath, (DWORD)_countof(exePath));
     if (n == 0 || n >= _countof(exePath))
+    {
+        DebugLog_Write(L"[relaunch] GetModuleFileName failed err=%lu", GetLastError());
         return false;
+    }
 
     std::wstring workDir(exePath);
     size_t slash = workDir.find_last_of(L"\\/");
@@ -628,10 +663,13 @@ static bool RelaunchSelf()
     {
         CloseHandle(pi.hThread);
         CloseHandle(pi.hProcess);
+        DebugLog_Write(L"[relaunch] CreateProcess success exe=%s", exePath);
         return true;
     }
+    DebugLog_Write(L"[relaunch] CreateProcess failed err=%lu", GetLastError());
 
     HINSTANCE h = ShellExecuteW(nullptr, L"open", exePath, nullptr, workDir.empty() ? nullptr : workDir.c_str(), SW_SHOWNORMAL);
+    DebugLog_Write(L"[relaunch] ShellExecute result=%p", h);
     return ((INT_PTR)h > 32);
 }
 
@@ -783,10 +821,17 @@ static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM l
         if (wParam == WM_KEYDOWN || wParam == WM_KEYUP || wParam == WM_SYSKEYDOWN || wParam == WM_SYSKEYUP)
         {
             const KBDLLHOOKSTRUCT* k = (const KBDLLHOOKSTRUCT*)lParam;
+            const bool ext = (k->flags & LLKHF_EXTENDED) != 0;
+            uint16_t hid = HidFromKeyboardScanCode(k->scanCode, ext, k->vkCode);
+            Backend_NotifyKeyboardEvent(
+                hid,
+                (uint16_t)(k->scanCode & 0xFFFFu),
+                (uint16_t)(k->vkCode & 0xFFFFu),
+                (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN),
+                (k->flags & LLKHF_INJECTED) != 0);
+
             if (Settings_GetBlockBoundKeys() && (k->flags & LLKHF_INJECTED) == 0 && !IsOwnForegroundWindow())
             {
-                const bool ext = (k->flags & LLKHF_EXTENDED) != 0;
-                uint16_t hid = HidFromKeyboardScanCode(k->scanCode, ext, k->vkCode);
                 if (hid != 0 && Bindings_IsHidBound(hid))
                     return 1; // swallow key event
             }
@@ -841,6 +886,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 
     case WM_CREATE:
     {
+        DebugLog_Write(L"[app] WM_CREATE");
         UiTheme::ApplyToTopLevelWindow(hwnd);
 
         HINSTANCE hInst = (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE);
@@ -849,6 +895,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         g_hPageMain = KeyboardUI_CreatePage(hwnd, hInst);
         if (!g_hPageMain)
         {
+            DebugLog_Write(L"[app] KeyboardUI_CreatePage failed");
             MessageBoxW(hwnd, L"Failed to create main UI page.", L"Error", MB_ICONERROR);
             return -1; // abort window creation
         }
@@ -856,9 +903,11 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         ResizeChildren(hwnd);
         ShowWindow(g_hPageMain, SW_SHOW);
 
-        if (!Backend_Init())
+        g_backendReady = Backend_Init();
+        if (!g_backendReady)
         {
             uint32_t issues = Backend_GetLastInitIssues();
+            DebugLog_Write(L"[app] Backend_Init failed issues=0x%08X", issues);
             DependencyInstallResult depRes = TryInstallMissingDependencies(hwnd, issues);
             bool backendReady = false;
 
@@ -866,41 +915,30 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             {
                 // First try to continue in the same process after installer finished.
                 backendReady = Backend_Init();
-                if (!backendReady)
-                {
-                    MessageBoxW(hwnd,
-                        L"Dependencies were installed successfully.\nHallJoy will restart now.",
-                        L"HallJoy",
-                        MB_ICONINFORMATION | MB_OK);
-                    if (!RelaunchSelf())
-                    {
-                        std::wstring msg = L"Dependencies were installed, but HallJoy could not restart automatically.\n\n";
-                        msg += BuildIssuesText(Backend_GetLastInitIssues());
-                        msg += L"\nPlease launch HallJoy manually.";
-                        MessageBoxW(hwnd, msg.c_str(), L"HallJoy", MB_ICONWARNING | MB_OK);
-                    }
-                    ExitProcess(0);
-                    return -1;
-                }
+                DebugLog_Write(L"[app] Backend_Init after install result=%d issues=0x%08X", backendReady ? 1 : 0, Backend_GetLastInitIssues());
             }
             else if (depRes != DependencyInstallResult::Failed)
             {
                 // User skipped/canceled install: give backend one more direct try.
                 backendReady = Backend_Init();
+                DebugLog_Write(L"[app] Backend_Init retry after skip result=%d issues=0x%08X", backendReady ? 1 : 0, Backend_GetLastInitIssues());
             }
 
             if (depRes == DependencyInstallResult::Failed || !backendReady)
             {
-                std::wstring msg = L"Failed to initialize backend.\n\n";
-                msg += BuildIssuesText(Backend_GetLastInitIssues());
-                msg += L"\nPlease install/update dependencies and restart HallJoy.";
-                MessageBoxW(hwnd, msg.c_str(), L"Error", MB_ICONERROR);
-                return -1; // abort window creation
+                DebugLog_Write(L"[app] backend not ready, continue in degraded mode");
+                g_backendReady = false;
+            }
+            else
+            {
+                g_backendReady = true;
             }
         }
 
-        RealtimeLoop_Start();
+        if (g_backendReady)
+            RealtimeLoop_Start();
         ApplyTimingSettings(hwnd);
+        DebugLog_Write(L"[app] init complete");
 
         return 0;
     }
@@ -947,6 +985,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         return 0;
 
     case WM_DESTROY:
+        DebugLog_Write(L"[app] WM_DESTROY");
         KillTimer(hwnd, UI_TIMER_ID);
         KillTimer(hwnd, SETTINGS_SAVE_TIMER_ID);
 
@@ -970,8 +1009,12 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 
         SettingsIni_Save(AppPaths_SettingsIni().c_str());
 
-        RealtimeLoop_Stop();
-        Backend_Shutdown();
+        if (g_backendReady)
+        {
+            RealtimeLoop_Stop();
+            Backend_Shutdown();
+            g_backendReady = false;
+        }
         PostQuitMessage(0);
         return 0;
     }
@@ -983,7 +1026,14 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
 {
     // Load settings before window creation so we can restore last window size.
     if (!SettingsIni_Load(AppPaths_SettingsIni().c_str()))
+    {
+        DebugLog_Write(L"[app] settings load failed, writing defaults path=%s", AppPaths_SettingsIni().c_str());
         SettingsIni_Save(AppPaths_SettingsIni().c_str());
+    }
+    else
+    {
+        DebugLog_Write(L"[app] settings loaded path=%s", AppPaths_SettingsIni().c_str());
+    }
 
     // IMPORTANT:
     // Ensure common controls are registered before we create any TabControl/Trackbar/etc.
@@ -1001,7 +1051,10 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     wc.hIcon = (HICON)LoadImageW(hInst, MAKEINTRESOURCEW(IDI_HALLJOY), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE);
 
     if (!RegisterClassW(&wc))
+    {
+        DebugLog_Write(L"[app] RegisterClass failed err=%lu", GetLastError());
         return 1;
+    }
 
     UINT dpi = WinUtil_GetSystemDpiCompat();
 
@@ -1037,7 +1090,8 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
         w, h,
         nullptr, nullptr, hInst, nullptr);
 
-    if (!hwnd) return 2;
+    if (!hwnd) { DebugLog_Write(L"[app] CreateWindowEx failed err=%lu", GetLastError()); return 2; }
+    DebugLog_Write(L"[app] main window created hwnd=%p pos=(%d,%d) size=(%d,%d)", hwnd, x, y, w, h);
 
     if (wc.hIcon)
         SendMessageW(hwnd, WM_SETICON, ICON_BIG, (LPARAM)wc.hIcon);
@@ -1048,13 +1102,17 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     ShowWindow(hwnd, nCmdShow);
 
     g_hKeyboardHook = SetWindowsHookExW(WH_KEYBOARD_LL, KeyboardBlockHookProc, GetModuleHandleW(nullptr), 0);
+    DebugLog_Write(L"[app] keyboard hook=%p", g_hKeyboardHook);
 
     MSG msg{};
     while (true)
     {
         BOOL gm = GetMessageW(&msg, nullptr, 0, 0);
         if (gm == -1)
+        {
+            DebugLog_Write(L"[app] GetMessage failed");
             return 3;
+        }
         if (gm == 0)
             break;
         TranslateMessage(&msg);
@@ -1066,6 +1124,7 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
         UnhookWindowsHookEx(g_hKeyboardHook);
         g_hKeyboardHook = nullptr;
     }
+    DebugLog_Write(L"[app] message loop exit code=%d", (int)msg.wParam);
 
     return (int)msg.wParam;
 }

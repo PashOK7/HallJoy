@@ -45,6 +45,7 @@ static constexpr UINT WM_APP_APPLY_TIMING = WM_APP + 2;
 static constexpr UINT WM_APP_PROFILE_BEGIN_CREATE = WM_APP + 120;
 
 static constexpr UINT_PTR TOAST_TIMER_ID = 8811;
+static constexpr UINT_PTR ANALOG_SELF_TEST_TIMER_ID = 8812;
 static constexpr DWORD    TOAST_SHOW_MS = 1600;
 static constexpr const wchar_t* CONFIG_SCROLLY_PROP = L"DD_ConfigScrollY";
 static constexpr bool kEnableSnappyDebug = false; // set true for temporary snappy toggle diagnostics
@@ -54,6 +55,7 @@ static constexpr int ID_BLOCK_BOUND_KEYS = 7004;
 static constexpr int ID_LAST_KEY_PRIORITY = 7005;
 static constexpr int ID_LAST_KEY_PRIORITY_SENS_SLIDER = 7006;
 static constexpr int ID_LAST_KEY_PRIORITY_SENS_CHIP = 7007;
+static constexpr int ID_ANALOG_SELF_TEST = 7008;
 
 static int S(HWND hwnd, int px) { return WinUtil_ScalePx(hwnd, px); }
 static Color Gp(COLORREF c, BYTE a = 255);
@@ -3324,6 +3326,8 @@ struct ConfigPageState
     HWND sldLastKeyPrioritySensitivity = nullptr;
     HWND chipLastKeyPrioritySensitivity = nullptr;
     HWND chkBlockBoundKeys = nullptr;
+    HWND btnAnalogSelfTest = nullptr;
+    HWND lblAnalogSelfTest = nullptr;
 
     // status label for presets
     HWND lblProfileStatus = nullptr;
@@ -3346,6 +3350,17 @@ struct ConfigPageState
     int  scrollDragGrabOffsetY = 0;
     int  scrollDragThumbHeight = 0;
     int  scrollDragMax = 0;
+
+    // analog self-test state
+    bool selfTestRunning = false;
+    DWORD selfTestStartedAt = 0;
+    uint32_t selfTestStartKeySeq = 0;
+    uint16_t selfTestPeakRawMilli = 0;
+    uint16_t selfTestPeakOutMilli = 0;
+    uint16_t selfTestPeakFullMilli = 0;
+    uint16_t selfTestPeakFullDevMilli = 0;
+    int selfTestDeviceCount = 0;
+    int selfTestMode = 0;
 };
 
 static int Config_ScrollbarWidthPx(HWND hWnd) { return S(hWnd, 12); }
@@ -3410,6 +3425,111 @@ static void SetProfileStatus(ConfigPageState* st, const wchar_t* text)
     SetWindowTextW(st->lblProfileStatus, text ? text : L"");
 }
 
+static const wchar_t* Config_KeycodeModeName(int mode)
+{
+    switch (mode)
+    {
+    case 0: return L"HID";
+    case 1: return L"ScanCode1";
+    case 2: return L"VirtualKey";
+    case 3: return L"VirtualKeyTranslate";
+    default: return L"Unknown";
+    }
+}
+
+static void Config_SetSelfTestText(ConfigPageState* st, const wchar_t* text)
+{
+    if (!st || !st->lblAnalogSelfTest || !IsWindow(st->lblAnalogSelfTest)) return;
+    SetWindowTextW(st->lblAnalogSelfTest, text ? text : L"");
+}
+
+static void Config_StartSelfTest(HWND hWnd, ConfigPageState* st)
+{
+    if (!st) return;
+    BackendAnalogTelemetry t{};
+    Backend_GetAnalogTelemetry(&t);
+
+    st->selfTestRunning = true;
+    st->selfTestStartedAt = GetTickCount();
+    st->selfTestStartKeySeq = t.keyboardEventSeq;
+    st->selfTestPeakRawMilli = 0;
+    st->selfTestPeakOutMilli = 0;
+    st->selfTestPeakFullMilli = 0;
+    st->selfTestPeakFullDevMilli = 0;
+    st->selfTestDeviceCount = t.deviceCount;
+    st->selfTestMode = t.keycodeMode;
+
+    if (st->btnAnalogSelfTest && IsWindow(st->btnAnalogSelfTest))
+    {
+        SetWindowTextW(st->btnAnalogSelfTest, L"Stop Self-Test");
+        InvalidateRect(st->btnAnalogSelfTest, nullptr, FALSE);
+    }
+    Config_SetSelfTestText(st, L"Self-test running: press and hold several analog keys for 3 seconds...");
+    SetTimer(hWnd, ANALOG_SELF_TEST_TIMER_ID, 80, nullptr);
+}
+
+static void Config_FinishSelfTest(HWND hWnd, ConfigPageState* st)
+{
+    if (!st) return;
+    st->selfTestRunning = false;
+    KillTimer(hWnd, ANALOG_SELF_TEST_TIMER_ID);
+    if (st->btnAnalogSelfTest && IsWindow(st->btnAnalogSelfTest))
+    {
+        SetWindowTextW(st->btnAnalogSelfTest, L"Run Analog Self-Test");
+        InvalidateRect(st->btnAnalogSelfTest, nullptr, FALSE);
+    }
+
+    BackendAnalogTelemetry t{};
+    Backend_GetAnalogTelemetry(&t);
+
+    uint32_t keyDelta = (t.keyboardEventSeq >= st->selfTestStartKeySeq)
+        ? (t.keyboardEventSeq - st->selfTestStartKeySeq)
+        : 0;
+
+    uint16_t peakRaw = std::max(st->selfTestPeakRawMilli, t.trackedMaxRawMilli);
+    uint16_t peakOut = std::max(st->selfTestPeakOutMilli, t.trackedMaxOutMilli);
+    uint16_t peakFull = std::max(st->selfTestPeakFullMilli, t.fullBufferMaxMilli);
+    uint16_t peakDev = std::max(st->selfTestPeakFullDevMilli, t.fullBufferDeviceBestMaxMilli);
+    uint16_t peakAny = std::max(std::max(peakRaw, peakOut), std::max(peakFull, peakDev));
+
+    wchar_t msg[512]{};
+    if (!t.sdkInitialised)
+    {
+        swprintf_s(msg, L"Self-test: SDK is not initialized.");
+    }
+    else if (std::max(st->selfTestDeviceCount, t.deviceCount) <= 0)
+    {
+        swprintf_s(msg, L"Self-test: no analog keyboard detected by SDK.");
+    }
+    else if (keyDelta == 0)
+    {
+        swprintf_s(msg, L"Self-test: no key presses detected during test.");
+    }
+    else if (peakAny <= 2)
+    {
+        if (t.lastAnalogError < 0)
+        {
+            swprintf_s(msg,
+                L"Self-test: device detected, but analog stream is zero (SDK err %d). Reinstall Universal Analog Plugin + Wooting SDK.",
+                t.lastAnalogError);
+        }
+        else
+        {
+            swprintf_s(msg,
+                L"Self-test: keyboard is detected, but analog stream is zero. Reinstall/repair Universal Analog Plugin + Wooting SDK.");
+        }
+    }
+    else
+    {
+        swprintf_s(msg,
+            L"Self-test OK: analog data detected (peak %.1f%%, mode %s).",
+            (double)peakAny / 10.0,
+            Config_KeycodeModeName(t.keycodeMode));
+    }
+
+    Config_SetSelfTestText(st, msg);
+}
+
 static void LayoutConfigControls(HWND hWnd, ConfigPageState* st)
 {
     if (!st) return;
@@ -3465,6 +3585,23 @@ static void LayoutConfigControls(HWND hWnd, ConfigPageState* st)
             totalW, toggleH, SWP_NOZORDER);
 
         yAfter += toggleH + S(hWnd, 10);
+    }
+
+    if (st->btnAnalogSelfTest)
+    {
+        int bh = S(hWnd, 28);
+        int bw = S(hWnd, 220);
+        SetWindowPos(st->btnAnalogSelfTest, nullptr, x, yAfter,
+            bw, bh, SWP_NOZORDER);
+        yAfter += bh + S(hWnd, 8);
+    }
+
+    if (st->lblAnalogSelfTest)
+    {
+        int lh = S(hWnd, 34);
+        SetWindowPos(st->lblAnalogSelfTest, nullptr, x, yAfter,
+            totalW, lh, SWP_NOZORDER);
+        yAfter += lh + S(hWnd, 8);
     }
 
     if (st->lblProfileStatus)
@@ -3534,6 +3671,8 @@ static int Config_ComputeBaseContentBottom(HWND hWnd)
         + (S(hWnd, 26) + S(hWnd, 10)) // Snap Stick
         + (S(hWnd, 26) + S(hWnd, 10)) // Last Key Priority + sensitivity slider
         + (S(hWnd, 26) + S(hWnd, 10)) // Block Bound Keys
+        + (S(hWnd, 28) + S(hWnd, 8))  // Self-test button
+        + (S(hWnd, 34) + S(hWnd, 8))  // Self-test result
         + S(hWnd, 18) + margin;       // profile status
 
     return std::max(bottom, std::max(graphBottom, cpHintBottom));
@@ -4085,7 +4224,24 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             return 0;
         }
 
-        // 2) forward other timers to KeySettings panel (morph etc.)
+        // 2) analog self-test sampler
+        if (wParam == ANALOG_SELF_TEST_TIMER_ID && st && st->selfTestRunning)
+        {
+            BackendAnalogTelemetry t{};
+            Backend_GetAnalogTelemetry(&t);
+            st->selfTestPeakRawMilli = std::max(st->selfTestPeakRawMilli, t.trackedMaxRawMilli);
+            st->selfTestPeakOutMilli = std::max(st->selfTestPeakOutMilli, t.trackedMaxOutMilli);
+            st->selfTestPeakFullMilli = std::max(st->selfTestPeakFullMilli, t.fullBufferMaxMilli);
+            st->selfTestPeakFullDevMilli = std::max(st->selfTestPeakFullDevMilli, t.fullBufferDeviceBestMaxMilli);
+            st->selfTestMode = t.keycodeMode;
+
+            DWORD now = GetTickCount();
+            if (now - st->selfTestStartedAt >= 3000)
+                Config_FinishSelfTest(hWnd, st);
+            return 0;
+        }
+
+        // 3) forward other timers to KeySettings panel (morph etc.)
         KeySettingsPanel_HandleTimer(hWnd, wParam);
         // When page is scrolled, graph internals invalidate fixed (content) rects.
         // Force full repaint to avoid stale fragments during morph/toggle animations.
@@ -4374,6 +4530,10 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             {
                 SetTextColor(hdc, UiTheme::Color_TextMuted());
             }
+            else if (st->lblAnalogSelfTest && hCtl == st->lblAnalogSelfTest)
+            {
+                SetTextColor(hdc, UiTheme::Color_TextMuted());
+            }
             else
             {
                 SetTextColor(hdc, UiTheme::Color_Text());
@@ -4438,6 +4598,19 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         st->chipLastKeyPrioritySensitivity = PremiumChip_Create(
             hWnd, hInst, 0, 0, 10, 10, ID_LAST_KEY_PRIORITY_SENS_CHIP);
         SendMessageW(st->chipLastKeyPrioritySensitivity, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->btnAnalogSelfTest = CreateWindowW(L"BUTTON", L"Run Analog Self-Test",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+            0, 0, 10, 10,
+            hWnd, (HMENU)(INT_PTR)ID_ANALOG_SELF_TEST, hInst, nullptr);
+        SendMessageW(st->btnAnalogSelfTest, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->lblAnalogSelfTest = CreateWindowW(L"STATIC",
+            L"Self-test checks SDK, plugin, and analog stream health.",
+            WS_CHILD | WS_VISIBLE | SS_LEFT,
+            0, 0, 10, 10,
+            hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblAnalogSelfTest, WM_SETFONT, (WPARAM)hFont, TRUE);
 
         // initial state
         SendMessageW(st->chkSnappy, BM_SETCHECK, Settings_GetSnappyJoystick() ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -4518,6 +4691,12 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
              (dis->CtlID == ID_BLOCK_BOUND_KEYS && st->chkBlockBoundKeys == dis->hwndItem)))
         {
             DrawSnappyToggleOwnerDraw(dis);
+            return TRUE;
+        }
+        if (st && dis && dis->CtlType == ODT_BUTTON &&
+            (dis->CtlID == ID_ANALOG_SELF_TEST && st->btnAnalogSelfTest == dis->hwndItem))
+        {
+            Layout_DrawFlatButton(dis);
             return TRUE;
         }
         break;
@@ -4757,6 +4936,15 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
     {
         if (st) DeleteConfirm_Clear(hWnd, st);
 
+        if (LOWORD(wParam) == (UINT)ID_ANALOG_SELF_TEST && HIWORD(wParam) == BN_CLICKED && st)
+        {
+            if (!st->selfTestRunning)
+                Config_StartSelfTest(hWnd, st);
+            else
+                Config_FinishSelfTest(hWnd, st);
+            return 0;
+        }
+
         // Snappy toggle
         if (LOWORD(wParam) == (UINT)ID_SNAPPY && HIWORD(wParam) == BN_CLICKED && st && st->chkSnappy)
         {
@@ -4829,6 +5017,8 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
         if (st)
         {
+            KillTimer(hWnd, ANALOG_SELF_TEST_TIMER_ID);
+            st->selfTestRunning = false;
             Toast_Hide(hWnd, st);
             if (st->hToast)
             {

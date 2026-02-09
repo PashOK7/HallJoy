@@ -138,6 +138,9 @@
     <ClInclude Include="remap_guide.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="debug_log.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DrunkDeer analog axis.rc">
@@ -271,6 +274,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="remap_guide.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="debug_log.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

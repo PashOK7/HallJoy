@@ -83,7 +83,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;delayimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>wooting_analog_wrapper.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
@@ -128,7 +128,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;delayimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>wooting_analog_wrapper.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
@@ -168,6 +168,7 @@
     <ClInclude Include="binding_actions.h" />
     <ClInclude Include="curve_clipboard.h" />
     <ClInclude Include="curve_math.h" />
+    <ClInclude Include="debug_log.h" />
     <ClInclude Include="HallJoy.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="gamepad_render.h" />
@@ -217,6 +218,7 @@
     <ClCompile Include="bindings.cpp" />
     <ClCompile Include="binding_actions.cpp" />
     <ClCompile Include="curve_math.cpp" />
+    <ClCompile Include="debug_log.cpp" />
     <ClCompile Include="gamepad_render.cpp" />
     <ClCompile Include="ini_util.cpp" />
     <ClCompile Include="keyboard_bind_panel.cpp" />

@@ -96,6 +96,7 @@ static std::atomic<int>          g_tmFullBufferRet{ 0 };
 static std::atomic<uint16_t>     g_tmFullBufferMaxMilli{ 0 };
 static std::atomic<int>          g_tmFullBufferDeviceBestRet{ 0 };
 static std::atomic<uint16_t>     g_tmFullBufferDeviceBestMaxMilli{ 0 };
+static std::atomic<bool>         g_digitalFallbackWarnPending{ false };
 
 static const wchar_t* KeycodeModeName(int mode)
 {
@@ -719,9 +720,71 @@ struct HidCache
     std::bitset<256> hasFiltered{};
 };
 
+struct SimulatedKeyState
+{
+    bool down = false;
+    float value = 0.0f;
+    ULONGLONG lastUpdateMs = 0;
+};
+
+static std::array<SimulatedKeyState, 256> g_simulatedKeys{};
+
+static bool IsHidDownViaAsyncState(uint16_t hidKeycode)
+{
+    if (hidKeycode == 0 || hidKeycode >= 256) return false;
+
+    uint16_t vk = g_hidToVk[hidKeycode].load(std::memory_order_relaxed);
+    if (vk == 0)
+        vk = HidFallbackToVk(hidKeycode);
+    if (vk == 0)
+        return false;
+
+    return (GetAsyncKeyState((int)vk) & 0x8000) != 0;
+}
+
+static float ReadDigitalFallback01(uint16_t hidKeycode)
+{
+    if (hidKeycode == 0 || hidKeycode >= 256)
+        return 0.0f;
+
+    SimulatedKeyState& s = g_simulatedKeys[hidKeycode];
+
+    ULONGLONG now = GetTickCount64();
+    ULONGLONG prev = s.lastUpdateMs;
+    float dtMs = 1.0f;
+    if (prev != 0 && now > prev)
+    {
+        dtMs = (float)(now - prev);
+        dtMs = std::clamp(dtMs, 0.5f, 40.0f);
+    }
+    s.lastUpdateMs = now;
+
+    const bool down = IsHidDownViaAsyncState(hidKeycode);
+    s.down = down;
+
+    // Two-stage press curve:
+    // 0.00 -> 0.70 in ~50 ms, then 0.70 -> 1.00 in ~50 ms.
+    // Release is slightly smoother to avoid harsh jitter on quick taps.
+    if (down)
+    {
+        if (s.value < 0.70f)
+            s.value += (0.70f / 50.0f) * dtMs;
+        else
+            s.value += (0.30f / 50.0f) * dtMs;
+    }
+    else
+    {
+        s.value -= (1.00f / 80.0f) * dtMs;
+    }
+
+    s.value = std::clamp(s.value, 0.0f, 1.0f);
+    return s.value;
+}
+
 static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
 {
     if (hidKeycode == 0) return 0.0f;
+    const bool allowFallback = Settings_GetDigitalFallbackInput();
     WootingAnalog_KeycodeType mode = (WootingAnalog_KeycodeType)g_keycodeMode.load(std::memory_order_relaxed);
     uint16_t modeCode = HidToModeCode(hidKeycode, mode);
     if (modeCode == 0) return 0.0f;
@@ -753,6 +816,19 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
         if (!std::isfinite(v)) v = 0.0f;
         v = Clamp01(v);
 
+        // If SDK path provides only zeros, fall back to digital key state emulation.
+        // This keeps HallJoy usable on systems where analog stream is unavailable.
+        if (allowFallback && v <= 0.001f)
+        {
+            float sim = ReadDigitalFallback01(hidKeycode);
+            if (sim > v)
+            {
+                v = sim;
+                if (v >= 0.05f)
+                    g_digitalFallbackWarnPending.store(true, std::memory_order_release);
+            }
+        }
+
         cache.raw[hidKeycode] = v;
         cache.hasRaw.set(hidKeycode);
         return v;
@@ -779,7 +855,18 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
         }
     }
     if (!std::isfinite(v)) v = 0.0f;
-    return Clamp01(v);
+    v = Clamp01(v);
+    if (allowFallback && v <= 0.001f)
+    {
+        float sim = ReadDigitalFallback01(hidKeycode);
+        if (sim > v)
+        {
+            v = sim;
+            if (v >= 0.05f)
+                g_digitalFallbackWarnPending.store(true, std::memory_order_release);
+        }
+    }
+    return v;
 }
 
 static float ReadFiltered01Cached(uint16_t hidKeycode, HidCache& cache)
@@ -1538,6 +1625,16 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
     t.fullBufferDeviceBestMaxMilli = g_tmFullBufferDeviceBestMaxMilli.load(std::memory_order_relaxed);
     t.lastAnalogError = g_lastAnalogErrorCode.load(std::memory_order_relaxed);
     *out = t;
+}
+
+bool Backend_ConsumeDigitalFallbackWarning()
+{
+    if (!Settings_GetDigitalFallbackInput())
+    {
+        g_digitalFallbackWarnPending.store(false, std::memory_order_release);
+        return false;
+    }
+    return g_digitalFallbackWarnPending.exchange(false, std::memory_order_acq_rel);
 }
 
 void Backend_NotifyDeviceChange()

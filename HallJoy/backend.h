@@ -78,6 +78,7 @@ struct BackendAnalogTelemetry
 };
 
 void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out);
+bool Backend_ConsumeDigitalFallbackWarning();
 
 // request reconnect attempt on next tick (e.g. on WM_DEVICECHANGE)
 void Backend_NotifyDeviceChange();

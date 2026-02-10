@@ -60,6 +60,12 @@ On missing dependencies, HallJoy can prompt to download/install them automatical
 3. Map keys to gamepad controls in the `Remap` tab.
 4. Tune curves and behavior in `Configuration`.
 
+## Troubleshooting
+
+- If HallJoy starts normally but all analog values stay at `0`, check your keyboard firmware/software mode first.
+- Some keyboards disable analog output for the Wooting SDK when `Turbo mode` (or similar performance mode) is enabled.
+- Disable `Turbo mode`, then restart HallJoy and test again.
+
 ## Config Files
 
 Stored near the executable:

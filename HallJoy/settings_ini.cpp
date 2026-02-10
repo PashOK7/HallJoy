@@ -300,6 +300,7 @@ bool SettingsIni_Load(const wchar_t* path)
     UINT uiMs = IniReadU32(L"Main", L"UIRefreshMs", Settings_GetUIRefreshMs(), path);
     int vpadCount = GetPrivateProfileIntW(L"Main", L"VirtualGamepads", Settings_GetVirtualGamepadCount(), path);
     int vpadEnabled = GetPrivateProfileIntW(L"Main", L"VirtualGamepadsEnabled", Settings_GetVirtualGamepadsEnabled() ? 1 : 0, path);
+    int digitalFallbackInput = GetPrivateProfileIntW(L"Main", L"DigitalFallbackInput", Settings_GetDigitalFallbackInput() ? 1 : 0, path);
     int winW = GetPrivateProfileIntW(L"Window", L"Width", Settings_GetMainWindowWidthPx(), path);
     int winH = GetPrivateProfileIntW(L"Window", L"Height", Settings_GetMainWindowHeightPx(), path);
     int winX = IniReadI32(L"Window", L"PosX", std::numeric_limits<int>::min(), path);
@@ -330,6 +331,7 @@ bool SettingsIni_Load(const wchar_t* path)
     Settings_SetUIRefreshMs(uiMs);
     Settings_SetVirtualGamepadCount(vpadCount);
     Settings_SetVirtualGamepadsEnabled(vpadEnabled != 0);
+    Settings_SetDigitalFallbackInput(digitalFallbackInput != 0);
     Settings_SetMainWindowWidthPx(winW);
     Settings_SetMainWindowHeightPx(winH);
     Settings_SetMainWindowPosXPx(winX);
@@ -371,6 +373,7 @@ static bool SettingsIni_Save_Internal(const wchar_t* tmpPath)
     IniWriteU32(L"Main", L"UIRefreshMs", Settings_GetUIRefreshMs(), tmpPath);
     IniWriteI32(L"Main", L"VirtualGamepads", std::clamp(Settings_GetVirtualGamepadCount(), 1, 4), tmpPath);
     IniWriteI32(L"Main", L"VirtualGamepadsEnabled", Settings_GetVirtualGamepadsEnabled() ? 1 : 0, tmpPath);
+    IniWriteI32(L"Main", L"DigitalFallbackInput", Settings_GetDigitalFallbackInput() ? 1 : 0, tmpPath);
     IniWriteI32(L"Window", L"Width", std::max(0, Settings_GetMainWindowWidthPx()), tmpPath);
     IniWriteI32(L"Window", L"Height", std::max(0, Settings_GetMainWindowHeightPx()), tmpPath);
     const int winX = Settings_GetMainWindowPosXPx();

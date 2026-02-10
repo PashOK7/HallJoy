@@ -63,6 +63,7 @@ static std::atomic<bool> g_snappyJoystick{ false };
 static std::atomic<bool> g_lastKeyPriority{ false };
 static std::atomic<int> g_lastKeyPrioritySensitivityM{ 120 }; // 0.120 default
 static std::atomic<bool> g_blockBoundKeys{ false };
+static std::atomic<bool> g_digitalFallbackInput{ false };
 
 // UI sizes (fixed)
 static constexpr UINT kRemapButtonSizePx = 43;
@@ -309,6 +310,16 @@ void Settings_SetBlockBoundKeys(bool on)
 bool Settings_GetBlockBoundKeys()
 {
     return g_blockBoundKeys.load(std::memory_order_acquire);
+}
+
+void Settings_SetDigitalFallbackInput(bool on)
+{
+    g_digitalFallbackInput.store(on, std::memory_order_release);
+}
+
+bool Settings_GetDigitalFallbackInput()
+{
+    return g_digitalFallbackInput.load(std::memory_order_acquire);
 }
 
 // ---------------- Polling / UI refresh ----------------

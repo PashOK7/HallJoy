@@ -52,6 +52,7 @@ static const UINT SETTINGS_SAVE_TIMER_MS = 350;
 static HWND g_hPageMain = nullptr;
 static HHOOK g_hKeyboardHook = nullptr;
 static bool g_backendReady = false;
+static bool g_digitalFallbackWarnShown = false;
 
 static bool IsWindowRectVisibleOnAnyScreen(int x, int y, int w, int h)
 {
@@ -959,6 +960,18 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     case WM_TIMER:
         if (wParam == UI_TIMER_ID)
         {
+            if (g_backendReady && !g_digitalFallbackWarnShown && Backend_ConsumeDigitalFallbackWarning())
+            {
+                g_digitalFallbackWarnShown = true;
+                MessageBoxW(
+                    hwnd,
+                    L"HallJoy switched to compatibility input mode.\n\n"
+                    L"Analog stream from Wooting SDK is not available right now, "
+                    L"so key input is emulated from digital key states.\n\n"
+                    L"Result: gamepad control works, but this is not true analog precision.",
+                    L"HallJoy Warning",
+                    MB_ICONWARNING | MB_OK);
+            }
             if (g_hPageMain)
                 KeyboardUI_OnTimerTick(g_hPageMain);
             return 0;

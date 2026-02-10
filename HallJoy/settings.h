@@ -86,6 +86,10 @@ float Settings_GetLastKeyPrioritySensitivity();
 void Settings_SetBlockBoundKeys(bool on);
 bool Settings_GetBlockBoundKeys();
 
+// Allow digital compatibility fallback when analog SDK stream is unavailable.
+void Settings_SetDigitalFallbackInput(bool on);
+bool Settings_GetDigitalFallbackInput();
+
 // ---------------- DEBUG / TUNING (temporary) ----------------
 // All sizes are in "96-DPI pixels" (unscaled). UI scales them via WinUtil_ScalePx().
 

@@ -56,6 +56,7 @@ static constexpr int ID_LAST_KEY_PRIORITY = 7005;
 static constexpr int ID_LAST_KEY_PRIORITY_SENS_SLIDER = 7006;
 static constexpr int ID_LAST_KEY_PRIORITY_SENS_CHIP = 7007;
 static constexpr int ID_ANALOG_SELF_TEST = 7008;
+static constexpr bool kShowAnalogSelfTestControls = false;
 
 static int S(HWND hwnd, int px) { return WinUtil_ScalePx(hwnd, px); }
 static Color Gp(COLORREF c, BYTE a = 255);
@@ -2361,6 +2362,7 @@ struct GlobalSettingsPageState
     HWND chipUiRefresh = nullptr;
 
     HWND lblHint = nullptr;
+    HWND chkDigitalFallback = nullptr;
 
     int   pendingDeleteIdx = -1;
     DWORD pendingDeleteTick = 0;
@@ -2374,6 +2376,13 @@ static constexpr int GLOB_ID_UIREFRESH_SLIDER = 7602;
 static constexpr int GLOB_ID_LAYOUT_COMBO = 7603;
 static constexpr int GLOB_ID_LAYOUT_EDITOR = 7604;
 static constexpr int GLOB_ID_LAYOUTS_FOLDER = 7605;
+static constexpr int GLOB_ID_DIGITAL_FALLBACK = 7606;
+
+static void SnappyToggle_Free(HWND hBtn);
+static void SnappyToggle_StartAnim(HWND hBtn, bool checked, bool animate);
+static LRESULT CALLBACK SnappyToggle_SubclassProc(HWND hBtn, UINT msg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR, DWORD_PTR);
+static void DrawSnappyToggleOwnerDraw(const DRAWITEMSTRUCT* dis);
 
 static void Global_DrawLayoutEditorButton(const DRAWITEMSTRUCT* dis)
 {
@@ -2661,6 +2670,11 @@ static void Global_UpdateUi(GlobalSettingsPageState* st)
         swprintf_s(b, L"%u ms", (unsigned)Settings_GetUIRefreshMs());
         SetWindowTextW(st->chipUiRefresh, b);
     }
+
+    if (st->chkDigitalFallback)
+    {
+        SendMessageW(st->chkDigitalFallback, BM_SETCHECK, Settings_GetDigitalFallbackInput() ? BST_CHECKED : BST_UNCHECKED, 0);
+    }
 }
 
 static bool Layout_NudgeSelectedKey(HWND hWnd, LayoutPageState* st, int dRow, int dX, int dW)
@@ -2728,6 +2742,14 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
         int bh = S(hWnd, 28);
         SetWindowPos(st->btnOpenLayoutsFolder, nullptr, x, y, bw, bh, SWP_NOZORDER);
         y += bh + S(hWnd, 14);
+    }
+
+    if (st->chkDigitalFallback)
+    {
+        int toggleH = S(hWnd, 26);
+        SetWindowPos(st->chkDigitalFallback, nullptr, x, y,
+            sliderW + gap + chipW, toggleH, SWP_NOZORDER);
+        y += toggleH + rowGap;
     }
 
     if (st->lblPoll)
@@ -2901,6 +2923,11 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)GLOB_ID_LAYOUTS_FOLDER, hInst, nullptr);
         SendMessageW(st->btnOpenLayoutsFolder, WM_SETFONT, (WPARAM)hFont, TRUE);
 
+        st->chkDigitalFallback = CreateWindowW(L"BUTTON", L"Compatibility Input Fallback",
+            WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_OWNERDRAW,
+            0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)GLOB_ID_DIGITAL_FALLBACK, hInst, nullptr);
+        SendMessageW(st->chkDigitalFallback, WM_SETFONT, (WPARAM)hFont, TRUE);
+
         st->lblPoll = CreateWindowW(L"STATIC", L"Polling rate",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblPoll, WM_SETFONT, (WPARAM)hFont, TRUE);
@@ -2927,6 +2954,10 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             L"Changes are applied immediately and saved automatically.",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblHint, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        SendMessageW(st->chkDigitalFallback, BM_SETCHECK, Settings_GetDigitalFallbackInput() ? BST_CHECKED : BST_UNCHECKED, 0);
+        SetWindowSubclass(st->chkDigitalFallback, SnappyToggle_SubclassProc, 1, 0);
+        SnappyToggle_StartAnim(st->chkDigitalFallback, Settings_GetDigitalFallbackInput(), false);
 
         Global_UpdateUi(st);
         Global_Layout(hWnd, st);
@@ -2987,6 +3018,12 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             Global_DrawLayoutEditorButton(dis);
             return TRUE;
         }
+        if (st && dis && dis->CtlType == ODT_BUTTON &&
+            (dis->CtlID == GLOB_ID_DIGITAL_FALLBACK && st->chkDigitalFallback == dis->hwndItem))
+        {
+            DrawSnappyToggleOwnerDraw(dis);
+            return TRUE;
+        }
         break;
     }
 
@@ -3029,12 +3066,24 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             Global_OpenLayoutsFolder(hWnd);
             return 0;
         }
+
+        if (LOWORD(wParam) == (UINT)GLOB_ID_DIGITAL_FALLBACK && HIWORD(wParam) == BN_CLICKED && st->chkDigitalFallback)
+        {
+            bool on = !Settings_GetDigitalFallbackInput();
+            SendMessageW(st->chkDigitalFallback, BM_SETCHECK, on ? BST_CHECKED : BST_UNCHECKED, 0);
+            Settings_SetDigitalFallbackInput(on);
+            SnappyToggle_StartAnim(st->chkDigitalFallback, on, true);
+            Global_RequestSave(hWnd);
+            return 0;
+        }
         return 0;
 
     case WM_NCDESTROY:
         if (st)
         {
             GlobalDeleteConfirm_Clear(hWnd, st);
+            if (st->chkDigitalFallback && IsWindow(st->chkDigitalFallback))
+                SnappyToggle_Free(st->chkDigitalFallback);
             if (st->hToast && IsWindow(st->hToast))
                 DestroyWindow(st->hToast);
             st->hToast = nullptr;
@@ -3670,10 +3719,15 @@ static int Config_ComputeBaseContentBottom(HWND hWnd)
     int bottom = y
         + (S(hWnd, 26) + S(hWnd, 10)) // Snap Stick
         + (S(hWnd, 26) + S(hWnd, 10)) // Last Key Priority + sensitivity slider
-        + (S(hWnd, 26) + S(hWnd, 10)) // Block Bound Keys
-        + (S(hWnd, 28) + S(hWnd, 8))  // Self-test button
-        + (S(hWnd, 34) + S(hWnd, 8))  // Self-test result
-        + S(hWnd, 18) + margin;       // profile status
+        + (S(hWnd, 26) + S(hWnd, 10)); // Block Bound Keys
+
+    if (kShowAnalogSelfTestControls)
+    {
+        bottom += (S(hWnd, 28) + S(hWnd, 8)); // Self-test button
+        bottom += (S(hWnd, 34) + S(hWnd, 8)); // Self-test result
+    }
+
+    bottom += S(hWnd, 18) + margin; // profile status
 
     return std::max(bottom, std::max(graphBottom, cpHintBottom));
 }
@@ -4599,18 +4653,21 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             hWnd, hInst, 0, 0, 10, 10, ID_LAST_KEY_PRIORITY_SENS_CHIP);
         SendMessageW(st->chipLastKeyPrioritySensitivity, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->btnAnalogSelfTest = CreateWindowW(L"BUTTON", L"Run Analog Self-Test",
-            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-            0, 0, 10, 10,
-            hWnd, (HMENU)(INT_PTR)ID_ANALOG_SELF_TEST, hInst, nullptr);
-        SendMessageW(st->btnAnalogSelfTest, WM_SETFONT, (WPARAM)hFont, TRUE);
+        if (kShowAnalogSelfTestControls)
+        {
+            st->btnAnalogSelfTest = CreateWindowW(L"BUTTON", L"Run Analog Self-Test",
+                WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                0, 0, 10, 10,
+                hWnd, (HMENU)(INT_PTR)ID_ANALOG_SELF_TEST, hInst, nullptr);
+            SendMessageW(st->btnAnalogSelfTest, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblAnalogSelfTest = CreateWindowW(L"STATIC",
-            L"Self-test checks SDK, plugin, and analog stream health.",
-            WS_CHILD | WS_VISIBLE | SS_LEFT,
-            0, 0, 10, 10,
-            hWnd, nullptr, hInst, nullptr);
-        SendMessageW(st->lblAnalogSelfTest, WM_SETFONT, (WPARAM)hFont, TRUE);
+            st->lblAnalogSelfTest = CreateWindowW(L"STATIC",
+                L"Self-test checks SDK, plugin, and analog stream health.",
+                WS_CHILD | WS_VISIBLE | SS_LEFT,
+                0, 0, 10, 10,
+                hWnd, nullptr, hInst, nullptr);
+            SendMessageW(st->lblAnalogSelfTest, WM_SETFONT, (WPARAM)hFont, TRUE);
+        }
 
         // initial state
         SendMessageW(st->chkSnappy, BM_SETCHECK, Settings_GetSnappyJoystick() ? BST_CHECKED : BST_UNCHECKED, 0);

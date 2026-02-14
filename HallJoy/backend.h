@@ -90,3 +90,6 @@ void Backend_NotifyKeyboardEvent(
     uint16_t vkCode,
     bool isKeyDown,
     bool isInjected);
+
+// Feed raw mouse delta (from WM_INPUT) for Mouse->Stick path.
+void Backend_AddMouseDelta(int dx, int dy);

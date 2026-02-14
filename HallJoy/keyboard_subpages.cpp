@@ -24,6 +24,7 @@
 
 #include "Resource.h"
 #include "keyboard_ui_internal.h"
+#include "keyboard_ui_state.h"
 #include "keyboard_keysettings_panel.h"
 #include "keyboard_keysettings_panel_internal.h"
 
@@ -36,6 +37,10 @@
 #include "keyboard_profiles.h"
 #include "premium_combo.h"
 #include "keyboard_layout.h"
+#include "settings_ini.h"
+#include "profile_ini.h"
+#include "app_paths.h"
+#include "global_profiles.h"
 
 using namespace Gdiplus;
 namespace fs = std::filesystem;
@@ -43,6 +48,8 @@ namespace fs = std::filesystem;
 static constexpr UINT WM_APP_REQUEST_SAVE = WM_APP + 1;
 static constexpr UINT WM_APP_APPLY_TIMING = WM_APP + 2;
 static constexpr UINT WM_APP_PROFILE_BEGIN_CREATE = WM_APP + 120;
+static constexpr UINT WM_APP_CONFIG_PROFILE_APPLIED = WM_APP + 121;
+static constexpr UINT WM_APP_GLOBAL_PROFILE_DIRTY = WM_APP + 122;
 
 static constexpr UINT_PTR TOAST_TIMER_ID = 8811;
 static constexpr UINT_PTR ANALOG_SELF_TEST_TIMER_ID = 8812;
@@ -2348,6 +2355,9 @@ static HWND PremiumChip_Create(HWND parent, HINSTANCE hInst, int x, int y, int w
 // ============================================================================
 struct GlobalSettingsPageState
 {
+    HWND lblGlobalProfile = nullptr;
+    HWND cmbGlobalProfile = nullptr;
+
     HWND lblLayout = nullptr;
     HWND cmbLayout = nullptr;
     HWND btnLayoutEditor = nullptr;
@@ -2362,10 +2372,10 @@ struct GlobalSettingsPageState
     HWND chipUiRefresh = nullptr;
 
     HWND lblHint = nullptr;
-    HWND chkDigitalFallback = nullptr;
 
     int   pendingDeleteIdx = -1;
     DWORD pendingDeleteTick = 0;
+    bool  pendingDeleteIsGlobalProfile = false;
     HWND hToast = nullptr;
     std::wstring toastText;
     DWORD toastHideAt = 0;
@@ -2376,13 +2386,7 @@ static constexpr int GLOB_ID_UIREFRESH_SLIDER = 7602;
 static constexpr int GLOB_ID_LAYOUT_COMBO = 7603;
 static constexpr int GLOB_ID_LAYOUT_EDITOR = 7604;
 static constexpr int GLOB_ID_LAYOUTS_FOLDER = 7605;
-static constexpr int GLOB_ID_DIGITAL_FALLBACK = 7606;
-
-static void SnappyToggle_Free(HWND hBtn);
-static void SnappyToggle_StartAnim(HWND hBtn, bool checked, bool animate);
-static LRESULT CALLBACK SnappyToggle_SubclassProc(HWND hBtn, UINT msg, WPARAM wParam, LPARAM lParam,
-    UINT_PTR, DWORD_PTR);
-static void DrawSnappyToggleOwnerDraw(const DRAWITEMSTRUCT* dis);
+static constexpr int GLOB_ID_GLOBAL_PROFILE_COMBO = 7606;
 
 static void Global_DrawLayoutEditorButton(const DRAWITEMSTRUCT* dis)
 {
@@ -2616,6 +2620,7 @@ static void GlobalDeleteConfirm_Clear(HWND hPage, GlobalSettingsPageState* st)
     if (!st) return;
     st->pendingDeleteIdx = -1;
     st->pendingDeleteTick = 0;
+    st->pendingDeleteIsGlobalProfile = false;
     GlobalToast_Hide(hPage, st);
 }
 
@@ -2643,9 +2648,120 @@ static void Global_RefreshLayoutCombo(GlobalSettingsPageState* st)
         PremiumCombo::SetCurSel(st->cmbLayout, -1, false);
 }
 
+static void Global_UpdateUi(GlobalSettingsPageState* st);
+
+static void Global_UpdateProfileSaveIcon(GlobalSettingsPageState* st)
+{
+    if (!st || !st->cmbGlobalProfile) return;
+    PremiumCombo::SetExtraIcon(
+        st->cmbGlobalProfile,
+        GlobalProfiles_IsDirty()
+            ? PremiumCombo::ExtraIconKind::Save
+            : PremiumCombo::ExtraIconKind::None);
+}
+
+static void Global_RefreshGlobalProfileCombo(GlobalSettingsPageState* st)
+{
+    if (!st || !st->cmbGlobalProfile) return;
+
+    PremiumCombo::Clear(st->cmbGlobalProfile);
+
+    std::vector<std::wstring> names;
+    GlobalProfiles_List(names);
+    for (size_t i = 0; i < names.size(); ++i)
+    {
+        int idx = PremiumCombo::AddString(st->cmbGlobalProfile, names[i].c_str());
+        if (i > 0) // non-default profiles can be deleted
+            PremiumCombo::SetItemButtonKind(st->cmbGlobalProfile, idx, PremiumCombo::ItemButtonKind::Delete);
+    }
+
+    int createIdx = PremiumCombo::AddString(st->cmbGlobalProfile, L"+ Create New Profile...");
+    (void)createIdx;
+    PremiumCombo::SetDropMaxVisible(st->cmbGlobalProfile, 10);
+
+    const std::wstring& active = GlobalProfiles_GetActiveName();
+    int activeIdx = 0;
+    for (size_t i = 0; i < names.size(); ++i)
+    {
+        if (_wcsicmp(names[i].c_str(), active.c_str()) == 0)
+        {
+            activeIdx = (int)i;
+            break;
+        }
+    }
+    PremiumCombo::SetCurSel(st->cmbGlobalProfile, activeIdx, false);
+    Global_UpdateProfileSaveIcon(st);
+}
+
+static void Global_ApplyActiveGlobalProfile(GlobalSettingsPageState* st, HWND hWnd, const std::wstring& name)
+{
+    if (!st) return;
+
+    std::wstring newName = GlobalProfiles_SanitizeName(name);
+    if (newName.empty()) newName = L"Default";
+    if (_wcsicmp(newName.c_str(), GlobalProfiles_GetActiveName().c_str()) == 0)
+        return;
+
+    // Persist previous profile state before switching away.
+    const std::wstring prevName = GlobalProfiles_GetActiveName();
+    SettingsIni_SaveProfile(GlobalProfiles_GetSettingsPath(prevName).c_str());
+    Profile_SaveIni(GlobalProfiles_GetBindingsPath(prevName).c_str());
+
+    GlobalProfiles_SetActiveName(newName);
+    GlobalProfiles_SaveActiveToSettingsIni(AppPaths_SettingsIni().c_str());
+
+    SettingsIni_LoadProfile(GlobalProfiles_GetSettingsPath(newName).c_str());
+    Profile_LoadIni(GlobalProfiles_GetBindingsPath(newName).c_str());
+
+    // Apply runtime timing/backend state from loaded profile.
+    RealtimeLoop_SetIntervalMs(Settings_GetPollingMs());
+    Backend_SetVirtualGamepadCount(Settings_GetVirtualGamepadCount());
+    Backend_SetVirtualGamepadsEnabled(Settings_GetVirtualGamepadsEnabled());
+
+    if (st->sldPoll)
+        SendMessageW(st->sldPoll, TBM_SETPOS, TRUE, (LPARAM)std::clamp(Settings_GetPollingMs(), 1u, 20u));
+    if (st->sldUiRefresh)
+        SendMessageW(st->sldUiRefresh, TBM_SETPOS, TRUE, (LPARAM)std::clamp(Settings_GetUIRefreshMs(), 1u, 200u));
+
+    GlobalProfiles_SetDirty(false);
+    Global_UpdateProfileSaveIcon(st);
+
+    if (g_hPageConfig && IsWindow(g_hPageConfig))
+        PostMessageW(g_hPageConfig, WM_APP_CONFIG_PROFILE_APPLIED, 0, 0);
+
+    Global_NotifyMainPage(hWnd);
+    Global_RequestApplyTiming(hWnd);
+    Global_RequestSave(hWnd);
+    Global_UpdateUi(st);
+}
+
 static void Global_UpdateUi(GlobalSettingsPageState* st)
 {
     if (!st) return;
+
+    if (st->cmbGlobalProfile)
+    {
+        int count = PremiumCombo::GetCount(st->cmbGlobalProfile);
+        int sel = PremiumCombo::GetCurSel(st->cmbGlobalProfile);
+        bool selIsCreateRow = (count > 0 && sel == count - 1);
+        if (!selIsCreateRow)
+        {
+            const std::wstring& active = GlobalProfiles_GetActiveName();
+            int activeIdx = -1;
+            for (int i = 0; i < count - 1; ++i)
+            {
+                wchar_t item[260]{};
+                PremiumCombo::GetLBText(st->cmbGlobalProfile, i, item, (int)_countof(item));
+                if (_wcsicmp(item, active.c_str()) == 0)
+                {
+                    activeIdx = i;
+                    break;
+                }
+            }
+            if (activeIdx >= 0 && sel != activeIdx)
+                PremiumCombo::SetCurSel(st->cmbGlobalProfile, activeIdx, false);
+        }
+    }
 
     if (st->cmbLayout)
     {
@@ -2671,10 +2787,8 @@ static void Global_UpdateUi(GlobalSettingsPageState* st)
         SetWindowTextW(st->chipUiRefresh, b);
     }
 
-    if (st->chkDigitalFallback)
-    {
-        SendMessageW(st->chkDigitalFallback, BM_SETCHECK, Settings_GetDigitalFallbackInput() ? BST_CHECKED : BST_UNCHECKED, 0);
-    }
+    Global_UpdateProfileSaveIcon(st);
+
 }
 
 static bool Layout_NudgeSelectedKey(HWND hWnd, LayoutPageState* st, int dRow, int dX, int dW)
@@ -2720,6 +2834,14 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
     int sliderW = (rc.right - rc.left) - margin * 2 - chipW - gap;
     sliderW = std::max(S(hWnd, 180), sliderW);
 
+    if (st->lblGlobalProfile)
+        SetWindowPos(st->lblGlobalProfile, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
+    y += labelH + S(hWnd, 6);
+
+    if (st->cmbGlobalProfile)
+        SetWindowPos(st->cmbGlobalProfile, nullptr, x, y, sliderW + gap + chipW, comboVisibleH, SWP_NOZORDER);
+    y += comboVisibleH + rowGap;
+
     if (st->lblLayout)
         SetWindowPos(st->lblLayout, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
     y += labelH + S(hWnd, 6);
@@ -2742,14 +2864,6 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
         int bh = S(hWnd, 28);
         SetWindowPos(st->btnOpenLayoutsFolder, nullptr, x, y, bw, bh, SWP_NOZORDER);
         y += bh + S(hWnd, 14);
-    }
-
-    if (st->chkDigitalFallback)
-    {
-        int toggleH = S(hWnd, 26);
-        SetWindowPos(st->chkDigitalFallback, nullptr, x, y,
-            sliderW + gap + chipW, toggleH, SWP_NOZORDER);
-        y += toggleH + rowGap;
     }
 
     if (st->lblPoll)
@@ -2782,8 +2896,13 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
 
     if (msg == PremiumCombo::MsgItemTextCommit())
     {
-        if (!st || !st->cmbLayout || (HWND)lParam != st->cmbLayout)
+        if (!st)
             return 0;
+
+        HWND hCombo = (HWND)lParam;
+        if (!hCombo)
+            return 0;
+
         GlobalDeleteConfirm_Clear(hWnd, st);
 
         int idx = (int)LOWORD(wParam);
@@ -2792,33 +2911,84 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             return 0;
 
         wchar_t nameBuf[260]{};
-        PremiumCombo::ConsumeCommittedText(st->cmbLayout, nameBuf, 260);
+        PremiumCombo::ConsumeCommittedText(hCombo, nameBuf, 260);
 
-        int presetCount = KeyboardLayout_GetPresetCount();
-        if (idx != presetCount)
-            return 0; // create row is always the last item
-
-        int newIdx = -1;
-        if (KeyboardLayout_CreatePreset(nameBuf, &newIdx))
+        if (hCombo == st->cmbLayout)
         {
-            Global_RefreshLayoutCombo(st);
-            if (newIdx >= 0)
-                PremiumCombo::SetCurSel(st->cmbLayout, newIdx, false);
-            PremiumCombo::ShowDropDown(st->cmbLayout, false);
-            Global_NotifyMainPage(hWnd);
+            int presetCount = KeyboardLayout_GetPresetCount();
+            if (idx != presetCount)
+                return 0; // create row is always the last item
+
+            int newIdx = -1;
+            if (KeyboardLayout_CreatePreset(nameBuf, &newIdx))
+            {
+                Global_RefreshLayoutCombo(st);
+                if (newIdx >= 0)
+                    PremiumCombo::SetCurSel(st->cmbLayout, newIdx, false);
+                PremiumCombo::ShowDropDown(st->cmbLayout, false);
+                Global_NotifyMainPage(hWnd);
+                Global_RequestSave(hWnd);
+            }
+            else
+            {
+                MessageBoxW(hWnd, L"Failed to create layout. Name may be empty or already exists.", L"Layouts", MB_ICONWARNING);
+                Global_UpdateUi(st);
+            }
+            return 0;
+        }
+
+        if (hCombo == st->cmbGlobalProfile)
+        {
+            int count = PremiumCombo::GetCount(st->cmbGlobalProfile);
+            if (count <= 0 || idx != count - 1)
+                return 0; // only create row supports inline edit here
+
+            std::wstring newName = GlobalProfiles_SanitizeName(nameBuf);
+            if (newName.empty() || GlobalProfiles_IsDefault(newName))
+            {
+                MessageBoxW(hWnd, L"Profile name cannot be empty.", L"Profiles", MB_ICONWARNING);
+                return 0;
+            }
+
+            std::vector<std::wstring> names;
+            GlobalProfiles_List(names);
+            for (const auto& n : names)
+            {
+                if (_wcsicmp(n.c_str(), newName.c_str()) == 0)
+                {
+                    MessageBoxW(hWnd, L"Profile with this name already exists.", L"Profiles", MB_ICONWARNING);
+                    return 0;
+                }
+            }
+
+            const std::wstring prevName = GlobalProfiles_GetActiveName();
+            SettingsIni_SaveProfile(GlobalProfiles_GetSettingsPath(prevName).c_str());
+            Profile_SaveIni(GlobalProfiles_GetBindingsPath(prevName).c_str());
+
+            // New profile starts as a full copy of current runtime state.
+            SettingsIni_SaveProfile(GlobalProfiles_GetSettingsPath(newName).c_str());
+            Profile_SaveIni(GlobalProfiles_GetBindingsPath(newName).c_str());
+
+            GlobalProfiles_SetActiveName(newName);
+            GlobalProfiles_SaveActiveToSettingsIni(AppPaths_SettingsIni().c_str());
+            GlobalProfiles_SetDirty(false);
+            Global_RefreshGlobalProfileCombo(st);
+            PremiumCombo::ShowDropDown(st->cmbGlobalProfile, false);
             Global_RequestSave(hWnd);
-        }
-        else
-        {
-            MessageBoxW(hWnd, L"Failed to create layout. Name may be empty or already exists.", L"Layouts", MB_ICONWARNING);
             Global_UpdateUi(st);
+            return 0;
         }
+
         return 0;
     }
 
     if (msg == PremiumCombo::MsgItemButton())
     {
-        if (!st || !st->cmbLayout || (HWND)lParam != st->cmbLayout)
+        if (!st)
+            return 0;
+
+        HWND hCombo = (HWND)lParam;
+        if (!hCombo)
             return 0;
 
         int idx = (int)LOWORD(wParam);
@@ -2829,39 +2999,108 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             return 0;
         }
 
-        int presetCount = KeyboardLayout_GetPresetCount();
-        if (idx < 0 || idx >= presetCount)
-            return 0;
-
-        bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
-        if (shift)
+        if (hCombo == st->cmbLayout)
         {
-            GlobalDeleteConfirm_Clear(hWnd, st);
-            if (KeyboardLayout_DeletePreset(idx))
+            int presetCount = KeyboardLayout_GetPresetCount();
+            if (idx < 0 || idx >= presetCount)
+                return 0;
+
+            bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+            if (shift)
             {
-                Global_RefreshLayoutCombo(st);
-                Global_NotifyMainPage(hWnd);
-                Global_RequestSave(hWnd);
+                GlobalDeleteConfirm_Clear(hWnd, st);
+                if (KeyboardLayout_DeletePreset(idx))
+                {
+                    Global_RefreshLayoutCombo(st);
+                    Global_NotifyMainPage(hWnd);
+                    Global_RequestSave(hWnd);
+                }
+                return 0;
             }
+
+            DWORD now = GetTickCount();
+            if (st->pendingDeleteIdx == idx && !st->pendingDeleteIsGlobalProfile &&
+                (now - st->pendingDeleteTick) <= TOAST_SHOW_MS)
+            {
+                GlobalDeleteConfirm_Clear(hWnd, st);
+                if (KeyboardLayout_DeletePreset(idx))
+                {
+                    Global_RefreshLayoutCombo(st);
+                    Global_NotifyMainPage(hWnd);
+                    Global_RequestSave(hWnd);
+                }
+                return 0;
+            }
+
+            st->pendingDeleteIdx = idx;
+            st->pendingDeleteTick = now;
+            st->pendingDeleteIsGlobalProfile = false;
+            GlobalToast_ShowNearCursor(hWnd, st, L"Click again to confirm delete");
             return 0;
         }
 
-        DWORD now = GetTickCount();
-        if (st->pendingDeleteIdx == idx && (now - st->pendingDeleteTick) <= TOAST_SHOW_MS)
+        if (hCombo == st->cmbGlobalProfile)
         {
-            GlobalDeleteConfirm_Clear(hWnd, st);
-            if (KeyboardLayout_DeletePreset(idx))
+            int count = PremiumCombo::GetCount(st->cmbGlobalProfile);
+            int createRow = count - 1;
+            if (idx <= 0 || idx >= createRow)
+                return 0; // don't delete default or create row
+
+            wchar_t nameBuf[260]{};
+            PremiumCombo::GetLBText(st->cmbGlobalProfile, idx, nameBuf, (int)_countof(nameBuf));
+            std::wstring name = nameBuf;
+            if (name.empty() || GlobalProfiles_IsDefault(name))
+                return 0;
+
+            DWORD now = GetTickCount();
+            if (st->pendingDeleteIdx == idx && st->pendingDeleteIsGlobalProfile &&
+                (now - st->pendingDeleteTick) <= TOAST_SHOW_MS)
             {
-                Global_RefreshLayoutCombo(st);
-                Global_NotifyMainPage(hWnd);
-                Global_RequestSave(hWnd);
+                GlobalDeleteConfirm_Clear(hWnd, st);
+
+                // If deleting active profile, switch to default first.
+                if (_wcsicmp(GlobalProfiles_GetActiveName().c_str(), name.c_str()) == 0)
+                    Global_ApplyActiveGlobalProfile(st, hWnd, L"Default");
+
+                if (GlobalProfiles_Delete(name))
+                {
+                    Global_RefreshGlobalProfileCombo(st);
+                    Global_RequestSave(hWnd);
+                    Global_UpdateUi(st);
+                }
+                return 0;
             }
+
+            st->pendingDeleteIdx = idx;
+            st->pendingDeleteTick = now;
+            st->pendingDeleteIsGlobalProfile = true;
+            GlobalToast_ShowNearCursor(hWnd, st, L"Click again to confirm delete");
             return 0;
         }
 
-        st->pendingDeleteIdx = idx;
-        st->pendingDeleteTick = now;
-        GlobalToast_ShowNearCursor(hWnd, st, L"Click again to confirm delete");
+        return 0;
+    }
+
+    if (msg == PremiumCombo::MsgExtraIcon())
+    {
+        if (!st || (HWND)lParam != st->cmbGlobalProfile)
+            return 0;
+
+        std::wstring settingsPath = AppPaths_ActiveSettingsIni();
+        std::wstring bindingsPath = AppPaths_ActiveBindingsIni();
+        SettingsIni_SaveProfile(settingsPath.c_str());
+        Profile_SaveIni(bindingsPath.c_str());
+
+        GlobalProfiles_SetDirty(false);
+        Global_UpdateProfileSaveIcon(st);
+        Global_RequestSave(hWnd);
+        return 0;
+    }
+
+    if (msg == WM_APP_GLOBAL_PROFILE_DIRTY)
+    {
+        if (st)
+            Global_UpdateProfileSaveIcon(st);
         return 0;
     }
 
@@ -2903,6 +3142,16 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         st = new GlobalSettingsPageState();
         SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)st);
 
+        st->lblGlobalProfile = CreateWindowW(L"STATIC", L"Global profile",
+            WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblGlobalProfile, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->cmbGlobalProfile = PremiumCombo::Create(hWnd, hInst,
+            0, 0, 10, 10, GLOB_ID_GLOBAL_PROFILE_COMBO,
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP);
+        PremiumCombo::SetFont(st->cmbGlobalProfile, hFont, true);
+        Global_RefreshGlobalProfileCombo(st);
+
         st->lblLayout = CreateWindowW(L"STATIC", L"Keyboard layout",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblLayout, WM_SETFONT, (WPARAM)hFont, TRUE);
@@ -2922,11 +3171,6 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
             0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)GLOB_ID_LAYOUTS_FOLDER, hInst, nullptr);
         SendMessageW(st->btnOpenLayoutsFolder, WM_SETFONT, (WPARAM)hFont, TRUE);
-
-        st->chkDigitalFallback = CreateWindowW(L"BUTTON", L"Compatibility Input Fallback",
-            WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_OWNERDRAW,
-            0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)GLOB_ID_DIGITAL_FALLBACK, hInst, nullptr);
-        SendMessageW(st->chkDigitalFallback, WM_SETFONT, (WPARAM)hFont, TRUE);
 
         st->lblPoll = CreateWindowW(L"STATIC", L"Polling rate",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
@@ -2954,10 +3198,6 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             L"Changes are applied immediately and saved automatically.",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblHint, WM_SETFONT, (WPARAM)hFont, TRUE);
-
-        SendMessageW(st->chkDigitalFallback, BM_SETCHECK, Settings_GetDigitalFallbackInput() ? BST_CHECKED : BST_UNCHECKED, 0);
-        SetWindowSubclass(st->chkDigitalFallback, SnappyToggle_SubclassProc, 1, 0);
-        SnappyToggle_StartAnim(st->chkDigitalFallback, Settings_GetDigitalFallbackInput(), false);
 
         Global_UpdateUi(st);
         Global_Layout(hWnd, st);
@@ -2988,6 +3228,8 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             v = std::clamp(v, 1, 20);
             Settings_SetPollingMs((UINT)v);
             RealtimeLoop_SetIntervalMs(Settings_GetPollingMs());
+            GlobalProfiles_SetDirty(true);
+            Global_UpdateProfileSaveIcon(st);
             Global_UpdateUi(st);
             Global_RequestApplyTiming(hWnd);
             Global_RequestSave(hWnd);
@@ -2999,6 +3241,8 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             int v = (int)SendMessageW(st->sldUiRefresh, TBM_GETPOS, 0, 0);
             v = std::clamp(v, 1, 200);
             Settings_SetUIRefreshMs((UINT)v);
+            GlobalProfiles_SetDirty(true);
+            Global_UpdateProfileSaveIcon(st);
             Global_UpdateUi(st);
             Global_RequestApplyTiming(hWnd);
             Global_RequestSave(hWnd);
@@ -3018,17 +3262,34 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             Global_DrawLayoutEditorButton(dis);
             return TRUE;
         }
-        if (st && dis && dis->CtlType == ODT_BUTTON &&
-            (dis->CtlID == GLOB_ID_DIGITAL_FALLBACK && st->chkDigitalFallback == dis->hwndItem))
-        {
-            DrawSnappyToggleOwnerDraw(dis);
-            return TRUE;
-        }
         break;
     }
 
     case WM_COMMAND:
         if (!st) return 0;
+
+        if (LOWORD(wParam) == (UINT)GLOB_ID_GLOBAL_PROFILE_COMBO && HIWORD(wParam) == CBN_SELCHANGE)
+        {
+            GlobalDeleteConfirm_Clear(hWnd, st);
+
+            int sel = PremiumCombo::GetCurSel(st->cmbGlobalProfile);
+            int count = PremiumCombo::GetCount(st->cmbGlobalProfile);
+            bool selIsCreateRow = (count > 0 && sel == count - 1);
+            if (selIsCreateRow)
+            {
+                PremiumCombo::ShowDropDown(st->cmbGlobalProfile, true);
+                PremiumCombo::BeginInlineEditSelected(st->cmbGlobalProfile, false);
+                return 0;
+            }
+
+            if (sel >= 0 && sel < count - 1)
+            {
+                wchar_t nameBuf[260]{};
+                PremiumCombo::GetLBText(st->cmbGlobalProfile, sel, nameBuf, (int)_countof(nameBuf));
+                Global_ApplyActiveGlobalProfile(st, hWnd, nameBuf);
+            }
+            return 0;
+        }
 
         if (LOWORD(wParam) == (UINT)GLOB_ID_LAYOUT_COMBO && HIWORD(wParam) == CBN_SELCHANGE)
         {
@@ -3067,26 +3328,298 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             return 0;
         }
 
-        if (LOWORD(wParam) == (UINT)GLOB_ID_DIGITAL_FALLBACK && HIWORD(wParam) == BN_CLICKED && st->chkDigitalFallback)
-        {
-            bool on = !Settings_GetDigitalFallbackInput();
-            SendMessageW(st->chkDigitalFallback, BM_SETCHECK, on ? BST_CHECKED : BST_UNCHECKED, 0);
-            Settings_SetDigitalFallbackInput(on);
-            SnappyToggle_StartAnim(st->chkDigitalFallback, on, true);
-            Global_RequestSave(hWnd);
-            return 0;
-        }
         return 0;
 
     case WM_NCDESTROY:
         if (st)
         {
             GlobalDeleteConfirm_Clear(hWnd, st);
-            if (st->chkDigitalFallback && IsWindow(st->chkDigitalFallback))
-                SnappyToggle_Free(st->chkDigitalFallback);
             if (st->hToast && IsWindow(st->hToast))
                 DestroyWindow(st->hToast);
             st->hToast = nullptr;
+            delete st;
+            SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);
+        }
+        return 0;
+    }
+
+    return DefWindowProcW(hWnd, msg, wParam, lParam);
+}
+
+// ============================================================================
+// Mouse settings page
+// ============================================================================
+struct MouseSettingsPageState
+{
+    HWND lblEnable = nullptr;
+    HWND btnEnable = nullptr;
+    HWND btnBlockMouse = nullptr;
+    HWND lblTarget = nullptr;
+    HWND cmbTarget = nullptr;
+    HWND lblSensitivity = nullptr;
+    HWND sldSensitivity = nullptr;
+    HWND chipSensitivity = nullptr;
+    HWND lblHint = nullptr;
+};
+
+static constexpr int MOUSE_ID_ENABLE_BUTTON = 7801;
+static constexpr int MOUSE_ID_TARGET_COMBO = 7802;
+static constexpr int MOUSE_ID_SENS_SLIDER = 7803;
+static constexpr int MOUSE_ID_BLOCK_MOUSE_INPUT = 7804;
+
+static void Mouse_RequestSave(HWND hWnd)
+{
+    HWND root = ResolveAppMainWindow(hWnd);
+    if (root) PostMessageW(root, WM_APP_REQUEST_SAVE, 0, 0);
+}
+
+static void Mouse_MarkGlobalProfileDirty()
+{
+    if (g_hPageGlobal && IsWindow(g_hPageGlobal))
+        PostMessageW(g_hPageGlobal, WM_APP_GLOBAL_PROFILE_DIRTY, 0, 0);
+}
+
+static void Mouse_UpdateUi(MouseSettingsPageState* st)
+{
+    if (!st) return;
+    if (st->btnEnable)
+    {
+        SetWindowTextW(
+            st->btnEnable,
+            Settings_GetMouseToStickEnabled() ? L"Mouse to Stick: ON" : L"Mouse to Stick: OFF");
+    }
+    if (st->btnBlockMouse)
+    {
+        SetWindowTextW(
+            st->btnBlockMouse,
+            Settings_GetBlockMouseInput() ? L"Block Mouse Input: ON" : L"Block Mouse Input: OFF");
+    }
+    if (st->chipSensitivity)
+    {
+        wchar_t b[32]{};
+        swprintf_s(b, L"%d%%", (int)std::lround(Settings_GetMouseToStickSensitivity() * 100.0f));
+        SetWindowTextW(st->chipSensitivity, b);
+    }
+}
+
+static void Mouse_Layout(HWND hWnd, MouseSettingsPageState* st)
+{
+    if (!st) return;
+    RECT rc{};
+    GetClientRect(hWnd, &rc);
+
+    int margin = S(hWnd, 16);
+    int x = margin;
+    int y = margin;
+    int chipW = S(hWnd, 86);
+    int gap = S(hWnd, 10);
+    int comboVisibleH = S(hWnd, 26);
+    int sliderH = S(hWnd, 34);
+    int chipH = sliderH;
+    int labelH = S(hWnd, 18);
+    int rowGap = S(hWnd, 18);
+
+    int sliderW = (rc.right - rc.left) - margin * 2 - chipW - gap;
+    sliderW = std::max(S(hWnd, 180), sliderW);
+
+    if (st->lblEnable)
+        SetWindowPos(st->lblEnable, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
+    y += labelH + S(hWnd, 6);
+
+    if (st->btnEnable)
+        SetWindowPos(st->btnEnable, nullptr, x, y, S(hWnd, 220), S(hWnd, 30), SWP_NOZORDER);
+    y += S(hWnd, 30) + S(hWnd, 8);
+
+    if (st->btnBlockMouse)
+        SetWindowPos(st->btnBlockMouse, nullptr, x, y, S(hWnd, 220), S(hWnd, 30), SWP_NOZORDER);
+    y += S(hWnd, 30) + rowGap;
+
+    if (st->lblTarget)
+        SetWindowPos(st->lblTarget, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
+    y += labelH + S(hWnd, 6);
+
+    if (st->cmbTarget)
+        SetWindowPos(st->cmbTarget, nullptr, x, y, sliderW + gap + chipW, comboVisibleH, SWP_NOZORDER);
+    y += comboVisibleH + rowGap;
+
+    if (st->lblSensitivity)
+        SetWindowPos(st->lblSensitivity, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
+    y += labelH + S(hWnd, 6);
+
+    if (st->sldSensitivity)
+        SetWindowPos(st->sldSensitivity, nullptr, x, y, sliderW, sliderH, SWP_NOZORDER);
+    if (st->chipSensitivity)
+        SetWindowPos(st->chipSensitivity, nullptr, x + sliderW + gap, y, chipW, chipH, SWP_NOZORDER);
+    y += sliderH + S(hWnd, 14);
+
+    if (st->lblHint)
+        SetWindowPos(st->lblHint, nullptr, x, y, std::max(S(hWnd, 120), sliderW + gap + chipW), S(hWnd, 36), SWP_NOZORDER);
+}
+
+LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    auto* st = (MouseSettingsPageState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+
+    switch (msg)
+    {
+    case WM_ERASEBKGND:
+        return 1;
+
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps{};
+        HDC hdc = BeginPaint(hWnd, &ps);
+        RECT rc{};
+        GetClientRect(hWnd, &rc);
+        FillRect(hdc, &rc, UiTheme::Brush_PanelBg());
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+
+    case WM_CTLCOLORSTATIC:
+    {
+        HDC hdc = (HDC)wParam;
+        SetBkMode(hdc, TRANSPARENT);
+        HWND hCtl = (HWND)lParam;
+        if (st && hCtl && st->lblHint && hCtl == st->lblHint)
+            SetTextColor(hdc, UiTheme::Color_TextMuted());
+        else
+            SetTextColor(hdc, UiTheme::Color_Text());
+        return (LRESULT)UiTheme::Brush_PanelBg();
+    }
+
+    case WM_CREATE:
+    {
+        HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
+        HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+
+        st = new MouseSettingsPageState();
+        SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)st);
+
+        st->lblEnable = CreateWindowW(L"STATIC", L"Mouse to stick",
+            WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblEnable, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->btnEnable = CreateWindowW(L"BUTTON", L"",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+            0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)MOUSE_ID_ENABLE_BUTTON, hInst, nullptr);
+        SendMessageW(st->btnEnable, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->btnBlockMouse = CreateWindowW(L"BUTTON", L"",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+            0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)MOUSE_ID_BLOCK_MOUSE_INPUT, hInst, nullptr);
+        SendMessageW(st->btnBlockMouse, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->lblTarget = CreateWindowW(L"STATIC", L"Target stick",
+            WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblTarget, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->cmbTarget = PremiumCombo::Create(hWnd, hInst,
+            0, 0, 10, 10, MOUSE_ID_TARGET_COMBO,
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP);
+        PremiumCombo::SetFont(st->cmbTarget, hFont, true);
+        PremiumCombo::AddString(st->cmbTarget, L"Left Stick");
+        PremiumCombo::AddString(st->cmbTarget, L"Right Stick");
+        PremiumCombo::SetCurSel(st->cmbTarget, std::clamp(Settings_GetMouseToStickTarget(), 0, 1), false);
+
+        st->lblSensitivity = CreateWindowW(L"STATIC", L"Sensitivity",
+            WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblSensitivity, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->sldSensitivity = PremiumSlider_Create(hWnd, hInst, 0, 0, 10, 10, MOUSE_ID_SENS_SLIDER);
+        SendMessageW(st->sldSensitivity, TBM_SETRANGE, TRUE, MAKELONG(10, 800));
+        SendMessageW(
+            st->sldSensitivity,
+            TBM_SETPOS,
+            TRUE,
+            (LPARAM)std::clamp((int)std::lround(Settings_GetMouseToStickSensitivity() * 100.0f), 10, 800));
+
+        st->chipSensitivity = PremiumChip_Create(hWnd, hInst, 0, 0, 10, 10, MOUSE_ID_SENS_SLIDER + 100);
+        SendMessageW(st->chipSensitivity, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->lblHint = CreateWindowW(
+            L"STATIC",
+            L"Maps raw mouse movement to one gamepad stick. Useful for games that block mouse + gamepad together.",
+            WS_CHILD | WS_VISIBLE,
+            0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblHint, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        Mouse_UpdateUi(st);
+        Mouse_Layout(hWnd, st);
+        return 0;
+    }
+
+    case WM_SIZE:
+        Mouse_Layout(hWnd, st);
+        return 0;
+
+    case WM_HSCROLL:
+        if (st && (HWND)lParam == st->sldSensitivity)
+        {
+            int v = (int)SendMessageW(st->sldSensitivity, TBM_GETPOS, 0, 0);
+            v = std::clamp(v, 10, 800);
+            Settings_SetMouseToStickSensitivity((float)v / 100.0f);
+            GlobalProfiles_SetDirty(true);
+            Mouse_MarkGlobalProfileDirty();
+            Mouse_UpdateUi(st);
+            Mouse_RequestSave(hWnd);
+            return 0;
+        }
+        return 0;
+
+    case WM_DRAWITEM:
+    {
+        const DRAWITEMSTRUCT* dis = (const DRAWITEMSTRUCT*)lParam;
+        if (st && dis && dis->CtlType == ODT_BUTTON &&
+            ((dis->CtlID == MOUSE_ID_ENABLE_BUTTON && st->btnEnable == dis->hwndItem) ||
+             (dis->CtlID == MOUSE_ID_BLOCK_MOUSE_INPUT && st->btnBlockMouse == dis->hwndItem)))
+        {
+            Global_DrawLayoutEditorButton(dis);
+            return TRUE;
+        }
+        break;
+    }
+
+    case WM_COMMAND:
+        if (!st) return 0;
+
+        if (LOWORD(wParam) == (UINT)MOUSE_ID_ENABLE_BUTTON && HIWORD(wParam) == BN_CLICKED)
+        {
+            Settings_SetMouseToStickEnabled(!Settings_GetMouseToStickEnabled());
+            GlobalProfiles_SetDirty(true);
+            Mouse_MarkGlobalProfileDirty();
+            Mouse_UpdateUi(st);
+            Mouse_RequestSave(hWnd);
+            InvalidateRect(st->btnEnable, nullptr, FALSE);
+            return 0;
+        }
+
+        if (LOWORD(wParam) == (UINT)MOUSE_ID_BLOCK_MOUSE_INPUT && HIWORD(wParam) == BN_CLICKED)
+        {
+            Settings_SetBlockMouseInput(!Settings_GetBlockMouseInput());
+            GlobalProfiles_SetDirty(true);
+            Mouse_MarkGlobalProfileDirty();
+            Mouse_UpdateUi(st);
+            Mouse_RequestSave(hWnd);
+            InvalidateRect(st->btnBlockMouse, nullptr, FALSE);
+            return 0;
+        }
+
+        if (LOWORD(wParam) == (UINT)MOUSE_ID_TARGET_COMBO && HIWORD(wParam) == CBN_SELCHANGE)
+        {
+            int sel = PremiumCombo::GetCurSel(st->cmbTarget);
+            Settings_SetMouseToStickTarget(std::clamp(sel, 0, 1));
+            GlobalProfiles_SetDirty(true);
+            Mouse_MarkGlobalProfileDirty();
+            Mouse_RequestSave(hWnd);
+            return 0;
+        }
+
+        return 0;
+
+    case WM_NCDESTROY:
+        if (st)
+        {
             delete st;
             SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);
         }
@@ -3462,8 +3995,42 @@ static void Config_UpdateLkpSensitivityUi(ConfigPageState* st)
     }
 }
 
+static void Config_RefreshFromCurrentSettings(HWND hWnd, ConfigPageState* st)
+{
+    if (!st) return;
+
+    if (st->chkSnappy && IsWindow(st->chkSnappy))
+    {
+        bool on = Settings_GetSnappyJoystick();
+        SendMessageW(st->chkSnappy, BM_SETCHECK, on ? BST_CHECKED : BST_UNCHECKED, 0);
+        SnappyToggle_StartAnim(st->chkSnappy, on, false);
+    }
+    if (st->chkLastKeyPriority && IsWindow(st->chkLastKeyPriority))
+    {
+        bool on = Settings_GetLastKeyPriority();
+        SendMessageW(st->chkLastKeyPriority, BM_SETCHECK, on ? BST_CHECKED : BST_UNCHECKED, 0);
+        SnappyToggle_StartAnim(st->chkLastKeyPriority, on, false);
+    }
+    if (st->chkBlockBoundKeys && IsWindow(st->chkBlockBoundKeys))
+    {
+        bool on = Settings_GetBlockBoundKeys();
+        SendMessageW(st->chkBlockBoundKeys, BM_SETCHECK, on ? BST_CHECKED : BST_UNCHECKED, 0);
+        SnappyToggle_StartAnim(st->chkBlockBoundKeys, on, false);
+    }
+    Config_UpdateLkpSensitivityUi(st);
+
+    // Refresh curve preset combo, override/invert/mode toggles and graph state.
+    KeySettingsPanel_HandleCommand(hWnd, 9999, 0);
+    KeySettingsPanel_SetSelectedHid(KeyboardUI_Internal_GetSelectedHid());
+    InvalidateRect(hWnd, nullptr, FALSE);
+}
+
 static void RequestSave(HWND hWnd)
 {
+    GlobalProfiles_SetDirty(true);
+    if (g_hPageGlobal && IsWindow(g_hPageGlobal))
+        PostMessageW(g_hPageGlobal, WM_APP_GLOBAL_PROFILE_DIRTY, 0, 0);
+
     HWND root = GetAncestor(hWnd, GA_ROOT);
     if (root) PostMessageW(root, WM_APP_REQUEST_SAVE, 0, 0);
 }
@@ -4267,6 +4834,13 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 {
     auto* st = (ConfigPageState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
 
+    if (msg == WM_APP_CONFIG_PROFILE_APPLIED)
+    {
+        if (st)
+            Config_RefreshFromCurrentSettings(hWnd, st);
+        return 0;
+    }
+
     if (msg == WM_TIMER)
     {
         // 1) toast auto-hide
@@ -4683,6 +5257,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         SetWindowSubclass(st->chkBlockBoundKeys, SnappyToggle_SubclassProc, 1, 0);
         SnappyToggle_StartAnim(st->chkBlockBoundKeys, Settings_GetBlockBoundKeys(), false);
         Config_UpdateLkpSensitivityUi(st);
+        Config_RefreshFromCurrentSettings(hWnd, st);
 
         LayoutConfigControls(hWnd, st);
         Config_SetScrollY(hWnd, st, 0);
@@ -5096,7 +5671,6 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             {
                 SnappyToggle_Free(st->chkLastKeyPriority);
             }
-
             delete st;
             SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);
         }

@@ -90,6 +90,23 @@ bool Settings_GetBlockBoundKeys();
 void Settings_SetDigitalFallbackInput(bool on);
 bool Settings_GetDigitalFallbackInput();
 
+// Block physical mouse events when mouse->stick mode is active.
+void Settings_SetBlockMouseInput(bool on);
+bool Settings_GetBlockMouseInput();
+
+// Mouse -> gamepad stick emulation
+// When enabled, mouse delta is mapped to selected stick axes.
+void Settings_SetMouseToStickEnabled(bool on);
+bool Settings_GetMouseToStickEnabled();
+
+// 0 = Left stick, 1 = Right stick
+void Settings_SetMouseToStickTarget(int target);
+int Settings_GetMouseToStickTarget();
+
+// Sensitivity multiplier in range [0.1 .. 8.0]
+void Settings_SetMouseToStickSensitivity(float v);
+float Settings_GetMouseToStickSensitivity();
+
 // ---------------- DEBUG / TUNING (temporary) ----------------
 // All sizes are in "96-DPI pixels" (unscaled). UI scales them via WinUtil_ScalePx().
 

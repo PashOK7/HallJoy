@@ -11,6 +11,7 @@
 #include <shellapi.h>
 #include <urlmon.h>
 #include <winhttp.h>
+#include <hidusage.h>
 
 #include <string>
 #include <vector>
@@ -20,6 +21,7 @@
 #include <regex>
 #include <cwctype>
 #include <limits>
+#include <atomic>
 
 #include "app.h"
 #include "Resource.h"
@@ -28,6 +30,7 @@
 #include "keyboard_ui.h"
 #include "settings.h"
 #include "settings_ini.h"
+#include "global_profiles.h"
 #include "realtime_loop.h"
 #include "win_util.h"
 #include "app_paths.h"
@@ -50,9 +53,34 @@ static const UINT_PTR SETTINGS_SAVE_TIMER_ID = 3;
 static const UINT SETTINGS_SAVE_TIMER_MS = 350;
 
 static HWND g_hPageMain = nullptr;
+static HWND g_hMainWnd = nullptr;
 static HHOOK g_hKeyboardHook = nullptr;
+static HHOOK g_hMouseHook = nullptr;
 static bool g_backendReady = false;
 static bool g_digitalFallbackWarnShown = false;
+static std::atomic<bool> g_mouseBlockPauseByRShift{ false };
+static bool g_mouseCursorLocked = false;
+static POINT g_mouseCursorLockPos{};
+
+static void SaveSettingsByActiveGlobalProfile()
+{
+    const std::wstring& active = GlobalProfiles_GetActiveName();
+    if (GlobalProfiles_IsDefault(active))
+    {
+        SettingsIni_Save(AppPaths_SettingsIni().c_str());
+        return;
+    }
+
+    // IMPORTANT:
+    // When non-default profile is active, do NOT overwrite base settings.ini with
+    // runtime values from that profile, otherwise "Default" profile gets polluted.
+    // Keep only active profile marker in base file.
+    GlobalProfiles_SaveActiveToSettingsIni(AppPaths_SettingsIni().c_str());
+
+    // Active profile stores all runtime settings except layout/window.
+    std::wstring profileSettingsPath = AppPaths_ActiveSettingsIni();
+    SettingsIni_SaveProfile(profileSettingsPath.c_str());
+}
 
 static bool IsWindowRectVisibleOnAnyScreen(int x, int y, int w, int h)
 {
@@ -494,10 +522,16 @@ static bool InstallUniversalAnalogPluginFromZip(HWND hwnd, const std::wstring& z
     script += L"$dst=" + QuoteForPowerShellSingle(dstDir) + L"\n";
     script += L"if (Test-Path -LiteralPath $extract) { Remove-Item -LiteralPath $extract -Recurse -Force }\n";
     script += L"Expand-Archive -LiteralPath $zip -DestinationPath $extract -Force\n";
-    script += L"$src = Join-Path $extract 'universal-analog-plugin'\n";
-    script += L"if (!(Test-Path -LiteralPath $src)) { throw 'universal-analog-plugin folder not found in Windows.zip' }\n";
     script += L"New-Item -ItemType Directory -Path $dst -Force | Out-Null\n";
-    script += L"Copy-Item -LiteralPath $src -Destination $dst -Recurse -Force\n";
+    script += L"$srcClassic = Join-Path $extract 'universal-analog-plugin'\n";
+    script += L"$srcWooting = Join-Path $extract 'universal-analog-plugin-with-wooting-device-support'\n";
+    script += L"if (Test-Path -LiteralPath $srcClassic) {\n";
+    script += L"  Copy-Item -LiteralPath $srcClassic -Destination $dst -Recurse -Force\n";
+    script += L"} elseif (Test-Path -LiteralPath $srcWooting) {\n";
+    script += L"  Copy-Item -LiteralPath $srcWooting -Destination $dst -Recurse -Force\n";
+    script += L"} else {\n";
+    script += L"  throw 'No supported plugin folders found in Windows.zip'\n";
+    script += L"}\n";
 
     return RunPowerShellScriptElevatedAndWait(hwnd, script);
 }
@@ -688,6 +722,30 @@ static bool IsOwnForegroundWindow()
         _wcsicmp(cls, L"KeyboardLayoutEditorHost") == 0);
 }
 
+static bool IsMouseBlockingActiveNow()
+{
+    if (!Settings_GetBlockMouseInput()) return false;
+    if (!Settings_GetMouseToStickEnabled()) return false;
+    if (IsOwnForegroundWindow()) return false;
+    if (g_mouseBlockPauseByRShift.load(std::memory_order_relaxed)) return false;
+    return true;
+}
+
+static void UpdateMouseCursorLockState(bool blockNow)
+{
+    if (!blockNow)
+    {
+        g_mouseCursorLocked = false;
+        return;
+    }
+
+    if (!g_mouseCursorLocked)
+    {
+        GetCursorPos(&g_mouseCursorLockPos);
+        g_mouseCursorLocked = true;
+    }
+}
+
 static uint16_t HidFromKeyboardScanCode(DWORD scanCode, bool extended, DWORD vkCode)
 {
     switch (scanCode & 0xFFu)
@@ -823,22 +881,82 @@ static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM l
         {
             const KBDLLHOOKSTRUCT* k = (const KBDLLHOOKSTRUCT*)lParam;
             const bool ext = (k->flags & LLKHF_EXTENDED) != 0;
+            const bool isDown = (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
             uint16_t hid = HidFromKeyboardScanCode(k->scanCode, ext, k->vkCode);
             Backend_NotifyKeyboardEvent(
                 hid,
                 (uint16_t)(k->scanCode & 0xFFFFu),
                 (uint16_t)(k->vkCode & 0xFFFFu),
-                (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN),
+                isDown,
                 (k->flags & LLKHF_INJECTED) != 0);
+
+            if (hid == 229)
+                g_mouseBlockPauseByRShift.store(isDown, std::memory_order_relaxed);
+
+            if (isDown && k->vkCode == VK_DELETE)
+            {
+                const bool ctrlDown = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+                const bool altDown = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+                if (ctrlDown && altDown && Settings_GetMouseToStickEnabled())
+                {
+                    Settings_SetMouseToStickEnabled(false);
+                    DebugLog_Write(L"[app] Ctrl+Alt+Del detected: Mouse->Stick disabled");
+                    if (g_hMainWnd && IsWindow(g_hMainWnd))
+                        PostMessageW(g_hMainWnd, WM_APP_REQUEST_SAVE, 0, 0);
+                }
+            }
 
             if (Settings_GetBlockBoundKeys() && (k->flags & LLKHF_INJECTED) == 0 && !IsOwnForegroundWindow())
             {
+                // Right Shift must always be able to pause mouse blocking, even if bound.
+                if (hid == 229 && Settings_GetBlockMouseInput() && Settings_GetMouseToStickEnabled())
+                    return CallNextHookEx(g_hKeyboardHook, nCode, wParam, lParam);
+
                 if (hid != 0 && Bindings_IsHidBound(hid))
                     return 1; // swallow key event
             }
         }
     }
     return CallNextHookEx(g_hKeyboardHook, nCode, wParam, lParam);
+}
+
+static LRESULT CALLBACK MouseBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+    if (nCode == HC_ACTION && lParam)
+    {
+        const MSLLHOOKSTRUCT* m = (const MSLLHOOKSTRUCT*)lParam;
+        bool blockNow = IsMouseBlockingActiveNow();
+        UpdateMouseCursorLockState(blockNow);
+
+        if ((m->flags & LLMHF_INJECTED) == 0 && blockNow)
+        {
+            switch (wParam)
+            {
+            case WM_MOUSEMOVE:
+                // Keep cursor physically frozen while blocked.
+                SetCursorPos(g_mouseCursorLockPos.x, g_mouseCursorLockPos.y);
+                return 1;
+            case WM_LBUTTONDOWN:
+            case WM_LBUTTONUP:
+            case WM_LBUTTONDBLCLK:
+            case WM_RBUTTONDOWN:
+            case WM_RBUTTONUP:
+            case WM_RBUTTONDBLCLK:
+            case WM_MBUTTONDOWN:
+            case WM_MBUTTONUP:
+            case WM_MBUTTONDBLCLK:
+            case WM_XBUTTONDOWN:
+            case WM_XBUTTONUP:
+            case WM_XBUTTONDBLCLK:
+            case WM_MOUSEWHEEL:
+            case WM_MOUSEHWHEEL:
+                return 1;
+            default:
+                break;
+            }
+        }
+    }
+    return CallNextHookEx(g_hMouseHook, nCode, wParam, lParam);
 }
 
 static void RequestSettingsSave(HWND hMainWnd)
@@ -888,6 +1006,8 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     case WM_CREATE:
     {
         DebugLog_Write(L"[app] WM_CREATE");
+        g_mouseBlockPauseByRShift.store(false, std::memory_order_relaxed);
+        g_mouseCursorLocked = false;
         UiTheme::ApplyToTopLevelWindow(hwnd);
 
         HINSTANCE hInst = (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE);
@@ -939,6 +1059,18 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         if (g_backendReady)
             RealtimeLoop_Start();
         ApplyTimingSettings(hwnd);
+
+        // Receive raw mouse deltas even when this window is not focused.
+        RAWINPUTDEVICE rid{};
+        rid.usUsagePage = HID_USAGE_PAGE_GENERIC;
+        rid.usUsage = HID_USAGE_GENERIC_MOUSE;
+        rid.dwFlags = RIDEV_INPUTSINK;
+        rid.hwndTarget = hwnd;
+        if (!RegisterRawInputDevices(&rid, 1, sizeof(rid)))
+            DebugLog_Write(L"[app] RegisterRawInputDevices(mouse) failed err=%lu", GetLastError());
+        else
+            DebugLog_Write(L"[app] raw mouse input registered");
+
         DebugLog_Write(L"[app] init complete");
 
         return 0;
@@ -947,6 +1079,34 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     case WM_SIZE:
         ResizeChildren(hwnd);
         return 0;
+
+    case WM_INPUT:
+    {
+        UINT sz = 0;
+        if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, nullptr, &sz, sizeof(RAWINPUTHEADER)) != 0 || sz == 0)
+            return 0;
+
+        std::vector<BYTE> buf(sz);
+        if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, buf.data(), &sz, sizeof(RAWINPUTHEADER)) == (UINT)-1)
+            return 0;
+
+        if (sz < sizeof(RAWINPUT)) return 0;
+        RAWINPUT* ri = (RAWINPUT*)buf.data();
+        if (ri->header.dwType == RIM_TYPEMOUSE)
+        {
+            const RAWMOUSE& rm = ri->data.mouse;
+            LONG dx = 0;
+            LONG dy = 0;
+            if ((rm.usFlags & MOUSE_MOVE_ABSOLUTE) == 0)
+            {
+                dx = rm.lLastX;
+                dy = rm.lLastY;
+            }
+            if (dx != 0 || dy != 0)
+                Backend_AddMouseDelta((int)dx, (int)dy);
+        }
+        return 0;
+    }
 
     case WM_DEVICECHANGE:
         if (wParam == DBT_DEVNODES_CHANGED ||
@@ -979,7 +1139,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         if (wParam == SETTINGS_SAVE_TIMER_ID)
         {
             KillTimer(hwnd, SETTINGS_SAVE_TIMER_ID);
-            SettingsIni_Save(AppPaths_SettingsIni().c_str());
+            SaveSettingsByActiveGlobalProfile();
             return 0;
         }
         return 0;
@@ -999,6 +1159,8 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 
     case WM_DESTROY:
         DebugLog_Write(L"[app] WM_DESTROY");
+        g_mouseBlockPauseByRShift.store(false, std::memory_order_relaxed);
+        g_mouseCursorLocked = false;
         KillTimer(hwnd, UI_TIMER_ID);
         KillTimer(hwnd, SETTINGS_SAVE_TIMER_ID);
 
@@ -1020,7 +1182,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             Settings_SetMainWindowPosYPx((int)wr.top);
         }
 
-        SettingsIni_Save(AppPaths_SettingsIni().c_str());
+        SaveSettingsByActiveGlobalProfile();
 
         if (g_backendReady)
         {
@@ -1046,6 +1208,24 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     else
     {
         DebugLog_Write(L"[app] settings loaded path=%s", AppPaths_SettingsIni().c_str());
+    }
+
+    // Overlay active global profile settings (all settings except layout/window).
+    // Active profile name is read from base settings in SettingsIni_Load().
+    if (!GlobalProfiles_IsDefault(GlobalProfiles_GetActiveName()))
+    {
+        std::wstring activeSettingsPath = AppPaths_ActiveSettingsIni();
+        if (SettingsIni_LoadProfile(activeSettingsPath.c_str()))
+        {
+            DebugLog_Write(L"[app] active profile settings loaded profile=%s path=%s",
+                GlobalProfiles_GetActiveName().c_str(), activeSettingsPath.c_str());
+        }
+        else
+        {
+            DebugLog_Write(L"[app] active profile settings missing, creating defaults profile=%s path=%s",
+                GlobalProfiles_GetActiveName().c_str(), activeSettingsPath.c_str());
+            SettingsIni_SaveProfile(activeSettingsPath.c_str());
+        }
     }
 
     // IMPORTANT:
@@ -1104,6 +1284,7 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
         nullptr, nullptr, hInst, nullptr);
 
     if (!hwnd) { DebugLog_Write(L"[app] CreateWindowEx failed err=%lu", GetLastError()); return 2; }
+    g_hMainWnd = hwnd;
     DebugLog_Write(L"[app] main window created hwnd=%p pos=(%d,%d) size=(%d,%d)", hwnd, x, y, w, h);
 
     if (wc.hIcon)
@@ -1116,6 +1297,8 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
 
     g_hKeyboardHook = SetWindowsHookExW(WH_KEYBOARD_LL, KeyboardBlockHookProc, GetModuleHandleW(nullptr), 0);
     DebugLog_Write(L"[app] keyboard hook=%p", g_hKeyboardHook);
+    g_hMouseHook = SetWindowsHookExW(WH_MOUSE_LL, MouseBlockHookProc, GetModuleHandleW(nullptr), 0);
+    DebugLog_Write(L"[app] mouse hook=%p", g_hMouseHook);
 
     MSG msg{};
     while (true)
@@ -1137,6 +1320,12 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
         UnhookWindowsHookEx(g_hKeyboardHook);
         g_hKeyboardHook = nullptr;
     }
+    if (g_hMouseHook)
+    {
+        UnhookWindowsHookEx(g_hMouseHook);
+        g_hMouseHook = nullptr;
+    }
+    g_hMainWnd = nullptr;
     DebugLog_Write(L"[app] message loop exit code=%d", (int)msg.wParam);
 
     return (int)msg.wParam;

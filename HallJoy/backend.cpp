@@ -97,6 +97,16 @@ static std::atomic<uint16_t>     g_tmFullBufferMaxMilli{ 0 };
 static std::atomic<int>          g_tmFullBufferDeviceBestRet{ 0 };
 static std::atomic<uint16_t>     g_tmFullBufferDeviceBestMaxMilli{ 0 };
 static std::atomic<bool>         g_digitalFallbackWarnPending{ false };
+static std::atomic<bool>         g_keycodeModeLocked{ false };
+static constexpr bool            kEnableAdaptiveKeycodeModeProbe = false;
+static constexpr bool            kEnableFullBufferAssist = false;
+static POINT                     g_mouseLastPos{};
+static bool                      g_mouseHasLastPos = false;
+static float                     g_mouseFilteredX = 0.0f;
+static float                     g_mouseFilteredY = 0.0f;
+static ULONGLONG                 g_mouseLastTickMs = 0;
+static std::atomic<int>          g_mouseRawAccumDx{ 0 };
+static std::atomic<int>          g_mouseRawAccumDy{ 0 };
 
 static const wchar_t* KeycodeModeName(int mode)
 {
@@ -319,9 +329,87 @@ static float ReadAnalogByCodeWithDeviceFallback(uint16_t code, uint16_t hidForLo
     return best;
 }
 
-static void AutoProbeKeycodeModeFromEvent(uint16_t hidHint, uint16_t scanCode, uint16_t vkCode)
+static bool ProbeKeycodeModeByFullBufferActivity(uint16_t hidHint)
 {
-    if (hidHint == 0) return;
+    struct ModeProbe
+    {
+        WootingAnalog_KeycodeType mode;
+        int setRet = -9999;
+        int readRet = -9999;
+        float maxV = 0.0f;
+    };
+
+    ModeProbe probes[] = {
+        { WootingAnalog_KeycodeType_HID },
+        { WootingAnalog_KeycodeType_ScanCode1 },
+        { WootingAnalog_KeycodeType_VirtualKey },
+        { WootingAnalog_KeycodeType_VirtualKeyTranslate },
+    };
+
+    int currentMode = g_keycodeMode.load(std::memory_order_relaxed);
+    int bestIdx = -1;
+    int bestReadRet = -1;
+    float bestMax = 0.0f;
+
+    for (int i = 0; i < (int)_countof(probes); ++i)
+    {
+        WootingAnalogResult sr = wooting_analog_set_keycode_mode(probes[i].mode);
+        probes[i].setRet = (int)sr;
+        if (sr < 0)
+            continue;
+
+        unsigned short codes[64]{};
+        float vals[64]{};
+        int rr = wooting_analog_read_full_buffer(codes, vals, (unsigned)_countof(codes));
+        probes[i].readRet = rr;
+        if (rr < 0)
+            continue;
+
+        int n = std::min(rr, (int)_countof(vals));
+        float maxV = 0.0f;
+        for (int j = 0; j < n; ++j)
+        {
+            float v = vals[j];
+            if (std::isfinite(v) && v > maxV)
+                maxV = v;
+        }
+        probes[i].maxV = maxV;
+
+        // Prefer mode with highest max analog first, then by more reported keys.
+        if (maxV > bestMax + 0.005f || (std::abs(maxV - bestMax) <= 0.005f && rr > bestReadRet))
+        {
+            bestMax = maxV;
+            bestReadRet = rr;
+            bestIdx = i;
+        }
+    }
+
+    DebugLog_Write(
+        L"[backend.mode] full_probe hid=%u HID(ret=%d,max=%.3f) SC(ret=%d,max=%.3f) VK(ret=%d,max=%.3f) VKT(ret=%d,max=%.3f)",
+        (unsigned)hidHint,
+        probes[0].readRet, probes[0].maxV,
+        probes[1].readRet, probes[1].maxV,
+        probes[2].readRet, probes[2].maxV,
+        probes[3].readRet, probes[3].maxV);
+
+    if (bestIdx >= 0 && (bestReadRet > 0 || bestMax >= 0.02f))
+    {
+        WootingAnalog_KeycodeType target = probes[bestIdx].mode;
+        if ((int)target != currentMode)
+            SetKeycodeModeWithLog(target, L"full_probe", hidHint);
+        else
+            wooting_analog_set_keycode_mode((WootingAnalog_KeycodeType)currentMode);
+        return true;
+    }
+
+    // Restore current mode after temporary probing.
+    wooting_analog_set_keycode_mode((WootingAnalog_KeycodeType)currentMode);
+    return false;
+}
+
+static bool AutoProbeKeycodeModeFromEvent(uint16_t hidHint, uint16_t scanCode, uint16_t vkCode)
+{
+    if (hidHint == 0) return false;
 
     struct ProbeItem { WootingAnalog_KeycodeType mode; uint16_t code; float value; int setRet; };
     ProbeItem items[] = {
@@ -334,6 +422,7 @@ static void AutoProbeKeycodeModeFromEvent(uint16_t hidHint, uint16_t scanCode, u
     int currentMode = g_keycodeMode.load(std::memory_order_relaxed);
     int bestIdx = -1;
     float bestVal = 0.0f;
+    float currentVal = 0.0f;
 
     for (int i = 0; i < (int)_countof(items); ++i)
     {
@@ -344,6 +433,8 @@ static void AutoProbeKeycodeModeFromEvent(uint16_t hidHint, uint16_t scanCode, u
         if (sr < 0)
             continue;
         items[i].value = SafeReadAnalogByCode(items[i].code);
+        if ((int)items[i].mode == currentMode)
+            currentVal = items[i].value;
         if (items[i].value > bestVal)
         {
             bestVal = items[i].value;
@@ -356,21 +447,21 @@ static void AutoProbeKeycodeModeFromEvent(uint16_t hidHint, uint16_t scanCode, u
         (unsigned)hidHint, (unsigned)scanCode, (unsigned)vkCode,
         items[0].value, items[1].value, items[2].value, items[3].value);
 
-    WootingAnalog_KeycodeType targetMode = (WootingAnalog_KeycodeType)currentMode;
-    if (bestIdx >= 0 && bestVal >= 0.015f)
-        targetMode = items[bestIdx].mode;
-    else
-        targetMode = NextKeycodeMode((WootingAnalog_KeycodeType)currentMode);
+    bool foundWorkingMode = (bestIdx >= 0 && bestVal >= 0.015f);
+    if (foundWorkingMode)
+    {
+        WootingAnalog_KeycodeType targetMode = items[bestIdx].mode;
+        // Switch only when the alternative mode is meaningfully better.
+        if ((int)targetMode != currentMode && bestVal > currentVal + 0.01f)
+            SetKeycodeModeWithLog(targetMode, L"auto_probe", hidHint);
+        else
+            wooting_analog_set_keycode_mode((WootingAnalog_KeycodeType)currentMode);
+        return true;
+    }
 
-    if ((int)targetMode != currentMode)
-    {
-        SetKeycodeModeWithLog(targetMode, L"auto_probe", hidHint);
-    }
-    else
-    {
-        // Restore current mode after temporary probe switching.
-        wooting_analog_set_keycode_mode((WootingAnalog_KeycodeType)currentMode);
-    }
+    // Restore current mode after temporary probe switching.
+    wooting_analog_set_keycode_mode((WootingAnalog_KeycodeType)currentMode);
+    return false;
 }
 
 static void LogFullBufferSnapshot(const wchar_t* stage)
@@ -716,8 +807,11 @@ struct HidCache
 {
     std::array<float, 256> raw{};
     std::array<float, 256> filtered{};
+    std::array<float, 256> fullRaw{};
+    std::bitset<256> fullPresent{};
     std::bitset<256> hasRaw{};
     std::bitset<256> hasFiltered{};
+    bool hasFullBuffer = false;
 };
 
 struct SimulatedKeyState
@@ -794,6 +888,8 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
         if (cache.hasRaw.test(hidKeycode))
             return cache.raw[hidKeycode];
 
+        // Per-key read is the primary source. Some SDK/plugin builds can emit
+        // noisy partial full-buffer snapshots that cause visible flicker.
         float v = ReadAnalogByCodeWithDeviceFallback(modeCode, hidKeycode);
         if (v < 0.0f)
         {
@@ -813,6 +909,23 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
                 g_lastAnalogErrorLogMs.store(now, std::memory_order_relaxed);
             }
         }
+
+        // Use full-buffer only as a high-confidence assist in HID mode.
+        if (kEnableFullBufferAssist &&
+            cache.hasFullBuffer &&
+            mode == WootingAnalog_KeycodeType_HID &&
+            cache.fullPresent.test(hidKeycode))
+        {
+            float vf = cache.fullRaw[hidKeycode];
+            if (std::isfinite(vf))
+            {
+                vf = Clamp01(vf);
+                // Ignore low-amplitude full-buffer noise floor (~0.05-0.10).
+                if (vf >= 0.20f && vf > v + 0.12f)
+                    v = vf;
+            }
+        }
+
         if (!std::isfinite(v)) v = 0.0f;
         v = Clamp01(v);
 
@@ -1054,6 +1167,92 @@ static void SetBtn(XUSB_REPORT& report, WORD mask, bool down)
     else      report.wButtons &= ~mask;
 }
 
+static float MouseAxisFromDeltaPx(float deltaPx)
+{
+    // ~96 px of movement per tick ~= full stick at 1.0 sensitivity.
+    const float sens = std::clamp(Settings_GetMouseToStickSensitivity(), 0.1f, 8.0f);
+    float v = (deltaPx * sens) / 96.0f;
+    if (std::fabs(v) < 0.0015f)
+        v = 0.0f;
+    return std::clamp(v, -1.0f, 1.0f);
+}
+
+static bool ReadMouseStickSample(float& outX, float& outY)
+{
+    outX = 0.0f;
+    outY = 0.0f;
+
+    if (!Settings_GetMouseToStickEnabled())
+    {
+        g_mouseHasLastPos = false;
+        g_mouseFilteredX = 0.0f;
+        g_mouseFilteredY = 0.0f;
+        g_mouseLastTickMs = 0;
+        g_mouseRawAccumDx.store(0, std::memory_order_relaxed);
+        g_mouseRawAccumDy.store(0, std::memory_order_relaxed);
+        return false;
+    }
+
+    POINT pt{};
+    if (!GetCursorPos(&pt))
+        return false;
+    ULONGLONG nowMs = GetTickCount64();
+
+    if (!g_mouseHasLastPos)
+    {
+        g_mouseLastPos = pt;
+        g_mouseHasLastPos = true;
+        g_mouseFilteredX = 0.0f;
+        g_mouseFilteredY = 0.0f;
+        g_mouseLastTickMs = nowMs;
+        return false;
+    }
+
+    ULONGLONG dtRaw = (g_mouseLastTickMs > 0 && nowMs > g_mouseLastTickMs) ? (nowMs - g_mouseLastTickMs) : 1ull;
+    g_mouseLastTickMs = nowMs;
+    float dtMs = (float)std::clamp<ULONGLONG>(dtRaw, 1, 25);
+
+    int rawDx = g_mouseRawAccumDx.exchange(0, std::memory_order_acq_rel);
+    int rawDy = g_mouseRawAccumDy.exchange(0, std::memory_order_acq_rel);
+
+    LONG dx = (rawDx != 0) ? (LONG)rawDx : (pt.x - g_mouseLastPos.x);
+    LONG dy = (rawDy != 0) ? (LONG)rawDy : (pt.y - g_mouseLastPos.y);
+    g_mouseLastPos = pt;
+
+    float targetX = MouseAxisFromDeltaPx((float)dx);
+    float targetY = MouseAxisFromDeltaPx((float)-dy); // screen Y is inverted vs stick Y
+
+    auto smoothAxis = [dtMs](float current, float target) -> float
+    {
+        // Fast attack + softer release: removes 0/1-px jitter on slow cursor movement.
+        const float tauAttackMs = 4.0f;
+        const float tauReleaseMs = 11.0f;
+        float tau = (std::fabs(target) >= std::fabs(current)) ? tauAttackMs : tauReleaseMs;
+        if (std::fabs(target) < 0.0001f)
+            tau = tauReleaseMs;
+        float alpha = 1.0f - std::exp(-dtMs / std::max(0.5f, tau));
+        float v = current + (target - current) * alpha;
+        if (std::fabs(v) < 0.0007f) v = 0.0f;
+        return std::clamp(v, -1.0f, 1.0f);
+    };
+
+    g_mouseFilteredX = smoothAxis(g_mouseFilteredX, targetX);
+    g_mouseFilteredY = smoothAxis(g_mouseFilteredY, targetY);
+
+    outX = g_mouseFilteredX;
+    outY = g_mouseFilteredY;
+    return (std::fabs(outX) > 0.0001f || std::fabs(outY) > 0.0001f);
+}
+
+static SHORT MergeStickAxis(SHORT baseAxis, float mouseAxis01)
+{
+    SHORT mouse = StickFromMinus1Plus1(mouseAxis01);
+    if (mouse == 0)
+        return baseAxis;
+    // Mouse should feel immediate, but keep keyboard if stronger on this tick.
+    return (std::abs((int)mouse) >= std::abs((int)baseAxis)) ? mouse : baseAxis;
+}
+
 static bool BtnPressedFromMask(int padIndex, GameButton b, HidCache& cache)
 {
     for (int chunk = 0; chunk < 4; ++chunk)
@@ -1098,6 +1297,24 @@ static XUSB_REPORT BuildReportForPad(int padIndex, HidCache& cache)
     applyAxis(Axis::LY, report.sThumbLY);
     applyAxis(Axis::RX, report.sThumbRX);
     applyAxis(Axis::RY, report.sThumbRY);
+
+    if (padIndex == 0 && Settings_GetMouseToStickEnabled())
+    {
+        float mx = 0.0f, my = 0.0f;
+        if (ReadMouseStickSample(mx, my))
+        {
+            if (Settings_GetMouseToStickTarget() == 0)
+            {
+                report.sThumbLX = MergeStickAxis(report.sThumbLX, mx);
+                report.sThumbLY = MergeStickAxis(report.sThumbLY, my);
+            }
+            else
+            {
+                report.sThumbRX = MergeStickAxis(report.sThumbRX, mx);
+                report.sThumbRY = MergeStickAxis(report.sThumbRY, my);
+            }
+        }
+    }
 
     report.bLeftTrigger = TriggerByte01(ReadFiltered01Cached(Bindings_GetTriggerForPad(padIndex, Trigger::LT), cache));
     report.bRightTrigger = TriggerByte01(ReadFiltered01Cached(Bindings_GetTriggerForPad(padIndex, Trigger::RT), cache));
@@ -1151,6 +1368,15 @@ bool Backend_Init()
     g_deviceChangeReconnectRequested.store(false, std::memory_order_release);
     g_ignoreDeviceChangeUntilMs.store(0, std::memory_order_release);
     g_vigemUpdateFailStreak = 0;
+    g_zeroProbeStreak.store(0, std::memory_order_relaxed);
+    g_autoRecoverTried.store(false, std::memory_order_relaxed);
+    g_keycodeModeLocked.store(false, std::memory_order_relaxed);
+    g_mouseHasLastPos = false;
+    g_mouseFilteredX = 0.0f;
+    g_mouseFilteredY = 0.0f;
+    g_mouseLastTickMs = 0;
+    g_mouseRawAccumDx.store(0, std::memory_order_relaxed);
+    g_mouseRawAccumDy.store(0, std::memory_order_relaxed);
 
     uint32_t initIssues = BackendInitIssue_None;
     int wootingInit = wooting_analog_initialise();
@@ -1235,8 +1461,15 @@ void Backend_Shutdown()
 {
     DebugLog_Write(L"[backend] shutdown");
     g_knownDeviceCount.store(0, std::memory_order_relaxed);
+    g_mouseHasLastPos = false;
+    g_mouseFilteredX = 0.0f;
+    g_mouseFilteredY = 0.0f;
+    g_mouseLastTickMs = 0;
+    g_mouseRawAccumDx.store(0, std::memory_order_relaxed);
+    g_mouseRawAccumDy.store(0, std::memory_order_relaxed);
     g_reconnectRequested.store(false, std::memory_order_release);
     g_deviceChangeReconnectRequested.store(false, std::memory_order_release);
+    g_keycodeModeLocked.store(false, std::memory_order_relaxed);
     g_vigemUpdateFailStreak = 0;
     Vigem_Destroy();
     wooting_analog_uninitialise();
@@ -1266,6 +1499,57 @@ void Backend_Tick()
 
     HidCache cache;
     static uint32_t s_lastHandledKeyEventSeq = 0;
+
+    // Build per-tick raw map from full buffer (most robust on newer SDK/plugin stacks).
+    // Works directly for HID mode because returned keycodes are HID identifiers.
+    if (kEnableFullBufferAssist)
+    {
+        WootingAnalog_KeycodeType mode = (WootingAnalog_KeycodeType)g_keycodeMode.load(std::memory_order_relaxed);
+        if (mode == WootingAnalog_KeycodeType_HID)
+        {
+            unsigned short codes[128]{};
+            float vals[128]{};
+            int ret = wooting_analog_read_full_buffer(codes, vals, (unsigned)_countof(codes));
+            if (ret >= 0)
+            {
+                int n = std::min(ret, (int)_countof(codes));
+                cache.hasFullBuffer = true;
+                for (int i = 0; i < n; ++i)
+                {
+                    unsigned short code = codes[i];
+                    if (code >= 256) continue;
+                    float v = vals[i];
+                    if (!std::isfinite(v)) continue;
+                    v = Clamp01(v);
+                    cache.fullPresent.set(code);
+                    if (v > cache.fullRaw[code])
+                        cache.fullRaw[code] = v;
+                }
+
+                // Merge per-device buffers too, taking max value per HID.
+                int ndev = std::clamp(g_knownDeviceCount.load(std::memory_order_relaxed), 0, (int)g_knownDeviceIds.size());
+                for (int di = 0; di < ndev; ++di)
+                {
+                    unsigned short dcodes[128]{};
+                    float dvals[128]{};
+                    int dret = wooting_analog_read_full_buffer_device(dcodes, dvals, (unsigned)_countof(dcodes), g_knownDeviceIds[di]);
+                    if (dret < 0) continue;
+                    int dn = std::min(dret, (int)_countof(dcodes));
+                    for (int i = 0; i < dn; ++i)
+                    {
+                        unsigned short code = dcodes[i];
+                        if (code >= 256) continue;
+                        float v = dvals[i];
+                        if (!std::isfinite(v)) continue;
+                        v = Clamp01(v);
+                        cache.fullPresent.set(code);
+                        if (v > cache.fullRaw[code])
+                            cache.fullRaw[code] = v;
+                    }
+                }
+            }
+        }
+    }
 
     int cnt = g_trackedCount.load(std::memory_order_acquire);
     cnt = std::clamp(cnt, 0, 256);
@@ -1333,10 +1617,11 @@ void Backend_Tick()
         LogFullBufferSnapshot(L"periodic");
     }
 
-    // Adaptive mode probe: if we see a physical key-down but still read zero analog
-    // for that HID in the current mode, cycle keycode mode once.
+    // Probe keycode mode only via per-key event reads; full-buffer based probing
+    // is intentionally avoided because some SDK/plugin versions expose noisy,
+    // non-key-specific full-buffer activity.
     uint32_t keySeq = g_keyboardEventSeq.load(std::memory_order_acquire);
-    if (keySeq != s_lastHandledKeyEventSeq)
+    if (kEnableAdaptiveKeycodeModeProbe && keySeq != s_lastHandledKeyEventSeq)
     {
         s_lastHandledKeyEventSeq = keySeq;
         uint16_t hidHint = g_keyboardEventHid.load(std::memory_order_relaxed);
@@ -1357,30 +1642,17 @@ void Backend_Tick()
 
         ULONGLONG now = GetTickCount64();
         ULONGLONG lastSwitch = g_lastKeycodeSwitchMs.load(std::memory_order_relaxed);
-        if (hidHint != 0 && probe <= 0.001f && now - lastSwitch >= 250)
-        {
-            int streak = g_zeroProbeStreak.fetch_add(1, std::memory_order_relaxed) + 1;
-            AutoProbeKeycodeModeFromEvent(hidHint, scanHint, vkHint);
-            LogFullBufferSnapshot(L"after_probe");
-
-            if (streak >= 24 && !g_autoRecoverTried.exchange(true, std::memory_order_relaxed))
-            {
-                DebugLog_Write(L"[backend.recover] zero_probe_streak=%d -> reinit sdk", streak);
-                wooting_analog_uninitialise();
-                int re = wooting_analog_initialise();
-                DebugLog_Write(L"[backend.recover] reinit ret=%d", re);
-                if (re >= 0)
-                {
-                    SetKeycodeModeWithLog(WootingAnalog_KeycodeType_HID, L"reinit", hidHint);
-                    LogWootingStateSnapshot(L"after_reinit");
-                    LogConnectedDevicesDetailed(L"after_reinit");
-                    LogFullBufferSnapshot(L"after_reinit");
-                }
-            }
-        }
-        else if (probe > 0.001f)
+        if (hidHint != 0 && probe > 0.02f)
         {
             g_zeroProbeStreak.store(0, std::memory_order_relaxed);
+            g_keycodeModeLocked.store(false, std::memory_order_relaxed);
+        }
+        else if (hidHint != 0 && probe <= 0.001f && now - lastSwitch >= 120)
+        {
+            g_zeroProbeStreak.fetch_add(1, std::memory_order_relaxed);
+            bool found = AutoProbeKeycodeModeFromEvent(hidHint, scanHint, vkHint);
+            if (found)
+                LogFullBufferSnapshot(L"after_probe_found");
         }
     }
 
@@ -1676,6 +1948,30 @@ void Backend_NotifyKeyboardEvent(
     g_keyboardEventScan.store(scanCode, std::memory_order_relaxed);
     g_keyboardEventVk.store(vkCode, std::memory_order_relaxed);
     g_keyboardEventSeq.fetch_add(1u, std::memory_order_release);
+}
+
+void Backend_AddMouseDelta(int dx, int dy)
+{
+    if (dx != 0)
+    {
+        int old = g_mouseRawAccumDx.load(std::memory_order_relaxed);
+        for (;;)
+        {
+            int nxt = std::clamp(old + dx, -32768, 32767);
+            if (g_mouseRawAccumDx.compare_exchange_weak(old, nxt, std::memory_order_release, std::memory_order_relaxed))
+                break;
+        }
+    }
+    if (dy != 0)
+    {
+        int old = g_mouseRawAccumDy.load(std::memory_order_relaxed);
+        for (;;)
+        {
+            int nxt = std::clamp(old + dy, -32768, 32767);
+            if (g_mouseRawAccumDy.compare_exchange_weak(old, nxt, std::memory_order_release, std::memory_order_relaxed))
+                break;
+        }
+    }
 }
 
 void Backend_SetVirtualGamepadCount(int count)

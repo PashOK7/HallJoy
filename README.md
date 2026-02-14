@@ -65,6 +65,26 @@ On missing dependencies, HallJoy can prompt to download/install them automatical
 - If HallJoy starts normally but all analog values stay at `0`, check your keyboard firmware/software mode first.
 - Some keyboards disable analog output for the Wooting SDK when `Turbo mode` (or similar performance mode) is enabled.
 - Disable `Turbo mode`, then restart HallJoy and test again.
+- Recent Universal Analog Plugin releases may include multiple plugin folders (`universal-analog-plugin` and `universal-analog-plugin-with-wooting-device-support`).
+- For non-Wooting keyboards, use `universal-analog-plugin` (do not install both variants at the same time).
+- If analog stops working after a plugin update, reinstall UAP and keep only one plugin variant in `C:\Program Files\WootingAnalogPlugins`.
+
+### Roll Back Wooting SDK Runtime (quick)
+
+If a newer Wooting SDK release causes unstable input/flicker, you can download and install an older runtime into this repo:
+
+1. List available tags:
+   - `powershell -ExecutionPolicy Bypass -File .\tools\rollback-wooting-sdk.ps1 -ListOnly`
+2. Install a specific tag (example `v0.8.0`):
+   - `powershell -ExecutionPolicy Bypass -File .\tools\rollback-wooting-sdk.ps1 -Tag v0.8.0`
+3. Rebuild in VS (`Release | x64`) and run again.
+
+The script updates DLLs in:
+- `runtime\`
+- `x64\Release\` (if present)
+- `x64\Debug\` (if present)
+
+It also creates automatic backups under `runtime\backup\...`.
 
 ## Config Files
 

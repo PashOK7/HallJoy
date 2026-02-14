@@ -117,7 +117,7 @@ HWND BindPanel_Create(HWND parent, HINSTANCE hInst)
     SendMessageW(g_btnClear, WM_SETFONT, (WPARAM)hFont, TRUE);
 
     // still load automatically at startup
-    Profile_LoadIni(AppPaths_BindingsIni().c_str());
+    Profile_LoadIni(AppPaths_ActiveBindingsIni().c_str());
     return g_lblSelected;
 }
 
@@ -134,14 +134,14 @@ bool BindPanel_HandleCommand(HWND parent, WPARAM wParam, LPARAM)
     if (id == ID_BIND)
     {
         BindingActions_Apply(GetSelectedAction(), g_selectedHid);
-        Profile_SaveIni(AppPaths_BindingsIni().c_str()); // autosave
+        Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str()); // autosave
         InvalidateRect(parent, nullptr, FALSE);
         return true;
     }
     if (id == ID_CLEAR)
     {
         Bindings_ClearHid(g_selectedHid);
-        Profile_SaveIni(AppPaths_BindingsIni().c_str()); // autosave
+        Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str()); // autosave
         InvalidateRect(parent, nullptr, FALSE);
         return true;
     }

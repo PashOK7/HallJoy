@@ -1,4 +1,4 @@
-﻿// keyboard_page_main.cpp
+// keyboard_page_main.cpp
 #ifndef _WIN32_IE
 #define _WIN32_IE 0x0600
 #endif
@@ -262,6 +262,7 @@ static void ShowSubPage(int idx)
     if (g_hPageConfig) ShowWindow(g_hPageConfig, idx == 1 ? SW_SHOW : SW_HIDE);
     if (g_hPageTester) ShowWindow(g_hPageTester, idx == 2 ? SW_SHOW : SW_HIDE);
     if (g_hPageGlobal) ShowWindow(g_hPageGlobal, idx == 3 ? SW_SHOW : SW_HIDE);
+    if (g_hPageMouse)  ShowWindow(g_hPageMouse, idx == 4 ? SW_SHOW : SW_HIDE);
 
     if (g_hSubTab) InvalidateRect(g_hSubTab, nullptr, FALSE);
 }
@@ -302,6 +303,9 @@ static void ResizeSubUi(HWND hWnd)
 
     if (g_hPageGlobal)
         SetWindowPos(g_hPageGlobal, nullptr, tabRc.left, tabRc.top, pw, ph, SWP_NOZORDER);
+
+    if (g_hPageMouse)
+        SetWindowPos(g_hPageMouse, nullptr, tabRc.left, tabRc.top, pw, ph, SWP_NOZORDER);
 }
 
 // ----- Right-click unbind on key button + drag bound icon (subclass) -----
@@ -698,7 +702,7 @@ static void SwapFly_Stop(bool commit)
         if (g_swapfly.srcHid != 0)
         {
             BindingActions_ApplyForPad(g_swapfly.pendingPadIndex, g_swapfly.pendingAct, g_swapfly.srcHid);
-            Profile_SaveIni(AppPaths_BindingsIni().c_str());
+            Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
         }
 
         InvalidateKeyByHid(g_swapfly.srcHid);
@@ -1583,7 +1587,7 @@ static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, L
 
                 // Logical unbind happens immediately (visual is handled by overlay ghost)
                 Bindings_ClearHidForPad(padIndex, hid);
-                Profile_SaveIni(AppPaths_BindingsIni().c_str());
+                Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
                 InvalidateRect(hBtn, nullptr, FALSE);
             }
         }
@@ -1679,7 +1683,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
     {
         HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
 
-        Profile_LoadIni(AppPaths_BindingsIni().c_str());
+        Profile_LoadIni(AppPaths_ActiveBindingsIni().c_str());
 
         RebuildKeyboardButtons(hWnd);
 
@@ -1705,6 +1709,9 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 
         tie.pszText = (LPWSTR)L"Global settings";
         TabCtrl_InsertItem(g_hSubTab, 3, &tie);
+
+        tie.pszText = (LPWSTR)L"Mouse settings";
+        TabCtrl_InsertItem(g_hSubTab, 4, &tie);
 
         g_hPageRemap = RemapPanel_Create(g_hSubTab, hInst, hWnd);
 
@@ -1751,6 +1758,21 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
             glbReg = true;
         }
         g_hPageGlobal = CreateWindowW(L"KeyboardSubGlobalSettingsPage", L"",
+            WS_CHILD | WS_CLIPCHILDREN, 0, 0, 100, 100, g_hSubTab, nullptr, hInst, nullptr);
+
+        static bool mouseReg = false;
+        if (!mouseReg)
+        {
+            WNDCLASSW wc{};
+            wc.lpfnWndProc = KeyboardSubpages_MouseSettingsPageProc;
+            wc.hInstance = hInst;
+            wc.lpszClassName = L"KeyboardSubMouseSettingsPage";
+            wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+            wc.hbrBackground = nullptr;
+            RegisterClassW(&wc);
+            mouseReg = true;
+        }
+        g_hPageMouse = CreateWindowW(L"KeyboardSubMouseSettingsPage", L"",
             WS_CHILD | WS_CLIPCHILDREN, 0, 0, 100, 100, g_hSubTab, nullptr, hInst, nullptr);
 
         ResizeSubUi(hWnd);
@@ -1818,7 +1840,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                 {
                     // Unbind immediately
                     Bindings_ClearHidForPad(srcPadIndex, src);
-                    Profile_SaveIni(AppPaths_BindingsIni().c_str());
+                    Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
                     InvalidateKeyByHid(src);
 
                     // Visual: shrink dragged ghost to zero (instead of instant hide)
@@ -1854,7 +1876,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                     if (!SwapFly_Start(hWnd, src, dst, dstAct, srcPadIndex))
                     {
                         BindingActions_ApplyForPad(srcPadIndex, dstAct, src);
-                        Profile_SaveIni(AppPaths_BindingsIni().c_str());
+                        Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
                         InvalidateKeyByHid(src);
                         InvalidateKeyByHid(dst);
                     }
@@ -1871,7 +1893,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                     if (ActionToGameButton(srcAct, gb))
                     {
                         Bindings_RemoveButtonHidForPad(srcPadIndex, gb, src);
-                        Profile_SaveIni(AppPaths_BindingsIni().c_str());
+                        Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
                         InvalidateKeyByHid(src);
                         InvalidateKeyByHid(dst);
                         return 0;
@@ -1887,13 +1909,13 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                             Bindings_RemoveButtonHidForPad(srcPadIndex, gb, src);
 
                         BindingActions_ApplyForPad(srcPadIndex, srcAct, dst);
-                        Profile_SaveIni(AppPaths_BindingsIni().c_str());
+                        Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
                     }
                 }
                 else
                 {
                     BindingActions_ApplyForPad(srcPadIndex, srcAct, dst);
-                    Profile_SaveIni(AppPaths_BindingsIni().c_str());
+                    Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
                 }
 
                 InvalidateKeyByHid(src);

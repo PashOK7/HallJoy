@@ -2207,7 +2207,7 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
                     // Remove selected pad and keep following pads (shift left).
                     Bindings_RemovePadAndCompact(packIdx, st->gamepadPacks);
-                    Profile_SaveIni(AppPaths_BindingsIni().c_str());
+                    Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
                     Settings_SetVirtualGamepadCount(newCount);
                     Backend_SetVirtualGamepadCount(newCount);
 
@@ -2255,7 +2255,7 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
             {
                 // Apply binding immediately
                 BindingActions_ApplyForPad(st->dragPadIndex, act, newHid);
-                Profile_SaveIni(AppPaths_BindingsIni().c_str());
+                Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
                 InvalidateHidKey(oldHid);
                 InvalidateHidKey(newHid);
                 if (st->hKeyboardHost) InvalidateRect(st->hKeyboardHost, nullptr, FALSE);

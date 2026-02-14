@@ -172,6 +172,7 @@
     <ClInclude Include="HallJoy.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="gamepad_render.h" />
+    <ClInclude Include="global_profiles.h" />
     <ClInclude Include="ini_util.h" />
     <ClInclude Include="keyboard_bind_panel.h" />
     <ClInclude Include="keyboard_keysettings_panel.h" />
@@ -220,6 +221,7 @@
     <ClCompile Include="curve_math.cpp" />
     <ClCompile Include="debug_log.cpp" />
     <ClCompile Include="gamepad_render.cpp" />
+    <ClCompile Include="global_profiles.cpp" />
     <ClCompile Include="ini_util.cpp" />
     <ClCompile Include="keyboard_bind_panel.cpp" />
     <ClCompile Include="keyboard_keysettings_panel.cpp" />

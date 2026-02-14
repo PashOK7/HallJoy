@@ -12,6 +12,8 @@
 #include "keyboard_keysettings_panel_internal.h"
 #include "settings.h"
 #include "key_settings.h"
+#include "global_profiles.h"
+#include "keyboard_ui_state.h"
 
 // Shared curve math (single source of truth with UI graph + backend)
 #include "curve_math.h"
@@ -20,6 +22,7 @@
 #include "premium_combo.h"
 
 static constexpr UINT WM_APP_REQUEST_SAVE = WM_APP + 1;
+static constexpr UINT WM_APP_GLOBAL_PROFILE_DIRTY = WM_APP + 122;
 
 static void RedrawNoErase(HWND h)
 {
@@ -498,6 +501,10 @@ void Ksp_SyncUI()
 
 void Ksp_RequestSave(HWND parent)
 {
+    GlobalProfiles_SetDirty(true);
+    if (g_hPageGlobal && IsWindow(g_hPageGlobal))
+        PostMessageW(g_hPageGlobal, WM_APP_GLOBAL_PROFILE_DIRTY, 0, 0);
+
     HWND root = GetAncestor(parent, GA_ROOT);
     if (root) PostMessageW(root, WM_APP_REQUEST_SAVE, 0, 0);
 }

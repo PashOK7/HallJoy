@@ -36,6 +36,8 @@
 #include "app_paths.h"
 #include "ui_theme.h"
 #include "debug_log.h"
+#include "mouse_ipc.h"
+#include "mouse_bind_codes.h"
 
 #pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "Urlmon.lib")
@@ -731,6 +733,15 @@ static bool IsMouseBlockingActiveNow()
     return true;
 }
 
+static void PublishMouseIpcState()
+{
+    bool mts = Settings_GetMouseToStickEnabled();
+    bool blockWanted = Settings_GetBlockMouseInput() && mts;
+    bool active = IsMouseBlockingActiveNow();
+    bool pause = g_mouseBlockPauseByRShift.load(std::memory_order_relaxed);
+    MouseIpc_PublishState(blockWanted, active, mts, pause);
+}
+
 static void UpdateMouseCursorLockState(bool blockNow)
 {
     if (!blockNow)
@@ -891,7 +902,10 @@ static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM l
                 (k->flags & LLKHF_INJECTED) != 0);
 
             if (hid == 229)
+            {
                 g_mouseBlockPauseByRShift.store(isDown, std::memory_order_relaxed);
+                PublishMouseIpcState();
+            }
 
             if (isDown && k->vkCode == VK_DELETE)
             {
@@ -901,6 +915,7 @@ static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM l
                 {
                     Settings_SetMouseToStickEnabled(false);
                     DebugLog_Write(L"[app] Ctrl+Alt+Del detected: Mouse->Stick disabled");
+                    PublishMouseIpcState();
                     if (g_hMainWnd && IsWindow(g_hMainWnd))
                         PostMessageW(g_hMainWnd, WM_APP_REQUEST_SAVE, 0, 0);
                 }
@@ -925,6 +940,42 @@ static LRESULT CALLBACK MouseBlockHookProc(int nCode, WPARAM wParam, LPARAM lPar
     if (nCode == HC_ACTION && lParam)
     {
         const MSLLHOOKSTRUCT* m = (const MSLLHOOKSTRUCT*)lParam;
+        if ((m->flags & LLMHF_INJECTED) == 0)
+        {
+            switch (wParam)
+            {
+            case WM_LBUTTONDOWN: Backend_SetMouseBindButtonState(kMouseBindHidLButton, true); break;
+            case WM_LBUTTONUP: Backend_SetMouseBindButtonState(kMouseBindHidLButton, false); break;
+            case WM_RBUTTONDOWN: Backend_SetMouseBindButtonState(kMouseBindHidRButton, true); break;
+            case WM_RBUTTONUP: Backend_SetMouseBindButtonState(kMouseBindHidRButton, false); break;
+            case WM_MBUTTONDOWN: Backend_SetMouseBindButtonState(kMouseBindHidMButton, true); break;
+            case WM_MBUTTONUP: Backend_SetMouseBindButtonState(kMouseBindHidMButton, false); break;
+            case WM_XBUTTONDOWN:
+            {
+                WORD xb = HIWORD(m->mouseData);
+                if (xb == XBUTTON1) Backend_SetMouseBindButtonState(kMouseBindHidX1, true);
+                else if (xb == XBUTTON2) Backend_SetMouseBindButtonState(kMouseBindHidX2, true);
+                break;
+            }
+            case WM_XBUTTONUP:
+            {
+                WORD xb = HIWORD(m->mouseData);
+                if (xb == XBUTTON1) Backend_SetMouseBindButtonState(kMouseBindHidX1, false);
+                else if (xb == XBUTTON2) Backend_SetMouseBindButtonState(kMouseBindHidX2, false);
+                break;
+            }
+            case WM_MOUSEWHEEL:
+            {
+                short d = GET_WHEEL_DELTA_WPARAM(m->mouseData);
+                if (d > 0) Backend_PulseMouseBindWheel(kMouseBindHidWheelUp);
+                else if (d < 0) Backend_PulseMouseBindWheel(kMouseBindHidWheelDown);
+                break;
+            }
+            default:
+                break;
+            }
+        }
+
         bool blockNow = IsMouseBlockingActiveNow();
         UpdateMouseCursorLockState(blockNow);
 
@@ -1060,6 +1111,10 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             RealtimeLoop_Start();
         ApplyTimingSettings(hwnd);
 
+        if (!MouseIpc_InitPublisher())
+            DebugLog_Write(L"[app] mouse ipc init failed");
+        PublishMouseIpcState();
+
         // Receive raw mouse deltas even when this window is not focused.
         RAWINPUTDEVICE rid{};
         rid.usUsagePage = HID_USAGE_PAGE_GENERIC;
@@ -1120,6 +1175,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     case WM_TIMER:
         if (wParam == UI_TIMER_ID)
         {
+            PublishMouseIpcState();
             if (g_backendReady && !g_digitalFallbackWarnShown && Backend_ConsumeDigitalFallbackWarning())
             {
                 g_digitalFallbackWarnShown = true;
@@ -1161,6 +1217,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         DebugLog_Write(L"[app] WM_DESTROY");
         g_mouseBlockPauseByRShift.store(false, std::memory_order_relaxed);
         g_mouseCursorLocked = false;
+        MouseIpc_ShutdownPublisher();
         KillTimer(hwnd, UI_TIMER_ID);
         KillTimer(hwnd, SETTINGS_SAVE_TIMER_ID);
 

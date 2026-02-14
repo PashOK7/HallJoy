@@ -20,6 +20,7 @@
 #include "backend.h"
 #include "keyboard_ui_internal.h"
 #include "keyboard_ui_state.h"
+#include "settings.h"
 
 // NEW: for premium partial invalidation of graph (live marker updates)
 #include "keyboard_keysettings_panel.h"
@@ -29,6 +30,7 @@
 
 // created in keyboard_page_main.cpp
 extern "C" HWND KeyboardPageMain_CreatePage(HWND hParent, HINSTANCE hInst);
+static constexpr UINT WM_APP_SYNC_MOUSE_SLOTS = WM_APP + 360;
 
 // ---------- shared state (defined here) ----------
 std::array<HWND, 256> g_btnByHid{};
@@ -172,6 +174,19 @@ void KeyboardUI_OnTimerTick(HWND)
     if (g_hPageRemap) root = GetAncestor(g_hPageRemap, GA_ROOT);
     if (!root || !IsWindowVisible(root) || IsIconic(root))
         return;
+
+    static bool s_lastMouseSlotsState = false;
+    bool mouseSlotsState = Settings_GetMouseToStickEnabled();
+    if (mouseSlotsState != s_lastMouseSlotsState)
+    {
+        s_lastMouseSlotsState = mouseSlotsState;
+        if (g_hSubTab)
+        {
+            HWND hMainPage = GetParent(g_hSubTab);
+            if (hMainPage)
+                PostMessageW(hMainPage, WM_APP_SYNC_MOUSE_SLOTS, 0, 0);
+        }
+    }
 
     for (int chunk = 0; chunk < 4; ++chunk)
     {

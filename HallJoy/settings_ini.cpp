@@ -303,6 +303,9 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     int mouseToStickEnabledDef = profileOnly ? 0 : (Settings_GetMouseToStickEnabled() ? 1 : 0);
     int mouseToStickTargetDef = profileOnly ? 1 : Settings_GetMouseToStickTarget();
     float mouseToStickSensDef = profileOnly ? 1.0f : Settings_GetMouseToStickSensitivity();
+    float mouseToStickAggDef = profileOnly ? 1.0f : Settings_GetMouseToStickAggressiveness();
+    float mouseToStickMaxOffsetDef = profileOnly ? 2.5f : Settings_GetMouseToStickMaxOffset();
+    float mouseToStickFollowSpeedDef = profileOnly ? 1.0f : Settings_GetMouseToStickFollowSpeed();
 
     float low = IniReadFloat1000(L"Input", L"DeadzoneLow", lowDef, path);
     float high = IniReadFloat1000(L"Input", L"DeadzoneHigh", highDef, path);
@@ -336,6 +339,9 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     int mouseToStickEnabled = GetPrivateProfileIntW(L"Main", L"MouseToStickEnabled", mouseToStickEnabledDef, path);
     int mouseToStickTarget = GetPrivateProfileIntW(L"Main", L"MouseToStickTarget", mouseToStickTargetDef, path);
     float mouseToStickSensitivity = IniReadFloat1000(L"Main", L"MouseToStickSensitivity", mouseToStickSensDef, path);
+    float mouseToStickAggressiveness = IniReadFloat1000(L"Main", L"MouseToStickAggressiveness", mouseToStickAggDef, path);
+    float mouseToStickMaxOffset = IniReadFloat1000(L"Main", L"MouseToStickMaxOffset", mouseToStickMaxOffsetDef, path);
+    float mouseToStickFollowSpeed = IniReadFloat1000(L"Main", L"MouseToStickFollowSpeed", mouseToStickFollowSpeedDef, path);
     int winW = Settings_GetMainWindowWidthPx();
     int winH = Settings_GetMainWindowHeightPx();
     int winX = std::numeric_limits<int>::min();
@@ -378,6 +384,9 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     Settings_SetMouseToStickEnabled(mouseToStickEnabled != 0);
     Settings_SetMouseToStickTarget(mouseToStickTarget);
     Settings_SetMouseToStickSensitivity(mouseToStickSensitivity);
+    Settings_SetMouseToStickAggressiveness(mouseToStickAggressiveness);
+    Settings_SetMouseToStickMaxOffset(mouseToStickMaxOffset);
+    Settings_SetMouseToStickFollowSpeed(mouseToStickFollowSpeed);
     if (loadWindow)
     {
         Settings_SetMainWindowWidthPx(winW);
@@ -441,6 +450,9 @@ static bool SettingsIni_Save_Internal(const wchar_t* tmpPath, bool saveWindow, b
     IniWriteI32(L"Main", L"MouseToStickEnabled", Settings_GetMouseToStickEnabled() ? 1 : 0, tmpPath);
     IniWriteI32(L"Main", L"MouseToStickTarget", Settings_GetMouseToStickTarget(), tmpPath);
     IniWriteFloat1000(L"Main", L"MouseToStickSensitivity", Settings_GetMouseToStickSensitivity(), tmpPath);
+    IniWriteFloat1000(L"Main", L"MouseToStickAggressiveness", Settings_GetMouseToStickAggressiveness(), tmpPath);
+    IniWriteFloat1000(L"Main", L"MouseToStickMaxOffset", Settings_GetMouseToStickMaxOffset(), tmpPath);
+    IniWriteFloat1000(L"Main", L"MouseToStickFollowSpeed", Settings_GetMouseToStickFollowSpeed(), tmpPath);
     if (saveActiveProfileKey)
         WritePrivateProfileStringW(L"Main", L"ActiveGlobalProfile", GlobalProfiles_GetActiveName().c_str(), tmpPath);
 

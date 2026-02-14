@@ -36,14 +36,54 @@
 #include "remap_icons.h"
 #include "settings.h"
 #include "key_settings.h" // NEW
+#include "mouse_bind_codes.h"
 
 #pragma comment(lib, "Comctl32.lib")
+
+static constexpr UINT WM_APP_SYNC_MOUSE_SLOTS = WM_APP + 360;
 
 // Scaling shortcut
 static int S(HWND hwnd, int px) { return WinUtil_ScalePx(hwnd, px); }
 static void SetSelectedHid(uint16_t hid);
 static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, LPARAM lParam,
     UINT_PTR, DWORD_PTR dwRefData);
+
+static constexpr uint16_t kMouseSlotHids[] = {
+    kMouseBindHidLButton,
+    kMouseBindHidRButton,
+    kMouseBindHidMButton,
+    kMouseBindHidX1,
+    kMouseBindHidX2,
+    kMouseBindHidWheelUp,
+    kMouseBindHidWheelDown
+};
+static std::vector<HWND> g_mouseButtons;
+static bool g_mouseSlotsVisible = false;
+
+static bool MouseSlotsShouldBeVisible()
+{
+    return Settings_GetMouseToStickEnabled();
+}
+
+static void ComputeMousePanelRect(HWND hWnd, RECT& outRc);
+
+static void RefreshTrackedHids()
+{
+    std::vector<uint16_t> tracked;
+    tracked.reserve(g_hids.size() + _countof(kMouseSlotHids));
+    for (uint16_t hid : g_hids)
+    {
+        if (hid == 0 || hid >= 256) continue;
+        if (MouseBind_IsPseudoHid(hid)) continue;
+        tracked.push_back(hid);
+    }
+    if (g_mouseSlotsVisible)
+    {
+        for (uint16_t hid : kMouseSlotHids)
+            tracked.push_back(hid);
+    }
+    BackendUI_SetTrackedHids(tracked.data(), (int)tracked.size());
+}
 
 struct KeyboardViewMetrics
 {
@@ -79,12 +119,16 @@ static void ComputeKeyboardViewMetrics(HWND hWnd, KeyboardViewMetrics& out)
     int cw = std::max(1, (int)(rc.right - rc.left));
     int ch = std::max(1, (int)(rc.bottom - rc.top));
 
-    int sidePad = S(hWnd, 24);
+    int leftPad = S(hWnd, 12);
+    int rightPad = S(hWnd, 12);
     int topPad = S(hWnd, 8);
     int bottomPad = S(hWnd, 12);
     int minSubH = S(hWnd, 170);
 
-    int availW = std::max(1, cw - sidePad);
+    int reservedMouseW = MouseSlotsShouldBeVisible() ? S(hWnd, 176) : 0;
+    int availW = std::max(1, cw - leftPad - rightPad - reservedMouseW);
+    if (MouseSlotsShouldBeVisible())
+        availW = std::max(1, availW);
     int availH = std::max(1, ch - topPad - bottomPad - minSubH);
 
     float sx = (float)availW / (float)baseW;
@@ -95,13 +139,28 @@ static void ComputeKeyboardViewMetrics(HWND hWnd, KeyboardViewMetrics& out)
     out.scaledW = std::max(1, (int)std::lround((double)baseW * out.scale));
     out.scaledH = std::max(1, (int)std::lround((double)baseH * out.scale));
 
-    if (out.scale >= 0.999f)
-        out.offsetX = 0; // keep stable position at native size to avoid resize jitter/flicker
-    else
-        out.offsetX = std::max(0, (cw - out.scaledW) / 2);
+    // Keep keyboard left-aligned; center mode caused overlap and awkward spacing
+    // when right-side mouse panel is visible.
+    out.offsetX = leftPad;
     out.offsetY = topPad;
     if (out.offsetY + out.scaledH > ch - bottomPad)
         out.offsetY = std::max(0, (ch - bottomPad) - out.scaledH);
+}
+
+static void ComputeMousePanelRect(HWND hWnd, RECT& outRc)
+{
+    RECT rc{};
+    GetClientRect(hWnd, &rc);
+    KeyboardViewMetrics m{};
+    ComputeKeyboardViewMetrics(hWnd, m);
+    int panelW = S(hWnd, 156);
+    int rightPad = S(hWnd, 12);
+    outRc.right = rc.right - rightPad;
+    outRc.left = outRc.right - panelW;
+    outRc.top = m.offsetY + S(hWnd, 10);
+    outRc.bottom = outRc.top + std::max(S(hWnd, 190), m.scaledH - S(hWnd, 8));
+    if (outRc.left < S(hWnd, 8))
+        outRc.left = S(hWnd, 8);
 }
 
 static void DestroyKeyboardButtons()
@@ -114,6 +173,134 @@ static void DestroyKeyboardButtons()
     g_keyButtons.clear();
     g_btnByHid.fill(nullptr);
     g_hids.clear();
+}
+
+static void DestroyMouseButtons()
+{
+    for (HWND b : g_mouseButtons)
+    {
+        if (b && IsWindow(b))
+            DestroyWindow(b);
+    }
+    g_mouseButtons.clear();
+    for (uint16_t hid : kMouseSlotHids)
+    {
+        if (hid < 256)
+            g_btnByHid[hid] = nullptr;
+    }
+    g_mouseSlotsVisible = false;
+}
+
+static void EnsureMouseButtons(HWND hWnd)
+{
+    if (!MouseSlotsShouldBeVisible())
+    {
+        if (!g_mouseButtons.empty())
+            DestroyMouseButtons();
+        return;
+    }
+
+    HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
+    if (!g_mouseButtons.empty())
+    {
+        g_mouseSlotsVisible = true;
+        return;
+    }
+
+    static const wchar_t* kLabels[] = { L"LMB", L"RMB", L"MMB", L"X1", L"X2", L"W+", L"W-" };
+    for (int i = 0; i < (int)_countof(kMouseSlotHids); ++i)
+    {
+        uint16_t hid = kMouseSlotHids[i];
+        HWND b = CreateWindowW(L"BUTTON", kLabels[i],
+            WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+            0, 0, 10, 10,
+            hWnd, nullptr, hInst, nullptr);
+        SetWindowLongPtrW(b, GWLP_USERDATA, (LONG_PTR)hid);
+        SetWindowSubclass(b, KeyBtnSubclassProc, 1, (DWORD_PTR)hid);
+        g_mouseButtons.push_back(b);
+        if (hid < 256)
+            g_btnByHid[hid] = b;
+    }
+    g_mouseSlotsVisible = true;
+}
+
+static void LayoutMouseButtons(HWND hWnd)
+{
+    if (g_mouseButtons.empty()) return;
+
+    RECT panel{};
+    ComputeMousePanelRect(hWnd, panel);
+
+    const int panelW = std::max<int>(1, (int)(panel.right - panel.left));
+    const int panelH = std::max<int>(1, (int)(panel.bottom - panel.top));
+
+    // Base design (used to derive proportional scaling on resize):
+    // width=156, height=220, gap=8, slot=42x34.
+    const float sx = (float)panelW / 156.0f;
+    const float sy = (float)panelH / 220.0f;
+    const float s = std::clamp(std::min(sx, sy), 0.60f, 1.45f);
+
+    const int gap = std::max(3, (int)std::lround((double)S(hWnd, 8) * s));
+    const int bw = std::max(std::max(20, S(hWnd, 24)), (int)std::lround((double)S(hWnd, 42) * s));
+    const int bh = std::max(std::max(18, S(hWnd, 20)), (int)std::lround((double)S(hWnd, 34) * s));
+
+    const int cx = (panel.left + panel.right) / 2;
+    const int y0 = panel.top + std::max(10, (int)std::lround((double)S(hWnd, 24) * s));
+    const int rowStep = bh + gap;
+
+    RECT slots[7]{};
+    slots[0] = RECT{ panel.left + gap, y0, panel.left + gap + bw, y0 + bh };                     // LMB
+    slots[1] = RECT{ panel.right - gap - bw, y0, panel.right - gap, y0 + bh };                   // RMB
+    slots[2] = RECT{ cx - bw / 2, y0 + rowStep, cx + bw / 2, y0 + rowStep + bh };                // MMB
+    slots[3] = RECT{ panel.left + gap, y0 + rowStep * 2, panel.left + gap + bw, y0 + rowStep * 2 + bh }; // X1
+    slots[4] = RECT{ panel.right - gap - bw, y0 + rowStep * 2, panel.right - gap, y0 + rowStep * 2 + bh }; // X2
+    slots[5] = RECT{ cx - bw / 2, y0 + rowStep * 3, cx + bw / 2, y0 + rowStep * 3 + bh };        // W+
+    slots[6] = RECT{ cx - bw / 2, y0 + rowStep * 4, cx + bw / 2, y0 + rowStep * 4 + bh };        // W-
+
+    HDWP hdwp = BeginDeferWindowPos((int)g_mouseButtons.size());
+    for (int i = 0; i < (int)g_mouseButtons.size() && i < 7; ++i)
+    {
+        HWND b = g_mouseButtons[i];
+        if (!b || !IsWindow(b)) continue;
+        RECT r = slots[i];
+        if (hdwp)
+            hdwp = DeferWindowPos(hdwp, b, nullptr, r.left, r.top, r.right - r.left, r.bottom - r.top,
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+        else
+            SetWindowPos(b, nullptr, r.left, r.top, r.right - r.left, r.bottom - r.top,
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+    }
+    if (hdwp) EndDeferWindowPos(hdwp);
+}
+
+static bool SyncMouseButtonsVisibility(HWND hWnd)
+{
+    bool want = MouseSlotsShouldBeVisible();
+    bool have = !g_mouseButtons.empty();
+    if (want && !have)
+    {
+        EnsureMouseButtons(hWnd);
+        RefreshTrackedHids();
+        return true;
+    }
+    else if (!want && have)
+    {
+        DestroyMouseButtons();
+        RefreshTrackedHids();
+        return true;
+    }
+    else if (want && have)
+    {
+        // RebuildKeyboardButtons clears g_btnByHid; restore links to mouse slots.
+        for (int i = 0; i < (int)g_mouseButtons.size() && i < (int)_countof(kMouseSlotHids); ++i)
+        {
+            uint16_t hid = kMouseSlotHids[i];
+            if (hid < 256)
+                g_btnByHid[hid] = g_mouseButtons[i];
+        }
+        g_mouseSlotsVisible = true;
+    }
+    return false;
 }
 
 static int KeyboardBottomPx(HWND hWnd)
@@ -213,7 +400,10 @@ static void RebuildKeyboardButtons(HWND hWnd)
     }
 
     DebugLog_Write(L"[ui.keyboard] rebuild keys=%d tracked=%d", n, (int)g_hids.size());
-    BackendUI_SetTrackedHids(g_hids.data(), (int)g_hids.size());
+    SyncMouseButtonsVisibility(hWnd);
+    if (!g_mouseButtons.empty())
+        LayoutMouseButtons(hWnd);
+    RefreshTrackedHids();
     LayoutKeyboardButtons(hWnd);
 
     if (keepSelected >= 256 || g_btnByHid[keepSelected] == nullptr)
@@ -1255,6 +1445,34 @@ static bool KeyDrag_TryPickTargetKey(HWND hPage, POINT ptScreen, uint16_t& outHi
         }
     }
 
+    if (g_mouseSlotsVisible)
+    {
+        for (uint16_t hid : kMouseSlotHids)
+        {
+            HWND btn = g_btnByHid[hid];
+            if (!btn || !IsWindowVisible(btn)) continue;
+
+            RECT rc{};
+            GetWindowRect(btn, &rc);
+
+            int dx = 0;
+            if (ptScreen.x < rc.left) dx = rc.left - ptScreen.x;
+            else if (ptScreen.x > rc.right) dx = ptScreen.x - rc.right;
+
+            int dy = 0;
+            if (ptScreen.y < rc.top) dy = rc.top - ptScreen.y;
+            else if (ptScreen.y > rc.bottom) dy = ptScreen.y - rc.bottom;
+
+            int d2 = dx * dx + dy * dy;
+            if (d2 < best)
+            {
+                best = d2;
+                bestHid = hid;
+                bestRc = rc;
+            }
+        }
+    }
+
     if (bestHid != 0 && best <= thr2)
     {
         outHid = bestHid;
@@ -1537,7 +1755,7 @@ static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, L
     // Premium UX: hand cursor over the gear marker (override indicator)
     if (msg == WM_SETCURSOR)
     {
-        if (g_activeSubTab == 1 && hid != 0 && hid < 256)
+        if (g_activeSubTab == 1 && hid != 0 && hid < 256 && !MouseBind_IsPseudoHid(hid))
         {
             if (KeySettings_GetUseUnique(hid))
             {
@@ -1607,7 +1825,7 @@ static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, L
         // This removes the "sometimes works" feeling caused by tiny gear hitbox.
         if (g_activeSubTab == 1 && hid != 0 && hid < 256)
         {
-            if (KeySettings_GetUseUnique(hid))
+            if (!MouseBind_IsPseudoHid(hid) && KeySettings_GetUseUnique(hid))
             {
                 SetSelectedHid(hid);
                 KeyboardRender_OnGearClicked(hid);
@@ -1675,6 +1893,25 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         RECT rc{};
         GetClientRect(hWnd, &rc);
         FillRect(hdc, &rc, UiTheme::Brush_PanelBg());
+        if (g_mouseSlotsVisible && !g_mouseButtons.empty())
+        {
+            RECT mr{};
+            ComputeMousePanelRect(hWnd, mr);
+
+            HGDIOBJ oldPen = SelectObject(hdc, GetStockObject(DC_PEN));
+            HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
+            SetDCPenColor(hdc, UiTheme::Color_Border());
+            RoundRect(hdc, mr.left, mr.top, mr.right, mr.bottom, S(hWnd, 26), S(hWnd, 26));
+            SelectObject(hdc, oldBrush);
+            SelectObject(hdc, oldPen);
+
+            RECT tr = mr;
+            tr.top += S(hWnd, 6);
+            tr.bottom = tr.top + S(hWnd, 18);
+            SetBkMode(hdc, TRANSPARENT);
+            SetTextColor(hdc, UiTheme::Color_TextMuted());
+            DrawTextW(hdc, L"Mouse Bindings", -1, &tr, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        }
         EndPaint(hWnd, &ps);
         return 0;
     }
@@ -1785,10 +2022,30 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
     }
 
     case WM_SIZE:
+    {
+        bool mouseChanged = SyncMouseButtonsVisibility(hWnd);
         LayoutKeyboardButtons(hWnd);
+        if (!g_mouseButtons.empty())
+            LayoutMouseButtons(hWnd);
+        if (mouseChanged)
+            RefreshTrackedHids();
         ResizeSubUi(hWnd);
         InvalidateRect(hWnd, nullptr, FALSE);
         return 0;
+    }
+
+    case WM_APP_SYNC_MOUSE_SLOTS:
+    {
+        if (SyncMouseButtonsVisibility(hWnd))
+        {
+            LayoutKeyboardButtons(hWnd);
+            if (!g_mouseButtons.empty())
+                LayoutMouseButtons(hWnd);
+            ResizeSubUi(hWnd);
+            InvalidateRect(hWnd, nullptr, FALSE);
+        }
+        return 0;
+    }
 
     case WM_NOTIFY:
         if (g_hSubTab && ((LPNMHDR)lParam)->hwndFrom == g_hSubTab && ((LPNMHDR)lParam)->code == TCN_SELCHANGE)
@@ -1970,7 +2227,8 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                 if (g_activeSubTab == 1)
                 {
                     uint16_t hid = (uint16_t)GetWindowLongPtrW(btn, GWLP_USERDATA);
-                    SetSelectedHid(hid);
+                    if (!MouseBind_IsPseudoHid(hid))
+                        SetSelectedHid(hid);
                 }
                 return 0;
             }
@@ -2032,6 +2290,8 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 
     case WM_DESTROY:
         KeyDrag_Stop();
+        DestroyMouseButtons();
+        DestroyKeyboardButtons();
         if (g_kdrag.hGhost)
         {
             DestroyWindow(g_kdrag.hGhost);

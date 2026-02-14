@@ -80,6 +80,21 @@ struct BackendAnalogTelemetry
 void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out);
 bool Backend_ConsumeDigitalFallbackWarning();
 
+struct BackendMouseStickDebug
+{
+    bool enabled = false;
+    bool usingRawInput = false;
+    float targetX = 0.0f;   // virtual mouse target (mouse-space units)
+    float targetY = 0.0f;   // Y up
+    float followerX = 0.0f; // virtual anchor (mouse-space units)
+    float followerY = 0.0f; // Y up
+    float outputX = 0.0f;   // final stick output [-1..1]
+    float outputY = 0.0f;   // final stick output [-1..1]
+    float radius = 1.0f;    // current max offset range used for debug visualization
+};
+
+void Backend_GetMouseStickDebug(BackendMouseStickDebug* out);
+
 // request reconnect attempt on next tick (e.g. on WM_DEVICECHANGE)
 void Backend_NotifyDeviceChange();
 
@@ -93,3 +108,7 @@ void Backend_NotifyKeyboardEvent(
 
 // Feed raw mouse delta (from WM_INPUT) for Mouse->Stick path.
 void Backend_AddMouseDelta(int dx, int dy);
+
+// Feed mouse button/wheel input for mouse pseudo-bindings.
+void Backend_SetMouseBindButtonState(uint16_t mouseBindHid, bool down);
+void Backend_PulseMouseBindWheel(uint16_t mouseBindHid);

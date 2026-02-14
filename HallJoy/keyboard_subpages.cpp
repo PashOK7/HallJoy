@@ -41,6 +41,7 @@
 #include "profile_ini.h"
 #include "app_paths.h"
 #include "global_profiles.h"
+#include "mouse_ipc.h"
 
 using namespace Gdiplus;
 namespace fs = std::filesystem;
@@ -3359,13 +3360,38 @@ struct MouseSettingsPageState
     HWND lblSensitivity = nullptr;
     HWND sldSensitivity = nullptr;
     HWND chipSensitivity = nullptr;
+    HWND lblAggressiveness = nullptr;
+    HWND sldAggressiveness = nullptr;
+    HWND chipAggressiveness = nullptr;
+    HWND lblMaxOffset = nullptr;
+    HWND sldMaxOffset = nullptr;
+    HWND chipMaxOffset = nullptr;
+    HWND lblFollowSpeed = nullptr;
+    HWND sldFollowSpeed = nullptr;
+    HWND chipFollowSpeed = nullptr;
+    HWND lblAsiStatus = nullptr;
     HWND lblHint = nullptr;
+    RECT visRc{};
+    RECT visDynRc{};
+    int scrollY = 0;
+    int contentHeight = 0;
+    bool scrollDrag = false;
+    int  scrollDragGrabOffsetY = 0;
+    int  scrollDragThumbHeight = 0;
+    int  scrollDragMax = 0;
 };
 
 static constexpr int MOUSE_ID_ENABLE_BUTTON = 7801;
 static constexpr int MOUSE_ID_TARGET_COMBO = 7802;
 static constexpr int MOUSE_ID_SENS_SLIDER = 7803;
 static constexpr int MOUSE_ID_BLOCK_MOUSE_INPUT = 7804;
+static constexpr int MOUSE_ID_AGGR_SLIDER = 7807;
+static constexpr int MOUSE_ID_MAX_OFFSET_SLIDER = 7808;
+static constexpr int MOUSE_ID_FOLLOW_SPEED_SLIDER = 7809;
+static constexpr UINT_PTR MOUSE_STATUS_TIMER_ID = 7805;
+static constexpr UINT_PTR MOUSE_VIS_TIMER_ID = 7806;
+static constexpr int MOUSE_VIS_FIXED_W = 420;
+static constexpr int MOUSE_VIS_FIXED_H = 240;
 
 static void Mouse_RequestSave(HWND hWnd)
 {
@@ -3400,6 +3426,294 @@ static void Mouse_UpdateUi(MouseSettingsPageState* st)
         swprintf_s(b, L"%d%%", (int)std::lround(Settings_GetMouseToStickSensitivity() * 100.0f));
         SetWindowTextW(st->chipSensitivity, b);
     }
+    if (st->chipAggressiveness)
+    {
+        wchar_t b[32]{};
+        swprintf_s(b, L"%.2fx", Settings_GetMouseToStickAggressiveness());
+        SetWindowTextW(st->chipAggressiveness, b);
+    }
+    if (st->chipMaxOffset)
+    {
+        wchar_t b[32]{};
+        swprintf_s(b, L"%.2fx", Settings_GetMouseToStickMaxOffset());
+        SetWindowTextW(st->chipMaxOffset, b);
+    }
+    if (st->chipFollowSpeed)
+    {
+        wchar_t b[32]{};
+        swprintf_s(b, L"%.2fx", Settings_GetMouseToStickFollowSpeed());
+        SetWindowTextW(st->chipFollowSpeed, b);
+    }
+    if (st->lblAsiStatus)
+    {
+        SetWindowTextW(
+            st->lblAsiStatus,
+            MouseIpc_IsAsiConnected()
+                ? L"ASI bridge: Connected"
+                : L"ASI bridge: Not detected");
+    }
+}
+
+static int Mouse_ScrollbarWidthPx(HWND hWnd) { return S(hWnd, 12); }
+static int Mouse_ScrollbarMarginPx(HWND hWnd) { return S(hWnd, 8); }
+
+static int Mouse_GetViewportHeight(HWND hWnd)
+{
+    RECT rc{};
+    GetClientRect(hWnd, &rc);
+    return std::max(0, (int)rc.bottom - (int)rc.top);
+}
+
+static RECT Mouse_GetScrollTrackRect(HWND hWnd)
+{
+    RECT rc{};
+    GetClientRect(hWnd, &rc);
+    int w = Mouse_ScrollbarWidthPx(hWnd);
+    int m = Mouse_ScrollbarMarginPx(hWnd);
+    int right = (int)rc.right;
+    int bottom = (int)rc.bottom;
+    RECT tr{};
+    int left = std::max(0, right - m - w);
+    tr.left = left;
+    tr.right = std::max(left + 1, right - m);
+    tr.top = m;
+    tr.bottom = std::max<int>((int)tr.top + 1, bottom - m);
+    return tr;
+}
+
+static int Mouse_GetMaxScroll(HWND hWnd, MouseSettingsPageState* st)
+{
+    if (!st) return 0;
+    return std::max(0, st->contentHeight - Mouse_GetViewportHeight(hWnd));
+}
+
+static RECT Mouse_GetScrollThumbRect(HWND hWnd, MouseSettingsPageState* st)
+{
+    RECT tr = Mouse_GetScrollTrackRect(hWnd);
+    if (!st) return tr;
+
+    int trackH = std::max(1, (int)tr.bottom - (int)tr.top);
+    int viewH = std::max(1, Mouse_GetViewportHeight(hWnd));
+    int maxScroll = Mouse_GetMaxScroll(hWnd, st);
+    int contentH = std::max(1, st->contentHeight);
+
+    int thumbH = (int)std::lround((double)trackH * (double)viewH / (double)contentH);
+    thumbH = std::clamp(thumbH, S(hWnd, 36), trackH);
+
+    int travel = std::max(0, trackH - thumbH);
+    int top = tr.top;
+    if (travel > 0 && maxScroll > 0)
+    {
+        double t = (double)std::clamp(st->scrollY, 0, maxScroll) / (double)maxScroll;
+        top = tr.top + (int)std::lround(t * (double)travel);
+    }
+    return RECT{ tr.left, top, tr.right, top + thumbH };
+}
+
+static void Mouse_OffsetAllChildren(HWND hWnd, int dy)
+{
+    if (dy == 0) return;
+    int count = 0;
+    for (HWND c = GetWindow(hWnd, GW_CHILD); c; c = GetWindow(c, GW_HWNDNEXT))
+        ++count;
+    if (count <= 0) return;
+
+    HDWP hdwp = BeginDeferWindowPos(count);
+    for (HWND c = GetWindow(hWnd, GW_CHILD); c; c = GetWindow(c, GW_HWNDNEXT))
+    {
+        RECT r{};
+        if (!GetWindowRect(c, &r)) continue;
+        MapWindowPoints(nullptr, hWnd, (LPPOINT)&r, 2);
+        if (hdwp)
+        {
+            hdwp = DeferWindowPos(hdwp, c, nullptr, r.left, r.top + dy, 0, 0,
+                SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+        else
+        {
+            SetWindowPos(c, nullptr, r.left, r.top + dy, 0, 0,
+                SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+    }
+    if (hdwp) EndDeferWindowPos(hdwp);
+}
+
+static void Mouse_RequestFullRepaint(HWND hWnd)
+{
+    RedrawWindow(hWnd, nullptr, nullptr,
+        RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+}
+
+static void Mouse_SetScrollY(HWND hWnd, MouseSettingsPageState* st, int newScrollY)
+{
+    if (!st) return;
+    int maxScroll = Mouse_GetMaxScroll(hWnd, st);
+    int target = std::clamp(newScrollY, 0, maxScroll);
+    if (target != st->scrollY)
+    {
+        int dy = st->scrollY - target;
+        Mouse_OffsetAllChildren(hWnd, dy);
+        st->scrollY = target;
+    }
+    Mouse_RequestFullRepaint(hWnd);
+}
+
+static RECT Mouse_ContentRectToClient(const RECT& contentRc, int scrollY)
+{
+    RECT r = contentRc;
+    OffsetRect(&r, 0, -scrollY);
+    return r;
+}
+
+static void Mouse_InvalidateDynamicVisual(HWND hWnd, MouseSettingsPageState* st)
+{
+    if (!st) return;
+    if (st->visDynRc.right <= st->visDynRc.left || st->visDynRc.bottom <= st->visDynRc.top) return;
+    RECT clientRc = Mouse_ContentRectToClient(st->visDynRc, st->scrollY);
+    RECT wndRc{};
+    GetClientRect(hWnd, &wndRc);
+    RECT paintRc{};
+    if (!IntersectRect(&paintRc, &clientRc, &wndRc))
+        return;
+    RedrawWindow(hWnd, &paintRc, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_UPDATENOW);
+}
+
+static void DrawMouseScrollbar(HWND hWnd, HDC hdc, MouseSettingsPageState* st)
+{
+    if (!st) return;
+    int maxScroll = Mouse_GetMaxScroll(hWnd, st);
+    if (maxScroll <= 0) return;
+
+    RECT trR = Mouse_GetScrollTrackRect(hWnd);
+    RECT thR = Mouse_GetScrollThumbRect(hWnd, st);
+
+    Graphics g(hdc);
+    g.SetSmoothingMode(SmoothingModeAntiAlias);
+    g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+
+    RectF tr((REAL)trR.left, (REAL)trR.top, (REAL)(trR.right - trR.left), (REAL)(trR.bottom - trR.top));
+    RectF th((REAL)thR.left, (REAL)thR.top, (REAL)(thR.right - thR.left), (REAL)(thR.bottom - thR.top));
+
+    float rTrack = std::max(2.0f, tr.Width * 0.5f);
+    float rThumb = std::max(2.0f, th.Width * 0.5f);
+
+    {
+        SolidBrush bg(Gp(RGB(44, 44, 48), 180));
+        GraphicsPath p;
+        AddRoundRectPath(p, tr, rTrack);
+        g.FillPath(&bg, &p);
+    }
+
+    {
+        Color thumbC = st->scrollDrag ? Gp(UiTheme::Color_Accent(), 240) : Gp(UiTheme::Color_Accent(), 205);
+        SolidBrush br(thumbC);
+        GraphicsPath p;
+        AddRoundRectPath(p, th, rThumb);
+        g.FillPath(&br, &p);
+    }
+}
+
+static void Mouse_DrawVisualization(HWND hWnd, HDC hdc, MouseSettingsPageState* st)
+{
+    if (!st) return;
+    RECT rc = st->visRc;
+    if (rc.right <= rc.left || rc.bottom <= rc.top) return;
+
+    Graphics g(hdc);
+    g.SetSmoothingMode(SmoothingModeHighQuality);
+    g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+    g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
+
+    RectF panel((float)rc.left, (float)rc.top, (float)(rc.right - rc.left), (float)(rc.bottom - rc.top));
+    const float pad = (float)S(hWnd, 10);
+    const float titleH = (float)S(hWnd, 20);
+
+    {
+        GraphicsPath p;
+        AddRoundRectPath(p, panel, (float)S(hWnd, 10));
+        SolidBrush bg(Gp(UiTheme::Color_ControlBg(), 255));
+        Pen br(Gp(UiTheme::Color_Border(), 255), 1.0f);
+        g.FillPath(&bg, &p);
+        g.DrawPath(&br, &p);
+    }
+
+    RectF titleR(panel.X + pad, panel.Y + pad * 0.4f, panel.Width - pad * 2.0f, titleH);
+    {
+        FontFamily ff(L"Segoe UI");
+        Font font(&ff, std::clamp((float)S(hWnd, 11), 9.0f, 14.0f), FontStyleRegular, UnitPixel);
+        StringFormat fmt;
+        fmt.SetAlignment(StringAlignmentNear);
+        fmt.SetLineAlignment(StringAlignmentCenter);
+        SolidBrush tb(Gp(UiTheme::Color_TextMuted()));
+        g.DrawString(L"Mouse -> Stick Visualizer", -1, &font, titleR, &fmt, &tb);
+    }
+
+    RectF plotR(
+        panel.X + pad,
+        panel.Y + pad + titleH + (float)S(hWnd, 2),
+        panel.Width - pad * 2.0f,
+        panel.Height - (pad * 2.0f + titleH + (float)S(hWnd, 42)));
+    if (plotR.Width < 40.0f || plotR.Height < 40.0f) return;
+
+    float d = std::min(plotR.Width, plotR.Height);
+    RectF sq(plotR.X + (plotR.Width - d) * 0.5f, plotR.Y + (plotR.Height - d) * 0.5f, d, d);
+    float cx = sq.X + sq.Width * 0.5f;
+    float cy = sq.Y + sq.Height * 0.5f;
+    float r = std::max<float>(12.0f, (float)(sq.Width * 0.5f - 4.0f));
+
+    Pen gridPen(Gp(UiTheme::Color_Border(), 150), 1.0f);
+    g.DrawLine(&gridPen, (INT)std::lround(cx - r), (INT)std::lround(cy), (INT)std::lround(cx + r), (INT)std::lround(cy));
+    g.DrawLine(&gridPen, (INT)std::lround(cx), (INT)std::lround(cy - r), (INT)std::lround(cx), (INT)std::lround(cy + r));
+    g.DrawRectangle(&gridPen, cx - r, cy - r, r * 2.0f, r * 2.0f);
+
+    BackendMouseStickDebug dbg{};
+    Backend_GetMouseStickDebug(&dbg);
+
+    float errX = dbg.targetX - dbg.followerX;
+    float errY = dbg.targetY - dbg.followerY;
+    float radius = std::max<float>(1.0f, dbg.radius);
+    float nx = std::clamp(errX / radius, -1.2f, 1.2f);
+    float ny = std::clamp(errY / radius, -1.2f, 1.2f);
+
+    float tx = cx + nx * r;
+    float ty = cy - ny * r;
+    float ox = cx + std::clamp(dbg.outputX, -1.0f, 1.0f) * r;
+    float oy = cy - std::clamp(dbg.outputY, -1.0f, 1.0f) * r;
+
+    Pen toTarget(Gp(UiTheme::Color_Accent(), 140), 1.2f);
+    g.DrawLine(&toTarget, cx, cy, tx, ty);
+    Pen toOut(Gp(RGB(90, 180, 255), 210), 1.8f);
+    g.DrawLine(&toOut, cx, cy, ox, oy);
+
+    SolidBrush anchorBrush(Gp(UiTheme::Color_Text(), 240));
+    g.FillEllipse(&anchorBrush, cx - 3.0f, cy - 3.0f, 6.0f, 6.0f);
+    SolidBrush targetBrush(Gp(UiTheme::Color_Accent(), 235));
+    g.FillEllipse(&targetBrush, tx - 4.0f, ty - 4.0f, 8.0f, 8.0f);
+    SolidBrush outBrush(Gp(RGB(90, 180, 255), 235));
+    g.FillEllipse(&outBrush, ox - 4.0f, oy - 4.0f, 8.0f, 8.0f);
+
+    wchar_t l1[160]{};
+    wchar_t l2[160]{};
+    swprintf_s(l1, L"Target err: X %.1f  Y %.1f   Radius: %.1f", errX, errY, radius);
+    swprintf_s(l2, L"Stick out: X %.2f  Y %.2f   Input: %s",
+        dbg.outputX, dbg.outputY, dbg.usingRawInput ? L"RAW" : L"Cursor");
+
+    RECT tr1{
+        (LONG)std::lround(panel.X + pad),
+        (LONG)std::lround(panel.GetBottom() - pad - S(hWnd, 32)),
+        (LONG)std::lround(panel.GetRight() - pad),
+        (LONG)std::lround(panel.GetBottom() - pad - S(hWnd, 16))
+    };
+    RECT tr2{
+        (LONG)std::lround(panel.X + pad),
+        (LONG)std::lround(panel.GetBottom() - pad - S(hWnd, 16)),
+        (LONG)std::lround(panel.GetRight() - pad),
+        (LONG)std::lround(panel.GetBottom() - pad)
+    };
+    SetBkMode(hdc, TRANSPARENT);
+    SetTextColor(hdc, UiTheme::Color_TextMuted());
+    DrawTextW(hdc, l1, -1, &tr1, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    DrawTextW(hdc, l2, -1, &tr2, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
 }
 
 static void Mouse_Layout(HWND hWnd, MouseSettingsPageState* st)
@@ -3409,6 +3723,7 @@ static void Mouse_Layout(HWND hWnd, MouseSettingsPageState* st)
     GetClientRect(hWnd, &rc);
 
     int margin = S(hWnd, 16);
+    int sbReserve = Mouse_ScrollbarWidthPx(hWnd) + Mouse_ScrollbarMarginPx(hWnd) * 2;
     int x = margin;
     int y = margin;
     int chipW = S(hWnd, 86);
@@ -3419,7 +3734,7 @@ static void Mouse_Layout(HWND hWnd, MouseSettingsPageState* st)
     int labelH = S(hWnd, 18);
     int rowGap = S(hWnd, 18);
 
-    int sliderW = (rc.right - rc.left) - margin * 2 - chipW - gap;
+    int sliderW = (rc.right - rc.left) - margin * 2 - chipW - gap - sbReserve;
     sliderW = std::max(S(hWnd, 180), sliderW);
 
     if (st->lblEnable)
@@ -3450,10 +3765,64 @@ static void Mouse_Layout(HWND hWnd, MouseSettingsPageState* st)
         SetWindowPos(st->sldSensitivity, nullptr, x, y, sliderW, sliderH, SWP_NOZORDER);
     if (st->chipSensitivity)
         SetWindowPos(st->chipSensitivity, nullptr, x + sliderW + gap, y, chipW, chipH, SWP_NOZORDER);
+    y += sliderH + S(hWnd, 10);
+
+    if (st->lblAggressiveness)
+        SetWindowPos(st->lblAggressiveness, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
+    y += labelH + S(hWnd, 6);
+
+    if (st->sldAggressiveness)
+        SetWindowPos(st->sldAggressiveness, nullptr, x, y, sliderW, sliderH, SWP_NOZORDER);
+    if (st->chipAggressiveness)
+        SetWindowPos(st->chipAggressiveness, nullptr, x + sliderW + gap, y, chipW, chipH, SWP_NOZORDER);
+    y += sliderH + S(hWnd, 10);
+
+    if (st->lblMaxOffset)
+        SetWindowPos(st->lblMaxOffset, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
+    y += labelH + S(hWnd, 6);
+
+    if (st->sldMaxOffset)
+        SetWindowPos(st->sldMaxOffset, nullptr, x, y, sliderW, sliderH, SWP_NOZORDER);
+    if (st->chipMaxOffset)
+        SetWindowPos(st->chipMaxOffset, nullptr, x + sliderW + gap, y, chipW, chipH, SWP_NOZORDER);
+    y += sliderH + S(hWnd, 10);
+
+    if (st->lblFollowSpeed)
+        SetWindowPos(st->lblFollowSpeed, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
+    y += labelH + S(hWnd, 6);
+
+    if (st->sldFollowSpeed)
+        SetWindowPos(st->sldFollowSpeed, nullptr, x, y, sliderW, sliderH, SWP_NOZORDER);
+    if (st->chipFollowSpeed)
+        SetWindowPos(st->chipFollowSpeed, nullptr, x + sliderW + gap, y, chipW, chipH, SWP_NOZORDER);
     y += sliderH + S(hWnd, 14);
 
     if (st->lblHint)
-        SetWindowPos(st->lblHint, nullptr, x, y, std::max(S(hWnd, 120), sliderW + gap + chipW), S(hWnd, 36), SWP_NOZORDER);
+        SetWindowPos(st->lblHint, nullptr, x, y, std::max<int>(S(hWnd, 120), (int)(sliderW + gap + chipW)), S(hWnd, 36), SWP_NOZORDER);
+    y += S(hWnd, 36) + S(hWnd, 8);
+
+    if (st->lblAsiStatus)
+        SetWindowPos(st->lblAsiStatus, nullptr, x, y, std::max<int>(S(hWnd, 120), (int)(sliderW + gap + chipW)), S(hWnd, 20), SWP_NOZORDER);
+    y += S(hWnd, 20) + S(hWnd, 8);
+
+    int visW = S(hWnd, MOUSE_VIS_FIXED_W);
+    int visH = S(hWnd, MOUSE_VIS_FIXED_H);
+    st->visRc = RECT{ x, y, x + visW, y + visH };
+    int maxRight = rc.right - margin - sbReserve;
+    if (st->visRc.right > maxRight)
+        st->visRc.right = std::max<int>((int)st->visRc.left + S(hWnd, 180), maxRight);
+
+    int visPad = S(hWnd, 10);
+    int titleH = S(hWnd, 20);
+    st->visDynRc = st->visRc;
+    st->visDynRc.left += visPad;
+    st->visDynRc.right -= visPad;
+    st->visDynRc.top += visPad + titleH + S(hWnd, 2);
+    st->visDynRc.bottom -= visPad;
+    if (st->visDynRc.right < st->visDynRc.left) st->visDynRc.right = st->visDynRc.left;
+    if (st->visDynRc.bottom < st->visDynRc.top) st->visDynRc.bottom = st->visDynRc.top;
+
+    st->contentHeight = st->visRc.bottom + margin;
 }
 
 LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -3468,11 +3837,19 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
     case WM_PAINT:
     {
         PAINTSTRUCT ps{};
-        HDC hdc = BeginPaint(hWnd, &ps);
-        RECT rc{};
-        GetClientRect(hWnd, &rc);
-        FillRect(hdc, &rc, UiTheme::Brush_PanelBg());
-        EndPaint(hWnd, &ps);
+        HDC memDC = nullptr;
+        HBITMAP bmp = nullptr;
+        HGDIOBJ oldBmp = nullptr;
+        BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+
+        SaveDC(memDC);
+        if (st && st->scrollY != 0)
+            SetViewportOrgEx(memDC, 0, -st->scrollY, nullptr);
+        Mouse_DrawVisualization(hWnd, memDC, st);
+        RestoreDC(memDC, -1);
+
+        DrawMouseScrollbar(hWnd, memDC, st);
+        EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
         return 0;
     }
 
@@ -3537,6 +3914,51 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
         st->chipSensitivity = PremiumChip_Create(hWnd, hInst, 0, 0, 10, 10, MOUSE_ID_SENS_SLIDER + 100);
         SendMessageW(st->chipSensitivity, WM_SETFONT, (WPARAM)hFont, TRUE);
 
+        st->lblAggressiveness = CreateWindowW(L"STATIC", L"Aggressiveness",
+            WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblAggressiveness, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->sldAggressiveness = PremiumSlider_Create(hWnd, hInst, 0, 0, 10, 10, MOUSE_ID_AGGR_SLIDER);
+        SendMessageW(st->sldAggressiveness, TBM_SETRANGE, TRUE, MAKELONG(20, 300));
+        SendMessageW(
+            st->sldAggressiveness,
+            TBM_SETPOS,
+            TRUE,
+            (LPARAM)std::clamp((int)std::lround(Settings_GetMouseToStickAggressiveness() * 100.0f), 20, 300));
+
+        st->chipAggressiveness = PremiumChip_Create(hWnd, hInst, 0, 0, 10, 10, MOUSE_ID_AGGR_SLIDER + 100);
+        SendMessageW(st->chipAggressiveness, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->lblMaxOffset = CreateWindowW(L"STATIC", L"Max offset from center",
+            WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblMaxOffset, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->sldMaxOffset = PremiumSlider_Create(hWnd, hInst, 0, 0, 10, 10, MOUSE_ID_MAX_OFFSET_SLIDER);
+        SendMessageW(st->sldMaxOffset, TBM_SETRANGE, TRUE, MAKELONG(0, 600));
+        SendMessageW(
+            st->sldMaxOffset,
+            TBM_SETPOS,
+            TRUE,
+            (LPARAM)std::clamp((int)std::lround(Settings_GetMouseToStickMaxOffset() * 100.0f), 0, 600));
+
+        st->chipMaxOffset = PremiumChip_Create(hWnd, hInst, 0, 0, 10, 10, MOUSE_ID_MAX_OFFSET_SLIDER + 100);
+        SendMessageW(st->chipMaxOffset, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->lblFollowSpeed = CreateWindowW(L"STATIC", L"Follower speed",
+            WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblFollowSpeed, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->sldFollowSpeed = PremiumSlider_Create(hWnd, hInst, 0, 0, 10, 10, MOUSE_ID_FOLLOW_SPEED_SLIDER);
+        SendMessageW(st->sldFollowSpeed, TBM_SETRANGE, TRUE, MAKELONG(20, 300));
+        SendMessageW(
+            st->sldFollowSpeed,
+            TBM_SETPOS,
+            TRUE,
+            (LPARAM)std::clamp((int)std::lround(Settings_GetMouseToStickFollowSpeed() * 100.0f), 20, 300));
+
+        st->chipFollowSpeed = PremiumChip_Create(hWnd, hInst, 0, 0, 10, 10, MOUSE_ID_FOLLOW_SPEED_SLIDER + 100);
+        SendMessageW(st->chipFollowSpeed, WM_SETFONT, (WPARAM)hFont, TRUE);
+
         st->lblHint = CreateWindowW(
             L"STATIC",
             L"Maps raw mouse movement to one gamepad stick. Useful for games that block mouse + gamepad together.",
@@ -3544,14 +3966,146 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
             0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblHint, WM_SETFONT, (WPARAM)hFont, TRUE);
 
+        st->lblAsiStatus = CreateWindowW(
+            L"STATIC",
+            L"",
+            WS_CHILD | WS_VISIBLE,
+            0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblAsiStatus, WM_SETFONT, (WPARAM)hFont, TRUE);
+
         Mouse_UpdateUi(st);
         Mouse_Layout(hWnd, st);
+        SetTimer(hWnd, MOUSE_STATUS_TIMER_ID, 500, nullptr);
+        SetTimer(hWnd, MOUSE_VIS_TIMER_ID, std::clamp(Settings_GetUIRefreshMs(), 8u, 33u), nullptr);
         return 0;
     }
 
     case WM_SIZE:
-        Mouse_Layout(hWnd, st);
+        if (st)
+        {
+            int keepScroll = st->scrollY;
+            if (keepScroll != 0)
+            {
+                Mouse_OffsetAllChildren(hWnd, keepScroll);
+                st->scrollY = 0;
+            }
+            Mouse_Layout(hWnd, st);
+            Mouse_SetScrollY(hWnd, st, keepScroll);
+        }
+        else
+        {
+            Mouse_Layout(hWnd, st);
+        }
         return 0;
+
+    case WM_LBUTTONDOWN:
+        if (st)
+        {
+            POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            RECT thumb = Mouse_GetScrollThumbRect(hWnd, st);
+            RECT track = Mouse_GetScrollTrackRect(hWnd);
+            int maxScroll = Mouse_GetMaxScroll(hWnd, st);
+
+            if (maxScroll > 0 && PtInRect(&thumb, pt))
+            {
+                st->scrollDrag = true;
+                st->scrollDragGrabOffsetY = pt.y - thumb.top;
+                st->scrollDragThumbHeight = std::max(1, (int)thumb.bottom - (int)thumb.top);
+                st->scrollDragMax = maxScroll;
+                SetCapture(hWnd);
+                InvalidateRect(hWnd, nullptr, FALSE);
+                return 0;
+            }
+
+            if (maxScroll > 0 && PtInRect(&track, pt))
+            {
+                int page = std::max(1, Mouse_GetViewportHeight(hWnd) - S(hWnd, 48));
+                if (pt.y < thumb.top)
+                    Mouse_SetScrollY(hWnd, st, st->scrollY - page);
+                else if (pt.y >= thumb.bottom)
+                    Mouse_SetScrollY(hWnd, st, st->scrollY + page);
+                return 0;
+            }
+        }
+        break;
+
+    case WM_MOUSEMOVE:
+        if (st && st->scrollDrag)
+        {
+            POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            RECT track = Mouse_GetScrollTrackRect(hWnd);
+            int trackH = std::max(1, (int)track.bottom - (int)track.top);
+            int thumbH = std::max(1, st->scrollDragThumbHeight);
+            int travel = std::max(1, trackH - thumbH);
+            int maxScroll = std::max(1, st->scrollDragMax);
+
+            int topWanted = pt.y - st->scrollDragGrabOffsetY;
+            int topMin = track.top;
+            int topMax = track.bottom - thumbH;
+            if (topMax < topMin) topMax = topMin;
+            int top = std::clamp(topWanted, topMin, topMax);
+            double t = (double)(top - topMin) / (double)travel;
+            int target = (int)std::lround(t * (double)maxScroll);
+            Mouse_SetScrollY(hWnd, st, target);
+            return 0;
+        }
+        break;
+
+    case WM_LBUTTONUP:
+        if (st && st->scrollDrag)
+        {
+            st->scrollDrag = false;
+            if (GetCapture() == hWnd)
+                ReleaseCapture();
+            InvalidateRect(hWnd, nullptr, FALSE);
+            return 0;
+        }
+        break;
+
+    case WM_CAPTURECHANGED:
+        if (st && st->scrollDrag)
+        {
+            st->scrollDrag = false;
+            InvalidateRect(hWnd, nullptr, FALSE);
+        }
+        return 0;
+
+    case WM_MOUSEWHEEL:
+        if (st)
+        {
+            int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+            if (delta != 0)
+            {
+                int step = S(hWnd, 44);
+                int next = st->scrollY - ((delta / WHEEL_DELTA) * step);
+                Mouse_SetScrollY(hWnd, st, next);
+            }
+            return 0;
+        }
+        break;
+
+    case WM_VSCROLL:
+        if (st)
+        {
+            int page = std::max(1, Mouse_GetViewportHeight(hWnd) - S(hWnd, 48));
+            int line = std::max(1, S(hWnd, 40));
+            int next = st->scrollY;
+            switch (LOWORD(wParam))
+            {
+            case SB_TOP:           next = 0; break;
+            case SB_BOTTOM:        next = Mouse_GetMaxScroll(hWnd, st); break;
+            case SB_LINEUP:        next -= line; break;
+            case SB_LINEDOWN:      next += line; break;
+            case SB_PAGEUP:        next -= page; break;
+            case SB_PAGEDOWN:      next += page; break;
+            case SB_THUMBPOSITION:
+            case SB_THUMBTRACK:    next = HIWORD(wParam); break;
+            default: break;
+            }
+            Mouse_SetScrollY(hWnd, st, next);
+            return 0;
+        }
+        break;
 
     case WM_HSCROLL:
         if (st && (HWND)lParam == st->sldSensitivity)
@@ -3563,6 +4117,58 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
             Mouse_MarkGlobalProfileDirty();
             Mouse_UpdateUi(st);
             Mouse_RequestSave(hWnd);
+            Mouse_InvalidateDynamicVisual(hWnd, st);
+            return 0;
+        }
+        if (st && (HWND)lParam == st->sldAggressiveness)
+        {
+            int v = (int)SendMessageW(st->sldAggressiveness, TBM_GETPOS, 0, 0);
+            v = std::clamp(v, 20, 300);
+            Settings_SetMouseToStickAggressiveness((float)v / 100.0f);
+            GlobalProfiles_SetDirty(true);
+            Mouse_MarkGlobalProfileDirty();
+            Mouse_UpdateUi(st);
+            Mouse_RequestSave(hWnd);
+            Mouse_InvalidateDynamicVisual(hWnd, st);
+            return 0;
+        }
+        if (st && (HWND)lParam == st->sldMaxOffset)
+        {
+            int v = (int)SendMessageW(st->sldMaxOffset, TBM_GETPOS, 0, 0);
+            v = std::clamp(v, 0, 600);
+            Settings_SetMouseToStickMaxOffset((float)v / 100.0f);
+            GlobalProfiles_SetDirty(true);
+            Mouse_MarkGlobalProfileDirty();
+            Mouse_UpdateUi(st);
+            Mouse_RequestSave(hWnd);
+            Mouse_InvalidateDynamicVisual(hWnd, st);
+            return 0;
+        }
+        if (st && (HWND)lParam == st->sldFollowSpeed)
+        {
+            int v = (int)SendMessageW(st->sldFollowSpeed, TBM_GETPOS, 0, 0);
+            v = std::clamp(v, 20, 300);
+            Settings_SetMouseToStickFollowSpeed((float)v / 100.0f);
+            GlobalProfiles_SetDirty(true);
+            Mouse_MarkGlobalProfileDirty();
+            Mouse_UpdateUi(st);
+            Mouse_RequestSave(hWnd);
+            Mouse_InvalidateDynamicVisual(hWnd, st);
+            return 0;
+        }
+        return 0;
+
+    case WM_TIMER:
+        if (st && wParam == MOUSE_STATUS_TIMER_ID)
+        {
+            Mouse_UpdateUi(st);
+            return 0;
+        }
+        if (st && wParam == MOUSE_VIS_TIMER_ID)
+        {
+            if (!IsWindowVisible(hWnd))
+                return 0;
+            Mouse_InvalidateDynamicVisual(hWnd, st);
             return 0;
         }
         return 0;
@@ -3620,6 +4226,10 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
     case WM_NCDESTROY:
         if (st)
         {
+            if (st->scrollDrag && GetCapture() == hWnd)
+                ReleaseCapture();
+            KillTimer(hWnd, MOUSE_STATUS_TIMER_ID);
+            KillTimer(hWnd, MOUSE_VIS_TIMER_ID);
             delete st;
             SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);
         }

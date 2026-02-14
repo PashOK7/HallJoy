@@ -27,6 +27,7 @@
 #include "settings.h"
 #include "key_settings.h"
 #include "debug_log.h"
+#include "mouse_bind_codes.h"
 
 // shared curve math (single source of truth with UI)
 #include "curve_math.h"
@@ -102,11 +103,28 @@ static constexpr bool            kEnableAdaptiveKeycodeModeProbe = false;
 static constexpr bool            kEnableFullBufferAssist = false;
 static POINT                     g_mouseLastPos{};
 static bool                      g_mouseHasLastPos = false;
+static std::atomic<bool>         g_mouseSawRawInput{ false };
 static float                     g_mouseFilteredX = 0.0f;
 static float                     g_mouseFilteredY = 0.0f;
+static double                    g_mouseTargetX = 0.0;   // integrated mouse displacement (virtual cursor)
+static double                    g_mouseTargetY = 0.0;
+static double                    g_mouseFollowerX = 0.0; // virtual "stick-controlled" anchor
+static double                    g_mouseFollowerY = 0.0;
 static ULONGLONG                 g_mouseLastTickMs = 0;
 static std::atomic<int>          g_mouseRawAccumDx{ 0 };
 static std::atomic<int>          g_mouseRawAccumDy{ 0 };
+static std::atomic<uint8_t>      g_mouseBindButtons[5]{};
+static std::atomic<ULONGLONG>    g_mouseWheelPulseUpUntilMs{ 0 };
+static std::atomic<ULONGLONG>    g_mouseWheelPulseDownUntilMs{ 0 };
+static std::atomic<uint8_t>      g_mouseDbgEnabled{ 0 };
+static std::atomic<uint8_t>      g_mouseDbgUsingRaw{ 0 };
+static std::atomic<int>          g_mouseDbgTargetX10{ 0 };
+static std::atomic<int>          g_mouseDbgTargetY10{ 0 };
+static std::atomic<int>          g_mouseDbgFollowerX10{ 0 };
+static std::atomic<int>          g_mouseDbgFollowerY10{ 0 };
+static std::atomic<int>          g_mouseDbgOutX1000{ 0 };
+static std::atomic<int>          g_mouseDbgOutY1000{ 0 };
+static std::atomic<int>          g_mouseDbgRadius1000{ 1000 };
 
 static const wchar_t* KeycodeModeName(int mode)
 {
@@ -875,9 +893,38 @@ static float ReadDigitalFallback01(uint16_t hidKeycode)
     return s.value;
 }
 
+static float ReadMouseBindRaw01(uint16_t hidKeycode)
+{
+    switch (hidKeycode)
+    {
+    case kMouseBindHidLButton: return g_mouseBindButtons[0].load(std::memory_order_relaxed) ? 1.0f : 0.0f;
+    case kMouseBindHidRButton: return g_mouseBindButtons[1].load(std::memory_order_relaxed) ? 1.0f : 0.0f;
+    case kMouseBindHidMButton: return g_mouseBindButtons[2].load(std::memory_order_relaxed) ? 1.0f : 0.0f;
+    case kMouseBindHidX1: return g_mouseBindButtons[3].load(std::memory_order_relaxed) ? 1.0f : 0.0f;
+    case kMouseBindHidX2: return g_mouseBindButtons[4].load(std::memory_order_relaxed) ? 1.0f : 0.0f;
+    case kMouseBindHidWheelUp:
+    {
+        ULONGLONG now = GetTickCount64();
+        ULONGLONG until = g_mouseWheelPulseUpUntilMs.load(std::memory_order_relaxed);
+        return (now < until) ? 1.0f : 0.0f;
+    }
+    case kMouseBindHidWheelDown:
+    {
+        ULONGLONG now = GetTickCount64();
+        ULONGLONG until = g_mouseWheelPulseDownUntilMs.load(std::memory_order_relaxed);
+        return (now < until) ? 1.0f : 0.0f;
+    }
+    default:
+        return 0.0f;
+    }
+}
+
 static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
 {
     if (hidKeycode == 0) return 0.0f;
+    if (MouseBind_IsPseudoHid(hidKeycode))
+        return ReadMouseBindRaw01(hidKeycode);
+
     const bool allowFallback = Settings_GetDigitalFallbackInput();
     WootingAnalog_KeycodeType mode = (WootingAnalog_KeycodeType)g_keycodeMode.load(std::memory_order_relaxed);
     uint16_t modeCode = HidToModeCode(hidKeycode, mode);
@@ -985,6 +1032,8 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
 static float ReadFiltered01Cached(uint16_t hidKeycode, HidCache& cache)
 {
     if (hidKeycode == 0) return 0.0f;
+    if (MouseBind_IsPseudoHid(hidKeycode))
+        return ReadRaw01Cached(hidKeycode, cache);
 
     if (hidKeycode < 256)
     {
@@ -1167,14 +1216,70 @@ static void SetBtn(XUSB_REPORT& report, WORD mask, bool down)
     else      report.wButtons &= ~mask;
 }
 
-static float MouseAxisFromDeltaPx(float deltaPx)
+static float MouseErrorToAxis(double err, float radius, float aggressiveness)
 {
-    // ~96 px of movement per tick ~= full stick at 1.0 sensitivity.
-    const float sens = std::clamp(Settings_GetMouseToStickSensitivity(), 0.1f, 8.0f);
-    float v = (deltaPx * sens) / 96.0f;
-    if (std::fabs(v) < 0.0015f)
-        v = 0.0f;
-    return std::clamp(v, -1.0f, 1.0f);
+    if (radius <= 0.0001f) return 0.0f;
+    double n = err / (double)radius;
+    n *= (double)std::clamp(aggressiveness, 0.2f, 3.0f);
+    // tanh gives smooth response around center with soft saturation on large offsets.
+    float out = (float)std::tanh(n);
+    if (std::fabs(out) < 0.0025f)
+        out = 0.0f;
+    return std::clamp(out, -1.0f, 1.0f);
+}
+
+static void ApplyMouseCardinalAssist(float& x, float& y)
+{
+    float ax = std::fabs(x);
+    float ay = std::fabs(y);
+    float major = std::max(ax, ay);
+    float minor = std::min(ax, ay);
+    if (major < 0.22f || minor <= 0.0001f)
+        return;
+
+    // Keep diagonals available near center, but on strong flicks prefer
+    // cardinal directions (X/Y) and suppress the weak orthogonal axis.
+    float edge = std::clamp((major - 0.35f) / 0.65f, 0.0f, 1.0f);
+    float dominance = std::clamp((major - minor) / (major + 0.0001f), 0.0f, 1.0f);
+    float strength = edge * dominance;
+
+    // Near full tilt with clearly dominant axis: aggressively kill minor axis.
+    if (major > 0.90f && minor < 0.24f)
+        strength = std::max(strength, 0.95f);
+
+    float minorScale = std::clamp(1.0f - 0.92f * strength, 0.04f, 1.0f);
+    if (ax >= ay)
+        y *= minorScale;
+    else
+        x *= minorScale;
+}
+
+static void AlignMouseOutputDirection(float targetX, float targetY, float& outX, float& outY)
+{
+    float tMajor = std::max(std::fabs(targetX), std::fabs(targetY));
+    float oMajor = std::max(std::fabs(outX), std::fabs(outY));
+    if (tMajor < 0.0001f || oMajor < 0.0001f)
+        return;
+
+    float tx = targetX / tMajor;
+    float ty = targetY / tMajor;
+    float ox = outX / oMajor;
+    float oy = outY / oMajor;
+
+    float edge = std::clamp((tMajor - 0.30f) / 0.70f, 0.0f, 1.0f);
+    if (edge <= 0.0f)
+        return;
+
+    // Bias filtered output direction toward live target direction on strong motion.
+    float mix = 0.18f + 0.62f * edge;
+    float nx = ox + (tx - ox) * mix;
+    float ny = oy + (ty - oy) * mix;
+    float nMajor = std::max(std::fabs(nx), std::fabs(ny));
+    if (nMajor <= 0.0001f)
+        return;
+
+    outX = (nx / nMajor) * oMajor;
+    outY = (ny / nMajor) * oMajor;
 }
 
 static bool ReadMouseStickSample(float& outX, float& outY)
@@ -1185,28 +1290,32 @@ static bool ReadMouseStickSample(float& outX, float& outY)
     if (!Settings_GetMouseToStickEnabled())
     {
         g_mouseHasLastPos = false;
+        g_mouseSawRawInput.store(false, std::memory_order_relaxed);
         g_mouseFilteredX = 0.0f;
         g_mouseFilteredY = 0.0f;
+        g_mouseTargetX = 0.0;
+        g_mouseTargetY = 0.0;
+        g_mouseFollowerX = 0.0;
+        g_mouseFollowerY = 0.0;
         g_mouseLastTickMs = 0;
         g_mouseRawAccumDx.store(0, std::memory_order_relaxed);
         g_mouseRawAccumDy.store(0, std::memory_order_relaxed);
+        g_mouseDbgEnabled.store(0, std::memory_order_relaxed);
+        g_mouseDbgUsingRaw.store(0, std::memory_order_relaxed);
+        g_mouseDbgTargetX10.store(0, std::memory_order_relaxed);
+        g_mouseDbgTargetY10.store(0, std::memory_order_relaxed);
+        g_mouseDbgFollowerX10.store(0, std::memory_order_relaxed);
+        g_mouseDbgFollowerY10.store(0, std::memory_order_relaxed);
+        g_mouseDbgOutX1000.store(0, std::memory_order_relaxed);
+        g_mouseDbgOutY1000.store(0, std::memory_order_relaxed);
+        g_mouseDbgRadius1000.store(1000, std::memory_order_relaxed);
         return false;
     }
 
-    POINT pt{};
-    if (!GetCursorPos(&pt))
-        return false;
     ULONGLONG nowMs = GetTickCount64();
 
-    if (!g_mouseHasLastPos)
-    {
-        g_mouseLastPos = pt;
-        g_mouseHasLastPos = true;
-        g_mouseFilteredX = 0.0f;
-        g_mouseFilteredY = 0.0f;
+    if (g_mouseLastTickMs == 0)
         g_mouseLastTickMs = nowMs;
-        return false;
-    }
 
     ULONGLONG dtRaw = (g_mouseLastTickMs > 0 && nowMs > g_mouseLastTickMs) ? (nowMs - g_mouseLastTickMs) : 1ull;
     g_mouseLastTickMs = nowMs;
@@ -1214,33 +1323,154 @@ static bool ReadMouseStickSample(float& outX, float& outY)
 
     int rawDx = g_mouseRawAccumDx.exchange(0, std::memory_order_acq_rel);
     int rawDy = g_mouseRawAccumDy.exchange(0, std::memory_order_acq_rel);
+    if (rawDx != 0 || rawDy != 0)
+        g_mouseSawRawInput.store(true, std::memory_order_relaxed);
 
-    LONG dx = (rawDx != 0) ? (LONG)rawDx : (pt.x - g_mouseLastPos.x);
-    LONG dy = (rawDy != 0) ? (LONG)rawDy : (pt.y - g_mouseLastPos.y);
-    g_mouseLastPos = pt;
+    LONG dx = (LONG)rawDx;
+    LONG dy = (LONG)rawDy;
 
-    float targetX = MouseAxisFromDeltaPx((float)dx);
-    float targetY = MouseAxisFromDeltaPx((float)-dy); // screen Y is inverted vs stick Y
+    // Fallback to cursor delta only when raw input has not been seen yet.
+    if (!g_mouseSawRawInput.load(std::memory_order_relaxed))
+    {
+        POINT pt{};
+        if (GetCursorPos(&pt))
+        {
+            if (!g_mouseHasLastPos)
+            {
+                g_mouseLastPos = pt;
+                g_mouseHasLastPos = true;
+            }
+            else
+            {
+                dx = (LONG)(pt.x - g_mouseLastPos.x);
+                dy = (LONG)(pt.y - g_mouseLastPos.y);
+                g_mouseLastPos = pt;
+            }
+        }
+    }
+
+    const float sens = std::clamp(Settings_GetMouseToStickSensitivity(), 0.1f, 8.0f);
+    const float aggressiveness = std::clamp(Settings_GetMouseToStickAggressiveness(), 0.2f, 3.0f);
+    const float maxOffsetMul = std::clamp(Settings_GetMouseToStickMaxOffset(), 0.0f, 6.0f);
+    const float followSpeedMul = std::clamp(Settings_GetMouseToStickFollowSpeed(), 0.2f, 3.0f);
+
+    // Base mouse-space unit: how many raw counts are needed for "1.0" of virtual range.
+    const float baseRange = std::clamp(92.0f / sens, 10.0f, 260.0f);
+    // Slider-controlled max allowed virtual displacement from center.
+    const double offsetLimit = (double)baseRange * (double)maxOffsetMul;
 
     auto smoothAxis = [dtMs](float current, float target) -> float
     {
-        // Fast attack + softer release: removes 0/1-px jitter on slow cursor movement.
-        const float tauAttackMs = 4.0f;
-        const float tauReleaseMs = 11.0f;
-        float tau = (std::fabs(target) >= std::fabs(current)) ? tauAttackMs : tauReleaseMs;
-        if (std::fabs(target) < 0.0001f)
-            tau = tauReleaseMs;
-        float alpha = 1.0f - std::exp(-dtMs / std::max(0.5f, tau));
+        // Output smoothing is independent from offset and follower speed.
+        const float tauMs = 5.0f;
+        float alpha = 1.0f - std::exp(-dtMs / std::max(0.5f, tauMs));
         float v = current + (target - current) * alpha;
-        if (std::fabs(v) < 0.0007f) v = 0.0f;
+        if (std::fabs(v) < 0.0006f && std::fabs(target) < 0.0006f) v = 0.0f;
         return std::clamp(v, -1.0f, 1.0f);
     };
 
+    if (offsetLimit <= 0.0001)
+    {
+        // Max offset = 0 means disabled movement envelope.
+        g_mouseTargetX = 0.0;
+        g_mouseTargetY = 0.0;
+        g_mouseFollowerX = 0.0;
+        g_mouseFollowerY = 0.0;
+        g_mouseFilteredX = 0.0f;
+        g_mouseFilteredY = 0.0f;
+        outX = 0.0f;
+        outY = 0.0f;
+        g_mouseDbgEnabled.store(1, std::memory_order_relaxed);
+        g_mouseDbgUsingRaw.store(g_mouseSawRawInput.load(std::memory_order_relaxed) ? 1u : 0u, std::memory_order_relaxed);
+        g_mouseDbgTargetX10.store(0, std::memory_order_relaxed);
+        g_mouseDbgTargetY10.store(0, std::memory_order_relaxed);
+        g_mouseDbgFollowerX10.store(0, std::memory_order_relaxed);
+        g_mouseDbgFollowerY10.store(0, std::memory_order_relaxed);
+        g_mouseDbgOutX1000.store(0, std::memory_order_relaxed);
+        g_mouseDbgOutY1000.store(0, std::memory_order_relaxed);
+        g_mouseDbgRadius1000.store((int)std::lround((double)baseRange * 1000.0), std::memory_order_relaxed);
+        return false;
+    }
+
+    // In this model g_mouseTarget is the live offset between virtual cursor and
+    // virtual center ("zero point"), not an absolute world position.
+    // This prevents hard one-way lock at map borders.
+    // First, let center catch up (offset decays toward zero)...
+    const double invOffset = 1.0 / offsetLimit;
+    double errNormX = std::clamp(g_mouseTargetX * invOffset, -1.0, 1.0);
+    double errNormY = std::clamp(g_mouseTargetY * invOffset, -1.0, 1.0);
+
+    // Follow speed in normalized units per millisecond.
+    const float followNormPerMs = std::clamp(0.018f * followSpeedMul, 0.0015f, 0.12f);
+    auto moveTowardNorm2D = [dtMs, followNormPerMs](double& cx, double& cy, double tx, double ty)
+    {
+        double dxv = tx - cx;
+        double dyv = ty - cy;
+        double dist = std::sqrt(dxv * dxv + dyv * dyv);
+        double maxStep = (double)followNormPerMs * (double)dtMs;
+        if (dist <= 0.000001 || maxStep <= 0.0)
+            return;
+        if (dist <= maxStep)
+        {
+            cx = tx;
+            cy = ty;
+            return;
+        }
+        double s = maxStep / dist;
+        cx += dxv * s;
+        cy += dyv * s;
+    };
+    moveTowardNorm2D(errNormX, errNormY, 0.0, 0.0);
+
+    // ...then apply this tick mouse movement.
+    errNormX += (double)dx * invOffset;
+    errNormY += (double)(-dy) * invOffset; // Y up like stick
+
+    // Limit only the offset (difference), not absolute motion space.
+    errNormX = std::clamp(errNormX, -1.0, 1.0);
+    errNormY = std::clamp(errNormY, -1.0, 1.0);
+    g_mouseTargetX = errNormX * offsetLimit;
+    g_mouseTargetY = errNormY * offsetLimit;
+
+    // Follower stays at center in this representation; offset itself is the error.
+    g_mouseFollowerX = 0.0;
+    g_mouseFollowerY = 0.0;
+
+    // Snap tiny residuals to zero when fully idle.
+    if (rawDx == 0 && rawDy == 0 && std::fabs(errNormX) < 0.003 && std::fabs(errNormY) < 0.003)
+    {
+        g_mouseTargetX = 0.0;
+        g_mouseTargetY = 0.0;
+        errNormX = 0.0;
+        errNormY = 0.0;
+    }
+
+    float targetX = MouseErrorToAxis(errNormX, 1.0f, aggressiveness);
+    float targetY = MouseErrorToAxis(errNormY, 1.0f, aggressiveness);
+    ApplyMouseCardinalAssist(targetX, targetY);
+
+    // 4) Smooth output and align its direction toward the live target direction.
     g_mouseFilteredX = smoothAxis(g_mouseFilteredX, targetX);
     g_mouseFilteredY = smoothAxis(g_mouseFilteredY, targetY);
+    ApplyMouseCardinalAssist(g_mouseFilteredX, g_mouseFilteredY);
+    AlignMouseOutputDirection(targetX, targetY, g_mouseFilteredX, g_mouseFilteredY);
+
+    // Square stick space (independent axes): do NOT renormalize to a circle.
+    // This keeps full X/Y output even when the other axis is slightly non-zero.
+    g_mouseFilteredX = std::clamp(g_mouseFilteredX, -1.0f, 1.0f);
+    g_mouseFilteredY = std::clamp(g_mouseFilteredY, -1.0f, 1.0f);
 
     outX = g_mouseFilteredX;
     outY = g_mouseFilteredY;
+    g_mouseDbgEnabled.store(1, std::memory_order_relaxed);
+    g_mouseDbgUsingRaw.store(g_mouseSawRawInput.load(std::memory_order_relaxed) ? 1u : 0u, std::memory_order_relaxed);
+    g_mouseDbgTargetX10.store((int)std::lround(std::clamp(g_mouseTargetX, -200000.0, 200000.0) * 10.0), std::memory_order_relaxed);
+    g_mouseDbgTargetY10.store((int)std::lround(std::clamp(g_mouseTargetY, -200000.0, 200000.0) * 10.0), std::memory_order_relaxed);
+    g_mouseDbgFollowerX10.store((int)std::lround(std::clamp(g_mouseFollowerX, -200000.0, 200000.0) * 10.0), std::memory_order_relaxed);
+    g_mouseDbgFollowerY10.store((int)std::lround(std::clamp(g_mouseFollowerY, -200000.0, 200000.0) * 10.0), std::memory_order_relaxed);
+    g_mouseDbgOutX1000.store((int)std::lround(std::clamp((double)outX, -1.0, 1.0) * 1000.0), std::memory_order_relaxed);
+    g_mouseDbgOutY1000.store((int)std::lround(std::clamp((double)outY, -1.0, 1.0) * 1000.0), std::memory_order_relaxed);
+    g_mouseDbgRadius1000.store((int)std::lround((double)offsetLimit * 1000.0), std::memory_order_relaxed);
     return (std::fabs(outX) > 0.0001f || std::fabs(outY) > 0.0001f);
 }
 
@@ -1372,11 +1602,28 @@ bool Backend_Init()
     g_autoRecoverTried.store(false, std::memory_order_relaxed);
     g_keycodeModeLocked.store(false, std::memory_order_relaxed);
     g_mouseHasLastPos = false;
+    g_mouseSawRawInput.store(false, std::memory_order_relaxed);
     g_mouseFilteredX = 0.0f;
     g_mouseFilteredY = 0.0f;
+    g_mouseTargetX = 0.0;
+    g_mouseTargetY = 0.0;
+    g_mouseFollowerX = 0.0;
+    g_mouseFollowerY = 0.0;
     g_mouseLastTickMs = 0;
     g_mouseRawAccumDx.store(0, std::memory_order_relaxed);
     g_mouseRawAccumDy.store(0, std::memory_order_relaxed);
+    g_mouseDbgEnabled.store(0, std::memory_order_relaxed);
+    g_mouseDbgUsingRaw.store(0, std::memory_order_relaxed);
+    g_mouseDbgTargetX10.store(0, std::memory_order_relaxed);
+    g_mouseDbgTargetY10.store(0, std::memory_order_relaxed);
+    g_mouseDbgFollowerX10.store(0, std::memory_order_relaxed);
+    g_mouseDbgFollowerY10.store(0, std::memory_order_relaxed);
+    g_mouseDbgOutX1000.store(0, std::memory_order_relaxed);
+    g_mouseDbgOutY1000.store(0, std::memory_order_relaxed);
+    g_mouseDbgRadius1000.store(1000, std::memory_order_relaxed);
+    for (auto& b : g_mouseBindButtons) b.store(0, std::memory_order_relaxed);
+    g_mouseWheelPulseUpUntilMs.store(0, std::memory_order_relaxed);
+    g_mouseWheelPulseDownUntilMs.store(0, std::memory_order_relaxed);
 
     uint32_t initIssues = BackendInitIssue_None;
     int wootingInit = wooting_analog_initialise();
@@ -1462,11 +1709,28 @@ void Backend_Shutdown()
     DebugLog_Write(L"[backend] shutdown");
     g_knownDeviceCount.store(0, std::memory_order_relaxed);
     g_mouseHasLastPos = false;
+    g_mouseSawRawInput.store(false, std::memory_order_relaxed);
     g_mouseFilteredX = 0.0f;
     g_mouseFilteredY = 0.0f;
+    g_mouseTargetX = 0.0;
+    g_mouseTargetY = 0.0;
+    g_mouseFollowerX = 0.0;
+    g_mouseFollowerY = 0.0;
     g_mouseLastTickMs = 0;
     g_mouseRawAccumDx.store(0, std::memory_order_relaxed);
     g_mouseRawAccumDy.store(0, std::memory_order_relaxed);
+    g_mouseDbgEnabled.store(0, std::memory_order_relaxed);
+    g_mouseDbgUsingRaw.store(0, std::memory_order_relaxed);
+    g_mouseDbgTargetX10.store(0, std::memory_order_relaxed);
+    g_mouseDbgTargetY10.store(0, std::memory_order_relaxed);
+    g_mouseDbgFollowerX10.store(0, std::memory_order_relaxed);
+    g_mouseDbgFollowerY10.store(0, std::memory_order_relaxed);
+    g_mouseDbgOutX1000.store(0, std::memory_order_relaxed);
+    g_mouseDbgOutY1000.store(0, std::memory_order_relaxed);
+    g_mouseDbgRadius1000.store(1000, std::memory_order_relaxed);
+    for (auto& b : g_mouseBindButtons) b.store(0, std::memory_order_relaxed);
+    g_mouseWheelPulseUpUntilMs.store(0, std::memory_order_relaxed);
+    g_mouseWheelPulseDownUntilMs.store(0, std::memory_order_relaxed);
     g_reconnectRequested.store(false, std::memory_order_release);
     g_deviceChangeReconnectRequested.store(false, std::memory_order_release);
     g_keycodeModeLocked.store(false, std::memory_order_relaxed);
@@ -1899,6 +2163,22 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
     *out = t;
 }
 
+void Backend_GetMouseStickDebug(BackendMouseStickDebug* out)
+{
+    if (!out) return;
+    BackendMouseStickDebug d{};
+    d.enabled = (g_mouseDbgEnabled.load(std::memory_order_relaxed) != 0);
+    d.usingRawInput = (g_mouseDbgUsingRaw.load(std::memory_order_relaxed) != 0);
+    d.targetX = (float)g_mouseDbgTargetX10.load(std::memory_order_relaxed) / 10.0f;
+    d.targetY = (float)g_mouseDbgTargetY10.load(std::memory_order_relaxed) / 10.0f;
+    d.followerX = (float)g_mouseDbgFollowerX10.load(std::memory_order_relaxed) / 10.0f;
+    d.followerY = (float)g_mouseDbgFollowerY10.load(std::memory_order_relaxed) / 10.0f;
+    d.outputX = (float)g_mouseDbgOutX1000.load(std::memory_order_relaxed) / 1000.0f;
+    d.outputY = (float)g_mouseDbgOutY1000.load(std::memory_order_relaxed) / 1000.0f;
+    d.radius = std::max(0.001f, (float)g_mouseDbgRadius1000.load(std::memory_order_relaxed) / 1000.0f);
+    *out = d;
+}
+
 bool Backend_ConsumeDigitalFallbackWarning()
 {
     if (!Settings_GetDigitalFallbackInput())
@@ -1972,6 +2252,30 @@ void Backend_AddMouseDelta(int dx, int dy)
                 break;
         }
     }
+}
+
+void Backend_SetMouseBindButtonState(uint16_t mouseBindHid, bool down)
+{
+    switch (mouseBindHid)
+    {
+    case kMouseBindHidLButton: g_mouseBindButtons[0].store(down ? 1u : 0u, std::memory_order_relaxed); break;
+    case kMouseBindHidRButton: g_mouseBindButtons[1].store(down ? 1u : 0u, std::memory_order_relaxed); break;
+    case kMouseBindHidMButton: g_mouseBindButtons[2].store(down ? 1u : 0u, std::memory_order_relaxed); break;
+    case kMouseBindHidX1: g_mouseBindButtons[3].store(down ? 1u : 0u, std::memory_order_relaxed); break;
+    case kMouseBindHidX2: g_mouseBindButtons[4].store(down ? 1u : 0u, std::memory_order_relaxed); break;
+    default: break;
+    }
+}
+
+void Backend_PulseMouseBindWheel(uint16_t mouseBindHid)
+{
+    // Keep wheel as a short digital pulse.
+    constexpr ULONGLONG kPulseMs = 42;
+    ULONGLONG until = GetTickCount64() + kPulseMs;
+    if (mouseBindHid == kMouseBindHidWheelUp)
+        g_mouseWheelPulseUpUntilMs.store(until, std::memory_order_relaxed);
+    else if (mouseBindHid == kMouseBindHidWheelDown)
+        g_mouseWheelPulseDownUntilMs.store(until, std::memory_order_relaxed);
 }
 
 void Backend_SetVirtualGamepadCount(int count)

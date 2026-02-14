@@ -31,6 +31,7 @@
 #include "bindings.h"
 #include "ui_theme.h"
 #include "remap_icons.h"
+#include "mouse_bind_codes.h"
 
 using namespace Gdiplus;
 
@@ -1287,7 +1288,7 @@ static void Remap_CreateIconPackButtons(HWND hWnd, RemapPanelState* st, HINSTANC
         st->iconsPerPack = iconsPerPack;
 
     int startX = S(hWnd, 12);
-    int startY = S(hWnd, 104);
+    int startY = S(hWnd, 124);
     int packGapY = S(hWnd, 16);
     int headerH = S(hWnd, 22);
     int btnW = S(hWnd, (int)Settings_GetRemapButtonSizePx());
@@ -1411,7 +1412,7 @@ static int Remap_RecalcContentHeight(HWND hWnd, RemapPanelState* st)
     if (!st) return 0;
     int clientH = Remap_GetViewportHeight(hWnd);
 
-    const int startY = S(hWnd, 104);
+    const int startY = S(hWnd, 124);
     const int packGapY = S(hWnd, 16);
     const int headerH = S(hWnd, 22);
     const int btnW = S(hWnd, (int)Settings_GetRemapButtonSizePx());
@@ -1442,7 +1443,7 @@ static RECT Remap_GetPackRectClient(HWND hWnd, RemapPanelState* st, int packIdx)
     GetClientRect(hWnd, &rcClient);
 
     const int yOff = st ? -st->scrollY : 0;
-    const int startY = S(hWnd, 104);
+    const int startY = S(hWnd, 124);
     const int packGapY = S(hWnd, 16);
     const int headerH = S(hWnd, 22);
     const int btnW = S(hWnd, (int)Settings_GetRemapButtonSizePx());
@@ -1641,11 +1642,11 @@ static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st)
     RECT trackForHelp = Remap_GetScrollTrackRect(hWnd);
     int helpRight = std::max(helpX + S(hWnd, 220), (int)trackForHelp.left - S(hWnd, 8));
     int helpW = std::max(S(hWnd, 220), helpRight - helpX);
-    Move(st->txtHelp, helpX, yOff + S(hWnd, 10), helpW, S(hWnd, 52));
-    Move(st->btnAddGamepad, S(hWnd, 12), yOff + S(hWnd, 66), S(hWnd, 210), S(hWnd, 28));
+    Move(st->txtHelp, helpX, yOff + S(hWnd, 10), helpW, S(hWnd, 72));
+    Move(st->btnAddGamepad, S(hWnd, 12), yOff + S(hWnd, 86), S(hWnd, 210), S(hWnd, 28));
 
     const int startX = S(hWnd, 12);
-    const int startY = S(hWnd, 104);
+    const int startY = S(hWnd, 124);
     const int packGapY = S(hWnd, 16);
     const int headerH = S(hWnd, 22);
     const int btnW = S(hWnd, (int)Settings_GetRemapButtonSizePx());
@@ -1911,6 +1912,49 @@ static uint16_t GetOldHidForAction(int padIndex, BindAction act)
     }
 }
 
+static void ApplyBindingNow(HWND hWnd, RemapPanelState* st, uint16_t newHid)
+{
+    if (!st || newHid == 0) return;
+
+    BindAction act = st->dragAction;
+    uint16_t oldHid = GetOldHidForAction(st->dragPadIndex, act);
+
+    BindingActions_ApplyForPad(st->dragPadIndex, act, newHid);
+    Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
+    InvalidateHidKey(oldHid);
+    InvalidateHidKey(newHid);
+    if (st->hKeyboardHost) InvalidateRect(st->hKeyboardHost, nullptr, FALSE);
+
+    st->dragging = false;
+    if (GetCapture() == hWnd)
+        ReleaseCapture();
+
+    KeyboardUI_SetDragHoverHid(0);
+    st->hoverHid = 0;
+    st->hoverKeyRectScreen = RECT{};
+    st->keyBtns.clear();
+
+    if (st->dragSrcIconBtn)
+    {
+        st->srcIconScale = 1.0f;
+        st->srcIconScaleTarget = 1.0f;
+        InvalidateRect(st->dragSrcIconBtn, nullptr, FALSE);
+    }
+    st->dragSrcIconBtn = nullptr;
+    st->dragSrcCenterScreen = POINT{};
+
+    st->postMode = RemapPostAnimMode::None;
+    st->postPhase = 0;
+    st->postPhaseStartTick = 0;
+    st->postPhaseDurationMs = 0;
+    st->shrinkStartMs = 0;
+    st->shrinkDurMs = 0;
+
+    KillTimer(hWnd, DRAG_ANIM_TIMER_ID);
+    st->animIntervalMs = 0;
+    Ghost_Hide(st);
+}
+
 // ---------------- Icon subclass (start drag) ----------------
 static LRESULT CALLBACK IconSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, LPARAM lParam,
     UINT_PTR, DWORD_PTR dwRefData)
@@ -2104,6 +2148,13 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         return 0;
 
     case WM_MOUSEWHEEL:
+        if (st && st->dragging)
+        {
+            short d = GET_WHEEL_DELTA_WPARAM(wParam);
+            if (d > 0) ApplyBindingNow(hWnd, st, kMouseBindHidWheelUp);
+            else if (d < 0) ApplyBindingNow(hWnd, st, kMouseBindHidWheelDown);
+            return 0;
+        }
         if (st)
         {
             const int delta = GET_WHEEL_DELTA_WPARAM(wParam);
@@ -2133,6 +2184,35 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         }
         return 0;
 
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONUP:
+        if (st && st->dragging)
+        {
+            ApplyBindingNow(hWnd, st, kMouseBindHidRButton);
+            return 0;
+        }
+        break;
+
+    case WM_MBUTTONDOWN:
+    case WM_MBUTTONUP:
+        if (st && st->dragging)
+        {
+            ApplyBindingNow(hWnd, st, kMouseBindHidMButton);
+            return 0;
+        }
+        break;
+
+    case WM_XBUTTONDOWN:
+    case WM_XBUTTONUP:
+        if (st && st->dragging)
+        {
+            WORD xb = HIWORD(wParam);
+            if (xb == XBUTTON1) ApplyBindingNow(hWnd, st, kMouseBindHidX1);
+            else if (xb == XBUTTON2) ApplyBindingNow(hWnd, st, kMouseBindHidX2);
+            return TRUE;
+        }
+        break;
+
     case WM_CREATE:
     {
         auto* cs = (CREATESTRUCTW*)lParam;
@@ -2147,16 +2227,17 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
         st->txtHelp = CreateWindowW(L"STATIC",
             L"Drag and drop a gamepad control onto a keyboard key to bind.\n"
+            L"While dragging: RMB/MMB/X1/X2 or wheel binds mouse input (Shift+LMB for left click).\n"
             L"Right click a key on the keyboard to unbind.\n"
             L"Press ESC to cancel dragging.",
             WS_CHILD | WS_VISIBLE,
-            S(hWnd, 12), S(hWnd, 10), S(hWnd, 860), S(hWnd, 52),
+            S(hWnd, 12), S(hWnd, 10), S(hWnd, 860), S(hWnd, 72),
             hWnd, nullptr, cs->hInstance, nullptr);
         SendMessageW(st->txtHelp, WM_SETFONT, (WPARAM)hFont, TRUE);
 
         st->btnAddGamepad = CreateWindowW(L"BUTTON", L"Add Gamepad",
             WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-            S(hWnd, 12), S(hWnd, 66), S(hWnd, 210), S(hWnd, 28),
+            S(hWnd, 12), S(hWnd, 86), S(hWnd, 210), S(hWnd, 28),
             hWnd, (HMENU)(INT_PTR)REMAP_ID_ADD_GAMEPAD, cs->hInstance, nullptr);
         SendMessageW(st->btnAddGamepad, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -2244,57 +2325,16 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
         if (st && st->dragging)
         {
-            // Updated post-drop logic.
             uint16_t newHid = st->hoverHid;
-            BindAction act = st->dragAction;
-            uint16_t oldHid = GetOldHidForAction(st->dragPadIndex, act);
+            const bool shiftDown = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+            if (newHid == 0 && shiftDown)
+                newHid = kMouseBindHidLButton;
 
             bool bound = (newHid != 0);
 
             if (bound)
             {
-                // Apply binding immediately
-                BindingActions_ApplyForPad(st->dragPadIndex, act, newHid);
-                Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
-                InvalidateHidKey(oldHid);
-                InvalidateHidKey(newHid);
-                if (st->hKeyboardHost) InvalidateRect(st->hKeyboardHost, nullptr, FALSE);
-
-                // IMPORTANT: instant cleanup - NO shrink animation
-                st->dragging = false;
-
-                if (GetCapture() == hWnd)
-                    ReleaseCapture();
-
-                KeyboardUI_SetDragHoverHid(0);
-
-                st->hoverHid = 0;
-                st->hoverKeyRectScreen = RECT{};
-                st->keyBtns.clear();
-
-                // restore source icon in remap panel immediately
-                if (st->dragSrcIconBtn)
-                {
-                    st->srcIconScale = 1.0f;
-                    st->srcIconScaleTarget = 1.0f;
-                    InvalidateRect(st->dragSrcIconBtn, nullptr, FALSE);
-                }
-                st->dragSrcIconBtn = nullptr;
-                st->dragSrcCenterScreen = POINT{};
-
-                // stop any post animation + hide ghost instantly
-                st->postMode = RemapPostAnimMode::None;
-                st->postPhase = 0;
-                st->postPhaseStartTick = 0;
-                st->postPhaseDurationMs = 0;
-                st->shrinkStartMs = 0;
-                st->shrinkDurMs = 0;
-
-                KillTimer(hWnd, DRAG_ANIM_TIMER_ID);
-                st->animIntervalMs = 0;
-
-                Ghost_Hide(st);
-
+                ApplyBindingNow(hWnd, st, newHid);
                 return 0;
             }
 

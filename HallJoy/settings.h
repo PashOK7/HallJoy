@@ -107,6 +107,19 @@ int Settings_GetMouseToStickTarget();
 void Settings_SetMouseToStickSensitivity(float v);
 float Settings_GetMouseToStickSensitivity();
 
+// Error-to-stick response gain/shape [0.2 .. 3.0], 1.0 = default
+void Settings_SetMouseToStickAggressiveness(float v);
+float Settings_GetMouseToStickAggressiveness();
+
+// Maximum target offset relative to radius [0.0 .. 6.0], 2.5 = default.
+// Controls only "distance from center" behavior, not directional assist.
+void Settings_SetMouseToStickMaxOffset(float v);
+float Settings_GetMouseToStickMaxOffset();
+
+// Follower speed multiplier [0.2 .. 3.0], 1.0 = default
+void Settings_SetMouseToStickFollowSpeed(float v);
+float Settings_GetMouseToStickFollowSpeed();
+
 // ---------------- DEBUG / TUNING (temporary) ----------------
 // All sizes are in "96-DPI pixels" (unscaled). UI scales them via WinUtil_ScalePx().
 

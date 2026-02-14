@@ -68,6 +68,9 @@ static std::atomic<bool> g_digitalFallbackInput{ false };
 static std::atomic<bool> g_mouseToStickEnabled{ false };
 static std::atomic<int> g_mouseToStickTarget{ 1 }; // default: right stick
 static std::atomic<int> g_mouseToStickSensitivityM{ 1000 }; // 1.0x
+static std::atomic<int> g_mouseToStickAggressivenessM{ 1000 }; // 1.0x
+static std::atomic<int> g_mouseToStickMaxOffsetM{ 2500 }; // 2.5x radius
+static std::atomic<int> g_mouseToStickFollowSpeedM{ 1000 }; // 1.0x
 
 // UI sizes (fixed)
 static constexpr UINT kRemapButtonSizePx = 43;
@@ -367,6 +370,45 @@ float Settings_GetMouseToStickSensitivity()
 {
     int m = g_mouseToStickSensitivityM.load(std::memory_order_acquire);
     m = std::clamp(m, 100, 8000);
+    return (float)m / 1000.0f;
+}
+
+void Settings_SetMouseToStickAggressiveness(float v)
+{
+    int m = (int)lroundf(std::clamp(v, 0.2f, 3.0f) * 1000.0f);
+    g_mouseToStickAggressivenessM.store(std::clamp(m, 200, 3000), std::memory_order_release);
+}
+
+float Settings_GetMouseToStickAggressiveness()
+{
+    int m = g_mouseToStickAggressivenessM.load(std::memory_order_acquire);
+    m = std::clamp(m, 200, 3000);
+    return (float)m / 1000.0f;
+}
+
+void Settings_SetMouseToStickMaxOffset(float v)
+{
+    int m = (int)lroundf(std::clamp(v, 0.0f, 6.0f) * 1000.0f);
+    g_mouseToStickMaxOffsetM.store(std::clamp(m, 0, 6000), std::memory_order_release);
+}
+
+float Settings_GetMouseToStickMaxOffset()
+{
+    int m = g_mouseToStickMaxOffsetM.load(std::memory_order_acquire);
+    m = std::clamp(m, 0, 6000);
+    return (float)m / 1000.0f;
+}
+
+void Settings_SetMouseToStickFollowSpeed(float v)
+{
+    int m = (int)lroundf(std::clamp(v, 0.2f, 3.0f) * 1000.0f);
+    g_mouseToStickFollowSpeedM.store(std::clamp(m, 200, 3000), std::memory_order_release);
+}
+
+float Settings_GetMouseToStickFollowSpeed()
+{
+    int m = g_mouseToStickFollowSpeedM.load(std::memory_order_acquire);
+    m = std::clamp(m, 200, 3000);
     return (float)m / 1000.0f;
 }
 

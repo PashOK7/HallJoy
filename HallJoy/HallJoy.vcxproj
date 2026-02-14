@@ -184,6 +184,7 @@
     <ClInclude Include="keyboard_ui_internal.h" />
     <ClInclude Include="keyboard_ui_state.h" />
     <ClInclude Include="key_settings.h" />
+    <ClInclude Include="mouse_ipc.h" />
     <ClInclude Include="premium_combo.h" />
     <ClInclude Include="premium_combo_internal.h" />
     <ClInclude Include="profile_ini.h" />
@@ -236,6 +237,7 @@
     <ClCompile Include="keyboard_ui.cpp" />
     <ClCompile Include="key_settings.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="mouse_ipc.cpp" />
     <ClCompile Include="premium_combo_anim.cpp" />
     <ClCompile Include="premium_combo_core.cpp" />
     <ClCompile Include="premium_combo_logic.cpp" />

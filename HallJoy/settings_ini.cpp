@@ -17,6 +17,7 @@
 #include "key_settings.h"
 #include "ini_util.h"
 #include "keyboard_layout.h"
+#include "global_profiles.h"
 
 static float ClampF(float v, float lo, float hi)
 {
@@ -266,45 +267,86 @@ static void KeySettingsIni_LoadFromSettingsIni(const wchar_t* path)
     }
 }
 
-bool SettingsIni_Load(const wchar_t* path)
+static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loadLayout, bool loadActiveProfileKey)
 {
     if (!path) return false;
 
     DWORD attr = GetFileAttributesW(path);
     if (attr == INVALID_FILE_ATTRIBUTES) return false;
 
-    float low = IniReadFloat1000(L"Input", L"DeadzoneLow", Settings_GetInputDeadzoneLow(), path);
-    float high = IniReadFloat1000(L"Input", L"DeadzoneHigh", Settings_GetInputDeadzoneHigh(), path);
+    const bool profileOnly = (!loadWindow && !loadLayout && !loadActiveProfileKey);
 
-    float adz = IniReadFloat1000(L"Input", L"AntiDeadzone", Settings_GetInputAntiDeadzone(), path);
-    float cap = IniReadFloat1000(L"Input", L"OutputCap", Settings_GetInputOutputCap(), path);
+    // For profile loading, never inherit current runtime values for missing keys.
+    // Profile must be self-contained; missing values fall back to stable defaults.
+    float lowDef = profileOnly ? 0.08f : Settings_GetInputDeadzoneLow();
+    float highDef = profileOnly ? 0.90f : Settings_GetInputDeadzoneHigh();
+    float adzDef = profileOnly ? 0.0f : Settings_GetInputAntiDeadzone();
+    float capDef = profileOnly ? 1.0f : Settings_GetInputOutputCap();
+    float c1xDef = profileOnly ? 0.38f : Settings_GetInputBezierCp1X();
+    float c1yDef = profileOnly ? 0.33f : Settings_GetInputBezierCp1Y();
+    float c2xDef = profileOnly ? 0.68f : Settings_GetInputBezierCp2X();
+    float c2yDef = profileOnly ? 0.66f : Settings_GetInputBezierCp2Y();
+    float c1wDef = profileOnly ? 1.0f : Settings_GetInputBezierCp1W();
+    float c2wDef = profileOnly ? 1.0f : Settings_GetInputBezierCp2W();
+    UINT curveModeDef = profileOnly ? 1u : Settings_GetInputCurveMode();
+    int invertDef = profileOnly ? 0 : (Settings_GetInputInvert() ? 1 : 0);
+    int snappyDef = profileOnly ? 0 : (Settings_GetSnappyJoystick() ? 1 : 0);
+    int lkpDef = profileOnly ? 0 : (Settings_GetLastKeyPriority() ? 1 : 0);
+    float lkpSensDef = profileOnly ? 0.12f : Settings_GetLastKeyPrioritySensitivity();
+    int blockDef = profileOnly ? 0 : (Settings_GetBlockBoundKeys() ? 1 : 0);
+    int blockMouseDef = profileOnly ? 0 : (Settings_GetBlockMouseInput() ? 1 : 0);
+    UINT pollDef = profileOnly ? 1u : Settings_GetPollingMs();
+    UINT uiDef = profileOnly ? 1u : Settings_GetUIRefreshMs();
+    int padsDef = profileOnly ? 1 : Settings_GetVirtualGamepadCount();
+    int padsEnabledDef = profileOnly ? 1 : (Settings_GetVirtualGamepadsEnabled() ? 1 : 0);
+    int fallbackDef = profileOnly ? 0 : (Settings_GetDigitalFallbackInput() ? 1 : 0);
+    int mouseToStickEnabledDef = profileOnly ? 0 : (Settings_GetMouseToStickEnabled() ? 1 : 0);
+    int mouseToStickTargetDef = profileOnly ? 1 : Settings_GetMouseToStickTarget();
+    float mouseToStickSensDef = profileOnly ? 1.0f : Settings_GetMouseToStickSensitivity();
 
-    float c1x = IniReadFloat1000(L"Input", L"Cp1X", Settings_GetInputBezierCp1X(), path);
-    float c1y = IniReadFloat1000(L"Input", L"Cp1Y", Settings_GetInputBezierCp1Y(), path);
-    float c2x = IniReadFloat1000(L"Input", L"Cp2X", Settings_GetInputBezierCp2X(), path);
-    float c2y = IniReadFloat1000(L"Input", L"Cp2Y", Settings_GetInputBezierCp2Y(), path);
+    float low = IniReadFloat1000(L"Input", L"DeadzoneLow", lowDef, path);
+    float high = IniReadFloat1000(L"Input", L"DeadzoneHigh", highDef, path);
 
-    float c1w = IniReadFloat1000(L"Input", L"Cp1W", Settings_GetInputBezierCp1W(), path);
-    float c2w = IniReadFloat1000(L"Input", L"Cp2W", Settings_GetInputBezierCp2W(), path);
+    float adz = IniReadFloat1000(L"Input", L"AntiDeadzone", adzDef, path);
+    float cap = IniReadFloat1000(L"Input", L"OutputCap", capDef, path);
 
-    UINT curveMode = IniReadU32(L"Input", L"CurveMode", Settings_GetInputCurveMode(), path);
-    int invert = GetPrivateProfileIntW(L"Input", L"Invert", 0, path);
-    int snappy = GetPrivateProfileIntW(L"Input", L"SnappyJoystick", Settings_GetSnappyJoystick() ? 1 : 0, path);
-    int lastKeyPriority = GetPrivateProfileIntW(L"Input", L"LastKeyPriority", Settings_GetLastKeyPriority() ? 1 : 0, path);
+    float c1x = IniReadFloat1000(L"Input", L"Cp1X", c1xDef, path);
+    float c1y = IniReadFloat1000(L"Input", L"Cp1Y", c1yDef, path);
+    float c2x = IniReadFloat1000(L"Input", L"Cp2X", c2xDef, path);
+    float c2y = IniReadFloat1000(L"Input", L"Cp2Y", c2yDef, path);
+
+    float c1w = IniReadFloat1000(L"Input", L"Cp1W", c1wDef, path);
+    float c2w = IniReadFloat1000(L"Input", L"Cp2W", c2wDef, path);
+
+    UINT curveMode = IniReadU32(L"Input", L"CurveMode", curveModeDef, path);
+    int invert = GetPrivateProfileIntW(L"Input", L"Invert", invertDef, path);
+    int snappy = GetPrivateProfileIntW(L"Input", L"SnappyJoystick", snappyDef, path);
+    int lastKeyPriority = GetPrivateProfileIntW(L"Input", L"LastKeyPriority", lkpDef, path);
     float lastKeyPrioritySensitivity = IniReadFloat1000(
         L"Input", L"LastKeyPrioritySensitivity",
-        Settings_GetLastKeyPrioritySensitivity(), path);
-    int blockBoundKeys = GetPrivateProfileIntW(L"Input", L"BlockBoundKeys", Settings_GetBlockBoundKeys() ? 1 : 0, path);
+        lkpSensDef, path);
+    int blockBoundKeys = GetPrivateProfileIntW(L"Input", L"BlockBoundKeys", blockDef, path);
+    int blockMouseInput = GetPrivateProfileIntW(L"Input", L"BlockMouseInput", blockMouseDef, path);
 
-    UINT poll = IniReadU32(L"Main", L"PollingMs", Settings_GetPollingMs(), path);
-    UINT uiMs = IniReadU32(L"Main", L"UIRefreshMs", Settings_GetUIRefreshMs(), path);
-    int vpadCount = GetPrivateProfileIntW(L"Main", L"VirtualGamepads", Settings_GetVirtualGamepadCount(), path);
-    int vpadEnabled = GetPrivateProfileIntW(L"Main", L"VirtualGamepadsEnabled", Settings_GetVirtualGamepadsEnabled() ? 1 : 0, path);
-    int digitalFallbackInput = GetPrivateProfileIntW(L"Main", L"DigitalFallbackInput", Settings_GetDigitalFallbackInput() ? 1 : 0, path);
-    int winW = GetPrivateProfileIntW(L"Window", L"Width", Settings_GetMainWindowWidthPx(), path);
-    int winH = GetPrivateProfileIntW(L"Window", L"Height", Settings_GetMainWindowHeightPx(), path);
-    int winX = IniReadI32(L"Window", L"PosX", std::numeric_limits<int>::min(), path);
-    int winY = IniReadI32(L"Window", L"PosY", std::numeric_limits<int>::min(), path);
+    UINT poll = IniReadU32(L"Main", L"PollingMs", pollDef, path);
+    UINT uiMs = IniReadU32(L"Main", L"UIRefreshMs", uiDef, path);
+    int vpadCount = GetPrivateProfileIntW(L"Main", L"VirtualGamepads", padsDef, path);
+    int vpadEnabled = GetPrivateProfileIntW(L"Main", L"VirtualGamepadsEnabled", padsEnabledDef, path);
+    int digitalFallbackInput = GetPrivateProfileIntW(L"Main", L"DigitalFallbackInput", fallbackDef, path);
+    int mouseToStickEnabled = GetPrivateProfileIntW(L"Main", L"MouseToStickEnabled", mouseToStickEnabledDef, path);
+    int mouseToStickTarget = GetPrivateProfileIntW(L"Main", L"MouseToStickTarget", mouseToStickTargetDef, path);
+    float mouseToStickSensitivity = IniReadFloat1000(L"Main", L"MouseToStickSensitivity", mouseToStickSensDef, path);
+    int winW = Settings_GetMainWindowWidthPx();
+    int winH = Settings_GetMainWindowHeightPx();
+    int winX = std::numeric_limits<int>::min();
+    int winY = std::numeric_limits<int>::min();
+    if (loadWindow)
+    {
+        winW = GetPrivateProfileIntW(L"Window", L"Width", Settings_GetMainWindowWidthPx(), path);
+        winH = GetPrivateProfileIntW(L"Window", L"Height", Settings_GetMainWindowHeightPx(), path);
+        winX = IniReadI32(L"Window", L"PosX", std::numeric_limits<int>::min(), path);
+        winY = IniReadI32(L"Window", L"PosY", std::numeric_limits<int>::min(), path);
+    }
 
     Settings_SetInputDeadzoneLow(low);
     Settings_SetInputDeadzoneHigh(high);
@@ -326,25 +368,46 @@ bool SettingsIni_Load(const wchar_t* path)
     Settings_SetLastKeyPriority(lastKeyPriority != 0);
     Settings_SetLastKeyPrioritySensitivity(lastKeyPrioritySensitivity);
     Settings_SetBlockBoundKeys(blockBoundKeys != 0);
+    Settings_SetBlockMouseInput(blockMouseInput != 0);
 
     Settings_SetPollingMs(poll);
     Settings_SetUIRefreshMs(uiMs);
     Settings_SetVirtualGamepadCount(vpadCount);
     Settings_SetVirtualGamepadsEnabled(vpadEnabled != 0);
     Settings_SetDigitalFallbackInput(digitalFallbackInput != 0);
-    Settings_SetMainWindowWidthPx(winW);
-    Settings_SetMainWindowHeightPx(winH);
-    Settings_SetMainWindowPosXPx(winX);
-    Settings_SetMainWindowPosYPx(winY);
+    Settings_SetMouseToStickEnabled(mouseToStickEnabled != 0);
+    Settings_SetMouseToStickTarget(mouseToStickTarget);
+    Settings_SetMouseToStickSensitivity(mouseToStickSensitivity);
+    if (loadWindow)
+    {
+        Settings_SetMainWindowWidthPx(winW);
+        Settings_SetMainWindowHeightPx(winH);
+        Settings_SetMainWindowPosXPx(winX);
+        Settings_SetMainWindowPosYPx(winY);
+    }
+
+    if (loadActiveProfileKey)
+        GlobalProfiles_InitFromSettingsIni(path);
 
     KeySettingsIni_LoadFromSettingsIni(path);
-    KeyboardLayout_LoadFromIni(path);
+    if (loadLayout)
+        KeyboardLayout_LoadFromIni(path);
     return true;
+}
+
+bool SettingsIni_Load(const wchar_t* path)
+{
+    return SettingsIni_Load_Core(path, true, true, true);
+}
+
+bool SettingsIni_LoadProfile(const wchar_t* path)
+{
+    return SettingsIni_Load_Core(path, false, false, false);
 }
 
 // Writes ONLY application settings (settings.ini).
 // Curve presets are stored separately by KeyboardProfiles (CurvePresets folder).
-static bool SettingsIni_Save_Internal(const wchar_t* tmpPath)
+static bool SettingsIni_Save_Internal(const wchar_t* tmpPath, bool saveWindow, bool saveLayout, bool saveActiveProfileKey)
 {
     if (!tmpPath) return false;
 
@@ -368,27 +431,38 @@ static bool SettingsIni_Save_Internal(const wchar_t* tmpPath)
     IniWriteI32(L"Input", L"LastKeyPriority", Settings_GetLastKeyPriority() ? 1 : 0, tmpPath);
     IniWriteFloat1000(L"Input", L"LastKeyPrioritySensitivity", Settings_GetLastKeyPrioritySensitivity(), tmpPath);
     IniWriteI32(L"Input", L"BlockBoundKeys", Settings_GetBlockBoundKeys() ? 1 : 0, tmpPath);
+    IniWriteI32(L"Input", L"BlockMouseInput", Settings_GetBlockMouseInput() ? 1 : 0, tmpPath);
 
     IniWriteU32(L"Main", L"PollingMs", Settings_GetPollingMs(), tmpPath);
     IniWriteU32(L"Main", L"UIRefreshMs", Settings_GetUIRefreshMs(), tmpPath);
     IniWriteI32(L"Main", L"VirtualGamepads", std::clamp(Settings_GetVirtualGamepadCount(), 1, 4), tmpPath);
     IniWriteI32(L"Main", L"VirtualGamepadsEnabled", Settings_GetVirtualGamepadsEnabled() ? 1 : 0, tmpPath);
     IniWriteI32(L"Main", L"DigitalFallbackInput", Settings_GetDigitalFallbackInput() ? 1 : 0, tmpPath);
-    IniWriteI32(L"Window", L"Width", std::max(0, Settings_GetMainWindowWidthPx()), tmpPath);
-    IniWriteI32(L"Window", L"Height", std::max(0, Settings_GetMainWindowHeightPx()), tmpPath);
-    const int winX = Settings_GetMainWindowPosXPx();
-    const int winY = Settings_GetMainWindowPosYPx();
-    if (winX == std::numeric_limits<int>::min())
-        WritePrivateProfileStringW(L"Window", L"PosX", nullptr, tmpPath);
-    else
-        IniWriteI32(L"Window", L"PosX", winX, tmpPath);
-    if (winY == std::numeric_limits<int>::min())
-        WritePrivateProfileStringW(L"Window", L"PosY", nullptr, tmpPath);
-    else
-        IniWriteI32(L"Window", L"PosY", winY, tmpPath);
+    IniWriteI32(L"Main", L"MouseToStickEnabled", Settings_GetMouseToStickEnabled() ? 1 : 0, tmpPath);
+    IniWriteI32(L"Main", L"MouseToStickTarget", Settings_GetMouseToStickTarget(), tmpPath);
+    IniWriteFloat1000(L"Main", L"MouseToStickSensitivity", Settings_GetMouseToStickSensitivity(), tmpPath);
+    if (saveActiveProfileKey)
+        WritePrivateProfileStringW(L"Main", L"ActiveGlobalProfile", GlobalProfiles_GetActiveName().c_str(), tmpPath);
+
+    if (saveWindow)
+    {
+        IniWriteI32(L"Window", L"Width", std::max(0, Settings_GetMainWindowWidthPx()), tmpPath);
+        IniWriteI32(L"Window", L"Height", std::max(0, Settings_GetMainWindowHeightPx()), tmpPath);
+        const int winX = Settings_GetMainWindowPosXPx();
+        const int winY = Settings_GetMainWindowPosYPx();
+        if (winX == std::numeric_limits<int>::min())
+            WritePrivateProfileStringW(L"Window", L"PosX", nullptr, tmpPath);
+        else
+            IniWriteI32(L"Window", L"PosX", winX, tmpPath);
+        if (winY == std::numeric_limits<int>::min())
+            WritePrivateProfileStringW(L"Window", L"PosY", nullptr, tmpPath);
+        else
+            IniWriteI32(L"Window", L"PosY", winY, tmpPath);
+    }
 
     KeySettingsIni_SaveToSettingsIni(tmpPath);
-    KeyboardLayout_SaveToIni(tmpPath);
+    if (saveLayout)
+        KeyboardLayout_SaveToIni(tmpPath);
     return true;
 }
 
@@ -399,7 +473,23 @@ bool SettingsIni_Save(const wchar_t* path)
     std::wstring tmp = std::wstring(path) + L".tmp";
     DeleteFileW(tmp.c_str());
 
-    if (!SettingsIni_Save_Internal(tmp.c_str()))
+    if (!SettingsIni_Save_Internal(tmp.c_str(), true, true, true))
+    {
+        DeleteFileW(tmp.c_str());
+        return false;
+    }
+
+    return IniUtil_AtomicReplace(tmp.c_str(), path);
+}
+
+bool SettingsIni_SaveProfile(const wchar_t* path)
+{
+    if (!path) return false;
+
+    std::wstring tmp = std::wstring(path) + L".tmp";
+    DeleteFileW(tmp.c_str());
+
+    if (!SettingsIni_Save_Internal(tmp.c_str(), false, false, false))
     {
         DeleteFileW(tmp.c_str());
         return false;

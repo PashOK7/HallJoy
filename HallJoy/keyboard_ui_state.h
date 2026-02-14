@@ -22,4 +22,5 @@ extern HWND g_hPageConfig;
 extern HWND g_hPageLayout;
 extern HWND g_hPageTester;
 extern HWND g_hPageGlobal;
+extern HWND g_hPageMouse;
 extern int  g_activeSubTab;

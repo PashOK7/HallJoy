@@ -63,7 +63,11 @@ static std::atomic<bool> g_snappyJoystick{ false };
 static std::atomic<bool> g_lastKeyPriority{ false };
 static std::atomic<int> g_lastKeyPrioritySensitivityM{ 120 }; // 0.120 default
 static std::atomic<bool> g_blockBoundKeys{ false };
+static std::atomic<bool> g_blockMouseInput{ false };
 static std::atomic<bool> g_digitalFallbackInput{ false };
+static std::atomic<bool> g_mouseToStickEnabled{ false };
+static std::atomic<int> g_mouseToStickTarget{ 1 }; // default: right stick
+static std::atomic<int> g_mouseToStickSensitivityM{ 1000 }; // 1.0x
 
 // UI sizes (fixed)
 static constexpr UINT kRemapButtonSizePx = 43;
@@ -312,6 +316,16 @@ bool Settings_GetBlockBoundKeys()
     return g_blockBoundKeys.load(std::memory_order_acquire);
 }
 
+void Settings_SetBlockMouseInput(bool on)
+{
+    g_blockMouseInput.store(on, std::memory_order_release);
+}
+
+bool Settings_GetBlockMouseInput()
+{
+    return g_blockMouseInput.load(std::memory_order_acquire);
+}
+
 void Settings_SetDigitalFallbackInput(bool on)
 {
     g_digitalFallbackInput.store(on, std::memory_order_release);
@@ -320,6 +334,40 @@ void Settings_SetDigitalFallbackInput(bool on)
 bool Settings_GetDigitalFallbackInput()
 {
     return g_digitalFallbackInput.load(std::memory_order_acquire);
+}
+
+void Settings_SetMouseToStickEnabled(bool on)
+{
+    g_mouseToStickEnabled.store(on, std::memory_order_release);
+}
+
+bool Settings_GetMouseToStickEnabled()
+{
+    return g_mouseToStickEnabled.load(std::memory_order_acquire);
+}
+
+void Settings_SetMouseToStickTarget(int target)
+{
+    target = std::clamp(target, 0, 1);
+    g_mouseToStickTarget.store(target, std::memory_order_release);
+}
+
+int Settings_GetMouseToStickTarget()
+{
+    return std::clamp(g_mouseToStickTarget.load(std::memory_order_acquire), 0, 1);
+}
+
+void Settings_SetMouseToStickSensitivity(float v)
+{
+    int m = (int)lroundf(std::clamp(v, 0.1f, 8.0f) * 1000.0f);
+    g_mouseToStickSensitivityM.store(std::clamp(m, 100, 8000), std::memory_order_release);
+}
+
+float Settings_GetMouseToStickSensitivity()
+{
+    int m = g_mouseToStickSensitivityM.load(std::memory_order_acquire);
+    m = std::clamp(m, 100, 8000);
+    return (float)m / 1000.0f;
 }
 
 // ---------------- Polling / UI refresh ----------------

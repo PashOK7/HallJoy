@@ -44,6 +44,7 @@ HWND g_hPageConfig = nullptr;
 HWND g_hPageLayout = nullptr;
 HWND g_hPageTester = nullptr;
 HWND g_hPageGlobal = nullptr;
+HWND g_hPageMouse = nullptr;
 int  g_activeSubTab = 0;
 
 // expose selected HID to subpages module

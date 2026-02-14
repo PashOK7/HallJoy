@@ -44,3 +44,9 @@ cmake-build-*/
 # Windows junk
 Thumbs.db
 Desktop.ini
+
+# Local Wooting SDK rollback artifacts
+runtime/backup/
+runtime/wooting_analog_sdk.dll
+runtime/wooting_analog_plugin.dll
+runtime/wooting_analog_test_plugin.dll

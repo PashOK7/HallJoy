@@ -38,6 +38,14 @@ That means it can work with many HE keyboards supported by that stack (not only 
 
 If your keyboard works and you created a good layout preset, send it to me on Discord: `pash.ok`
 
+### Aula Keyboards (Experimental)
+
+Experimental support for Aula keyboards is currently available, but it is limited.
+
+Right now, HallJoy can only do a best-effort emulation of a calibration-like mode (similar to how it appears in Aula web drivers). In this mode, regular keyboard input is effectively blocked while HallJoy is using the device.
+
+Proper native Aula support is not realistically possible from the app side alone. It would require either firmware-level changes or direct help from the Aula firmware developers.
+
 ## Requirements
 
 - Windows 10/11 (x64)

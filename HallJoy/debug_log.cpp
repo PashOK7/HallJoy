@@ -4,14 +4,21 @@
 
 #include <string>
 #include <vector>
+#include <utility>
 #include <cstdarg>
 #include <cwchar>
+#include <atomic>
 
 #include "debug_log.h"
 
 static SRWLOCK g_logLock = SRWLOCK_INIT;
 static std::wstring g_logPath;
-static bool g_logReady = false;
+static HANDLE g_logFile = INVALID_HANDLE_VALUE;
+static HANDLE g_writerThread = nullptr;
+static HANDLE g_writeEvent = nullptr; // manual-reset
+static std::vector<std::wstring> g_pendingLines;
+static std::atomic<bool> g_logReady{ false };
+static std::atomic<bool> g_stopWriter{ false };
 
 static std::wstring BuildPathNearExe(const wchar_t* fileName)
 {
@@ -46,42 +53,76 @@ static std::string WideToUtf8(const wchar_t* ws)
     return out;
 }
 
-static void WriteUtf8Line(const wchar_t* line)
+static void WriteUtf8Line(HANDLE hFile, const wchar_t* line)
 {
-    if (!line || !*line || g_logPath.empty()) return;
-
-    HANDLE h = CreateFileW(
-        g_logPath.c_str(),
-        FILE_APPEND_DATA,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        nullptr,
-        OPEN_ALWAYS,
-        FILE_ATTRIBUTE_NORMAL,
-        nullptr);
-    if (h == INVALID_HANDLE_VALUE) return;
+    if (!line || !*line || hFile == INVALID_HANDLE_VALUE) return;
 
     std::string utf8 = WideToUtf8(line);
     if (!utf8.empty())
     {
         DWORD written = 0;
-        WriteFile(h, utf8.data(), (DWORD)utf8.size(), &written, nullptr);
+        WriteFile(hFile, utf8.data(), (DWORD)utf8.size(), &written, nullptr);
     }
 
     static const char nl[] = "\r\n";
     DWORD w2 = 0;
-    WriteFile(h, nl, (DWORD)sizeof(nl) - 1, &w2, nullptr);
+    WriteFile(hFile, nl, (DWORD)sizeof(nl) - 1, &w2, nullptr);
+}
 
-    CloseHandle(h);
+static DWORD WINAPI DebugLogWriterThreadProc(LPVOID)
+{
+    for (;;)
+    {
+        if (!g_writeEvent)
+            return 0;
+
+        WaitForSingleObject(g_writeEvent, INFINITE);
+
+        for (;;)
+        {
+            std::vector<std::wstring> batch;
+            HANDLE hFile = INVALID_HANDLE_VALUE;
+
+            AcquireSRWLockExclusive(&g_logLock);
+            if (!g_pendingLines.empty())
+                batch.swap(g_pendingLines);
+            hFile = g_logFile;
+            if (g_pendingLines.empty() && g_writeEvent)
+                ResetEvent(g_writeEvent);
+            ReleaseSRWLockExclusive(&g_logLock);
+
+            if (!batch.empty())
+            {
+                for (const auto& line : batch)
+                    WriteUtf8Line(hFile, line.c_str());
+                if (hFile != INVALID_HANDLE_VALUE)
+                    FlushFileBuffers(hFile);
+            }
+
+            if (batch.empty())
+                break;
+        }
+
+        if (g_stopWriter.load(std::memory_order_relaxed))
+            return 0;
+    }
 }
 
 void DebugLog_Init()
 {
     AcquireSRWLockExclusive(&g_logLock);
 
-    g_logPath = BuildPathNearExe(L"log.txt");
-    g_logReady = false;
+    if (g_logReady.load(std::memory_order_relaxed))
+    {
+        ReleaseSRWLockExclusive(&g_logLock);
+        return;
+    }
 
-    HANDLE h = CreateFileW(
+    g_logPath = BuildPathNearExe(L"log.txt");
+    g_pendingLines.clear();
+    g_stopWriter.store(false, std::memory_order_relaxed);
+
+    g_logFile = CreateFileW(
         g_logPath.c_str(),
         GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -89,16 +130,50 @@ void DebugLog_Init()
         CREATE_ALWAYS,
         FILE_ATTRIBUTE_NORMAL,
         nullptr);
-    if (h != INVALID_HANDLE_VALUE)
+    if (g_logFile != INVALID_HANDLE_VALUE)
     {
         static const unsigned char utf8Bom[3] = { 0xEF, 0xBB, 0xBF };
         DWORD w = 0;
-        WriteFile(h, utf8Bom, 3, &w, nullptr);
-        CloseHandle(h);
-        g_logReady = true;
+        WriteFile(g_logFile, utf8Bom, 3, &w, nullptr);
+    }
+
+    if (g_logFile != INVALID_HANDLE_VALUE)
+    {
+        g_writeEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        if (g_writeEvent)
+        {
+            g_writerThread = CreateThread(nullptr, 0, DebugLogWriterThreadProc, nullptr, 0, nullptr);
+        }
+    }
+
+    if (g_logFile == INVALID_HANDLE_VALUE || !g_writeEvent || !g_writerThread)
+    {
+        if (g_writerThread)
+        {
+            CloseHandle(g_writerThread);
+            g_writerThread = nullptr;
+        }
+        if (g_writeEvent)
+        {
+            CloseHandle(g_writeEvent);
+            g_writeEvent = nullptr;
+        }
+        if (g_logFile != INVALID_HANDLE_VALUE)
+        {
+            CloseHandle(g_logFile);
+            g_logFile = INVALID_HANDLE_VALUE;
+        }
+        g_logReady.store(false, std::memory_order_relaxed);
+    }
+    else
+    {
+        g_logReady.store(true, std::memory_order_relaxed);
     }
 
     ReleaseSRWLockExclusive(&g_logLock);
+
+    if (!g_logReady.load(std::memory_order_relaxed))
+        return;
 
     SYSTEMTIME st{};
     GetLocalTime(&st);
@@ -110,13 +185,52 @@ void DebugLog_Init()
         g_logPath.c_str());
 }
 
+void DebugLog_Shutdown()
+{
+    HANDLE threadToJoin = nullptr;
+    HANDLE fileToClose = INVALID_HANDLE_VALUE;
+    HANDLE eventToClose = nullptr;
+
+    AcquireSRWLockExclusive(&g_logLock);
+    if (!g_logReady.load(std::memory_order_relaxed))
+    {
+        ReleaseSRWLockExclusive(&g_logLock);
+        return;
+    }
+
+    g_stopWriter.store(true, std::memory_order_release);
+    if (g_writeEvent)
+        SetEvent(g_writeEvent);
+    threadToJoin = g_writerThread;
+    g_writerThread = nullptr;
+    ReleaseSRWLockExclusive(&g_logLock);
+
+    if (threadToJoin)
+    {
+        WaitForSingleObject(threadToJoin, INFINITE);
+        CloseHandle(threadToJoin);
+    }
+
+    AcquireSRWLockExclusive(&g_logLock);
+    fileToClose = g_logFile;
+    g_logFile = INVALID_HANDLE_VALUE;
+    eventToClose = g_writeEvent;
+    g_writeEvent = nullptr;
+    g_pendingLines.clear();
+    g_logReady.store(false, std::memory_order_release);
+    ReleaseSRWLockExclusive(&g_logLock);
+
+    if (eventToClose)
+        CloseHandle(eventToClose);
+    if (fileToClose != INVALID_HANDLE_VALUE)
+        CloseHandle(fileToClose);
+}
+
 void DebugLog_Write(const wchar_t* fmt, ...)
 {
     if (!fmt || !*fmt) return;
 
-    AcquireSRWLockShared(&g_logLock);
-    const bool ready = g_logReady;
-    ReleaseSRWLockShared(&g_logLock);
+    const bool ready = g_logReady.load(std::memory_order_acquire);
     if (!ready) return;
 
     wchar_t msg[2048]{};
@@ -137,7 +251,12 @@ void DebugLog_Write(const wchar_t* fmt, ...)
         msg);
 
     AcquireSRWLockExclusive(&g_logLock);
-    WriteUtf8Line(line);
+    if (g_logReady.load(std::memory_order_relaxed))
+    {
+        g_pendingLines.emplace_back(line);
+        if (g_writeEvent)
+            SetEvent(g_writeEvent);
+    }
     ReleaseSRWLockExclusive(&g_logLock);
 }
 

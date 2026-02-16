@@ -1,4 +1,4 @@
-// backend.cpp
+﻿// backend.cpp
 #ifndef _WIN32_IE
 #define _WIN32_IE 0x0600
 #endif
@@ -12,12 +12,19 @@
 #include <atomic>
 #include <bitset>
 #include <cmath>
+#include <cstring>
 #include <cstdint>
 #include <cstdlib>
+#include <string>
+#include <vector>
 
 #if defined(_MSC_VER)
 #include <intrin.h>
 #endif
+
+#include <setupapi.h>
+#include <hidsdi.h>
+#include <hidpi.h>
 
 #include <ViGEm/Client.h>
 #include "wooting-analog-wrapper.h"
@@ -25,14 +32,12 @@
 #include "backend.h"
 #include "bindings.h"
 #include "settings.h"
-#include "key_settings.h"
 #include "debug_log.h"
 #include "mouse_bind_codes.h"
-
-// shared curve math (single source of truth with UI)
-#include "curve_math.h"
+#include "backend_curve.h"
 
 #pragma comment(lib, "setupapi.lib")
+#pragma comment(lib, "hid.lib")
 
 static PVIGEM_CLIENT g_client = nullptr;
 static constexpr int kMaxVirtualPads = 4;
@@ -125,6 +130,10 @@ static std::atomic<int>          g_mouseDbgFollowerY10{ 0 };
 static std::atomic<int>          g_mouseDbgOutX1000{ 0 };
 static std::atomic<int>          g_mouseDbgOutY1000{ 0 };
 static std::atomic<int>          g_mouseDbgRadius1000{ 1000 };
+static std::atomic<bool>         g_wootingReady{ false };
+
+// ---- native HID path (Aula implementation moved to isolated include) ----
+#include "backend_aula.inc"
 
 static const wchar_t* KeycodeModeName(int mode)
 {
@@ -588,146 +597,7 @@ static void LogWootingStateSnapshot(const wchar_t* stage)
         g_keycodeMode.load(std::memory_order_relaxed));
 }
 
-// ------------------------------------------------------------
-// Curve logic (shared with UI via CurveMath)
-// ------------------------------------------------------------
-struct CurveDef
-{
-    // Points in normalized space (0..1)
-    float x0 = 0.0f, y0 = 0.0f; // Start
-    float x1 = 0.0f, y1 = 0.0f; // CP1
-    float x2 = 0.0f, y2 = 0.0f; // CP2
-    float x3 = 1.0f, y3 = 1.0f; // End
-
-    // CP weights in [0..1] (used only for Smooth mode)
-    float w1 = 1.0f;
-    float w2 = 1.0f;
-
-    UINT mode = 0; // 0=Smooth (Rational Bezier), 1=Linear (Segments)
-    bool invert = false;
-};
-
 static float Clamp01(float v) { return std::clamp(v, 0.0f, 1.0f); }
-
-static float ApplyCurve_LinearSegments(float x, const CurveDef& c)
-{
-    // piecewise interpolation between (x0,y0)->(x1,y1)->(x2,y2)->(x3,y3)
-    float xa, ya, xb, yb;
-
-    if (x <= c.x1) {
-        xa = c.x0; ya = c.y0;
-        xb = c.x1; yb = c.y1;
-    }
-    else if (x <= c.x2) {
-        xa = c.x1; ya = c.y1;
-        xb = c.x2; yb = c.y2;
-    }
-    else {
-        xa = c.x2; ya = c.y2;
-        xb = c.x3; yb = c.y3;
-    }
-
-    float denom = (xb - xa);
-    if (std::fabs(denom) < 1e-6f) return Clamp01(yb);
-
-    float t = (x - xa) / denom;
-    t = std::clamp(t, 0.0f, 1.0f);
-    float y = ya + (yb - ya) * t;
-    return Clamp01(y);
-}
-
-static float ApplyCurve_SmoothRationalBezier(float x, const CurveDef& c)
-{
-    CurveMath::Curve01 cc{};
-    cc.x0 = c.x0; cc.y0 = c.y0;
-    cc.x1 = c.x1; cc.y1 = c.y1;
-    cc.x2 = c.x2; cc.y2 = c.y2;
-    cc.x3 = c.x3; cc.y3 = c.y3;
-    cc.w1 = Clamp01(c.w1);
-    cc.w2 = Clamp01(c.w2);
-
-    // Solve x(t)=x, return y(t)
-    return CurveMath::EvalRationalYForX(cc, x, 18);
-}
-
-static CurveDef BuildCurveForHid(uint16_t hid)
-{
-    CurveDef c{};
-    KeyDeadzone ks = KeySettings_Get(hid);
-
-    if (ks.useUnique)
-    {
-        c.invert = ks.invert;
-        c.mode = (UINT)(ks.curveMode == 0 ? 0 : 1);
-
-        c.x0 = ks.low;          c.y0 = ks.antiDeadzone;
-        c.x1 = ks.cp1_x;        c.y1 = ks.cp1_y;
-        c.x2 = ks.cp2_x;        c.y2 = ks.cp2_y;
-        c.x3 = ks.high;         c.y3 = ks.outputCap;
-
-        c.w1 = ks.cp1_w;
-        c.w2 = ks.cp2_w;
-    }
-    else
-    {
-        c.invert = Settings_GetInputInvert();
-        c.mode = Settings_GetInputCurveMode();
-
-        c.x0 = Settings_GetInputDeadzoneLow();
-        c.x3 = Settings_GetInputDeadzoneHigh();
-        c.y0 = Settings_GetInputAntiDeadzone();
-        c.y3 = Settings_GetInputOutputCap();
-
-        c.x1 = Settings_GetInputBezierCp1X();
-        c.y1 = Settings_GetInputBezierCp1Y();
-        c.x2 = Settings_GetInputBezierCp2X();
-        c.y2 = Settings_GetInputBezierCp2Y();
-
-        c.w1 = Settings_GetInputBezierCp1W();
-        c.w2 = Settings_GetInputBezierCp2W();
-    }
-
-    c.w1 = Clamp01(c.w1);
-    c.w2 = Clamp01(c.w2);
-
-    // Clamp Y to [0..1]
-    c.y0 = Clamp01(c.y0); c.y1 = Clamp01(c.y1);
-    c.y2 = Clamp01(c.y2); c.y3 = Clamp01(c.y3);
-
-    // Enforce X range + monotonic constraints (needed for x(t) solve)
-    c.x0 = Clamp01(c.x0);
-    c.x3 = Clamp01(c.x3);
-    if (c.x3 < c.x0 + 0.01f) c.x3 = std::clamp(c.x0 + 0.01f, 0.01f, 1.0f);
-
-    float minGap = 0.001f;
-
-    c.x1 = std::clamp(c.x1, c.x0, c.x3);
-    c.x2 = std::clamp(c.x2, c.x0, c.x3);
-
-    // enforce order slightly for safety
-    c.x1 = std::clamp(c.x1, c.x0, c.x3 - minGap);
-    c.x2 = std::clamp(c.x2, c.x1, c.x3);
-
-    return c;
-}
-
-static float ApplyCurveByHid(uint16_t hid, float x01Raw)
-{
-    float x01 = Clamp01(x01Raw);
-
-    CurveDef c = BuildCurveForHid(hid);
-
-    if (c.invert) x01 = 1.0f - x01;
-
-    // Range check against endpoints
-    if (x01 < c.x0) return 0.0f;
-    if (x01 > c.x3) return Clamp01(c.y3);
-
-    if (c.mode == 1) return ApplyCurve_LinearSegments(x01, c);
-    return ApplyCurve_SmoothRationalBezier(x01, c);
-}
-
-// ------------------------------------------------------------
 
 static void Vigem_Destroy()
 {
@@ -925,52 +795,68 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
     if (MouseBind_IsPseudoHid(hidKeycode))
         return ReadMouseBindRaw01(hidKeycode);
 
-    const bool allowFallback = Settings_GetDigitalFallbackInput();
+    const bool aulaConnected = g_aulaConnected.load(std::memory_order_acquire);
+    const bool allowFallback = Settings_GetDigitalFallbackInput() && !aulaConnected;
+    const bool wootingReady = g_wootingReady.load(std::memory_order_acquire);
     WootingAnalog_KeycodeType mode = (WootingAnalog_KeycodeType)g_keycodeMode.load(std::memory_order_relaxed);
-    uint16_t modeCode = HidToModeCode(hidKeycode, mode);
-    if (modeCode == 0) return 0.0f;
+    uint16_t modeCode = wootingReady ? HidToModeCode(hidKeycode, mode) : 0;
 
     if (hidKeycode < 256)
     {
         if (cache.hasRaw.test(hidKeycode))
             return cache.raw[hidKeycode];
 
-        // Per-key read is the primary source. Some SDK/plugin builds can emit
-        // noisy partial full-buffer snapshots that cause visible flicker.
-        float v = ReadAnalogByCodeWithDeviceFallback(modeCode, hidKeycode);
-        if (v < 0.0f)
+        float v = 0.0f;
+        if (aulaConnected)
         {
-            int err = (int)std::lround(v);
-            ULONGLONG now = GetTickCount64();
-            int prev = g_lastAnalogErrorCode.load(std::memory_order_relaxed);
-            ULONGLONG prevMs = g_lastAnalogErrorLogMs.load(std::memory_order_relaxed);
-            if (err != prev || now - prevMs >= 5000)
-            {
-                DebugLog_Write(
-                    L"[backend.analog] read_analog hid=%u code=%u mode=%s err=%d",
-                    (unsigned)hidKeycode,
-                    (unsigned)modeCode,
-                    KeycodeModeName((int)mode),
-                    err);
-                g_lastAnalogErrorCode.store(err, std::memory_order_relaxed);
-                g_lastAnalogErrorLogMs.store(now, std::memory_order_relaxed);
-            }
+            uint16_t aulaM = g_aulaAnalogMilli[hidKeycode].load(std::memory_order_relaxed);
+            v = std::clamp((float)aulaM / 1000.0f, 0.0f, 1.0f);
         }
 
-        // Use full-buffer only as a high-confidence assist in HID mode.
-        if (kEnableFullBufferAssist &&
-            cache.hasFullBuffer &&
-            mode == WootingAnalog_KeycodeType_HID &&
-            cache.fullPresent.test(hidKeycode))
+        if (wootingReady && modeCode != 0)
         {
-            float vf = cache.fullRaw[hidKeycode];
-            if (std::isfinite(vf))
+            // Per-key read is the primary source. Some SDK/plugin builds can emit
+            // noisy partial full-buffer snapshots that cause visible flicker.
+            float wsdk = ReadAnalogByCodeWithDeviceFallback(modeCode, hidKeycode);
+            if (wsdk < 0.0f)
             {
-                vf = Clamp01(vf);
-                // Ignore low-amplitude full-buffer noise floor (~0.05-0.10).
-                if (vf >= 0.20f && vf > v + 0.12f)
-                    v = vf;
+                int err = (int)std::lround(wsdk);
+                ULONGLONG now = GetTickCount64();
+                int prev = g_lastAnalogErrorCode.load(std::memory_order_relaxed);
+                ULONGLONG prevMs = g_lastAnalogErrorLogMs.load(std::memory_order_relaxed);
+                if (err != prev || now - prevMs >= 5000)
+                {
+                    DebugLog_Write(
+                        L"[backend.analog] read_analog hid=%u code=%u mode=%s err=%d",
+                        (unsigned)hidKeycode,
+                        (unsigned)modeCode,
+                        KeycodeModeName((int)mode),
+                        err);
+                    g_lastAnalogErrorCode.store(err, std::memory_order_relaxed);
+                    g_lastAnalogErrorLogMs.store(now, std::memory_order_relaxed);
+                }
+                wsdk = 0.0f;
             }
+            if (!std::isfinite(wsdk)) wsdk = 0.0f;
+            wsdk = Clamp01(wsdk);
+
+            // Use full-buffer only as a high-confidence assist in HID mode.
+            if (kEnableFullBufferAssist &&
+                cache.hasFullBuffer &&
+                mode == WootingAnalog_KeycodeType_HID &&
+                cache.fullPresent.test(hidKeycode))
+            {
+                float vf = cache.fullRaw[hidKeycode];
+                if (std::isfinite(vf))
+                {
+                    vf = Clamp01(vf);
+                    // Ignore low-amplitude full-buffer noise floor (~0.05-0.10).
+                    if (vf >= 0.20f && vf > wsdk + 0.12f)
+                        wsdk = vf;
+                }
+            }
+
+            v = std::max(v, wsdk);
         }
 
         if (!std::isfinite(v)) v = 0.0f;
@@ -994,7 +880,11 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
         return v;
     }
 
-    // HID>=256: no caching needed in this project (UI tracks <256 anyway)
+    // HID>=256: no caching needed in this project (UI tracks <256 anyway).
+    // Aula path reports only key ids in byte range [1..255], so HID>=256 stays SDK-only.
+    if (!wootingReady || modeCode == 0)
+        return 0.0f;
+
     float v = ReadAnalogByCodeWithDeviceFallback(modeCode, hidKeycode);
     if (v < 0.0f)
     {
@@ -1041,7 +931,7 @@ static float ReadFiltered01Cached(uint16_t hidKeycode, HidCache& cache)
             return cache.filtered[hidKeycode];
 
         float raw = ReadRaw01Cached(hidKeycode, cache);
-        float filtered = ApplyCurveByHid(hidKeycode, raw);
+        float filtered = BackendCurve_ApplyByHid(hidKeycode, raw);
 
         cache.filtered[hidKeycode] = filtered;
         cache.hasFiltered.set(hidKeycode);
@@ -1049,7 +939,7 @@ static float ReadFiltered01Cached(uint16_t hidKeycode, HidCache& cache)
     }
 
     float raw = ReadRaw01Cached(hidKeycode, cache);
-    return ApplyCurveByHid(hidKeycode, raw);
+    return BackendCurve_ApplyByHid(hidKeycode, raw);
 }
 
 static SHORT StickFromMinus1Plus1(float x)
@@ -1585,6 +1475,11 @@ static bool IsReportSignificantlyDifferent(const XUSB_REPORT& a, const XUSB_REPO
 bool Backend_Init()
 {
     DebugLog_Write(L"[backend.init] begin");
+    g_wootingReady.store(false, std::memory_order_release);
+    Aula_InitDefaultKeyMap();
+    Aula_ResetKeyState();
+    AulaStop();
+    g_aulaLastReconnectTryMs = 0;
     g_tmTrackedMaxRawMilli.store(0, std::memory_order_relaxed);
     g_tmTrackedMaxOutMilli.store(0, std::memory_order_relaxed);
     g_tmFullBufferRet.store(0, std::memory_order_relaxed);
@@ -1622,6 +1517,7 @@ bool Backend_Init()
     g_mouseDbgOutY1000.store(0, std::memory_order_relaxed);
     g_mouseDbgRadius1000.store(1000, std::memory_order_relaxed);
     for (auto& b : g_mouseBindButtons) b.store(0, std::memory_order_relaxed);
+    for (auto& s : g_physicalDown) s.store(0, std::memory_order_relaxed);
     g_mouseWheelPulseUpUntilMs.store(0, std::memory_order_relaxed);
     g_mouseWheelPulseDownUntilMs.store(0, std::memory_order_relaxed);
 
@@ -1630,10 +1526,11 @@ bool Backend_Init()
     DebugLog_Write(L"[backend.init] wooting_analog_initialise ret=%d", wootingInit);
     if (wootingInit >= 0)
     {
+        g_wootingReady.store(true, std::memory_order_release);
         SetKeycodeModeWithLog(WootingAnalog_KeycodeType_HID, L"init", 0);
+        LogWootingStateSnapshot(L"after_init_call");
+        LogConnectedDevicesDetailed(L"after_init_call");
     }
-    LogWootingStateSnapshot(L"after_init_call");
-    LogConnectedDevicesDetailed(L"after_init_call");
     if (wootingInit < 0)
     {
         switch ((WootingAnalogResult)wootingInit)
@@ -1652,6 +1549,17 @@ bool Backend_Init()
             initIssues |= BackendInitIssue_Unknown;
             break;
         }
+    }
+
+    bool aulaReady = AulaStart();
+    if (aulaReady)
+    {
+        // If native Aula path is up, Wooting SDK is optional.
+        initIssues &= ~(BackendInitIssue_WootingSdkMissing |
+            BackendInitIssue_WootingNoPlugins |
+            BackendInitIssue_WootingIncompatible);
+        if (wootingInit < 0)
+            initIssues &= ~BackendInitIssue_Unknown;
     }
 
     if (g_virtualPadsEnabled.load(std::memory_order_acquire))
@@ -1685,6 +1593,8 @@ bool Backend_Init()
     {
         DebugLog_Write(L"[backend.init] fail issues=0x%08X", initIssues);
         g_lastInitIssues.store(initIssues, std::memory_order_release);
+        AulaStop();
+        g_wootingReady.store(false, std::memory_order_release);
         Vigem_Destroy();
         wooting_analog_uninitialise();
         return false;
@@ -1707,6 +1617,7 @@ bool Backend_Init()
 void Backend_Shutdown()
 {
     DebugLog_Write(L"[backend] shutdown");
+    g_wootingReady.store(false, std::memory_order_release);
     g_knownDeviceCount.store(0, std::memory_order_relaxed);
     g_mouseHasLastPos = false;
     g_mouseSawRawInput.store(false, std::memory_order_relaxed);
@@ -1729,12 +1640,15 @@ void Backend_Shutdown()
     g_mouseDbgOutY1000.store(0, std::memory_order_relaxed);
     g_mouseDbgRadius1000.store(1000, std::memory_order_relaxed);
     for (auto& b : g_mouseBindButtons) b.store(0, std::memory_order_relaxed);
+    for (auto& s : g_physicalDown) s.store(0, std::memory_order_relaxed);
     g_mouseWheelPulseUpUntilMs.store(0, std::memory_order_relaxed);
     g_mouseWheelPulseDownUntilMs.store(0, std::memory_order_relaxed);
     g_reconnectRequested.store(false, std::memory_order_release);
     g_deviceChangeReconnectRequested.store(false, std::memory_order_release);
     g_keycodeModeLocked.store(false, std::memory_order_relaxed);
     g_vigemUpdateFailStreak = 0;
+    AulaStop();
+    Aula_ResetKeyState();
     Vigem_Destroy();
     wooting_analog_uninitialise();
 }
@@ -1742,12 +1656,15 @@ void Backend_Shutdown()
 void Backend_Tick()
 {
     ULONGLONG nowMs = GetTickCount64();
+    BackendCurve_BeginTick();
     ULONGLONG lastStateLog = g_lastWootingStateLogMs.load(std::memory_order_relaxed);
-    if (nowMs - lastStateLog >= 10000)
+    if (g_wootingReady.load(std::memory_order_acquire) && nowMs - lastStateLog >= 10000)
     {
         g_lastWootingStateLogMs.store(nowMs, std::memory_order_relaxed);
         LogWootingStateSnapshot(L"tick_heartbeat");
     }
+    AulaTickHotplug(nowMs);
+    AulaDecayStaleKeys(nowMs);
 
     if (g_reconnectRequested.exchange(false, std::memory_order_acq_rel))
     {
@@ -1766,7 +1683,7 @@ void Backend_Tick()
 
     // Build per-tick raw map from full buffer (most robust on newer SDK/plugin stacks).
     // Works directly for HID mode because returned keycodes are HID identifiers.
-    if (kEnableFullBufferAssist)
+    if (kEnableFullBufferAssist && g_wootingReady.load(std::memory_order_acquire))
     {
         WootingAnalog_KeycodeType mode = (WootingAnalog_KeycodeType)g_keycodeMode.load(std::memory_order_relaxed);
         if (mode == WootingAnalog_KeycodeType_HID)
@@ -1875,7 +1792,7 @@ void Backend_Tick()
             (unsigned)maxOutM, (unsigned)maxOutHid);
     }
     ULONGLONG lastFullLog = g_lastFullBufferLogMs.load(std::memory_order_relaxed);
-    if (nowMs - lastFullLog >= 2000)
+    if (g_wootingReady.load(std::memory_order_acquire) && nowMs - lastFullLog >= 2000)
     {
         g_lastFullBufferLogMs.store(nowMs, std::memory_order_relaxed);
         LogFullBufferSnapshot(L"periodic");
@@ -2055,12 +1972,40 @@ XUSB_REPORT Backend_GetLastReportForPad(int padIndex)
 {
     int p = std::clamp(padIndex, 0, kMaxVirtualPads - 1);
     XUSB_REPORT r{};
+    int spin = 0;
     for (;;) {
         uint32_t s1 = g_lastSeq[(size_t)p].load(std::memory_order_acquire);
-        if (s1 & 1u) continue;
+        if (s1 & 1u)
+        {
+            if (++spin < 256)
+            {
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64))
+                _mm_pause();
+#else
+                SwitchToThread();
+#endif
+            }
+            else
+            {
+                SwitchToThread();
+            }
+            continue;
+        }
         r = g_lastReport[(size_t)p];
         uint32_t s2 = g_lastSeq[(size_t)p].load(std::memory_order_acquire);
         if (s1 == s2) return r;
+        if (++spin < 256)
+        {
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64))
+            _mm_pause();
+#else
+            SwitchToThread();
+#endif
+        }
+        else
+        {
+            SwitchToThread();
+        }
     }
 }
 
@@ -2149,8 +2094,14 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
 {
     if (!out) return;
     BackendAnalogTelemetry t{};
-    t.sdkInitialised = wooting_analog_is_initialised();
-    t.deviceCount = std::clamp(g_knownDeviceCount.load(std::memory_order_relaxed), 0, (int)g_knownDeviceIds.size());
+    const bool aulaConnected = g_aulaConnected.load(std::memory_order_acquire);
+    const bool sdkInited = g_wootingReady.load(std::memory_order_acquire) && wooting_analog_is_initialised();
+    t.sdkInitialised = sdkInited || aulaConnected;
+    int sdkDevCount = std::clamp(g_knownDeviceCount.load(std::memory_order_relaxed), 0, (int)g_knownDeviceIds.size());
+    t.deviceCount = sdkDevCount + (aulaConnected ? 1 : 0);
+    t.aulaConnected = aulaConnected;
+    t.aulaVendorId = g_aulaConnectedVid.load(std::memory_order_relaxed);
+    t.aulaProductId = g_aulaConnectedPid.load(std::memory_order_relaxed);
     t.keycodeMode = g_keycodeMode.load(std::memory_order_relaxed);
     t.keyboardEventSeq = g_keyboardEventSeq.load(std::memory_order_acquire);
     t.trackedMaxRawMilli = g_tmTrackedMaxRawMilli.load(std::memory_order_relaxed);
@@ -2220,6 +2171,20 @@ void Backend_NotifyKeyboardEvent(
     {
         if (scanCode != 0) g_hidToScan[hidHint].store(scanCode, std::memory_order_relaxed);
         if (vkCode != 0) g_hidToVk[hidHint].store(vkCode, std::memory_order_relaxed);
+
+        uint8_t prev = g_physicalDown[hidHint].load(std::memory_order_relaxed);
+        uint8_t now = isKeyDown ? 1u : 0u;
+        if (prev != now)
+        {
+            g_physicalDown[hidHint].store(now, std::memory_order_relaxed);
+            DebugLog_Write(
+                L"[backend.phys] %s hid=%u sc=%u vk=%u",
+                isKeyDown ? L"down" : L"up",
+                (unsigned)hidHint,
+                (unsigned)scanCode,
+                (unsigned)vkCode);
+        }
+
     }
 
     if (!isKeyDown) return;
@@ -2307,3 +2272,5 @@ uint32_t Backend_GetLastInitIssues()
 {
     return g_lastInitIssues.load(std::memory_order_acquire);
 }
+
+

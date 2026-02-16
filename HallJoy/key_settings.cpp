@@ -4,20 +4,124 @@
 #include <array>
 #include <atomic>
 #include <shared_mutex>
+#include <mutex>
 #include <unordered_map>
 #include <cmath>
+#include <cstdint>
+#include <thread>
+
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64))
+#include <intrin.h>
+#endif
 
 // Data storage
 // Fast path: HID < 256
 static std::array<KeyDeadzone, 256> g_fastData{};
 static std::shared_mutex g_fastMutex;
 
-// Fast, lock-free mirror of useUnique for HID < 256 (UI hot path)
-static std::array<std::atomic<uint8_t>, 256> g_fastUseUnique{};
+struct FastSnapshot
+{
+    std::atomic<uint32_t> seq{ 0 };
+    std::atomic<uint8_t> useUnique{ 0 };
+    std::atomic<uint8_t> invert{ 0 };
+    std::atomic<uint8_t> curveMode{ 1 };
+    std::atomic<int16_t> lowM{ 80 };
+    std::atomic<int16_t> highM{ 900 };
+    std::atomic<int16_t> antiDeadzoneM{ 0 };
+    std::atomic<int16_t> outputCapM{ 1000 };
+    std::atomic<int16_t> cp1xM{ 380 };
+    std::atomic<int16_t> cp1yM{ 330 };
+    std::atomic<int16_t> cp2xM{ 680 };
+    std::atomic<int16_t> cp2yM{ 660 };
+    std::atomic<int16_t> cp1wM{ 1000 };
+    std::atomic<int16_t> cp2wM{ 1000 };
+};
+
+static std::array<FastSnapshot, 256> g_fastSnapshot{};
 
 // Slow path: HID >= 256
 static std::unordered_map<uint16_t, KeyDeadzone> g_mapData;
 static std::shared_mutex g_mapMutex;
+
+static inline void CpuRelax()
+{
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64))
+    _mm_pause();
+#else
+    std::this_thread::yield();
+#endif
+}
+
+static int16_t ToMilli(float v)
+{
+    int m = (int)lroundf(std::clamp(v, 0.0f, 1.0f) * 1000.0f);
+    return (int16_t)std::clamp(m, 0, 1000);
+}
+
+static float FromMilli(int16_t m)
+{
+    return (float)std::clamp((int)m, 0, 1000) / 1000.0f;
+}
+
+static void FastSnapshotStore(uint16_t hid, const KeyDeadzone& s)
+{
+    FastSnapshot& snap = g_fastSnapshot[hid];
+    snap.seq.fetch_add(1u, std::memory_order_acq_rel); // odd => writer in progress
+
+    snap.useUnique.store(s.useUnique ? 1u : 0u, std::memory_order_relaxed);
+    snap.invert.store(s.invert ? 1u : 0u, std::memory_order_relaxed);
+    snap.curveMode.store((s.curveMode == 0) ? 0u : 1u, std::memory_order_relaxed);
+
+    snap.lowM.store(ToMilli(s.low), std::memory_order_relaxed);
+    snap.highM.store(ToMilli(s.high), std::memory_order_relaxed);
+    snap.antiDeadzoneM.store(ToMilli(s.antiDeadzone), std::memory_order_relaxed);
+    snap.outputCapM.store(ToMilli(s.outputCap), std::memory_order_relaxed);
+    snap.cp1xM.store(ToMilli(s.cp1_x), std::memory_order_relaxed);
+    snap.cp1yM.store(ToMilli(s.cp1_y), std::memory_order_relaxed);
+    snap.cp2xM.store(ToMilli(s.cp2_x), std::memory_order_relaxed);
+    snap.cp2yM.store(ToMilli(s.cp2_y), std::memory_order_relaxed);
+    snap.cp1wM.store(ToMilli(s.cp1_w), std::memory_order_relaxed);
+    snap.cp2wM.store(ToMilli(s.cp2_w), std::memory_order_relaxed);
+
+    snap.seq.fetch_add(1u, std::memory_order_release); // even => stable
+}
+
+static KeyDeadzone FastSnapshotLoad(uint16_t hid)
+{
+    KeyDeadzone out{};
+    FastSnapshot& snap = g_fastSnapshot[hid];
+
+    for (;;)
+    {
+        uint32_t s1 = snap.seq.load(std::memory_order_acquire);
+        if (s1 & 1u)
+        {
+            CpuRelax();
+            continue;
+        }
+
+        out.useUnique = snap.useUnique.load(std::memory_order_relaxed) != 0;
+        out.invert = snap.invert.load(std::memory_order_relaxed) != 0;
+        out.curveMode = (uint8_t)(snap.curveMode.load(std::memory_order_relaxed) == 0 ? 0 : 1);
+
+        out.low = FromMilli(snap.lowM.load(std::memory_order_relaxed));
+        out.high = FromMilli(snap.highM.load(std::memory_order_relaxed));
+        out.antiDeadzone = FromMilli(snap.antiDeadzoneM.load(std::memory_order_relaxed));
+        out.outputCap = FromMilli(snap.outputCapM.load(std::memory_order_relaxed));
+        out.cp1_x = FromMilli(snap.cp1xM.load(std::memory_order_relaxed));
+        out.cp1_y = FromMilli(snap.cp1yM.load(std::memory_order_relaxed));
+        out.cp2_x = FromMilli(snap.cp2xM.load(std::memory_order_relaxed));
+        out.cp2_y = FromMilli(snap.cp2yM.load(std::memory_order_relaxed));
+        out.cp1_w = FromMilli(snap.cp1wM.load(std::memory_order_relaxed));
+        out.cp2_w = FromMilli(snap.cp2wM.load(std::memory_order_relaxed));
+
+        uint32_t s2 = snap.seq.load(std::memory_order_acquire);
+        if (s1 == s2)
+            return out;
+
+        CpuRelax();
+    }
+}
 
 static KeyDeadzone Normalize(KeyDeadzone s)
 {
@@ -82,9 +186,7 @@ void KeySettings_Set(uint16_t hid, const KeyDeadzone& in)
     {
         std::unique_lock lock(g_fastMutex);
         g_fastData[hid] = norm;
-
-        // keep atomic mirror in sync
-        g_fastUseUnique[hid].store(norm.useUnique ? 1u : 0u, std::memory_order_release);
+        FastSnapshotStore(hid, norm);
         return;
     }
 
@@ -101,8 +203,7 @@ KeyDeadzone KeySettings_Get(uint16_t hid)
 
     if (hid < 256)
     {
-        std::shared_lock lock(g_fastMutex);
-        return g_fastData[hid];
+        return FastSnapshotLoad(hid);
     }
 
     {
@@ -119,7 +220,7 @@ bool KeySettings_GetUseUnique(uint16_t hid)
 
     if (hid < 256)
     {
-        return g_fastUseUnique[hid].load(std::memory_order_acquire) != 0;
+        return g_fastSnapshot[hid].useUnique.load(std::memory_order_acquire) != 0;
     }
 
     // HID >= 256: slow path
@@ -173,7 +274,7 @@ void KeySettings_ClearAll()
         for (uint16_t hid = 0; hid < 256; ++hid)
         {
             g_fastData[hid] = KeyDeadzone{};
-            g_fastUseUnique[hid].store(0u, std::memory_order_release);
+            FastSnapshotStore(hid, g_fastData[hid]);
         }
     }
     {

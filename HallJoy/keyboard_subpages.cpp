@@ -54,6 +54,7 @@ static constexpr UINT WM_APP_GLOBAL_PROFILE_DIRTY = WM_APP + 122;
 
 static constexpr UINT_PTR TOAST_TIMER_ID = 8811;
 static constexpr UINT_PTR ANALOG_SELF_TEST_TIMER_ID = 8812;
+static constexpr UINT_PTR AULA_STATUS_TIMER_ID = 8813;
 static constexpr DWORD    TOAST_SHOW_MS = 1600;
 static constexpr const wchar_t* CONFIG_SCROLLY_PROP = L"DD_ConfigScrollY";
 static constexpr bool kEnableSnappyDebug = false; // set true for temporary snappy toggle diagnostics
@@ -64,6 +65,7 @@ static constexpr int ID_LAST_KEY_PRIORITY = 7005;
 static constexpr int ID_LAST_KEY_PRIORITY_SENS_SLIDER = 7006;
 static constexpr int ID_LAST_KEY_PRIORITY_SENS_CHIP = 7007;
 static constexpr int ID_ANALOG_SELF_TEST = 7008;
+static constexpr int ID_AULA_COMM_MODE_COMBO = 7009;
 static constexpr bool kShowAnalogSelfTestControls = false;
 
 static int S(HWND hwnd, int px) { return WinUtil_ScalePx(hwnd, px); }
@@ -4518,6 +4520,8 @@ struct ConfigPageState
     HWND sldLastKeyPrioritySensitivity = nullptr;
     HWND chipLastKeyPrioritySensitivity = nullptr;
     HWND chkBlockBoundKeys = nullptr;
+    HWND lblAulaCommMode = nullptr;
+    HWND cmbAulaCommMode = nullptr;
     HWND btnAnalogSelfTest = nullptr;
     HWND lblAnalogSelfTest = nullptr;
 
@@ -4555,6 +4559,10 @@ struct ConfigPageState
     int selfTestMode = 0;
 };
 
+static void LayoutConfigControls(HWND hWnd, ConfigPageState* st);
+static void Config_OffsetAllChildren(HWND hWnd, int dy);
+static void Config_SetScrollY(HWND hWnd, ConfigPageState* st, int newScrollY);
+
 static int Config_ScrollbarWidthPx(HWND hWnd) { return S(hWnd, 12); }
 static int Config_ScrollbarMarginPx(HWND hWnd) { return S(hWnd, 8); }
 
@@ -4577,6 +4585,78 @@ static float Config_SliderToLkpSensitivity(int sliderPos)
     int pct = std::clamp(sliderPos, 1, 100);
     float t = (float)(pct - 1) / 99.0f;   // 0..1
     return hi - t * (hi - lo);       // inverted
+}
+
+static int Config_AulaCommModeToComboSel(UINT mode)
+{
+    switch (mode)
+    {
+    case SettingsAulaCommMode_98Only: return 0;
+    case SettingsAulaCommMode_94Passive: return 1;
+    case SettingsAulaCommMode_94ActiveExperimental: return 2;
+    default: return 1;
+    }
+}
+
+static UINT Config_ComboSelToAulaCommMode(int sel)
+{
+    switch (sel)
+    {
+    case 0: return (UINT)SettingsAulaCommMode_98Only;
+    case 1: return (UINT)SettingsAulaCommMode_94Passive;
+    case 2: return (UINT)SettingsAulaCommMode_94ActiveExperimental;
+    default: return (UINT)SettingsAulaCommMode_94Passive;
+    }
+}
+
+static void Config_UpdateAulaCommModeUi(ConfigPageState* st)
+{
+    if (!st || !st->cmbAulaCommMode || !IsWindow(st->cmbAulaCommMode))
+        return;
+    int sel = Config_AulaCommModeToComboSel(Settings_GetAulaCommMode());
+    if (PremiumCombo::GetCurSel(st->cmbAulaCommMode) != sel)
+        PremiumCombo::SetCurSel(st->cmbAulaCommMode, sel, false);
+}
+
+static void Config_UpdateAulaAvailabilityUi(HWND hWnd, ConfigPageState* st)
+{
+    if (!hWnd || !st) return;
+
+    BackendAnalogTelemetry t{};
+    Backend_GetAnalogTelemetry(&t);
+    const bool aulaConnected = t.aulaConnected;
+
+    bool visibilityChanged = false;
+    if (st->cmbAulaCommMode && IsWindow(st->cmbAulaCommMode))
+    {
+        PremiumCombo::SetEnabled(st->cmbAulaCommMode, aulaConnected);
+        BOOL was = IsWindowVisible(st->cmbAulaCommMode);
+        ShowWindow(st->cmbAulaCommMode, aulaConnected ? SW_SHOWNA : SW_HIDE);
+        if ((was != FALSE) != aulaConnected)
+            visibilityChanged = true;
+    }
+    if (st->lblAulaCommMode && IsWindow(st->lblAulaCommMode))
+    {
+        EnableWindow(st->lblAulaCommMode, aulaConnected ? TRUE : FALSE);
+        BOOL was = IsWindowVisible(st->lblAulaCommMode);
+        ShowWindow(st->lblAulaCommMode, aulaConnected ? SW_SHOWNA : SW_HIDE);
+        if ((was != FALSE) != aulaConnected)
+            visibilityChanged = true;
+    }
+
+    if (visibilityChanged)
+    {
+        int keepScroll = st->scrollY;
+        if (keepScroll != 0)
+        {
+            // Normalize child coordinates back to content space before relayout.
+            Config_OffsetAllChildren(hWnd, keepScroll);
+            st->scrollY = 0;
+        }
+        LayoutConfigControls(hWnd, st);
+        Config_SetScrollY(hWnd, st, keepScroll);
+        InvalidateRect(hWnd, nullptr, FALSE);
+    }
 }
 
 static void Config_UpdateLkpSensitivityUi(ConfigPageState* st)
@@ -4627,6 +4707,8 @@ static void Config_RefreshFromCurrentSettings(HWND hWnd, ConfigPageState* st)
         SendMessageW(st->chkBlockBoundKeys, BM_SETCHECK, on ? BST_CHECKED : BST_UNCHECKED, 0);
         SnappyToggle_StartAnim(st->chkBlockBoundKeys, on, false);
     }
+    Config_UpdateAulaCommModeUi(st);
+    Config_UpdateAulaAvailabilityUi(hWnd, st);
     Config_UpdateLkpSensitivityUi(st);
 
     // Refresh curve preset combo, override/invert/mode toggles and graph state.
@@ -4813,6 +4895,24 @@ static void LayoutConfigControls(HWND hWnd, ConfigPageState* st)
         yAfter += toggleH + S(hWnd, 10);
     }
 
+    bool showVendorProtocolRow =
+        (st->lblAulaCommMode && IsWindow(st->lblAulaCommMode) && IsWindowVisible(st->lblAulaCommMode)) ||
+        (st->cmbAulaCommMode && IsWindow(st->cmbAulaCommMode) && IsWindowVisible(st->cmbAulaCommMode));
+    if (showVendorProtocolRow)
+    {
+        int rowH = S(hWnd, 28);
+        int labelW = S(hWnd, 112);
+        int gap = S(hWnd, 8);
+        int comboW = std::max(S(hWnd, 160), totalW - labelW - gap);
+        if (st->lblAulaCommMode)
+            SetWindowPos(st->lblAulaCommMode, nullptr, x, yAfter,
+                labelW, rowH, SWP_NOZORDER);
+        if (st->cmbAulaCommMode)
+            SetWindowPos(st->cmbAulaCommMode, nullptr, x + labelW + gap, yAfter,
+                comboW, rowH, SWP_NOZORDER);
+        yAfter += rowH + S(hWnd, 10);
+    }
+
     if (st->btnAnalogSelfTest)
     {
         int bh = S(hWnd, 28);
@@ -4897,6 +4997,11 @@ static int Config_ComputeBaseContentBottom(HWND hWnd)
         + (S(hWnd, 26) + S(hWnd, 10)) // Snap Stick
         + (S(hWnd, 26) + S(hWnd, 10)) // Last Key Priority + sensitivity slider
         + (S(hWnd, 26) + S(hWnd, 10)); // Block Bound Keys
+
+    BackendAnalogTelemetry t{};
+    Backend_GetAnalogTelemetry(&t);
+    if (t.aulaConnected)
+        bottom += (S(hWnd, 28) + S(hWnd, 10)); // vendor protocol combo
 
     if (kShowAnalogSelfTestControls)
     {
@@ -5479,7 +5584,14 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             return 0;
         }
 
-        // 3) forward other timers to KeySettings panel (morph etc.)
+        // 3) Aula availability refresh (hotplug-safe UI enable/disable).
+        if (wParam == AULA_STATUS_TIMER_ID && st)
+        {
+            Config_UpdateAulaAvailabilityUi(hWnd, st);
+            return 0;
+        }
+
+        // 4) forward other timers to KeySettings panel (morph etc.)
         KeySettingsPanel_HandleTimer(hWnd, wParam);
         // When page is scrolled, graph internals invalidate fixed (content) rects.
         // Force full repaint to avoid stale fragments during morph/toggle animations.
@@ -5815,6 +5927,25 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             hWnd, (HMENU)(INT_PTR)ID_BLOCK_BOUND_KEYS, hInst, nullptr);
         SendMessageW(st->chkBlockBoundKeys, WM_SETFONT, (WPARAM)hFont, TRUE);
 
+        st->lblAulaCommMode = CreateWindowW(L"STATIC", L"Device protocol",
+            WS_CHILD | SS_LEFT | SS_CENTERIMAGE,
+            0, 0, 10, 10,
+            hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblAulaCommMode, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->cmbAulaCommMode = PremiumCombo::Create(hWnd, hInst,
+            0, 0, 10, 10, ID_AULA_COMM_MODE_COMBO,
+            WS_CHILD | WS_TABSTOP);
+        PremiumCombo::SetFont(st->cmbAulaCommMode, hFont, true);
+        PremiumCombo::SetDropMaxVisible(st->cmbAulaCommMode, 8);
+        PremiumCombo::AddString(st->cmbAulaCommMode, L"Native Stream (Safe)");
+        PremiumCombo::AddString(st->cmbAulaCommMode, L"Passive Vendor Stream");
+        PremiumCombo::AddString(st->cmbAulaCommMode, L"Active Vendor Stream (Experimental)");
+        PremiumCombo::SetCurSel(
+            st->cmbAulaCommMode,
+            Config_AulaCommModeToComboSel(Settings_GetAulaCommMode()),
+            false);
+
         st->chkLastKeyPriority = CreateWindowW(L"BUTTON", L"Last Key Priority",
             WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_OWNERDRAW,
             0, 0, 10, 10,
@@ -5868,6 +5999,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         SnappyToggle_StartAnim(st->chkBlockBoundKeys, Settings_GetBlockBoundKeys(), false);
         Config_UpdateLkpSensitivityUi(st);
         Config_RefreshFromCurrentSettings(hWnd, st);
+        SetTimer(hWnd, AULA_STATUS_TIMER_ID, 500, nullptr);
 
         LayoutConfigControls(hWnd, st);
         Config_SetScrollY(hWnd, st, 0);
@@ -6223,6 +6355,23 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             return 0;
         }
 
+        if (LOWORD(wParam) == (UINT)ID_AULA_COMM_MODE_COMBO && HIWORD(wParam) == CBN_SELCHANGE && st && st->cmbAulaCommMode)
+        {
+            BackendAnalogTelemetry t{};
+            Backend_GetAnalogTelemetry(&t);
+            if (!t.aulaConnected)
+                return 0;
+
+            int sel = PremiumCombo::GetCurSel(st->cmbAulaCommMode);
+            UINT mode = Config_ComboSelToAulaCommMode(sel);
+            if (Settings_GetAulaCommMode() != mode)
+            {
+                Settings_SetAulaCommMode(mode);
+                RequestSave(hWnd);
+            }
+            return 0;
+        }
+
         // Preset selection:
         // If user selected "+ Create New..." row, start inline create (deferred).
         if (LOWORD(wParam) == (UINT)KSP_ID_PROFILE && HIWORD(wParam) == CBN_SELCHANGE)
@@ -6260,6 +6409,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         if (st)
         {
             KillTimer(hWnd, ANALOG_SELF_TEST_TIMER_ID);
+            KillTimer(hWnd, AULA_STATUS_TIMER_ID);
             st->selfTestRunning = false;
             Toast_Hide(hWnd, st);
             if (st->hToast)

@@ -296,10 +296,11 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     int blockDef = profileOnly ? 0 : (Settings_GetBlockBoundKeys() ? 1 : 0);
     int blockMouseDef = profileOnly ? 0 : (Settings_GetBlockMouseInput() ? 1 : 0);
     UINT pollDef = profileOnly ? 1u : Settings_GetPollingMs();
-    UINT uiDef = profileOnly ? 1u : Settings_GetUIRefreshMs();
+    UINT uiDef = profileOnly ? 16u : Settings_GetUIRefreshMs();
     int padsDef = profileOnly ? 1 : Settings_GetVirtualGamepadCount();
     int padsEnabledDef = profileOnly ? 1 : (Settings_GetVirtualGamepadsEnabled() ? 1 : 0);
     int fallbackDef = profileOnly ? 0 : (Settings_GetDigitalFallbackInput() ? 1 : 0);
+    UINT vendorProtocolModeDef = profileOnly ? (UINT)SettingsAulaCommMode_94Passive : Settings_GetAulaCommMode();
     int mouseToStickEnabledDef = profileOnly ? 0 : (Settings_GetMouseToStickEnabled() ? 1 : 0);
     int mouseToStickTargetDef = profileOnly ? 1 : Settings_GetMouseToStickTarget();
     float mouseToStickSensDef = profileOnly ? 1.0f : Settings_GetMouseToStickSensitivity();
@@ -336,6 +337,8 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     int vpadCount = GetPrivateProfileIntW(L"Main", L"VirtualGamepads", padsDef, path);
     int vpadEnabled = GetPrivateProfileIntW(L"Main", L"VirtualGamepadsEnabled", padsEnabledDef, path);
     int digitalFallbackInput = GetPrivateProfileIntW(L"Main", L"DigitalFallbackInput", fallbackDef, path);
+    UINT vendorProtocolMode = IniReadU32(L"Main", L"AulaCommMode", vendorProtocolModeDef, path);
+    vendorProtocolMode = IniReadU32(L"Main", L"VendorProtocolMode", vendorProtocolMode, path);
     int mouseToStickEnabled = GetPrivateProfileIntW(L"Main", L"MouseToStickEnabled", mouseToStickEnabledDef, path);
     int mouseToStickTarget = GetPrivateProfileIntW(L"Main", L"MouseToStickTarget", mouseToStickTargetDef, path);
     float mouseToStickSensitivity = IniReadFloat1000(L"Main", L"MouseToStickSensitivity", mouseToStickSensDef, path);
@@ -381,6 +384,7 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     Settings_SetVirtualGamepadCount(vpadCount);
     Settings_SetVirtualGamepadsEnabled(vpadEnabled != 0);
     Settings_SetDigitalFallbackInput(digitalFallbackInput != 0);
+    Settings_SetAulaCommMode(vendorProtocolMode);
     Settings_SetMouseToStickEnabled(mouseToStickEnabled != 0);
     Settings_SetMouseToStickTarget(mouseToStickTarget);
     Settings_SetMouseToStickSensitivity(mouseToStickSensitivity);
@@ -447,6 +451,8 @@ static bool SettingsIni_Save_Internal(const wchar_t* tmpPath, bool saveWindow, b
     IniWriteI32(L"Main", L"VirtualGamepads", std::clamp(Settings_GetVirtualGamepadCount(), 1, 4), tmpPath);
     IniWriteI32(L"Main", L"VirtualGamepadsEnabled", Settings_GetVirtualGamepadsEnabled() ? 1 : 0, tmpPath);
     IniWriteI32(L"Main", L"DigitalFallbackInput", Settings_GetDigitalFallbackInput() ? 1 : 0, tmpPath);
+    IniWriteU32(L"Main", L"VendorProtocolMode", Settings_GetAulaCommMode(), tmpPath);
+    WritePrivateProfileStringW(L"Main", L"AulaCommMode", nullptr, tmpPath);
     IniWriteI32(L"Main", L"MouseToStickEnabled", Settings_GetMouseToStickEnabled() ? 1 : 0, tmpPath);
     IniWriteI32(L"Main", L"MouseToStickTarget", Settings_GetMouseToStickTarget(), tmpPath);
     IniWriteFloat1000(L"Main", L"MouseToStickSensitivity", Settings_GetMouseToStickSensitivity(), tmpPath);

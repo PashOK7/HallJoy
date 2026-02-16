@@ -28,7 +28,7 @@ static std::atomic<uint32_t> g_inDzPacked{ PackDz(80, 900) };
 
 // Polling/UI
 static std::atomic<UINT> g_pollMs{ 1 };
-static std::atomic<UINT> g_uiRefreshMs{ 1 };
+static std::atomic<UINT> g_uiRefreshMs{ 16 };
 static std::atomic<int> g_virtualGamepadCount{ 1 };
 static std::atomic<bool> g_virtualGamepadsEnabled{ true };
 static std::atomic<int> g_mainWinW{ 821 };
@@ -65,6 +65,7 @@ static std::atomic<int> g_lastKeyPrioritySensitivityM{ 120 }; // 0.120 default
 static std::atomic<bool> g_blockBoundKeys{ false };
 static std::atomic<bool> g_blockMouseInput{ false };
 static std::atomic<bool> g_digitalFallbackInput{ false };
+static std::atomic<UINT> g_aulaCommMode{ SettingsAulaCommMode_94Passive };
 static std::atomic<bool> g_mouseToStickEnabled{ false };
 static std::atomic<int> g_mouseToStickTarget{ 1 }; // default: right stick
 static std::atomic<int> g_mouseToStickSensitivityM{ 1000 }; // 1.0x
@@ -337,6 +338,18 @@ void Settings_SetDigitalFallbackInput(bool on)
 bool Settings_GetDigitalFallbackInput()
 {
     return g_digitalFallbackInput.load(std::memory_order_acquire);
+}
+
+void Settings_SetAulaCommMode(UINT mode)
+{
+    mode = std::clamp(mode, (UINT)SettingsAulaCommMode_98Only, (UINT)SettingsAulaCommMode_94ActiveExperimental);
+    g_aulaCommMode.store(mode, std::memory_order_release);
+}
+
+UINT Settings_GetAulaCommMode()
+{
+    UINT mode = g_aulaCommMode.load(std::memory_order_acquire);
+    return std::clamp(mode, (UINT)SettingsAulaCommMode_98Only, (UINT)SettingsAulaCommMode_94ActiveExperimental);
 }
 
 void Settings_SetMouseToStickEnabled(bool on)

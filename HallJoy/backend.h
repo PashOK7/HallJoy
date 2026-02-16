@@ -64,8 +64,11 @@ BackendStatus Backend_GetStatus();
 
 struct BackendAnalogTelemetry
 {
-    bool sdkInitialised = false;
-    int deviceCount = 0;                 // unique SDK device ids
+    bool sdkInitialised = false;         // true when Wooting SDK or native Aula path is active
+    int deviceCount = 0;                 // connected analog sources (SDK devices + native Aula)
+    bool aulaConnected = false;          // native Aula HID path connected
+    uint16_t aulaVendorId = 0;           // current Aula VID when connected
+    uint16_t aulaProductId = 0;          // current Aula PID when connected
     int keycodeMode = 0;                 // WootingAnalog_KeycodeType
     uint32_t keyboardEventSeq = 0;       // increments on physical key-down events
     uint16_t trackedMaxRawMilli = 0;     // last tracked-page max raw [0..1000]

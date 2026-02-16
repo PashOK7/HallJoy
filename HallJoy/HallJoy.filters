@@ -30,7 +30,16 @@
     <ClInclude Include="app.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="app_deps.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="backend.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="backend_aula.inc">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="backend_curve.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="keyboard_ui.h">
@@ -165,7 +174,13 @@
     <ClCompile Include="app.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="app_deps.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="backend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="backend_curve.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="keyboard_ui.cpp">

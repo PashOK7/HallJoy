@@ -1,0 +1,11 @@
+def decode(title: str, packet_hex: str):
+    packet = bytes.fromhex(packet_hex)
+
+    header = packet[0:8]
+    key_id = packet[8]
+    is_full = packet[9]
+    raw_value = int.from_bytes(packet[10:12], "little")
+
+
+    print(f"Decode [{title}] \"{packet_hex}\"\nkey ID: {key_id} | header: {header} | is_full: {is_full} | sens_value: {raw_value}\n=======================================\n")
+decode('test', '09980100010006003b015988840000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b5')

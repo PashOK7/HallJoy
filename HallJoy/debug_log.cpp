@@ -110,6 +110,10 @@ static DWORD WINAPI DebugLogWriterThreadProc(LPVOID)
 
 void DebugLog_Init()
 {
+#if defined(NDEBUG)
+    return;
+#endif
+
     AcquireSRWLockExclusive(&g_logLock);
 
     if (g_logReady.load(std::memory_order_relaxed))
@@ -187,6 +191,10 @@ void DebugLog_Init()
 
 void DebugLog_Shutdown()
 {
+#if defined(NDEBUG)
+    return;
+#endif
+
     HANDLE threadToJoin = nullptr;
     HANDLE fileToClose = INVALID_HANDLE_VALUE;
     HANDLE eventToClose = nullptr;
@@ -228,6 +236,11 @@ void DebugLog_Shutdown()
 
 void DebugLog_Write(const wchar_t* fmt, ...)
 {
+#if defined(NDEBUG)
+    (void)fmt;
+    return;
+#endif
+
     if (!fmt || !*fmt) return;
 
     const bool ready = g_logReady.load(std::memory_order_acquire);
@@ -262,6 +275,10 @@ void DebugLog_Write(const wchar_t* fmt, ...)
 
 const wchar_t* DebugLog_Path()
 {
+#if defined(NDEBUG)
+    return L"";
+#endif
+
     AcquireSRWLockShared(&g_logLock);
     const wchar_t* p = g_logPath.c_str();
     ReleaseSRWLockShared(&g_logLock);

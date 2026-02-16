@@ -83,7 +83,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\release\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;delayimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>wooting_analog_wrapper.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
@@ -128,7 +128,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\WootingAnalogWrapper\lib;$(ProjectDir)..\third_party\ViGEmClient\lib\release\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;wooting_analog_wrapper.dll.lib;wooting_analog_wrapper.lib;delayimp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>wooting_analog_wrapper.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
@@ -162,8 +162,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="app.h" />
+    <ClInclude Include="app_deps.h" />
     <ClInclude Include="app_paths.h" />
     <ClInclude Include="backend.h" />
+    <ClInclude Include="backend_aula.inc" />
+    <ClInclude Include="backend_curve.h" />
     <ClInclude Include="bindings.h" />
     <ClInclude Include="binding_actions.h" />
     <ClInclude Include="curve_clipboard.h" />
@@ -215,8 +218,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="app.cpp" />
+    <ClCompile Include="app_deps.cpp" />
     <ClCompile Include="app_paths.cpp" />
     <ClCompile Include="backend.cpp" />
+    <ClCompile Include="backend_curve.cpp" />
     <ClCompile Include="bindings.cpp" />
     <ClCompile Include="binding_actions.cpp" />
     <ClCompile Include="curve_math.cpp" />

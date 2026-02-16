@@ -90,6 +90,16 @@ bool Settings_GetBlockBoundKeys();
 void Settings_SetDigitalFallbackInput(bool on);
 bool Settings_GetDigitalFallbackInput();
 
+// Aula native HID communication strategy.
+enum SettingsAulaCommMode : UINT
+{
+    SettingsAulaCommMode_98Only = 0,               // stable digital+analog stream
+    SettingsAulaCommMode_94Passive = 1,            // parse incoming 0x94, no active 0x94 writes
+    SettingsAulaCommMode_94ActiveExperimental = 2, // actively bootstrap/poll 0x94 (can disable digital on some firmware)
+};
+void Settings_SetAulaCommMode(UINT mode);
+UINT Settings_GetAulaCommMode();
+
 // Block physical mouse events when mouse->stick mode is active.
 void Settings_SetBlockMouseInput(bool on);
 bool Settings_GetBlockMouseInput();

@@ -135,6 +135,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow)
             L"Failed to prepare wooting_analog_wrapper.dll near the executable.",
             L"HallJoy",
             MB_ICONERROR | MB_OK);
+        DebugLog_Shutdown();
         return 1;
     }
     DebugLog_Write(L"[main] wrapper ready");
@@ -154,6 +155,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow)
     if (gdiStatus == Gdiplus::Ok && gdiToken != 0)
         Gdiplus::GdiplusShutdown(gdiToken);
     DebugLog_Write(L"[main] exit");
+    DebugLog_Shutdown();
 
     return result;
 }

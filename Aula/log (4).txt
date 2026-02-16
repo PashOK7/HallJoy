@@ -1,0 +1,223 @@
+﻿[01:17:40.927][t49944] [log.init] 2026-02-17 01:17:40.927 pid=15088 path=C:\Users\plows\Downloads\NN\log.txt
+[01:17:40.927][t49944] [build] log_schema=6 compiled=Feb 14 2026 22:24:50
+[01:17:40.927][t49944] [main] wWinMain start hInst=00007FF6BFB80000 cmdShow=1
+[01:17:40.927][t49944] [wrapper] ensure path=C:\Users\plows\Downloads\NN\wooting_analog_wrapper.dll
+[01:17:40.927][t49944] [wrapper] dll not found near exe, extracting from resource
+[01:17:40.942][t49944] [wrapper] extract ok
+[01:17:40.963][t49944] [wrapper] LoadLibrary result=00007FF884E80000 err=0
+[01:17:40.963][t49944] [main] wrapper ready
+[01:17:40.963][t49944] [main] dpi awareness configured
+[01:17:40.964][t49944] [main] Gdiplus startup status=0 token=00000000116E4FBE
+[01:17:40.964][t49944] [app] settings load failed, writing defaults path=C:\Users\plows\Downloads\NN\settings.ini
+[01:17:41.220][t49944] [app] WM_CREATE
+[01:17:41.252][t49944] [ui.keyboard] rebuild keys=82 tracked=80
+[01:17:41.252][t49944] [backend.ui] tracked set count=80 sample=41,58,59,60,61,62,63,64,65,66,67,68
+[01:17:41.328][t49944] [backend.init] begin
+[01:17:41.328][t49944] [backend.aula] default_key_map loaded entries=76
+[01:17:41.447][t49944] [backend.init] wooting_analog_initialise ret=0
+[01:17:41.447][t49944] [backend.mode] set mode=HID(0) reason=init hid_hint=0 ret=1
+[01:17:41.447][t49944] [backend.wooting] after_init_call init=1 get_devices_ret=0 keycode_mode=0
+[01:17:41.447][t49944] [backend.devices] after_init_call count=0
+[01:17:41.447][t49944] [backend.devices] unique_ids=0
+[01:17:41.448][t49944] [backend.aula] candidate path=\\?\hid#vid_372e&pid_103e&mi_02&col01#a&429dbc1&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030} write_capable=1 in_len=64 out_len=64 usage_page=0xFF60 usage=0x0061
+[01:17:41.448][t40704] [backend.aula] reader start in_len=64 out_len=64
+[01:17:41.450][t49944] [backend.aula] set_analog enable=1 ok=1 err=0 write_capable=1 out_len=64
+[01:17:41.450][t49944] [backend.aula] connected vid=0x372E pid=0x103E in_len=64 out_len=64 write_capable=1 analog_on=1 path=\\?\hid#vid_372e&pid_103e&mi_02&col01#a&429dbc1&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}
+[01:17:41.452][t40704] [backend.aula] unknown_report len=64 head=09 98 00 00 01 00 00 00
+[01:17:41.478][t49944] [backend.init] Vigem_Create ok pads=1
+[01:17:41.478][t49944] [backend.init] success
+[01:17:41.478][t49944] [rt] start requested interval=1
+[01:17:41.478][t49944] [rt] start ok thread=00000000000003C0
+[01:17:41.478][t49944] [app] raw mouse input registered
+[01:17:41.478][t49944] [app] init complete
+[01:17:41.478][t34120] [rt] thread start
+[01:17:41.478][t34120] [rt] timer create=1 arm=1 interval=1
+[01:17:41.479][t34120] [backend.wooting] tick_heartbeat init=1 get_devices_ret=0 keycode_mode=0
+[01:17:41.479][t34120] [backend.input] tracked=80 max_raw=0(hid=79) max_out=0(hid=79)
+[01:17:41.479][t34120] [backend.full] periodic ret=0 max=0.000 code=0 mode=HID
+[01:17:41.479][t49944] [app] main window created hwnd=0000000000CC0ABA pos=(-2147483648,-2147483648) size=(821,832)
+[01:17:41.550][t49944] [app] keyboard hook=0000000000CD0F8D
+[01:17:41.550][t49944] [app] mouse hook=00000000032708F7
+[01:17:42.293][t40704] [backend.aula.ev] unmapped key_id=0x43 full=0 raw=10241
+[01:17:42.944][t34120] [backend.aula] set_analog enable=1 ok=1 err=0 write_capable=1 out_len=64
+[01:17:43.141][t40704] [backend.aula.ev] unmapped key_id=0x43 full=0 raw=10240
+[01:17:43.474][t34120] [backend.input] tracked=80 max_raw=0(hid=79) max_out=0(hid=79)
+[01:17:43.474][t34120] [backend.full] periodic ret=0 max=0.000 code=0 mode=HID
+[01:17:43.993][t40704] [backend.aula.ev] unmapped key_id=0x43 full=0 raw=10240
+[01:17:44.444][t34120] [backend.aula] set_analog enable=1 ok=1 err=0 write_capable=1 out_len=64
+[01:17:44.843][t40704] [backend.aula.ev] unmapped key_id=0x43 full=0 raw=10240
+[01:17:45.475][t34120] [backend.input] tracked=80 max_raw=0(hid=79) max_out=0(hid=79)
+[01:17:45.475][t34120] [backend.full] periodic ret=0 max=0.000 code=0 mode=HID
+[01:17:45.693][t40704] [backend.aula.ev] unmapped key_id=0x43 full=0 raw=10240
+[01:17:45.944][t34120] [backend.aula] set_analog enable=1 ok=1 err=0 write_capable=1 out_len=64
+[01:17:46.542][t40704] [backend.aula.ev] unmapped key_id=0x43 full=0 raw=10241
+[01:17:47.150][t49944] [backend.phys] down hid=4 sc=30 vk=65
+[01:17:47.393][t40704] [backend.aula.ev] analog key_id=0x2B hid=4 full=0 raw=42317 out=84 prev=0
+[01:17:47.475][t34120] [backend.input] tracked=80 max_raw=84(hid=4) max_out=4(hid=4)
+[01:17:47.475][t34120] [backend.full] periodic ret=0 max=0.000 code=0 mode=HID
+[01:17:47.492][t40704] [backend.aula.ev] analog key_id=0x2B hid=4 full=0 raw=41855 out=141 prev=84
+[01:17:47.693][t40704] [backend.aula.ev] analog key_id=0x2B hid=4 full=0 raw=41617 out=171 prev=141
+[01:17:47.742][t40704] [backend.aula.ev] analog key_id=0x2B hid=4 full=0 raw=41375 out=201 prev=171
+[01:17:47.843][t40704] [backend.aula.ev] analog key_id=0x2B hid=4 full=0 raw=40895 out=260 prev=200
+[01:17:47.992][t40704] [backend.aula.ev] analog key_id=0x2B hid=4 full=0 raw=40642 out=291 prev=260
+[01:17:48.042][t40704] [backend.aula.ev] analog key_id=0x2B hid=4 full=0 raw=39663 out=412 prev=291
+[01:17:48.243][t40704] [backend.aula.ev] analog key_id=0x2B hid=4 full=1 raw=37416 out=689 prev=412
+[01:17:48.342][t40704] [backend.aula.ev] analog key_id=0x2B hid=4 full=1 raw=37165 out=720 prev=689
+[01:17:48.393][t40704] [backend.aula.ev] analog key_id=0x2B hid=4 full=1 raw=34904 out=1000 prev=720
+[01:17:49.447][t49944] [backend.phys] down hid=22 sc=31 vk=83
+[01:17:49.474][t34120] [backend.input] tracked=80 max_raw=999(hid=4) max_out=1000(hid=4)
+[01:17:49.474][t34120] [backend.full] periodic ret=0 max=0.000 code=0 mode=HID
+[01:17:49.542][t40704] [backend.aula.ev] analog key_id=0x2C hid=22 full=0 raw=39417 out=442 prev=0
+[01:17:49.592][t40704] [backend.aula.ev] analog key_id=0x2C hid=22 full=1 raw=35154 out=969 prev=442
+[01:17:49.642][t40704] [backend.aula.ev] analog key_id=0x2C hid=22 full=1 raw=34905 out=999 prev=969
+[01:17:51.475][t34120] [backend.wooting] tick_heartbeat init=1 get_devices_ret=0 keycode_mode=0
+[01:17:51.475][t34120] [backend.input] tracked=80 max_raw=1000(hid=4) max_out=1000(hid=22)
+[01:17:51.475][t34120] [backend.full] periodic ret=0 max=0.000 code=0 mode=HID
+[01:17:52.542][t40704] [backend.aula.ev] analog key_id=0x2C hid=22 full=0 raw=41369 out=201 prev=999
+[01:17:52.542][t49944] [backend.phys] up hid=4 sc=30 vk=65
+[01:17:52.544][t34120] [backend.aula.ev] stale_release hid=4 prev=1000 age_ms=3047
+[01:17:52.545][t49944] [backend.phys] up hid=22 sc=31 vk=83
+[01:17:52.592][t40704] [backend.aula.ev] idle_release key_id=0x2C hid=22 raw=9985 prev=201
+[01:17:53.475][t34120] [backend.input] tracked=80 max_raw=0(hid=79) max_out=0(hid=79)
+[01:17:53.475][t34120] [backend.full] periodic ret=0 max=0.000 code=0 mode=HID
+[01:17:53.710][t49944] [backend.phys] down hid=7 sc=32 vk=68
+[01:17:53.749][t49944] [backend.phys] down hid=9 sc=33 vk=70
+[01:17:53.792][t40704] [backend.aula.ev] analog key_id=0x2D hid=7 full=1 raw=2137 out=1000 prev=0
+[01:17:53.842][t40704] [backend.aula.ev] analog key_id=0x2E hid=9 full=1 raw=35161 out=968 prev=0
+[01:17:55.386][t49944] [backend.phys] up hid=7 sc=32 vk=68
+[01:17:55.387][t34120] [backend.aula.ev] stale_release hid=7 prev=1000 age_ms=1593
+[01:17:55.392][t40704] [backend.aula.ev] analog key_id=0x2E hid=9 full=0 raw=40640 out=291 prev=968
+[01:17:55.394][t49944] [backend.phys] up hid=9 sc=33 vk=70
+[01:17:55.442][t40704] [backend.aula.ev] analog key_id=0x2E hid=9 full=0 raw=42767 out=29 prev=291
+[01:17:55.474][t34120] [backend.input] tracked=80 max_raw=29(hid=9) max_out=0(hid=79)
+[01:17:55.474][t34120] [backend.full] periodic ret=0 max=0.000 code=0 mode=HID
+[01:17:55.492][t40704] [backend.aula.ev] idle_release key_id=0x2E hid=9 raw=9984 prev=29
+[01:17:55.746][t49944] [backend.phys] down hid=10 sc=34 vk=71
+[01:17:55.792][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=41334 out=206 prev=0
+[01:17:55.842][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=41097 out=235 prev=206
+[01:17:55.892][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=40856 out=265 prev=235
+[01:17:55.942][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=40377 out=324 prev=265
+[01:17:55.992][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=39637 out=415 prev=324
+[01:17:56.042][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=38655 out=536 prev=415
+[01:17:56.092][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=1 raw=37656 out=660 prev=536
+[01:17:56.142][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=1 raw=37403 out=691 prev=660
+[01:17:56.192][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=1 raw=36405 out=814 prev=691
+[01:17:56.242][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=1 raw=35653 out=907 prev=814
+[01:17:56.292][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=1 raw=35401 out=938 prev=907
+[01:17:56.392][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=1 raw=37154 out=722 prev=938
+[01:17:56.442][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=39153 out=475 prev=722
+[01:17:56.492][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=39640 out=415 prev=475
+[01:17:56.542][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=40365 out=325 prev=415
+[01:17:56.592][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=40860 out=264 prev=325
+[01:17:56.642][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=41093 out=235 prev=264
+[01:17:56.692][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=41334 out=206 prev=235
+[01:17:56.719][t49944] [backend.phys] up hid=10 sc=34 vk=71
+[01:17:56.742][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=41566 out=177 prev=206
+[01:17:56.757][t49944] [backend.phys] down hid=10 sc=34 vk=71
+[01:17:56.792][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=40124 out=355 prev=177
+[01:17:56.842][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=39636 out=415 prev=355
+[01:17:56.883][t49944] [backend.phys] up hid=10 sc=34 vk=71
+[01:17:56.892][t40704] [backend.aula.ev] analog key_id=0x2F hid=10 full=0 raw=41557 out=178 prev=415
+[01:17:56.942][t40704] [backend.aula.ev] idle_release key_id=0x2F hid=10 raw=9476 prev=178
+[01:17:57.128][t49944] [backend.phys] down hid=8 sc=18 vk=69
+[01:17:57.192][t40704] [backend.aula.ev] analog key_id=0x1F hid=8 full=1 raw=35161 out=968 prev=0
+[01:17:57.277][t49944] [backend.phys] down hid=26 sc=17 vk=87
+[01:17:57.369][t49944] [backend.phys] down hid=21 sc=19 vk=82
+[01:17:57.392][t40704] [backend.aula.ev] analog key_id=0x1F hid=8 full=1 raw=2393 out=1000 prev=968
+[01:17:57.442][t40704] [backend.aula.ev] analog key_id=0x20 hid=21 full=1 raw=34649 out=1000 prev=0
+[01:17:57.475][t34120] [backend.input] tracked=80 max_raw=1000(hid=21) max_out=1000(hid=21)
+[01:17:57.475][t34120] [backend.full] periodic ret=0 max=0.000 code=0 mode=HID
+[01:17:57.550][t49944] [backend.phys] up hid=8 sc=18 vk=69
+[01:17:57.606][t49944] [backend.phys] up hid=26 sc=17 vk=87
+[01:17:57.642][t40704] [backend.aula.ev] analog key_id=0x20 hid=21 full=1 raw=34903 out=970 prev=1000
+[01:17:57.692][t40704] [backend.aula.ev] analog key_id=0x20 hid=21 full=1 raw=37659 out=640 prev=970
+[01:17:57.719][t49944] [backend.phys] up hid=21 sc=19 vk=82
+[01:17:57.742][t40704] [backend.aula.ev] analog key_id=0x20 hid=21 full=0 raw=42514 out=58 prev=640
+[01:17:57.792][t40704] [backend.aula.ev] idle_release key_id=0x20 hid=21 raw=9729 prev=58
+[01:17:57.897][t34120] [backend.aula.ev] stale_release hid=8 prev=1000 age_ms=516
+[01:17:57.909][t49944] [backend.phys] down hid=4 sc=30 vk=65
+[01:17:57.920][t49944] [backend.phys] down hid=20 sc=16 vk=81
+[01:17:57.932][t49944] [backend.phys] down hid=26 sc=17 vk=87
+[01:17:57.992][t40704] [backend.aula.ev] analog key_id=0x1E hid=26 full=0 raw=8618 out=1000 prev=0
+[01:17:58.004][t49944] [backend.phys] down hid=21 sc=19 vk=82
+[01:17:58.013][t49944] [backend.phys] down hid=7 sc=32 vk=68
+[01:17:58.018][t49944] [backend.phys] down hid=9 sc=33 vk=70
+[01:17:58.021][t49944] [backend.phys] down hid=22 sc=31 vk=83
+[01:17:58.042][t40704] [backend.aula.ev] analog key_id=0x20 hid=21 full=0 raw=6881 out=1000 prev=0
+[01:17:58.092][t40704] [backend.aula.ev] analog key_id=0x2E hid=9 full=1 raw=36916 out=751 prev=0
+[01:17:58.142][t40704] [backend.aula.ev] analog key_id=0x2E hid=9 full=1 raw=36166 out=844 prev=751
+[01:17:58.192][t40704] [backend.aula.ev] analog key_id=0x2E hid=9 full=1 raw=35414 out=937 prev=844
+[01:17:58.236][t49944] [backend.phys] down hid=57 sc=58 vk=20
+[01:17:58.240][t49944] [backend.phys] down hid=8 sc=18 vk=69
+[01:17:58.242][t40704] [backend.aula.ev] analog key_id=0x2E hid=9 full=1 raw=35160 out=968 prev=937
+[01:17:58.273][t49944] [backend.phys] down hid=225 sc=42 vk=160
+[01:17:58.655][t49944] [backend.phys] down hid=32 sc=4 vk=51
+[01:17:58.665][t49944] [backend.phys] up hid=225 sc=42 vk=160
+[01:17:58.684][t49944] [backend.phys] up hid=8 sc=18 vk=69
+[01:17:58.692][t40704] [backend.aula.ev] analog key_id=0x2E hid=9 full=1 raw=35665 out=906 prev=968
+[01:17:58.728][t49944] [backend.phys] up hid=32 sc=4 vk=51
+[01:17:58.742][t40704] [backend.aula.ev] analog key_id=0x2E hid=9 full=0 raw=40642 out=291 prev=906
+[01:17:58.743][t49944] [backend.phys] up hid=7 sc=32 vk=68
+[01:17:58.746][t49944] [backend.phys] up hid=9 sc=33 vk=70
+[01:17:58.748][t49944] [backend.phys] up hid=57 sc=58 vk=20
+[01:17:58.749][t49944] [backend.phys] up hid=21 sc=19 vk=82
+[01:17:58.750][t34120] [backend.aula.ev] stale_release hid=21 prev=1000 age_ms=703
+[01:17:58.771][t49944] [backend.phys] up hid=22 sc=31 vk=83
+[01:17:58.793][t40704] [backend.aula.ev] idle_release key_id=0x2E hid=9 raw=9992 prev=291
+[01:17:58.809][t49944] [backend.phys] up hid=20 sc=16 vk=81
+[01:17:58.816][t49944] [backend.phys] up hid=4 sc=30 vk=65
+[01:17:58.842][t40704] [backend.aula.ev] analog key_id=0x1E hid=26 full=0 raw=42818 out=5 prev=1000
+[01:17:58.855][t49944] [backend.phys] up hid=26 sc=17 vk=87
+[01:17:58.892][t40704] [backend.aula.ev] idle_release key_id=0x1E hid=26 raw=10503 prev=5
+[01:17:59.189][t49944] [backend.phys] down hid=7 sc=32 vk=68
+[01:17:59.197][t49944] [backend.phys] down hid=4 sc=30 vk=65
+[01:17:59.203][t49944] [backend.phys] down hid=22 sc=31 vk=83
+[01:17:59.220][t49944] [backend.phys] down hid=26 sc=17 vk=87
+[01:17:59.242][t40704] [backend.aula.ev] analog key_id=0x2D hid=7 full=1 raw=38663 out=106 prev=0
+[01:17:59.292][t40704] [backend.aula.ev] analog key_id=0x2D hid=7 full=1 raw=34905 out=198 prev=106
+[01:17:59.474][t34120] [backend.input] tracked=80 max_raw=198(hid=7) max_out=130(hid=7)
+[01:17:59.474][t34120] [backend.full] periodic ret=0 max=0.000 code=0 mode=HID
+[01:17:59.882][t49944] [backend.phys] up hid=7 sc=32 vk=68
+[01:17:59.884][t49944] [backend.phys] up hid=26 sc=17 vk=87
+[01:17:59.886][t49944] [backend.phys] up hid=22 sc=31 vk=83
+[01:17:59.892][t40704] [backend.aula.ev] idle_release key_id=0x2D hid=7 raw=10240 prev=198
+[01:17:59.907][t49944] [backend.phys] up hid=4 sc=30 vk=65
+[01:18:00.284][t49944] [backend.phys] down hid=4 sc=30 vk=65
+[01:18:00.288][t49944] [backend.phys] down hid=26 sc=17 vk=87
+[01:18:00.292][t40704] [backend.aula.ev] analog key_id=0x2B hid=4 full=0 raw=9778 out=813 prev=0
+[01:18:00.295][t49944] [backend.phys] down hid=7 sc=32 vk=68
+[01:18:00.342][t40704] [backend.aula.ev] analog key_id=0x1E hid=26 full=0 raw=9346 out=979 prev=0
+[01:18:00.392][t40704] [backend.aula.ev] analog key_id=0x2D hid=7 full=0 raw=41620 out=34 prev=0
+[01:18:00.492][t40704] [backend.aula.ev] analog key_id=0x2D hid=7 full=0 raw=39418 out=88 prev=51
+[01:18:00.542][t40704] [backend.aula.ev] analog key_id=0x2D hid=7 full=1 raw=35910 out=174 prev=88
+[01:18:00.542][t49944] [backend.phys] down hid=22 sc=31 vk=83
+[01:18:00.593][t40704] [backend.aula.ev] analog key_id=0x2D hid=7 full=1 raw=34905 out=198 prev=174
+[01:18:01.153][t49944] [backend.phys] up hid=22 sc=31 vk=83
+[01:18:01.208][t49944] [backend.phys] up hid=4 sc=30 vk=65
+[01:18:01.210][t34120] [backend.aula.ev] stale_release hid=4 prev=813 age_ms=921
+[01:18:01.212][t49944] [backend.phys] up hid=26 sc=17 vk=87
+[01:18:01.213][t34120] [backend.aula.ev] stale_release hid=26 prev=979 age_ms=875
+[01:18:01.242][t40704] [backend.aula.ev] analog key_id=0x2D hid=7 full=0 raw=42104 out=22 prev=198
+[01:18:01.251][t49944] [backend.phys] up hid=7 sc=32 vk=68
+[01:18:01.292][t40704] [backend.aula.ev] idle_release key_id=0x2D hid=7 raw=10241 prev=22
+[01:18:01.474][t34120] [backend.wooting] tick_heartbeat init=1 get_devices_ret=0 keycode_mode=0
+[01:18:01.474][t34120] [backend.input] tracked=80 max_raw=0(hid=79) max_out=0(hid=79)
+[01:18:01.474][t34120] [backend.full] periodic ret=0 max=0.000 code=0 mode=HID
+[01:18:01.490][t49944] [backend.phys] down hid=4 sc=30 vk=65
+[01:18:01.534][t49944] [backend.phys] down hid=26 sc=17 vk=87
+[01:18:01.542][t40704] [backend.aula.ev] analog key_id=0x2B hid=4 full=0 raw=7874 out=860 prev=0
+[01:18:01.592][t40704] [backend.aula.ev] analog key_id=0x1E hid=26 full=1 raw=35665 out=213 prev=0
+[01:18:02.479][t49944] [backend.phys] up hid=26 sc=17 vk=87
+[01:18:02.482][t49944] [backend.phys] up hid=4 sc=30 vk=65
+[01:18:02.484][t34120] [backend.aula.ev] stale_release hid=4 prev=860 age_ms=937
+[01:18:02.492][t40704] [backend.aula.ev] idle_release key_id=0x1E hid=26 raw=10497 prev=228
+[01:18:03.402][t49944] [app] WM_DESTROY
+[01:18:03.432][t49944] [rt] stop requested
+[01:18:03.434][t34120] [rt] thread exit
+[01:18:03.434][t49944] [rt] stop complete
+[01:18:03.434][t49944] [backend] shutdown
+[01:18:03.435][t49944] [backend.aula] set_analog enable=0 ok=1 err=0 write_capable=1 out_len=64
+[01:18:03.435][t40704] [backend.aula] reader stop
+[01:18:03.855][t49944] [app] message loop exit code=0
+[01:18:03.855][t49944] [main] App_Run returned=0
+[01:18:03.859][t49944] [main] exit

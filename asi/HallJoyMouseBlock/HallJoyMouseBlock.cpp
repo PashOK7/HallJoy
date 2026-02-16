@@ -29,6 +29,7 @@ struct HallJoyMouseIpcShared
 static HMODULE g_module = nullptr;
 static HANDLE g_thread = nullptr;
 static std::atomic<bool> g_stop{ false };
+static HANDLE g_stopEvent = nullptr;
 
 static HANDLE g_map = nullptr;
 static HallJoyMouseIpcShared* g_ipc = nullptr;
@@ -526,8 +527,13 @@ static DWORD WINAPI WorkerThread(LPVOID)
     InstallDirectInputHookIfNeeded();
     Sleep(300);
     Log(L"Worker thread probe begin");
-    while (!g_stop.load(std::memory_order_relaxed))
+    while (true)
     {
+        if (g_stopEvent && WaitForSingleObject(g_stopEvent, 5) == WAIT_OBJECT_0)
+            break;
+        if (g_stop.load(std::memory_order_relaxed))
+            break;
+
         __try
         {
             InstallDirectInputHookIfNeeded();
@@ -567,7 +573,6 @@ static DWORD WINAPI WorkerThread(LPVOID)
             break;
         }
 
-        Sleep(5);
     }
 
     Log(L"Worker thread stop");
@@ -583,6 +588,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID)
         g_module = hModule;
         DisableThreadLibraryCalls(hModule);
         g_stop.store(false, std::memory_order_relaxed);
+        g_stopEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
         Log(L"DLL_PROCESS_ATTACH module=%p", hModule);
         g_thread = CreateThread(nullptr, 0, WorkerThread, nullptr, 0, nullptr);
         if (!g_thread)
@@ -592,9 +598,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID)
     {
         Log(L"DLL_PROCESS_DETACH");
         g_stop.store(true, std::memory_order_relaxed);
+        if (g_stopEvent)
+            SetEvent(g_stopEvent);
         if (g_thread)
         {
-            WaitForSingleObject(g_thread, 500);
             CloseHandle(g_thread);
             g_thread = nullptr;
         }

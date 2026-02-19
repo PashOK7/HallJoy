@@ -56,6 +56,53 @@ static bool g_digitalFallbackWarnShown = false;
 static std::atomic<bool> g_mouseBlockPauseByRShift{ false };
 static bool g_mouseCursorLocked = false;
 static POINT g_mouseCursorLockPos{};
+static std::atomic<uint32_t> g_uiTimerTickCount{ 0 };
+static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam);
+static LRESULT CALLBACK MouseBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam);
+
+static bool NeedKeyboardHookNow()
+{
+    // Keyboard LL hook is needed only for features that depend on global key events.
+    return Settings_GetBlockBoundKeys() ||
+           Settings_GetDigitalFallbackInput() ||
+           Settings_GetMouseToStickEnabled();
+}
+
+static bool NeedMouseHookNow()
+{
+    // Mouse LL hook is expensive on some systems; enable only for mouse-to-stick path.
+    return Settings_GetMouseToStickEnabled() ||
+           Settings_GetBlockMouseInput();
+}
+
+static void RefreshLowLevelHooks()
+{
+    const bool wantKb = NeedKeyboardHookNow();
+    if (wantKb && !g_hKeyboardHook)
+    {
+        g_hKeyboardHook = SetWindowsHookExW(WH_KEYBOARD_LL, KeyboardBlockHookProc, GetModuleHandleW(nullptr), 0);
+        DebugLog_Write(L"[app] keyboard hook install=%p", g_hKeyboardHook);
+    }
+    else if (!wantKb && g_hKeyboardHook)
+    {
+        UnhookWindowsHookEx(g_hKeyboardHook);
+        g_hKeyboardHook = nullptr;
+        DebugLog_Write(L"[app] keyboard hook removed");
+    }
+
+    const bool wantMouse = NeedMouseHookNow();
+    if (wantMouse && !g_hMouseHook)
+    {
+        g_hMouseHook = SetWindowsHookExW(WH_MOUSE_LL, MouseBlockHookProc, GetModuleHandleW(nullptr), 0);
+        DebugLog_Write(L"[app] mouse hook install=%p", g_hMouseHook);
+    }
+    else if (!wantMouse && g_hMouseHook)
+    {
+        UnhookWindowsHookEx(g_hMouseHook);
+        g_hMouseHook = nullptr;
+        DebugLog_Write(L"[app] mouse hook removed");
+    }
+}
 
 static void SaveSettingsByActiveGlobalProfile()
 {
@@ -614,7 +661,16 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     case WM_TIMER:
         if (wParam == UI_TIMER_ID)
         {
+            uint32_t tick = g_uiTimerTickCount.fetch_add(1u, std::memory_order_relaxed) + 1u;
+            if (tick <= 8 || (tick % 120u) == 0u)
+                DebugLog_Write(L"[app.timer] ui tick=%u", tick);
+            bool traceTick = (tick <= 20u) || ((tick % 120u) == 0u);
+            if (traceTick) DebugLog_Write(L"[app.timer] step hooks begin");
+            RefreshLowLevelHooks();
+            if (traceTick) DebugLog_Write(L"[app.timer] step hooks done");
+            if (traceTick) DebugLog_Write(L"[app.timer] step ipc begin");
             PublishMouseIpcState();
+            if (traceTick) DebugLog_Write(L"[app.timer] step ipc done");
             if (g_backendReady && !g_digitalFallbackWarnShown && Backend_ConsumeDigitalFallbackWarning())
             {
                 g_digitalFallbackWarnShown = true;
@@ -628,7 +684,11 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                     MB_ICONWARNING | MB_OK);
             }
             if (g_hPageMain)
+            {
+                if (traceTick) DebugLog_Write(L"[app.timer] step ui begin");
                 KeyboardUI_OnTimerTick(g_hPageMain);
+                if (traceTick) DebugLog_Write(L"[app.timer] step ui done");
+            }
             return 0;
         }
         if (wParam == SETTINGS_SAVE_TIMER_ID)
@@ -784,19 +844,30 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     DebugLog_Write(L"[app] main window created hwnd=%p pos=(%d,%d) size=(%d,%d)", hwnd, x, y, w, h);
 
     if (wc.hIcon)
+    {
+        DebugLog_Write(L"[app] set big icon begin");
         SendMessageW(hwnd, WM_SETICON, ICON_BIG, (LPARAM)wc.hIcon);
+        DebugLog_Write(L"[app] set big icon done");
+    }
     HICON hSmall = (HICON)LoadImageW(hInst, MAKEINTRESOURCEW(IDI_SMALL), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE);
     if (hSmall)
+    {
+        DebugLog_Write(L"[app] set small icon begin");
         SendMessageW(hwnd, WM_SETICON, (WPARAM)ICON_SMALL, (LPARAM)hSmall);
+        DebugLog_Write(L"[app] set small icon done");
+    }
 
+    DebugLog_Write(L"[app] ShowWindow begin");
     ShowWindow(hwnd, nCmdShow);
+    DebugLog_Write(L"[app] ShowWindow done");
 
-    g_hKeyboardHook = SetWindowsHookExW(WH_KEYBOARD_LL, KeyboardBlockHookProc, GetModuleHandleW(nullptr), 0);
-    DebugLog_Write(L"[app] keyboard hook=%p", g_hKeyboardHook);
-    g_hMouseHook = SetWindowsHookExW(WH_MOUSE_LL, MouseBlockHookProc, GetModuleHandleW(nullptr), 0);
-    DebugLog_Write(L"[app] mouse hook=%p", g_hMouseHook);
+    DebugLog_Write(L"[app] RefreshLowLevelHooks begin");
+    RefreshLowLevelHooks();
+    DebugLog_Write(L"[app] RefreshLowLevelHooks done");
 
+    DebugLog_Write(L"[app] message loop enter");
     MSG msg{};
+    uint32_t msgCount = 0;
     while (true)
     {
         BOOL gm = GetMessageW(&msg, nullptr, 0, 0);
@@ -807,6 +878,9 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
         }
         if (gm == 0)
             break;
+        ++msgCount;
+        if (msgCount <= 8)
+            DebugLog_Write(L"[app] msg[%u] id=0x%04X", msgCount, (unsigned)msg.message);
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }

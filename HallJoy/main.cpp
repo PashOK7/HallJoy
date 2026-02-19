@@ -12,7 +12,7 @@
 #pragma comment(lib, "gdiplus.lib")
 
 static HMODULE g_wootingWrapperModule = nullptr;
-static constexpr int kDebugLogSchemaVersion = 6;
+static constexpr int kDebugLogSchemaVersion = 11;
 
 static bool FileExistsNoDir(const std::wstring& path)
 {

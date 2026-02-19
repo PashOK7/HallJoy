@@ -106,6 +106,8 @@ static std::atomic<bool>         g_digitalFallbackWarnPending{ false };
 static std::atomic<bool>         g_keycodeModeLocked{ false };
 static constexpr bool            kEnableAdaptiveKeycodeModeProbe = false;
 static constexpr bool            kEnableFullBufferAssist = false;
+static constexpr bool            kEnableDeviceInfoQuery = false;
+static constexpr bool            kEnableFullBufferTelemetry = false;
 static POINT                     g_mouseLastPos{};
 static bool                      g_mouseHasLastPos = false;
 static std::atomic<bool>         g_mouseSawRawInput{ false };
@@ -132,8 +134,10 @@ static std::atomic<int>          g_mouseDbgOutY1000{ 0 };
 static std::atomic<int>          g_mouseDbgRadius1000{ 1000 };
 static std::atomic<bool>         g_wootingReady{ false };
 static std::atomic<bool>         g_wootingSdkFaulted{ false };
+static std::atomic<uint32_t>     g_wootingOptionalFaultCount{ 0 };
+static constexpr bool            kLogPhysicalKeyTransitions = false;
 
-static int WootingSdk_SehFilter(const wchar_t* apiName, DWORD exceptionCode)
+static int WootingSdk_SehFilterCritical(const wchar_t* apiName, DWORD exceptionCode)
 {
     g_wootingSdkFaulted.store(true, std::memory_order_release);
     g_wootingReady.store(false, std::memory_order_release);
@@ -145,6 +149,19 @@ static int WootingSdk_SehFilter(const wchar_t* apiName, DWORD exceptionCode)
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
+static int WootingSdk_SehFilterOptional(const wchar_t* apiName, DWORD exceptionCode)
+{
+    uint32_t n = g_wootingOptionalFaultCount.fetch_add(1, std::memory_order_relaxed) + 1;
+    if (n <= 5 || (n % 500) == 0)
+    {
+        DebugLog_Write(L"[backend.sdk] SEH fault api=%s code=0x%08lX; optional call skipped (count=%u)",
+            apiName ? apiName : L"(null)",
+            exceptionCode,
+            (unsigned)n);
+    }
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
 static int WootingSafe_Initialise()
 {
     if (g_wootingSdkFaulted.load(std::memory_order_acquire))
@@ -153,7 +170,7 @@ static int WootingSafe_Initialise()
     {
         return wooting_analog_initialise();
     }
-    __except (WootingSdk_SehFilter(L"wooting_analog_initialise", GetExceptionCode()))
+    __except (WootingSdk_SehFilterCritical(L"wooting_analog_initialise", GetExceptionCode()))
     {
         return (int)WootingAnalogResult_Failure;
     }
@@ -167,7 +184,7 @@ static bool WootingSafe_IsInitialised()
     {
         return wooting_analog_is_initialised();
     }
-    __except (WootingSdk_SehFilter(L"wooting_analog_is_initialised", GetExceptionCode()))
+    __except (WootingSdk_SehFilterCritical(L"wooting_analog_is_initialised", GetExceptionCode()))
     {
         return false;
     }
@@ -181,7 +198,7 @@ static WootingAnalogResult WootingSafe_Uninitialise()
     {
         return wooting_analog_uninitialise();
     }
-    __except (WootingSdk_SehFilter(L"wooting_analog_uninitialise", GetExceptionCode()))
+    __except (WootingSdk_SehFilterCritical(L"wooting_analog_uninitialise", GetExceptionCode()))
     {
         return WootingAnalogResult_Failure;
     }
@@ -195,7 +212,7 @@ static WootingAnalogResult WootingSafe_SetKeycodeMode(WootingAnalog_KeycodeType 
     {
         return wooting_analog_set_keycode_mode(mode);
     }
-    __except (WootingSdk_SehFilter(L"wooting_analog_set_keycode_mode", GetExceptionCode()))
+    __except (WootingSdk_SehFilterCritical(L"wooting_analog_set_keycode_mode", GetExceptionCode()))
     {
         return WootingAnalogResult_Failure;
     }
@@ -209,7 +226,7 @@ static int WootingSafe_GetConnectedDevicesInfo(WootingAnalog_DeviceInfo_FFI** bu
     {
         return wooting_analog_get_connected_devices_info(buffer, len);
     }
-    __except (WootingSdk_SehFilter(L"wooting_analog_get_connected_devices_info", GetExceptionCode()))
+    __except (WootingSdk_SehFilterOptional(L"wooting_analog_get_connected_devices_info", GetExceptionCode()))
     {
         return (int)WootingAnalogResult_Failure;
     }
@@ -223,7 +240,7 @@ static float WootingSafe_ReadAnalog(unsigned short code)
     {
         return wooting_analog_read_analog(code);
     }
-    __except (WootingSdk_SehFilter(L"wooting_analog_read_analog", GetExceptionCode()))
+    __except (WootingSdk_SehFilterCritical(L"wooting_analog_read_analog", GetExceptionCode()))
     {
         return (float)WootingAnalogResult_Failure;
     }
@@ -237,7 +254,7 @@ static float WootingSafe_ReadAnalogDevice(unsigned short code, WootingAnalog_Dev
     {
         return wooting_analog_read_analog_device(code, deviceId);
     }
-    __except (WootingSdk_SehFilter(L"wooting_analog_read_analog_device", GetExceptionCode()))
+    __except (WootingSdk_SehFilterOptional(L"wooting_analog_read_analog_device", GetExceptionCode()))
     {
         return (float)WootingAnalogResult_Failure;
     }
@@ -251,7 +268,7 @@ static int WootingSafe_ReadFullBuffer(unsigned short* codeBuffer, float* analogB
     {
         return wooting_analog_read_full_buffer(codeBuffer, analogBuffer, len);
     }
-    __except (WootingSdk_SehFilter(L"wooting_analog_read_full_buffer", GetExceptionCode()))
+    __except (WootingSdk_SehFilterOptional(L"wooting_analog_read_full_buffer", GetExceptionCode()))
     {
         return (int)WootingAnalogResult_Failure;
     }
@@ -265,7 +282,7 @@ static int WootingSafe_ReadFullBufferDevice(unsigned short* codeBuffer, float* a
     {
         return wooting_analog_read_full_buffer_device(codeBuffer, analogBuffer, len, deviceId);
     }
-    __except (WootingSdk_SehFilter(L"wooting_analog_read_full_buffer_device", GetExceptionCode()))
+    __except (WootingSdk_SehFilterOptional(L"wooting_analog_read_full_buffer_device", GetExceptionCode()))
     {
         return (int)WootingAnalogResult_Failure;
     }
@@ -328,11 +345,55 @@ static bool SetKeycodeModeWithLog(WootingAnalog_KeycodeType mode, const wchar_t*
 
 static void LogConnectedDevicesDetailed(const wchar_t* stage)
 {
-    // Some SDK/plugin combinations crash inside get_connected_devices_info().
-    // This telemetry path is optional, so keep it disabled for stability.
-    g_knownDeviceCount.store(0, std::memory_order_relaxed);
-    DebugLog_Write(L"[backend.devices] %s skipped (sdk get_devices disabled for stability)",
-        stage ? stage : L"-");
+    if (!kEnableDeviceInfoQuery)
+    {
+        g_knownDeviceCount.store(0, std::memory_order_relaxed);
+        DebugLog_Write(L"[backend.devices] %s skipped (device query disabled for stability)",
+            stage ? stage : L"-");
+        return;
+    }
+
+    WootingAnalog_DeviceInfo_FFI* devs[16]{};
+    int n = wooting_analog_get_connected_devices_info(devs, (unsigned)_countof(devs));
+    if (n < 0)
+    {
+        DebugLog_Write(L"[backend.devices] %s get_devices_ret=%d", stage ? stage : L"-", n);
+        return;
+    }
+
+    std::array<WootingAnalog_DeviceID, 16> newIds{};
+    int uniqueCount = 0;
+    for (int i = 0; i < n && i < (int)_countof(devs); ++i)
+    {
+        const WootingAnalog_DeviceInfo_FFI* d = devs[i];
+        if (!d) continue;
+        WootingAnalog_DeviceID id = 0;
+        __try
+        {
+            id = d->device_id;
+        }
+        __except (WootingSdk_SehFilterOptional(L"wooting_device_info.device_id", GetExceptionCode()))
+        {
+            continue;
+        }
+
+        bool dup = false;
+        for (int k = 0; k < uniqueCount; ++k)
+        {
+            if (newIds[(size_t)k] == id)
+            {
+                dup = true;
+                break;
+            }
+        }
+        if (!dup && uniqueCount < (int)newIds.size())
+            newIds[(size_t)uniqueCount++] = id;
+    }
+
+    for (int i = 0; i < uniqueCount; ++i)
+        g_knownDeviceIds[(size_t)i] = newIds[(size_t)i];
+    g_knownDeviceCount.store(uniqueCount, std::memory_order_relaxed);
+    DebugLog_Write(L"[backend.devices] %s count=%d unique_ids=%d", stage ? stage : L"-", n, uniqueCount);
 }
 
 static uint16_t HidFallbackToVk(uint16_t hid)
@@ -699,10 +760,17 @@ static void LogFullBufferSnapshot(const wchar_t* stage)
 static void LogWootingStateSnapshot(const wchar_t* stage)
 {
     bool inited = wooting_analog_is_initialised();
+    int devRet = (int)WootingAnalogResult_NotAvailable;
+    if (kEnableDeviceInfoQuery)
+    {
+        WootingAnalog_DeviceInfo_FFI* devs[16]{};
+        devRet = wooting_analog_get_connected_devices_info(devs, (unsigned)_countof(devs));
+    }
     DebugLog_Write(
-        L"[backend.wooting] %s init=%d keycode_mode=%d (get_devices skipped)",
+        L"[backend.wooting] %s init=%d get_devices_ret=%d keycode_mode=%d",
         stage ? stage : L"(null)",
         inited ? 1 : 0,
+        devRet,
         g_keycodeMode.load(std::memory_order_relaxed));
 }
 
@@ -959,8 +1027,9 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
                 if (std::isfinite(vf))
                 {
                     vf = Clamp01(vf);
-                    // Ignore low-amplitude full-buffer noise floor (~0.05-0.10).
-                    if (vf >= 0.20f && vf > wsdk + 0.12f)
+                    // Prefer full-buffer when per-key read is zero/weak.
+                    // Keep a small hysteresis to avoid unstable toggling.
+                    if (vf > wsdk + 0.02f || (wsdk <= 0.001f && vf >= 0.01f))
                         wsdk = vf;
                 }
             }
@@ -1585,6 +1654,7 @@ bool Backend_Init()
 {
     DebugLog_Write(L"[backend.init] begin");
     g_wootingSdkFaulted.store(false, std::memory_order_release);
+    g_wootingOptionalFaultCount.store(0, std::memory_order_relaxed);
     g_wootingReady.store(false, std::memory_order_release);
     Aula_InitDefaultKeyMap();
     Aula_ResetKeyState();
@@ -1638,8 +1708,19 @@ bool Backend_Init()
     {
         g_wootingReady.store(true, std::memory_order_release);
         SetKeycodeModeWithLog(WootingAnalog_KeycodeType_HID, L"init", 0);
+        DebugLog_Write(L"[backend.init] wooting snapshot begin");
         LogWootingStateSnapshot(L"after_init_call");
-        LogConnectedDevicesDetailed(L"after_init_call");
+        if (kEnableDeviceInfoQuery)
+        {
+            DebugLog_Write(L"[backend.init] device snapshot begin");
+            LogConnectedDevicesDetailed(L"after_init_call");
+            DebugLog_Write(L"[backend.init] device snapshot done known_ids=%d",
+                g_knownDeviceCount.load(std::memory_order_relaxed));
+        }
+        else
+        {
+            DebugLog_Write(L"[backend.init] device snapshot skipped by config");
+        }
     }
     if (wootingInit < 0)
     {
@@ -1661,7 +1742,9 @@ bool Backend_Init()
         }
     }
 
+    DebugLog_Write(L"[backend.init] AulaStart begin");
     bool aulaReady = AulaStart();
+    DebugLog_Write(L"[backend.init] AulaStart ret=%d", aulaReady ? 1 : 0);
     if (aulaReady)
     {
         // If native Aula path is up, Wooting SDK is optional.
@@ -1790,52 +1873,60 @@ void Backend_Tick()
 
     HidCache cache;
     static uint32_t s_lastHandledKeyEventSeq = 0;
+    static ULONGLONG s_lastFullAssistTickMs = 0;
 
     // Build per-tick raw map from full buffer (most robust on newer SDK/plugin stacks).
     // Works directly for HID mode because returned keycodes are HID identifiers.
     if (kEnableFullBufferAssist && g_wootingReady.load(std::memory_order_acquire))
     {
-        WootingAnalog_KeycodeType mode = (WootingAnalog_KeycodeType)g_keycodeMode.load(std::memory_order_relaxed);
-        if (mode == WootingAnalog_KeycodeType_HID)
+        // Full-buffer reads can be expensive on some stacks; throttle to reduce global input lag.
+        UINT assistMinPeriodMs = std::max<UINT>(4u, Settings_GetPollingMs());
+        bool assistDue = (nowMs - s_lastFullAssistTickMs >= assistMinPeriodMs);
+        if (assistDue)
         {
-            unsigned short codes[128]{};
-            float vals[128]{};
-            int ret = wooting_analog_read_full_buffer(codes, vals, (unsigned)_countof(codes));
-            if (ret >= 0)
+            s_lastFullAssistTickMs = nowMs;
+            WootingAnalog_KeycodeType mode = (WootingAnalog_KeycodeType)g_keycodeMode.load(std::memory_order_relaxed);
+            if (mode == WootingAnalog_KeycodeType_HID)
             {
-                int n = std::min(ret, (int)_countof(codes));
-                cache.hasFullBuffer = true;
-                for (int i = 0; i < n; ++i)
+                unsigned short codes[128]{};
+                float vals[128]{};
+                int ret = wooting_analog_read_full_buffer(codes, vals, (unsigned)_countof(codes));
+                if (ret >= 0)
                 {
-                    unsigned short code = codes[i];
-                    if (code >= 256) continue;
-                    float v = vals[i];
-                    if (!std::isfinite(v)) continue;
-                    v = Clamp01(v);
-                    cache.fullPresent.set(code);
-                    if (v > cache.fullRaw[code])
-                        cache.fullRaw[code] = v;
-                }
-
-                // Merge per-device buffers too, taking max value per HID.
-                int ndev = std::clamp(g_knownDeviceCount.load(std::memory_order_relaxed), 0, (int)g_knownDeviceIds.size());
-                for (int di = 0; di < ndev; ++di)
-                {
-                    unsigned short dcodes[128]{};
-                    float dvals[128]{};
-                    int dret = wooting_analog_read_full_buffer_device(dcodes, dvals, (unsigned)_countof(dcodes), g_knownDeviceIds[di]);
-                    if (dret < 0) continue;
-                    int dn = std::min(dret, (int)_countof(dcodes));
-                    for (int i = 0; i < dn; ++i)
+                    int n = std::min(ret, (int)_countof(codes));
+                    cache.hasFullBuffer = true;
+                    for (int i = 0; i < n; ++i)
                     {
-                        unsigned short code = dcodes[i];
+                        unsigned short code = codes[i];
                         if (code >= 256) continue;
-                        float v = dvals[i];
+                        float v = vals[i];
                         if (!std::isfinite(v)) continue;
                         v = Clamp01(v);
                         cache.fullPresent.set(code);
                         if (v > cache.fullRaw[code])
                             cache.fullRaw[code] = v;
+                    }
+
+                    // Merge per-device buffers too, taking max value per HID.
+                    int ndev = std::clamp(g_knownDeviceCount.load(std::memory_order_relaxed), 0, (int)g_knownDeviceIds.size());
+                    for (int di = 0; di < ndev; ++di)
+                    {
+                        unsigned short dcodes[128]{};
+                        float dvals[128]{};
+                        int dret = wooting_analog_read_full_buffer_device(dcodes, dvals, (unsigned)_countof(dcodes), g_knownDeviceIds[di]);
+                        if (dret < 0) continue;
+                        int dn = std::min(dret, (int)_countof(dcodes));
+                        for (int i = 0; i < dn; ++i)
+                        {
+                            unsigned short code = dcodes[i];
+                            if (code >= 256) continue;
+                            float v = dvals[i];
+                            if (!std::isfinite(v)) continue;
+                            v = Clamp01(v);
+                            cache.fullPresent.set(code);
+                            if (v > cache.fullRaw[code])
+                                cache.fullRaw[code] = v;
+                        }
                     }
                 }
             }
@@ -1901,11 +1992,14 @@ void Backend_Tick()
             (unsigned)maxRawM, (unsigned)maxRawHid,
             (unsigned)maxOutM, (unsigned)maxOutHid);
     }
-    ULONGLONG lastFullLog = g_lastFullBufferLogMs.load(std::memory_order_relaxed);
-    if (g_wootingReady.load(std::memory_order_acquire) && nowMs - lastFullLog >= 2000)
+    if (kEnableFullBufferTelemetry)
     {
-        g_lastFullBufferLogMs.store(nowMs, std::memory_order_relaxed);
-        LogFullBufferSnapshot(L"periodic");
+        ULONGLONG lastFullLog = g_lastFullBufferLogMs.load(std::memory_order_relaxed);
+        if (g_wootingReady.load(std::memory_order_acquire) && nowMs - lastFullLog >= 2000)
+        {
+            g_lastFullBufferLogMs.store(nowMs, std::memory_order_relaxed);
+            LogFullBufferSnapshot(L"periodic");
+        }
     }
 
     // Probe keycode mode only via per-key event reads; full-buffer based probing
@@ -2287,12 +2381,15 @@ void Backend_NotifyKeyboardEvent(
         if (prev != now)
         {
             g_physicalDown[hidHint].store(now, std::memory_order_relaxed);
-            DebugLog_Write(
-                L"[backend.phys] %s hid=%u sc=%u vk=%u",
-                isKeyDown ? L"down" : L"up",
-                (unsigned)hidHint,
-                (unsigned)scanCode,
-                (unsigned)vkCode);
+            if (kLogPhysicalKeyTransitions)
+            {
+                DebugLog_Write(
+                    L"[backend.phys] %s hid=%u sc=%u vk=%u",
+                    isKeyDown ? L"down" : L"up",
+                    (unsigned)hidHint,
+                    (unsigned)scanCode,
+                    (unsigned)vkCode);
+            }
         }
 
     }

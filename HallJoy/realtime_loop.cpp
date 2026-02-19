@@ -79,6 +79,32 @@ static DWORD WINAPI ThreadProc(LPVOID)
     bool timerOk = ArmTimer(g_timer, last);
     DebugLog_Write(L"[rt] timer create=%d arm=%d interval=%u", g_timer ? 1 : 0, timerOk ? 1 : 0, last);
 
+    ULONGLONG statWinStartMs = GetTickCount64();
+    UINT statTickCount = 0;
+    UINT statSlowTickCount = 0;
+    ULONGLONG statMaxTickMs = 0;
+    auto recordTickStats = [&](ULONGLONG tickMs, UINT curIntervalMs)
+    {
+        ++statTickCount;
+        if (tickMs > statMaxTickMs) statMaxTickMs = tickMs;
+        if (tickMs >= 8) ++statSlowTickCount;
+
+        ULONGLONG now = GetTickCount64();
+        if (now - statWinStartMs >= 1000)
+        {
+            DebugLog_Write(
+                L"[rt.stats] interval=%u ticks=%u max_tick_ms=%llu slow_ticks=%u",
+                curIntervalMs,
+                statTickCount,
+                (unsigned long long)statMaxTickMs,
+                statSlowTickCount);
+            statWinStartMs = now;
+            statTickCount = 0;
+            statSlowTickCount = 0;
+            statMaxTickMs = 0;
+        }
+    };
+
     // Fallback mode: no waitable timer available
     if (!g_timer || !timerOk)
     {
@@ -113,7 +139,10 @@ static DWORD WINAPI ThreadProc(LPVOID)
             if (w == WAIT_OBJECT_0)
                 break;
 
+            ULONGLONG tickStartMs = GetTickCount64();
             Backend_Tick();
+            ULONGLONG tickDurMs = GetTickCount64() - tickStartMs;
+            recordTickStats(tickDurMs, cur);
         }
 
         if (g_mmcssHandle)
@@ -136,7 +165,10 @@ static DWORD WINAPI ThreadProc(LPVOID)
         if (w == WAIT_OBJECT_0)
             break;
 
+        ULONGLONG tickStartMs = GetTickCount64();
         Backend_Tick();
+        ULONGLONG tickDurMs = GetTickCount64() - tickStartMs;
+        recordTickStats(tickDurMs, last);
 
         UINT cur = g_intervalMs.load(std::memory_order_relaxed);
         cur = std::clamp(cur, 1u, 20u);

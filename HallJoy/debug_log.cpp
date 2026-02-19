@@ -95,8 +95,6 @@ static DWORD WINAPI DebugLogWriterThreadProc(LPVOID)
             {
                 for (const auto& line : batch)
                     WriteUtf8Line(hFile, line.c_str());
-                if (hFile != INVALID_HANDLE_VALUE)
-                    FlushFileBuffers(hFile);
             }
 
             if (batch.empty())

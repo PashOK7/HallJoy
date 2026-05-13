@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <cstdint>
 
 // Single source of truth: how a UI "action" maps to Bindings_* storage.
@@ -24,6 +25,16 @@ enum class BindAction : uint32_t
 // Clears existing usage of this HID, then applies the binding.
 void BindingActions_Apply(BindAction a, uint16_t hid);
 void BindingActions_ApplyForPad(int padIndex, BindAction a, uint16_t hid);
+
+// Applies the binding without clearing other actions already assigned to this HID.
+// Used for intentional same-key multi-action binds on one gamepad.
+void BindingActions_AppendForPad(int padIndex, BindAction a, uint16_t hid);
+
+// Removes this exact action from this HID on one gamepad.
+void BindingActions_RemoveFromPad(int padIndex, BindAction a, uint16_t hid);
+
+// Enumerates every action assigned to this HID on one gamepad.
+int BindingActions_CollectByHidForPad(int padIndex, uint16_t hid, BindAction* outActions, int maxActions);
 
 // NEW: reverse query (HID -> current action).
 // Returns true if this HID is currently bound to some action.

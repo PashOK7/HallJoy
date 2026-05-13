@@ -620,9 +620,11 @@ static int CollectDisplayedIconsByHid(uint16_t hid, BoundIconEntry out[4])
     for (int pad = 0; pad < pads; ++pad)
     {
         if (count >= 4) break;
-        BindAction act{};
-        if (BindingActions_TryGetByHidForPad(pad, hid, act))
+        BindAction actions[4]{};
+        int actionCount = BindingActions_CollectByHidForPad(pad, hid, actions, 4);
+        for (int ai = 0; ai < actionCount && count < 4; ++ai)
         {
+            BindAction act = actions[ai];
             if (g_suppressedBinding.enabled &&
                 g_suppressedBinding.hid == hid &&
                 g_suppressedBinding.padIndex == pad &&

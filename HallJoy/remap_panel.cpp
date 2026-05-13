@@ -1642,8 +1642,8 @@ static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st)
     RECT trackForHelp = Remap_GetScrollTrackRect(hWnd);
     int helpRight = std::max(helpX + S(hWnd, 220), (int)trackForHelp.left - S(hWnd, 8));
     int helpW = std::max(S(hWnd, 220), helpRight - helpX);
-    Move(st->txtHelp, helpX, yOff + S(hWnd, 10), helpW, S(hWnd, 72));
-    Move(st->btnAddGamepad, S(hWnd, 12), yOff + S(hWnd, 86), S(hWnd, 210), S(hWnd, 28));
+    Move(st->txtHelp, helpX, yOff + S(hWnd, 10), helpW, S(hWnd, 56));
+    Move(st->btnAddGamepad, S(hWnd, 12), yOff + S(hWnd, 70), S(hWnd, 210), S(hWnd, 28));
 
     const int startX = S(hWnd, 12);
     const int startY = S(hWnd, 124);
@@ -1912,14 +1912,17 @@ static uint16_t GetOldHidForAction(int padIndex, BindAction act)
     }
 }
 
-static void ApplyBindingNow(HWND hWnd, RemapPanelState* st, uint16_t newHid)
+static void ApplyBindingNow(HWND hWnd, RemapPanelState* st, uint16_t newHid, bool appendToExistingHid = false)
 {
     if (!st || newHid == 0) return;
 
     BindAction act = st->dragAction;
     uint16_t oldHid = GetOldHidForAction(st->dragPadIndex, act);
 
-    BindingActions_ApplyForPad(st->dragPadIndex, act, newHid);
+    if (appendToExistingHid)
+        BindingActions_AppendForPad(st->dragPadIndex, act, newHid);
+    else
+        BindingActions_ApplyForPad(st->dragPadIndex, act, newHid);
     Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
     InvalidateHidKey(oldHid);
     InvalidateHidKey(newHid);
@@ -2227,17 +2230,16 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
         st->txtHelp = CreateWindowW(L"STATIC",
             L"Drag and drop a gamepad control onto a keyboard key to bind.\n"
-            L"While dragging: RMB/MMB/X1/X2 or wheel binds mouse input (Shift+LMB for left click).\n"
-            L"Right click a key on the keyboard to unbind.\n"
-            L"Press ESC to cancel dragging.",
+            L"Hold Shift while dropping on a key to add another action from the same gamepad.\n"
+            L"Right click a key on the keyboard to unbind.",
             WS_CHILD | WS_VISIBLE,
-            S(hWnd, 12), S(hWnd, 10), S(hWnd, 860), S(hWnd, 72),
+            S(hWnd, 12), S(hWnd, 10), S(hWnd, 860), S(hWnd, 56),
             hWnd, nullptr, cs->hInstance, nullptr);
         SendMessageW(st->txtHelp, WM_SETFONT, (WPARAM)hFont, TRUE);
 
         st->btnAddGamepad = CreateWindowW(L"BUTTON", L"Add Gamepad",
             WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-            S(hWnd, 12), S(hWnd, 86), S(hWnd, 210), S(hWnd, 28),
+            S(hWnd, 12), S(hWnd, 70), S(hWnd, 210), S(hWnd, 28),
             hWnd, (HMENU)(INT_PTR)REMAP_ID_ADD_GAMEPAD, cs->hInstance, nullptr);
         SendMessageW(st->btnAddGamepad, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -2327,6 +2329,7 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         {
             uint16_t newHid = st->hoverHid;
             const bool shiftDown = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+            bool appendToExistingHid = shiftDown && newHid != 0;
             if (newHid == 0 && shiftDown)
                 newHid = kMouseBindHidLButton;
 
@@ -2334,7 +2337,7 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
             if (bound)
             {
-                ApplyBindingNow(hWnd, st, newHid);
+                ApplyBindingNow(hWnd, st, newHid, appendToExistingHid);
                 return 0;
             }
 

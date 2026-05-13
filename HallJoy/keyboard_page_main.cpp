@@ -567,9 +567,11 @@ static int CollectDisplayedActionsByHid(uint16_t hid, DisplayedKeyIconEntry out[
     for (int pad = 0; pad < pads; ++pad)
     {
         if (count >= 4) break;
-        BindAction act{};
-        if (BindingActions_TryGetByHidForPad(pad, hid, act))
+        BindAction actions[4]{};
+        int actionCount = BindingActions_CollectByHidForPad(pad, hid, actions, 4);
+        for (int ai = 0; ai < actionCount && count < 4; ++ai)
         {
+            BindAction act = actions[ai];
             int iconIdx = FindIconIdxForAction(act);
             if (iconIdx < 0) continue;
             if (out)
@@ -891,7 +893,7 @@ static void SwapFly_Stop(bool commit)
     {
         if (g_swapfly.srcHid != 0)
         {
-            BindingActions_ApplyForPad(g_swapfly.pendingPadIndex, g_swapfly.pendingAct, g_swapfly.srcHid);
+            BindingActions_AppendForPad(g_swapfly.pendingPadIndex, g_swapfly.pendingAct, g_swapfly.srcHid);
             Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
         }
 
@@ -1804,7 +1806,10 @@ static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, L
                 KeyDel_Start(hPage, hBtn, iconIdx, padIndex);
 
                 // Logical unbind happens immediately (visual is handled by overlay ghost)
-                Bindings_ClearHidForPad(padIndex, hid);
+                if (pickedSpecific)
+                    BindingActions_RemoveFromPad(padIndex, act, hid);
+                else
+                    Bindings_ClearHidForPad(padIndex, hid);
                 Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
                 InvalidateRect(hBtn, nullptr, FALSE);
             }
@@ -2086,6 +2091,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
             BindAction srcAct = g_kdrag.action;
 
             bool copy = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+            bool appendDrop = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
 
             BindAction dstAct{};
             bool dstHasAction = (dst != 0) && BindingActions_TryGetByHidForPad(srcPadIndex, dst, dstAct);
@@ -2096,7 +2102,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                 if (!copy)
                 {
                     // Unbind immediately
-                    Bindings_ClearHidForPad(srcPadIndex, src);
+                    BindingActions_RemoveFromPad(srcPadIndex, srcAct, src);
                     Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
                     InvalidateKeyByHid(src);
 
@@ -2122,17 +2128,29 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 
             if (dst != 0)
             {
+                if (appendDrop)
+                {
+                    if (!copy)
+                        BindingActions_RemoveFromPad(srcPadIndex, srcAct, src);
+
+                    BindingActions_AppendForPad(srcPadIndex, srcAct, dst);
+                    Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
+                    InvalidateKeyByHid(src);
+                    InvalidateKeyByHid(dst);
+                    return 0;
+                }
+
                 if (!copy && dstHasAction && dstAct != srcAct)
                 {
-                    Bindings_ClearHidForPad(srcPadIndex, src);
-                    Bindings_ClearHidForPad(srcPadIndex, dst);
+                    BindingActions_RemoveFromPad(srcPadIndex, srcAct, src);
+                    BindingActions_RemoveFromPad(srcPadIndex, dstAct, dst);
 
-                    BindingActions_ApplyForPad(srcPadIndex, srcAct, dst);
+                    BindingActions_AppendForPad(srcPadIndex, srcAct, dst);
                     InvalidateKeyByHid(dst);
 
                     if (!SwapFly_Start(hWnd, src, dst, dstAct, srcPadIndex))
                     {
-                        BindingActions_ApplyForPad(srcPadIndex, dstAct, src);
+                        BindingActions_AppendForPad(srcPadIndex, dstAct, src);
                         Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
                         InvalidateKeyByHid(src);
                         InvalidateKeyByHid(dst);
@@ -2165,12 +2183,17 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                         if (!copy)
                             Bindings_RemoveButtonHidForPad(srcPadIndex, gb, src);
 
-                        BindingActions_ApplyForPad(srcPadIndex, srcAct, dst);
+                        if (copy)
+                            BindingActions_AppendForPad(srcPadIndex, srcAct, dst);
+                        else
+                            BindingActions_ApplyForPad(srcPadIndex, srcAct, dst);
                         Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
                     }
                 }
                 else
                 {
+                    if (!copy)
+                        BindingActions_RemoveFromPad(srcPadIndex, srcAct, src);
                     BindingActions_ApplyForPad(srcPadIndex, srcAct, dst);
                     Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
                 }

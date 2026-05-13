@@ -28,7 +28,7 @@ static std::atomic<uint32_t> g_inDzPacked{ PackDz(80, 900) };
 
 // Polling/UI
 static std::atomic<UINT> g_pollMs{ 1 };
-static std::atomic<UINT> g_uiRefreshMs{ 16 };
+static std::atomic<UINT> g_uiRefreshMs{ 1 };
 static std::atomic<int> g_virtualGamepadCount{ 1 };
 static std::atomic<bool> g_virtualGamepadsEnabled{ true };
 static std::atomic<int> g_mainWinW{ 821 };

@@ -296,7 +296,7 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     int blockDef = profileOnly ? 0 : (Settings_GetBlockBoundKeys() ? 1 : 0);
     int blockMouseDef = profileOnly ? 0 : (Settings_GetBlockMouseInput() ? 1 : 0);
     UINT pollDef = profileOnly ? 1u : Settings_GetPollingMs();
-    UINT uiDef = profileOnly ? 16u : Settings_GetUIRefreshMs();
+    UINT uiDef = profileOnly ? 1u : Settings_GetUIRefreshMs();
     int padsDef = profileOnly ? 1 : Settings_GetVirtualGamepadCount();
     int padsEnabledDef = profileOnly ? 1 : (Settings_GetVirtualGamepadsEnabled() ? 1 : 0);
     int fallbackDef = profileOnly ? 0 : (Settings_GetDigitalFallbackInput() ? 1 : 0);

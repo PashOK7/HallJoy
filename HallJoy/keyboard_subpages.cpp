@@ -3355,6 +3355,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
 struct MouseSettingsPageState
 {
     HWND lblEnable = nullptr;
+    HWND lblBetaNote = nullptr;
     HWND btnEnable = nullptr;
     HWND btnBlockMouse = nullptr;
     HWND lblTarget = nullptr;
@@ -3743,6 +3744,10 @@ static void Mouse_Layout(HWND hWnd, MouseSettingsPageState* st)
         SetWindowPos(st->lblEnable, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
     y += labelH + S(hWnd, 6);
 
+    if (st->lblBetaNote)
+        SetWindowPos(st->lblBetaNote, nullptr, x, y, sliderW + gap + chipW, S(hWnd, 34), SWP_NOZORDER);
+    y += S(hWnd, 34) + S(hWnd, 8);
+
     if (st->btnEnable)
         SetWindowPos(st->btnEnable, nullptr, x, y, S(hWnd, 220), S(hWnd, 30), SWP_NOZORDER);
     y += S(hWnd, 30) + S(hWnd, 8);
@@ -3860,7 +3865,8 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
         HDC hdc = (HDC)wParam;
         SetBkMode(hdc, TRANSPARENT);
         HWND hCtl = (HWND)lParam;
-        if (st && hCtl && st->lblHint && hCtl == st->lblHint)
+        if (st && hCtl && ((st->lblHint && hCtl == st->lblHint) ||
+            (st->lblBetaNote && hCtl == st->lblBetaNote)))
             SetTextColor(hdc, UiTheme::Color_TextMuted());
         else
             SetTextColor(hdc, UiTheme::Color_Text());
@@ -3878,6 +3884,13 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
         st->lblEnable = CreateWindowW(L"STATIC", L"Mouse to stick",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblEnable, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->lblBetaNote = CreateWindowW(
+            L"STATIC",
+            L"BETA: this feature is experimental, and I am not happy with how it works yet.",
+            WS_CHILD | WS_VISIBLE,
+            0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblBetaNote, WM_SETFONT, (WPARAM)hFont, TRUE);
 
         st->btnEnable = CreateWindowW(L"BUTTON", L"",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,

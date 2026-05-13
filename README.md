@@ -46,6 +46,14 @@ Right now, HallJoy can only do a best-effort emulation of a calibration-like mod
 
 Proper native Aula support is not realistically possible from the app side alone. It would require either firmware-level changes or direct help from the Aula firmware developers.
 
+### SparkLink PCB Keyboards (Experimental)
+
+HallJoy also includes an experimental native HID path for keyboards that expose the SparkLink/XD protocol on vendor usage pages `0xFFB0` or `0xFFA0`.
+
+This path is separate from the Wooting Analog SDK. When a supported SparkLink device is detected, HallJoy reads the keyboard layout and per-row analog route data directly from HID, then feeds those values into the normal remap and curve pipeline.
+
+This support is intentionally limited to the SparkLink/XD protocol. The old MG75 v2 probing path is not part of the runtime because that keyboard revision uses a different MCU/protocol family.
+
 ## Requirements
 
 - Windows 10/11 (x64)

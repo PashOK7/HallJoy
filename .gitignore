@@ -7,6 +7,9 @@
 *.ipch
 
 # Build folders
+build/
+dist/
+captures/
 **/Debug/
 **/Release/
 **/x64/
@@ -44,6 +47,17 @@ cmake-build-*/
 # Windows junk
 Thumbs.db
 Desktop.ini
+
+# Local reverse-engineering scratch
+.tmp_*/
+.tmp_*
+IROK_REVERSE_NOTES.md*
+README.md.*.bak
+irok_*.cpp
+irok_*.cpp.*
+rawkbd_probe.cpp
+spark_probe.cpp
+LS3DF_Function_Rename_Report.md
 
 # Local Wooting SDK rollback artifacts
 runtime/backup/

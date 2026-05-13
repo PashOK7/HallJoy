@@ -298,8 +298,11 @@ static int WootingSafe_ReadFullBufferDevice(unsigned short* codeBuffer, float* a
 #define wooting_analog_read_full_buffer WootingSafe_ReadFullBuffer
 #define wooting_analog_read_full_buffer_device WootingSafe_ReadFullBufferDevice
 
+static float Clamp01(float v);
+
 // ---- native HID path (Aula implementation moved to isolated include) ----
 #include "backend_aula.inc"
+#include "backend_sparklink.inc"
 
 static const wchar_t* KeycodeModeName(int mode)
 {
@@ -973,7 +976,8 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
         return ReadMouseBindRaw01(hidKeycode);
 
     const bool aulaConnected = g_aulaConnected.load(std::memory_order_acquire);
-    const bool allowFallback = Settings_GetDigitalFallbackInput() && !aulaConnected;
+    const bool sparkConnected = g_sparkConnected.load(std::memory_order_acquire);
+    const bool allowFallback = Settings_GetDigitalFallbackInput() && !aulaConnected && !sparkConnected;
     const bool wootingReady = g_wootingReady.load(std::memory_order_acquire);
     WootingAnalog_KeycodeType mode = (WootingAnalog_KeycodeType)g_keycodeMode.load(std::memory_order_relaxed);
     uint16_t modeCode = wootingReady ? HidToModeCode(hidKeycode, mode) : 0;
@@ -988,6 +992,12 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
         {
             uint16_t aulaM = g_aulaAnalogMilli[hidKeycode].load(std::memory_order_relaxed);
             v = std::clamp((float)aulaM / 1000.0f, 0.0f, 1.0f);
+        }
+        if (sparkConnected)
+        {
+            uint16_t sparkM = g_sparkAnalogMilli[hidKeycode].load(std::memory_order_relaxed);
+            float vs = std::clamp((float)sparkM / 1000.0f, 0.0f, 1.0f);
+            v = std::max(v, vs);
         }
 
         if (wootingReady && modeCode != 0)
@@ -1659,7 +1669,10 @@ bool Backend_Init()
     Aula_InitDefaultKeyMap();
     Aula_ResetKeyState();
     AulaStop();
+    Spark_ResetKeyState();
+    SparkStop();
     g_aulaLastReconnectTryMs = 0;
+    g_sparkLastReconnectTryMs = 0;
     g_tmTrackedMaxRawMilli.store(0, std::memory_order_relaxed);
     g_tmTrackedMaxOutMilli.store(0, std::memory_order_relaxed);
     g_tmFullBufferRet.store(0, std::memory_order_relaxed);
@@ -1702,52 +1715,66 @@ bool Backend_Init()
     g_mouseWheelPulseDownUntilMs.store(0, std::memory_order_relaxed);
 
     uint32_t initIssues = BackendInitIssue_None;
-    int wootingInit = wooting_analog_initialise();
-    DebugLog_Write(L"[backend.init] wooting_analog_initialise ret=%d", wootingInit);
-    if (wootingInit >= 0)
-    {
-        g_wootingReady.store(true, std::memory_order_release);
-        SetKeycodeModeWithLog(WootingAnalog_KeycodeType_HID, L"init", 0);
-        DebugLog_Write(L"[backend.init] wooting snapshot begin");
-        LogWootingStateSnapshot(L"after_init_call");
-        if (kEnableDeviceInfoQuery)
-        {
-            DebugLog_Write(L"[backend.init] device snapshot begin");
-            LogConnectedDevicesDetailed(L"after_init_call");
-            DebugLog_Write(L"[backend.init] device snapshot done known_ids=%d",
-                g_knownDeviceCount.load(std::memory_order_relaxed));
-        }
-        else
-        {
-            DebugLog_Write(L"[backend.init] device snapshot skipped by config");
-        }
-    }
-    if (wootingInit < 0)
-    {
-        switch ((WootingAnalogResult)wootingInit)
-        {
-        case WootingAnalogResult_DLLNotFound:
-        case WootingAnalogResult_FunctionNotFound:
-            initIssues |= BackendInitIssue_WootingSdkMissing;
-            break;
-        case WootingAnalogResult_NoPlugins:
-            initIssues |= BackendInitIssue_WootingNoPlugins;
-            break;
-        case WootingAnalogResult_IncompatibleVersion:
-            initIssues |= BackendInitIssue_WootingIncompatible;
-            break;
-        default:
-            initIssues |= BackendInitIssue_Unknown;
-            break;
-        }
-    }
+    int wootingInit = WootingAnalogResult_NoPlugins;
 
     DebugLog_Write(L"[backend.init] AulaStart begin");
     bool aulaReady = AulaStart();
     DebugLog_Write(L"[backend.init] AulaStart ret=%d", aulaReady ? 1 : 0);
-    if (aulaReady)
+    DebugLog_Write(L"[backend.init] SparkStart begin");
+    bool sparkReady = SparkStart();
+    DebugLog_Write(L"[backend.init] SparkStart ret=%d", sparkReady ? 1 : 0);
+    const bool nativeReady = aulaReady || sparkReady;
+    if (!nativeReady)
     {
-        // If native Aula path is up, Wooting SDK is optional.
+        DebugLog_Write(L"[backend.init] wooting_analog_initialise begin");
+        wootingInit = wooting_analog_initialise();
+        DebugLog_Write(L"[backend.init] wooting_analog_initialise ret=%d", wootingInit);
+        if (wootingInit >= 0)
+        {
+            g_wootingReady.store(true, std::memory_order_release);
+            SetKeycodeModeWithLog(WootingAnalog_KeycodeType_HID, L"init", 0);
+            DebugLog_Write(L"[backend.init] wooting snapshot begin");
+            LogWootingStateSnapshot(L"after_init_call");
+            if (kEnableDeviceInfoQuery)
+            {
+                DebugLog_Write(L"[backend.init] device snapshot begin");
+                LogConnectedDevicesDetailed(L"after_init_call");
+                DebugLog_Write(L"[backend.init] device snapshot done known_ids=%d",
+                    g_knownDeviceCount.load(std::memory_order_relaxed));
+            }
+            else
+            {
+                DebugLog_Write(L"[backend.init] device snapshot skipped by config");
+            }
+        }
+        if (wootingInit < 0)
+        {
+            switch ((WootingAnalogResult)wootingInit)
+            {
+            case WootingAnalogResult_DLLNotFound:
+            case WootingAnalogResult_FunctionNotFound:
+                initIssues |= BackendInitIssue_WootingSdkMissing;
+                break;
+            case WootingAnalogResult_NoPlugins:
+                initIssues |= BackendInitIssue_WootingNoPlugins;
+                break;
+            case WootingAnalogResult_IncompatibleVersion:
+                initIssues |= BackendInitIssue_WootingIncompatible;
+                break;
+            default:
+                initIssues |= BackendInitIssue_Unknown;
+                break;
+            }
+        }
+    }
+    else
+    {
+        DebugLog_Write(L"[backend.init] native HID ready, skipping Wooting SDK init");
+    }
+
+    if (nativeReady)
+    {
+        // If a native HID path is up, Wooting SDK is optional.
         initIssues &= ~(BackendInitIssue_WootingSdkMissing |
             BackendInitIssue_WootingNoPlugins |
             BackendInitIssue_WootingIncompatible);
@@ -1787,6 +1814,7 @@ bool Backend_Init()
         DebugLog_Write(L"[backend.init] fail issues=0x%08X", initIssues);
         g_lastInitIssues.store(initIssues, std::memory_order_release);
         AulaStop();
+        SparkStop();
         g_wootingReady.store(false, std::memory_order_release);
         Vigem_Destroy();
         wooting_analog_uninitialise();
@@ -1842,6 +1870,8 @@ void Backend_Shutdown()
     g_vigemUpdateFailStreak = 0;
     AulaStop();
     Aula_ResetKeyState();
+    SparkStop();
+    Spark_ResetKeyState();
     Vigem_Destroy();
     wooting_analog_uninitialise();
 }
@@ -1857,6 +1887,7 @@ void Backend_Tick()
         LogWootingStateSnapshot(L"tick_heartbeat");
     }
     AulaTickHotplug(nowMs);
+    SparkTickHotplug(nowMs);
     AulaDecayStaleKeys(nowMs);
 
     if (g_reconnectRequested.exchange(false, std::memory_order_acq_rel))
@@ -2299,10 +2330,11 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
     if (!out) return;
     BackendAnalogTelemetry t{};
     const bool aulaConnected = g_aulaConnected.load(std::memory_order_acquire);
+    const bool sparkConnected = g_sparkConnected.load(std::memory_order_acquire);
     const bool sdkInited = g_wootingReady.load(std::memory_order_acquire) && wooting_analog_is_initialised();
-    t.sdkInitialised = sdkInited || aulaConnected;
+    t.sdkInitialised = sdkInited || aulaConnected || sparkConnected;
     int sdkDevCount = std::clamp(g_knownDeviceCount.load(std::memory_order_relaxed), 0, (int)g_knownDeviceIds.size());
-    t.deviceCount = sdkDevCount + (aulaConnected ? 1 : 0);
+    t.deviceCount = sdkDevCount + (aulaConnected ? 1 : 0) + (sparkConnected ? 1 : 0);
     t.aulaConnected = aulaConnected;
     t.aulaVendorId = g_aulaConnectedVid.load(std::memory_order_relaxed);
     t.aulaProductId = g_aulaConnectedPid.load(std::memory_order_relaxed);

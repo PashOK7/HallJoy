@@ -30,8 +30,7 @@ static ULONGLONG                  g_sayoLastReconnectTryMs = 0;
 static std::array<std::atomic<uint16_t>, 256> g_sayoAnalogMilli{};
 static std::array<std::atomic<uint8_t>, 16>   g_sayoIndexToHid{};
 static std::array<std::atomic<uint8_t>, 16>   g_sayoIndexDown{};
-static std::atomic<uint8_t>       g_sayoLastKeyboardHid{ 0 };
-static std::atomic<ULONGLONG>     g_sayoLastKeyboardHidMs{ 0 };
+static std::array<std::atomic<uint8_t>, 256>  g_sayoKeyboardDown{};
 static std::atomic<uint8_t>       g_sayoPendingIndex{ 0xFF };
 static std::atomic<ULONGLONG>     g_sayoPendingIndexMs{ 0 };
 static std::atomic<ULONGLONG>     g_sayoLastDepthMs{ 0 };
@@ -45,8 +44,8 @@ static void Sayo_ResetKeyState()
         h.store(0, std::memory_order_relaxed);
     for (auto& d : g_sayoIndexDown)
         d.store(0, std::memory_order_relaxed);
-    g_sayoLastKeyboardHid.store(0, std::memory_order_relaxed);
-    g_sayoLastKeyboardHidMs.store(0, std::memory_order_relaxed);
+    for (auto& d : g_sayoKeyboardDown)
+        d.store(0, std::memory_order_relaxed);
     g_sayoPendingIndex.store(0xFF, std::memory_order_relaxed);
     g_sayoPendingIndexMs.store(0, std::memory_order_relaxed);
     g_sayoLastDepthMs.store(0, std::memory_order_relaxed);
@@ -65,17 +64,6 @@ static void SayoSetIndexState(uint8_t index, bool down, ULONGLONG nowMs)
         return;
 
     uint8_t mappedHid = g_sayoIndexToHid[index].load(std::memory_order_relaxed);
-    uint8_t keyboardHid = g_sayoLastKeyboardHid.load(std::memory_order_relaxed);
-    ULONGLONG keyboardMs = g_sayoLastKeyboardHidMs.load(std::memory_order_relaxed);
-    if (down && keyboardHid != 0 && nowMs - keyboardMs <= kSayoKeyboardMatchWindowMs)
-    {
-        mappedHid = keyboardHid;
-        g_sayoIndexToHid[index].store(mappedHid, std::memory_order_relaxed);
-        DebugLog_Write(
-            L"[backend.sayo] mapped index=%u hid=%u from keyboard report",
-            (unsigned)index,
-            (unsigned)mappedHid);
-    }
 
     if (mappedHid == 0 || mappedHid >= 256)
         return;
@@ -108,38 +96,47 @@ static void SayoParseKeyboardReport(const uint8_t* data, DWORD len, ULONGLONG no
     if (!data || len < 8)
         return;
 
-    uint8_t hid = 0;
-    for (DWORD i = 2; i < len && i < 8; ++i)
+    bool current[256]{};
+    uint8_t addedHid = 0;
+    int addedCount = 0;
+    DWORD keyStart = (data[0] == 0x00 && len >= 9) ? 3u : 2u;
+    DWORD keyEnd = (data[0] == 0x00 && len >= 9) ? 9u : 8u;
+    for (DWORD i = keyStart; i < len && i < keyEnd; ++i)
     {
-        if (data[i] != 0)
+        uint8_t hid = data[i];
+        if (hid == 0)
+            continue;
+
+        current[hid] = true;
+        if (g_sayoKeyboardDown[hid].load(std::memory_order_relaxed) == 0)
         {
-            hid = data[i];
-            break;
+            addedHid = hid;
+            ++addedCount;
         }
     }
 
-    if (hid != 0)
-    {
-        g_sayoLastKeyboardHid.store(hid, std::memory_order_relaxed);
-        g_sayoLastKeyboardHidMs.store(nowMs, std::memory_order_relaxed);
+    for (uint16_t hid = 0; hid < 256; ++hid)
+        g_sayoKeyboardDown[hid].store(current[hid] ? 1 : 0, std::memory_order_relaxed);
 
-        uint8_t pending = g_sayoPendingIndex.load(std::memory_order_relaxed);
-        ULONGLONG pendingMs = g_sayoPendingIndexMs.load(std::memory_order_relaxed);
-        if (pending < g_sayoIndexToHid.size() && nowMs - pendingMs <= kSayoKeyboardMatchWindowMs)
-        {
-            uint8_t oldHid = g_sayoIndexToHid[pending].exchange(hid, std::memory_order_relaxed);
-            if (oldHid != 0 && oldHid != hid)
-                g_sayoAnalogMilli[oldHid].store(0, std::memory_order_relaxed);
-            ULONGLONG lastDepth = g_sayoLastDepthMs.load(std::memory_order_relaxed);
-            bool depthFresh = (lastDepth != 0 && nowMs - lastDepth <= kSayoDepthFreshMs);
-            if (!depthFresh && g_sayoIndexDown[pending].load(std::memory_order_relaxed) != 0)
-                g_sayoAnalogMilli[hid].store(1000, std::memory_order_relaxed);
-            g_sayoPendingIndex.store(0xFF, std::memory_order_relaxed);
-            DebugLog_Write(
-                L"[backend.sayo] mapped pending index=%u hid=%u from keyboard report",
-                (unsigned)pending,
-                (unsigned)hid);
-        }
+    uint8_t pending = g_sayoPendingIndex.load(std::memory_order_relaxed);
+    ULONGLONG pendingMs = g_sayoPendingIndexMs.load(std::memory_order_relaxed);
+    if (pending < g_sayoIndexToHid.size() &&
+        nowMs - pendingMs <= kSayoKeyboardMatchWindowMs &&
+        addedCount == 1 &&
+        addedHid != 0)
+    {
+        uint8_t oldHid = g_sayoIndexToHid[pending].exchange(addedHid, std::memory_order_relaxed);
+        if (oldHid != 0 && oldHid != addedHid)
+            g_sayoAnalogMilli[oldHid].store(0, std::memory_order_relaxed);
+        ULONGLONG lastDepth = g_sayoLastDepthMs.load(std::memory_order_relaxed);
+        bool depthFresh = (lastDepth != 0 && nowMs - lastDepth <= kSayoDepthFreshMs);
+        if (!depthFresh && g_sayoIndexDown[pending].load(std::memory_order_relaxed) != 0)
+            g_sayoAnalogMilli[addedHid].store(1000, std::memory_order_relaxed);
+        g_sayoPendingIndex.store(0xFF, std::memory_order_relaxed);
+        DebugLog_Write(
+            L"[backend.sayo] mapped pending index=%u hid=%u from keyboard add",
+            (unsigned)pending,
+            (unsigned)addedHid);
     }
 }
 
@@ -254,7 +251,7 @@ static DWORD WINAPI SayoReaderThreadProc(LPVOID param)
             SayoParseAnalogReport(buf.data(), got, nowMs);
         else if (got >= 14 && buf[0] == 0x22)
             SayoParseDepthResponse(buf.data(), got, nowMs);
-        else if (got >= 8 && buf[0] == 0x00)
+        else if (got >= 8 && buf[0] == 0x00 && reader->usagePage == 0x0001 && reader->usage == 0x0006)
             SayoParseKeyboardReport(buf.data(), got, nowMs);
     }
 

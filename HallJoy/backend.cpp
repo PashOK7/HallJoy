@@ -1738,52 +1738,46 @@ bool Backend_Init()
     bool sayoReady = SayoStart();
     DebugLog_Write(L"[backend.init] SayoStart ret=%d", sayoReady ? 1 : 0);
     const bool nativeReady = aulaReady || sparkReady || sayoReady;
-    if (!nativeReady)
+
+    DebugLog_Write(L"[backend.init] wooting_analog_initialise begin");
+    wootingInit = wooting_analog_initialise();
+    DebugLog_Write(L"[backend.init] wooting_analog_initialise ret=%d", wootingInit);
+    if (wootingInit >= 0)
     {
-        DebugLog_Write(L"[backend.init] wooting_analog_initialise begin");
-        wootingInit = wooting_analog_initialise();
-        DebugLog_Write(L"[backend.init] wooting_analog_initialise ret=%d", wootingInit);
-        if (wootingInit >= 0)
+        g_wootingReady.store(true, std::memory_order_release);
+        SetKeycodeModeWithLog(WootingAnalog_KeycodeType_HID, L"init", 0);
+        DebugLog_Write(L"[backend.init] wooting snapshot begin");
+        LogWootingStateSnapshot(L"after_init_call");
+        if (kEnableDeviceInfoQuery)
         {
-            g_wootingReady.store(true, std::memory_order_release);
-            SetKeycodeModeWithLog(WootingAnalog_KeycodeType_HID, L"init", 0);
-            DebugLog_Write(L"[backend.init] wooting snapshot begin");
-            LogWootingStateSnapshot(L"after_init_call");
-            if (kEnableDeviceInfoQuery)
-            {
-                DebugLog_Write(L"[backend.init] device snapshot begin");
-                LogConnectedDevicesDetailed(L"after_init_call");
-                DebugLog_Write(L"[backend.init] device snapshot done known_ids=%d",
-                    g_knownDeviceCount.load(std::memory_order_relaxed));
-            }
-            else
-            {
-                DebugLog_Write(L"[backend.init] device snapshot skipped by config");
-            }
+            DebugLog_Write(L"[backend.init] device snapshot begin");
+            LogConnectedDevicesDetailed(L"after_init_call");
+            DebugLog_Write(L"[backend.init] device snapshot done known_ids=%d",
+                g_knownDeviceCount.load(std::memory_order_relaxed));
         }
-        if (wootingInit < 0)
+        else
         {
-            switch ((WootingAnalogResult)wootingInit)
-            {
-            case WootingAnalogResult_DLLNotFound:
-            case WootingAnalogResult_FunctionNotFound:
-                initIssues |= BackendInitIssue_WootingSdkMissing;
-                break;
-            case WootingAnalogResult_NoPlugins:
-                initIssues |= BackendInitIssue_WootingNoPlugins;
-                break;
-            case WootingAnalogResult_IncompatibleVersion:
-                initIssues |= BackendInitIssue_WootingIncompatible;
-                break;
-            default:
-                initIssues |= BackendInitIssue_Unknown;
-                break;
-            }
+            DebugLog_Write(L"[backend.init] device snapshot skipped by config");
         }
     }
-    else
+    if (wootingInit < 0)
     {
-        DebugLog_Write(L"[backend.init] native HID ready, skipping Wooting SDK init");
+        switch ((WootingAnalogResult)wootingInit)
+        {
+        case WootingAnalogResult_DLLNotFound:
+        case WootingAnalogResult_FunctionNotFound:
+            initIssues |= BackendInitIssue_WootingSdkMissing;
+            break;
+        case WootingAnalogResult_NoPlugins:
+            initIssues |= BackendInitIssue_WootingNoPlugins;
+            break;
+        case WootingAnalogResult_IncompatibleVersion:
+            initIssues |= BackendInitIssue_WootingIncompatible;
+            break;
+        default:
+            initIssues |= BackendInitIssue_Unknown;
+            break;
+        }
     }
 
     if (nativeReady)

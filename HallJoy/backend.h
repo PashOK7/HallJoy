@@ -64,8 +64,8 @@ BackendStatus Backend_GetStatus();
 
 struct BackendAnalogTelemetry
 {
-    bool sdkInitialised = false;         // true when Wooting SDK or native Aula path is active
-    int deviceCount = 0;                 // connected analog sources (SDK devices + native Aula)
+    bool sdkInitialised = false;         // true when Wooting SDK or any native HID path is active
+    int deviceCount = 0;                 // connected analog sources (SDK devices + native HID paths)
     bool aulaConnected = false;          // native Aula HID path connected
     uint16_t aulaVendorId = 0;           // current Aula VID when connected
     uint16_t aulaProductId = 0;          // current Aula PID when connected

@@ -303,6 +303,7 @@ static float Clamp01(float v);
 // ---- native HID path (Aula implementation moved to isolated include) ----
 #include "backend_aula.inc"
 #include "backend_sparklink.inc"
+#include "backend_sayo.inc"
 
 static const wchar_t* KeycodeModeName(int mode)
 {
@@ -977,7 +978,8 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
 
     const bool aulaConnected = g_aulaConnected.load(std::memory_order_acquire);
     const bool sparkConnected = g_sparkConnected.load(std::memory_order_acquire);
-    const bool allowFallback = Settings_GetDigitalFallbackInput() && !aulaConnected && !sparkConnected;
+    const bool sayoConnected = g_sayoConnected.load(std::memory_order_acquire);
+    const bool allowFallback = Settings_GetDigitalFallbackInput() && !aulaConnected && !sparkConnected && !sayoConnected;
     const bool wootingReady = g_wootingReady.load(std::memory_order_acquire);
     WootingAnalog_KeycodeType mode = (WootingAnalog_KeycodeType)g_keycodeMode.load(std::memory_order_relaxed);
     uint16_t modeCode = wootingReady ? HidToModeCode(hidKeycode, mode) : 0;
@@ -997,6 +999,12 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
         {
             uint16_t sparkM = g_sparkAnalogMilli[hidKeycode].load(std::memory_order_relaxed);
             float vs = std::clamp((float)sparkM / 1000.0f, 0.0f, 1.0f);
+            v = std::max(v, vs);
+        }
+        if (sayoConnected)
+        {
+            uint16_t sayoM = g_sayoAnalogMilli[hidKeycode].load(std::memory_order_relaxed);
+            float vs = std::clamp((float)sayoM / 1000.0f, 0.0f, 1.0f);
             v = std::max(v, vs);
         }
 
@@ -1671,8 +1679,11 @@ bool Backend_Init()
     AulaStop();
     Spark_ResetKeyState();
     SparkStop();
+    Sayo_ResetKeyState();
+    SayoStop();
     g_aulaLastReconnectTryMs = 0;
     g_sparkLastReconnectTryMs = 0;
+    g_sayoLastReconnectTryMs = 0;
     g_tmTrackedMaxRawMilli.store(0, std::memory_order_relaxed);
     g_tmTrackedMaxOutMilli.store(0, std::memory_order_relaxed);
     g_tmFullBufferRet.store(0, std::memory_order_relaxed);
@@ -1723,7 +1734,10 @@ bool Backend_Init()
     DebugLog_Write(L"[backend.init] SparkStart begin");
     bool sparkReady = SparkStart();
     DebugLog_Write(L"[backend.init] SparkStart ret=%d", sparkReady ? 1 : 0);
-    const bool nativeReady = aulaReady || sparkReady;
+    DebugLog_Write(L"[backend.init] SayoStart begin");
+    bool sayoReady = SayoStart();
+    DebugLog_Write(L"[backend.init] SayoStart ret=%d", sayoReady ? 1 : 0);
+    const bool nativeReady = aulaReady || sparkReady || sayoReady;
     if (!nativeReady)
     {
         DebugLog_Write(L"[backend.init] wooting_analog_initialise begin");
@@ -1815,6 +1829,7 @@ bool Backend_Init()
         g_lastInitIssues.store(initIssues, std::memory_order_release);
         AulaStop();
         SparkStop();
+        SayoStop();
         g_wootingReady.store(false, std::memory_order_release);
         Vigem_Destroy();
         wooting_analog_uninitialise();
@@ -1872,6 +1887,8 @@ void Backend_Shutdown()
     Aula_ResetKeyState();
     SparkStop();
     Spark_ResetKeyState();
+    SayoStop();
+    Sayo_ResetKeyState();
     Vigem_Destroy();
     wooting_analog_uninitialise();
 }
@@ -1888,6 +1905,7 @@ void Backend_Tick()
     }
     AulaTickHotplug(nowMs);
     SparkTickHotplug(nowMs);
+    SayoTickHotplug(nowMs);
     AulaDecayStaleKeys(nowMs);
 
     if (g_reconnectRequested.exchange(false, std::memory_order_acq_rel))
@@ -2331,10 +2349,11 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
     BackendAnalogTelemetry t{};
     const bool aulaConnected = g_aulaConnected.load(std::memory_order_acquire);
     const bool sparkConnected = g_sparkConnected.load(std::memory_order_acquire);
+    const bool sayoConnected = g_sayoConnected.load(std::memory_order_acquire);
     const bool sdkInited = g_wootingReady.load(std::memory_order_acquire) && wooting_analog_is_initialised();
-    t.sdkInitialised = sdkInited || aulaConnected || sparkConnected;
+    t.sdkInitialised = sdkInited || aulaConnected || sparkConnected || sayoConnected;
     int sdkDevCount = std::clamp(g_knownDeviceCount.load(std::memory_order_relaxed), 0, (int)g_knownDeviceIds.size());
-    t.deviceCount = sdkDevCount + (aulaConnected ? 1 : 0) + (sparkConnected ? 1 : 0);
+    t.deviceCount = sdkDevCount + (aulaConnected ? 1 : 0) + (sparkConnected ? 1 : 0) + (sayoConnected ? 1 : 0);
     t.aulaConnected = aulaConnected;
     t.aulaVendorId = g_aulaConnectedVid.load(std::memory_order_relaxed);
     t.aulaProductId = g_aulaConnectedPid.load(std::memory_order_relaxed);

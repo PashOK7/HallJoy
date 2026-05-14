@@ -53,6 +53,8 @@ Desktop.ini
 .tmp_*
 IROK_REVERSE_NOTES.md*
 README.md.*.bak
+*.bak-*
+*.bak-sayo-*
 irok_*.cpp
 irok_*.cpp.*
 rawkbd_probe.cpp

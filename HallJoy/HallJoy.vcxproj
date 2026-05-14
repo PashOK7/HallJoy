@@ -167,6 +167,7 @@
     <ClInclude Include="backend.h" />
     <ClInclude Include="backend_aula.inc" />
     <ClInclude Include="backend_sparklink.inc" />
+    <ClInclude Include="backend_sayo.inc" />
     <ClInclude Include="backend_curve.h" />
     <ClInclude Include="bindings.h" />
     <ClInclude Include="binding_actions.h" />

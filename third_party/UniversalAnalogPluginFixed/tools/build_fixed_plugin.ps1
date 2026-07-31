@@ -1,7 +1,8 @@
 ﻿[CmdletBinding()]
 param(
     [string]$HallJoyRoot = '',
-    [switch]$ExcludeMad68ProRNative
+    [switch]$ExcludeMad68ProRNative,
+    [string]$DependencyLock = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,6 +14,19 @@ $DistRoot = Join-Path $Root 'dist'
 $PluginOut = Join-Path $DistRoot 'universal-analog-plugin'
 $BuildToolsRoot = Join-Path $Root '.build-tools'
 $SunRoot = Join-Path $BuildToolsRoot 'Sun'
+
+if (-not $DependencyLock) {
+    $DependencyLock = Join-Path $Root '..\..\tools\dependency-lock.json'
+}
+if (-not (Test-Path -LiteralPath $DependencyLock -PathType Leaf)) {
+    throw "Dependency lock is missing: $DependencyLock"
+}
+$lock = Get-Content -LiteralPath $DependencyLock -Raw | ConvertFrom-Json
+$SunRepository = [string]$lock.sources.sun.repository
+$SunCommit = [string]$lock.sources.sun.commit
+$SoupRepository = [string]$lock.sources.soup.repository
+$SoupCommit = [string]$lock.sources.soup.commit
+$SoupPatchedDiffSha256 = [string]$lock.sources.soup.patchedDiffSha256
 
 function Require-Command([string]$Name, [string]$Message) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -94,35 +108,39 @@ function Resolve-ClangX64 {
 }
 
 function Resolve-SunExecutable {
-    $installed = Get-Command 'sun' -ErrorAction SilentlyContinue
-    if ($installed) {
-        $installedPath = $installed | Select-Object -ExpandProperty Path -ErrorAction SilentlyContinue
-        if ($installedPath) {
-            Write-Host "Using Sun from PATH: $installedPath" -ForegroundColor DarkGray
-            return [string]$installedPath
-        }
-        Write-Host "Using Sun command from PATH: $($installed.Name)" -ForegroundColor DarkGray
-        return [string]$installed.Name
-    }
-
     Require-Command 'git' 'Git is required to bootstrap the Sun build tool and download Soup.'
     $msbuild = Find-MSBuild
 
-    if (-not (Test-Path -LiteralPath (Join-Path $SunRoot 'Sun.sln'))) {
+    $currentSunCommit = ''
+    if (Test-Path -LiteralPath (Join-Path $SunRoot '.git')) {
+        $currentSunCommit = (& git -C $SunRoot rev-parse HEAD 2>$null | Select-Object -First 1)
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $SunRoot 'Sun.sln')) -or
+        $currentSunCommit -ne $SunCommit) {
         if (Test-Path -LiteralPath $SunRoot) {
             Remove-Item -LiteralPath $SunRoot -Recurse -Force
         }
         New-Item -ItemType Directory -Path $BuildToolsRoot -Force | Out-Null
 
-        Write-Host 'Sun is not installed. Downloading its official source...' -ForegroundColor Cyan
-        & git clone --depth 1 --branch senpai --recurse-submodules --shallow-submodules `
-            https://github.com/calamity-inc/Sun.git $SunRoot | Out-Host
-        if ($LASTEXITCODE -ne 0) {
-            throw "Could not clone the official Sun source. Git exit code: $LASTEXITCODE"
-        }
+        Write-Host "Downloading pinned Sun revision $SunCommit..." -ForegroundColor Cyan
+        New-Item -ItemType Directory -Path $SunRoot -Force | Out-Null
+        & git -C $SunRoot init | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'git init for Sun failed.' }
+        & git -C $SunRoot remote add origin $SunRepository
+        if ($LASTEXITCODE -ne 0) { throw 'git remote add for Sun failed.' }
+        & git -C $SunRoot fetch --depth 1 origin $SunCommit | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'git fetch for pinned Sun revision failed.' }
+        & git -C $SunRoot checkout --detach FETCH_HEAD | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'git checkout for pinned Sun revision failed.' }
+        & git -C $SunRoot submodule update --init --recursive --depth 1 | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'Sun submodule initialization failed.' }
     }
     else {
-        Write-Host 'Refreshing Sun submodules...' -ForegroundColor Cyan
+        Write-Host "Using pinned Sun revision $SunCommit." -ForegroundColor DarkGray
+        $sunTrackedChanges = @(& git -C $SunRoot status --porcelain --untracked-files=no)
+        if ($sunTrackedChanges.Count -ne 0) {
+            throw 'Pinned Sun source has local tracked changes. Refusing a non-reproducible build.'
+        }
         & git -C $SunRoot submodule update --init --recursive --depth 1 | Out-Host
         if ($LASTEXITCODE -ne 0) {
             throw "Could not initialise Sun submodules. Git exit code: $LASTEXITCODE"
@@ -165,9 +183,6 @@ Require-Command 'git' 'Git is required to download the Soup source.'
 $SunExe = Resolve-SunExecutable
 $null = Resolve-ClangX64
 
-# Pin the exact Soup revision used for the SafeHID audit. Building a moving
-# branch would make crash behaviour and generated binaries non-reproducible.
-$SoupCommit = 'b02796b0b20276277c8a4b4d3759643eeab43ff7'
 $currentSoupCommit = ''
 if (Test-Path -LiteralPath (Join-Path $SoupRoot '.git')) {
     $currentSoupCommit = (& git -C $SoupRoot rev-parse HEAD 2>$null | Select-Object -First 1)
@@ -181,7 +196,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $SoupRoot 'soup\AnalogueKeyboard.cpp
     New-Item -ItemType Directory -Path $SoupRoot -Force | Out-Null
     & git -C $SoupRoot init
     if ($LASTEXITCODE -ne 0) { throw 'git init for Soup failed.' }
-    & git -C $SoupRoot remote add origin https://github.com/calamity-inc/Soup.git
+    & git -C $SoupRoot remote add origin $SoupRepository
     if ($LASTEXITCODE -ne 0) { throw 'git remote add for Soup failed.' }
     & git -C $SoupRoot fetch --depth 1 origin $SoupCommit
     if ($LASTEXITCODE -ne 0) { throw 'git fetch for pinned Soup revision failed.' }
@@ -190,6 +205,22 @@ if (-not (Test-Path -LiteralPath (Join-Path $SoupRoot 'soup\AnalogueKeyboard.cpp
 }
 
 & (Join-Path $PSScriptRoot 'Apply-Soup-Madlions-Fix.ps1') -SoupRoot $SoupRoot
+
+$soupStatus = @(& git -C $SoupRoot status --porcelain --untracked-files=all)
+$soupUntracked = @($soupStatus | Where-Object { [string]$_ -match '^\?\?' })
+if ($soupUntracked.Count -ne 0) {
+    $soupUntracked | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+    throw 'Pinned Soup source has unexpected untracked files.'
+}
+$soupDiffLines = @(& git -C $SoupRoot diff --binary --no-ext-diff HEAD --)
+$soupDiffText = ($soupDiffLines -join "`n") + "`n"
+$soupDiffBytes = [Text.Encoding]::UTF8.GetBytes($soupDiffText)
+$soupDiffHash = [BitConverter]::ToString(
+    [Security.Cryptography.SHA256]::Create().ComputeHash($soupDiffBytes)).Replace('-', '')
+if ($soupDiffHash -ne $SoupPatchedDiffSha256) {
+    throw "Patched Soup diff integrity failed. Expected=$SoupPatchedDiffSha256 Actual=$soupDiffHash"
+}
+Write-Host "Verified patched Soup diff SHA-256: $soupDiffHash" -ForegroundColor DarkGray
 
 if (Test-Path -LiteralPath $DistRoot) {
     Remove-Item -LiteralPath $DistRoot -Recurse -Force

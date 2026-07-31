@@ -10,6 +10,7 @@ version or release status.
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
 - Current package: `V14-04` reproducible dependencies and build/CI gates
+  (`Implemented`; remote CI evidence pending)
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -30,6 +31,8 @@ must not be inferred from those tests.
   contract, and repeatable gate.
 - [PRIVATE_UAP_RUNTIME.md](PRIVATE_UAP_RUNTIME.md) - embedded runtime locations,
   integrity, diagnostics, and protected-directory fallback.
+- [BUILD_REPRODUCIBILITY.md](BUILD_REPRODUCIBILITY.md) - dependency lock,
+  local/CI commands, toolchains, and warning policy.
 
 ## Documentation rule
 

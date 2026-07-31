@@ -17,10 +17,18 @@ $exe = Join-Path $outDir ($targetName + '.exe')
 $pdb = Join-Path $outDir ($targetName + '.pdb')
 $map = Join-Path $outDir ($targetName + '.map')
 $sendDir = Join-Path $root 'build\output'
-$vigemLib = Join-Path $hallJoyRoot 'third_party\ViGEmClient\lib\release\x64\ViGEmClient.lib'
-$vigemExpectedSha256 = '800239E478698154F544AD81C4580A3E6A2A48358D1FF67D970C996B382640B4'
+$dependencyLockPath = Join-Path $root 'tools\dependency-lock.json'
+if (-not (Test-Path -LiteralPath $dependencyLockPath -PathType Leaf)) {
+    throw "Dependency lock is missing: $dependencyLockPath"
+}
+$dependencyLock = Get-Content -LiteralPath $dependencyLockPath -Raw | ConvertFrom-Json
+$vigemSpec = $dependencyLock.binaryInputs.vigemClient
+$vigemLib = Join-Path $root ([string]$vigemSpec.path).Replace('/', '\')
+$vigemExpectedSize = [long]$vigemSpec.size
+$vigemExpectedSha256 = [string]$vigemSpec.sha256
 
 $required = @(
+    $dependencyLockPath,
     $pluginBuild,
     $soupPatch,
     (Join-Path $pluginRoot 'abiv0.sun'),
@@ -41,6 +49,7 @@ $required = @(
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_backend_registry.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_backends.def'),
     (Join-Path $hallJoyRoot 'tests\native_backend_architecture_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\dependency_lock_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\native_analog_backend_contract_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\private_uap_runtime_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\windows_command_line_test.cpp'),
@@ -308,7 +317,7 @@ if ($madProtocolText -notmatch 'kArmOpcode = 0xA8' -or
 
 $nativeCheckRunner = Join-Path $root 'tools\run_native_backend_checks.py'
 Write-Host 'Running native backend static checks...' -ForegroundColor Cyan
-& python $nativeCheckRunner --static-only
+& python $nativeCheckRunner --require-compiler
 if ($LASTEXITCODE -ne 0) { throw "Native backend static checks failed: $LASTEXITCODE" }
 
 $generator = Join-Path $root 'tools\new_native_backend.py'
@@ -317,12 +326,13 @@ if ($LASTEXITCODE -ne 0) { throw "Native backend generator self-check failed: $L
 
 $vigemInfo = Get-Item -LiteralPath $vigemLib
 $vigemHash = (Get-FileHash -LiteralPath $vigemLib -Algorithm SHA256).Hash
-if ($vigemInfo.Length -ne 1245970 -or $vigemHash -ne $vigemExpectedSha256) {
+if ($vigemInfo.Length -ne $vigemExpectedSize -or $vigemHash -ne $vigemExpectedSha256) {
     throw "ViGEmClient.lib preflight failed. Size=$($vigemInfo.Length), SHA-256=$vigemHash"
 }
 
 Write-Host 'Building the embedded UAP with capability-validated native routing...' -ForegroundColor Cyan
-& powershell -NoProfile -ExecutionPolicy Bypass -File $pluginBuild -ExcludeMad68ProRNative
+& powershell -NoProfile -ExecutionPolicy Bypass -File $pluginBuild `
+    -ExcludeMad68ProRNative -DependencyLock $dependencyLockPath
 if ($LASTEXITCODE -ne 0) { throw "Plugin build failed: $LASTEXITCODE" }
 
 $patchedHid = Join-Path $pluginRoot 'Soup\soup\hwHid.cpp'
@@ -367,14 +377,28 @@ if (-not $msbuild) {
 
 if (Test-Path -LiteralPath $outDir) { Remove-Item -LiteralPath $outDir -Recurse -Force }
 Write-Host "Building $targetName.exe with MAD68 + Hex80 + Addressed + Spark + Sayo + UAP..." -ForegroundColor Cyan
-& $msbuild $project `
+$buildOutput = @(& $msbuild $project `
     '/t:Rebuild' `
     '/p:Configuration=Release' `
     '/p:Platform=x64' `
     '/p:HallJoyMad68ProRNative=true' `
     '/p:HallJoyStabilityTrace=true' `
-    '/m'
-if ($LASTEXITCODE -ne 0) { throw "HallJoy build failed: $LASTEXITCODE" }
+    '/m' 2>&1)
+$buildExitCode = $LASTEXITCODE
+$buildOutput | Out-Host
+if ($buildExitCode -ne 0) { throw "HallJoy build failed: $buildExitCode" }
+$productionWarnings = @($buildOutput | Where-Object { [string]$_ -match ': warning (?:C|LNK)\d+:' })
+$allowedProductionWarning = 'warning LNK4099:.*ViGEmClient\.pdb'
+$unexpectedWarnings = @($productionWarnings | Where-Object { [string]$_ -notmatch $allowedProductionWarning })
+if ($unexpectedWarnings.Count -ne 0) {
+    $unexpectedWarnings | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+    throw 'Unexpected production compiler/linker warnings were emitted.'
+}
+$productionWarningCodes = @($productionWarnings | ForEach-Object {
+    if ([string]$_ -match 'warning ((?:C|LNK)\d+):') { $Matches[1] }
+} | Sort-Object -Unique)
+$warningSummary = if ($productionWarningCodes.Count) { $productionWarningCodes -join ', ' } else { 'none' }
+Write-Host "Production warning baseline: allowed codes=$warningSummary; 0 unexpected." -ForegroundColor DarkGray
 if (-not (Test-Path -LiteralPath $exe)) { throw "Executable not produced: $exe" }
 
 if (Test-Path -LiteralPath $sendDir) { Remove-Item -LiteralPath $sendDir -Recurse -Force }
@@ -383,6 +407,7 @@ Copy-Item -LiteralPath $exe -Destination $sendDir -Force
 Copy-Item -LiteralPath (Join-Path $root 'tools\analyze_stability_trace.py') -Destination $sendDir -Force
 Copy-Item -LiteralPath (Join-Path $root 'tools\collect_stability_trace.ps1') -Destination $sendDir -Force
 Copy-Item -LiteralPath (Join-Path $root 'tools\COLLECT_STABILITY_TRACE.cmd') -Destination $sendDir -Force
+Copy-Item -LiteralPath $dependencyLockPath -Destination $sendDir -Force
 
 $symbols = Join-Path $outDir 'LOCAL_SYMBOLS_DO_NOT_SEND'
 New-Item -ItemType Directory -Path $symbols -Force | Out-Null

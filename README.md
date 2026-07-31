@@ -1,5 +1,17 @@
 # HallJoy v1.4
 
+## Build prerequisites
+
+- Visual Studio 2022 Build Tools with Desktop development with C++ and the x64
+  Clang tools component;
+- Python 3.12;
+- Git;
+- PowerShell 5.1 or newer.
+
+Run `BUILD.cmd` or `powershell -File .\tools\build.ps1`. The official build
+uses [tools/dependency-lock.json](tools/dependency-lock.json) and runs the same
+static and portable C++20 gate used by CI before producing the x64 executable.
+
 Текущая ветка содержит разработку HallJoy v1.4 и ещё не является релизом.
 HallJoy использует единый low-latency тракт `аналог → кривая → SOCD → ViGEm`
 и централизованный безопасный арбитраж native-протоколов и Universal Analog

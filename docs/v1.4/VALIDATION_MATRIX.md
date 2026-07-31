@@ -131,3 +131,30 @@ Hardware: NOT VERIFIED; runtime evidence does not close device gates
 Known limitations: UAP protocol/device behavior remains in hardware qualification
 Rollback: parent commit of the V14-03 implementation commit
 ```
+
+## V14-04 evidence
+
+```text
+Package: V14-04
+Scope: Reproducible inputs, local/CI gate parity, and warning policy
+Commands:
+  python src/HallJoyProject/tests/dependency_lock_static_audit.py
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+Results:
+  Dependency lock audit: PASS
+  Static audits and portable C++20 tests with Clang 19.1.5: PASS
+  Locked Sun revision: 83c195bd61314bdbfdccc161653dbb652e3b6678
+  Locked Soup revision: b02796b0b20276277c8a4b4d3759643eeab43ff7
+  Generated HallJoy Soup patch diff SHA-256 verification: PASS
+  Fresh shallow fetch by both locked commit SHAs: PASS
+  ViGEmClient size/SHA-256 verification: PASS
+  Private UAP rebuild from locked inputs: PASS
+  MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  GitHub workflow lock/parity audit: PASS
+Remote CI: PENDING; no push is permitted during local integration
+Hardware: Not required; runtime/protocol behavior is unchanged
+Known limitations: Ubuntu and GitHub-hosted Windows jobs need their first run
+Rollback: parent commit of the V14-04 implementation commit
+```

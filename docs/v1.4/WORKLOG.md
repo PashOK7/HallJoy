@@ -150,3 +150,49 @@
 ### Next
 
 - Begin `V14-04`: pin remaining build inputs and align local and CI gates.
+
+## 2026-07-31 - V14-04 reproducible build inputs and gate parity
+
+### Implemented
+
+- Added one machine-readable lock for Sun, Soup, ViGEmClient, GitHub Actions,
+  runner labels, and required toolchain families.
+- Replaced the moving Sun branch bootstrap and arbitrary `PATH` tool selection
+  with an exact detached commit checkout.
+- Kept Soup on its existing audited exact commit and moved both repositories to
+  lock-owned configuration.
+- Locked the complete generated HallJoy Soup diff SHA-256 and rejected extra
+  source-tree changes before compilation.
+- Pinned all GitHub Actions by full SHA and replaced `ubuntu-latest` with
+  `ubuntu-24.04`.
+- Made the official Windows build run the same required portable C++20 tests as
+  the portable CI entry point.
+- Added deterministic Windows Clang discovery for stale or minimal `PATH`
+  environments.
+- Enforced a production warning allowlist containing only the inherited ViGEm
+  `LNK4099` missing-PDB diagnostic.
+- Added a static audit for dependency immutability and local/CI gate parity.
+- Included the exact dependency lock in the packaged/CI artifact.
+
+### Validation
+
+- Lock audit and every existing static audit passed.
+- All portable C++20 tests passed with Clang 19.1.5.
+- Official build used Sun `83c195bd61314bdbfdccc161653dbb652e3b6678`
+  and Soup `b02796b0b20276277c8a4b4d3759643eeab43ff7`.
+- ViGEmClient size and SHA-256 preflight passed.
+- Fresh shallow fetches by the locked Sun and Soup commit SHAs succeeded, and a
+  newly patched Soup tree reproduced the locked diff SHA-256 exactly.
+- Private UAP rebuild and MSVC x64 Release completed with 0 errors and no
+  warning outside the documented allowlist.
+
+### Limitations
+
+- No WSL distribution or Docker engine is installed on this workstation.
+- GitHub-hosted Ubuntu and Windows jobs cannot run until publication/push is
+  explicitly approved, so V14-04 is `Implemented`, not `Verified`.
+
+### Next
+
+- Run both pinned GitHub Actions jobs after publication approval, record their
+  URLs/results, then mark V14-04 `Verified` and begin V14-05.

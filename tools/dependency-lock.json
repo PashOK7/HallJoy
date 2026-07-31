@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "toolchains": {
+    "python": "3.12",
+    "linuxRunner": "ubuntu-24.04",
+    "windowsRunner": "windows-2022",
+    "visualStudio": "2022",
+    "cppStandard": "c++20"
+  },
+  "githubActions": {
+    "checkout": {
+      "name": "actions/checkout",
+      "version": "v4",
+      "commit": "11d5960a326750d5838078e36cf38b85af677262"
+    },
+    "setupPython": {
+      "name": "actions/setup-python",
+      "version": "v5",
+      "commit": "a26af69be951a213d495a4c3e4e4022e16d87065"
+    },
+    "uploadArtifact": {
+      "name": "actions/upload-artifact",
+      "version": "v4",
+      "commit": "ea165f8d65b6e75b540449e92b4886f43607fa02"
+    }
+  },
+  "sources": {
+    "sun": {
+      "repository": "https://github.com/calamity-inc/Sun.git",
+      "commit": "83c195bd61314bdbfdccc161653dbb652e3b6678"
+    },
+    "soup": {
+      "repository": "https://github.com/calamity-inc/Soup.git",
+      "commit": "b02796b0b20276277c8a4b4d3759643eeab43ff7",
+      "patchedDiffSha256": "D8AF66D4EBFFB22C74DEE8817FF838D0BEF21E855F1FFD283466BB863844DAC8"
+    }
+  },
+  "binaryInputs": {
+    "vigemClient": {
+      "path": "src/HallJoyProject/third_party/ViGEmClient/lib/release/x64/ViGEmClient.lib",
+      "size": 1245970,
+      "sha256": "800239E478698154F544AD81C4580A3E6A2A48358D1FF67D970C996B382640B4"
+    }
+  }
+}

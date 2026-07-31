@@ -31,6 +31,15 @@ def find_cxx() -> str | None:
         path = shutil.which(candidate)
         if path:
             return path
+    if os.name == "nt":
+        fixed_candidates = (
+            Path(r"C:\BuildTools\VC\Tools\Llvm\x64\bin\clang++.exe"),
+            Path(r"C:\Program Files\LLVM\bin\clang++.exe"),
+            Path(r"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\Llvm\x64\bin\clang++.exe"),
+        )
+        for candidate in fixed_candidates:
+            if candidate.is_file():
+                return str(candidate)
     return None
 
 

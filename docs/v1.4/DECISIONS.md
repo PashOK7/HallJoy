@@ -88,3 +88,17 @@ isolated child receives the verified absolute path explicitly. System Wooting
 SDK and global UAP installations are neither required nor valid repair actions
 for this architecture; ViGEmBus remains the only offered external runtime
 dependency.
+
+## D-011 - One lock owns build provenance
+
+Date: 2026-07-31
+
+`tools/dependency-lock.json` is authoritative for remote source commits,
+GitHub Action commits, runner labels, toolchain families, and binary dependency
+integrity. Build scripts consume the lock rather than duplicating moving
+references. Full commit SHAs are required; human-readable tags are comments.
+
+Local and CI gates use the same checked-in entry points. The official Windows
+build requires portable C++20 tests and rejects warnings outside the explicit
+ViGEm `LNK4099` PDB allowlist. A package requiring CI cannot become `Verified`
+from local-equivalent evidence alone.

@@ -93,6 +93,17 @@ event. Completion is published for normal and exceptional exits. Startup cannot
 publish a group whose reader already exited or faulted, and loss of the final
 live reader clears connected state without waiting for the hotplug watchdog.
 
+The parent side of the isolated analog host owns its snapshot bridge,
+supervisor, shared mapping, events and child job as one generation. Startup is
+published only after both parent workers exist. Partial-start rollback joins an
+already created worker before releasing IPC. Shutdown first requests a bounded
+group join, then terminates the isolated child job and retries the parent join.
+If either parent worker still survives, all reachable HANDLEs and IPC remain
+owned, restart is permanently blocked for that process, and application
+shutdown uses process-level containment instead of destroying dependent state.
+The private UAP's own worker and C ABI boundaries remain a separate V14-07
+substage.
+
 ## Files a new protocol owns
 
 Generated default:

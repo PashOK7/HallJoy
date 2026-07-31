@@ -698,7 +698,16 @@ static void AppShutdownNoThrow(HWND hwnd) noexcept
     runStep(L"realtime", [&] { realtimeStop = RealtimeLoop_Stop(); });
     if (realtimeStop.RestartSafe())
     {
-        runStep(L"backend", [] { Backend_Shutdown(); });
+        bool backendStopped = false;
+        runStep(L"backend", [&] { backendStopped = Backend_Shutdown(); });
+        if (!backendStopped)
+        {
+            g_immediateProcessExitRequired.store(true, std::memory_order_release);
+            StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.poisoned",
+                L"component=backend analog_host_or_native_join_incomplete=1 dependent_cleanup_skipped=1");
+            DebugLog_Write(L"[app.shutdown] backend worker did not join; immediate process exit required");
+            return;
+        }
     }
     else
     {
@@ -981,7 +990,12 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                     if (!RealtimeLoop_Start())
                     {
                         DebugLog_Write(L"[mad68pr] late Backend_Init succeeded but realtime start failed; rolling backend back");
-                        Backend_Shutdown();
+                        if (!Backend_Shutdown())
+                        {
+                            g_immediateProcessExitRequired.store(true, std::memory_order_release);
+                            StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.poisoned",
+                                L"component=backend stage=late_start_rollback dependent_cleanup_skipped=1");
+                        }
                         g_backendReady = false;
                     }
                     else

@@ -20,7 +20,7 @@ enum BackendInitIssue : uint32_t
 };
 
 bool Backend_Init();
-void Backend_Shutdown();
+[[nodiscard]] bool Backend_Shutdown();
 // Allocation-free fail-safe publication used only when the realtime worker
 // crosses its top-level exception boundary.
 void Backend_ResetPublishedStateAfterRealtimeFault() noexcept;

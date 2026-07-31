@@ -444,3 +444,46 @@
 - Production has no ordinary `TerminateThread` call.
 - Device-specific regressions and long-run soak remain `V14-12` release
   qualification; `V14-07` begins analog-host and UAP boundary hardening.
+
+## 2026-07-31 - V14-07A analog-host parent generation
+
+### Implemented
+
+- Replaced the analog-host parent's lossy `started` flag with one explicit
+  lifecycle generation and permanent restart poison after an incomplete join.
+- Snapshot bridge and supervisor now form one ownership group. Their thread
+  HANDLEs, shared mapping, events and child job are released only after a
+  confirmed group join.
+- Supervisor creation failure now requests stop and joins the already-created
+  bridge before partial-start rollback. Failed rollback retains ownership and
+  poisons restart instead of unmapping IPC beneath a live thread.
+- Final shutdown first performs a bounded graceful group wait, then terminates
+  the isolated child job and performs one bounded parent-worker retry.
+- A surviving parent worker retains all reachable resources and propagates a
+  failed result through backend and application shutdown. The process then
+  avoids dependent static/CRT teardown.
+- Added simulator-only bridge-timeout and supervisor-start-failure injections,
+  plus a static audit for generation, cleanup ordering and failure propagation.
+- Private UAP polling, ABI exports and keyboard protocol behavior were not
+  changed in this subpackage.
+
+### Validation
+
+- Analog-host generation ownership static audit: PASS.
+- All static and portable C++20 tests: PASS.
+- Full production MSVC x64 Release build: PASS, only allowlisted `LNK4099`.
+- Fresh simulator rebuild and normal common-pipeline scenario: PASS, no
+  `ERROR` trace event and no remaining process.
+- Injected supervisor-start failure: PASS with exit code 0; bridge joined and
+  IPC/event/job ownership released only after completion.
+- Injected bridge stop timeout: PASS with expected process exit code 2 after
+  bounded graceful and containment waits; ownership retained, restart blocked,
+  backend failure propagated and dependent teardown skipped.
+- Evidence is lifecycle simulation, not analog keyboard hardware verification.
+
+### Remaining V14-07 scope
+
+- `V14-07B`: analog-host worker exception/crash publication and bounded child
+  process restart/exit behavior.
+- `V14-07C`: private UAP C ABI exception barriers, RAII locks, null/state
+  validation and unload safety.

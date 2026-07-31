@@ -17,8 +17,8 @@
 | `HJ-AUD-P1-003` | P1 | Контракт `stop()` недостоверен | `S03` | Verified | generation-scoped StopResult, poison-on-failure and registry tests passed in V14-05 |
 | `HJ-AUD-P1-004` | P1 | Нет верхней границы C++-исключений в ключевых worker-потоках | `S02` | Partial | Sayo reader boundary verified locally in V14-06F; UAP workers and C ABI exports remain, while deferred native device gates stay in release qualification |
 | `HJ-AUD-P1-005` | P1 | Addressed reader закрывает HID HANDLE из другого потока при активном stack `OVERLAPPED` | `S06` | Open | overlapped cancellation/reap tests |
-| `HJ-AUD-P1-006` | P1 | Analog host допускает повторную инициализацию поверх не завершившегося поколения потоков | `S09` | Open | generation/partial-start/restart tests |
-| `HJ-AUD-P1-007` | P1 | Partial-start cleanup analog host может unmap'нуть память под живым bridge thread | `S09` | Open | generation/partial-start/restart tests |
+| `HJ-AUD-P1-006` | P1 | Analog host допускает повторную инициализацию поверх не завершившегося поколения потоков | `S09` | Verified | parent generation, bounded group timeout, retained ownership and restart-rejection gates passed in V14-07A |
+| `HJ-AUD-P1-007` | P1 | Partial-start cleanup analog host может unmap'нуть память под живым bridge thread | `S09` | Verified | injected supervisor-start failure joined bridge before IPC rollback in V14-07A |
 | `HJ-AUD-P1-008` | P1 | Потеря device-change wakeup из-за manual-reset `ResetEvent` после ожидания | `S11` | Open | startup rollback and wake sequence tests |
 | `HJ-AUD-P1-009` | P1 | Initial startup игнорирует отказ realtime и зависимых native phases | `S11` | Open | startup rollback and wake sequence tests |
 | `HJ-AUD-P1-010` | P1 | Синхронный ViGEm update находится внутри realtime worker | `S12` | Open | report equivalence + driver stall tests |
@@ -119,16 +119,29 @@ S02B.3 ограничен Addressed exception containment и не меняет p
 
 V14-06F добавил Sayo reader C++/SEH boundaries, фиксированную per-reader fault-диагностику, neutral publication, group-stop signalling и completion для normal/exceptional exit. Startup отклоняет early-exited/faulted group. Simulator C++ fault injection, повторный timeout containment, normal scenario, portable gate и production MSVC build прошли. Реального Sayo device gate нет; `HJ-AUD-P1-004` остаётся `Partial` из-за UAP/C ABI и отложенных hardware gates.
 
+## Evidence package S09 / V14-07A
+
+V14-07A ввёл единое parent-side generation для snapshot bridge и supervisor.
+Thread/IPC/event/job HANDLEs освобождаются только после confirmed group join.
+Injected supervisor-start failure join'ит уже созданный bridge до IPC rollback.
+Injected bridge timeout проходит bounded graceful и child-job phases, после
+чего сохраняет reachable ownership, poison'ит generation, запрещает restart и
+распространяет failure до process-level containment. Оба injected scenarios,
+normal simulator, portable/static gates и production MSVC build прошли.
+
+`HJ-AUD-P1-006` и `HJ-AUD-P1-007` закрыты. UAP worker exceptions, C ABI и
+unload остаются открытыми в S10/V14-07B/C.
+
 ## Правило закрытия
 
 Запись переводится в `Verified` только после выполнения acceptance criteria соответствующего пакета и сохранения test log в `docs/stability/tests/`. Один и тот же кодовый change может закрыть несколько записей, но каждая запись получает отдельное доказательство.
 
 ## Сводка
 
-- P1: 13 open, 1 implemented, 1 partial, 1 verified.
+- P1: 11 open, 1 implemented, 1 partial, 3 verified.
 - P2: 20 open, 1 verified.
 - P3: 8 open.
-- Всего: 41 open, 1 implemented, 1 partial, 2 verified.
+- Всего: 39 open, 1 implemented, 1 partial, 4 verified.
 
 ## Дополнительный риск, обнаруженный при Windows gate S02A
 

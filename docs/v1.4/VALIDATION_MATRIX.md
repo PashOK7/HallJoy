@@ -394,3 +394,41 @@ Known limitations: post-change Sayo device/reconnect and long-run gates remain
   V14-12 release qualification; V14-07 owns UAP/analog-host boundaries
 Rollback: parent commit of the V14-06F implementation commit
 ```
+
+## V14-07A evidence
+
+```text
+Package: V14-07A
+Scope: Analog-host parent generation, partial-start rollback and bounded stop
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectAnalogHostSupervisorStartFailure -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectAnalogHostBridgeStopTimeout -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+Results:
+  Analog-host generation ownership static audit: PASS
+  All static audits and portable C++20 tests: PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Normal simulator common pipeline and cooperative shutdown: PASS
+  Normal simulator ERROR trace events: 0
+  Injected supervisor-start partial rollback, expected exit 0: PASS
+  Bridge joined before IPC/event/job resources were released: PASS
+  Injected bridge stop timeout, expected exit 2: PASS
+  Two bounded parent-worker waits completed before containment: PASS
+  Thread/IPC/event/job ownership retained and restart poisoned: PASS
+  Backend failure propagated; dependent teardown skipped: PASS
+  Remaining simulator processes after every scenario: 0
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Hardware: Not required for parent lifecycle containment. Simulator evidence is
+  not analog-keyboard protocol/device verification
+Known limitations: analog-host worker exception/crash publication and private
+  UAP C ABI/lock/state/unload safety remain V14-07B/C
+Rollback: parent commit of the V14-07A implementation commit
+```

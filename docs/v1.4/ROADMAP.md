@@ -31,7 +31,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-04` | Reproducible dependencies, warning baseline, local/CI-equivalent build scripts | Verified | Pinned inputs, clean-room x64 Release, portable tests, documented warning policy |
 | `V14-05` | Truthful lifecycle registry and generation-scoped stop contract | Verified | Failure-injected start/stop/restart tests; timeout/fault poisons the generation and blocks restart |
 | `V14-06` | Cooperative lifecycle migration for realtime, logging and native protocol workers | Verified locally | Per-worker tests, no ordinary `TerminateThread`, plus unchanged protocol and mapping characterization |
-| `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Planned | Partial-start, crash, hang, unload and bounded restart tests |
+| `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | In progress | Partial-start, crash, hang, unload and bounded restart tests |
 | `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Planned | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
 | `V14-09` | Transactional persistence and writable state migration | Planned | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
 | `V14-10` | IPC and overlay security/correctness | Planned | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
@@ -185,12 +185,35 @@ Sayo protocol/device compatibility is not inferred from simulation. It remains
 an explicit device-owner gate in `V14-12`, together with the post-change
 SparkLink regression and long-run qualification.
 
-## Next package: V14-07
+## Current package: V14-07
 
 Harden the isolated analog host and private UAP boundary: generation ownership,
 partial-start rollback, bounded restart/unload and exception-safe C ABI exports.
 This package must preserve the self-contained runtime and exact ABI behavior
 verified in `V14-03`/`V14-04`.
+
+Progress:
+
+- `V14-07A` analog-host parent generation: Verified locally. The bridge and
+  supervisor are one lifecycle generation; a confirmed group join is required
+  before their HANDLEs, IPC mapping/events or child job are released.
+- Supervisor partial-start failure now requests stop and joins the already
+  created bridge before rollback. A failed join retains all reachable resources,
+  poisons the generation and rejects restart.
+- Final shutdown has bounded graceful and child-job containment phases. If a
+  parent worker still does not join, backend shutdown reports failure and the
+  application selects process-level containment without dependent teardown.
+- Simulator-only bridge-timeout and supervisor-start-failure scenarios pass,
+  as do the normal simulator, all static/portable gates and the production MSVC
+  build. These tests prove lifecycle containment, not keyboard compatibility.
+
+Remaining:
+
+- `V14-07B`: analog-host worker exception/crash publication and bounded child
+  process restart/exit behavior.
+- `V14-07C`: private UAP C ABI exception barriers, RAII locking, argument and
+  initialized-state validation, and unload without an unbounded join under the
+  global devices mutex.
 
 ## Release definition
 

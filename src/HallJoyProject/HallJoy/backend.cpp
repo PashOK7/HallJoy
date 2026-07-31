@@ -2629,7 +2629,12 @@ bool Backend_Init()
         Sayo_ResetKeyState();
         g_wootingReady.store(false, std::memory_order_release);
         Vigem_Destroy();
-        wooting_analog_uninitialise();
+        const WootingAnalogResult analogStop = wooting_analog_uninitialise();
+        if (analogStop != WootingAnalogResult_Ok)
+        {
+            StabilityTrace_WriteCritical(L"ERROR", L"backend", L"init.rollback_incomplete",
+                L"component=analog-host result=%d", static_cast<int>(analogStop));
+        }
         return false;
     }
 
@@ -2652,7 +2657,7 @@ bool Backend_Init()
     return true;
 }
 
-void Backend_Shutdown()
+bool Backend_Shutdown()
 {
     StabilityTrace_Write(L"INFO", L"backend", L"shutdown.begin");
     DebugLog_Write(L"[backend] shutdown");
@@ -2696,11 +2701,15 @@ void Backend_Shutdown()
     Vigem_Destroy();
     DebugLog_Write(L"[backend.shutdown] Vigem_Destroy done");
     DebugLog_Write(L"[backend.shutdown] analog host stop begin");
-    wooting_analog_uninitialise();
-    DebugLog_Write(L"[backend.shutdown] analog host stop done");
-    StabilityTrace_Write(nativeStopped ? L"INFO" : L"ERROR", L"backend", L"shutdown.end",
-        L"native_joined=%d", nativeStopped ? 1 : 0);
+    const WootingAnalogResult analogStop = wooting_analog_uninitialise();
+    const bool analogHostStopped = analogStop == WootingAnalogResult_Ok;
+    DebugLog_Write(L"[backend.shutdown] analog host stop done joined=%d result=%d",
+        analogHostStopped ? 1 : 0, static_cast<int>(analogStop));
+    StabilityTrace_Write(nativeStopped && analogHostStopped ? L"INFO" : L"ERROR",
+        L"backend", L"shutdown.end", L"native_joined=%d analog_host_joined=%d",
+        nativeStopped ? 1 : 0, analogHostStopped ? 1 : 0);
     DebugLog_Write(L"[backend.shutdown] complete");
+    return nativeStopped && analogHostStopped;
 }
 
 

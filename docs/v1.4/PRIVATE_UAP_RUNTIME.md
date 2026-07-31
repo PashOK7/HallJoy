@@ -32,6 +32,20 @@ loads. Diagnostics identify the embedded runtime condition and the selected
 path. Native protocol backends may continue independently when their hardware
 passes capability validation.
 
+## Parent generation containment
+
+The main process owns the analog-host snapshot bridge, supervisor, IPC mapping,
+events and child job as one lifecycle generation. It releases those resources
+only after both parent workers have joined. Partial startup follows the same
+rule: if the supervisor cannot start, the bridge is stopped and joined before
+IPC rollback.
+
+Final shutdown uses bounded graceful and child-job containment phases. Failure
+to join a parent worker retains reachable resources, blocks reinitialization
+and propagates failure through backend/application shutdown so static state is
+not destroyed beneath a live worker. This V14-07A guarantee does not yet claim
+exception-safe UAP exports or bounded plugin unload; those remain V14-07B/C.
+
 ## Verification
 
 The development verification build accepts

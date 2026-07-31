@@ -193,6 +193,8 @@ Sayo shutdown и exception containment `Verified` локально в V14-06E/F:
 
 Ввести immutable `ClientGeneration`, shared ownership до confirmed completion, запрет reinitialize после timeout, корректный partial-start rollback. Старое поколение не читает mutable поля нового.
 
+Статус v1.4: `Verified` локально в V14-07A для parent-side ownership. Snapshot bridge и supervisor образуют одно generation; thread/IPC/event/job HANDLE освобождаются только после общего confirmed join. Partial-start supervisor failure сначала останавливает и join'ит уже созданный bridge. После двух ограниченных shutdown-фаз незавершённый join сохраняет ресурсы, переводит generation в `Poisoned`, запрещает restart и распространяет failure до process-level containment. Simulator partial-start/timeout scenarios, normal scenario, portable/static gates и production MSVC build прошли. UAP worker/C ABI/unload относятся к S10 и этим статусом не закрываются.
+
 ### S10 — UAP plugin ABI and unload safety
 
 - exception barrier на каждом export;

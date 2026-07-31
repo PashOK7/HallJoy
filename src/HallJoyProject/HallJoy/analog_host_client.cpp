@@ -21,6 +21,8 @@
 #include "debug_log.h"
 #include "embedded_analog_stack.h"
 #include "realtime_loop.h"
+#include "stability_trace.h"
+#include "worker_lifecycle.h"
 #include "windows_command_line.h"
 
 #pragma comment(lib, "dbghelp.lib")
@@ -62,7 +64,8 @@ namespace
         std::wstring snapshotEventName;
         std::wstring privatePluginPath;
         std::atomic<bool> stopping{ false };
-        std::atomic<bool> started{ false };
+        std::atomic<bool> restartBlocked{ false };
+        halljoy::lifecycle::WorkerLifecycle lifecycle;
     };
 
     ClientState g_client;
@@ -1385,6 +1388,15 @@ namespace
 
     DWORD WINAPI SnapshotBridgeThreadProc(LPVOID)
     {
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        const wchar_t* commandLine = GetCommandLineW();
+        if (commandLine && wcsstr(commandLine, L"--halljoy-test-analog-host-bridge-stop-timeout"))
+        {
+            StabilityTrace_Write(L"WARN", L"analog-host", L"test.bridge_stop_timeout.injected",
+                L"simulator_only=1");
+            Sleep(INFINITE);
+        }
+#endif
         HANDLE waits[2] = { g_client.stopEvent, g_client.snapshotEvent };
         while (!g_client.stopping.load(std::memory_order_acquire))
         {
@@ -1399,22 +1411,90 @@ namespace
         return 0;
     }
 
+    bool ClientOwnsResourcesLocked() noexcept
+    {
+        return g_client.mapping || g_client.shared || g_client.stopEvent ||
+            g_client.snapshotEvent || g_client.snapshotBridgeThread ||
+            g_client.supervisorThread || g_client.supervisorReadyEvent || g_client.job;
+    }
+
+    void CloseClientResourcesLocked() noexcept
+    {
+        if (g_client.snapshotBridgeThread) CloseHandle(g_client.snapshotBridgeThread);
+        if (g_client.supervisorThread) CloseHandle(g_client.supervisorThread);
+        if (g_client.shared) UnmapViewOfFile(g_client.shared);
+        if (g_client.mapping) CloseHandle(g_client.mapping);
+        if (g_client.stopEvent) CloseHandle(g_client.stopEvent);
+        if (g_client.snapshotEvent) CloseHandle(g_client.snapshotEvent);
+        if (g_client.supervisorReadyEvent) CloseHandle(g_client.supervisorReadyEvent);
+        if (g_client.job) CloseHandle(g_client.job);
+        g_client.snapshotBridgeThread = nullptr;
+        g_client.supervisorThread = nullptr;
+        g_client.job = nullptr;
+        g_client.shared = nullptr;
+        g_client.mapping = nullptr;
+        g_client.stopEvent = nullptr;
+        g_client.snapshotEvent = nullptr;
+        g_client.supervisorReadyEvent = nullptr;
+    }
+
+    bool WaitForClientWorkers(HANDLE bridge, HANDLE supervisor, DWORD timeoutMs, DWORD* waitResult) noexcept
+    {
+        HANDLE workers[2]{};
+        DWORD count = 0;
+        if (bridge) workers[count++] = bridge;
+        if (supervisor) workers[count++] = supervisor;
+        if (count == 0)
+        {
+            if (waitResult) *waitResult = WAIT_OBJECT_0;
+            return true;
+        }
+        const DWORD result = WaitForMultipleObjects(count, workers, TRUE, timeoutMs);
+        if (waitResult) *waitResult = result;
+        return result >= WAIT_OBJECT_0 && result < WAIT_OBJECT_0 + count;
+    }
+
     bool EnsureClientResources()
     {
         AcquireSRWLockExclusive(&g_client.lock);
-        if (g_client.mapping && g_client.shared && g_client.stopEvent && g_client.snapshotEvent &&
+        if (g_client.restartBlocked.load(std::memory_order_acquire))
+        {
+            ReleaseSRWLockExclusive(&g_client.lock);
+            StabilityTrace_WriteCritical(L"ERROR", L"analog-host", L"start.rejected",
+                L"restart_blocked=1");
+            return false;
+        }
+        if (g_client.lifecycle.State() == halljoy::lifecycle::WorkerState::Running &&
+            g_client.mapping && g_client.shared && g_client.stopEvent && g_client.snapshotEvent &&
             g_client.snapshotBridgeThread && g_client.supervisorThread)
         {
             ReleaseSRWLockExclusive(&g_client.lock);
             return true;
         }
+        if (ClientOwnsResourcesLocked() || !g_client.lifecycle.RestartSafe())
+        {
+            const auto state = g_client.lifecycle.State();
+            ReleaseSRWLockExclusive(&g_client.lock);
+            StabilityTrace_WriteCritical(L"ERROR", L"analog-host", L"start.rejected",
+                L"state=%u resources_owned=1", static_cast<unsigned>(state));
+            return false;
+        }
+
+        const auto start = g_client.lifecycle.BeginStart();
+        if (start.status != halljoy::lifecycle::StartStatus::Starting)
+        {
+            ReleaseSRWLockExclusive(&g_client.lock);
+            return false;
+        }
 
         g_client.privatePluginPath = EmbeddedAnalogStack_PrivatePluginPath();
         if (g_client.privatePluginPath.empty())
         {
+            const DWORD error = EmbeddedAnalogStack_LastError();
+            (void)g_client.lifecycle.FailStartBeforeWorker(start.generation, error);
             ReleaseSRWLockExclusive(&g_client.lock);
             DebugLog_Write(L"[analog.host] private UAP path is unavailable err=%lu",
-                EmbeddedAnalogStack_LastError());
+                error);
             return false;
         }
 
@@ -1450,18 +1530,8 @@ namespace
         if (!g_client.mapping || !g_client.shared || !g_client.stopEvent || !g_client.snapshotEvent || !g_client.supervisorReadyEvent)
         {
             const DWORD error = GetLastError();
-            if (g_client.shared) UnmapViewOfFile(g_client.shared);
-            if (g_client.mapping) CloseHandle(g_client.mapping);
-            if (g_client.stopEvent) CloseHandle(g_client.stopEvent);
-            if (g_client.snapshotEvent) CloseHandle(g_client.snapshotEvent);
-            if (g_client.supervisorReadyEvent) CloseHandle(g_client.supervisorReadyEvent);
-            if (g_client.job) CloseHandle(g_client.job);
-            g_client.job = nullptr;
-            g_client.mapping = nullptr;
-            g_client.shared = nullptr;
-            g_client.stopEvent = nullptr;
-            g_client.snapshotEvent = nullptr;
-            g_client.supervisorReadyEvent = nullptr;
+            CloseClientResourcesLocked();
+            (void)g_client.lifecycle.FailStartBeforeWorker(start.generation, error);
             ReleaseSRWLockExclusive(&g_client.lock);
             DebugLog_Write(L"[analog.host] IPC creation failed err=%lu", error);
             return false;
@@ -1485,50 +1555,79 @@ namespace
         if (!g_client.snapshotBridgeThread)
         {
             const DWORD error = GetLastError();
-            UnmapViewOfFile(g_client.shared);
-            CloseHandle(g_client.mapping);
-            CloseHandle(g_client.stopEvent);
-            CloseHandle(g_client.snapshotEvent);
-            CloseHandle(g_client.supervisorReadyEvent);
-            if (g_client.job) CloseHandle(g_client.job);
-            g_client.job = nullptr;
-            g_client.mapping = nullptr;
-            g_client.shared = nullptr;
-            g_client.stopEvent = nullptr;
-            g_client.snapshotEvent = nullptr;
-            g_client.supervisorReadyEvent = nullptr;
+            CloseClientResourcesLocked();
+            (void)g_client.lifecycle.FailStartBeforeWorker(start.generation, error);
             ReleaseSRWLockExclusive(&g_client.lock);
             DebugLog_Write(L"[analog.host] snapshot bridge thread creation failed err=%lu", error);
             return false;
         }
-        g_client.supervisorThread = CreateThread(nullptr, 0, SupervisorThreadProc, nullptr, 0, nullptr);
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        const bool injectSupervisorStartFailure =
+            wcsstr(GetCommandLineW(), L"--halljoy-test-analog-host-supervisor-start-failure") != nullptr;
+#else
+        constexpr bool injectSupervisorStartFailure = false;
+#endif
+        g_client.supervisorThread = injectSupervisorStartFailure
+            ? nullptr
+            : CreateThread(nullptr, 0, SupervisorThreadProc, nullptr, 0, nullptr);
         if (!g_client.supervisorThread)
         {
-            const DWORD error = GetLastError();
+            const DWORD error = injectSupervisorStartFailure ? ERROR_NOT_ENOUGH_MEMORY : GetLastError();
+            const auto requested = g_client.lifecycle.RequestStop(start.generation);
+            g_client.stopping.store(true, std::memory_order_release);
             SetEvent(g_client.stopEvent);
-            WaitForSingleObject(g_client.snapshotBridgeThread, 2000);
-            CloseHandle(g_client.snapshotBridgeThread);
-            g_client.snapshotBridgeThread = nullptr;
-            UnmapViewOfFile(g_client.shared);
-            CloseHandle(g_client.mapping);
-            CloseHandle(g_client.stopEvent);
-            CloseHandle(g_client.snapshotEvent);
-            CloseHandle(g_client.supervisorReadyEvent);
-            if (g_client.job) CloseHandle(g_client.job);
-            g_client.job = nullptr;
-            g_client.mapping = nullptr;
-            g_client.shared = nullptr;
-            g_client.stopEvent = nullptr;
-            g_client.snapshotEvent = nullptr;
-            g_client.supervisorReadyEvent = nullptr;
+            SetEvent(g_client.snapshotEvent);
+            const HANDLE bridge = g_client.snapshotBridgeThread;
+            ReleaseSRWLockExclusive(&g_client.lock);
+
+            DWORD waitResult = WAIT_FAILED;
+            const bool joined = requested.status == halljoy::lifecycle::StopStatus::StopRequested &&
+                WaitForClientWorkers(bridge, nullptr, 3000, &waitResult);
+            const DWORD waitError = waitResult == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT;
+
+            AcquireSRWLockExclusive(&g_client.lock);
+            if (joined)
+            {
+                CloseClientResourcesLocked();
+                (void)g_client.lifecycle.ConfirmJoined(start.generation);
+                StabilityTrace_Write(L"INFO", L"analog-host", L"partial_start.rollback",
+                    L"stage=supervisor_create joined=1 resources_released=1 injected=%d",
+                    injectSupervisorStartFailure ? 1 : 0);
+            }
+            else
+            {
+                g_client.restartBlocked.store(true, std::memory_order_release);
+                (void)g_client.lifecycle.MarkPoisoned(start.generation,
+                    halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+                    waitResult == WAIT_TIMEOUT
+                        ? halljoy::lifecycle::LifecycleErrorCode::StopTimedOut
+                        : halljoy::lifecycle::LifecycleErrorCode::PrimitiveFailed,
+                    waitError);
+                StabilityTrace_WriteCritical(L"ERROR", L"analog-host", L"partial_start.poisoned",
+                    L"stage=supervisor_create wait=%lu bridge_handle_retained=1 ipc_retained=1 restart_blocked=1",
+                    static_cast<unsigned long>(waitResult));
+            }
             ReleaseSRWLockExclusive(&g_client.lock);
             DebugLog_Write(L"[analog.host] supervisor thread creation failed err=%lu", error);
             return false;
         }
-        g_client.started.store(true, std::memory_order_release);
+        const auto running = g_client.lifecycle.ConfirmRunning(start.generation);
+        if (!running.IsRunning())
+        {
+            g_client.restartBlocked.store(true, std::memory_order_release);
+            g_client.stopping.store(true, std::memory_order_release);
+            SetEvent(g_client.stopEvent);
+            SetEvent(g_client.snapshotEvent);
+            (void)g_client.lifecycle.MarkPoisoned(start.generation,
+                halljoy::lifecycle::LifecycleOperation::ConfirmRunning,
+                halljoy::lifecycle::LifecycleErrorCode::InvalidTransition);
+            ReleaseSRWLockExclusive(&g_client.lock);
+            return false;
+        }
+        const HANDLE supervisorReadyEvent = g_client.supervisorReadyEvent;
         ReleaseSRWLockExclusive(&g_client.lock);
 
-        WaitForSingleObject(g_client.supervisorReadyEvent, 2000);
+        WaitForSingleObject(supervisorReadyEvent, 2000);
         DebugLog_Write(L"[analog.host] isolation client started map=%s snapshot_event=%s", g_client.mappingName.c_str(), g_client.snapshotEventName.c_str());
         return true;
     }
@@ -1688,85 +1787,85 @@ bool AnalogHostClient_GetTelemetry(AnalogHostTelemetry* out)
 WootingAnalogResult AnalogHostClient_Uninitialise()
 {
     AcquireSRWLockExclusive(&g_client.lock);
-    if (!g_client.started.load(std::memory_order_acquire))
+    const auto lifecycleState = g_client.lifecycle.State();
+    if (!ClientOwnsResourcesLocked() &&
+        (lifecycleState == halljoy::lifecycle::WorkerState::Stopped ||
+         lifecycleState == halljoy::lifecycle::WorkerState::Joined))
     {
         ReleaseSRWLockExclusive(&g_client.lock);
         return WootingAnalogResult_Ok;
     }
-    HostLog(L"client shutdown begin");
-    g_client.stopping.store(true, std::memory_order_release);
-    if (g_client.stopEvent) SetEvent(g_client.stopEvent);
-    HANDLE supervisor = g_client.supervisorThread;
-    HANDLE snapshotBridge = g_client.snapshotBridgeThread;
-    g_client.supervisorThread = nullptr;
-    g_client.snapshotBridgeThread = nullptr;
-    ReleaseSRWLockExclusive(&g_client.lock);
-
-    // Both worker threads are cooperative. Never terminate them while they may
-    // own an SRW lock or be touching the shared mapping: that was a plausible
-    // source of the rare process-left-behind shutdown failure.
-    bool cleanThreadShutdown = true;
-    if (snapshotBridge)
+    if (lifecycleState == halljoy::lifecycle::WorkerState::Poisoned)
     {
         if (g_client.stopEvent) SetEvent(g_client.stopEvent);
         if (g_client.snapshotEvent) SetEvent(g_client.snapshotEvent);
-        const DWORD waitResult = WaitForSingleObject(snapshotBridge, 3000);
-        if (waitResult != WAIT_OBJECT_0)
-        {
-            cleanThreadShutdown = false;
-            DebugLog_Write(L"[analog.host] snapshot bridge did not stop in 3 s result=0x%08lX err=%lu; leaving resources for process teardown",
-                waitResult, GetLastError());
-        }
-        CloseHandle(snapshotBridge);
+        ReleaseSRWLockExclusive(&g_client.lock);
+        return WootingAnalogResult_Failure;
     }
-    if (supervisor)
+
+    const auto generation = g_client.lifecycle.Generation();
+    const auto requested = g_client.lifecycle.RequestStop(generation);
+    if (requested.status != halljoy::lifecycle::StopStatus::StopRequested)
     {
-        DWORD waitResult = WaitForSingleObject(supervisor, 6000);
-        if (waitResult != WAIT_OBJECT_0)
-        {
-            DebugLog_Write(L"[analog.host] supervisor stop wait result=0x%08lX err=%lu; terminating child job and retrying",
-                waitResult, GetLastError());
-            if (g_client.stopEvent) SetEvent(g_client.stopEvent);
-            if (g_client.job) TerminateJobObject(g_client.job, 0xE051484Fu);
-            waitResult = WaitForSingleObject(supervisor, 4000);
-        }
-        if (waitResult != WAIT_OBJECT_0)
-        {
-            cleanThreadShutdown = false;
-            DebugLog_Write(L"[analog.host] supervisor did not stop after bounded shutdown; leaving resources for process teardown");
-        }
-        CloseHandle(supervisor);
+        g_client.restartBlocked.store(true, std::memory_order_release);
+        ReleaseSRWLockExclusive(&g_client.lock);
+        return WootingAnalogResult_Failure;
     }
+
+    HostLog(L"client shutdown begin");
+    g_client.stopping.store(true, std::memory_order_release);
+    if (g_client.stopEvent) SetEvent(g_client.stopEvent);
+    if (g_client.snapshotEvent) SetEvent(g_client.snapshotEvent);
+    const HANDLE stopEvent = g_client.stopEvent;
+    const HANDLE snapshotEvent = g_client.snapshotEvent;
+    const HANDLE supervisor = g_client.supervisorThread;
+    const HANDLE snapshotBridge = g_client.snapshotBridgeThread;
+    const HANDLE job = g_client.job;
+    ReleaseSRWLockExclusive(&g_client.lock);
+
+    DWORD waitResult = WAIT_FAILED;
+    bool cleanThreadShutdown = WaitForClientWorkers(snapshotBridge, supervisor, 6000, &waitResult);
+    if (!cleanThreadShutdown)
+    {
+        const DWORD waitError = waitResult == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT;
+        DebugLog_Write(L"[analog.host] worker group stop wait result=0x%08lX err=%lu; terminating child job and retrying",
+            waitResult, waitError);
+        if (stopEvent) SetEvent(stopEvent);
+        if (snapshotEvent) SetEvent(snapshotEvent);
+        if (job) TerminateJobObject(job, 0xE051484Fu);
+        cleanThreadShutdown = WaitForClientWorkers(snapshotBridge, supervisor, 4000, &waitResult);
+    }
+    const DWORD waitError = waitResult == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT;
 
     AcquireSRWLockExclusive(&g_client.lock);
     if (!cleanThreadShutdown)
     {
-        // Do not unmap memory or close synchronization handles underneath a
-        // still-running shutdown thread. The application can continue exiting;
-        // Windows reclaims these process-owned resources without blocking.
-        g_client.started.store(false, std::memory_order_release);
+        g_client.restartBlocked.store(true, std::memory_order_release);
+        const auto poisoned = g_client.lifecycle.MarkPoisoned(generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            waitResult == WAIT_TIMEOUT
+                ? halljoy::lifecycle::LifecycleErrorCode::StopTimedOut
+                : halljoy::lifecycle::LifecycleErrorCode::PrimitiveFailed,
+            waitError);
         ReleaseSRWLockExclusive(&g_client.lock);
-        DebugLog_Write(L"[analog.host] isolation client stop bounded with deferred OS cleanup");
-        HostLog(L"client shutdown bounded; deferred process cleanup");
-        return WootingAnalogResult_Ok;
+        StabilityTrace_WriteCritical(L"ERROR", L"analog-host", L"stop.timeout",
+            L"generation=%llu wait=%lu win32=%lu bridge_handle_retained=%d supervisor_handle_retained=%d ipc_retained=1 job_retained=%d restart_blocked=1",
+            static_cast<unsigned long long>(poisoned.generation.Value()),
+            static_cast<unsigned long>(waitResult), static_cast<unsigned long>(waitError),
+            snapshotBridge ? 1 : 0, supervisor ? 1 : 0, job ? 1 : 0);
+        DebugLog_Write(L"[analog.host] parent worker group did not join; resources retained and restart blocked");
+        HostLog(L"client shutdown poisoned; deferred process cleanup");
+        return WootingAnalogResult_Failure;
     }
-    if (g_client.shared) UnmapViewOfFile(g_client.shared);
-    if (g_client.mapping) CloseHandle(g_client.mapping);
-    if (g_client.stopEvent) CloseHandle(g_client.stopEvent);
-    if (g_client.snapshotEvent) CloseHandle(g_client.snapshotEvent);
-    if (g_client.supervisorReadyEvent) CloseHandle(g_client.supervisorReadyEvent);
-    if (g_client.job) CloseHandle(g_client.job);
-    g_client.job = nullptr;
-    g_client.shared = nullptr;
-    g_client.mapping = nullptr;
-    g_client.stopEvent = nullptr;
-    g_client.snapshotEvent = nullptr;
-    g_client.supervisorReadyEvent = nullptr;
-    g_client.started.store(false, std::memory_order_release);
+    CloseClientResourcesLocked();
+    const auto joined = g_client.lifecycle.ConfirmJoined(generation);
     ReleaseSRWLockExclusive(&g_client.lock);
+    StabilityTrace_Write(L"INFO", L"analog-host", L"stop.joined",
+        L"generation=%llu workers=2 resources_released=1",
+        static_cast<unsigned long long>(joined.generation.Value()));
     DebugLog_Write(L"[analog.host] isolation client stopped");
     HostLog(L"client shutdown complete");
-    return WootingAnalogResult_Ok;
+    return joined.RestartSafe() ? WootingAnalogResult_Ok : WootingAnalogResult_Failure;
 }
 
 WootingAnalogResult AnalogHostClient_SetKeycodeMode(WootingAnalog_KeycodeType mode)

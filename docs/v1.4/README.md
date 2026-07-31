@@ -10,7 +10,8 @@ version or release status.
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
 - Completed package: `V14-06` cooperative per-worker lifecycle migration
-- Next package: `V14-07` analog host and UAP boundary hardening
+- Current package: `V14-07` analog host and UAP boundary hardening
+- Current subpackage: `V14-07A` parent generation safety, Verified locally
 - GitHub publication: not started
 - Release status: not release-ready
 

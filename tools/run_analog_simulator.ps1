@@ -9,6 +9,8 @@ param(
     [switch]$InjectSparkStopTimeout,
     [switch]$InjectSayoStopTimeout,
     [switch]$InjectSayoReaderCppFault,
+    [switch]$InjectAnalogHostBridgeStopTimeout,
+    [switch]$InjectAnalogHostSupervisorStartFailure,
     [ValidateRange(7, 120)]
     [int]$RunSeconds = 8
 )
@@ -22,7 +24,9 @@ $injectionCount = @(
     $InjectOverlayStopTimeout.IsPresent,
     $InjectSparkStopTimeout.IsPresent,
     $InjectSayoStopTimeout.IsPresent,
-    $InjectSayoReaderCppFault.IsPresent
+    $InjectSayoReaderCppFault.IsPresent,
+    $InjectAnalogHostBridgeStopTimeout.IsPresent,
+    $InjectAnalogHostSupervisorStartFailure.IsPresent
 ).Where({ $_ }).Count
 if ($injectionCount -gt 1) {
     throw 'Select only one fault-injection scenario.'
@@ -93,6 +97,12 @@ if ($InjectSayoStopTimeout) {
 if ($InjectSayoReaderCppFault) {
     $arguments += '--halljoy-test-sayo-reader-cpp-fault'
 }
+if ($InjectAnalogHostBridgeStopTimeout) {
+    $arguments += '--halljoy-test-analog-host-bridge-stop-timeout'
+}
+if ($InjectAnalogHostSupervisorStartFailure) {
+    $arguments += '--halljoy-test-analog-host-supervisor-start-failure'
+}
 if ($StartOverlay) {
     $arguments += @('--overlay-server', '--port', '18765')
 }
@@ -119,9 +129,10 @@ try {
     if (-not $process.CloseMainWindow()) {
         throw 'Simulator main window did not accept a graceful close request.'
     }
-    if (-not $process.WaitForExit(10000)) {
+    $processExitTimeoutMs = if ($InjectAnalogHostBridgeStopTimeout) { 15000 } else { 10000 }
+    if (-not $process.WaitForExit($processExitTimeoutMs)) {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        throw 'Simulator did not exit within 10 seconds after graceful close.'
+        throw "Simulator did not exit within $processExitTimeoutMs ms after graceful close."
     }
 }
 finally {
@@ -150,7 +161,13 @@ if ($InjectSayoStopTimeout -and $process.ExitCode -ne 2) {
 if ($InjectSayoReaderCppFault -and $process.ExitCode -ne 0) {
     throw "Sayo reader C++ fault simulator exited with code $($process.ExitCode), expected 0."
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and $process.ExitCode -ne 0) {
+if ($InjectAnalogHostBridgeStopTimeout -and $process.ExitCode -ne 2) {
+    throw "Analog-host bridge-timeout simulator exited with code $($process.ExitCode), expected 2."
+}
+if ($InjectAnalogHostSupervisorStartFailure -and $process.ExitCode -ne 0) {
+    throw "Analog-host partial-start simulator exited with code $($process.ExitCode), expected 0."
+}
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and -not $InjectAnalogHostBridgeStopTimeout -and -not $InjectAnalogHostSupervisorStartFailure -and $process.ExitCode -ne 0) {
     throw "Simulator exited with code $($process.ExitCode)."
 }
 if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
@@ -205,6 +222,18 @@ $required = if ($InjectRealtimeStopTimeout) { @(
     '[component=sayo][event=worker.exit] reader=0 fault_kind=1 live_readers=0',
     '[component=sayo][event=start.failed] stage=reader_early_exit',
     '[component=backend][event=shutdown.end]'
+) } elseif ($InjectAnalogHostBridgeStopTimeout) { @(
+    '[component=analog-host][event=test.bridge_stop_timeout.injected] simulator_only=1',
+    '[component=analog-host][event=stop.timeout]',
+    'bridge_handle_retained=1 supervisor_handle_retained=1 ipc_retained=1',
+    'restart_blocked=1',
+    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=0',
+    '[component=app][event=shutdown.poisoned] component=backend',
+    '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
+) } elseif ($InjectAnalogHostSupervisorStartFailure) { @(
+    '[component=analog-host][event=partial_start.rollback] stage=supervisor_create joined=1 resources_released=1 injected=1',
+    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
+    '[component=main][event=session.end] exit_code=0'
 ) } else { @(
     '[component=analog-simulator][event=start]',
     'name=w-ramp',
@@ -245,7 +274,7 @@ if ($ForceUserUapRuntime -and -not $traceText.Contains('[component=embedded-uap]
 if ($missing.Count -ne 0) {
     throw "Simulator trace is incomplete. Missing: $($missing -join ', ')"
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and $traceText -match '\[level=ERROR\]') {
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and -not $InjectAnalogHostBridgeStopTimeout -and -not $InjectAnalogHostSupervisorStartFailure -and $traceText -match '\[level=ERROR\]') {
     throw 'Simulator trace contains an ERROR event.'
 }
 
@@ -271,13 +300,17 @@ if ($InjectRealtimeStopTimeout) {
     Write-Host 'HallJoy Sayo timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectSayoReaderCppFault) {
     Write-Host 'HallJoy Sayo reader C++ fault containment scenario: PASS' -ForegroundColor Green
+} elseif ($InjectAnalogHostBridgeStopTimeout) {
+    Write-Host 'HallJoy analog-host bridge timeout containment scenario: PASS' -ForegroundColor Green
+} elseif ($InjectAnalogHostSupervisorStartFailure) {
+    Write-Host 'HallJoy analog-host partial-start rollback scenario: PASS' -ForegroundColor Green
 } elseif ($StartOverlay) {
     Write-Host 'HallJoy overlay HTTP and cooperative shutdown scenario: PASS' -ForegroundColor Green
 } else {
     Write-Host 'HallJoy analog simulator scenario: PASS' -ForegroundColor Green
 }
 Write-Host "Trace: $trace"
-if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout -or $InjectOverlayStopTimeout -or $InjectSparkStopTimeout -or $InjectSayoStopTimeout -or $InjectSayoReaderCppFault) {
+if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout -or $InjectOverlayStopTimeout -or $InjectSparkStopTimeout -or $InjectSayoStopTimeout -or $InjectSayoReaderCppFault -or $InjectAnalogHostBridgeStopTimeout -or $InjectAnalogHostSupervisorStartFailure) {
     Write-Host 'Evidence classification: simulator lifecycle fault injection; NOT hardware verification.'
 } else {
     Write-Host 'Evidence classification: common pipeline simulation; NOT hardware verification.'

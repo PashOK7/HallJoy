@@ -15,6 +15,19 @@ maintained in `ROADMAP.md`.
 | `HJ-V14-P1-001` | P1 | Private UAP extraction beside the EXE fails in protected locations | `V14-03` | Verified | forced protected-directory fallback, atomic repair, exact hash and child-load gates passed |
 | `HJ-V14-P1-002` | P1 | Legacy recovery recommends a system Wooting SDK that the embedded architecture does not use | `V14-03` | Verified | installer path removed; static diagnostic truthfulness gate passed |
 | `HJ-V14-P1-003` | P1 | Imported product/build strings expose the wrong public version | `V14-01` | Verified | version-resource and active-document scan passed |
+| `HJ-V14-P1-004` | P1 | SparkLink hotplug watchdog can reconnect a worker after shutdown has already stopped the current generation | `V14-06D.1` | Open | Irok MG75 Max trace must show balanced Spark worker generations, no reconnect after stop, held-key unplug/reconnect and clean shutdown |
+
+### Evidence for HJ-V14-P1-004
+
+The 2026-07-31 Irok MG75 Max hardware trace proved native SparkLink discovery
+and polling on `VID 1CA6`, `PID 0529`, usage page `FFB0`. The observed worker
+completed 77,061 successful route queries with zero route failures. No changed
+analog row was observed, so analog-depth input remains unverified for this run.
+
+During shutdown, the first Spark worker exited and was neutralized, but the
+hotplug watchdog then reconnected and started a second generation. The analyzer
+reported one worker generation without a matching exit. The risk remains Open;
+`V14-06D.1` must close the shutdown/reconnect race before V14-07C proceeds.
 | `HJ-V14-P2-001` | P2 | v1.3 self-contained runtime improvements can be lost during architectural migration | `V14-03` | Verified | checkpoint `b3fefce` compared; embedded self-contained behavior retained in isolated ABI1 architecture |
 | `HJ-V14-P2-002` | P2 | Imported historical validation may be mistaken for validation of later v1.4 code | all | Open | per-package evidence enforcement |
 | `HJ-V14-P2-003` | P2 | Simulation could be mistaken for real analog-protocol evidence or leak into production | `V14-02` | Verified | sources excluded from production compile; compile/runtime gates and evidence labels passed |

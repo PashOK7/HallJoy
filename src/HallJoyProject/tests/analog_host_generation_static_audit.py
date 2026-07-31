@@ -40,6 +40,14 @@ def main() -> int:
     stop = function_body(host, "WootingAnalogResult AnalogHostClient_Uninitialise()")
     wait_group = function_body(host, "bool WaitForClientWorkers(")
     cleanup = function_body(host, "void CloseClientResourcesLocked() noexcept")
+    supervisor_impl = function_body(host, "DWORD SupervisorThreadProcImpl()")
+    supervisor_cpp = function_body(host, "DWORD SupervisorThreadProcCpp() noexcept")
+    supervisor_entry = function_body(host, "DWORD WINAPI SupervisorThreadProc(LPVOID) noexcept")
+    bridge_cpp = function_body(host, "DWORD SnapshotBridgeThreadProcCpp() noexcept")
+    bridge_entry = function_body(host, "DWORD WINAPI SnapshotBridgeThreadProc(LPVOID) noexcept")
+    child_impl = function_body(host, "int RunHostImpl(")
+    child_cpp = function_body(host, "int RunHostCpp(")
+    child_entry = function_body(host, "int RunHost(DWORD ownerPid")
     backend_stop = function_body(backend, "bool Backend_Shutdown()")
 
     require('#include "worker_lifecycle.h"' in host and
@@ -72,6 +80,32 @@ def main() -> int:
             "one owner-side cleanup releases thread and IPC resources")
     require("g_client.started" not in host,
             "lossy started boolean no longer controls generation replacement")
+    require('#include "worker_exception_barrier.h"' in host and
+            "RunWorkerEntryBarrier" in supervisor_cpp and "SupervisorThreadProcImpl" in supervisor_cpp,
+            "supervisor has an allocation-free C++ exception boundary")
+    require("__try" in supervisor_entry and "__except" in supervisor_entry and
+            "PublishParentWorkerFault" in supervisor_entry,
+            "supervisor OS entry has a fail-safe SEH boundary")
+    require("RunWorkerEntryBarrier" in bridge_cpp and "SnapshotBridgeThreadProcImpl" in bridge_cpp and
+            "__try" in bridge_entry and "__except" in bridge_entry,
+            "snapshot bridge has matching C++ and SEH boundaries")
+    require("RunWorkerEntryBarrier" in child_cpp and "RunHostImpl" in child_cpp and
+            "__try" in child_entry and "__except" in child_entry,
+            "isolated child host publishes both C++ and SEH faults")
+    require("diagnosticCppFaultAfterPolls" in child_impl and
+            "simulated child-host C++ fault" in child_impl,
+            "child C++ fault injection is deterministic and simulator-controlled")
+    require("AssignProcessToJobObject" in supervisor_impl and
+            "child.job_assign_failed" in supervisor_impl and
+            "restartBlocked.store(true" in supervisor_impl,
+            "job assignment failure blocks an uncontained child restart")
+    require("child.reap_timeout" in supervisor_impl and
+            "process_handle_retained=1 restart_blocked=1" in supervisor_impl and
+            "child.reaped_after_timeout" in supervisor_impl,
+            "unconfirmed child exit retains ownership and forbids overlap")
+    require(supervisor_impl.find("CloseHandle(pi.hProcess)") >
+            supervisor_impl.find("child.reaped_after_timeout"),
+            "child process handle closes only after confirmed completion")
     require("[[nodiscard]] bool Backend_Shutdown();" in backend_h and
             "analog_host_joined=%d" in backend_stop,
             "backend shutdown reports analog-host completion")
@@ -82,6 +116,10 @@ def main() -> int:
             "InjectAnalogHostSupervisorStartFailure" in runner and
             "partial-start rollback scenario" in runner,
             "simulator covers parent timeout and partial-start rollback")
+    require("InjectAnalogHostSupervisorCppFault" in runner and
+            "InjectAnalogHostChildCppFault" in runner and
+            "InjectAnalogHostChildReapTimeout" in runner,
+            "simulator runner covers parent fault, child fault and reap timeout")
     require("--halljoy-test-analog-host-bridge-stop-timeout" in host and
             "--halljoy-test-analog-host-supervisor-start-failure" in host,
             "runtime fault injection is simulator-only")

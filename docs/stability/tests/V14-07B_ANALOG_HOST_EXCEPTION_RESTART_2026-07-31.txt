@@ -1,0 +1,53 @@
+HallJoy v1.4 V14-07B analog-host exception/restart verification
+Date: 2026-07-31
+Workstation: Windows x64, MSVC Build Tools 17.14.40
+
+Scope
+-----
+Parent snapshot-bridge/supervisor and isolated child C++/SEH fault boundaries,
+fault publication, mandatory child job ownership, bounded child restart/exit,
+retained process HANDLE after a reap timeout, and no overlapping child
+generation. Private UAP exports, locks and unload behavior are out of scope.
+
+Commands and results
+--------------------
+python tools/run_native_backend_checks.py --require-compiler
+RESULT: PASS (all static audits and portable C++20 tests)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_analog_simulator.ps1 -RunSeconds 7
+RESULT: PASS (fresh simulator build, normal common pipeline, exit 0)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_analog_simulator.ps1 -SkipBuild -InjectAnalogHostSupervisorCppFault -RunSeconds 7
+RESULT: PASS (fixed parent fault publication, clean owner shutdown, exit 0)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_analog_simulator.ps1 -SkipBuild -InjectAnalogHostChildCppFault -RunSeconds 7
+RESULT: PASS (child fault exit 0xE0484303, one bounded restart, exit 0)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_analog_simulator.ps1 -SkipBuild -InjectAnalogHostChildReapTimeout -RunSeconds 7
+RESULT: PASS (process HANDLE retained, restart blocked, completion confirmed)
+
+Previously accepted V14-07A supervisor-start and bridge-stop-timeout injections
+RESULT: PASS (no regression; bridge-timeout keeps expected application exit 2)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+RESULT: PASS (production MSVC x64 Release, 0 errors; only allowlisted LNK4099)
+
+Hardware observation kept separate
+----------------------------------
+Irok MG75 Max (`VID 1CA6`, `PID 0529`) was opened through native SparkLink
+usage page `FFB0`. The first worker reported 77,061 successful route queries
+and zero route failures, but no changed analog row was observed. During app
+shutdown the first worker exited and the hotplug watchdog started a second
+generation; the analyzer therefore failed the balanced-worker gate.
+
+This is a pre-existing SparkLink shutdown/reconnect race, recorded as
+HJ-V14-P1-004 and assigned to hotfix V14-06D.1. It does not invalidate the
+simulator-isolated V14-07B analog-host acceptance result, but hardware remains
+PARTIAL/FAIL and V14-07C must wait for the hotfix gate.
+
+Verdict
+-------
+V14-07B: VERIFIED LOCALLY for analog-host fault/restart containment
+Hardware: PARTIAL/FAIL; analog row input and balanced shutdown not verified
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Rollback: parent commit of the V14-07B implementation commit

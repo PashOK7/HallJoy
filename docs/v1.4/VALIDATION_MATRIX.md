@@ -26,11 +26,12 @@ Date: 2026-07-31
 | Portable tests with Clang 19.1.5 | PASS | All static and portable C++20 tests passed |
 | GCC portable tests | INHERITED/PENDING | Byte-identical archive evidence exists; rerun in CI before publication |
 | Windows UI smoke from integration branch | PASS | Window opened, ViGEm initialized, exit code 0, no remaining child process |
-| Stability trace | WARN | Expected: no SparkLink device was exercised on this workstation |
-| Hardware gates | PENDING | Required only by packages that touch the corresponding backend |
+| Stability trace | FAIL/PENDING | Irok MG75 Max exercised SparkLink; shutdown trace exposed a reconnect race and an unbalanced worker generation |
+| Hardware gates | PARTIAL | Native SparkLink route/polling proved; analog row changes, held-key unplug/reconnect and balanced shutdown remain pending |
 
-The workstation uses a membrane keyboard. The planned simulator can satisfy
-common-pipeline behavioral gates, but never a protocol-specific hardware gate.
+The current workstation has an Irok MG75 Max (`VID 1CA6`, `PID 0529`). Its
+SparkLink route is available for hardware gates, but simulator evidence remains
+separate and cannot replace protocol-specific input, hotplug or shutdown proof.
 
 ## Per-package evidence template
 
@@ -431,4 +432,42 @@ Hardware: Not required for parent lifecycle containment. Simulator evidence is
 Known limitations: analog-host worker exception/crash publication and private
   UAP C ABI/lock/state/unload safety remain V14-07B/C
 Rollback: parent commit of the V14-07A implementation commit
+```
+
+## V14-07B evidence
+
+```text
+Package: V14-07B
+Scope: Analog-host worker fault publication and bounded child restart/exit
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectAnalogHostSupervisorCppFault -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectAnalogHostChildCppFault -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectAnalogHostChildReapTimeout -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+Results:
+  Analog-host exception/restart static audit: PASS
+  All static audits and portable C++20 tests: PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Parent supervisor C++ fault publication and clean owner shutdown: PASS
+  Child C++ fault publication and one bounded restart: PASS
+  Injected child reap timeout retained ownership and blocked restart: PASS
+  Earlier supervisor-start and bridge-timeout scenarios: PASS
+  Normal simulator common pipeline and cooperative shutdown: PASS
+  Remaining simulator processes after every accepted scenario: 0
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Hardware: PARTIAL/FAIL. Irok MG75 Max proved native SparkLink discovery and
+  polling, but changed analog rows were not observed and shutdown raced into a
+  second worker generation. Tracked separately as HJ-V14-P1-004 / V14-06D.1
+Known limitations: private UAP C ABI/lock/state/unload safety remains V14-07C
+Rollback: parent commit of the V14-07B implementation commit
 ```

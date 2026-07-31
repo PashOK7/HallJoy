@@ -487,3 +487,46 @@
   process restart/exit behavior.
 - `V14-07C`: private UAP C ABI exception barriers, RAII locks, null/state
   validation and unload safety.
+
+## 2026-07-31 - V14-07B analog-host exception and child-exit containment
+
+### Implemented
+
+- Added C++ and SEH entry barriers for the snapshot bridge, supervisor and
+  isolated child host. Faults publish an error snapshot and wake the owner.
+- Made child job assignment mandatory. Assignment failure blocks restart and
+  terminates the unowned child before another generation can be started.
+- A timed-out child process HANDLE is retained until completion is confirmed;
+  restart remains blocked, so overlapping child generations are forbidden.
+- Added deterministic simulator injections for supervisor C++ failure, child
+  C++ failure/restart and child reap timeout, plus matching static audit gates.
+- Preserved the existing private UAP ABI and keyboard protocol behavior.
+
+### Validation
+
+- Native backend static/portable gate: PASS.
+- Full production MSVC x64 Release build: PASS, 0 errors and only the
+  allowlisted ViGEm `LNK4099` diagnostic.
+- Normal simulator and all three new fault scenarios: PASS.
+- Previous supervisor-start failure and bridge-stop timeout regressions: PASS.
+- No simulator process remained after accepted scenarios.
+
+### Irok MG75 Max hardware finding
+
+- The connected keyboard identifies as `VID 1CA6`, `PID 0529`; the runtime
+  opened the native SparkLink `FFB0` route and completed 77,061 successful
+  route queries with no route failure in the observed worker generation.
+- The trace did not observe changed analog rows, so analog-depth input remains
+  unverified for this device/run.
+- Shutdown stopped the first Spark worker, then the hotplug watchdog reconnected
+  and started another generation. The trace therefore failed its balanced
+  worker requirement.
+- This pre-existing SparkLink lifecycle defect is `HJ-V14-P1-004`, assigned to
+  hotfix `V14-06D.1` before V14-07C. It is not part of V14-07B.
+
+### Package result
+
+- `V14-07B` is Verified locally for analog-host fault/restart containment.
+- Hardware status is `PARTIAL/FAIL`, not Verified.
+- Next implementation package is `V14-06D.1`; `V14-07C` follows its regression
+  fix and hardware gate.

@@ -43,8 +43,16 @@ IPC rollback.
 Final shutdown uses bounded graceful and child-job containment phases. Failure
 to join a parent worker retains reachable resources, blocks reinitialization
 and propagates failure through backend/application shutdown so static state is
-not destroyed beneath a live worker. This V14-07A guarantee does not yet claim
-exception-safe UAP exports or bounded plugin unload; those remain V14-07B/C.
+not destroyed beneath a live worker.
+
+V14-07B adds separate C++ and SEH boundaries to the snapshot bridge,
+supervisor and isolated child entry. Parent faults publish a neutral error
+state, signal the bridge/child stop events and permanently block restart. Child
+faults publish the same neutral shared state before process exit. The
+supervisor requires job assignment and never replaces a child until the old
+process HANDLE is signaled; an unconfirmed exit retains that HANDLE and blocks
+overlapping generations. Exception-safe private UAP exports and bounded plugin
+unload remain V14-07C.
 
 ## Verification
 

@@ -11,13 +11,15 @@ version or release status.
 - Working branch: `v1.4-integration`
 - Completed package: `V14-06` cooperative per-worker lifecycle migration
 - Current package: `V14-07` analog host and UAP boundary hardening
-- Current subpackage: `V14-07A` parent generation safety, Verified locally
+- Current subpackage: `V14-07B` analog-host exception/restart safety, Verified locally
 - GitHub publication: not started
 - Release status: not release-ready
 
-This workstation has a membrane keyboard. Common pipeline behavior is verified
-with the development-only simulator, but protocol-specific hardware status
-must not be inferred from those tests.
+The current workstation has an Irok MG75 Max (`VID 1CA6`, `PID 0529`) that
+passes SparkLink capability proof on usage page `FFB0`. The first production
+trace proved transport polling but exposed a shutdown reconnect race and did
+not observe analog row changes, so the SparkLink hardware gate is explicitly
+`FAIL/PENDING`, not Verified. Simulator evidence remains separate.
 
 ## Authoritative documents
 

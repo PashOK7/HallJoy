@@ -206,14 +206,22 @@ Progress:
 - Simulator-only bridge-timeout and supervisor-start-failure scenarios pass,
   as do the normal simulator, all static/portable gates and the production MSVC
   build. These tests prove lifecycle containment, not keyboard compatibility.
+- `V14-07B` analog-host worker and child exit safety: Verified locally. Both
+  parent Win32 workers and the isolated child entry have C++ and SEH barriers
+  with neutral fault publication. A child HANDLE is retained until confirmed
+  process completion; job-assignment or reap failure blocks replacement.
+  Parent-fault, child-fault/restart and child-reap-timeout simulator gates pass.
 
 Remaining:
 
-- `V14-07B`: analog-host worker exception/crash publication and bounded child
-  process restart/exit behavior.
 - `V14-07C`: private UAP C ABI exception barriers, RAII locking, argument and
   initialized-state validation, and unload without an unbounded join under the
   global devices mutex.
+
+The newly available Irok MG75 Max proved native SparkLink identification and
+successful vendor polling, but the 2026-07-31 production trace also caught a
+hotplug reconnect after the first Spark stop. `HJ-V14-P1-004` is a separate
+release-blocking hotfix before V14-07C; it is not hidden inside V14-07B.
 
 ## Release definition
 

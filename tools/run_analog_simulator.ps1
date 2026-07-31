@@ -11,6 +11,9 @@ param(
     [switch]$InjectSayoReaderCppFault,
     [switch]$InjectAnalogHostBridgeStopTimeout,
     [switch]$InjectAnalogHostSupervisorStartFailure,
+    [switch]$InjectAnalogHostSupervisorCppFault,
+    [switch]$InjectAnalogHostChildCppFault,
+    [switch]$InjectAnalogHostChildReapTimeout,
     [ValidateRange(7, 120)]
     [int]$RunSeconds = 8
 )
@@ -26,7 +29,10 @@ $injectionCount = @(
     $InjectSayoStopTimeout.IsPresent,
     $InjectSayoReaderCppFault.IsPresent,
     $InjectAnalogHostBridgeStopTimeout.IsPresent,
-    $InjectAnalogHostSupervisorStartFailure.IsPresent
+    $InjectAnalogHostSupervisorStartFailure.IsPresent,
+    $InjectAnalogHostSupervisorCppFault.IsPresent,
+    $InjectAnalogHostChildCppFault.IsPresent,
+    $InjectAnalogHostChildReapTimeout.IsPresent
 ).Where({ $_ }).Count
 if ($injectionCount -gt 1) {
     throw 'Select only one fault-injection scenario.'
@@ -103,6 +109,15 @@ if ($InjectAnalogHostBridgeStopTimeout) {
 if ($InjectAnalogHostSupervisorStartFailure) {
     $arguments += '--halljoy-test-analog-host-supervisor-start-failure'
 }
+if ($InjectAnalogHostSupervisorCppFault) {
+    $arguments += '--halljoy-test-analog-host-supervisor-cpp-fault'
+}
+if ($InjectAnalogHostChildCppFault) {
+    $arguments += '--halljoy-test-analog-host-child-cpp-fault'
+}
+if ($InjectAnalogHostChildReapTimeout) {
+    $arguments += '--halljoy-test-analog-host-child-reap-timeout'
+}
 if ($StartOverlay) {
     $arguments += @('--overlay-server', '--port', '18765')
 }
@@ -126,11 +141,19 @@ try {
         }
     }
     Start-Sleep -Seconds $RunSeconds
-    if (-not $process.CloseMainWindow()) {
-        throw 'Simulator main window did not accept a graceful close request.'
-    }
     $processExitTimeoutMs = if ($InjectAnalogHostBridgeStopTimeout) { 15000 } else { 10000 }
-    if (-not $process.WaitForExit($processExitTimeoutMs)) {
+    $closeDeadline = [DateTime]::UtcNow.AddMilliseconds($processExitTimeoutMs)
+    $closeAccepted = $false
+    do {
+        $process.Refresh()
+        if ($process.HasExited) { break }
+        if ($process.CloseMainWindow()) { $closeAccepted = $true }
+        if ($process.WaitForExit(250)) { break }
+    } while ([DateTime]::UtcNow -lt $closeDeadline)
+    if (-not $closeAccepted) {
+        throw 'Simulator did not expose a window that accepted graceful close.'
+    }
+    if (-not $process.HasExited) {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         throw "Simulator did not exit within $processExitTimeoutMs ms after graceful close."
     }
@@ -167,7 +190,16 @@ if ($InjectAnalogHostBridgeStopTimeout -and $process.ExitCode -ne 2) {
 if ($InjectAnalogHostSupervisorStartFailure -and $process.ExitCode -ne 0) {
     throw "Analog-host partial-start simulator exited with code $($process.ExitCode), expected 0."
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and -not $InjectAnalogHostBridgeStopTimeout -and -not $InjectAnalogHostSupervisorStartFailure -and $process.ExitCode -ne 0) {
+if ($InjectAnalogHostSupervisorCppFault -and $process.ExitCode -ne 0) {
+    throw "Analog-host supervisor C++ fault simulator exited with code $($process.ExitCode), expected 0."
+}
+if ($InjectAnalogHostChildCppFault -and $process.ExitCode -ne 0) {
+    throw "Analog-host child C++ fault simulator exited with code $($process.ExitCode), expected 0."
+}
+if ($InjectAnalogHostChildReapTimeout -and $process.ExitCode -ne 0) {
+    throw "Analog-host child reap-timeout simulator exited with code $($process.ExitCode), expected 0."
+}
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and -not $InjectAnalogHostBridgeStopTimeout -and -not $InjectAnalogHostSupervisorStartFailure -and -not $InjectAnalogHostSupervisorCppFault -and -not $InjectAnalogHostChildCppFault -and -not $InjectAnalogHostChildReapTimeout -and $process.ExitCode -ne 0) {
     throw "Simulator exited with code $($process.ExitCode)."
 }
 if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
@@ -234,6 +266,28 @@ $required = if ($InjectRealtimeStopTimeout) { @(
     '[component=analog-host][event=partial_start.rollback] stage=supervisor_create joined=1 resources_released=1 injected=1',
     '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
     '[component=main][event=session.end] exit_code=0'
+) } elseif ($InjectAnalogHostSupervisorCppFault) { @(
+    '[component=analog-host][event=parent_worker.fault] worker=supervisor',
+    'neutralized=1 restart_blocked=1',
+    '[component=analog-host][event=worker.exit] worker=supervisor fault_kind=1',
+    '[component=analog-host][event=worker.exit] worker=snapshot_bridge fault_kind=0',
+    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
+    '[component=main][event=session.end] exit_code=0'
+) } elseif ($InjectAnalogHostChildCppFault) { @(
+    '[component=analog-host][event=child.start]',
+    'restart=0',
+    '[component=analog-host][event=child.exit]',
+    'code=0xE0484303',
+    'restart=1',
+    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
+    '[component=main][event=session.end] exit_code=0'
+) } elseif ($InjectAnalogHostChildReapTimeout) { @(
+    '[component=analog-host][event=test.child_reap_timeout.injected] simulator_only=1',
+    '[component=analog-host][event=child.reap_timeout]',
+    'process_handle_retained=1 restart_blocked=1',
+    '[component=analog-host][event=child.reaped_after_timeout]',
+    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
+    '[component=main][event=session.end] exit_code=0'
 ) } else { @(
     '[component=analog-simulator][event=start]',
     'name=w-ramp',
@@ -274,7 +328,7 @@ if ($ForceUserUapRuntime -and -not $traceText.Contains('[component=embedded-uap]
 if ($missing.Count -ne 0) {
     throw "Simulator trace is incomplete. Missing: $($missing -join ', ')"
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and -not $InjectAnalogHostBridgeStopTimeout -and -not $InjectAnalogHostSupervisorStartFailure -and $traceText -match '\[level=ERROR\]') {
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and -not $InjectAnalogHostBridgeStopTimeout -and -not $InjectAnalogHostSupervisorStartFailure -and -not $InjectAnalogHostSupervisorCppFault -and -not $InjectAnalogHostChildCppFault -and -not $InjectAnalogHostChildReapTimeout -and $traceText -match '\[level=ERROR\]') {
     throw 'Simulator trace contains an ERROR event.'
 }
 
@@ -304,13 +358,19 @@ if ($InjectRealtimeStopTimeout) {
     Write-Host 'HallJoy analog-host bridge timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectAnalogHostSupervisorStartFailure) {
     Write-Host 'HallJoy analog-host partial-start rollback scenario: PASS' -ForegroundColor Green
+} elseif ($InjectAnalogHostSupervisorCppFault) {
+    Write-Host 'HallJoy analog-host supervisor C++ fault containment scenario: PASS' -ForegroundColor Green
+} elseif ($InjectAnalogHostChildCppFault) {
+    Write-Host 'HallJoy analog-host child C++ fault restart scenario: PASS' -ForegroundColor Green
+} elseif ($InjectAnalogHostChildReapTimeout) {
+    Write-Host 'HallJoy analog-host child reap-timeout ownership scenario: PASS' -ForegroundColor Green
 } elseif ($StartOverlay) {
     Write-Host 'HallJoy overlay HTTP and cooperative shutdown scenario: PASS' -ForegroundColor Green
 } else {
     Write-Host 'HallJoy analog simulator scenario: PASS' -ForegroundColor Green
 }
 Write-Host "Trace: $trace"
-if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout -or $InjectOverlayStopTimeout -or $InjectSparkStopTimeout -or $InjectSayoStopTimeout -or $InjectSayoReaderCppFault -or $InjectAnalogHostBridgeStopTimeout -or $InjectAnalogHostSupervisorStartFailure) {
+if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout -or $InjectOverlayStopTimeout -or $InjectSparkStopTimeout -or $InjectSayoStopTimeout -or $InjectSayoReaderCppFault -or $InjectAnalogHostBridgeStopTimeout -or $InjectAnalogHostSupervisorStartFailure -or $InjectAnalogHostSupervisorCppFault -or $InjectAnalogHostChildCppFault -or $InjectAnalogHostChildReapTimeout) {
     Write-Host 'Evidence classification: simulator lifecycle fault injection; NOT hardware verification.'
 } else {
     Write-Host 'Evidence classification: common pipeline simulation; NOT hardware verification.'

@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cwchar>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -22,6 +23,7 @@
 #include "embedded_analog_stack.h"
 #include "realtime_loop.h"
 #include "stability_trace.h"
+#include "worker_exception_barrier.h"
 #include "worker_lifecycle.h"
 #include "windows_command_line.h"
 
@@ -65,10 +67,14 @@ namespace
         std::wstring privatePluginPath;
         std::atomic<bool> stopping{ false };
         std::atomic<bool> restartBlocked{ false };
+        bool injectSupervisorCppFault = false;
+        bool injectChildReapTimeout = false;
         halljoy::lifecycle::WorkerLifecycle lifecycle;
     };
 
     ClientState g_client;
+    std::atomic<SharedState*> g_hostFaultShared{ nullptr };
+    std::atomic<HANDLE> g_hostFaultSnapshotEvent{ nullptr };
 
     struct TelemetryRateState
     {
@@ -466,7 +472,7 @@ namespace
         return found;
     }
 
-    int RunHost(DWORD ownerPid, unsigned long long nonce, const std::wstring& privatePluginPath)
+    int RunHostImpl(DWORD ownerPid, unsigned long long nonce, const std::wstring& privatePluginPath)
     {
         const std::wstring mappingName = BuildIpcName(L"Map", ownerPid, nonce);
         const std::wstring stopName = BuildIpcName(L"Stop", ownerPid, nonce);
@@ -480,9 +486,11 @@ namespace
             CloseHandle(mapping);
             return 32;
         }
+        g_hostFaultShared.store(shared, std::memory_order_release);
         HANDLE stopEvent = OpenEventW(SYNCHRONIZE, FALSE, stopName.c_str());
         if (!stopEvent)
         {
+            g_hostFaultShared.store(nullptr, std::memory_order_release);
             UnmapViewOfFile(shared);
             CloseHandle(mapping);
             return 33;
@@ -490,14 +498,18 @@ namespace
         HANDLE snapshotEvent = OpenEventW(EVENT_MODIFY_STATE, FALSE, snapshotName.c_str());
         if (!snapshotEvent)
         {
+            g_hostFaultShared.store(nullptr, std::memory_order_release);
             CloseHandle(stopEvent);
             UnmapViewOfFile(shared);
             CloseHandle(mapping);
             return 37;
         }
+        g_hostFaultSnapshotEvent.store(snapshotEvent, std::memory_order_release);
         HANDLE ownerProcess = OpenProcess(SYNCHRONIZE, FALSE, ownerPid);
         if (!ownerProcess)
         {
+            g_hostFaultSnapshotEvent.store(nullptr, std::memory_order_release);
+            g_hostFaultShared.store(nullptr, std::memory_order_release);
             CloseHandle(snapshotEvent);
             CloseHandle(stopEvent);
             UnmapViewOfFile(shared);
@@ -516,6 +528,8 @@ namespace
         if (!LoadHostApi(api, privatePluginPath))
         {
             PublishHostError(shared, static_cast<LONG>(GetLastError()), WootingAnalogResult_DLLNotFound);
+            g_hostFaultSnapshotEvent.store(nullptr, std::memory_order_release);
+            g_hostFaultShared.store(nullptr, std::memory_order_release);
             CloseHandle(ownerProcess);
             CloseHandle(snapshotEvent);
             CloseHandle(stopEvent);
@@ -552,6 +566,8 @@ namespace
         {
             PublishHostError(shared, initResult, initResult);
             FreeLibrary(api.module);
+            g_hostFaultSnapshotEvent.store(nullptr, std::memory_order_release);
+            g_hostFaultShared.store(nullptr, std::memory_order_release);
             CloseHandle(ownerProcess);
             CloseHandle(snapshotEvent);
             CloseHandle(stopEvent);
@@ -633,6 +649,14 @@ namespace
             }
 
             ++polls;
+            const LONG cppFaultAfter = InterlockedCompareExchange(
+                &shared->diagnosticCppFaultAfterPolls, 0, 0);
+            if (cppFaultAfter > 0 && polls >= static_cast<unsigned long long>(cppFaultAfter))
+            {
+                InterlockedExchange(&shared->diagnosticCppFaultAfterPolls, 0);
+                HostSetCheckpoint(shared, Checkpoint_BeforeReadFullBuffer);
+                throw std::runtime_error("simulated child-host C++ fault");
+            }
             const LONG crashAfter = InterlockedCompareExchange(&shared->diagnosticCrashAfterPolls, 0, 0);
             if (crashAfter > 0 && polls >= static_cast<unsigned long long>(crashAfter))
             {
@@ -781,12 +805,72 @@ namespace
         InterlockedExchange(&shared->status, Status_Stopped);
         HostLog(L"session exit polls=%llu successful=%llu code=0x%08X", polls, successful, hostExitCode);
         FreeLibrary(api.module);
+        g_hostFaultSnapshotEvent.store(nullptr, std::memory_order_release);
+        g_hostFaultShared.store(nullptr, std::memory_order_release);
         CloseHandle(ownerProcess);
         CloseHandle(snapshotEvent);
         CloseHandle(stopEvent);
         UnmapViewOfFile(shared);
         CloseHandle(mapping);
         return hostExitCode;
+    }
+
+    void ChildHostOnCppFault(
+        const halljoy::worker::WorkerExceptionRecord& record) noexcept
+    {
+        SharedState* shared = g_hostFaultShared.load(std::memory_order_acquire);
+        const LONG error = record.kind == halljoy::worker::WorkerExceptionKind::StandardException
+            ? static_cast<LONG>(0xE0484301u)
+            : static_cast<LONG>(0xE0484302u);
+        if (shared)
+        {
+            HostSetCheckpoint(shared, Checkpoint_ProcessExit);
+            InvalidateSnapshot(shared, Status_Error, error,
+                g_hostFaultSnapshotEvent.load(std::memory_order_acquire));
+            InterlockedExchange(&shared->initResult, WootingAnalogResult_Failure);
+        }
+    }
+
+    void ChildHostOnCppCompletion(
+        const halljoy::worker::WorkerExceptionRecord&) noexcept
+    {
+    }
+
+    int RunHostCpp(DWORD ownerPid, unsigned long long nonce,
+        const std::wstring& privatePluginPath) noexcept
+    {
+        return static_cast<int>(halljoy::worker::RunWorkerEntryBarrier(
+            [&] { return static_cast<std::uint32_t>(RunHostImpl(ownerPid, nonce, privatePluginPath)); },
+            ChildHostOnCppFault,
+            ChildHostOnCppCompletion,
+            0xE0484303u));
+    }
+
+    void ChildHostOnStructuredFault(DWORD code) noexcept
+    {
+        SharedState* shared = g_hostFaultShared.load(std::memory_order_acquire);
+        if (shared)
+        {
+            HostSetCheckpoint(shared, Checkpoint_ProcessExit);
+            InvalidateSnapshot(shared, Status_Error, static_cast<LONG>(code),
+                g_hostFaultSnapshotEvent.load(std::memory_order_acquire));
+            InterlockedExchange(&shared->initResult, WootingAnalogResult_Failure);
+        }
+    }
+
+    int RunHost(DWORD ownerPid, unsigned long long nonce,
+        const std::wstring& privatePluginPath) noexcept
+    {
+        __try
+        {
+            return RunHostCpp(ownerPid, nonce, privatePluginPath);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            const DWORD code = GetExceptionCode();
+            ChildHostOnStructuredFault(code);
+            return static_cast<int>(code);
+        }
     }
 
     struct ModuleRange
@@ -1112,13 +1196,17 @@ namespace
         return ok != FALSE;
     }
 
-    DWORD WINAPI SupervisorThreadProc(LPVOID)
+    DWORD SupervisorThreadProcImpl()
     {
         if constexpr (kUseChildDebugger)
             DebugSetProcessKillOnExit(FALSE);
         HostLog(L"supervisor start mode=%s", kUseChildDebugger ? L"diagnostic_debugger" : L"production_process_wait");
         if (g_client.supervisorReadyEvent)
             SetEvent(g_client.supervisorReadyEvent);
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        if (g_client.injectSupervisorCppFault)
+            throw std::runtime_error("simulated analog-host supervisor C++ fault");
+#endif
 
         LONG restartCount = 0;
         while (!g_client.stopping.load(std::memory_order_acquire))
@@ -1145,10 +1233,22 @@ namespace
                 continue;
             }
 
-            if (g_client.job && !AssignProcessToJobObject(g_client.job, pi.hProcess))
-                DebugLog_Write(L"[analog.host] AssignProcessToJobObject failed err=%lu", GetLastError());
+            bool restartAllowed = true;
+            if (!AssignProcessToJobObject(g_client.job, pi.hProcess))
+            {
+                const DWORD error = GetLastError();
+                restartAllowed = false;
+                g_client.restartBlocked.store(true, std::memory_order_release);
+                PublishHostError(g_client.shared, static_cast<LONG>(error), WootingAnalogResult_Failure);
+                StabilityTrace_WriteCritical(L"ERROR", L"analog-host", L"child.job_assign_failed",
+                    L"pid=%lu win32=%lu restart_blocked=1", pi.dwProcessId, error);
+                DebugLog_Write(L"[analog.host] AssignProcessToJobObject failed err=%lu; restart blocked", error);
+                TerminateProcess(pi.hProcess, 0xE0484A4Fu);
+            }
             DebugLog_Write(L"[analog.host] started pid=%lu restart=%ld", pi.dwProcessId, restartCount);
             HostLog(L"supervisor child start pid=%lu restart=%ld", pi.dwProcessId, restartCount);
+            StabilityTrace_Write(L"INFO", L"analog-host", L"child.start",
+                L"pid=%lu restart=%ld", pi.dwProcessId, restartCount);
             bool processExited = false;
             bool crashCaptured = false;
             HANDLE debugProcessHandle = nullptr;
@@ -1278,7 +1378,39 @@ namespace
                 if (WaitForSingleObject(pi.hProcess, 2000) != WAIT_OBJECT_0)
                     TerminateProcess(pi.hProcess, 0);
             }
-            WaitForSingleObject(pi.hProcess, 3000);
+            DWORD finalProcessWait = WaitForSingleObject(pi.hProcess, 3000);
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+            if (g_client.injectChildReapTimeout)
+            {
+                g_client.injectChildReapTimeout = false;
+                finalProcessWait = WAIT_TIMEOUT;
+                StabilityTrace_Write(L"WARN", L"analog-host", L"test.child_reap_timeout.injected",
+                    L"simulator_only=1 pid=%lu", pi.dwProcessId);
+            }
+#endif
+            if (finalProcessWait != WAIT_OBJECT_0)
+            {
+                const DWORD waitError = finalProcessWait == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT;
+                restartAllowed = false;
+                g_client.restartBlocked.store(true, std::memory_order_release);
+                InvalidateSnapshot(g_client.shared, Status_Error, static_cast<LONG>(waitError), g_client.snapshotEvent);
+                StabilityTrace_WriteCritical(L"ERROR", L"analog-host", L"child.reap_timeout",
+                    L"pid=%lu wait=%lu win32=%lu process_handle_retained=1 restart_blocked=1",
+                    pi.dwProcessId, finalProcessWait, waitError);
+                DebugLog_Write(L"[analog.host] child did not confirm exit; retaining process handle and blocking restart");
+
+                do
+                {
+                    if (g_client.stopping.load(std::memory_order_acquire) && g_client.job)
+                        TerminateJobObject(g_client.job, 0xE0485245u);
+                    finalProcessWait = WaitForSingleObject(pi.hProcess, 250);
+                    if (finalProcessWait == WAIT_FAILED)
+                        Sleep(250);
+                } while (finalProcessWait != WAIT_OBJECT_0);
+
+                StabilityTrace_Write(L"INFO", L"analog-host", L"child.reaped_after_timeout",
+                    L"pid=%lu restart_blocked=1", pi.dwProcessId);
+            }
             GetExitCodeProcess(pi.hProcess, &processExitCode);
             if (debugMainThreadHandle && debugMainThreadHandle != pi.hThread)
                 CloseHandle(debugMainThreadHandle);
@@ -1300,8 +1432,13 @@ namespace
             HostLog(L"supervisor child exit pid=%lu code=0x%08lX captured=%d restart=%d",
                 pi.dwProcessId, processExitCode, crashCaptured ? 1 : 0,
                 g_client.stopping.load(std::memory_order_acquire) ? 0 : 1);
+            StabilityTrace_Write(L"INFO", L"analog-host", L"child.exit",
+                L"pid=%lu code=0x%08lX captured=%d restart=%d",
+                pi.dwProcessId, processExitCode, crashCaptured ? 1 : 0,
+                g_client.stopping.load(std::memory_order_acquire) ? 0 : 1);
 
-            if (g_client.stopping.load(std::memory_order_acquire))
+            if (g_client.stopping.load(std::memory_order_acquire) || !restartAllowed ||
+                g_client.restartBlocked.load(std::memory_order_acquire))
                 break;
             ++restartCount;
             if (WaitForSingleObject(g_client.stopEvent, kRestartDelayMs) == WAIT_OBJECT_0)
@@ -1309,9 +1446,73 @@ namespace
         }
 
         if (g_client.shared)
-            InvalidateSnapshot(g_client.shared, Status_Stopped, 0, g_client.snapshotEvent);
+        {
+            const bool blocked = g_client.restartBlocked.load(std::memory_order_acquire);
+            InvalidateSnapshot(g_client.shared, blocked ? Status_Error : Status_Stopped,
+                blocked ? WootingAnalogResult_Failure : 0, g_client.snapshotEvent);
+        }
         HostLog(L"supervisor exit");
         return 0;
+    }
+
+    void PublishParentWorkerFault(const wchar_t* worker, LONG error,
+        const char* message) noexcept
+    {
+        g_client.restartBlocked.store(true, std::memory_order_release);
+        InvalidateSnapshot(g_client.shared, Status_Error, error, g_client.snapshotEvent);
+        if (g_client.stopEvent)
+            SetEvent(g_client.stopEvent);
+        if (g_client.snapshotEvent)
+            SetEvent(g_client.snapshotEvent);
+        StabilityTrace_WriteCritical(L"ERROR", L"analog-host", L"parent_worker.fault",
+            L"worker=%s error=0x%08lX neutralized=1 restart_blocked=1", worker, error);
+        OutputDebugStringA("[HallJoy] analog-host parent worker fault: ");
+        OutputDebugStringA(message ? message : "unknown");
+        OutputDebugStringA("\n");
+    }
+
+    void SupervisorWorkerOnCppFault(
+        const halljoy::worker::WorkerExceptionRecord& record) noexcept
+    {
+        PublishParentWorkerFault(L"supervisor",
+            record.kind == halljoy::worker::WorkerExceptionKind::StandardException
+                ? static_cast<LONG>(0xE0485301u)
+                : static_cast<LONG>(0xE0485302u),
+            record.message);
+    }
+
+    void SupervisorWorkerOnCompletion(
+        const halljoy::worker::WorkerExceptionRecord& record) noexcept
+    {
+        StabilityTrace_Write(record.kind == halljoy::worker::WorkerExceptionKind::None ? L"INFO" : L"ERROR",
+            L"analog-host", L"worker.exit", L"worker=supervisor fault_kind=%u",
+            static_cast<unsigned>(record.kind));
+    }
+
+    DWORD SupervisorThreadProcCpp() noexcept
+    {
+        return static_cast<DWORD>(halljoy::worker::RunWorkerEntryBarrier(
+            [] { return static_cast<std::uint32_t>(SupervisorThreadProcImpl()); },
+            SupervisorWorkerOnCppFault,
+            SupervisorWorkerOnCompletion,
+            0xE0485303u));
+    }
+
+    DWORD WINAPI SupervisorThreadProc(LPVOID) noexcept
+    {
+        StabilityTrace_Write(L"INFO", L"analog-host", L"worker.start", L"worker=supervisor");
+        __try
+        {
+            return SupervisorThreadProcCpp();
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            const DWORD code = GetExceptionCode();
+            PublishParentWorkerFault(L"supervisor", static_cast<LONG>(code), "structured exception");
+            StabilityTrace_WriteCritical(L"ERROR", L"analog-host", L"worker.exit",
+                L"worker=supervisor fault_kind=seh code=0x%08lX", code);
+            return code;
+        }
     }
 
     bool DenseSnapshot(std::array<float, kMaxKeys>& values,
@@ -1386,7 +1587,7 @@ namespace
         return true;
     }
 
-    DWORD WINAPI SnapshotBridgeThreadProc(LPVOID)
+    DWORD SnapshotBridgeThreadProcImpl()
     {
 #if defined(HALLJOY_ANALOG_SIMULATOR)
         const wchar_t* commandLine = GetCommandLineW();
@@ -1409,6 +1610,50 @@ namespace
                 break;
         }
         return 0;
+    }
+
+    void SnapshotBridgeWorkerOnCppFault(
+        const halljoy::worker::WorkerExceptionRecord& record) noexcept
+    {
+        PublishParentWorkerFault(L"snapshot_bridge",
+            record.kind == halljoy::worker::WorkerExceptionKind::StandardException
+                ? static_cast<LONG>(0xE0484201u)
+                : static_cast<LONG>(0xE0484202u),
+            record.message);
+    }
+
+    void SnapshotBridgeWorkerOnCompletion(
+        const halljoy::worker::WorkerExceptionRecord& record) noexcept
+    {
+        StabilityTrace_Write(record.kind == halljoy::worker::WorkerExceptionKind::None ? L"INFO" : L"ERROR",
+            L"analog-host", L"worker.exit", L"worker=snapshot_bridge fault_kind=%u",
+            static_cast<unsigned>(record.kind));
+    }
+
+    DWORD SnapshotBridgeThreadProcCpp() noexcept
+    {
+        return static_cast<DWORD>(halljoy::worker::RunWorkerEntryBarrier(
+            [] { return static_cast<std::uint32_t>(SnapshotBridgeThreadProcImpl()); },
+            SnapshotBridgeWorkerOnCppFault,
+            SnapshotBridgeWorkerOnCompletion,
+            0xE0484203u));
+    }
+
+    DWORD WINAPI SnapshotBridgeThreadProc(LPVOID) noexcept
+    {
+        StabilityTrace_Write(L"INFO", L"analog-host", L"worker.start", L"worker=snapshot_bridge");
+        __try
+        {
+            return SnapshotBridgeThreadProcCpp();
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            const DWORD code = GetExceptionCode();
+            PublishParentWorkerFault(L"snapshot_bridge", static_cast<LONG>(code), "structured exception");
+            StabilityTrace_WriteCritical(L"ERROR", L"analog-host", L"worker.exit",
+                L"worker=snapshot_bridge fault_kind=seh code=0x%08lX", code);
+            return code;
+        }
     }
 
     bool ClientOwnsResourcesLocked() noexcept
@@ -1527,7 +1772,8 @@ namespace
         g_client.stopEvent = CreateEventW(nullptr, TRUE, FALSE, g_client.stopEventName.c_str());
         g_client.snapshotEvent = CreateEventW(nullptr, FALSE, FALSE, g_client.snapshotEventName.c_str());
         g_client.supervisorReadyEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-        if (!g_client.mapping || !g_client.shared || !g_client.stopEvent || !g_client.snapshotEvent || !g_client.supervisorReadyEvent)
+        if (!g_client.job || !g_client.mapping || !g_client.shared || !g_client.stopEvent ||
+            !g_client.snapshotEvent || !g_client.supervisorReadyEvent)
         {
             const DWORD error = GetLastError();
             CloseClientResourcesLocked();
@@ -1544,6 +1790,21 @@ namespace
         g_client.shared->status = Status_Stopped;
         g_client.shared->requestedKeycodeMode = WootingAnalog_KeycodeType_HID;
         g_client.shared->appliedKeycodeMode = -1;
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        const wchar_t* commandLine = GetCommandLineW();
+        g_client.injectSupervisorCppFault = commandLine &&
+            wcsstr(commandLine, L"--halljoy-test-analog-host-supervisor-cpp-fault") != nullptr;
+        g_client.injectChildReapTimeout = commandLine &&
+            wcsstr(commandLine, L"--halljoy-test-analog-host-child-reap-timeout") != nullptr;
+        if (commandLine &&
+            wcsstr(commandLine, L"--halljoy-test-analog-host-child-cpp-fault") != nullptr)
+        {
+            g_client.shared->diagnosticCppFaultAfterPolls = 3;
+        }
+#else
+        g_client.injectSupervisorCppFault = false;
+        g_client.injectChildReapTimeout = false;
+#endif
 #if defined(HALLJOY_DIAGNOSTIC)
         if (wcsstr(GetCommandLineW(), L"--diagnostic-analog-host-crash-test"))
             g_client.shared->diagnosticCrashAfterPolls = 250;

@@ -104,7 +104,8 @@ namespace HallJoyAnalogHost
         alignas(8) volatile LONG64 snapshotTimestampUs;
 
         volatile LONG deviceTelemetryCount;
-        LONG reservedTelemetry0;
+        // Development-only child-host C++ fault injection. Production keeps 0.
+        volatile LONG diagnosticCppFaultAfterPolls;
         HallJoyPluginTelemetry::DeviceV1 deviceTelemetry[kMaxDevices];
 
         // Compatibility sparse view used by the public Wooting-style functions.

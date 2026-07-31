@@ -101,8 +101,13 @@ group join, then terminates the isolated child job and retries the parent join.
 If either parent worker still survives, all reachable HANDLEs and IPC remain
 owned, restart is permanently blocked for that process, and application
 shutdown uses process-level containment instead of destroying dependent state.
-The private UAP's own worker and C ABI boundaries remain a separate V14-07
-substage.
+The bridge and supervisor enter through allocation-free C++ barriers inside
+Win32 SEH wrappers. Their fault paths neutralize the shared snapshot, signal
+stop and permanently reject restart. The isolated child entry has the same
+C++/SEH publication boundary. A child must be assigned to the owned job, and
+its process HANDLE is closed only after confirmed completion; timeout retains
+the HANDLE and forbids a replacement child. The private UAP's own worker and C
+ABI boundaries remain a separate V14-07C substage.
 
 ## Files a new protocol owns
 

@@ -107,3 +107,46 @@
 
 - Begin `V14-03`: private UAP extraction in protected locations and truthful
   embedded-runtime dependency diagnostics.
+
+## 2026-07-31 - V14-03 self-contained private UAP runtime
+
+### Completed
+
+- Compared the v1.3 self-contained SDK checkpoint `b3fefce` with the isolated
+  ABI1 architecture imported for v1.4.
+- Retained portable extraction beside the executable when writable.
+- Added a versioned `%LOCALAPPDATA%` fallback for protected installations.
+- Made temporary extraction names process/thread-specific and required complete
+  writes, flush, atomic replacement, and final byte comparison.
+- Passed the verified absolute plugin path to the child process with tested
+  Windows command-line quoting.
+- Reclassified backend failures as private UAP conditions.
+- Removed system Wooting SDK and global UAP download/install recovery.
+- Kept ViGEmBus as the only external dependency HallJoy may offer to install.
+- Added static and runtime fallback gates.
+
+### Validation
+
+- Forced per-user fallback initialized private UAP, backend, ViGEm, simulator,
+  and shutdown successfully.
+- A deliberately corrupted generated per-user DLL was replaced atomically.
+- The repaired DLL SHA-256 exactly matched the embedded build artifact:
+  `0C45419D8F615284B4D673CB369191E6ABFCD57A72D3564C744D5960682DD8B2`.
+- No simulator or child process remained after shutdown.
+- The ordinary portable path reported `location=executable` with exact resource
+  equality and passed the complete simulator scenario.
+- The clean official build passed all audits and production x64 Release with
+  0 errors and the inherited `ViGEmClient.pdb` warning.
+- The packaged production EXE exposed its main window, initialized the private
+  runtime and ViGEm, accepted a graceful close, exited with code 0, and left no
+  child process behind.
+
+### Limitations
+
+- No real analog keyboard was available; UAP device behavior remains pending.
+- Hardware transport, firmware, VID/PID routing, and device timing remain for
+  the `V14-12` hardware qualification gates.
+
+### Next
+
+- Begin `V14-04`: pin remaining build inputs and align local and CI gates.

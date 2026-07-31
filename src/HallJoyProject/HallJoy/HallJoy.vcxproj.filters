@@ -407,6 +407,9 @@
     <ClInclude Include="worker_exception_barrier.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="windows_command_line.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   <ClInclude Include="native_analog_backend.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="native_analog_backend_registry.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="native_analog_backends.def"><Filter>Header Files</Filter></ClInclude></ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="HallJoy.rc">

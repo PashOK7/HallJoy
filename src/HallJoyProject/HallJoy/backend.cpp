@@ -2563,13 +2563,13 @@ bool Backend_Init()
         {
         case WootingAnalogResult_DLLNotFound:
         case WootingAnalogResult_FunctionNotFound:
-            initIssues |= BackendInitIssue_WootingSdkMissing;
+            initIssues |= BackendInitIssue_PrivateUapUnavailable;
             break;
         case WootingAnalogResult_NoPlugins:
-            initIssues |= BackendInitIssue_WootingNoPlugins;
+            initIssues |= BackendInitIssue_PrivateUapNoDevices;
             break;
         case WootingAnalogResult_IncompatibleVersion:
-            initIssues |= BackendInitIssue_WootingIncompatible;
+            initIssues |= BackendInitIssue_PrivateUapIncompatible;
             break;
         default:
             initIssues |= BackendInitIssue_Unknown;
@@ -2580,9 +2580,9 @@ bool Backend_Init()
     if (nativeReady)
     {
         // If a native HID path is up, Wooting SDK is optional.
-        initIssues &= ~(BackendInitIssue_WootingSdkMissing |
-            BackendInitIssue_WootingNoPlugins |
-            BackendInitIssue_WootingIncompatible);
+        initIssues &= ~(BackendInitIssue_PrivateUapUnavailable |
+            BackendInitIssue_PrivateUapNoDevices |
+            BackendInitIssue_PrivateUapIncompatible);
         if (wootingInit < 0)
             initIssues &= ~BackendInitIssue_Unknown;
     }

@@ -284,6 +284,7 @@
     <ClInclude Include="worker_lifecycle.h" />
     <ClInclude Include="worker_primitives.h" />
     <ClInclude Include="worker_exception_barrier.h" />
+    <ClInclude Include="windows_command_line.h" />
   <ClInclude Include="native_analog_backend.h" /><ClInclude Include="native_analog_backend_registry.h" /><ClInclude Include="native_analog_backends.def" /></ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="HallJoy.rc" />

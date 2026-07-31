@@ -12,9 +12,9 @@
 enum BackendInitIssue : uint32_t
 {
     BackendInitIssue_None = 0,
-    BackendInitIssue_WootingSdkMissing = 1u << 0,
-    BackendInitIssue_WootingNoPlugins = 1u << 1,
-    BackendInitIssue_WootingIncompatible = 1u << 2,
+    BackendInitIssue_PrivateUapUnavailable = 1u << 0,
+    BackendInitIssue_PrivateUapNoDevices = 1u << 1,
+    BackendInitIssue_PrivateUapIncompatible = 1u << 2,
     BackendInitIssue_VigemBusMissing = 1u << 3,
     BackendInitIssue_Unknown = 1u << 31,
 };

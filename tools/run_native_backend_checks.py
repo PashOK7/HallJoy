@@ -91,6 +91,7 @@ def main() -> int:
             ("worker_lifecycle", [tests / "worker_lifecycle_test.cpp"]),
             ("worker_primitives", [tests / "worker_primitives_test.cpp"]),
             ("worker_exception_barrier", [tests / "worker_exception_barrier_test.cpp"]),
+            ("windows_command_line", [tests / "windows_command_line_test.cpp"]),
         ]
         for name, sources in fixed_tests:
             compile_and_run(cxx, out / name, sources, hall)

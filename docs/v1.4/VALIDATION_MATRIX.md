@@ -96,3 +96,38 @@ Known limitations: real protocol timing, HID transport and firmware behavior
   remain assigned to V14-12 hardware gates
 Rollback: parent commit of the V14-02 implementation commit
 ```
+
+## V14-03 evidence
+
+```text
+Package: V14-03
+Scope: Self-contained private UAP runtime and truthful dependency diagnostics
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -ForceUserUapRuntime
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild -RunSeconds 8
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  MSBuild HallJoy.vcxproj /t:Rebuild /p:Configuration=Release /p:Platform=x64
+    /p:HallJoyMad68ProRNative=true /p:HallJoyStabilityTrace=true /m
+Results:
+  Static audits: PASS
+  Windows command-line quoting portable test: PASS
+  Forced protected-directory fallback: PASS, location=user
+  Ordinary portable runtime: PASS, location=executable
+  Exact resource comparison after extraction: PASS
+  Corrupted per-user runtime atomic self-repair: PASS
+  Embedded source SHA-256 equals repaired runtime SHA-256:
+    0C45419D8F615284B4D673CB369191E6ABFCD57A72D3564C744D5960682DD8B2
+  Child private-runtime load and backend initialization: PASS
+  ViGEm initialization and simulated common pipeline: PASS
+  Graceful parent/child shutdown: PASS
+  System SDK/global UAP recovery URLs: absent
+  Full build script and production x64 Release: PASS, 0 errors,
+    1 inherited ViGEmClient PDB warning
+  Packaged production UI smoke: PASS, graceful exit 0, no child left behind
+Hardware: NOT VERIFIED; runtime evidence does not close device gates
+Known limitations: UAP protocol/device behavior remains in hardware qualification
+Rollback: parent commit of the V14-03 implementation commit
+```

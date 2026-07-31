@@ -18,6 +18,7 @@
 #include "app_deps.h"
 #include "backend.h"
 #include "debug_log.h"
+#include "embedded_analog_stack.h"
 
 #pragma comment(lib, "Urlmon.lib")
 #pragma comment(lib, "Winhttp.lib")
@@ -30,16 +31,6 @@ static std::wstring Utf8ToWide(const std::string& s)
     if (n <= 0) return {};
     std::wstring out((size_t)n, L'\0');
     MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), out.data(), n);
-    return out;
-}
-
-static std::string WideToUtf8(const std::wstring& s)
-{
-    if (s.empty()) return {};
-    int n = WideCharToMultiByte(CP_UTF8, 0, s.data(), (int)s.size(), nullptr, 0, nullptr, nullptr);
-    if (n <= 0) return {};
-    std::string out((size_t)n, '\0');
-    WideCharToMultiByte(CP_UTF8, 0, s.data(), (int)s.size(), out.data(), n, nullptr, nullptr);
     return out;
 }
 
@@ -459,78 +450,17 @@ static bool RunInstallerElevatedAndWait(HWND hwnd, const std::wstring& installer
     return RunCommandElevatedAndWait(hwnd, installerPath, L"");
 }
 
-static std::wstring QuoteForPowerShellSingle(const std::wstring& s)
-{
-    std::wstring out = L"'";
-    for (wchar_t c : s)
-    {
-        if (c == L'\'') out += L"''";
-        else out += c;
-    }
-    out += L"'";
-    return out;
-}
-
-static bool WriteTextFileUtf8(const std::wstring& path, const std::wstring& text)
-{
-    std::string utf8 = WideToUtf8(text);
-    HANDLE h = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (h == INVALID_HANDLE_VALUE)
-        return false;
-
-    DWORD written = 0;
-    bool ok = WriteFile(h, utf8.data(), (DWORD)utf8.size(), &written, nullptr) != FALSE;
-    CloseHandle(h);
-    return ok && written == (DWORD)utf8.size();
-}
-
-static bool RunPowerShellScriptElevatedAndWait(HWND hwnd, const std::wstring& scriptText)
-{
-    std::wstring scriptPath = BuildTempInstallerPath(L"halljoy_install_uap.ps1");
-    if (!WriteTextFileUtf8(scriptPath, scriptText))
-        return false;
-
-    std::wstring params = L"-NoProfile -ExecutionPolicy Bypass -File " + QuoteForCmdArg(scriptPath);
-    return RunCommandElevatedAndWait(hwnd, L"powershell.exe", params);
-}
-
-static bool InstallUniversalAnalogPluginFromZip(HWND hwnd, const std::wstring& zipPath)
-{
-    std::wstring extractDir = BuildTempInstallerPath(L"uap_extract");
-    std::wstring dstDir = L"C:\\Program Files\\WootingAnalogPlugins";
-
-    std::wstring script;
-    script += L"$ErrorActionPreference='Stop'\n";
-    script += L"$zip=" + QuoteForPowerShellSingle(zipPath) + L"\n";
-    script += L"$extract=" + QuoteForPowerShellSingle(extractDir) + L"\n";
-    script += L"$dst=" + QuoteForPowerShellSingle(dstDir) + L"\n";
-    script += L"if (Test-Path -LiteralPath $extract) { Remove-Item -LiteralPath $extract -Recurse -Force }\n";
-    script += L"Expand-Archive -LiteralPath $zip -DestinationPath $extract -Force\n";
-    script += L"New-Item -ItemType Directory -Path $dst -Force | Out-Null\n";
-    script += L"$srcClassic = Join-Path $extract 'universal-analog-plugin'\n";
-    script += L"$srcWooting = Join-Path $extract 'universal-analog-plugin-with-wooting-device-support'\n";
-    script += L"if (Test-Path -LiteralPath $srcClassic) {\n";
-    script += L"  Copy-Item -LiteralPath $srcClassic -Destination $dst -Recurse -Force\n";
-    script += L"} elseif (Test-Path -LiteralPath $srcWooting) {\n";
-    script += L"  Copy-Item -LiteralPath $srcWooting -Destination $dst -Recurse -Force\n";
-    script += L"} else {\n";
-    script += L"  throw 'No supported plugin folders found in Windows.zip'\n";
-    script += L"}\n";
-
-    return RunPowerShellScriptElevatedAndWait(hwnd, script);
-}
-
 static std::wstring BuildIssuesText(uint32_t issues)
 {
     std::wstring t;
     if (issues & BackendInitIssue_VigemBusMissing)
         t += L"- ViGEm Bus is missing.\n";
-    if (issues & BackendInitIssue_WootingSdkMissing)
-        t += L"- Wooting Analog SDK is missing.\n";
-    if (issues & BackendInitIssue_WootingIncompatible)
-        t += L"- Wooting Analog SDK version is incompatible.\n";
-    if (issues & BackendInitIssue_WootingNoPlugins)
-        t += L"- No Wooting analog plugins are installed.\n";
+    if (issues & BackendInitIssue_PrivateUapUnavailable)
+        t += L"- HallJoy's embedded private analog runtime could not be prepared or loaded.\n";
+    if (issues & BackendInitIssue_PrivateUapIncompatible)
+        t += L"- HallJoy's embedded private analog runtime has an incompatible ABI.\n";
+    if (issues & BackendInitIssue_PrivateUapNoDevices)
+        t += L"- The private analog runtime found no supported analog device.\n";
     if (issues & BackendInitIssue_Unknown)
         t += L"- Unknown backend initialization issue.\n";
     if (t.empty())
@@ -542,19 +472,30 @@ DependencyInstallResult AppDeps_TryInstallMissingDependencies(HWND hwnd, uint32_
 {
     DebugLog_Write(L"[deps] begin install flow issues=0x%08X", issues);
     const bool needVigem = (issues & BackendInitIssue_VigemBusMissing) != 0;
-    const bool needWootingSdk = (issues & (BackendInitIssue_WootingSdkMissing |
-                                           BackendInitIssue_WootingIncompatible |
-                                           BackendInitIssue_WootingNoPlugins)) != 0;
-    const bool suggestUap = (issues & (BackendInitIssue_WootingSdkMissing |
-                                       BackendInitIssue_WootingIncompatible |
-                                       BackendInitIssue_WootingNoPlugins)) != 0;
+    const bool privateUapIssue = (issues & (BackendInitIssue_PrivateUapUnavailable |
+                                            BackendInitIssue_PrivateUapIncompatible |
+                                            BackendInitIssue_PrivateUapNoDevices)) != 0;
 
-    if (!needVigem && !needWootingSdk)
+    if (privateUapIssue)
+    {
+        std::wstring details = BuildIssuesText(issues);
+        details += L"\nHallJoy uses its own embedded private runtime. Installing a system-wide Wooting Analog SDK or global UAP cannot repair this path.\n\n";
+        if (!EmbeddedAnalogStack_PrivatePluginPath().empty())
+        {
+            details += L"Verified runtime path:\n";
+            details += EmbeddedAnalogStack_PrivatePluginPath();
+            details += L"\n\n";
+        }
+        details += L"Reinstall the same HallJoy build if the embedded runtime remains unavailable. Native protocol backends can continue independently when supported hardware is present.";
+        MessageBoxW(hwnd, details.c_str(), L"HallJoy private analog runtime", MB_OK | MB_ICONWARNING);
+        DebugLog_Write(L"[deps] private UAP issue; system SDK install intentionally unavailable location=%s error=%lu",
+            EmbeddedAnalogStack_RuntimeLocationName(), EmbeddedAnalogStack_LastError());
+    }
+
+    if (!needVigem)
         return DependencyInstallResult::Skipped;
 
-    std::wstring prompt = L"Missing dependencies detected:\n\n";
-    prompt += BuildIssuesText(issues);
-    prompt += L"\nDownload and run verified installers from trusted GitHub sources now?";
+    std::wstring prompt = L"ViGEm Bus is required to create the virtual Xbox controller.\n\nDownload and run its verified installer from the trusted GitHub release now?";
     if (MessageBoxW(hwnd, prompt.c_str(), L"HallJoy", MB_ICONQUESTION | MB_YESNO) != IDYES)
     {
         DebugLog_Write(L"[deps] user declined install");
@@ -585,55 +526,5 @@ DependencyInstallResult AppDeps_TryInstallMissingDependencies(HWND hwnd, uint32_
         }
     }
 
-    if (needWootingSdk)
-    {
-        std::wstring installerPath;
-        if (!DownloadLatestAssetToTemp(
-            { L"https://api.github.com/repos/WootingKb/wooting-analog-sdk/releases/latest" },
-            { L"wooting", L"analog", L"sdk" },
-            { L"x86_64", L"windows", L"msi" },
-            { L".msi", L".exe" },
-            installerPath))
-        {
-            MessageBoxW(hwnd, L"Failed to download latest Wooting Analog SDK installer from GitHub.", L"HallJoy", MB_ICONERROR);
-            DebugLog_Write(L"[deps] Wooting SDK installer download failed");
-            return DependencyInstallResult::Failed;
-        }
-
-        if (!RunInstallerElevatedAndWait(hwnd, installerPath))
-        {
-            MessageBoxW(hwnd, L"Wooting Analog SDK installation did not complete successfully.", L"HallJoy", MB_ICONERROR);
-            DebugLog_Write(L"[deps] Wooting SDK installer failed");
-            return DependencyInstallResult::Failed;
-        }
-    }
-
-    if (suggestUap)
-    {
-        const int wantUap = MessageBoxW(
-            hwnd,
-            L"Install optional Universal Analog Plugin for broader HE keyboard support?",
-            L"HallJoy",
-            MB_ICONQUESTION | MB_YESNO);
-        if (wantUap == IDYES)
-        {
-            std::wstring zipPath;
-            if (!DownloadLatestAssetToTemp(
-                { L"https://api.github.com/repos/AnalogSense/universal-analog-plugin/releases/latest" },
-                { L"windows" },
-                { L"windows", L"zip" },
-                { L".zip" },
-                zipPath))
-            {
-                MessageBoxW(hwnd, L"Failed to download Universal Analog Plugin (Windows.zip).", L"HallJoy", MB_ICONWARNING);
-            }
-            else if (!InstallUniversalAnalogPluginFromZip(hwnd, zipPath))
-            {
-                MessageBoxW(hwnd, L"Universal Analog Plugin installation failed. You can install it manually later.", L"HallJoy", MB_ICONWARNING);
-            }
-        }
-    }
-
     return DependencyInstallResult::Installed;
 }
-

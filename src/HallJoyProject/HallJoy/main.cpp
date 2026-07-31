@@ -74,7 +74,10 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow)
 #endif
 
     const bool embeddedAnalogReady = EmbeddedAnalogStack_Prepare(hInst);
-    StabilityTrace_Write(embeddedAnalogReady ? L"INFO" : L"WARN", L"main", L"embedded_stack.prepare", L"ready=%d", embeddedAnalogReady ? 1 : 0);
+    StabilityTrace_Write(embeddedAnalogReady ? L"INFO" : L"WARN", L"main", L"embedded_stack.prepare",
+        L"ready=%d location=%s error=%lu system_sdk_required=0",
+        embeddedAnalogReady ? 1 : 0, EmbeddedAnalogStack_RuntimeLocationName(),
+        EmbeddedAnalogStack_LastError());
     if (!embeddedAnalogReady)
     {
         DebugLog_Write(L"[main] embedded analog stack preparation failed");

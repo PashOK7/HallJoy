@@ -929,7 +929,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                 DebugLog_Write(L"[app.timer] ui tick=%u", tick);
 
 #if defined(HALLJOY_MAD68PR_NATIVE)
-            // Preserve normal UAP dependency behavior, but recover the common
+            // Preserve private UAP behavior, but recover the common
             // curve/UI/ViGEm pipeline when a Pro R is connected after a degraded
             // startup. One retry is made for each absent->present transition.
             const bool mad68PresentNow = Mad68ProR_IsDevicePresent();
@@ -983,7 +983,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                 MessageBoxW(
                     hwnd,
                     L"HallJoy switched to compatibility input mode.\n\n"
-                    L"Analog stream from Wooting SDK is not available right now, "
+                    L"Analog stream from HallJoy's private analog runtime is not available right now, "
                     L"so key input is emulated from digital key states.\n\n"
                     L"Result: gamepad control works, but this is not true analog precision.",
                     L"HallJoy Warning",

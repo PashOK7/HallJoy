@@ -17,6 +17,18 @@ build\output\HallJoyMAD68ProRNative.exe
 
 Требуются Visual Studio 2022 Build Tools с компонентом **Desktop development with C++**.
 
+## Runtime-зависимости
+
+HallJoy содержит собственную зафиксированную ABI1-сборку Universal Analog
+Plugin. Системный Wooting Analog SDK и глобальная установка UAP не требуются.
+В writable/portable-каталоге private runtime проверяется рядом с EXE; при
+защищённом каталоге он автоматически и без UAC размещается в versioned
+`%LOCALAPPDATA%\HallJoy\Runtime`. Перед запуском изолированного child host файл
+побайтно сверяется со встроенным ресурсом.
+
+Внешней системной зависимостью для виртуального Xbox-контроллера остаётся
+ViGEmBus.
+
 ## Поддерживаемые аналоговые маршруты
 
 | Семейство | Протокол | Обнаружение |

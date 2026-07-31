@@ -21,6 +21,7 @@
 #include "debug_log.h"
 #include "embedded_analog_stack.h"
 #include "realtime_loop.h"
+#include "windows_command_line.h"
 
 #pragma comment(lib, "dbghelp.lib")
 #pragma comment(lib, "shell32.lib")
@@ -59,6 +60,7 @@ namespace
         std::wstring mappingName;
         std::wstring stopEventName;
         std::wstring snapshotEventName;
+        std::wstring privatePluginPath;
         std::atomic<bool> stopping{ false };
         std::atomic<bool> started{ false };
     };
@@ -283,9 +285,8 @@ namespace
         return out != nullptr;
     }
 
-    bool LoadHostApi(HostApi& api)
+    bool LoadHostApi(HostApi& api, const std::wstring& pluginPath)
     {
-        const std::wstring pluginPath = BuildPathNearExe(EmbeddedAnalogStack_PrivatePluginFileName());
         HostLog(L"load direct ABI1 plugin path=%s", pluginPath.c_str());
         api.module = LoadLibraryW(pluginPath.c_str());
         if (!api.module)
@@ -430,14 +431,15 @@ namespace
             SetEvent(snapshotEvent);
     }
 
-    bool ParseHostCommand(DWORD& ownerPid, unsigned long long& nonce)
+    bool ParseHostCommand(DWORD& ownerPid, unsigned long long& nonce,
+        std::wstring& privatePluginPath)
     {
         int argc = 0;
         LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
         if (!argv)
             return false;
         bool found = false;
-        for (int i = 1; i + 2 < argc; ++i)
+        for (int i = 1; i + 3 < argc; ++i)
         {
             if (_wcsicmp(argv[i], kHostArg) == 0)
             {
@@ -445,10 +447,13 @@ namespace
                 wchar_t* endNonce = nullptr;
                 const unsigned long pidValue = wcstoul(argv[i + 1], &endPid, 10);
                 const unsigned long long nonceValue = _wcstoui64(argv[i + 2], &endNonce, 16);
-                if (endPid != argv[i + 1] && endNonce != argv[i + 2] && pidValue != 0 && nonceValue != 0)
+                if (endPid != argv[i + 1] && *endPid == L'\0' &&
+                    endNonce != argv[i + 2] && *endNonce == L'\0' &&
+                    pidValue != 0 && nonceValue != 0 && argv[i + 3][0] != L'\0')
                 {
                     ownerPid = static_cast<DWORD>(pidValue);
                     nonce = nonceValue;
+                    privatePluginPath = argv[i + 3];
                     found = true;
                 }
                 break;
@@ -458,7 +463,7 @@ namespace
         return found;
     }
 
-    int RunHost(DWORD ownerPid, unsigned long long nonce)
+    int RunHost(DWORD ownerPid, unsigned long long nonce, const std::wstring& privatePluginPath)
     {
         const std::wstring mappingName = BuildIpcName(L"Map", ownerPid, nonce);
         const std::wstring stopName = BuildIpcName(L"Stop", ownerPid, nonce);
@@ -505,7 +510,7 @@ namespace
 
         HostApi api;
         HostSetCheckpoint(shared, Checkpoint_LoadSdk);
-        if (!LoadHostApi(api))
+        if (!LoadHostApi(api, privatePluginPath))
         {
             PublishHostError(shared, static_cast<LONG>(GetLastError()), WootingAnalogResult_DLLNotFound);
             CloseHandle(ownerProcess);
@@ -1088,15 +1093,18 @@ namespace
         const DWORD len = GetModuleFileNameW(nullptr, exePath, static_cast<DWORD>(_countof(exePath)));
         if (len == 0 || len >= _countof(exePath))
             return false;
-        wchar_t command[33200]{};
-        _snwprintf_s(command, _countof(command), _TRUNCATE,
-            L"\"%s\" %s %lu %016llX", exePath, kHostArg, g_client.ownerPid, g_client.nonce);
+        wchar_t identity[128]{};
+        _snwprintf_s(identity, _countof(identity), _TRUNCATE,
+            L" %s %lu %016llX ", kHostArg, g_client.ownerPid, g_client.nonce);
+        std::wstring command = halljoy::windows_command_line::QuoteArgument(exePath);
+        command += identity;
+        command += halljoy::windows_command_line::QuoteArgument(g_client.privatePluginPath);
         STARTUPINFOW si{};
         si.cb = sizeof(si);
         ZeroMemory(&pi, sizeof(pi));
         const DWORD creationFlags = CREATE_NO_WINDOW |
             (kUseChildDebugger ? DEBUG_ONLY_THIS_PROCESS : 0u);
-        const BOOL ok = CreateProcessW(exePath, command, nullptr, nullptr, FALSE,
+        const BOOL ok = CreateProcessW(exePath, command.data(), nullptr, nullptr, FALSE,
             creationFlags, nullptr, nullptr, &si, &pi);
         return ok != FALSE;
     }
@@ -1401,6 +1409,15 @@ namespace
             return true;
         }
 
+        g_client.privatePluginPath = EmbeddedAnalogStack_PrivatePluginPath();
+        if (g_client.privatePluginPath.empty())
+        {
+            ReleaseSRWLockExclusive(&g_client.lock);
+            DebugLog_Write(L"[analog.host] private UAP path is unavailable err=%lu",
+                EmbeddedAnalogStack_LastError());
+            return false;
+        }
+
         g_client.ownerPid = GetCurrentProcessId();
         LARGE_INTEGER qpc{};
         QueryPerformanceCounter(&qpc);
@@ -1532,9 +1549,10 @@ bool AnalogHost_TryRunCommand(int& exitCode)
 {
     DWORD ownerPid = 0;
     unsigned long long nonce = 0;
-    if (!ParseHostCommand(ownerPid, nonce))
+    std::wstring privatePluginPath;
+    if (!ParseHostCommand(ownerPid, nonce, privatePluginPath))
         return false;
-    exitCode = RunHost(ownerPid, nonce);
+    exitCode = RunHost(ownerPid, nonce, privatePluginPath);
     return true;
 }
 

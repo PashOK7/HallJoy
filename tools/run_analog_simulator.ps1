@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [switch]$SkipBuild,
+    [switch]$ForceUserUapRuntime,
     [ValidateRange(7, 120)]
     [int]$RunSeconds = 8
 )
@@ -48,8 +49,12 @@ if (Test-Path -LiteralPath $trace) {
     Remove-Item -LiteralPath $trace -Force
 }
 
+$arguments = @('--halljoy-simulate-analog=script')
+if ($ForceUserUapRuntime) {
+    $arguments += '--halljoy-test-uap-exe-write-denied'
+}
 $process = Start-Process -FilePath $exe `
-    -ArgumentList '--halljoy-simulate-analog=script' `
+    -ArgumentList $arguments `
     -PassThru
 try {
     Start-Sleep -Seconds $RunSeconds
@@ -97,6 +102,9 @@ $required = @(
     '[component=backend][event=shutdown.end]'
 )
 $missing = @($required | Where-Object { -not $traceText.Contains($_) })
+if ($ForceUserUapRuntime -and -not $traceText.Contains('[component=embedded-uap][event=prepare.ok] location=user exact_resource_match=1 system_sdk_required=0')) {
+    $missing += 'verified per-user private UAP fallback'
+}
 if ($missing.Count -ne 0) {
     throw "Simulator trace is incomplete. Missing: $($missing -join ', ')"
 }

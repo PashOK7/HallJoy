@@ -1,0 +1,51 @@
+# HallJoy v1.4 private UAP runtime
+
+## Runtime contract
+
+HallJoy embeds the exact ABI1 Universal Analog Plugin used by its isolated
+analog-host child. It does not load or require a system-wide Wooting Analog SDK
+and does not consume a global `C:\Program Files\WootingAnalogPlugins` install.
+
+At startup HallJoy:
+
+1. compares the portable DLL beside the executable with the embedded resource;
+2. atomically writes and flushes the resource when the portable location is
+   writable;
+3. falls back without elevation to
+   `%LOCALAPPDATA%\HallJoy\Runtime\v1.4.0\HallJoyUniversalAnalogHost.dll` when
+   the executable directory is protected;
+4. compares the final file byte-for-byte with the resource;
+5. passes the verified absolute path explicitly to the isolated child process.
+
+A stale, truncated, or modified runtime copy is replaced atomically. Temporary
+files include the process and thread IDs, and are moved into place only after a
+complete write and successful `FlushFileBuffers`.
+
+## Dependencies and diagnostics
+
+ViGEmBus remains a system driver dependency for virtual Xbox controllers.
+HallJoy may offer to download its trusted installer when the driver is missing.
+
+Private UAP failures never offer a system Wooting SDK or global UAP installer,
+because those installations are outside the runtime path HallJoy actually
+loads. Diagnostics identify the embedded runtime condition and the selected
+path. Native protocol backends may continue independently when their hardware
+passes capability validation.
+
+## Verification
+
+The development verification build accepts
+`--halljoy-test-uap-exe-write-denied`. The switch is compiled only when
+`HALLJOY_STABILITY_TRACE` is enabled and forces the protected-directory fallback
+without requiring administrator rights.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\run_analog_simulator.ps1 `
+  -ForceUserUapRuntime
+```
+
+The gate requires an exact-resource-match trace, successful child/backend and
+ViGEm initialization, the full simulated common-pipeline scenario, graceful
+shutdown, and no remaining process. It is runtime/dependency evidence, not
+analog-keyboard hardware evidence.

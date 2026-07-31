@@ -76,3 +76,15 @@ parallel curve, SOCD, report, or ViGEm path. Its scenario assigns temporary
 in-memory WASD bindings and verifies reports after the common processing path.
 Simulator trace events are compiled only into the simulator target and are
 labelled `simulated=1 hardware=0`.
+
+## D-010 - Private UAP uses portable-first, per-user fallback storage
+
+Date: 2026-07-31
+
+HallJoy first preserves portable behavior beside the executable. If that
+location is not writable, it stores the exact embedded ABI1 runtime in a
+versioned `%LOCALAPPDATA%\HallJoy\Runtime` directory without elevation. The
+isolated child receives the verified absolute path explicitly. System Wooting
+SDK and global UAP installations are neither required nor valid repair actions
+for this architecture; ViGEmBus remains the only offered external runtime
+dependency.

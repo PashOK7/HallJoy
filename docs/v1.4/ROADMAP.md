@@ -27,8 +27,8 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-00` | Preserve v1.3 SDK work; import and verify the advanced archive | Verified | Provenance commits, clean tree, baseline build and test evidence |
 | `V14-01` | Product identity, version resources, current README and documentation ownership | Verified | No active product surface reports 3.9.0; historical evidence remains intact |
 | `V14-02` | Development-only deterministic analog simulator and scenario runner | Verified | Full common pipeline, ramps, SOCD, hotplug, disconnect and fault scenarios without production enablement |
-| `V14-03` | Self-contained private UAP runtime and truthful dependency diagnostics | In progress | Works from writable and protected install locations; never recommends system SDK |
-| `V14-04` | Reproducible dependencies, warning baseline, local/CI-equivalent build scripts | Planned | Pinned inputs, x64 Release CI, portable tests, documented warning policy |
+| `V14-03` | Self-contained private UAP runtime and truthful dependency diagnostics | Verified | Works from writable and protected install locations; never recommends system SDK |
+| `V14-04` | Reproducible dependencies, warning baseline, local/CI-equivalent build scripts | In progress | Pinned inputs, x64 Release CI, portable tests, documented warning policy |
 | `V14-05` | Truthful lifecycle registry and cooperative worker shutdown | Planned | Failure-injected start/stop/restart tests; no unsafe ordinary `TerminateThread` path |
 | `V14-06` | Addressed, MAD68, Hex80, SparkLink and Sayo lifecycle migration | Planned | Per-backend tests plus unchanged protocol and mapping characterization |
 | `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Planned | Partial-start, crash, hang, unload and bounded restart tests |
@@ -81,11 +81,23 @@ rerun in CI before publication.
 - Simulator sources are excluded from the production compile.
 - Evidence is always labelled simulated and never closes hardware gates.
 
-## Current package: V14-03
+## Completed package: V14-03
 
-Make the private UAP runtime reliable in protected installation locations and
-replace legacy system-SDK advice with diagnostics that match the embedded
-architecture.
+- Portable installs retain exact-resource verification beside the EXE.
+- Protected installs fall back without elevation to a versioned per-user
+  runtime under `%LOCALAPPDATA%`.
+- Writes are atomic, flushed, and verified byte-for-byte after replacement.
+- A stale or corrupted per-user DLL is self-repaired from the embedded resource.
+- The verified absolute DLL path is quoted and passed explicitly to the child.
+- System Wooting SDK and global UAP download/install recovery was removed.
+- ViGEmBus remains the only offered external runtime dependency.
+- Static, portable, forced-fallback, corruption-repair, production build, and
+  runtime shutdown gates pass.
+
+## Current package: V14-04
+
+Pin remaining moving build inputs, establish a warning baseline, and make local
+and CI build gates equivalent from a clean checkout.
 
 ## Release definition
 

@@ -9,7 +9,7 @@ version or release status.
 
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
-- Current package: `V14-03` self-contained private UAP runtime
+- Current package: `V14-04` reproducible dependencies and build/CI gates
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -28,6 +28,8 @@ must not be inferred from those tests.
 - [WORKLOG.md](WORKLOG.md) - chronological implementation and validation log.
 - [ANALOG_SIMULATOR.md](ANALOG_SIMULATOR.md) - simulator purpose, isolation
   contract, and repeatable gate.
+- [PRIVATE_UAP_RUNTIME.md](PRIVATE_UAP_RUNTIME.md) - embedded runtime locations,
+  integrity, diagnostics, and protected-directory fallback.
 
 ## Documentation rule
 

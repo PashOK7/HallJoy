@@ -1,4 +1,8 @@
 #include "worker_exception_barrier.h"
+#include "worker_join_policy.h"
+
+#include <chrono>
+#include <mutex>
 
 // ---- native HID path for SparkLink / XD keyboard protocol ----
 static constexpr uint16_t kSparkUsagePageV2 = 0xFFB0;
@@ -50,6 +54,9 @@ static std::atomic<halljoy::worker::WorkerExceptionKind> g_sparkWorkerFaultKind{
 static halljoy::worker::WorkerExceptionRecord g_sparkWorkerFaultRecord{};
 static std::atomic<DWORD>         g_sparkWorkerSehCode{ 0 };
 static std::atomic<bool>          g_sparkWorkerExited{ true };
+static std::timed_mutex           g_sparkLifecycleMutex;
+static halljoy::lifecycle::WorkerLifecycle g_sparkLifecycle;
+static std::atomic<bool>          g_sparkRestartBlocked{ false };
 
 static constexpr size_t kSparkFastReportBytes = 1024;
 
@@ -982,6 +989,16 @@ static HANDLE SparkTryOpenDevice(
 
 static DWORD SparkPollThreadProcImpl()
 {
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-spark-stop-timeout"))
+    {
+        StabilityTrace_Write(L"WARN", L"spark", L"test.stop_timeout.injected",
+            L"simulator_only=1");
+        Sleep(INFINITE);
+    }
+#endif
+
     if (!g_sparkHandle || !g_sparkStopEvent)
         return 0;
 
@@ -1269,9 +1286,22 @@ static DWORD WINAPI SparkPollThreadProc(LPVOID) noexcept
     }
 }
 
-static bool SparkStop()
+static halljoy::lifecycle::StopResult SparkStopLocked()
 {
-    bool cooperativelyJoined = true;
+    const auto lifecycleState = g_sparkLifecycle.State();
+    if (lifecycleState == halljoy::lifecycle::WorkerState::Stopped ||
+        lifecycleState == halljoy::lifecycle::WorkerState::Joined)
+    {
+        return g_sparkLifecycle.RequestStop();
+    }
+    if (lifecycleState == halljoy::lifecycle::WorkerState::Poisoned)
+    {
+        return g_sparkLifecycle.RequestStop(g_sparkLifecycle.Generation());
+    }
+    const auto requested = g_sparkLifecycle.RequestStop(g_sparkLifecycle.Generation());
+    if (requested.status != halljoy::lifecycle::StopStatus::StopRequested)
+        return requested;
+
     const bool hadResources = g_sparkThread || g_sparkHandle || g_sparkStopEvent;
     if (hadResources)
         StabilityTrace_Write(L"INFO", L"spark", L"stop.begin", L"has_thread=%d has_handle=%d",
@@ -1282,27 +1312,52 @@ static bool SparkStop()
     if (g_sparkHandle)
         CancelIoEx(g_sparkHandle, nullptr);
 
-    if (g_sparkThread)
+    if (!g_sparkThread)
     {
-        DWORD wr = WaitForSingleObject(g_sparkThread, 3000);
-        if (wr != WAIT_OBJECT_0)
-        {
-            cooperativelyJoined = false;
-            const DWORD waitError = wr == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT;
-            DebugLog_Write(L"[backend.spark] stop join timeout wait=%lu err=%lu; forcing shutdown-only termination",
-                (unsigned long)wr, (unsigned long)waitError);
-            StabilityTrace_WriteCritical(L"ERROR", L"spark", L"stop.timeout",
-                L"wait=%lu win32=%lu", (unsigned long)wr, (unsigned long)waitError);
-            TerminateThread(g_sparkThread, 0xE0515350u);
-            WaitForSingleObject(g_sparkThread, 1000);
-            StabilityTrace_WriteCritical(L"ERROR", L"spark", L"forced_termination", L"exit_code=0xE0515350");
-            StabilityTrace_WriteCritical(L"ERROR", L"spark", L"worker.exit", L"fault_kind=forced");
-        }
-        CloseHandle(g_sparkThread);
-        g_sparkThread = nullptr;
-        g_sparkWorkerExited.store(true, std::memory_order_release);
+        g_sparkRestartBlocked.store(true, std::memory_order_release);
+        const auto poisoned = g_sparkLifecycle.MarkPoisoned(requested.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            halljoy::lifecycle::LifecycleErrorCode::PrimitiveFailed,
+            ERROR_INVALID_HANDLE);
+        StabilityTrace_WriteCritical(L"ERROR", L"spark", L"stop.invalid_thread",
+            L"generation=%llu win32=%lu resources_retained=1 restart_blocked=1",
+            static_cast<unsigned long long>(requested.generation.Value()),
+            static_cast<unsigned long>(ERROR_INVALID_HANDLE));
+        return poisoned;
     }
 
+    const DWORD waitResult = WaitForSingleObject(g_sparkThread, 3000);
+    const DWORD waitError = waitResult == WAIT_OBJECT_0
+        ? ERROR_SUCCESS
+        : (waitResult == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT);
+    const auto observedJoin = halljoy::lifecycle::ObserveWorkerJoin(
+        requested.generation,
+        waitResult == WAIT_OBJECT_0
+            ? halljoy::lifecycle::JoinWaitStatus::Joined
+            : (waitResult == WAIT_FAILED
+                ? halljoy::lifecycle::JoinWaitStatus::Failed
+                : halljoy::lifecycle::JoinWaitStatus::TimedOut),
+        waitError);
+    if (!observedJoin.Completed())
+    {
+        g_sparkRestartBlocked.store(true, std::memory_order_release);
+        const auto poisoned = g_sparkLifecycle.MarkPoisoned(requested.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            observedJoin.error.code, observedJoin.error.native_error);
+        DebugLog_Write(L"[backend.spark] stop join incomplete wait=%lu err=%lu; resources retained and restart blocked",
+            static_cast<unsigned long>(waitResult), static_cast<unsigned long>(waitError));
+        StabilityTrace_WriteCritical(L"ERROR", L"spark", L"stop.timeout",
+            L"generation=%llu wait=%lu win32=%lu thread_handle_retained=1 hid_handle_retained=%d stop_event_retained=%d restart_blocked=1",
+            static_cast<unsigned long long>(requested.generation.Value()),
+            static_cast<unsigned long>(waitResult),
+            static_cast<unsigned long>(waitError),
+            g_sparkHandle ? 1 : 0, g_sparkStopEvent ? 1 : 0);
+        return poisoned;
+    }
+
+    CloseHandle(g_sparkThread);
+    g_sparkThread = nullptr;
+    g_sparkWorkerExited.store(true, std::memory_order_release);
     if (g_sparkHandle)
     {
         CloseHandle(g_sparkHandle);
@@ -1327,22 +1382,105 @@ static bool SparkStop()
         StabilityTrace_Write(L"INFO", L"spark", L"disconnected", L"reason=stop");
         StabilityTrace_Write(L"INFO", L"spark", L"stop.end");
     }
-    return cooperativelyJoined;
+    return g_sparkLifecycle.ConfirmJoined(requested.generation);
+}
+
+static halljoy::lifecycle::StopResult SparkStop()
+{
+    std::unique_lock<std::timed_mutex> lifecycleGuard(g_sparkLifecycleMutex, std::defer_lock);
+    if (!lifecycleGuard.try_lock_for(std::chrono::milliseconds(500)))
+    {
+        g_sparkRestartBlocked.store(true, std::memory_order_release);
+        StabilityTrace_WriteCritical(L"ERROR", L"spark", L"stop.lock_timeout",
+            L"wait_ms=500 lifecycle_lock_retained=1 restart_blocked=1");
+        return {
+            halljoy::lifecycle::StopStatus::TimedOut,
+            halljoy::lifecycle::WorkerState::Poisoned,
+            {},
+            { halljoy::lifecycle::LifecycleErrorCode::StopTimedOut,
+                halljoy::lifecycle::LifecycleOperation::RequestStop,
+                halljoy::lifecycle::WorkerState::Running,
+                halljoy::lifecycle::WorkerState::Poisoned,
+                {}, {}, ERROR_TIMEOUT }
+        };
+    }
+    return SparkStopLocked();
 }
 
 static bool SparkStart()
 {
+    if (g_sparkRestartBlocked.load(std::memory_order_acquire))
+        return false;
+    const std::lock_guard<std::timed_mutex> lifecycleGuard(g_sparkLifecycleMutex);
+    if (g_sparkRestartBlocked.load(std::memory_order_acquire))
+        return false;
+
     if (g_sparkConnected.load(std::memory_order_acquire))
         return true;
-    if ((g_sparkThread || g_sparkHandle) && !SparkStop())
+    if ((g_sparkThread || g_sparkHandle || g_sparkStopEvent) &&
+        !SparkStopLocked().RestartSafe())
         return false;
+
+    const auto start = g_sparkLifecycle.BeginStart();
+    if (start.status != halljoy::lifecycle::StartStatus::Starting)
+    {
+        StabilityTrace_WriteCritical(L"ERROR", L"spark", L"start.rejected",
+            L"state=%u generation=%llu error=%u restart_blocked=1",
+            static_cast<unsigned>(start.state),
+            static_cast<unsigned long long>(start.generation.Value()),
+            static_cast<unsigned>(start.error.code));
+        return false;
+    }
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-spark-stop-timeout"))
+    {
+        g_sparkStopEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        if (!g_sparkStopEvent)
+        {
+            const DWORD error = GetLastError();
+            (void)g_sparkLifecycle.FailStartBeforeWorker(start.generation, error);
+            return false;
+        }
+        g_sparkWorkerFaultRecord = {};
+        g_sparkWorkerFaultKind.store(
+            halljoy::worker::WorkerExceptionKind::None, std::memory_order_release);
+        g_sparkWorkerSehCode.store(0, std::memory_order_release);
+        g_sparkWorkerExited.store(false, std::memory_order_release);
+        DWORD tid = 0;
+        g_sparkThread = CreateThread(nullptr, 0, SparkPollThreadProc, nullptr, 0, &tid);
+        if (!g_sparkThread)
+        {
+            const DWORD error = GetLastError();
+            CloseHandle(g_sparkStopEvent);
+            g_sparkStopEvent = nullptr;
+            g_sparkWorkerExited.store(true, std::memory_order_release);
+            (void)g_sparkLifecycle.FailStartBeforeWorker(start.generation, error);
+            return false;
+        }
+        const auto running = g_sparkLifecycle.ConfirmRunning(start.generation);
+        if (!running.IsRunning())
+            return false;
+        g_sparkConnectedVid.store(0xFFFF, std::memory_order_relaxed);
+        g_sparkConnectedPid.store(0x0001, std::memory_order_relaxed);
+        g_sparkConnected.store(true, std::memory_order_release);
+        StabilityTrace_Write(L"WARN", L"spark", L"test.start",
+            L"simulator_only=1 generation=%llu",
+            static_cast<unsigned long long>(start.generation.Value()));
+        return true;
+    }
+#endif
 
     uint16_t inLen = 0, outLen = 0, vid = 0, pid = 0, usagePage = 0;
     bool writeCapable = false;
     std::wstring path;
     HANDLE h = SparkTryOpenDevice(&inLen, &outLen, &path, &writeCapable, &vid, &pid, &usagePage);
     if (!h)
+    {
+        (void)g_sparkLifecycle.FailStartBeforeWorker(start.generation);
         return false;
+    }
     StabilityTrace_Write(L"INFO", L"spark", L"device.open",
         L"vid=0x%04X pid=0x%04X usage_page=0x%04X write_capable=%d",
         (unsigned)vid, (unsigned)pid, (unsigned)usagePage, writeCapable ? 1 : 0);
@@ -1350,6 +1488,7 @@ static bool SparkStart()
     {
         StabilityTrace_Write(L"WARN", L"spark", L"start.failed", L"stage=write_capability");
         CloseHandle(h);
+        (void)g_sparkLifecycle.FailStartBeforeWorker(start.generation);
         return false;
     }
 
@@ -1370,6 +1509,7 @@ static bool SparkStart()
         g_sparkWriteCapable.store(false, std::memory_order_release);
         g_sparkUsagePage.store(0, std::memory_order_relaxed);
         StabilityTrace_Write(L"WARN", L"spark", L"start.failed", L"stage=protocol_probe");
+        (void)g_sparkLifecycle.FailStartBeforeWorker(start.generation);
         return false;
     }
 
@@ -1380,6 +1520,7 @@ static bool SparkStart()
         CloseHandle(g_sparkHandle);
         g_sparkHandle = nullptr;
         StabilityTrace_WriteCritical(L"ERROR", L"spark", L"start.failed", L"stage=create_event win32=%lu", error);
+        (void)g_sparkLifecycle.FailStartBeforeWorker(start.generation, error);
         return false;
     }
 
@@ -1401,12 +1542,13 @@ static bool SparkStart()
         g_sparkHandle = nullptr;
         g_sparkWorkerExited.store(true, std::memory_order_release);
         StabilityTrace_WriteCritical(L"ERROR", L"spark", L"start.failed", L"stage=create_thread win32=%lu", error);
+        (void)g_sparkLifecycle.FailStartBeforeWorker(start.generation, error);
         return false;
     }
     if (!NativeAnalogRouting_Claim(vid, pid, NativeAnalogProtocol::SparkLink))
     {
         StabilityTrace_Write(L"WARN", L"spark", L"start.failed", L"stage=routing_claim");
-        SparkStop();
+        (void)SparkStopLocked();
         return false;
     }
 
@@ -1414,7 +1556,7 @@ static bool SparkStart()
     {
         DebugLog_Write(L"[backend.spark] poller exited during startup");
         StabilityTrace_WriteCritical(L"ERROR", L"spark", L"start.failed", L"stage=worker_early_exit");
-        SparkStop();
+        (void)SparkStopLocked();
         return false;
     }
 
@@ -1425,9 +1567,17 @@ static bool SparkStart()
     {
         DebugLog_Write(L"[backend.spark] poller exited while publishing startup");
         StabilityTrace_WriteCritical(L"ERROR", L"spark", L"start.failed", L"stage=publish_race");
-        SparkStop();
+        (void)SparkStopLocked();
         return false;
     }
+    if (g_sparkRestartBlocked.load(std::memory_order_acquire))
+    {
+        (void)SparkStopLocked();
+        return false;
+    }
+    const auto running = g_sparkLifecycle.ConfirmRunning(start.generation);
+    if (!running.IsRunning())
+        return false;
     StabilityTrace_Write(L"INFO", L"spark", L"connected",
         L"vid=0x%04X pid=0x%04X usage_page=0x%04X in_len=%u out_len=%u poll_mode=%u row_limit=%u",
         (unsigned)vid, (unsigned)pid, (unsigned)usagePage,
@@ -1441,6 +1591,15 @@ static bool SparkStart()
         (unsigned)g_sparkInputReportLen,
         (unsigned)g_sparkOutputReportLen,
         path.c_str());
+    return true;
+}
+
+static bool SparkStartService()
+{
+    // The registry owns the long-lived hotplug service, not only the first HID
+    // worker. A device may appear later through SparkTickHotplug(), so the outer
+    // generation must remain Running and guarantee a final SparkStop() call.
+    (void)SparkStart();
     return true;
 }
 

@@ -325,3 +325,41 @@
 
 - SparkLink and Sayo still contain separately owned forced-termination
   fallbacks.
+
+## 2026-07-31 - V14-06D SparkLink cooperative shutdown
+
+### Implemented
+
+- SparkLink hotplug workers now use a serialized internal generation within the
+  existing native-registry generation.
+- The outer registry generation now represents the long-lived hotplug service,
+  fixing the case where a device connected after an absent initial probe could
+  otherwise escape final registry stop.
+- Stop signals the manual-reset event and calls `CancelIoEx` before its bounded
+  worker join.
+- Confirmed completion alone releases thread, HID and event HANDLEs.
+- Join timeout retains all reachable worker resources, poisons internal restart
+  and propagates an incomplete result to the outer registry.
+- Final stop uses bounded timed-lock acquisition so a synchronous hotplug HID
+  probe cannot make application shutdown unbounded.
+- Native backend poison now stops dependent application teardown and selects
+  process-level containment.
+- Spark discovery, reversible protocol proof, VID/PID claim, command bytes,
+  polling and normalization were not changed.
+
+### Validation
+
+- SparkLink exception-boundary and cooperative-shutdown static audits: PASS.
+- All static and portable C++20 tests: PASS.
+- Full production MSVC x64 Release build: PASS, only allowlisted `LNK4099`.
+- Simulator-only blocked-worker injection: PASS; thread/event retained, inner
+  and registry restart poisoned, dependent cleanup skipped and expected process
+  exit code 2 observed.
+- Normal deterministic simulator after the injected run: PASS, no `ERROR`
+  trace event and no remaining process.
+- Existing real-device S02B.2 evidence predates this lifecycle-only diff;
+  post-change SparkLink device regression remains release qualification.
+
+### Remaining V14-06 scope
+
+- Sayo retains the final forced-termination fallback.

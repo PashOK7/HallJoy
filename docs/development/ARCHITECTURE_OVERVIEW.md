@@ -68,6 +68,15 @@ completion. An incomplete join retains ownership, poisons restart and prevents
 teardown of backend, settings, logging and other state that the worker could
 still read. HTTP framing and connection concurrency remain separate concerns.
 
+SparkLink has an inner worker generation because device hotplug can restart its
+poller while the outer native-registry generation remains active. That outer
+generation represents the hotplug service even when no device exists at initial
+startup, guaranteeing final stop for a worker connected later. Start/stop is
+serialized, but final stop acquires that lock with a bound so a synchronous HID
+probe cannot make shutdown unbounded. Stop signals the event and cancels HID
+I/O before joining. Only confirmed completion releases thread, HID and event
+HANDLEs; join or lock timeout blocks both inner restart and outer registry reuse.
+
 ## Files a new protocol owns
 
 Generated default:

@@ -679,7 +679,16 @@ static void AppShutdownNoThrow(HWND hwnd) noexcept
         return;
     }
 #if defined(HALLJOY_MAD68PR_NATIVE)
-    runStep(L"native_analog_backends", [] { NativeAnalogBackends_StopAll(); });
+    bool nativeBackendsStopped = false;
+    runStep(L"native_analog_backends", [&] { nativeBackendsStopped = NativeAnalogBackends_StopAll(); });
+    if (!nativeBackendsStopped)
+    {
+        g_immediateProcessExitRequired.store(true, std::memory_order_release);
+        StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.poisoned",
+            L"component=native-analog dependent_cleanup_skipped=1");
+        DebugLog_Write(L"[app.shutdown] a native analog worker did not join; dependent cleanup skipped and immediate process exit required");
+        return;
+    }
 #else
     runStep(L"addressed_analog", [] { AddressedAnalog_Stop(); });
 #endif

@@ -118,11 +118,11 @@ def main() -> int:
             "poller exited while publishing startup" in start,
             "early exit cannot be reported as a successful connection")
 
-    stop = function_body(source, "static bool SparkStop()")
+    stop = function_body(source, "static halljoy::lifecycle::StopResult SparkStopLocked()")
     require("g_sparkWorkerExited.store(true" in stop,
             "owner-side reap publishes completed generation")
-    require("TerminateThread" in stop,
-            "cooperative shutdown replacement remains explicitly deferred to S08")
+    require("TerminateThread" not in source,
+            "SparkLink has no forced thread termination")
 
     print("SPARKLINK_EXCEPTION_BOUNDARY_STATIC_AUDIT=PASS")
     return 0

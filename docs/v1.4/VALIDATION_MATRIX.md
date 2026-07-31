@@ -288,3 +288,37 @@ Known limitations: HTTP framing/concurrency remain S16; SparkLink and Sayo
   retain forced-termination paths
 Rollback: parent commit of the V14-06C implementation commit
 ```
+
+## V14-06D evidence
+
+```text
+Package: V14-06D
+Scope: SparkLink cooperative shutdown
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1
+    -InjectSparkStopTimeout -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+Results:
+  SparkLink TerminateThread occurrences: 0
+  Exception and cooperative lifecycle static audits: PASS
+  Late-hotplug worker remains covered by outer registry stop: PASS
+  Static audits and portable C++20 tests: PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Simulator forced Spark worker timeout containment, expected exit 2: PASS
+  Thread/event ownership retained and inner restart poisoned: PASS
+  Outer native registry poisoned and dependent cleanup skipped: PASS
+  Normal simulator common pipeline and cooperative shutdown: PASS
+  Normal simulator ERROR trace events: 0
+  Remaining simulator processes: 0
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Hardware: Existing S02B.2 device gate predates V14-06D. Protocol behavior is
+  unchanged; post-change SparkLink shutdown/reconnect regression remains part
+  of release qualification
+Known limitations: Sayo retains the final forced-termination path
+Rollback: parent commit of the V14-06D implementation commit
+```

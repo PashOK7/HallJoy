@@ -3951,12 +3951,16 @@ const NativeAnalogBackendDescriptor& BackendNative_GetSparkDescriptor()
             NativeAnalogBackendFlag_ReversibleControlProbe |
             NativeAnalogBackendFlag_DynamicVidPid,
         nullptr,
-        &SparkStart,
+        &SparkStartService,
         [](halljoy::lifecycle::GenerationId generation) {
-            return SparkStop()
-                ? NativeAnalogBackendStopJoined(generation)
-                : NativeAnalogBackendStopFailed(generation,
-                    halljoy::lifecycle::LifecycleErrorCode::StopTimedOut, ERROR_TIMEOUT);
+            const auto stopped = SparkStop();
+            if (stopped.RestartSafe())
+                return NativeAnalogBackendStopJoined(generation);
+            const auto reason = stopped.error.code == halljoy::lifecycle::LifecycleErrorCode::None
+                ? halljoy::lifecycle::LifecycleErrorCode::PrimitiveFailed
+                : stopped.error.code;
+            return NativeAnalogBackendStopFailed(
+                generation, reason, stopped.error.native_error);
         },
         nullptr,
         &BackendNative_SparkPresent,

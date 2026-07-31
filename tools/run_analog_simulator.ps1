@@ -6,6 +6,7 @@ param(
     [switch]$InjectRealtimeStopTimeout,
     [switch]$InjectDebugLogStopTimeout,
     [switch]$InjectOverlayStopTimeout,
+    [switch]$InjectSparkStopTimeout,
     [ValidateRange(7, 120)]
     [int]$RunSeconds = 8
 )
@@ -16,7 +17,8 @@ Set-StrictMode -Version Latest
 $injectionCount = @(
     $InjectRealtimeStopTimeout.IsPresent,
     $InjectDebugLogStopTimeout.IsPresent,
-    $InjectOverlayStopTimeout.IsPresent
+    $InjectOverlayStopTimeout.IsPresent,
+    $InjectSparkStopTimeout.IsPresent
 ).Where({ $_ }).Count
 if ($injectionCount -gt 1) {
     throw 'Select only one timeout injection scenario.'
@@ -78,6 +80,9 @@ if ($InjectDebugLogStopTimeout) {
 if ($InjectOverlayStopTimeout) {
     $arguments += @('--halljoy-test-overlay-stop-timeout', '--overlay-server', '--port', '18765')
 }
+if ($InjectSparkStopTimeout) {
+    $arguments += '--halljoy-test-spark-stop-timeout'
+}
 if ($StartOverlay) {
     $arguments += @('--overlay-server', '--port', '18765')
 }
@@ -126,7 +131,10 @@ if ($InjectDebugLogStopTimeout -and $process.ExitCode -ne 3) {
 if ($InjectOverlayStopTimeout -and $process.ExitCode -ne 2) {
     throw "Overlay-timeout simulator exited with code $($process.ExitCode), expected 2."
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and $process.ExitCode -ne 0) {
+if ($InjectSparkStopTimeout -and $process.ExitCode -ne 2) {
+    throw "Spark-timeout simulator exited with code $($process.ExitCode), expected 2."
+}
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and $process.ExitCode -ne 0) {
     throw "Simulator exited with code $($process.ExitCode)."
 }
 if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
@@ -155,6 +163,15 @@ $required = if ($InjectRealtimeStopTimeout) { @(
     'restart_blocked=1',
     '[component=app][event=shutdown.poisoned] component=overlay',
     'dependent_cleanup_skipped=1',
+    '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
+) } elseif ($InjectSparkStopTimeout) { @(
+    '[component=spark][event=test.start] simulator_only=1',
+    '[component=spark][event=worker.start]',
+    '[component=spark][event=test.stop_timeout.injected] simulator_only=1',
+    '[component=spark][event=stop.timeout]',
+    'thread_handle_retained=1 hid_handle_retained=0 stop_event_retained=1 restart_blocked=1',
+    '[component=native-registry][event=stop.incomplete]',
+    '[component=app][event=shutdown.poisoned] component=native-analog dependent_cleanup_skipped=1',
     '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
 ) } else { @(
     '[component=analog-simulator][event=start]',
@@ -196,7 +213,7 @@ if ($ForceUserUapRuntime -and -not $traceText.Contains('[component=embedded-uap]
 if ($missing.Count -ne 0) {
     throw "Simulator trace is incomplete. Missing: $($missing -join ', ')"
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and $traceText -match '\[level=ERROR\]') {
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and $traceText -match '\[level=ERROR\]') {
     throw 'Simulator trace contains an ERROR event.'
 }
 
@@ -216,13 +233,15 @@ if ($InjectRealtimeStopTimeout) {
     Write-Host 'HallJoy debug-log timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectOverlayStopTimeout) {
     Write-Host 'HallJoy overlay timeout containment scenario: PASS' -ForegroundColor Green
+} elseif ($InjectSparkStopTimeout) {
+    Write-Host 'HallJoy SparkLink timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($StartOverlay) {
     Write-Host 'HallJoy overlay HTTP and cooperative shutdown scenario: PASS' -ForegroundColor Green
 } else {
     Write-Host 'HallJoy analog simulator scenario: PASS' -ForegroundColor Green
 }
 Write-Host "Trace: $trace"
-if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout -or $InjectOverlayStopTimeout) {
+if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout -or $InjectOverlayStopTimeout -or $InjectSparkStopTimeout) {
     Write-Host 'Evidence classification: simulator lifecycle fault injection; NOT hardware verification.'
 } else {
     Write-Host 'Evidence classification: common pipeline simulation; NOT hardware verification.'

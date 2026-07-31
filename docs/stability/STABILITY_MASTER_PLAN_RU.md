@@ -185,6 +185,8 @@ Reader generation владеет HID HANDLE, event, buffer и `OVERLAPPED`. Stop
 
 Отдельно Spark и Sayo. SparkLink C++/SEH exception boundary и early-exit startup publication закрываются в S02B.2, но `TerminateThread` и Win32 HANDLE ownership остаются открытыми до S08. Удалить принудительное завершение, сохранить protocol discovery и claim policy. После стабилизации вынести `.inc` implementation в отдельные translation units без логических изменений.
 
+Статус v1.4: `Partial`. SparkLink `Verified` локально в V14-06D: внутренние hotplug-поколения сериализованы, stop event и `CancelIoEx` предшествуют bounded join, HANDLE освобождаются только после completion, а join/lock timeout блокирует restart и зависимый teardown. Protocol discovery, claim policy, commands и polling не менялись. Simulator fault injection пройден; реальный S02B.2 gate предшествует этому lifecycle-only diff, поэтому повторный device regression остаётся release qualification. Sayo ещё открыт.
+
 ### S09 — Analog host generation safety
 
 Ввести immutable `ClientGeneration`, shared ownership до confirmed completion, запрет reinitialize после timeout, корректный partial-start rollback. Старое поколение не читает mutable поля нового.

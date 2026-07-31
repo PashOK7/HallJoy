@@ -156,8 +156,15 @@ Progress:
   confirmed join. Timeout retains reachable ownership, poisons restart and
   prevents dependent application teardown. Loopback `/state` and forced-timeout
   simulator scenarios pass.
-- Remaining V14-06 workers: SparkLink and Sayo. Their existing `TerminateThread`
-  paths remain open and are not covered by these results.
+- `V14-06D` SparkLink: Verified locally. The hotplug worker has its own
+  serialized generation inside the registry generation; stop signals its event,
+  cancels HID I/O and releases thread/HID/event HANDLEs only after confirmed
+  join. Join or lifecycle-lock timeout poisons restart and prevents dependent
+  teardown. The outer generation represents the long-lived hotplug service, so
+  a worker connected after initial device absence is still stopped at shutdown.
+  Protocol discovery, claim policy, commands and polling are unchanged.
+- Remaining V14-06 worker: Sayo. Its existing `TerminateThread` path remains
+  open and is not covered by these results.
 
 ## Release definition
 

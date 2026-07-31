@@ -28,6 +28,22 @@ Production Irok shutdown
 - connected after service.stop.begin: 0
 - service.stop.end: joined=1 reconnect_blocked=1
 
+Held-key unplug/reconnect acceptance
+- User result: PASS; input recovered and no axis/key remained stuck
+- Spark worker.start / worker.exit: 3 / 3
+- Successful hotplug.reconnect events: 2
+- Changed analog rows by generation: 92 + 406 + 1,575 = 2,073
+- Realtime input notifications: 93 + 407 + 1,575 = 2,075
+- Reconnect/device-open/connected after final service.stop.begin: 0 / 0 / 0
+- Process exit: 0; remaining HallJoy processes: 0
+- Trace size: 12,212 bytes
+- Trace SHA-256:
+  8595A84ACE70209A0CEE9DF9E814DFA2A8B188EAD992B3CC9AB110EB0308DC5E
+- Analyzer unplug recognition: PASS after accepting the ordered
+  disconnected -> hotplug.reconnect transport-exit form used by Irok
+- Remaining analyzer WARN items concern unrelated polling-mode/row-limit
+  coverage and unavailable non-Irok HID routes, not this acceptance gate
+
 Artifact
 - Path: build/output/HallJoy.exe
 - Size: 2,134,528 bytes
@@ -36,4 +52,5 @@ Artifact
 Evidence classification
 - The shutdown structure is real-device production evidence.
 - The injected post-stop hotplug probe is simulator lifecycle evidence only.
-- Held-key unplug/reconnect remains pending; HJ-V14-P1-004 is Partial.
+- Held-key unplug/reconnect is real-device production evidence.
+- HJ-V14-P1-004 and V14-06D.1 are Verified.

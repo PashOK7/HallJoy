@@ -26,8 +26,8 @@ Date: 2026-07-31
 | Portable tests with Clang 19.1.5 | PASS | All static and portable C++20 tests passed |
 | GCC portable tests | INHERITED/PENDING | Byte-identical archive evidence exists; rerun in CI before publication |
 | Windows UI smoke from integration branch | PASS | Window opened, ViGEm initialized, exit code 0, no remaining child process |
-| Stability trace | PASS/PARTIAL | V14-06D.1 Irok shutdown is balanced with no reconnect after service stop; full interaction trace awaits held-key unplug/reconnect |
-| Hardware gates | PARTIAL | Native SparkLink route/polling, analog row changes and balanced shutdown proved; held-key unplug/reconnect remains pending |
+| Stability trace | PASS | V14-06D.1 Irok trace has 3/3 balanced workers, 2 reconnects, analog recovery and no reconnect after service stop |
+| Hardware gates | PARTIAL | Required SparkLink/Irok gate is Verified; other protocol devices and the release matrix remain pending |
 
 The current workstation has an Irok MG75 Max (`VID 1CA6`, `PID 0529`). Its
 SparkLink route is available for hardware gates, but simulator evidence remains
@@ -541,7 +541,14 @@ Results:
   Artifact size: 2,134,528 bytes
   SHA-256: 330748ACBB0EDC0E35A4BA39807EC16F3DF2CB849940ED10128CDCF714BFEE25
 Hardware: shutdown structure passed on Irok MG75 Max; held-key unplug/reconnect
-  remains pending, so HJ-V14-P1-004 is Partial rather than Verified
+  acceptance passed: 3 balanced workers, 2 reconnects, 2,073 changed rows,
+  2,075 input notifications, no stuck input, and input restored after reconnect
+  Reconnect/device-open/connect after service.stop.begin: 0/0/0
+  HJ-V14-P1-004: Verified
+  Acceptance trace SHA-256:
+    8595A84ACE70209A0CEE9DF9E814DFA2A8B188EAD992B3CC9AB110EB0308DC5E
+  Analyzer verdict remains WARN only for unrelated mode/row-limit coverage and
+    unavailable non-Irok routes; unplug/reconnect recognition itself passes
 Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
 Evidence: docs/stability/tests/V14-06D.1_SPARK_SERVICE_SHUTDOWN_2026-07-31.txt
 Rollback: parent commit of the V14-06D.1 implementation commit

@@ -10,17 +10,16 @@ version or release status.
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
 - Completed package: `V14-07B` analog-host exception/restart safety
-- Current hotfix: `V14-06D.1` SparkLink shutdown/reconnect race, implemented
-- Next gate: Irok held-key unplug/reconnect; then `V14-07C`
+- Completed hotfix: `V14-06D.1` SparkLink shutdown/reconnect race, Verified
+- Next package: `V14-07C` private UAP C ABI and unload safety
 - GitHub publication: not started
 - Release status: not release-ready
 
 The current workstation has an Irok MG75 Max (`VID 1CA6`, `PID 0529`) that
-passes SparkLink capability and analog-row proof on usage page `FFB0`. A later
-production trace recorded 515 changed rows and 516 input notifications, but
-the complete SparkLink hardware gate remains Partial until the held-key
-unplug/reconnect run. The shutdown fix itself now has balanced production worker
-evidence and no reconnect after service stop. Simulator evidence remains
+passes SparkLink capability, analog-row, held-key unplug/reconnect and balanced
+shutdown proof on usage page `FFB0`. The V14-06D.1 acceptance trace has three
+balanced worker generations, two successful reconnects, input before and after
+reconnect, and no reconnect after final service stop. Simulator evidence remains
 separate.
 
 ## Authoritative documents

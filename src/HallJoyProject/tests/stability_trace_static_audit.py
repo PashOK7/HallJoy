@@ -70,18 +70,27 @@ invalid = valid.replace("[seq=12]", "[seq=14]").replace(
     "[level=ERROR][component=spark][event=worker.fault]",
 )
 incomplete = "\n".join([valid_lines[0], valid_lines[-1].replace("[seq=13]", "[seq=2]")]) + "\n"
+transport_disconnect = valid.replace(
+    "[level=WARN][component=spark][event=hotplug.stale] elapsed_ms=1801",
+    "[level=INFO][component=spark][event=disconnected] reason=transport",
+)
 with tempfile.TemporaryDirectory() as temp:
     good_path = Path(temp) / "good.log"
     bad_path = Path(temp) / "bad.log"
     incomplete_path = Path(temp) / "incomplete.log"
+    transport_disconnect_path = Path(temp) / "transport-disconnect.log"
     good_path.write_text(valid, encoding="utf-8")
     bad_path.write_text(invalid, encoding="utf-8")
     incomplete_path.write_text(incomplete, encoding="utf-8")
+    transport_disconnect_path.write_text(transport_disconnect, encoding="utf-8")
     verdict, failures, warnings, _ = module.analyze(module.parse_trace(good_path))
     assert verdict == "PASS", (verdict, failures, warnings)
     verdict, failures, _, _ = module.analyze(module.parse_trace(bad_path))
     assert verdict == "FAIL" and failures
     verdict, failures, warnings, _ = module.analyze(module.parse_trace(incomplete_path))
     assert verdict == "WARN" and not failures and warnings
+    verdict, failures, warnings, _ = module.analyze(
+        module.parse_trace(transport_disconnect_path))
+    assert verdict == "PASS", (verdict, failures, warnings)
 
 print("stability trace static audit: PASS")

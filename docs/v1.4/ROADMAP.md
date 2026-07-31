@@ -169,12 +169,12 @@ Progress:
   teardown. The outer generation represents the long-lived hotplug service, so
   a worker connected after initial device absence is still stopped at shutdown.
   Protocol discovery, claim policy, commands and polling are unchanged.
-- `V14-06D.1` SparkLink service-stop hotfix: Implemented and structurally
-  verified on the Irok MG75 Max. Final service stop closes a dedicated outer
+- `V14-06D.1` SparkLink service-stop hotfix: Verified on the Irok MG75 Max.
+  Final service stop closes a dedicated outer
   start/reconnect gate before joining the active poller. The production trace
-  has one worker start, one worker exit and no reconnect/device-open/connect
-  after `service.stop.begin`. The held-key unplug/reconnect hardware gate is
-  still pending before the package can be marked fully Verified.
+  has three balanced worker generations, two unplug/reconnect cycles, analog
+  input before and after reconnect, and no reconnect/device-open/connect after
+  `service.stop.begin`.
 - `V14-06E` Sayo shutdown: Implemented and verified locally without hardware.
   All readers share one generation and one three-second group deadline. Stop
   signals the shared event, cancels every HID operation and releases reader,
@@ -232,9 +232,8 @@ Remaining:
 
 The Irok MG75 Max proved native SparkLink identification, successful vendor
 polling and analog-row changes. `V14-06D.1` now suppresses the shutdown-time
-reconnect and has balanced production worker evidence. `HJ-V14-P1-004` remains
-Partial only until the held-key unplug/reconnect hardware gate; V14-07C follows
-that acceptance run.
+reconnect and passed its held-key unplug/reconnect and balanced-shutdown hardware
+gate. `HJ-V14-P1-004` is Verified; V14-07C is the next implementation package.
 
 ## Release definition
 

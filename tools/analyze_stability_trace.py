@@ -149,9 +149,19 @@ def analyze(events: list[Event]) -> tuple[str, list[str], list[str], Counter[str
             if totals.get("input_notifies", 0) == 0:
                 warnings.append("no SparkLink realtime input notification was observed")
 
-        stale = any(event.name == "hotplug.stale" for event in spark_events)
-        reconnect = any(event.name == "hotplug.reconnect" for event in spark_events)
-        if not stale or not reconnect:
+        disconnects = [
+            event for event in spark_events
+            if event.name in {"hotplug.stale", "disconnected"}
+        ]
+        reconnects = [
+            event for event in spark_events if event.name == "hotplug.reconnect"
+        ]
+        reconnected_after_disconnect = any(
+            disconnect.seq < reconnect.seq
+            for disconnect in disconnects
+            for reconnect in reconnects
+        )
+        if not reconnected_after_disconnect:
             warnings.append("SparkLink unplug/reconnect scenario was not fully exercised")
         if not any(event.name in {"neutralized", "disconnected"} for event in spark_events):
             warnings.append("SparkLink neutralization/disconnect path was not exercised")

@@ -617,6 +617,20 @@
 ### Package result
 
 - The shutdown/reconnect defect is structurally fixed and verified against the
-  real Irok transport; `HJ-V14-P1-004` advances from Open to Partial.
-- Held-key unplug/reconnect on this exact binary remains the final hardware
-  acceptance gate before marking V14-06D.1 Verified and resuming V14-07C.
+  real Irok transport.
+
+### Hardware acceptance
+
+- The user completed the held-key unplug/reconnect scenario on the exact
+  packaged binary and confirmed correct recovery with no stuck input.
+- The trace contains three Spark worker starts and three matching exits, two
+  successful `hotplug.reconnect` events, and analog input in every generation:
+  2,073 changed rows and 2,075 realtime notifications in total.
+- Final shutdown closed the service gate before its last worker join and has no
+  reconnect, device open or connection after `service.stop.begin`; exit code is
+  0 and no HallJoy process remains.
+- The analyzer now accepts both watchdog-stale and transport-disconnect paths as
+  unplug evidence, provided reconnect occurs later in sequence. Its old
+  `hotplug.stale`-only rule produced a false warning for Irok's transport-exit
+  path; the static audit covers both forms.
+- `HJ-V14-P1-004` and `V14-06D.1` are Verified. The next package is V14-07C.

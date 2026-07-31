@@ -15,7 +15,7 @@ maintained in `ROADMAP.md`.
 | `HJ-V14-P1-001` | P1 | Private UAP extraction beside the EXE fails in protected locations | `V14-03` | Verified | forced protected-directory fallback, atomic repair, exact hash and child-load gates passed |
 | `HJ-V14-P1-002` | P1 | Legacy recovery recommends a system Wooting SDK that the embedded architecture does not use | `V14-03` | Verified | installer path removed; static diagnostic truthfulness gate passed |
 | `HJ-V14-P1-003` | P1 | Imported product/build strings expose the wrong public version | `V14-01` | Verified | version-resource and active-document scan passed |
-| `HJ-V14-P1-004` | P1 | SparkLink hotplug watchdog can reconnect a worker after shutdown has already stopped the current generation | `V14-06D.1` | Partial | balanced Irok shutdown and reconnect suppression passed; held-key unplug/reconnect remains |
+| `HJ-V14-P1-004` | P1 | SparkLink hotplug watchdog can reconnect a worker after shutdown has already stopped the current generation | `V14-06D.1` | Verified | Irok held-key unplug/reconnect, analog recovery, balanced generations, final reconnect suppression and clean shutdown passed |
 | `HJ-V14-P1-005` | P1 | One-shot overlay HTTP connections can block `/state` for the five-second keep-alive receive timeout | `V14-06C.1` | Verified | captured 5.001-5.002 s fetch stalls; simulator and production socket gates now return the next `/state` in under 1 ms |
 | `HJ-V14-P2-001` | P2 | v1.3 self-contained runtime improvements can be lost during architectural migration | `V14-03` | Verified | checkpoint `b3fefce` compared; embedded self-contained behavior retained in isolated ABI1 architecture |
 | `HJ-V14-P2-002` | P2 | Imported historical validation may be mistaken for validation of later v1.4 code | all | Open | per-package evidence enforcement |
@@ -32,10 +32,10 @@ later production run recorded 515 changed rows and 516 input notifications.
 The original shutdown trace showed the first worker exit followed by a hotplug
 reconnect and an unmatched second generation. `V14-06D.1` closes an outer
 service gate before stopping the active poller. Its production Irok trace has
-one worker start, one matching exit, clean process exit 0, and no reconnect,
-device open or connection after `service.stop.begin`. The risk is Partial until
-the same binary passes held-key unplug/reconnect; that acceptance gate remains
-before V14-07C.
+three worker starts and three matching exits, two successful reconnects, analog
+input before and after reconnect, clean process exit 0, and no reconnect, device
+open or connection after `service.stop.begin`. The user confirmed correct
+held-key neutralization/recovery with no stuck input. The risk is Verified.
 
 ### Evidence for HJ-V14-P1-005
 

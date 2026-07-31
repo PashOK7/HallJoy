@@ -10,16 +10,18 @@ version or release status.
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
 - Completed package: `V14-07B` analog-host exception/restart safety
-- Current hotfix: `V14-06C.1` overlay responsiveness, Verified locally
-- Next package: `V14-06D.1` SparkLink shutdown/reconnect race
+- Current hotfix: `V14-06D.1` SparkLink shutdown/reconnect race, implemented
+- Next gate: Irok held-key unplug/reconnect; then `V14-07C`
 - GitHub publication: not started
 - Release status: not release-ready
 
 The current workstation has an Irok MG75 Max (`VID 1CA6`, `PID 0529`) that
 passes SparkLink capability and analog-row proof on usage page `FFB0`. A later
 production trace recorded 515 changed rows and 516 input notifications, but
-the shutdown reconnect race remains, so the complete SparkLink hardware gate
-is still `FAIL/PENDING`, not Verified. Simulator evidence remains separate.
+the complete SparkLink hardware gate remains Partial until the held-key
+unplug/reconnect run. The shutdown fix itself now has balanced production worker
+evidence and no reconnect after service stop. Simulator evidence remains
+separate.
 
 ## Authoritative documents
 

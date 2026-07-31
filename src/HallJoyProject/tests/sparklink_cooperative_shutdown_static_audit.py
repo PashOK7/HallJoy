@@ -39,6 +39,8 @@ def main() -> int:
     stop_locked = function_body(spark, "static halljoy::lifecycle::StopResult SparkStopLocked()")
     worker = function_body(spark, "static DWORD SparkPollThreadProcImpl()")
     service_start = function_body(spark, "static bool SparkStartService()")
+    service_stop = function_body(spark, "static halljoy::lifecycle::StopResult SparkStopService()")
+    hotplug_tick = function_body(spark, "static void SparkTickHotplug(ULONGLONG nowMs)")
 
     require("TerminateThread" not in spark,
             "SparkLink has no forced thread termination")
@@ -61,11 +63,20 @@ def main() -> int:
             "thread handle closes only after confirmed completion")
     require(stop_locked.index("if (!observedJoin.Completed())") < stop_locked.index("CloseHandle(g_sparkHandle)"),
             "HID handle closes only after confirmed completion")
-    require("const auto stopped = SparkStop();" in backend and "stopped.RestartSafe()" in backend,
+    require("const auto stopped = SparkStopService();" in backend and "stopped.RestartSafe()" in backend,
             "descriptor forwards truthful stop completion to the registry")
     require("SparkStart();" in service_start and "return true;" in service_start and
             "&SparkStartService" in backend,
             "outer registry remains running for later hotplug workers")
+    require("g_sparkServiceStopRequested.store(true" in service_stop and
+            "g_sparkServiceRunning.store(false" in service_stop and
+            service_stop.index("g_sparkServiceRunning.store(false") < service_stop.index("SparkStop()"),
+            "outer service gate closes before the active poller is stopped")
+    require("SparkServiceAllowsStart()" in start and "SparkServiceAllowsStart()" in hotplug_tick,
+            "worker start and hotplug tick both honor outer service ownership")
+    require("SparkTickHotplug" in service_stop and "test.service_stop_probe" in service_stop and
+            "--halljoy-test-spark-service-shutdown" in worker,
+            "simulator probes reconnect after poller stop while service is closed")
     require("nativeBackendsStopped" in app and "component=native-analog dependent_cleanup_skipped=1" in app,
             "application blocks dependent teardown after native poison")
     require("#if defined(HALLJOY_ANALOG_SIMULATOR)" in worker and
@@ -73,6 +84,8 @@ def main() -> int:
             "runtime timeout injection is simulator-only")
     require("InjectSparkStopTimeout" in runner and "expected 2" in runner,
             "simulator runner verifies SparkLink process containment")
+    require("InjectSparkShutdownRace" in runner and "reconnect after service stop" in runner,
+            "simulator runner rejects reconnect after outer service stop")
 
     print("SPARKLINK_COOPERATIVE_SHUTDOWN_STATIC_AUDIT=PASS")
     return 0

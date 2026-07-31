@@ -26,8 +26,8 @@ Date: 2026-07-31
 | Portable tests with Clang 19.1.5 | PASS | All static and portable C++20 tests passed |
 | GCC portable tests | INHERITED/PENDING | Byte-identical archive evidence exists; rerun in CI before publication |
 | Windows UI smoke from integration branch | PASS | Window opened, ViGEm initialized, exit code 0, no remaining child process |
-| Stability trace | FAIL/PENDING | Irok MG75 Max exercised SparkLink; shutdown trace exposed a reconnect race and an unbalanced worker generation |
-| Hardware gates | PARTIAL | Native SparkLink route/polling and analog row changes proved; held-key unplug/reconnect and balanced shutdown remain pending |
+| Stability trace | PASS/PARTIAL | V14-06D.1 Irok shutdown is balanced with no reconnect after service stop; full interaction trace awaits held-key unplug/reconnect |
+| Hardware gates | PARTIAL | Native SparkLink route/polling, analog row changes and balanced shutdown proved; held-key unplug/reconnect remains pending |
 
 The current workstation has an Irok MG75 Max (`VID 1CA6`, `PID 0529`). Its
 SparkLink route is available for hardware gates, but simulator evidence remains
@@ -508,4 +508,41 @@ Hardware: Irok MG75 Max production run recorded 515 changed rows and 516 input
 Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
 Known limitations: general multi-client HTTP concurrency remains V14-10
 Rollback: parent commit of the V14-06C.1 implementation commit
+```
+
+### V14-06D.1 evidence
+
+```text
+Package: V14-06D.1 SparkLink service-stop reconnect suppression
+Date: 2026-07-31
+Commands:
+  python src/HallJoyProject/tests/sparklink_cooperative_shutdown_static_audit.py
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -InjectSparkShutdownRace -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectSparkStopTimeout -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+Results:
+  Full static and portable C++20 gate: PASS
+  Spark service-stop static audit: PASS
+  Service-stop reconnect-suppression simulator: PASS, exit 0
+  Existing Spark timeout-containment simulator: PASS, expected exit 2
+  Normal deterministic simulator regression: PASS, exit 0
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Irok MG75 Max detected: VID 1CA6, PID 0529, usage page FFB0
+  Production graceful WM_CLOSE: PASS, exit 0, 0 processes left
+  Spark worker starts/exits: 1/1
+  Reconnect/device-open/connect after service.stop.begin: 0/0/0
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,134,528 bytes
+  SHA-256: 330748ACBB0EDC0E35A4BA39807EC16F3DF2CB849940ED10128CDCF714BFEE25
+Hardware: shutdown structure passed on Irok MG75 Max; held-key unplug/reconnect
+  remains pending, so HJ-V14-P1-004 is Partial rather than Verified
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Evidence: docs/stability/tests/V14-06D.1_SPARK_SERVICE_SHUTDOWN_2026-07-31.txt
+Rollback: parent commit of the V14-06D.1 implementation commit
 ```

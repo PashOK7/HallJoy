@@ -34,6 +34,20 @@ The runner:
 `-SkipBuild` reuses the existing simulator executable. `-RunSeconds` must be at
 least 7 so every deterministic phase runs.
 
+The SparkLink service-stop regression is available as a simulator-only
+lifecycle injection:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\run_analog_simulator.ps1 `
+  -InjectSparkShutdownRace -RunSeconds 7
+```
+
+It starts a cooperative synthetic Spark worker, closes the outer service gate,
+joins the worker, then explicitly probes the hotplug tick. PASS requires no
+reconnect after service stop and a normal process exit. This proves lifecycle
+ordering only; it does not prove SparkLink hardware behavior.
+
 ## Isolation contract
 
 - Simulator sources are excluded from ordinary MSBuild targets.

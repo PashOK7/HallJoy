@@ -3962,7 +3962,7 @@ const NativeAnalogBackendDescriptor& BackendNative_GetSparkDescriptor()
         nullptr,
         &SparkStartService,
         [](halljoy::lifecycle::GenerationId generation) {
-            const auto stopped = SparkStop();
+            const auto stopped = SparkStopService();
             if (stopped.RestartSafe())
                 return NativeAnalogBackendStopJoined(generation);
             const auto reason = stopped.error.code == halljoy::lifecycle::LifecycleErrorCode::None

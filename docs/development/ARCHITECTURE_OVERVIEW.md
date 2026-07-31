@@ -79,6 +79,10 @@ serialized, but final stop acquires that lock with a bound so a synchronous HID
 probe cannot make shutdown unbounded. Stop signals the event and cancels HID
 I/O before joining. Only confirmed completion releases thread, HID and event
 HANDLEs; join or lock timeout blocks both inner restart and outer registry reuse.
+Final registry stop first closes a separate outer service gate. Worker start,
+hotplug reconnect and connection publication all honor that gate, so a realtime
+tick that overlaps application shutdown cannot create a new poller after the
+registry has begun stopping SparkLink.
 
 Sayo applies the same outer-service/inner-generation split to a reader group.
 Every active reader observes one shared stop event, and shutdown issues

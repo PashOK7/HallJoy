@@ -570,6 +570,53 @@
 ### Package result
 
 - `HJ-V14-P1-005` is Verified locally and `V14-06C.1` is complete.
+- The user confirmed in the browser that the input overlay no longer exhibits
+  the five-second freezes.
 - General HTTP concurrency/security remains V14-10.
 - SparkLink's shutdown reconnect race remains Open as `HJ-V14-P1-004`; the next
   implementation package remains `V14-06D.1`, followed by V14-07C.
+
+## 2026-07-31 - V14-06D.1 SparkLink service-stop reconnect suppression
+
+### Root cause
+
+- Application shutdown stopped the native registry before the realtime loop.
+  The still-running realtime tick could therefore enter `SparkTickHotplug`
+  after the registry had joined the active Spark worker.
+- SparkLink tracked the inner poller generation but had no explicit outer
+  service-stop gate, so the hotplug path could open the Irok and publish a new
+  generation during final shutdown.
+
+### Implemented
+
+- Added an outer SparkLink service-running/stop-requested gate, closed before
+  the active poller is stopped.
+- Both direct worker start and hotplug reconnect now require the outer service
+  to be running; late connection publication rolls itself back if stop wins.
+- The native registry descriptor now calls `SparkStopService`, which records
+  service-level start/stop evidence and preserves the existing truthful inner
+  join/poison result.
+- Added simulator-only cooperative service worker and an explicit post-stop
+  hotplug probe. The runner rejects any reconnect after `service.stop.begin`.
+- HID discovery, commands, report parsing, polling modes and mappings are
+  unchanged.
+
+### Validation
+
+- Full static and portable C++20 gate: PASS.
+- New service-stop race simulator: PASS, exit 0 and no late reconnect.
+- Existing Spark blocked-worker containment: PASS, expected exit 2.
+- Normal deterministic simulator: PASS, exit 0 and no remaining process.
+- Production MSVC x64 Release: PASS, 0 errors and only allowlisted `LNK4099`.
+- Production Irok run: `VID 1CA6`, `PID 0529`, usage page `FFB0`; one Spark
+  worker start and one exit, no reconnect/open/connect after service stop.
+- Graceful hidden-window shutdown: exit 0 and no remaining HallJoy process.
+- `HallJoy.exe`: 2,134,528 bytes,
+  SHA-256 `330748ACBB0EDC0E35A4BA39807EC16F3DF2CB849940ED10128CDCF714BFEE25`.
+
+### Package result
+
+- The shutdown/reconnect defect is structurally fixed and verified against the
+  real Irok transport; `HJ-V14-P1-004` advances from Open to Partial.
+- Held-key unplug/reconnect on this exact binary remains the final hardware
+  acceptance gate before marking V14-06D.1 Verified and resuming V14-07C.

@@ -7,6 +7,7 @@ param(
     [switch]$InjectDebugLogStopTimeout,
     [switch]$InjectOverlayStopTimeout,
     [switch]$InjectSparkStopTimeout,
+    [switch]$InjectSparkShutdownRace,
     [switch]$InjectSayoStopTimeout,
     [switch]$InjectSayoReaderCppFault,
     [switch]$InjectAnalogHostBridgeStopTimeout,
@@ -26,6 +27,7 @@ $injectionCount = @(
     $InjectDebugLogStopTimeout.IsPresent,
     $InjectOverlayStopTimeout.IsPresent,
     $InjectSparkStopTimeout.IsPresent,
+    $InjectSparkShutdownRace.IsPresent,
     $InjectSayoStopTimeout.IsPresent,
     $InjectSayoReaderCppFault.IsPresent,
     $InjectAnalogHostBridgeStopTimeout.IsPresent,
@@ -96,6 +98,9 @@ if ($InjectOverlayStopTimeout) {
 }
 if ($InjectSparkStopTimeout) {
     $arguments += '--halljoy-test-spark-stop-timeout'
+}
+if ($InjectSparkShutdownRace) {
+    $arguments += '--halljoy-test-spark-service-shutdown'
 }
 if ($InjectSayoStopTimeout) {
     $arguments += '--halljoy-test-sayo-stop-timeout'
@@ -170,6 +175,9 @@ if ($InjectOverlayStopTimeout -and $process.ExitCode -ne 2) {
 if ($InjectSparkStopTimeout -and $process.ExitCode -ne 2) {
     throw "Spark-timeout simulator exited with code $($process.ExitCode), expected 2."
 }
+if ($InjectSparkShutdownRace -and $process.ExitCode -ne 0) {
+    throw "Spark service-shutdown simulator exited with code $($process.ExitCode), expected 0."
+}
 if ($InjectSayoStopTimeout -and $process.ExitCode -ne 2) {
     throw "Sayo-timeout simulator exited with code $($process.ExitCode), expected 2."
 }
@@ -191,7 +199,7 @@ if ($InjectAnalogHostChildCppFault -and $process.ExitCode -ne 0) {
 if ($InjectAnalogHostChildReapTimeout -and $process.ExitCode -ne 0) {
     throw "Analog-host child reap-timeout simulator exited with code $($process.ExitCode), expected 0."
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and -not $InjectAnalogHostBridgeStopTimeout -and -not $InjectAnalogHostSupervisorStartFailure -and -not $InjectAnalogHostSupervisorCppFault -and -not $InjectAnalogHostChildCppFault -and -not $InjectAnalogHostChildReapTimeout -and $process.ExitCode -ne 0) {
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSparkShutdownRace -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and -not $InjectAnalogHostBridgeStopTimeout -and -not $InjectAnalogHostSupervisorStartFailure -and -not $InjectAnalogHostSupervisorCppFault -and -not $InjectAnalogHostChildCppFault -and -not $InjectAnalogHostChildReapTimeout -and $process.ExitCode -ne 0) {
     throw "Simulator exited with code $($process.ExitCode)."
 }
 if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
@@ -230,6 +238,17 @@ $required = if ($InjectRealtimeStopTimeout) { @(
     '[component=native-registry][event=stop.incomplete]',
     '[component=app][event=shutdown.poisoned] component=native-analog dependent_cleanup_skipped=1',
     '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
+) } elseif ($InjectSparkShutdownRace) { @(
+    '[component=spark][event=service.start]',
+    '[component=spark][event=test.service_worker] simulator_only=1 cooperative_wait=1',
+    '[component=spark][event=service.stop.begin]',
+    'reconnect_blocked=1',
+    '[component=spark][event=worker.exit]',
+    '[component=spark][event=stop.end]',
+    '[component=spark][event=test.service_stop_probe] simulator_only=1 reconnect_blocked=1',
+    '[component=spark][event=service.stop.end] joined=1 reconnect_blocked=1',
+    '[component=backend][event=shutdown.end]',
+    '[component=main][event=session.end] exit_code=0'
 ) } elseif ($InjectSayoStopTimeout) { @(
     '[component=sayo][event=test.start] simulator_only=1',
     '[component=sayo][event=test.stop_timeout.injected] simulator_only=1',
@@ -320,7 +339,18 @@ if ($ForceUserUapRuntime -and -not $traceText.Contains('[component=embedded-uap]
 if ($missing.Count -ne 0) {
     throw "Simulator trace is incomplete. Missing: $($missing -join ', ')"
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and -not $InjectAnalogHostBridgeStopTimeout -and -not $InjectAnalogHostSupervisorStartFailure -and -not $InjectAnalogHostSupervisorCppFault -and -not $InjectAnalogHostChildCppFault -and -not $InjectAnalogHostChildReapTimeout -and $traceText -match '\[level=ERROR\]') {
+if ($InjectSparkShutdownRace) {
+    $serviceStopIndex = $traceText.IndexOf('[component=spark][event=service.stop.begin]')
+    $reconnectAfterStop = if ($serviceStopIndex -ge 0) {
+        $traceText.IndexOf('[component=spark][event=hotplug.reconnect]', $serviceStopIndex)
+    } else {
+        -1
+    }
+    if ($serviceStopIndex -lt 0 -or $reconnectAfterStop -ge 0) {
+        throw 'SparkLink reconnect after service stop was observed.'
+    }
+}
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSparkShutdownRace -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and -not $InjectAnalogHostBridgeStopTimeout -and -not $InjectAnalogHostSupervisorStartFailure -and -not $InjectAnalogHostSupervisorCppFault -and -not $InjectAnalogHostChildCppFault -and -not $InjectAnalogHostChildReapTimeout -and $traceText -match '\[level=ERROR\]') {
     throw 'Simulator trace contains an ERROR event.'
 }
 
@@ -342,6 +372,8 @@ if ($InjectRealtimeStopTimeout) {
     Write-Host 'HallJoy overlay timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectSparkStopTimeout) {
     Write-Host 'HallJoy SparkLink timeout containment scenario: PASS' -ForegroundColor Green
+} elseif ($InjectSparkShutdownRace) {
+    Write-Host 'HallJoy SparkLink service-stop reconnect suppression scenario: PASS' -ForegroundColor Green
 } elseif ($InjectSayoStopTimeout) {
     Write-Host 'HallJoy Sayo timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectSayoReaderCppFault) {
@@ -362,7 +394,7 @@ if ($InjectRealtimeStopTimeout) {
     Write-Host 'HallJoy analog simulator scenario: PASS' -ForegroundColor Green
 }
 Write-Host "Trace: $trace"
-if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout -or $InjectOverlayStopTimeout -or $InjectSparkStopTimeout -or $InjectSayoStopTimeout -or $InjectSayoReaderCppFault -or $InjectAnalogHostBridgeStopTimeout -or $InjectAnalogHostSupervisorStartFailure -or $InjectAnalogHostSupervisorCppFault -or $InjectAnalogHostChildCppFault -or $InjectAnalogHostChildReapTimeout) {
+if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout -or $InjectOverlayStopTimeout -or $InjectSparkStopTimeout -or $InjectSparkShutdownRace -or $InjectSayoStopTimeout -or $InjectSayoReaderCppFault -or $InjectAnalogHostBridgeStopTimeout -or $InjectAnalogHostSupervisorStartFailure -or $InjectAnalogHostSupervisorCppFault -or $InjectAnalogHostChildCppFault -or $InjectAnalogHostChildReapTimeout) {
     Write-Host 'Evidence classification: simulator lifecycle fault injection; NOT hardware verification.'
 } else {
     Write-Host 'Evidence classification: common pipeline simulation; NOT hardware verification.'

@@ -57,6 +57,14 @@ static std::atomic<bool>          g_sparkWorkerExited{ true };
 static std::timed_mutex           g_sparkLifecycleMutex;
 static halljoy::lifecycle::WorkerLifecycle g_sparkLifecycle;
 static std::atomic<bool>          g_sparkRestartBlocked{ false };
+static std::atomic<bool>          g_sparkServiceRunning{ false };
+static std::atomic<bool>          g_sparkServiceStopRequested{ true };
+
+static bool SparkServiceAllowsStart() noexcept
+{
+    return g_sparkServiceRunning.load(std::memory_order_acquire) &&
+        !g_sparkServiceStopRequested.load(std::memory_order_acquire);
+}
 
 static constexpr size_t kSparkFastReportBytes = 1024;
 
@@ -997,6 +1005,14 @@ static DWORD SparkPollThreadProcImpl()
             L"simulator_only=1");
         Sleep(INFINITE);
     }
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-spark-service-shutdown"))
+    {
+        StabilityTrace_Write(L"INFO", L"spark", L"test.service_worker",
+            L"simulator_only=1 cooperative_wait=1");
+        if (g_sparkStopEvent)
+            WaitForSingleObject(g_sparkStopEvent, INFINITE);
+        return 0;
+    }
 #endif
 
     if (!g_sparkHandle || !g_sparkStopEvent)
@@ -1409,10 +1425,10 @@ static halljoy::lifecycle::StopResult SparkStop()
 
 static bool SparkStart()
 {
-    if (g_sparkRestartBlocked.load(std::memory_order_acquire))
+    if (g_sparkRestartBlocked.load(std::memory_order_acquire) || !SparkServiceAllowsStart())
         return false;
     const std::lock_guard<std::timed_mutex> lifecycleGuard(g_sparkLifecycleMutex);
-    if (g_sparkRestartBlocked.load(std::memory_order_acquire))
+    if (g_sparkRestartBlocked.load(std::memory_order_acquire) || !SparkServiceAllowsStart())
         return false;
 
     if (g_sparkConnected.load(std::memory_order_acquire))
@@ -1434,7 +1450,11 @@ static bool SparkStart()
 
 #if defined(HALLJOY_ANALOG_SIMULATOR)
     const wchar_t* commandLine = GetCommandLineW();
-    if (commandLine && wcsstr(commandLine, L"--halljoy-test-spark-stop-timeout"))
+    const bool injectStopTimeout = commandLine &&
+        wcsstr(commandLine, L"--halljoy-test-spark-stop-timeout");
+    const bool injectServiceShutdown = commandLine &&
+        wcsstr(commandLine, L"--halljoy-test-spark-service-shutdown");
+    if (injectStopTimeout || injectServiceShutdown)
     {
         g_sparkStopEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
         if (!g_sparkStopEvent)
@@ -1465,9 +1485,15 @@ static bool SparkStart()
         g_sparkConnectedVid.store(0xFFFF, std::memory_order_relaxed);
         g_sparkConnectedPid.store(0x0001, std::memory_order_relaxed);
         g_sparkConnected.store(true, std::memory_order_release);
+        if (!SparkServiceAllowsStart())
+        {
+            (void)SparkStopLocked();
+            return false;
+        }
         StabilityTrace_Write(L"WARN", L"spark", L"test.start",
-            L"simulator_only=1 generation=%llu",
-            static_cast<unsigned long long>(start.generation.Value()));
+            L"simulator_only=1 generation=%llu stop_timeout=%d service_shutdown=%d",
+            static_cast<unsigned long long>(start.generation.Value()),
+            injectStopTimeout ? 1 : 0, injectServiceShutdown ? 1 : 0);
         return true;
     }
 #endif
@@ -1559,6 +1585,11 @@ static bool SparkStart()
         (void)SparkStopLocked();
         return false;
     }
+    if (!SparkServiceAllowsStart())
+    {
+        (void)SparkStopLocked();
+        return false;
+    }
 
     g_sparkConnectedVid.store(vid, std::memory_order_relaxed);
     g_sparkConnectedPid.store(pid, std::memory_order_relaxed);
@@ -1571,6 +1602,11 @@ static bool SparkStart()
         return false;
     }
     if (g_sparkRestartBlocked.load(std::memory_order_acquire))
+    {
+        (void)SparkStopLocked();
+        return false;
+    }
+    if (!SparkServiceAllowsStart())
     {
         (void)SparkStopLocked();
         return false;
@@ -1599,12 +1635,25 @@ static bool SparkStartService()
     // The registry owns the long-lived hotplug service, not only the first HID
     // worker. A device may appear later through SparkTickHotplug(), so the outer
     // generation must remain Running and guarantee a final SparkStop() call.
+    if (g_sparkRestartBlocked.load(std::memory_order_acquire))
+        return false;
+    g_sparkServiceStopRequested.store(false, std::memory_order_release);
+    g_sparkServiceRunning.store(true, std::memory_order_release);
     (void)SparkStart();
+    if (g_sparkRestartBlocked.load(std::memory_order_acquire))
+    {
+        g_sparkServiceStopRequested.store(true, std::memory_order_release);
+        g_sparkServiceRunning.store(false, std::memory_order_release);
+        return false;
+    }
+    StabilityTrace_Write(L"INFO", L"spark", L"service.start");
     return true;
 }
 
 static void SparkTickHotplug(ULONGLONG nowMs)
 {
+    if (!SparkServiceAllowsStart())
+        return;
     if (g_sparkConnected.load(std::memory_order_acquire))
     {
         ULONGLONG lastPacket = g_sparkLastPacketMs.load(std::memory_order_relaxed);
@@ -1628,4 +1677,29 @@ static void SparkTickHotplug(ULONGLONG nowMs)
         StabilityTrace_Write(L"INFO", L"spark", L"hotplug.reconnect");
         DebugLog_Write(L"[backend.spark] hotplug reconnect ok");
     }
+}
+
+static halljoy::lifecycle::StopResult SparkStopService()
+{
+    const bool wasRunning = g_sparkServiceRunning.load(std::memory_order_acquire);
+    g_sparkServiceStopRequested.store(true, std::memory_order_release);
+    g_sparkServiceRunning.store(false, std::memory_order_release);
+    StabilityTrace_Write(L"INFO", L"spark", L"service.stop.begin",
+        L"was_running=%d reconnect_blocked=1", wasRunning ? 1 : 0);
+
+    const auto stopped = SparkStop();
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-spark-service-shutdown"))
+    {
+        SparkTickHotplug(GetTickCount64() + kSparkReconnectIntervalMs);
+        StabilityTrace_Write(L"INFO", L"spark", L"test.service_stop_probe",
+            L"simulator_only=1 reconnect_blocked=%d",
+            !SparkServiceAllowsStart() && !g_sparkConnected.load(std::memory_order_acquire) ? 1 : 0);
+    }
+#endif
+    StabilityTrace_Write(stopped.RestartSafe() ? L"INFO" : L"ERROR",
+        L"spark", L"service.stop.end", L"joined=%d reconnect_blocked=1",
+        stopped.RestartSafe() ? 1 : 0);
+    return stopped;
 }

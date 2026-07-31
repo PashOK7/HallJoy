@@ -21,6 +21,7 @@
 #include "debug_log.h"
 #include "stability_trace.h"
 #include "worker_exception_barrier.h"
+#include "worker_join_policy.h"
 
 #pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "avrt.lib")
@@ -37,17 +38,8 @@ static std::atomic<halljoy::worker::WorkerExceptionKind> g_realtimeFaultKind{
     halljoy::worker::WorkerExceptionKind::None };
 static halljoy::worker::WorkerExceptionRecord g_realtimeFaultRecord{};
 
-enum class RealtimeLifecycleState : uint8_t
-{
-    Stopped,
-    Starting,
-    Running,
-    Stopping,
-    Faulted,
-};
-
 static std::mutex g_lifecycleMutex;
-static RealtimeLifecycleState g_lifecycleState = RealtimeLifecycleState::Stopped;
+static halljoy::lifecycle::WorkerLifecycle g_lifecycle;
 static HANDLE g_thread = nullptr;
 
 // Input wakeups deliberately do not use a kernel HANDLE. The previous event
@@ -182,6 +174,16 @@ static DWORD RealtimeThreadBody()
     if (!resources.deadlineTimer)
         resources.deadlineTimer = CreateWaitableTimerW(nullptr, FALSE, nullptr);
     const HANDLE deadlineTimer = resources.deadlineTimer;
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-realtime-stop-timeout"))
+    {
+        StabilityTrace_Write(L"WARN", L"realtime", L"test.stop_timeout.injected",
+            L"simulator_only=1");
+        Sleep(INFINITE);
+    }
+#endif
 
     LONG64 observedWakeGeneration = InterlockedCompareExchange64(&g_wakeGeneration, 0, 0);
     uint64_t consumedInputSequence = g_inputConsumedSequence.load(std::memory_order_acquire);
@@ -398,7 +400,7 @@ static DWORD WINAPI ThreadProc(LPVOID) noexcept
 bool RealtimeLoop_Start()
 {
     std::lock_guard<std::mutex> lifecycleGuard(g_lifecycleMutex);
-    if (g_lifecycleState == RealtimeLifecycleState::Running)
+    if (g_lifecycle.State() == halljoy::lifecycle::WorkerState::Running)
     {
         const bool healthy =
             g_realtimeFaultKind.load(std::memory_order_acquire) ==
@@ -408,10 +410,10 @@ bool RealtimeLoop_Start()
             g_thread && WaitForSingleObject(g_thread, 0) == WAIT_TIMEOUT;
         return healthy;
     }
-    if (g_lifecycleState != RealtimeLifecycleState::Stopped)
+    const auto start = g_lifecycle.BeginStart();
+    if (start.status != halljoy::lifecycle::StartStatus::Starting)
         return false;
 
-    g_lifecycleState = RealtimeLifecycleState::Starting;
     g_intervalMs.store(Settings_GetPollingMs(), std::memory_order_relaxed);
     g_lastLoggedIntervalMs.store(g_intervalMs.load(std::memory_order_relaxed), std::memory_order_relaxed);
     g_latencyTraceEnabled.store(LatencyTraceRequested(), std::memory_order_release);
@@ -428,51 +430,75 @@ bool RealtimeLoop_Start()
     {
         const DWORD error = GetLastError();
         g_run.store(false, std::memory_order_release);
-        g_lifecycleState = RealtimeLifecycleState::Stopped;
+        (void)g_lifecycle.FailStartBeforeWorker(start.generation, error);
         StabilityTrace_WriteCritical(L"ERROR", L"realtime", L"start.failed", L"win32=%lu", error);
         return false;
     }
 
-    g_lifecycleState = RealtimeLifecycleState::Running;
+    const auto running = g_lifecycle.ConfirmRunning(start.generation);
+    if (!running.IsRunning())
+        return false;
     StabilityTrace_Write(L"INFO", L"realtime", L"start.ok", L"interval_ms=%u", g_intervalMs.load(std::memory_order_relaxed));
     return true;
 }
 
-void RealtimeLoop_Stop()
+halljoy::lifecycle::StopResult RealtimeLoop_Stop()
 {
     std::lock_guard<std::mutex> lifecycleGuard(g_lifecycleMutex);
-    if (g_lifecycleState == RealtimeLifecycleState::Stopped)
-        return;
+    const auto state = g_lifecycle.State();
+    if (state == halljoy::lifecycle::WorkerState::Stopped ||
+        state == halljoy::lifecycle::WorkerState::Joined)
+        return g_lifecycle.RequestStop();
+    if (state == halljoy::lifecycle::WorkerState::Poisoned)
+        return g_lifecycle.RequestStop(g_lifecycle.Generation());
+
+    const auto requested = g_lifecycle.RequestStop(g_lifecycle.Generation());
+    if (requested.status != halljoy::lifecycle::StopStatus::StopRequested)
+        return requested;
     if (!g_thread)
     {
         g_run.store(false, std::memory_order_release);
-        g_lifecycleState = RealtimeLifecycleState::Faulted;
-        return;
+        return g_lifecycle.MarkPoisoned(requested.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            halljoy::lifecycle::LifecycleErrorCode::PrimitiveFailed,
+            ERROR_INVALID_HANDLE);
     }
 
-    g_lifecycleState = RealtimeLifecycleState::Stopping;
-    StabilityTrace_Write(L"INFO", L"realtime", L"stop.begin");
+    StabilityTrace_Write(L"INFO", L"realtime", L"stop.begin", L"generation=%llu",
+        static_cast<unsigned long long>(requested.generation.Value()));
     g_run.store(false, std::memory_order_release);
     InterlockedIncrement64(&g_wakeGeneration);
     WakeByAddressAll(reinterpret_cast<PVOID>(const_cast<LONG64*>(&g_wakeGeneration)));
 
-    DWORD waitResult = WaitForSingleObject(g_thread, 5000);
-    if (waitResult != WAIT_OBJECT_0)
+    const DWORD waitResult = WaitForSingleObject(g_thread, 5000);
+    const DWORD waitError = waitResult == WAIT_OBJECT_0
+        ? ERROR_SUCCESS
+        : (waitResult == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT);
+    const auto observedJoin = halljoy::lifecycle::ObserveWorkerJoin(
+        requested.generation,
+        waitResult == WAIT_OBJECT_0
+            ? halljoy::lifecycle::JoinWaitStatus::Joined
+            : (waitResult == WAIT_FAILED
+                ? halljoy::lifecycle::JoinWaitStatus::Failed
+                : halljoy::lifecycle::JoinWaitStatus::TimedOut),
+        waitError);
+    if (!observedJoin.Completed())
     {
-        const DWORD waitError = waitResult == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT;
         StabilityTrace_WriteCritical(L"ERROR", L"realtime", L"stop.timeout",
-            L"wait=%lu win32=%lu", waitResult, waitError);
-        TerminateThread(g_thread, 0xE0515254u);
-        WaitForSingleObject(g_thread, 1000);
-        StabilityTrace_WriteCritical(L"ERROR", L"realtime", L"forced_termination", L"exit_code=0xE0515254");
-        StabilityTrace_WriteCritical(L"ERROR", L"realtime", L"worker.exit", L"fault_kind=forced");
+            L"generation=%llu wait=%lu win32=%lu handle_retained=1 restart_blocked=1",
+            static_cast<unsigned long long>(requested.generation.Value()), waitResult, waitError);
+        return g_lifecycle.MarkPoisoned(requested.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            observedJoin.error.code, observedJoin.error.native_error);
     }
 
     CloseHandle(g_thread);
     g_thread = nullptr;
     g_threadAlive.store(false, std::memory_order_release);
-    g_lifecycleState = RealtimeLifecycleState::Stopped;
-    StabilityTrace_Write(L"INFO", L"realtime", L"stop.end", L"wait=%lu", waitResult);
+    const auto joined = g_lifecycle.ConfirmJoined(requested.generation);
+    StabilityTrace_Write(L"INFO", L"realtime", L"stop.end", L"generation=%llu wait=%lu",
+        static_cast<unsigned long long>(requested.generation.Value()), waitResult);
+    return joined;
 }
 
 void RealtimeLoop_NotifyInputChangedAt(LONGLONG sourceQpc)
@@ -512,7 +538,7 @@ uint64_t RealtimeLoop_GetInputNotifySequence()
 bool RealtimeLoop_IsRunning()
 {
     std::lock_guard<std::mutex> lifecycleGuard(g_lifecycleMutex);
-    if (g_lifecycleState != RealtimeLifecycleState::Running ||
+    if (g_lifecycle.State() != halljoy::lifecycle::WorkerState::Running ||
         !g_run.load(std::memory_order_acquire) ||
         !g_threadAlive.load(std::memory_order_acquire))
     {

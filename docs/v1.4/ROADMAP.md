@@ -140,6 +140,17 @@ Migrate workers one ownership boundary at a time to bounded cooperative
 shutdown, beginning with the realtime loop. Protocol bytes, mappings, and
 polling behavior remain characterization-locked during each migration.
 
+Progress:
+
+- `V14-06A` realtime loop: Verified locally. Stop wakes the address wait,
+  returns a generation-scoped result, and closes the thread HANDLE only after
+  confirmed completion. Timeout/failure retains ownership, poisons restart,
+  guards backend teardown, and uses process-level exit without CRT destruction
+  if a potentially live realtime worker survives final shutdown.
+- Remaining V14-06 workers: diagnostic logger, overlay server, SparkLink and
+  Sayo. Their existing `TerminateThread` paths remain open and are not covered
+  by the realtime result.
+
 ## Release definition
 
 v1.4 can be tagged only when:

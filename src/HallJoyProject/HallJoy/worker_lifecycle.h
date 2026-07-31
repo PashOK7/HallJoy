@@ -227,7 +227,7 @@ public:
         if (state_ != WorkerState::Stopped && state_ != WorkerState::Joined)
             return RejectStart(LifecycleOperation::BeginStart, WorkerState::Starting,
                 LifecycleErrorCode::InvalidTransition, generation_);
-        if (generation_.Value() == std::numeric_limits<std::uint64_t>::max())
+        if (generation_.Value() == (std::numeric_limits<std::uint64_t>::max)())
             return RejectStart(LifecycleOperation::BeginStart, WorkerState::Starting,
                 LifecycleErrorCode::GenerationExhausted, generation_);
 

@@ -4,3 +4,4 @@
 
 int App_Run(HINSTANCE hInst, int nCmdShow);
 void App_ForceFinalShutdown() noexcept;
+bool App_RequiresImmediateProcessExit() noexcept;

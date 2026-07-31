@@ -134,6 +134,16 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow)
     App_ForceFinalShutdown();
     StabilityTrace_Write(L"INFO", L"main", L"final_shutdown.end");
 
+    if (App_RequiresImmediateProcessExit())
+    {
+        constexpr int poisonedExitCode = 2;
+        StabilityTrace_WriteCritical(L"ERROR", L"main", L"process_exit.poisoned",
+            L"exit_code=%d crt_cleanup_skipped=1", poisonedExitCode);
+        StabilityTrace_Shutdown(poisonedExitCode);
+        TerminateProcess(GetCurrentProcess(), poisonedExitCode);
+        return poisonedExitCode;
+    }
+
     if (gdiStatus == Gdiplus::Ok && gdiToken != 0)
         Gdiplus::GdiplusShutdown(gdiToken);
     DebugLog_Write(L"[main] exit");

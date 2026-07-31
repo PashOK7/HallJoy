@@ -152,6 +152,8 @@ Wrapper — `noexcept`, ловит `std::exception` и `...`, записывае
 
 Удалить `TerminateThread` только из realtime loop. Stop event должен прерывать ожидание; cleanup MMCSS/timer/time period выполняется самим worker. ViGEm call пока не переносится — это отдельный пакет.
 
+Статус v1.4: `Verified` локально в V14-06A. Timeout не закрывает HANDLE и переводит generation в `Poisoned`; watchdog restart и backend teardown блокируются. Зависший ViGEm call остаётся отдельным S12.
+
 ### S05 — Diagnostic logger cooperative shutdown
 
 Закрыть producer gate, разбудить writer, bounded drain, flush на writer-потоке, затем completion. При timeout не уничтожать объекты, которые worker ещё может использовать.

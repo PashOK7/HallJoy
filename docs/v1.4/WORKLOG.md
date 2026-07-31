@@ -228,3 +228,39 @@
 
 - `TerminateThread` remains open as `HJ-AUD-P1-001`. V14-06 begins bounded
   cooperative migration one worker at a time, starting with realtime.
+
+## 2026-07-31 - V14-06A realtime cooperative shutdown
+
+### Implemented
+
+- Realtime lifecycle now uses the common monotonic `WorkerLifecycle` state
+  machine and returns an exact generation-scoped `StopResult`.
+- Stop clears the run flag and wakes `WaitOnAddress` before its bounded join.
+- Confirmed completion closes the thread HANDLE and permits restart.
+- Timeout or wait failure retains the HANDLE, marks the generation `Poisoned`,
+  and blocks watchdog restart.
+- Final shutdown skips backend destruction beneath a potentially live
+  `Backend_Tick`; the process-level fallback skips CRT destruction and leaves
+  resource reclamation to Windows.
+- Added a reusable portable join-observation policy and fault-injection tests.
+- Removed `TerminateThread` from realtime only; its processing loop, pacing,
+  `Backend_Tick`, MMCSS, timer and multimedia-period ownership are unchanged.
+- Corrected native registry trace severity discovered by the runtime gate:
+  absent optional hardware is `WARN`, while rejected/poisoned lifecycle is
+  still `ERROR`.
+
+### Validation
+
+- Realtime targeted static audit: PASS.
+- Portable join policy tests for joined/timeout/wait-failure: PASS.
+- All static and portable C++20 tests: PASS.
+- Full production MSVC x64 Release build: PASS, only allowlisted `LNK4099`.
+- Rebuilt deterministic analog simulator: PASS, graceful cooperative shutdown,
+  no `ERROR` trace event and no remaining process.
+- Simulator-only blocked-worker injection: PASS; timeout retained the HANDLE,
+  skipped backend cleanup, blocked restart and exited with the expected code 2.
+
+### Remaining V14-06 scope
+
+- Diagnostic logger, overlay server, SparkLink and Sayo still contain their
+  separately owned forced-termination fallbacks.

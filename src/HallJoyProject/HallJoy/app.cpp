@@ -33,6 +33,7 @@
 #include "settings_ini.h"
 #include "global_profiles.h"
 #include "realtime_loop.h"
+#include "stability_trace.h"
 #include "win_util.h"
 #include "app_paths.h"
 #include "ui_theme.h"
@@ -65,6 +66,7 @@ static HHOOK g_hMouseHook = nullptr;
 static bool g_backendReady = false;
 static bool g_digitalFallbackWarnShown = false;
 static std::atomic<bool> g_shutdownStarted{ false };
+static std::atomic<bool> g_immediateProcessExitRequired{ false };
 static bool g_cmdStartOverlay = false;
 static bool g_cmdStartMinimized = false;
 static bool g_cmdLatencyTrace = false;
@@ -670,8 +672,23 @@ static void AppShutdownNoThrow(HWND hwnd) noexcept
 #endif
     runStep(L"mouse_ipc", [] { MouseIpc_ShutdownPublisher(); });
     runStep(L"settings", [] { SaveSettingsByActiveGlobalProfile(); });
-    runStep(L"realtime", [] { RealtimeLoop_Stop(); });
-    runStep(L"backend", [] { Backend_Shutdown(); });
+    halljoy::lifecycle::StopResult realtimeStop{};
+    runStep(L"realtime", [&] { realtimeStop = RealtimeLoop_Stop(); });
+    if (realtimeStop.RestartSafe())
+    {
+        runStep(L"backend", [] { Backend_Shutdown(); });
+    }
+    else
+    {
+        g_immediateProcessExitRequired.store(true, std::memory_order_release);
+        StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.poisoned",
+            L"component=realtime state=%u generation=%llu error=%u native_error=%lu backend_cleanup_skipped=1",
+            static_cast<unsigned>(realtimeStop.state),
+            static_cast<unsigned long long>(realtimeStop.generation.Value()),
+            static_cast<unsigned>(realtimeStop.error.code),
+            static_cast<unsigned long>(realtimeStop.error.native_error));
+        DebugLog_Write(L"[app.shutdown] realtime did not join; backend cleanup skipped and immediate process exit required");
+    }
     g_backendReady = false;
     DebugLog_Write(L"[app.shutdown] complete");
 }
@@ -964,8 +981,10 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             if (g_backendReady && (tick % 30u) == 0u && !RealtimeLoop_IsRunning())
             {
                 DebugLog_Write(L"[app.rt.watchdog] realtime thread not running; restarting");
-                RealtimeLoop_Stop();
-                if (!RealtimeLoop_Start())
+                const auto stopped = RealtimeLoop_Stop();
+                if (!stopped.RestartSafe())
+                    DebugLog_Write(L"[app.rt.watchdog] realtime stop incomplete; generation poisoned and restart blocked");
+                else if (!RealtimeLoop_Start())
                     DebugLog_Write(L"[app.rt.watchdog] realtime restart failed");
                 else
                     DebugLog_Write(L"[app.rt.watchdog] realtime restart succeeded");
@@ -1218,4 +1237,9 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
 void App_ForceFinalShutdown() noexcept
 {
     AppShutdownNoThrow(g_hMainWnd);
+}
+
+bool App_RequiresImmediateProcessExit() noexcept
+{
+    return g_immediateProcessExitRequired.load(std::memory_order_acquire);
 }

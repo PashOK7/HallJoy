@@ -47,10 +47,11 @@ bool DescriptorValidAt(std::size_t index)
 
 void TraceLifecycleFailure(
     std::size_t index,
+    const wchar_t* level,
     const wchar_t* event,
     const NativeAnalogBackendLifecycleSnapshot& snapshot) noexcept
 {
-    StabilityTrace_WriteCritical(L"ERROR", L"native-registry", event,
+    StabilityTrace_WriteCritical(level, L"native-registry", event,
         L"index=%llu state=%u generation=%llu error=%u operation=%u native_error=%lu owner=%llu",
         static_cast<unsigned long long>(index),
         static_cast<unsigned>(snapshot.state),
@@ -135,7 +136,12 @@ bool NativeAnalogBackends_StartPhase(NativeAnalogStartPhase phase)
                 const std::lock_guard lock(g_lifecycleMutex);
                 snapshot = g_lifecycle.GetSnapshot(i);
             }
-            TraceLifecycleFailure(i, L"start.rejected", snapshot);
+            TraceLifecycleFailure(i,
+                decision.result.status == halljoy::lifecycle::StartStatus::Failed
+                    ? L"WARN" : L"ERROR",
+                decision.result.status == halljoy::lifecycle::StartStatus::Failed
+                    ? L"start.unavailable" : L"start.rejected",
+                snapshot);
         }
         any = decision.result.IsRunning() || any;
     }
@@ -171,7 +177,7 @@ bool NativeAnalogBackends_StopPhase(NativeAnalogStartPhase phase)
                 const std::lock_guard lock(g_lifecycleMutex);
                 snapshot = g_lifecycle.GetSnapshot(i);
             }
-            TraceLifecycleFailure(i, L"stop.incomplete", snapshot);
+            TraceLifecycleFailure(i, L"ERROR", L"stop.incomplete", snapshot);
         }
         allStopped = decision.result.Completed() && allStopped;
     }
@@ -204,7 +210,7 @@ bool NativeAnalogBackends_StopAll()
                 const std::lock_guard lock(g_lifecycleMutex);
                 snapshot = g_lifecycle.GetSnapshot(i);
             }
-            TraceLifecycleFailure(i, L"stop.incomplete", snapshot);
+            TraceLifecycleFailure(i, L"ERROR", L"stop.incomplete", snapshot);
         }
         allStopped = decision.result.Completed() && allStopped;
     }

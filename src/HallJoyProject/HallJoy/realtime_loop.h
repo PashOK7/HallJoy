@@ -1,9 +1,10 @@
 #pragma once
 #include <windows.h>
 #include <cstdint>
+#include "worker_lifecycle.h"
 
 bool RealtimeLoop_Start();
-void RealtimeLoop_Stop();
+halljoy::lifecycle::StopResult RealtimeLoop_Stop();
 bool RealtimeLoop_IsRunning();
 
 // Wake the realtime thread immediately after a backend publishes fresh input.

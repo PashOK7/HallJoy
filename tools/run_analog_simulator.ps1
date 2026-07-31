@@ -2,6 +2,7 @@
 param(
     [switch]$SkipBuild,
     [switch]$ForceUserUapRuntime,
+    [switch]$InjectRealtimeStopTimeout,
     [ValidateRange(7, 120)]
     [int]$RunSeconds = 8
 )
@@ -53,6 +54,9 @@ $arguments = @('--halljoy-simulate-analog=script')
 if ($ForceUserUapRuntime) {
     $arguments += '--halljoy-test-uap-exe-write-denied'
 }
+if ($InjectRealtimeStopTimeout) {
+    $arguments += '--halljoy-test-realtime-stop-timeout'
+}
 $process = Start-Process -FilePath $exe `
     -ArgumentList $arguments `
     -PassThru
@@ -62,6 +66,7 @@ try {
         throw 'Simulator main window did not accept a graceful close request.'
     }
     if (-not $process.WaitForExit(10000)) {
+        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         throw 'Simulator did not exit within 10 seconds after graceful close.'
     }
 }
@@ -69,7 +74,10 @@ finally {
     $process.Refresh()
 }
 
-if ($process.ExitCode -ne 0) {
+if ($InjectRealtimeStopTimeout -and $process.ExitCode -ne 2) {
+    throw "Timeout-injected simulator exited with code $($process.ExitCode), expected 2."
+}
+if (-not $InjectRealtimeStopTimeout -and $process.ExitCode -ne 0) {
     throw "Simulator exited with code $($process.ExitCode)."
 }
 if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
@@ -77,7 +85,14 @@ if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
 }
 
 $traceText = Get-Content -LiteralPath $trace -Raw -Encoding UTF8
-$required = @(
+$required = if ($InjectRealtimeStopTimeout) { @(
+    '[component=realtime][event=test.stop_timeout.injected] simulator_only=1',
+    '[component=realtime][event=stop.timeout]',
+    'handle_retained=1 restart_blocked=1',
+    '[component=app][event=shutdown.poisoned]',
+    'backend_cleanup_skipped=1',
+    '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
+) } else { @(
     '[component=analog-simulator][event=start]',
     'name=w-ramp',
     'name=opposing-ws',
@@ -100,7 +115,7 @@ $required = @(
     '[component=analog-simulator][event=stop]',
     '[component=vigem][event=init.ok]',
     '[component=backend][event=shutdown.end]'
-)
+) }
 $missing = @($required | Where-Object { -not $traceText.Contains($_) })
 if ($ForceUserUapRuntime -and -not $traceText.Contains('[component=embedded-uap][event=prepare.ok] location=user exact_resource_match=1 system_sdk_required=0')) {
     $missing += 'verified per-user private UAP fallback'
@@ -108,7 +123,7 @@ if ($ForceUserUapRuntime -and -not $traceText.Contains('[component=embedded-uap]
 if ($missing.Count -ne 0) {
     throw "Simulator trace is incomplete. Missing: $($missing -join ', ')"
 }
-if ($traceText -match '\[level=ERROR\]') {
+if (-not $InjectRealtimeStopTimeout -and $traceText -match '\[level=ERROR\]') {
     throw 'Simulator trace contains an ERROR event.'
 }
 
@@ -122,6 +137,14 @@ if ($remaining.Count -ne 0) {
     throw 'A HallJoyV14Simulator process remained after shutdown.'
 }
 
-Write-Host 'HallJoy analog simulator scenario: PASS' -ForegroundColor Green
+if ($InjectRealtimeStopTimeout) {
+    Write-Host 'HallJoy realtime timeout containment scenario: PASS' -ForegroundColor Green
+} else {
+    Write-Host 'HallJoy analog simulator scenario: PASS' -ForegroundColor Green
+}
 Write-Host "Trace: $trace"
-Write-Host 'Evidence classification: common pipeline simulation; NOT hardware verification.'
+if ($InjectRealtimeStopTimeout) {
+    Write-Host 'Evidence classification: simulator lifecycle fault injection; NOT hardware verification.'
+} else {
+    Write-Host 'Evidence classification: common pipeline simulation; NOT hardware verification.'
+}

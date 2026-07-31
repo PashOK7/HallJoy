@@ -47,6 +47,13 @@ confirmed `Joined` result permits replacement. Timeout, fault, wrong-thread, or
 generation mismatch remains visible through `NativeAnalogBackends_GetLifecycle`
 and blocks unsafe restart instead of being cleared by reset.
 
+The realtime loop follows the same lifecycle vocabulary. Its worker owns and
+releases MMCSS, waitable-timer, and multimedia-period resources. Stop wakes the
+address wait and joins for a bounded interval; only a confirmed join closes the
+thread HANDLE. An incomplete join retains ownership and poisons restart. Final
+application shutdown then avoids destroying backend state that a live
+`Backend_Tick` could still access.
+
 ## Files a new protocol owns
 
 Generated default:

@@ -190,3 +190,36 @@ Hardware: Not required for the registry contract; per-worker device gates remain
 Known limitations: ordinary TerminateThread paths remain open for V14-06+
 Rollback: parent commit of the V14-05 implementation commit
 ```
+
+## V14-06A evidence
+
+```text
+Package: V14-06A
+Scope: Realtime loop cooperative shutdown
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -RunSeconds 8
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectRealtimeStopTimeout -RunSeconds 7
+Results:
+  Realtime TerminateThread occurrences: 0
+  Portable joined/timeout/wait-failure policy: PASS
+  Timeout ownership retention and restart poison audit: PASS
+  Backend teardown guard and poisoned process-exit audit: PASS
+  Static audits and portable C++20 tests: PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Simulator common pipeline and cooperative shutdown: PASS
+  Simulator forced realtime join timeout containment, expected exit 2: PASS
+  Normal simulator ERROR trace events: 0
+  Timeout simulator expected containment ERROR events: present
+  Remaining simulator processes: 0
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Hardware: Protocol behavior unchanged; hardware gates remain separate
+Known limitations: a blocking ViGEm call is isolated later; four other worker
+  families still retain forced-termination paths
+Rollback: parent commit of the V14-06A implementation commit
+```

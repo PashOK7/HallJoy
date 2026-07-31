@@ -102,6 +102,8 @@ def main() -> int:
             ("worker_join_policy", [tests / "worker_join_policy_test.cpp"]),
             ("worker_primitives", [tests / "worker_primitives_test.cpp"]),
             ("worker_exception_barrier", [tests / "worker_exception_barrier_test.cpp"]),
+            ("input_wake_sequence", [tests / "input_wake_sequence_test.cpp"]),
+            ("publication_generation", [tests / "publication_generation_test.cpp"]),
             ("uap_cabi_guard", [tests / "uap_cabi_guard_test.cpp"]),
             ("windows_command_line", [tests / "windows_command_line_test.cpp"]),
         ]

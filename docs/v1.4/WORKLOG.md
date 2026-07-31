@@ -674,3 +674,51 @@
   Verified. UAP worker/C ABI coverage is complete; `HJ-AUD-P1-004` remains
   Partial only for deferred device-owner/soak gates.
 - V14-07 is Verified. The next implementation package is V14-08.
+
+## 2026-07-31 - V14-08A startup transaction, durable wake and curve publication
+
+### Implementation
+
+- Replaced best-effort dependent startup with one explicit transaction covering
+  realtime, native `AfterRealtime`, Raw Input prerequisite and native
+  `AfterRawInput`, with readiness published only at commit.
+- Added structured native phase results so optional absent protocols do not
+  fail startup, while present-device failures and rejected lifecycle ownership
+  do.
+- Added strict reverse-order rollback. Cleanup responsibility is acquired before
+  each start call, including realtime, so partial creation is reaped. An
+  unconfirmed stop poisons cleanup and prevents dependent backend teardown.
+- Replaced restart-reset input counters with a process-lifetime monotonic wake
+  sequence. Pending input is checked before every address wait and notifications
+  between observe/consume remain pending for the next tick.
+- Replaced relaxed curve cache invalidation with a release-published generation
+  and acquire observation, backed by a portable payload-visibility test.
+- Added simulator-only realtime-start and native-phase failure scenarios and
+  made the normal SOCD gate axis-specific so unrelated live Irok input can
+  coexist with the simulator without weakening the tested cancellation axis.
+
+### Validation
+
+- Startup/wake/publication static audit: PASS.
+- Full static and portable C++20 gate: PASS, including the new wake race and
+  release/acquire publication tests.
+- Realtime-start rollback, native-phase reverse rollback and normal simulator:
+  PASS, exit 0.
+- Official production MSVC x64 Release: PASS, 0 errors and only allowlisted
+  `LNK4099`; private ABI1 runtime gate also passed.
+- Six-second production smoke launched UI, diagnostic-watch and analog-host,
+  committed startup with the Irok MG75 Max on `1CA6:0529/FFB0`, shut down all
+  components through `WM_CLOSE`, and left zero HallJoy processes.
+- `HallJoy.exe`: 2,145,280 bytes,
+  SHA-256 `E6A90BEE93EE28A25CDB7C3A03F13C773FE5B48204CDDE49A713BF6C040A8C43`.
+- Pre-change source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-08A-prechange-20260731`.
+- Pre-production runtime backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-08A-preproduction-20260731-2231`;
+  user settings, bindings, layouts and profiles were restored hash-identically.
+
+### Package result
+
+- `HJ-AUD-P1-008`, `HJ-AUD-P1-009` and `HJ-AUD-P2-019` are Verified.
+- V14-08 remains In progress. Next is V14-08B: isolate synchronous ViGEm
+  submission and prove report equivalence plus bounded stalled-driver behavior.

@@ -113,3 +113,19 @@ The official x64 production build, package instructions and trace collector use
 `HallJoy.exe`. Backend-specific implementation history does not appear in the
 public filename. Diagnostic and simulator targets keep distinct names because
 they are development artifacts and must not be confused with production.
+
+## D-013 - Backend readiness is a transaction and wakes are durable state
+
+Date: 2026-07-31
+
+Backend readiness is published only after realtime, required native phases and
+Raw Input prerequisites have all succeeded. A failure rolls back acquired
+ownership in reverse order; an unconfirmed stop retains ownership and selects
+process containment instead of continuing dependent cleanup.
+
+Input-change correctness belongs to a process-lifetime monotonic sequence, not
+to the transient wake primitive. `WakeByAddressSingle` reduces latency but does
+not own the notification, and a worker restart never resets the sequence.
+Settings writers release-publish curve generations and cache readers
+acquire-observe them. ViGEm output ownership is deliberately unchanged here and
+is isolated separately in V14-08B.

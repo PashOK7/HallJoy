@@ -106,9 +106,9 @@ bool NativeAnalogBackends_PrepareRouting()
     return any;
 }
 
-bool NativeAnalogBackends_StartPhase(NativeAnalogStartPhase phase)
+NativeAnalogPhaseStartResult NativeAnalogBackends_StartPhase(NativeAnalogStartPhase phase)
 {
-    bool any = false;
+    NativeAnalogPhaseStartResult phaseResult{};
     for (std::size_t i = 0; i < std::size(kCatalog); ++i)
     {
         if (!DescriptorValidAt(i))
@@ -116,6 +116,8 @@ bool NativeAnalogBackends_StartPhase(NativeAnalogStartPhase phase)
         const auto& d = *kCatalog[i];
         if (d.startPhase != phase)
             continue;
+        ++phaseResult.considered;
+        const bool presentBefore = d.isProtocolDevicePresent();
         halljoy::lifecycle::BackendLifecycleRegistry<kNativeAnalogBackendMaxCount>::StartDecision decision;
         {
             const std::lock_guard lock(g_lifecycleMutex);
@@ -143,9 +145,26 @@ bool NativeAnalogBackends_StartPhase(NativeAnalogStartPhase phase)
                     ? L"start.unavailable" : L"start.rejected",
                 snapshot);
         }
-        any = decision.result.IsRunning() || any;
+
+        if (decision.result.IsRunning())
+        {
+            ++phaseResult.running;
+        }
+        else if (decision.result.status == halljoy::lifecycle::StartStatus::Failed)
+        {
+            if (presentBefore || d.isProtocolDevicePresent())
+                ++phaseResult.requiredFailures;
+            else
+                ++phaseResult.unavailable;
+        }
+        else
+        {
+            // Rejected/ambiguous ownership is never safe to commit as part of
+            // a new application startup transaction.
+            ++phaseResult.rejected;
+        }
     }
-    return any;
+    return phaseResult;
 }
 
 bool NativeAnalogBackends_StopPhase(NativeAnalogStartPhase phase)

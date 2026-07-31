@@ -15,6 +15,8 @@ param(
     [switch]$InjectAnalogHostSupervisorCppFault,
     [switch]$InjectAnalogHostChildCppFault,
     [switch]$InjectAnalogHostChildReapTimeout,
+    [switch]$InjectRealtimeStartFailure,
+    [switch]$InjectNativePhaseStartFailure,
     [ValidateRange(7, 120)]
     [int]$RunSeconds = 8
 )
@@ -34,8 +36,11 @@ $injectionCount = @(
     $InjectAnalogHostSupervisorStartFailure.IsPresent,
     $InjectAnalogHostSupervisorCppFault.IsPresent,
     $InjectAnalogHostChildCppFault.IsPresent,
-    $InjectAnalogHostChildReapTimeout.IsPresent
+    $InjectAnalogHostChildReapTimeout.IsPresent,
+    $InjectRealtimeStartFailure.IsPresent,
+    $InjectNativePhaseStartFailure.IsPresent
 ).Where({ $_ }).Count
+$isFaultInjection = $injectionCount -ne 0
 if ($injectionCount -gt 1) {
     throw 'Select only one fault-injection scenario.'
 }
@@ -123,6 +128,12 @@ if ($InjectAnalogHostChildCppFault) {
 if ($InjectAnalogHostChildReapTimeout) {
     $arguments += '--halljoy-test-analog-host-child-reap-timeout'
 }
+if ($InjectRealtimeStartFailure) {
+    $arguments += '--halljoy-test-realtime-start-failure'
+}
+if ($InjectNativePhaseStartFailure) {
+    $arguments += '--halljoy-test-native-phase-start-failure'
+}
 if ($StartOverlay) {
     $arguments += @('--overlay-server', '--port', '18765')
 }
@@ -199,7 +210,13 @@ if ($InjectAnalogHostChildCppFault -and $process.ExitCode -ne 0) {
 if ($InjectAnalogHostChildReapTimeout -and $process.ExitCode -ne 0) {
     throw "Analog-host child reap-timeout simulator exited with code $($process.ExitCode), expected 0."
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSparkShutdownRace -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and -not $InjectAnalogHostBridgeStopTimeout -and -not $InjectAnalogHostSupervisorStartFailure -and -not $InjectAnalogHostSupervisorCppFault -and -not $InjectAnalogHostChildCppFault -and -not $InjectAnalogHostChildReapTimeout -and $process.ExitCode -ne 0) {
+if ($InjectRealtimeStartFailure -and $process.ExitCode -ne 0) {
+    throw "Realtime-start-failure simulator exited with code $($process.ExitCode), expected 0."
+}
+if ($InjectNativePhaseStartFailure -and $process.ExitCode -ne 0) {
+    throw "Native-phase-start-failure simulator exited with code $($process.ExitCode), expected 0."
+}
+if (-not $isFaultInjection -and $process.ExitCode -ne 0) {
     throw "Simulator exited with code $($process.ExitCode)."
 }
 if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
@@ -299,6 +316,21 @@ $required = if ($InjectRealtimeStopTimeout) { @(
     '[component=analog-host][event=child.reaped_after_timeout]',
     '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
     '[component=main][event=session.end] exit_code=0'
+) } elseif ($InjectRealtimeStartFailure) { @(
+    '[component=realtime][event=test.start_failure.injected] simulator_only=1',
+    '[component=app][event=startup.rollback.begin] failed_stage=realtime',
+    '[component=app][event=startup.rollback.step] component=realtime joined=1',
+    '[component=app][event=startup.rollback.step] component=backend joined=1',
+    '[component=app][event=startup.rollback.end] failed_stage=realtime restart_safe=1',
+    '[component=main][event=session.end] exit_code=0'
+) } elseif ($InjectNativePhaseStartFailure) { @(
+    '[component=app][event=test.native_phase_start_failure.injected] phase=after_realtime simulator_only=1',
+    '[component=app][event=startup.rollback.begin] failed_stage=native-after-realtime',
+    '[component=app][event=startup.rollback.step] component=native-after-realtime joined=1',
+    '[component=app][event=startup.rollback.step] component=realtime joined=1',
+    '[component=app][event=startup.rollback.step] component=backend joined=1',
+    '[component=app][event=startup.rollback.end] failed_stage=native-after-realtime restart_safe=1',
+    '[component=main][event=session.end] exit_code=0'
 ) } else { @(
     '[component=analog-simulator][event=start]',
     'name=w-ramp',
@@ -311,8 +343,8 @@ $required = if ($InjectRealtimeStopTimeout) { @(
     'name=source-fault',
     'name=recovered',
     '[event=pipeline-report.observed] phase=w-ramp',
-    '[event=pipeline-report.observed] phase=opposing-ws lx=0 ly=0',
-    '[event=pipeline-report.observed] phase=opposing-ad lx=0 ly=0',
+    '[event=pipeline-report.observed] phase=opposing-ws',
+    '[event=pipeline-report.observed] phase=opposing-ad',
     '[event=pipeline-report.observed] phase=diagonal',
     '[event=pipeline-report.observed] phase=disconnected lx=0 ly=0',
     '[event=pipeline-report.observed] phase=post-reconnect-input',
@@ -350,7 +382,25 @@ if ($InjectSparkShutdownRace) {
         throw 'SparkLink reconnect after service stop was observed.'
     }
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSparkShutdownRace -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and -not $InjectAnalogHostBridgeStopTimeout -and -not $InjectAnalogHostSupervisorStartFailure -and -not $InjectAnalogHostSupervisorCppFault -and -not $InjectAnalogHostChildCppFault -and -not $InjectAnalogHostChildReapTimeout -and $traceText -match '\[level=ERROR\]') {
+if ($InjectNativePhaseStartFailure) {
+    $afterRealtimeStop = $traceText.IndexOf('[component=app][event=startup.rollback.step] component=native-after-realtime joined=1')
+    $realtimeStop = $traceText.IndexOf('[component=app][event=startup.rollback.step] component=realtime joined=1')
+    $backendStop = $traceText.IndexOf('[component=app][event=startup.rollback.step] component=backend joined=1')
+    if ($afterRealtimeStop -lt 0 -or $realtimeStop -le $afterRealtimeStop -or $backendStop -le $realtimeStop) {
+        throw 'Startup dependencies were not rolled back in reverse acquisition order.'
+    }
+}
+if (-not $isFaultInjection) {
+    # The simulator shares the aggregation pipeline with real devices. Assert the
+    # SOCD-neutralized axis, while allowing the other axis to carry live input.
+    if ($traceText -notmatch '\[event=pipeline-report\.observed\] phase=opposing-ws lx=-?\d+ ly=0 ') {
+        throw 'Opposing W/S did not neutralize the vertical axis.'
+    }
+    if ($traceText -notmatch '\[event=pipeline-report\.observed\] phase=opposing-ad lx=0 ly=-?\d+ ') {
+        throw 'Opposing A/D did not neutralize the horizontal axis.'
+    }
+}
+if (-not $isFaultInjection -and $traceText -match '\[level=ERROR\]') {
     throw 'Simulator trace contains an ERROR event.'
 }
 
@@ -388,13 +438,17 @@ if ($InjectRealtimeStopTimeout) {
     Write-Host 'HallJoy analog-host child C++ fault restart scenario: PASS' -ForegroundColor Green
 } elseif ($InjectAnalogHostChildReapTimeout) {
     Write-Host 'HallJoy analog-host child reap-timeout ownership scenario: PASS' -ForegroundColor Green
+} elseif ($InjectRealtimeStartFailure) {
+    Write-Host 'HallJoy realtime-start rollback scenario: PASS' -ForegroundColor Green
+} elseif ($InjectNativePhaseStartFailure) {
+    Write-Host 'HallJoy native-phase reverse rollback scenario: PASS' -ForegroundColor Green
 } elseif ($StartOverlay) {
     Write-Host 'HallJoy overlay HTTP and cooperative shutdown scenario: PASS' -ForegroundColor Green
 } else {
     Write-Host 'HallJoy analog simulator scenario: PASS' -ForegroundColor Green
 }
 Write-Host "Trace: $trace"
-if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout -or $InjectOverlayStopTimeout -or $InjectSparkStopTimeout -or $InjectSparkShutdownRace -or $InjectSayoStopTimeout -or $InjectSayoReaderCppFault -or $InjectAnalogHostBridgeStopTimeout -or $InjectAnalogHostSupervisorStartFailure -or $InjectAnalogHostSupervisorCppFault -or $InjectAnalogHostChildCppFault -or $InjectAnalogHostChildReapTimeout) {
+if ($isFaultInjection) {
     Write-Host 'Evidence classification: simulator lifecycle fault injection; NOT hardware verification.'
 } else {
     Write-Host 'Evidence classification: common pipeline simulation; NOT hardware verification.'

@@ -49,7 +49,10 @@ $required = @(
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_backend_registry.h'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_backend_registry.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_backends.def'),
+    (Join-Path $hallJoyRoot 'HallJoy\input_wake_sequence.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\publication_generation.h'),
     (Join-Path $hallJoyRoot 'tests\native_backend_architecture_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\startup_wake_transaction_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\dependency_lock_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\native_analog_backend_contract_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\private_uap_runtime_static_audit.py'),
@@ -295,8 +298,9 @@ if ($madBackendText -notmatch 'HALLJOY_BUILD_ID_W' -or
 }
 $rawInputRegistrationIndex = $appText.IndexOf('RegisterRawInputDevices(rid, 2')
 $rawInputPhaseIndex = $appText.IndexOf('NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRawInput)')
+$startupCommitIndex = $appText.IndexOf('g_backendReady = AppStartBackendDependents(rawInputRegistered')
 if ($rawInputRegistrationIndex -lt 0 -or $rawInputPhaseIndex -lt 0 -or
-    $rawInputPhaseIndex -lt $rawInputRegistrationIndex) {
+    $startupCommitIndex -lt $rawInputRegistrationIndex) {
     throw 'Regression guard failed: AfterRawInput native phase can start before target-scoped Raw Input registration.'
 }
 $routingResetIndex = $appText.IndexOf('NativeAnalogBackends_Reset()')
@@ -304,7 +308,8 @@ $routingPrepareIndex = $appText.IndexOf('NativeAnalogBackends_PrepareRouting()')
 $backendInitIndex = $appText.IndexOf('Backend_Init()')
 $afterRealtimeIndex = $appText.IndexOf('NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRealtime)')
 if ($routingResetIndex -lt 0 -or $routingPrepareIndex -lt $routingResetIndex -or
-    $backendInitIndex -lt $routingPrepareIndex -or $afterRealtimeIndex -lt $backendInitIndex -or
+    $backendInitIndex -lt $routingPrepareIndex -or $afterRealtimeIndex -lt 0 -or
+    $startupCommitIndex -lt $backendInitIndex -or
     $addressedText -notmatch 'NativeAnalogProtocol::Addressed09402' -or
     $addressedText -notmatch 'AddressedAnalog_GetNativeBackendDescriptor' -or
     $addressedText -notmatch 'RealtimeLoop_NotifyInputChanged' -or

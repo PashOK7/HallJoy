@@ -9,9 +9,11 @@ version or release status.
 
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
-- Completed package: `V14-07` analog-host and private UAP boundary safety
+- Completed package: `V14-08A` startup transaction, durable wake and ordered
+  curve publication
 - Completed hotfix: `V14-06D.1` SparkLink shutdown/reconnect race, Verified
-- Next package: `V14-08` startup transaction, wake correctness and ViGEm isolation
+- Current package: `V14-08` in progress
+- Next package: `V14-08B` ViGEm output isolation and stalled-driver containment
 - GitHub publication: not started
 - Release status: not release-ready
 

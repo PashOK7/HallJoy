@@ -28,17 +28,24 @@ BeforeUap start phase
         ↓
 UAP receives complete native exclusion set before Soup CreateFileW
         ↓
-common backend/realtime starts
-        ↓
-AfterRealtime phase
+common backend initialization completes
         ↓
 Raw Input UI/diagnostic registration
         ↓
-AfterRawInput phase
+dependent-start transaction: realtime → AfterRealtime
+        ↓
+validate Raw Input prerequisite → AfterRawInput → publish ready
 ```
 
 Catalog order is classification priority. A claim is first-proof-wins; a later
 backend cannot steal the same exact VID/PID.
+
+Dependent startup is transactional. Optional protocol families that are absent
+are recorded as unavailable, while a present-device failure or rejected
+lifecycle generation aborts the transaction. Rollback follows reverse
+acquisition order (`AfterRawInput`, `AfterRealtime`, realtime, backend). It stops
+at the first unconfirmed join and retains all lower-level ownership so a live
+worker cannot observe destroyed state.
 
 The native registry owns a monotonic generation for every catalog entry.
 Lifecycle mutations are serialized and bound to the first owner thread. A
@@ -53,6 +60,15 @@ address wait and joins for a bounded interval; only a confirmed join closes the
 thread HANDLE. An incomplete join retains ownership and poisons restart. Final
 application shutdown then avoids destroying backend state that a live
 `Backend_Tick` could still access.
+
+Realtime input notifications are durable process-lifetime sequence increments.
+The worker acquire-observes pending input before every `WaitOnAddress` and only
+marks the exact observed sequence consumed after its tick. A notification before
+start, across restart, or during the observe/consume window therefore remains
+pending. Address wakes are a latency optimization, not the correctness carrier.
+Curve settings use the same publication principle: writers release-publish a
+generation after atomic field updates and thread-local curve caches
+acquire-observe the generation before rebuilding their snapshots.
 
 The diagnostic writer follows the same rule. Start and shutdown are serialized
 around one generation. Shutdown first closes the producer gate, wakes the

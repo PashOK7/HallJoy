@@ -18,13 +18,32 @@ struct NativeAnalogReadResult
 using NativeAnalogBackendLifecycleSnapshot =
     halljoy::lifecycle::BackendLifecycleRegistry<kNativeAnalogBackendMaxCount>::Snapshot;
 
+struct NativeAnalogPhaseStartResult
+{
+    std::size_t considered = 0;
+    std::size_t running = 0;
+    std::size_t unavailable = 0;
+    std::size_t requiredFailures = 0;
+    std::size_t rejected = 0;
+
+    [[nodiscard]] bool AnyRunning() const noexcept { return running != 0; }
+    [[nodiscard]] bool TransactionSafe() const noexcept
+    {
+        return requiredFailures == 0 && rejected == 0;
+    }
+
+    // Preserve the original availability-oriented call sites. Transactional
+    // startup must explicitly inspect TransactionSafe().
+    operator bool() const noexcept { return AnyRunning(); }
+};
+
 // The built-in catalog is the single lifecycle/data/UI integration point for
 // native protocols. New protocol modules implement NativeAnalogBackendDescriptor
 // and add exactly one entry to native_analog_backends.def.
 bool NativeAnalogBackends_CatalogIsValid();
 bool NativeAnalogBackends_Reset();
 bool NativeAnalogBackends_PrepareRouting();
-bool NativeAnalogBackends_StartPhase(NativeAnalogStartPhase phase);
+NativeAnalogPhaseStartResult NativeAnalogBackends_StartPhase(NativeAnalogStartPhase phase);
 bool NativeAnalogBackends_StopPhase(NativeAnalogStartPhase phase);
 bool NativeAnalogBackends_StopAll();
 void NativeAnalogBackends_NotifyDeviceChange();

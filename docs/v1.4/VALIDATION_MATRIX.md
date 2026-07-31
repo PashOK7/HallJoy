@@ -589,3 +589,49 @@ Known limitations: UAP pacing/identity/contention remain V14-11; device-owner
 Evidence: docs/stability/tests/V14-07C_PRIVATE_UAP_ABI_UNLOAD_2026-07-31.txt
 Rollback: parent commit of the V14-07C implementation commit
 ```
+
+## V14-08A evidence
+
+```text
+Package: V14-08A
+Scope: Transactional dependent startup, durable input wake and ordered curve publication
+Commands:
+  python src/HallJoyProject/tests/startup_wake_transaction_static_audit.py
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -InjectRealtimeStartFailure -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectNativePhaseStartFailure -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  build/output/HallJoy.exe (6-second Irok production smoke, WM_CLOSE)
+Results:
+  Startup/wake/publication static audit: PASS
+  All static audits and portable C++20 tests: PASS
+  Pre-start, burst-coalescing and notify/consume race wake tests: PASS
+  Release/acquire payload publication concurrency test: PASS
+  Realtime-start failure rollback: PASS, realtime then backend joined, exit 0
+  Native-phase failure rollback: PASS, AfterRealtime then realtime then backend
+    joined in reverse acquisition order, exit 0
+  Normal common-pipeline simulator: PASS alongside live SparkLink input
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Real ABI1 load/init/null/bounded-unload runtime gate: PASS
+  Production startup transaction: commit; AfterRealtime 0 failures/0 rejected,
+    AfterRawInput 1 running/0 failures/0 rejected
+  Irok MG75 Max connected: VID 1CA6, PID 0529, usage page FFB0
+  Graceful WM_CLOSE: backend/main shutdown end, exit 0, 0 processes left
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,145,280 bytes
+  SHA-256: E6A90BEE93EE28A25CDB7C3A03F13C773FE5B48204CDDE49A713BF6C040A8C43
+  Production trace SHA-256:
+    AFF96801D8A90AE41CB946E07ED019A1793BBF981401380B79A78109E27CEE08
+Hardware: startup and balanced shutdown passed on Irok MG75 Max; simulator
+  fault injections prove lifecycle behavior, not other keyboard compatibility
+Remote CI: NOT RUN; optional, no push permitted
+Known limitation: synchronous ViGEm submission remains HJ-AUD-P1-010/V14-08B
+Evidence: docs/stability/tests/V14-08A_STARTUP_WAKE_PUBLICATION_2026-07-31.txt
+Rollback: parent commit of the V14-08A implementation commit
+```

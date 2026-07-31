@@ -1,0 +1,92 @@
+Package: V14-08A
+Date: 2026-07-31
+Branch: v1.4-integration
+Scope: transactional dependent startup, durable input wake sequence and ordered
+curve publication. Synchronous ViGEm isolation is explicitly deferred to V14-08B.
+
+Backups
+-------
+Source pre-change:
+  C:\github\HallJoy_v1.4_BACKUPS\V14-08A-prechange-20260731
+  15 source/tool/document files copied and SHA-256 verified.
+Runtime pre-production:
+  C:\github\HallJoy_v1.4_BACKUPS\V14-08A-preproduction-20260731-2231\output
+  13 files copied and SHA-256 verified before build/output replacement.
+  settings.ini, bindings.ini, CurvePresets, GlobalProfiles and Layouts were
+  restored to the new output and verified against the backup.
+
+Commands and results
+--------------------
+1. python src/HallJoyProject/tests/startup_wake_transaction_static_audit.py
+   PASS: transaction commit/rollback, phase classification, durable wake and
+   release/acquire curve publication invariants.
+
+2. python tools/run_native_backend_checks.py --require-compiler
+   PASS: all static audits and all portable C++20 tests.
+   New tests passed:
+   - input_wake_sequence_test: pre-start notification, burst coalescing and
+     notify-between-observe-and-consume retention.
+   - publication_generation_test: release generation publishes relaxed payload
+     to an acquire observer.
+
+3. powershell -NoProfile -ExecutionPolicy Bypass
+     -File .\tools\run_analog_simulator.ps1
+     -InjectRealtimeStartFailure -RunSeconds 7
+   PASS: realtime cleanup responsibility was acquired before start; rollback
+   joined realtime, then backend; clean exit 0.
+   Trace SHA-256:
+     F287D24199E80BFF4AEC0E918C2956BC0AECD96CF034C57848FD9CE11A701DA4
+
+4. powershell -NoProfile -ExecutionPolicy Bypass
+     -File .\tools\run_analog_simulator.ps1 -SkipBuild
+     -InjectNativePhaseStartFailure -RunSeconds 7
+   PASS: rollback joined AfterRealtime, realtime and backend in strict reverse
+   acquisition order; clean exit 0.
+   Trace SHA-256:
+     147C286593C253604C4134B919BF41B47FD5B7373135124A479EDB7D83D55978
+
+5. powershell -NoProfile -ExecutionPolicy Bypass
+     -File .\tools\run_analog_simulator.ps1 -SkipBuild -RunSeconds 7
+   PASS: normal common-pipeline scenario alongside connected Irok input.
+   The W/S phase neutralized Y and the A/D phase neutralized X; the unrelated
+   axis was allowed to contain simultaneous real-device input.
+   Trace SHA-256:
+     10420247EEC12FAFD9D6FAD57704B57B9B0067034FA13F6E81C01B14772003BD
+
+6. powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+   PASS: private ABI1 runtime gate; production MSVC x64 Release; 0 errors.
+   Warning policy PASS: only allowlisted LNK4099 for the external ViGEm PDB.
+
+7. build/output/HallJoy.exe, six-second hidden production smoke followed by
+   WM_CLOSE.
+   PASS: UI parent, diagnostic-watch and analog-host child started.
+   PASS: startup.transaction.commit origin=initial.
+   PASS: AfterRealtime running=0 unavailable=2 required_failures=0 rejected=0.
+   PASS: AfterRawInput running=1 unavailable=0 required_failures=0 rejected=0.
+   PASS: Irok MG75 Max connected on VID 1CA6, PID 0529, usage page FFB0.
+   PASS: backend shutdown completed, main exited 0, no HallJoy process remained.
+   Production trace SHA-256:
+     AFF96801D8A90AE41CB946E07ED019A1793BBF981401380B79A78109E27CEE08
+   Analyzer verdict WARN only for unexercised reconnect/poll-mode coverage and
+   optional unavailable non-Irok routes; no ERROR event occurred.
+
+Canonical artifact
+------------------
+Path: build/output/HallJoy.exe
+Name: HallJoy.exe
+Size: 2,145,280 bytes
+SHA-256: E6A90BEE93EE28A25CDB7C3A03F13C773FE5B48204CDDE49A713BF6C040A8C43
+
+Risk result
+-----------
+HJ-AUD-P1-008: Verified
+HJ-AUD-P1-009: Verified
+HJ-AUD-P2-019: Verified
+HJ-AUD-P1-010: Open; synchronous ViGEm isolation remains V14-08B.
+
+Evidence classification
+-----------------------
+The two fault-injection traces and common-pipeline scenario are simulator
+evidence, not compatibility evidence for other keyboards. The production smoke
+is hardware evidence for startup and balanced shutdown on the Irok MG75 Max;
+it is not a long-run soak or a stalled-ViGEm-driver test.

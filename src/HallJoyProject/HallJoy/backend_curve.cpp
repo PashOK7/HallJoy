@@ -8,6 +8,7 @@
 
 #include "curve_math.h"
 #include "key_settings.h"
+#include "publication_generation.h"
 #include "settings.h"
 
 namespace
@@ -24,7 +25,7 @@ struct CurveDef
     bool invert = false;
 };
 
-static std::atomic<uint64_t> g_curveCacheStamp{ 1 };
+static halljoy::publication::Generation g_curveCacheGeneration;
 
 static float Clamp01(float v) { return std::clamp(v, 0.0f, 1.0f); }
 
@@ -97,7 +98,7 @@ struct CurveThreadCache
 static CurveThreadCache& GetCurveThreadCache()
 {
     static thread_local CurveThreadCache c;
-    uint64_t stamp = g_curveCacheStamp.load(std::memory_order_relaxed);
+    uint64_t stamp = g_curveCacheGeneration.Observe();
     if (c.stamp != stamp)
     {
         c.stamp = stamp;
@@ -173,12 +174,12 @@ void BackendCurve_BeginTick()
 
 void BackendCurve_Invalidate()
 {
-    g_curveCacheStamp.fetch_add(1u, std::memory_order_relaxed);
+    g_curveCacheGeneration.Publish();
 }
 
 uint64_t BackendCurve_GetGeneration()
 {
-    return g_curveCacheStamp.load(std::memory_order_acquire);
+    return g_curveCacheGeneration.Observe();
 }
 
 float BackendCurve_ApplyByHid(uint16_t hid, float x01Raw)

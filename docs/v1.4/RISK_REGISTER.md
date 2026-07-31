@@ -68,8 +68,8 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P1-005` | P1 | Addressed reader закрывает HID HANDLE из другого потока при активном stack `OVERLAPPED` | `S06` | Open | overlapped cancellation/reap tests |
 | `HJ-AUD-P1-006` | P1 | Analog host допускает повторную инициализацию поверх не завершившегося поколения потоков | `S09` | Verified | parent generation, bounded group timeout, retained ownership and restart-rejection gates passed in V14-07A |
 | `HJ-AUD-P1-007` | P1 | Partial-start cleanup analog host может unmap'нуть память под живым bridge thread | `S09` | Verified | injected supervisor-start failure joined bridge before IPC rollback in V14-07A |
-| `HJ-AUD-P1-008` | P1 | Потеря device-change wakeup из-за manual-reset `ResetEvent` после ожидания | `S11` | Open | startup rollback and wake sequence tests |
-| `HJ-AUD-P1-009` | P1 | Initial startup игнорирует отказ realtime и зависимых native phases | `S11` | Open | startup rollback and wake sequence tests |
+| `HJ-AUD-P1-008` | P1 | Потеря device-change wakeup из-за manual-reset `ResetEvent` после ожидания | `S11` | Verified | durable monotonic wake sequence, notify/wait race tests and production Irok smoke passed in V14-08A |
+| `HJ-AUD-P1-009` | P1 | Initial startup игнорирует отказ realtime и зависимых native phases | `S11` | Verified | explicit commit, reverse rollback and realtime/native-phase fault injections passed in V14-08A |
 | `HJ-AUD-P1-010` | P1 | Синхронный ViGEm update находится внутри realtime worker | `S12` | Open | report equivalence + driver stall tests |
 | `HJ-AUD-P1-011` | P1 | Mouse IPC неверно определяет, создано ли новое mapping | `S15` | Open | IPC ACL/creation/memory-order tests |
 | `HJ-AUD-P1-012` | P1 | Named IPC analog host допускает precreation/spoofing в той же сессии пользователя | `S15` | Open | IPC ACL/creation/memory-order tests |
@@ -95,7 +95,7 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P2-016` | P2 | Большинство вызовов сохранения игнорируют возвращаемую ошибку | `S13` | Open | fault-injected transactional save tests |
 | `HJ-AUD-P2-017` | P2 | Writable state хранится рядом с executable | `S14` | Open | migration/name/path tests |
 | `HJ-AUD-P2-018` | P2 | Имена профилей недостаточно нормализованы | `S14` | Open | migration/name/path tests |
-| `HJ-AUD-P2-019` | P2 | Публикация curve settings имеет слабый memory-order contract | `S11` | Open | startup rollback and wake sequence tests |
+| `HJ-AUD-P2-019` | P2 | Публикация curve settings имеет слабый memory-order contract | `S11` | Verified | release generation publication, acquire cache observation and concurrency test passed in V14-08A |
 | `HJ-AUD-P2-020` | P2 | Глобальный lifecycle registry не защищён и не кодирует thread affinity | `S03` | Verified | mutex serialization, owner token and wrong-thread fault test passed |
 | `HJ-AUD-P2-021` | P2 | VID:PID ownership слишком крупнозернистый | `S17` | Open | CPU/USB/identity/contention measurements |
 | `HJ-AUD-P3-001` | P3 | TESTING.md описывает отсутствующий тестовый контур | `S20` | Open | build/docs/manifest validation |
@@ -219,16 +219,38 @@ gate, полный production build и process-clean smoke прошли. Это 
 `Verified`. `HJ-AUD-P1-004` остаётся `Partial` только до device-owner/soak
 qualification в V14-12.
 
+## Evidence package S11 / V14-08A
+
+V14-08A делает запуск backend-зависимостей транзакцией и устраняет потерю
+уведомлений без изменения keyboard protocols или ViGEm report construction:
+
+- readiness публикуется только после успешного realtime, `AfterRealtime`, Raw
+  Input prerequisite и `AfterRawInput`; отсутствие необязательного protocol
+  family отличается от отказа уже обнаруженного устройства;
+- любой отказ откатывает полученные стадии в обратном порядке; неподтверждённый
+  stop останавливает дальнейший teardown и включает process containment;
+- процессный монотонный input sequence не сбрасывается при старте/restart, а
+  worker проверяет pending sequence до каждого `WaitOnAddress`;
+- curve generation release-публикуется после atomic settings write и
+  acquire-читается каждым thread-local cache до построения нового snapshot.
+
+Portable race/publication tests, static audit, simulator-only realtime-start и
+native-phase failure injections, normal common-pipeline simulator, официальный
+production build и шестисекундный Irok MG75 Max smoke прошли. Это переводит
+`HJ-AUD-P1-008`, `HJ-AUD-P1-009` и `HJ-AUD-P2-019` в `Verified`.
+Синхронный ViGEm update не изменён и остаётся открытым `HJ-AUD-P1-010` для
+V14-08B.
+
 ## Правило закрытия
 
 Запись переводится в `Verified` только после выполнения acceptance criteria соответствующего пакета и сохранения test log в `docs/stability/tests/`. Один и тот же кодовый change может закрыть несколько записей, но каждая запись получает отдельное доказательство.
 
 ## Сводка
 
-- P1: 11 open, 1 implemented, 1 partial, 3 verified.
-- P2: 20 open, 1 verified.
+- P1: 7 open, 1 implemented, 1 partial, 7 verified.
+- P2: 17 open, 4 verified.
 - P3: 6 open, 2 verified.
-- Всего: 37 open, 1 implemented, 1 partial, 6 verified.
+- Всего: 30 open, 1 implemented, 1 partial, 13 verified.
 
 ## Дополнительный риск, обнаруженный при Windows gate S02A
 

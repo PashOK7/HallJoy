@@ -78,17 +78,20 @@ wm_create_end = app.find('case WM_INPUT:', wm_create_start)
 wm_create = app[wm_create_start:wm_create_end]
 require(wm_create_start >= 0 and wm_create_end > wm_create_start and
         wm_create.find('NativeAnalogBackends_PrepareRouting()') >= 0 and
-        wm_create.find('NativeAnalogBackends_PrepareRouting()') < wm_create.find('g_backendReady = Backend_Init();') and
-        wm_create.find('NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRawInput)') >
+        wm_create.find('NativeAnalogBackends_PrepareRouting()') < wm_create.find('Backend_Init();') and
+        wm_create.find('g_backendReady = AppStartBackendDependents(rawInputRegistered') >
         wm_create.find('RegisterRawInputDevices(rid, 2'),
         'native routing/lifecycle order must be prepare -> UAP/backend -> Raw Input -> MAD68 start phase')
+require('NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRawInput)' in app,
+        'transactional dependent-start helper must own the MAD68 phase')
 require('Mad68ProR_GetNativeBackendDescriptor' in catalog and
         'NativeAnalogStartPhase::AfterRawInput' in backend,
         'MAD68 descriptor must defer A8-capable worker until target Raw Input registration')
 require('AddressedAnalog_GetNativeBackendDescriptor' in catalog and
         'NativeAnalogStartPhase::AfterRealtime' in (ROOT / 'HallJoy/addressed_analog_backend.cpp').read_text(encoding='utf-8-sig') and
-        wm_create.find('NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRealtime)') >
-        wm_create.find('g_backendReady = Backend_Init();'),
+        'NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRealtime)' in app and
+        wm_create.find('g_backendReady = AppStartBackendDependents(rawInputRegistered') >
+        wm_create.find('Backend_Init();'),
         'Addressed Analog must be capability-routed before UAP and started in the post-realtime phase')
 require('HallJoy native analogue pre-open exclusion' in uap_soup_patch and
         'UAP_EXCLUDE_HALLJOY_NATIVE' in uap_soup_patch and

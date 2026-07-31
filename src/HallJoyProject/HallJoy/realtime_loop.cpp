@@ -20,6 +20,7 @@
 #include "settings.h"
 #include "debug_log.h"
 #include "stability_trace.h"
+#include "input_wake_sequence.h"
 #include "worker_exception_barrier.h"
 #include "worker_join_policy.h"
 
@@ -50,8 +51,7 @@ static HANDLE g_thread = nullptr;
 alignas(8) static volatile LONG64 g_wakeGeneration = 0;
 static std::atomic<bool> g_latencyTraceEnabled{ false };
 static std::atomic<LONGLONG> g_lastInputNotifyQpc{ 0 };
-static std::atomic<uint64_t> g_inputNotifySequence{ 0 };
-static std::atomic<uint64_t> g_inputConsumedSequence{ 0 };
+static halljoy::realtime::InputWakeSequence g_inputWakeSequence;
 
 
 static LONGLONG RealtimeQpcNow()
@@ -186,7 +186,7 @@ static DWORD RealtimeThreadBody()
 #endif
 
     LONG64 observedWakeGeneration = InterlockedCompareExchange64(&g_wakeGeneration, 0, 0);
-    uint64_t consumedInputSequence = g_inputConsumedSequence.load(std::memory_order_acquire);
+    uint64_t consumedInputSequence = g_inputWakeSequence.Consumed();
     LONGLONG nextHeartbeatQpc = RealtimeQpcAddUs(
         RealtimeQpcNow(),
         static_cast<uint64_t>(std::clamp(g_intervalMs.load(std::memory_order_relaxed), 1u, 20u)) * 1000ull);
@@ -194,7 +194,7 @@ static DWORD RealtimeThreadBody()
     LONGLONG traceWindowStart = RealtimeQpcNow();
     uint64_t traceInputWakes = 0;
     uint64_t traceHeartbeatWakes = 0;
-    uint64_t traceNotificationsStart = g_inputNotifySequence.load(std::memory_order_acquire);
+    uint64_t traceNotificationsStart = g_inputWakeSequence.Observe();
     TraceSamples signalToWakeUs{};
     TraceSamples tickUs{};
 
@@ -203,6 +203,16 @@ static DWORD RealtimeThreadBody()
         bool wakeRequestedTick = false;
         while (g_run.load(std::memory_order_acquire) && !wakeRequestedTick)
         {
+            // Check the durable sequence before sleeping. This closes both the
+            // pre-start notification window and the notify-before-WaitOnAddress
+            // window; the address wake is only a latency hint, never ownership
+            // of the input event itself.
+            if (g_inputWakeSequence.Pending(consumedInputSequence))
+            {
+                wakeRequestedTick = true;
+                break;
+            }
+
             const UINT interval = std::clamp(g_intervalMs.load(std::memory_order_relaxed), 1u, 20u);
             const LONGLONG nowQpc = RealtimeQpcNow();
             const LONGLONG outputDeadlineQpc = Backend_GetNextOutputDeadlineQpc();
@@ -284,7 +294,7 @@ static DWORD RealtimeThreadBody()
             break;
 
         observedWakeGeneration = InterlockedCompareExchange64(&g_wakeGeneration, 0, 0);
-        const uint64_t observedInputSequence = g_inputNotifySequence.load(std::memory_order_acquire);
+        const uint64_t observedInputSequence = g_inputWakeSequence.Observe();
         const bool inputPending = observedInputSequence != consumedInputSequence;
         const LONGLONG wakeQpc = RealtimeQpcNow();
 
@@ -310,7 +320,7 @@ static DWORD RealtimeThreadBody()
         if (inputPending)
         {
             consumedInputSequence = observedInputSequence;
-            g_inputConsumedSequence.store(consumedInputSequence, std::memory_order_release);
+            g_inputWakeSequence.MarkConsumed(consumedInputSequence);
         }
 
         const UINT nextInterval = std::clamp(g_intervalMs.load(std::memory_order_relaxed), 1u, 20u);
@@ -324,7 +334,7 @@ static DWORD RealtimeThreadBody()
             if (windowUs >= 1000000ull)
             {
                 const uint64_t notifications =
-                    g_inputNotifySequence.load(std::memory_order_acquire) - traceNotificationsStart;
+                    g_inputWakeSequence.Observe() - traceNotificationsStart;
                 DebugLog_WriteBuffered(
                     L"[latency.rt] scheduling=wait_on_address+precise_output_deadline window_ms=%.1f notify=%llu input_wakes=%llu heartbeat_or_deadline_wakes=%llu signal_to_wake_us[avg/p50/p95/p99/max]=%llu/%u/%u/%u/%u tick_us[avg/p50/p95/p99/max]=%llu/%u/%u/%u/%u",
                     static_cast<double>(windowUs) / 1000.0,
@@ -343,7 +353,7 @@ static DWORD RealtimeThreadBody()
                     tickUs.maximum);
 
                 traceWindowStart = tickEndQpc;
-                traceNotificationsStart = g_inputNotifySequence.load(std::memory_order_acquire);
+                traceNotificationsStart = g_inputWakeSequence.Observe();
                 traceInputWakes = 0;
                 traceHeartbeatWakes = 0;
                 signalToWakeUs.Reset();
@@ -418,12 +428,23 @@ bool RealtimeLoop_Start()
     g_lastLoggedIntervalMs.store(g_intervalMs.load(std::memory_order_relaxed), std::memory_order_relaxed);
     g_latencyTraceEnabled.store(LatencyTraceRequested(), std::memory_order_release);
     g_lastInputNotifyQpc.store(0, std::memory_order_relaxed);
-    g_inputNotifySequence.store(0, std::memory_order_relaxed);
-    g_inputConsumedSequence.store(0, std::memory_order_relaxed);
     g_realtimeFaultRecord = {};
     g_realtimeFaultKind.store(halljoy::worker::WorkerExceptionKind::None, std::memory_order_release);
     InterlockedExchange64(&g_wakeGeneration, 0);
     g_run.store(true, std::memory_order_release);
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-realtime-start-failure"))
+    {
+        g_run.store(false, std::memory_order_release);
+        (void)g_lifecycle.FailStartBeforeWorker(start.generation, ERROR_NOT_READY);
+        StabilityTrace_Write(L"WARN", L"realtime", L"test.start_failure.injected",
+            L"simulator_only=1 generation=%llu",
+            static_cast<unsigned long long>(start.generation.Value()));
+        return false;
+    }
+#endif
 
     g_thread = CreateThread(nullptr, 0, ThreadProc, nullptr, 0, nullptr);
     if (!g_thread)
@@ -509,7 +530,7 @@ void RealtimeLoop_NotifyInputChangedAt(LONGLONG sourceQpc)
         g_lastInputNotifyQpc.store(timestamp, std::memory_order_release);
     }
 
-    g_inputNotifySequence.fetch_add(1, std::memory_order_release);
+    (void)g_inputWakeSequence.Notify();
     InterlockedIncrement64(&g_wakeGeneration);
     if (g_run.load(std::memory_order_acquire))
         WakeByAddressSingle(reinterpret_cast<PVOID>(const_cast<LONG64*>(&g_wakeGeneration)));
@@ -532,7 +553,7 @@ LONGLONG RealtimeLoop_GetLastInputNotifyQpc()
 
 uint64_t RealtimeLoop_GetInputNotifySequence()
 {
-    return g_inputNotifySequence.load(std::memory_order_acquire);
+    return g_inputWakeSequence.Observe();
 }
 
 bool RealtimeLoop_IsRunning()

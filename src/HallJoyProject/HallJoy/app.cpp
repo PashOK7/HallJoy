@@ -77,6 +77,7 @@ static POINT g_mouseCursorLockPos{};
 static std::atomic<uint32_t> g_uiTimerTickCount{ 0 };
 #if defined(HALLJOY_MAD68PR_NATIVE)
 static bool g_lastMad68PresenceForBackendRetry = false;
+static bool g_rawInputRegistered = false;
 #endif
 static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam);
 static LRESULT CALLBACK MouseBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam);
@@ -623,6 +624,161 @@ static void ResizeChildren(HWND hwnd)
     SetWindowPos(g_hPageMain, nullptr, 0, 0, w, h, SWP_NOZORDER);
 }
 
+struct AppBackendStartupProgress
+{
+    bool backend = true;
+    bool realtime = false;
+#if defined(HALLJOY_MAD68PR_NATIVE)
+    bool afterRealtime = false;
+    bool afterRawInput = false;
+#endif
+};
+
+static bool AppRollbackBackendStartup(
+    const AppBackendStartupProgress& progress,
+    const wchar_t* failedStage) noexcept
+{
+    StabilityTrace_Write(L"WARN", L"app", L"startup.rollback.begin",
+        L"failed_stage=%s", failedStage ? failedStage : L"unknown");
+
+    auto poison = [&](const wchar_t* component) noexcept {
+        g_immediateProcessExitRequired.store(true, std::memory_order_release);
+        StabilityTrace_WriteCritical(L"ERROR", L"app", L"startup.rollback.poisoned",
+            L"failed_stage=%s component=%s dependent_cleanup_skipped=1",
+            failedStage ? failedStage : L"unknown", component);
+        return false;
+    };
+
+#if defined(HALLJOY_MAD68PR_NATIVE)
+    if (progress.afterRawInput)
+    {
+        bool stopped = false;
+        try { stopped = NativeAnalogBackends_StopPhase(NativeAnalogStartPhase::AfterRawInput); }
+        catch (...) { return poison(L"native-after-raw-input-exception"); }
+        StabilityTrace_Write(stopped ? L"INFO" : L"ERROR", L"app", L"startup.rollback.step",
+            L"component=native-after-raw-input joined=%d", stopped ? 1 : 0);
+        if (!stopped) return poison(L"native-after-raw-input");
+    }
+    if (progress.afterRealtime)
+    {
+        bool stopped = false;
+        try { stopped = NativeAnalogBackends_StopPhase(NativeAnalogStartPhase::AfterRealtime); }
+        catch (...) { return poison(L"native-after-realtime-exception"); }
+        StabilityTrace_Write(stopped ? L"INFO" : L"ERROR", L"app", L"startup.rollback.step",
+            L"component=native-after-realtime joined=%d", stopped ? 1 : 0);
+        if (!stopped) return poison(L"native-after-realtime");
+    }
+#endif
+
+    if (progress.realtime)
+    {
+        halljoy::lifecycle::StopResult stopped{};
+        try { stopped = RealtimeLoop_Stop(); }
+        catch (...) { return poison(L"realtime-exception"); }
+        StabilityTrace_Write(stopped.RestartSafe() ? L"INFO" : L"ERROR", L"app", L"startup.rollback.step",
+            L"component=realtime joined=%d", stopped.RestartSafe() ? 1 : 0);
+        if (!stopped.RestartSafe()) return poison(L"realtime");
+    }
+
+    if (progress.backend)
+    {
+        bool stopped = false;
+        try { stopped = Backend_Shutdown(); }
+        catch (...) { return poison(L"backend-exception"); }
+        StabilityTrace_Write(stopped ? L"INFO" : L"ERROR", L"app", L"startup.rollback.step",
+            L"component=backend joined=%d", stopped ? 1 : 0);
+        if (!stopped) return poison(L"backend");
+    }
+
+    StabilityTrace_Write(L"INFO", L"app", L"startup.rollback.end",
+        L"failed_stage=%s restart_safe=1", failedStage ? failedStage : L"unknown");
+    return true;
+}
+
+static bool AppStartBackendDependents(bool rawInputRegistered, const wchar_t* origin) noexcept
+{
+    AppBackendStartupProgress progress{};
+    StabilityTrace_Write(L"INFO", L"app", L"startup.transaction.begin",
+        L"origin=%s", origin ? origin : L"unknown");
+
+    try
+    {
+        // Acquire cleanup responsibility before Start(): a failed start may still
+        // own a partially-created worker that RealtimeLoop_Stop must reap.
+        progress.realtime = true;
+        if (!RealtimeLoop_Start())
+        {
+            (void)AppRollbackBackendStartup(progress, L"realtime");
+            return false;
+        }
+
+#if defined(HALLJOY_MAD68PR_NATIVE)
+        progress.afterRealtime = true;
+        const NativeAnalogPhaseStartResult afterRealtime =
+            NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRealtime);
+        StabilityTrace_Write(afterRealtime.TransactionSafe() ? L"INFO" : L"ERROR",
+            L"app", L"startup.native_phase",
+            L"phase=after_realtime running=%u unavailable=%u required_failures=%u rejected=%u transaction_safe=%d",
+            static_cast<unsigned>(afterRealtime.running),
+            static_cast<unsigned>(afterRealtime.unavailable),
+            static_cast<unsigned>(afterRealtime.requiredFailures),
+            static_cast<unsigned>(afterRealtime.rejected),
+            afterRealtime.TransactionSafe() ? 1 : 0);
+
+        bool injectedAfterRealtimeFailure = false;
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        const wchar_t* commandLine = GetCommandLineW();
+        injectedAfterRealtimeFailure = commandLine &&
+            wcsstr(commandLine, L"--halljoy-test-native-phase-start-failure") != nullptr;
+        if (injectedAfterRealtimeFailure)
+        {
+            StabilityTrace_Write(L"WARN", L"app", L"test.native_phase_start_failure.injected",
+                L"phase=after_realtime simulator_only=1");
+        }
+#endif
+        if (!afterRealtime.TransactionSafe() || injectedAfterRealtimeFailure)
+        {
+            (void)AppRollbackBackendStartup(progress, L"native-after-realtime");
+            return false;
+        }
+
+        if (!rawInputRegistered)
+        {
+            (void)AppRollbackBackendStartup(progress, L"raw-input-registration");
+            return false;
+        }
+
+        progress.afterRawInput = true;
+        const NativeAnalogPhaseStartResult afterRawInput =
+            NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRawInput);
+        StabilityTrace_Write(afterRawInput.TransactionSafe() ? L"INFO" : L"ERROR",
+            L"app", L"startup.native_phase",
+            L"phase=after_raw_input running=%u unavailable=%u required_failures=%u rejected=%u transaction_safe=%d",
+            static_cast<unsigned>(afterRawInput.running),
+            static_cast<unsigned>(afterRawInput.unavailable),
+            static_cast<unsigned>(afterRawInput.requiredFailures),
+            static_cast<unsigned>(afterRawInput.rejected),
+            afterRawInput.TransactionSafe() ? 1 : 0);
+        if (!afterRawInput.TransactionSafe())
+        {
+            (void)AppRollbackBackendStartup(progress, L"native-after-raw-input");
+            return false;
+        }
+#else
+        (void)rawInputRegistered;
+#endif
+    }
+    catch (...)
+    {
+        (void)AppRollbackBackendStartup(progress, L"exception");
+        return false;
+    }
+
+    StabilityTrace_Write(L"INFO", L"app", L"startup.transaction.commit",
+        L"origin=%s", origin ? origin : L"unknown");
+    return true;
+}
+
 static void AppShutdownNoThrow(HWND hwnd) noexcept
 {
     if (g_shutdownStarted.exchange(true, std::memory_order_acq_rel))
@@ -788,8 +944,9 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         // endpoint routed to any HallJoy native backend. All unclaimed devices stay
         // available to Soup/UAP. The universal native target can continue without
         // UAP; Backend_Init then succeeds only when a validated native route exists.
-        g_backendReady = Backend_Init();
-        if (!g_backendReady)
+        bool backendInitialised = Backend_Init();
+        g_backendReady = false;
+        if (!backendInitialised)
         {
             uint32_t issues = Backend_GetLastInitIssues();
             DebugLog_Write(L"[app] Backend_Init failed issues=0x%08X", issues);
@@ -812,21 +969,13 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             if (depRes == DependencyInstallResult::Failed || !backendReady)
             {
                 DebugLog_Write(L"[app] backend not ready, continue in degraded mode");
-                g_backendReady = false;
+                backendInitialised = false;
             }
             else
             {
-                g_backendReady = true;
+                backendInitialised = true;
             }
         }
-
-        if (g_backendReady)
-            RealtimeLoop_Start();
-#if defined(HALLJOY_MAD68PR_NATIVE)
-        // Poll/stream workers that only require the common realtime path start as
-        // one phase. New protocol modules select this phase in their descriptor.
-        NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRealtime);
-#endif
         ApplyTimingSettings(hwnd);
 
         if (!MouseIpc_InitPublisher())
@@ -836,6 +985,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         // Receive raw mouse deltas even when this window is not focused. The
         // MAD68 native build additionally receives target-scoped keyboard edges
         // for diagnostics; existing low-level hooks and input blocking are unchanged.
+        bool rawInputRegistered = false;
 #if defined(HALLJOY_MAD68PR_NATIVE)
         RAWINPUTDEVICE rid[2]{};
         rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
@@ -849,7 +999,10 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         if (!RegisterRawInputDevices(rid, 2, sizeof(RAWINPUTDEVICE)))
             DebugLog_Write(L"[app] RegisterRawInputDevices(mouse+keyboard) failed err=%lu", GetLastError());
         else
+        {
+            rawInputRegistered = true;
             DebugLog_Write(L"[app] raw mouse and target-scoped MAD68 keyboard input registered");
+        }
 #else
         RAWINPUTDEVICE rid{};
         rid.usUsagePage = HID_USAGE_PAGE_GENERIC;
@@ -859,13 +1012,25 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         if (!RegisterRawInputDevices(&rid, 1, sizeof(rid)))
             DebugLog_Write(L"[app] RegisterRawInputDevices(mouse) failed err=%lu", GetLastError());
         else
+        {
+            rawInputRegistered = true;
             DebugLog_Write(L"[app] raw mouse input registered");
+        }
 #endif
 
 #if defined(HALLJOY_MAD68PR_NATIVE)
-        // Protocols that explicitly require target-scoped Raw Input (currently
-        // MAD68 A0 diagnostics/state validation) start only after registration.
-        NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRawInput);
+        g_rawInputRegistered = rawInputRegistered;
+#endif
+        if (backendInitialised)
+        {
+            g_backendReady = AppStartBackendDependents(rawInputRegistered, L"initial");
+            if (!g_backendReady)
+                DebugLog_Write(L"[app] dependent startup failed; backend transaction rolled back");
+            if (g_immediateProcessExitRequired.load(std::memory_order_acquire))
+                return -1;
+        }
+
+#if defined(HALLJOY_MAD68PR_NATIVE)
         g_lastMad68PresenceForBackendRetry = g_backendReady ? Mad68ProR_IsDevicePresent() : false;
 #endif
 
@@ -986,21 +1151,14 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                 DebugLog_Write(L"[mad68pr] late device arrival while backend degraded; retrying Backend_Init once");
                 if (Backend_Init())
                 {
-                    g_backendReady = true;
-                    if (!RealtimeLoop_Start())
+                    g_backendReady = AppStartBackendDependents(g_rawInputRegistered, L"late-device");
+                    if (!g_backendReady)
                     {
-                        DebugLog_Write(L"[mad68pr] late Backend_Init succeeded but realtime start failed; rolling backend back");
-                        if (!Backend_Shutdown())
-                        {
-                            g_immediateProcessExitRequired.store(true, std::memory_order_release);
-                            StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.poisoned",
-                                L"component=backend stage=late_start_rollback dependent_cleanup_skipped=1");
-                        }
-                        g_backendReady = false;
+                        DebugLog_Write(L"[mad68pr] late backend dependent startup failed; transaction rolled back");
                     }
                     else
                     {
-                        DebugLog_Write(L"[mad68pr] late Backend_Init and realtime start succeeded");
+                        DebugLog_Write(L"[mad68pr] late backend startup transaction committed");
                     }
                 }
                 else

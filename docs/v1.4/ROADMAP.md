@@ -32,7 +32,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-05` | Truthful lifecycle registry and generation-scoped stop contract | Verified | Failure-injected start/stop/restart tests; timeout/fault poisons the generation and blocks restart |
 | `V14-06` | Cooperative lifecycle migration for realtime, logging and native protocol workers | Verified locally | Per-worker tests, no ordinary `TerminateThread`, plus unchanged protocol and mapping characterization |
 | `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Verified | Partial-start, crash, hang, C ABI, null/state, unload and bounded restart gates passed |
-| `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Planned | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
+| `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | In progress | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
 | `V14-09` | Transactional persistence and writable state migration | Planned | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
 | `V14-10` | IPC and overlay security/correctness | Planned | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
 | `V14-11` | UAP pacing, identity, modularization and measured performance | Planned | CPU/USB/latency comparison with no unsupported sampling regression |
@@ -240,6 +240,35 @@ The Irok MG75 Max proved native SparkLink identification, successful vendor
 polling and analog-row changes. `V14-06D.1` now suppresses the shutdown-time
 reconnect and passed its held-key unplug/reconnect and balanced-shutdown hardware
 gate. `HJ-V14-P1-004` and V14-07 are Verified; V14-08 is the next package.
+
+## In-progress package: V14-08
+
+Split the package at the ownership boundary so startup/wake publication changes
+do not obscure the later ViGEm worker transition.
+
+Progress:
+
+- `V14-08A` startup transaction and wake correctness: Verified locally. Backend
+  dependents start as one transaction and publish readiness only after realtime,
+  required native phases and Raw Input prerequisites succeed. Optional absent
+  protocol families remain valid; a present backend failure or rejected
+  lifecycle ownership aborts startup.
+- Rollback follows reverse acquisition order. It stops at the first unconfirmed
+  join, retains dependent ownership and selects process-level containment rather
+  than tearing backend state down beneath a live worker.
+- Realtime input notifications now use a process-lifetime monotonic sequence.
+  Notifications before worker start, during restart, or between the final check
+  and `WaitOnAddress` remain observable; the address wake is only a latency hint.
+- Curve invalidation now release-publishes an ordered generation and every
+  thread-local curve cache acquire-observes it before reading atomic settings.
+- Portable concurrency tests, static audit, two startup fault injections, the
+  normal simulator, the official production build and an Irok MG75 Max startup/
+  shutdown smoke all pass.
+- `V14-08B` remains Planned: move synchronous ViGEm submission out of the
+  realtime worker and prove report equivalence plus bounded behavior under a
+  stalled driver. `HJ-AUD-P1-010` remains Open until that gate passes.
+
+V14-08 is not complete until V14-08B is Verified.
 
 ## Release definition
 

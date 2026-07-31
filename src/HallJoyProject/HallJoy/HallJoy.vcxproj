@@ -81,7 +81,7 @@
     <IntDir>$(ProjectDir)..\x64\MadlionsDiagnostic\obj\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(HallJoyMad68ProRNative)'=='true'">
-    <TargetName>HallJoyMAD68ProRNative</TargetName>
+    <TargetName>HallJoy</TargetName>
     <OutDir>$(ProjectDir)..\x64\MAD68ProRNative\</OutDir>
     <IntDir>$(ProjectDir)..\x64\MAD68ProRNative\obj\</IntDir>
   </PropertyGroup>

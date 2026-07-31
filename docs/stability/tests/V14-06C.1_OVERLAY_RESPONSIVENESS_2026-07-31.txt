@@ -1,0 +1,55 @@
+HallJoy v1.4 V14-06C.1 overlay responsiveness verification
+Date: 2026-07-31
+Workstation: Windows x64, MSVC Build Tools 17.14.40
+
+Scope
+-----
+Remove the five-second input-overlay state stall caused by one-shot HTTP
+connections, preserve /state keep-alive, and publish the production executable
+under the canonical name HallJoy.exe.
+
+Observed failure
+----------------
+The user's production overlay_perf.log recorded isolated client fetch averages
+of 5,001,400, 5,002,000 and 5,001,600 microseconds. Normal intervals averaged
+about 1,600-2,100 microseconds. The exact match with SO_RCVTIMEO=5000 identified
+head-of-line blocking: after /client_perf returned 204, the single HTTP worker
+waited for another request on that idle keep-alive connection while /state was
+unable to progress.
+
+Commands and results
+--------------------
+python tools/run_native_backend_checks.py --require-compiler
+RESULT: PASS (all static audits and portable C++20 tests)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_analog_simulator.ps1 -SkipBuild -StartOverlay -RunSeconds 7
+RESULT: PASS (telemetry connection closed, next /state 0.3 ms, graceful exit 0)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_analog_simulator.ps1 -SkipBuild -InjectOverlayStopTimeout -RunSeconds 7
+RESULT: PASS (earlier timeout containment preserved, expected exit 2)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+RESULT: PASS (production MSVC x64 Release, 0 errors; only allowlisted LNK4099)
+
+Production HallJoy.exe plus tools/check_overlay_responsiveness.py
+RESULT: PASS (next /state 0.4 ms, hidden-window WM_CLOSE exit 0, 0 processes left)
+
+Artifact
+--------
+Path: build/output/HallJoy.exe
+Size: 2,133,504 bytes
+SHA-256: 93AF87C6D8079BD48E21A53AE78342625CE0AB7050BDEFE98EA34690AA08A058
+
+Hardware note
+-------------
+The production run with Irok MG75 Max recorded 515 changed SparkLink rows and
+516 input notifications. This proves analog-row input on this device. The
+separate shutdown reconnect race remains Open as HJ-V14-P1-004 / V14-06D.1.
+
+Verdict
+-------
+V14-06C.1: VERIFIED LOCALLY
+HJ-V14-P1-005: VERIFIED
+General multi-client HTTP concurrency remains V14-10
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Rollback: parent commit of the V14-06C.1 implementation commit

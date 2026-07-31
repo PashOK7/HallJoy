@@ -126,18 +126,10 @@ $process = Start-Process -FilePath $exe `
     -PassThru
 try {
     if ($StartOverlay) {
-        $overlayDeadline = [DateTime]::UtcNow.AddSeconds(5)
-        $overlayResponse = $null
-        do {
-            try {
-                $overlayResponse = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:18765/state' -TimeoutSec 1
-            }
-            catch {
-                Start-Sleep -Milliseconds 100
-            }
-        } while ($null -eq $overlayResponse -and [DateTime]::UtcNow -lt $overlayDeadline)
-        if ($null -eq $overlayResponse -or $overlayResponse.StatusCode -ne 200) {
-            throw 'Overlay /state endpoint did not return HTTP 200.'
+        & python (Join-Path $root 'tools\check_overlay_responsiveness.py') `
+            --port 18765 --deadline-ms 1000 --connect-deadline-ms 5000
+        if ($LASTEXITCODE -ne 0) {
+            throw "Overlay responsiveness regression gate failed with exit code $LASTEXITCODE."
         }
     }
     Start-Sleep -Seconds $RunSeconds

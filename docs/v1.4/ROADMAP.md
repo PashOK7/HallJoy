@@ -156,6 +156,12 @@ Progress:
   confirmed join. Timeout retains reachable ownership, poisons restart and
   prevents dependent application teardown. Loopback `/state` and forced-timeout
   simulator scenarios pass.
+- `V14-06C.1` overlay responsiveness hotfix: Verified locally. The periodic
+  `/client_perf` response and all close-framed error responses now close their
+  connection immediately, so the single HTTP worker cannot wait for the
+  five-second receive timeout before returning to `/state`. A socket-level
+  regression gate measured the next state response at 0.3 ms in simulation and
+  0.4 ms in production. The canonical production artifact is `HallJoy.exe`.
 - `V14-06D` SparkLink: Verified locally. The hotplug worker has its own
   serialized generation inside the registry generation; stop signals its event,
   cancels HID I/O and releases thread/HID/event HANDLEs only after confirmed
@@ -218,10 +224,11 @@ Remaining:
   initialized-state validation, and unload without an unbounded join under the
   global devices mutex.
 
-The newly available Irok MG75 Max proved native SparkLink identification and
-successful vendor polling, but the 2026-07-31 production trace also caught a
-hotplug reconnect after the first Spark stop. `HJ-V14-P1-004` is a separate
-release-blocking hotfix before V14-07C; it is not hidden inside V14-07B.
+The newly available Irok MG75 Max proved native SparkLink identification,
+successful vendor polling and analog-row changes, but the 2026-07-31 production
+trace also caught a hotplug reconnect after the first Spark stop.
+`HJ-V14-P1-004` is a separate release-blocking hotfix before V14-07C; it is not
+hidden inside V14-07B or V14-06C.1.
 
 ## Release definition
 

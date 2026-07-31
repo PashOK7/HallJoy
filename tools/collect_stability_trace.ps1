@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $directory = $PSScriptRoot
-$running = Get-Process -Name 'HallJoyMAD68ProRNative' -ErrorAction SilentlyContinue
+$running = Get-Process -Name 'HallJoy' -ErrorAction SilentlyContinue
 if ($running) {
     throw 'HallJoy is still running. Close it normally before collecting the trace.'
 }

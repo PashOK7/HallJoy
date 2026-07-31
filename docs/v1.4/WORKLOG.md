@@ -530,3 +530,46 @@
 - Hardware status is `PARTIAL/FAIL`, not Verified.
 - Next implementation package is `V14-06D.1`; `V14-07C` follows its regression
   fix and hardware gate.
+
+## 2026-07-31 - V14-06C.1 overlay responsiveness and HallJoy.exe
+
+### Root cause
+
+- The user's production `overlay_perf.log` contained three isolated fetch
+  averages of 5.001-5.002 seconds; ordinary fetches were about 1.6-2.1 ms.
+- The overlay has one HTTP worker. Its periodic `/client_perf` request used a
+  separate keep-alive connection, and after the 204 response the worker could
+  wait for another request until `SO_RCVTIMEO = 5000` while `/state` stalled.
+- A 404 response had the same framing mismatch: it advertised `Connection:
+  close`, but the request loop did not honor the response-directed close.
+
+### Implemented
+
+- One-shot `/client_perf` and error responses now request immediate connection
+  close; the client loop honors that response decision.
+- High-rate `/state` polling keeps its existing persistent connection and hot
+  path behavior.
+- Added a socket-level runtime gate that sends telemetry with keep-alive,
+  requires server EOF, then requires a valid `/state` response within 1 second.
+- Renamed the official production target and packaged artifact to `HallJoy.exe`;
+  build instructions and the trace collector use the same canonical name.
+
+### Validation
+
+- Full static and portable C++20 gate: PASS.
+- Simulator responsiveness: PASS, 0.3 ms; graceful overlay shutdown: PASS.
+- Forced overlay stop-timeout containment regression: PASS, expected exit 2.
+- Production MSVC x64 Release: PASS, 0 errors and only allowlisted `LNK4099`.
+- Production responsiveness: PASS, 0.4 ms; hidden-window `WM_CLOSE` shutdown:
+  PASS, exit 0, no remaining `HallJoy` process.
+- `HallJoy.exe`: 2,133,504 bytes,
+  SHA-256 `93AF87C6D8079BD48E21A53AE78342625CE0AB7050BDEFE98EA34690AA08A058`.
+- The production Irok trace recorded 515 changed Spark rows and 516 input
+  notifications, upgrading analog input from unverified to proved.
+
+### Package result
+
+- `HJ-V14-P1-005` is Verified locally and `V14-06C.1` is complete.
+- General HTTP concurrency/security remains V14-10.
+- SparkLink's shutdown reconnect race remains Open as `HJ-V14-P1-004`; the next
+  implementation package remains `V14-06D.1`, followed by V14-07C.

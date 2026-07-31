@@ -27,7 +27,7 @@ Date: 2026-07-31
 | GCC portable tests | INHERITED/PENDING | Byte-identical archive evidence exists; rerun in CI before publication |
 | Windows UI smoke from integration branch | PASS | Window opened, ViGEm initialized, exit code 0, no remaining child process |
 | Stability trace | FAIL/PENDING | Irok MG75 Max exercised SparkLink; shutdown trace exposed a reconnect race and an unbalanced worker generation |
-| Hardware gates | PARTIAL | Native SparkLink route/polling proved; analog row changes, held-key unplug/reconnect and balanced shutdown remain pending |
+| Hardware gates | PARTIAL | Native SparkLink route/polling and analog row changes proved; held-key unplug/reconnect and balanced shutdown remain pending |
 
 The current workstation has an Irok MG75 Max (`VID 1CA6`, `PID 0529`). Its
 SparkLink route is available for hardware gates, but simulator evidence remains
@@ -470,4 +470,42 @@ Hardware: PARTIAL/FAIL. Irok MG75 Max proved native SparkLink discovery and
   second worker generation. Tracked separately as HJ-V14-P1-004 / V14-06D.1
 Known limitations: private UAP C ABI/lock/state/unload safety remains V14-07C
 Rollback: parent commit of the V14-07B implementation commit
+```
+
+## V14-06C.1 evidence
+
+```text
+Package: V14-06C.1
+Scope: Overlay one-shot connection responsiveness and canonical EXE name
+Observed production evidence:
+  overlay_perf.log isolated fetch averages: 5,001,400-5,002,000 us
+  Root cause: the single HTTP worker waited on an idle /client_perf keep-alive
+    connection for the configured 5,000 ms receive timeout
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild -StartOverlay -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectOverlayStopTimeout -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  python tools/check_overlay_responsiveness.py --port 18765
+Results:
+  All static audits and portable C++20 tests: PASS
+  Overlay response-close static contract: PASS
+  Simulator /client_perf -> /state latency: PASS, 0.3 ms (< 1,000 ms)
+  Normal overlay lifecycle and graceful shutdown: PASS
+  Forced overlay stop-timeout containment, expected exit 2: PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Production /client_perf -> /state latency: PASS, 0.4 ms (< 1,000 ms)
+  Production hidden-window WM_CLOSE shutdown: PASS, exit 0, 0 processes left
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,133,504 bytes
+  SHA-256: 93AF87C6D8079BD48E21A53AE78342625CE0AB7050BDEFE98EA34690AA08A058
+Hardware: Irok MG75 Max production run recorded 515 changed rows and 516 input
+  notifications. SparkLink shutdown/reconnect remains HJ-V14-P1-004 / V14-06D.1
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Known limitations: general multi-client HTTP concurrency remains V14-10
+Rollback: parent commit of the V14-06C.1 implementation commit
 ```

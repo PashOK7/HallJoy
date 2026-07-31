@@ -104,3 +104,12 @@ build requires portable C++20 tests and rejects warnings outside the explicit
 ViGEm `LNK4099` PDB allowlist. V14-04 verification requires an independent
 local clone with empty build caches; GitHub Actions is useful but optional and
 must not block development when account quotas are unavailable.
+
+## D-012 - The production executable has one canonical public name
+
+Date: 2026-07-31
+
+The official x64 production build, package instructions and trace collector use
+`HallJoy.exe`. Backend-specific implementation history does not appear in the
+public filename. Diagnostic and simulator targets keep distinct names because
+they are development artifacts and must not be confused with production.

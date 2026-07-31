@@ -12,7 +12,7 @@ $soupPatch = Join-Path $pluginRoot 'tools\Apply-Soup-Madlions-Fix.ps1'
 $project = Join-Path $hallJoyRoot 'HallJoy\HallJoy.vcxproj'
 $runtime = Join-Path $hallJoyRoot 'runtime'
 $outDir = Join-Path $hallJoyRoot 'x64\MAD68ProRNative'
-$targetName = 'HallJoyMAD68ProRNative'
+$targetName = 'HallJoy'
 $exe = Join-Path $outDir ($targetName + '.exe')
 $pdb = Join-Path $outDir ($targetName + '.pdb')
 $map = Join-Path $outDir ($targetName + '.map')
@@ -417,7 +417,7 @@ if (Test-Path -LiteralPath $map) { Copy-Item -LiteralPath $map -Destination $sym
 @'
 HallJoy v1.4 integration build
 
-Запускайте HallJoyMAD68ProRNative.exe обычным способом.
+Запускайте HallJoy.exe обычным способом.
 
 В финальной сборке:
 - для управления используются только реальные аналоговые значения;

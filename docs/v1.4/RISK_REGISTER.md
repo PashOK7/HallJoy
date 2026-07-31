@@ -16,23 +16,35 @@ maintained in `ROADMAP.md`.
 | `HJ-V14-P1-002` | P1 | Legacy recovery recommends a system Wooting SDK that the embedded architecture does not use | `V14-03` | Verified | installer path removed; static diagnostic truthfulness gate passed |
 | `HJ-V14-P1-003` | P1 | Imported product/build strings expose the wrong public version | `V14-01` | Verified | version-resource and active-document scan passed |
 | `HJ-V14-P1-004` | P1 | SparkLink hotplug watchdog can reconnect a worker after shutdown has already stopped the current generation | `V14-06D.1` | Open | Irok MG75 Max trace must show balanced Spark worker generations, no reconnect after stop, held-key unplug/reconnect and clean shutdown |
-
-### Evidence for HJ-V14-P1-004
-
-The 2026-07-31 Irok MG75 Max hardware trace proved native SparkLink discovery
-and polling on `VID 1CA6`, `PID 0529`, usage page `FFB0`. The observed worker
-completed 77,061 successful route queries with zero route failures. No changed
-analog row was observed, so analog-depth input remains unverified for this run.
-
-During shutdown, the first Spark worker exited and was neutralized, but the
-hotplug watchdog then reconnected and started a second generation. The analyzer
-reported one worker generation without a matching exit. The risk remains Open;
-`V14-06D.1` must close the shutdown/reconnect race before V14-07C proceeds.
+| `HJ-V14-P1-005` | P1 | One-shot overlay HTTP connections can block `/state` for the five-second keep-alive receive timeout | `V14-06C.1` | Verified | captured 5.001-5.002 s fetch stalls; simulator and production socket gates now return the next `/state` in under 1 ms |
 | `HJ-V14-P2-001` | P2 | v1.3 self-contained runtime improvements can be lost during architectural migration | `V14-03` | Verified | checkpoint `b3fefce` compared; embedded self-contained behavior retained in isolated ABI1 architecture |
 | `HJ-V14-P2-002` | P2 | Imported historical validation may be mistaken for validation of later v1.4 code | all | Open | per-package evidence enforcement |
 | `HJ-V14-P2-003` | P2 | Simulation could be mistaken for real analog-protocol evidence or leak into production | `V14-02` | Verified | sources excluded from production compile; compile/runtime gates and evidence labels passed |
 | `HJ-V14-P2-004` | P2 | Moving remote build inputs can silently change the private UAP or CI behavior | `V14-04` | Verified | independent clone passed locked fresh bootstrap, overlay verification and full build |
 | `HJ-V14-P2-005` | P2 | Local build can omit portable tests or accept warnings rejected by CI | `V14-04` | Verified | independent clone ran required portable tests and enforced the production warning allowlist |
+
+### Evidence for HJ-V14-P1-004
+
+The 2026-07-31 Irok MG75 Max hardware traces proved native SparkLink discovery,
+polling and analog row input on `VID 1CA6`, `PID 0529`, usage page `FFB0`. The
+later production run recorded 515 changed rows and 516 input notifications.
+
+During shutdown, the first Spark worker exited and was neutralized, but the
+hotplug watchdog then reconnected and started a second generation. The analyzer
+reported one worker generation without a matching exit. The risk remains Open;
+`V14-06D.1` must close the shutdown/reconnect race before V14-07C proceeds.
+
+### Evidence for HJ-V14-P1-005
+
+The user runtime `overlay_perf.log` recorded isolated fetch averages of
+5,001,400-5,002,000 microseconds, exactly matching the server's receive timeout.
+The periodic `/client_perf` fetch could leave the single HTTP worker waiting on
+an idle keep-alive connection and block the live `/state` stream.
+
+V14-06C.1 closes one-shot telemetry and error responses immediately while
+preserving keep-alive for high-rate state polling. The deterministic socket gate
+measured the next `/state` at 0.3 ms in simulation and 0.4 ms in the production
+`HallJoy.exe`; the normal and forced-timeout overlay lifecycle gates also pass.
 
 ## Статусы
 

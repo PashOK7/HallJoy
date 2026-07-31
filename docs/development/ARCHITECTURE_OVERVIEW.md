@@ -66,7 +66,10 @@ listen socket to wake `accept` and shuts down the active client socket to wake
 `recv`. The worker HANDLE and WSA ownership are released only after confirmed
 completion. An incomplete join retains ownership, poisons restart and prevents
 teardown of backend, settings, logging and other state that the worker could
-still read. HTTP framing and connection concurrency remain separate concerns.
+still read. The high-rate `/state` path retains keep-alive, while one-shot
+telemetry and error responses close immediately so the single worker never
+holds an idle connection for its five-second receive timeout. General HTTP
+framing and multi-client concurrency remain V14-10 concerns.
 
 SparkLink has an inner worker generation because device hotplug can restart its
 poller while the outer native-registry generation remains active. That outer

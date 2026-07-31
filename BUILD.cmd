@@ -15,5 +15,5 @@ if not "%EXITCODE%"=="0" (
 
 echo.
 echo Build complete.
-echo Output: build\output\HallJoyMAD68ProRNative.exe
+echo Output: build\output\HallJoy.exe
 pause

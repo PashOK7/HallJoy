@@ -38,6 +38,8 @@ def main() -> int:
     start = function_body(overlay, "bool OverlayServer_Start(uint16_t port)")
     stop = function_body(overlay, "halljoy::lifecycle::StopResult OverlayServer_Stop()")
     thread_body = function_body(overlay, "static DWORD OverlayThreadBody(SOCKET listenSocket)")
+    handle_request = function_body(overlay, "static bool OverlayHandleClientRequest(")
+    handle_client = function_body(overlay, "static void OverlayHandleClient(SOCKET client)")
 
     require("TerminateThread" not in overlay,
             "overlay has no forced thread termination")
@@ -67,9 +69,16 @@ def main() -> int:
     require("InjectOverlayStopTimeout" in simulator_runner and
             "--overlay-server" in simulator_runner and "expected 2" in simulator_runner,
             "simulator runner starts overlay and verifies process containment")
-    require("StartOverlay" in simulator_runner and "Invoke-WebRequest" in simulator_runner and
+    require('path == "/client_perf"' in handle_request and
+            "closeAfterResponse = true" in handle_request and
+            '"204 No Content"' in handle_request and
+            '"", false' in handle_request,
+            "periodic client telemetry explicitly closes its response connection")
+    require("!ok || closeRequested || closeAfterResponse" in handle_client,
+            "server honors response-directed close without a five-second idle wait")
+    require("StartOverlay" in simulator_runner and "check_overlay_responsiveness.py" in simulator_runner and
             "[component=overlay][event=stop.end]" in simulator_runner,
-            "simulator runner verifies HTTP service and graceful join")
+            "simulator runner verifies HTTP responsiveness and graceful join")
 
     print("OVERLAY_COOPERATIVE_SHUTDOWN_STATIC_AUDIT=PASS")
     return 0

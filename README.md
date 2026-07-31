@@ -24,7 +24,7 @@ Plugin.
 3. Готовый файл появится в:
 
 ```text
-build\output\HallJoyMAD68ProRNative.exe
+build\output\HallJoy.exe
 ```
 
 Требуются Visual Studio 2022 Build Tools с компонентом **Desktop development with C++**.

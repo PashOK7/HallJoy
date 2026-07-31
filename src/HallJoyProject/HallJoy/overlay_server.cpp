@@ -953,8 +953,10 @@ static void OverlayRecordClientPerf(const std::string& query)
     g_perfClientLabelBuildUs.fetch_add(OverlayQueryUInt(query, "label_build_us"), std::memory_order_relaxed);
 }
 
-static bool OverlayHandleClientRequest(SOCKET client, const std::string& r, bool keepAlive)
+static bool OverlayHandleClientRequest(SOCKET client, const std::string& r,
+    bool keepAlive, bool& closeAfterResponse)
 {
+    closeAfterResponse = false;
     std::string path = "/";
     size_t sp1 = r.find(' ');
     if (sp1 != std::string::npos)
@@ -980,10 +982,18 @@ static bool OverlayHandleClientRequest(SOCKET client, const std::string& r, bool
     else if (path == "/client_perf")
     {
         OverlayRecordClientPerf(query);
-        return OverlaySend(client, "204 No Content", "text/plain; charset=utf-8", "", keepAlive);
+        // This endpoint is issued as an independent fetch every five seconds.
+        // The overlay server is intentionally single-threaded, so retaining
+        // this otherwise idle connection would block /state until the five-
+        // second receive timeout expires.
+        closeAfterResponse = true;
+        return OverlaySend(client, "204 No Content", "text/plain; charset=utf-8", "", false);
     }
     else
+    {
+        closeAfterResponse = true;
         return OverlaySend(client, "404 Not Found", "text/plain; charset=utf-8", "not found", false);
+    }
 }
 
 static void OverlayHandleClient(SOCKET client)
@@ -1002,9 +1012,10 @@ static void OverlayHandleClient(SOCKET client)
         std::string r(req, req + got);
         bool closeRequested = r.find("Connection: close") != std::string::npos ||
             r.find("connection: close") != std::string::npos;
-        bool ok = OverlayHandleClientRequest(client, r, !closeRequested);
+        bool closeAfterResponse = false;
+        bool ok = OverlayHandleClientRequest(client, r, !closeRequested, closeAfterResponse);
         OverlayPerfMaybeLog();
-        if (!ok || closeRequested)
+        if (!ok || closeRequested || closeAfterResponse)
             break;
     }
 }

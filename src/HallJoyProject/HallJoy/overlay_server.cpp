@@ -20,6 +20,7 @@
 #include "debug_log.h"
 #include "stability_trace.h"
 #include "worker_exception_barrier.h"
+#include "worker_join_policy.h"
 
 static std::atomic<bool> g_overlayRunning{ false };
 static std::atomic<bool> g_overlayWsaStarted{ false };
@@ -59,6 +60,8 @@ static SOCKET g_overlayListenSocket = INVALID_SOCKET;
 static SOCKET g_overlayClientSocket = INVALID_SOCKET;
 static std::mutex g_overlaySocketMutex;
 static std::mutex g_overlayStateMutex;
+static std::mutex g_overlayLifecycleMutex;
+static halljoy::lifecycle::WorkerLifecycle g_overlayLifecycle;
 static std::wstring g_overlayLastError;
 
 static std::atomic<uint64_t> g_perfStateRequests{ 0 };
@@ -1008,6 +1011,16 @@ static void OverlayHandleClient(SOCKET client)
 
 static DWORD OverlayThreadBody(SOCKET listenSocket)
 {
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-overlay-stop-timeout"))
+    {
+        StabilityTrace_Write(L"WARN", L"overlay", L"test.stop_timeout.injected",
+            L"simulator_only=1");
+        Sleep(INFINITE);
+    }
+#endif
+
     while (g_overlayRunning.load(std::memory_order_acquire))
     {
         SOCKET client = accept(listenSocket, nullptr, nullptr);
@@ -1118,11 +1131,24 @@ static DWORD WINAPI OverlayThreadProc(LPVOID param) noexcept
 
 bool OverlayServer_Start(uint16_t port)
 {
+    const std::lock_guard<std::mutex> lifecycleGuard(g_overlayLifecycleMutex);
+
     if (g_overlayRunning.load(std::memory_order_acquire))
         return true;
     if (g_overlayThread)
     {
         OverlaySetLastError(L"Previous overlay worker has not been joined");
+        return false;
+    }
+    const auto start = g_overlayLifecycle.BeginStart();
+    if (start.status != halljoy::lifecycle::StartStatus::Starting)
+    {
+        OverlaySetLastError(L"Previous overlay worker generation is not restart-safe");
+        StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"start.rejected",
+            L"state=%u generation=%llu error=%u restart_blocked=1",
+            static_cast<unsigned>(start.state),
+            static_cast<unsigned long long>(start.generation.Value()),
+            static_cast<unsigned>(start.error.code));
         return false;
     }
     if (port == 0)
@@ -1135,6 +1161,8 @@ bool OverlayServer_Start(uint16_t port)
     {
         OverlaySetLastError(L"WSAStartup failed");
         StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"start.failed", L"stage=wsa code=%d", wsaRet);
+        (void)g_overlayLifecycle.FailStartBeforeWorker(start.generation,
+            static_cast<std::uint32_t>(wsaRet));
         return false;
     }
     g_overlayWsaStarted.store(true, std::memory_order_release);
@@ -1142,10 +1170,13 @@ bool OverlayServer_Start(uint16_t port)
     SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == INVALID_SOCKET)
     {
+        const int socketError = WSAGetLastError();
         OverlaySetLastError(L"socket() failed");
-        StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"start.failed", L"stage=socket code=%d", WSAGetLastError());
+        StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"start.failed", L"stage=socket code=%d", socketError);
         if (g_overlayWsaStarted.exchange(false, std::memory_order_acq_rel))
             WSACleanup();
+        (void)g_overlayLifecycle.FailStartBeforeWorker(start.generation,
+            static_cast<std::uint32_t>(socketError));
         return false;
     }
 
@@ -1165,6 +1196,8 @@ bool OverlayServer_Start(uint16_t port)
             WSACleanup();
         OverlaySetLastError(L"Port is already in use");
         StabilityTrace_Write(L"WARN", L"overlay", L"start.failed", L"stage=bind port=%u code=%d", (unsigned)port, bindError);
+        (void)g_overlayLifecycle.FailStartBeforeWorker(start.generation,
+            static_cast<std::uint32_t>(bindError));
         return false;
     }
     if (listen(s, SOMAXCONN) == SOCKET_ERROR)
@@ -1175,6 +1208,8 @@ bool OverlayServer_Start(uint16_t port)
             WSACleanup();
         OverlaySetLastError(L"listen() failed");
         StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"start.failed", L"stage=listen code=%d", listenError);
+        (void)g_overlayLifecycle.FailStartBeforeWorker(start.generation,
+            static_cast<std::uint32_t>(listenError));
         return false;
     }
 
@@ -1208,6 +1243,22 @@ bool OverlayServer_Start(uint16_t port)
             WSACleanup();
         OverlaySetLastError(L"CreateThread failed");
         StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"start.failed", L"stage=create_thread win32=%lu", threadError);
+        (void)g_overlayLifecycle.FailStartBeforeWorker(start.generation, threadError);
+        return false;
+    }
+
+    const auto running = g_overlayLifecycle.ConfirmRunning(start.generation);
+    if (!running.IsRunning())
+    {
+        const auto poisoned = g_overlayLifecycle.MarkPoisoned(start.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmRunning,
+            halljoy::lifecycle::LifecycleErrorCode::BackendContractViolation);
+        OverlaySetLastError(L"Overlay worker started without a valid lifecycle publication");
+        StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"start.publication_failed",
+            L"state=%u generation=%llu error=%u resources_retained=1 restart_blocked=1",
+            static_cast<unsigned>(poisoned.state),
+            static_cast<unsigned long long>(poisoned.generation.Value()),
+            static_cast<unsigned>(poisoned.error.code));
         return false;
     }
 
@@ -1216,15 +1267,39 @@ bool OverlayServer_Start(uint16_t port)
     return true;
 }
 
-void OverlayServer_Stop()
+halljoy::lifecycle::StopResult OverlayServer_Stop()
 {
+    const std::lock_guard<std::mutex> lifecycleGuard(g_overlayLifecycleMutex);
+
+    const auto lifecycleState = g_overlayLifecycle.State();
+    if (lifecycleState == halljoy::lifecycle::WorkerState::Stopped ||
+        lifecycleState == halljoy::lifecycle::WorkerState::Joined)
+    {
+        return g_overlayLifecycle.RequestStop();
+    }
+    if (lifecycleState == halljoy::lifecycle::WorkerState::Poisoned)
+    {
+        return g_overlayLifecycle.RequestStop(g_overlayLifecycle.Generation());
+    }
+    const auto requested = g_overlayLifecycle.RequestStop(g_overlayLifecycle.Generation());
+    if (requested.status != halljoy::lifecycle::StopStatus::StopRequested)
+        return requested;
+
     const bool wasRunning = g_overlayRunning.exchange(false, std::memory_order_acq_rel);
     StabilityTrace_Write(L"INFO", L"overlay", L"stop.begin", L"was_running=%d has_thread=%d",
         wasRunning ? 1 : 0, g_overlayThread ? 1 : 0);
-    if (!wasRunning && !g_overlayThread &&
-        !g_overlayWsaStarted.load(std::memory_order_acquire))
+    if (!g_overlayThread)
     {
-        return;
+        const auto poisoned = g_overlayLifecycle.MarkPoisoned(requested.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            halljoy::lifecycle::LifecycleErrorCode::PrimitiveFailed,
+            ERROR_INVALID_HANDLE);
+        OverlaySetLastError(L"Overlay lifecycle lost its worker thread handle");
+        StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"stop.invalid_thread",
+            L"generation=%llu win32=%lu resources_retained=1 restart_blocked=1",
+            static_cast<unsigned long long>(requested.generation.Value()),
+            static_cast<unsigned long>(ERROR_INVALID_HANDLE));
+        return poisoned;
     }
 
     SOCKET listenSocket = INVALID_SOCKET;
@@ -1241,30 +1316,48 @@ void OverlayServer_Stop()
         closesocket(listenSocket);
     }
 
-    if (g_overlayThread)
+    const DWORD waitResult = WaitForSingleObject(g_overlayThread, 3000);
+    const DWORD waitError = waitResult == WAIT_OBJECT_0
+        ? ERROR_SUCCESS
+        : (waitResult == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT);
+    const auto observedJoin = halljoy::lifecycle::ObserveWorkerJoin(
+        requested.generation,
+        waitResult == WAIT_OBJECT_0
+            ? halljoy::lifecycle::JoinWaitStatus::Joined
+            : (waitResult == WAIT_FAILED
+                ? halljoy::lifecycle::JoinWaitStatus::Failed
+                : halljoy::lifecycle::JoinWaitStatus::TimedOut),
+        waitError);
+    if (!observedJoin.Completed())
     {
-        DWORD wr = WaitForSingleObject(g_overlayThread, 3000);
-        if (wr != WAIT_OBJECT_0)
+        bool clientRetained = false;
         {
-            const DWORD waitError = wr == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT;
-            OverlaySetLastError(L"Overlay worker join timed out; forcing shutdown-only termination");
-            DebugLog_Write(L"[overlay] stop join timeout wait=%lu err=%lu; forcing termination",
-                (unsigned long)wr, (unsigned long)waitError);
-            StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"stop.timeout",
-                L"wait=%lu win32=%lu", (unsigned long)wr, (unsigned long)waitError);
-            TerminateThread(g_overlayThread, 0xE0514F56u);
-            WaitForSingleObject(g_overlayThread, 1000);
-            StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"forced_termination", L"exit_code=0xE0514F56");
-        StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"worker.exit", L"fault_kind=forced");
+            const std::lock_guard<std::mutex> socketGuard(g_overlaySocketMutex);
+            clientRetained = g_overlayClientSocket != INVALID_SOCKET;
         }
-        CloseHandle(g_overlayThread);
-        g_overlayThread = nullptr;
+        const auto poisoned = g_overlayLifecycle.MarkPoisoned(requested.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            observedJoin.error.code, observedJoin.error.native_error);
+        OverlaySetLastError(L"Overlay worker join timed out; restart is blocked");
+        StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"stop.timeout",
+            L"generation=%llu wait=%lu win32=%lu thread_handle_retained=1 wsa_retained=1 client_socket_retained=%d restart_blocked=1",
+            static_cast<unsigned long long>(requested.generation.Value()),
+            static_cast<unsigned long>(waitResult),
+            static_cast<unsigned long>(waitError), clientRetained ? 1 : 0);
+        DebugLog_Write(L"[overlay] stop join incomplete wait=%lu err=%lu; resources retained and restart blocked",
+            static_cast<unsigned long>(waitResult), static_cast<unsigned long>(waitError));
+        return poisoned;
     }
+
+    CloseHandle(g_overlayThread);
+    g_overlayThread = nullptr;
     g_overlayPort.store(0, std::memory_order_release);
     if (g_overlayWsaStarted.exchange(false, std::memory_order_acq_rel))
         WSACleanup();
+    const auto joined = g_overlayLifecycle.ConfirmJoined(requested.generation);
     StabilityTrace_Write(L"INFO", L"overlay", L"stop.end");
     DebugLog_Write(L"[overlay] server stopped");
+    return joined;
 }
 
 bool OverlayServer_IsRunning()

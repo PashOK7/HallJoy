@@ -254,3 +254,37 @@ Hardware: Not required; common pipeline simulation only
 Known limitations: overlay, SparkLink and Sayo retain forced-termination paths
 Rollback: parent commit of the V14-06B implementation commit
 ```
+
+## V14-06C evidence
+
+```text
+Package: V14-06C
+Scope: Overlay server cooperative shutdown
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1
+    -InjectOverlayStopTimeout -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1
+    -SkipBuild -StartOverlay -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+Results:
+  Overlay TerminateThread occurrences: 0
+  Start/stop lifecycle and ownership static audit: PASS
+  Static audits and portable C++20 tests: PASS
+  Loopback /state response: HTTP 200
+  Graceful overlay worker join and stop.end: PASS
+  Normal overlay simulator ERROR trace events: 0
+  Simulator forced overlay join timeout containment, expected exit 2: PASS
+  Timeout retained thread/WSA ownership and poisoned restart: PASS
+  Dependent application cleanup skipped after poison: PASS
+  Remaining simulator processes: 0
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Hardware: Not required; loopback IPC and common pipeline simulation only
+Known limitations: HTTP framing/concurrency remain S16; SparkLink and Sayo
+  retain forced-termination paths
+Rollback: parent commit of the V14-06C implementation commit
+```

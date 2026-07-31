@@ -160,6 +160,12 @@ Wrapper — `noexcept`, ловит `std::exception` и `...`, записывае
 
 Статус v1.4: `Verified` локально в V14-06B. Writer использует общий generation-scoped lifecycle и сериализованный start/stop. Timeout сохраняет HANDLE, event, file и очередь, переводит generation в `Poisoned`, блокирует restart и завершает процесс без CRT cleanup. Simulator-only fault injection подтверждает этот путь воспроизводимо; production Release по-прежнему не включает обычный debug log.
 
+### S05A — Overlay server cooperative shutdown
+
+Остановить приём новых соединений, разбудить `accept`, выполнить `shutdown` активного client socket и подтвердить завершение worker до освобождения HANDLE и WSA ownership. HTTP protocol и однопоточная модель обслуживания остаются отдельным S16.
+
+Статус v1.4: `Verified` локально в V14-06C. Start/stop сериализованы одним generation-scoped lifecycle. Timeout сохраняет thread HANDLE, WSA и доступные worker-owned socket resources, переводит generation в `Poisoned`, блокирует restart и запрещает зависимый teardown приложения. Simulator подтверждает loopback `/state`, штатный join и отдельный timeout containment.
+
 ### S06 — Addressed overlapped I/O ownership
 
 Reader generation владеет HID HANDLE, event, buffer и `OVERLAPPED`. Stop инициирует cancellation, а reader reap'ит completion до выхода. Запрещён cross-thread close активного I/O.

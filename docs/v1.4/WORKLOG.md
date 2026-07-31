@@ -295,3 +295,33 @@
 
 - Overlay server, SparkLink and Sayo still contain separately owned
   forced-termination fallbacks.
+
+## 2026-07-31 - V14-06C overlay cooperative shutdown
+
+### Implemented
+
+- Overlay start/stop now uses the common generation-scoped `WorkerLifecycle`
+  with serialized lifecycle transitions.
+- Stop closes the listen socket to wake `accept` and shuts down the active
+  client socket before the bounded join.
+- Confirmed completion alone releases the worker HANDLE and WSA ownership.
+- Timeout or wait failure retains reachable worker ownership, marks the
+  generation `Poisoned` and blocks replacement.
+- Final application shutdown stops immediately after overlay poison and uses
+  process-level containment before dependent state can be destroyed.
+- Removed `TerminateThread` from overlay without changing HTTP parsing,
+  response generation, telemetry, settings or its single-client model.
+
+### Validation
+
+- Overlay cooperative-shutdown static audit: PASS.
+- All static and portable C++20 tests: PASS.
+- Simulator loopback `/state`: HTTP 200; graceful worker join and `stop.end`:
+  PASS, no `ERROR` trace event.
+- Simulator-only blocked-worker injection: PASS; HANDLE/WSA retained, restart
+  poisoned, dependent cleanup skipped and expected process exit code 2 observed.
+
+### Remaining V14-06 scope
+
+- SparkLink and Sayo still contain separately owned forced-termination
+  fallbacks.

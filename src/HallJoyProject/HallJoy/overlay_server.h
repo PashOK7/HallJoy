@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <cstdint>
 #include <string>
+#include "worker_lifecycle.h"
 
 enum class OverlayFillDirection : int
 {
@@ -22,7 +23,7 @@ enum OverlayEffectFlags : uint32_t
 };
 
 bool OverlayServer_Start(uint16_t port = 8765);
-void OverlayServer_Stop();
+halljoy::lifecycle::StopResult OverlayServer_Stop();
 bool OverlayServer_IsRunning();
 uint16_t OverlayServer_GetPort();
 uint16_t OverlayServer_GetConfiguredPort();

@@ -151,8 +151,13 @@ Progress:
   gate, wakes and drains the writer, and releases HANDLE/file/event ownership
   only after a confirmed join. Timeout retains all reachable resources,
   poisons restart and uses process-level exit without CRT destruction.
-- Remaining V14-06 workers: overlay server, SparkLink and Sayo. Their existing
-  `TerminateThread` paths remain open and are not covered by these results.
+- `V14-06C` overlay server: Verified locally. Stop wakes both `accept` and
+  client `recv`, and releases the worker HANDLE and WSA ownership only after a
+  confirmed join. Timeout retains reachable ownership, poisons restart and
+  prevents dependent application teardown. Loopback `/state` and forced-timeout
+  simulator scenarios pass.
+- Remaining V14-06 workers: SparkLink and Sayo. Their existing `TerminateThread`
+  paths remain open and are not covered by these results.
 
 ## Release definition
 

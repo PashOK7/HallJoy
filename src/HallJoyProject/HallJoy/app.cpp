@@ -664,7 +664,20 @@ static void AppShutdownNoThrow(HWND hwnd) noexcept
         }
     };
 
-    runStep(L"overlay", [] { OverlayServer_Stop(); });
+    halljoy::lifecycle::StopResult overlayStop{};
+    runStep(L"overlay", [&] { overlayStop = OverlayServer_Stop(); });
+    if (!overlayStop.RestartSafe())
+    {
+        g_immediateProcessExitRequired.store(true, std::memory_order_release);
+        StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.poisoned",
+            L"component=overlay state=%u generation=%llu error=%u native_error=%lu dependent_cleanup_skipped=1",
+            static_cast<unsigned>(overlayStop.state),
+            static_cast<unsigned long long>(overlayStop.generation.Value()),
+            static_cast<unsigned>(overlayStop.error.code),
+            static_cast<unsigned long>(overlayStop.error.native_error));
+        DebugLog_Write(L"[app.shutdown] overlay did not join; dependent cleanup skipped and immediate process exit required");
+        return;
+    }
 #if defined(HALLJOY_MAD68PR_NATIVE)
     runStep(L"native_analog_backends", [] { NativeAnalogBackends_StopAll(); });
 #else

@@ -61,6 +61,13 @@ event, file and queue ownership back to the caller for cleanup. Timeout retains
 those resources, poisons restart and requires process-level exit without CRT
 destruction so no live writer can access destroyed storage.
 
+The loopback overlay server also has a serialized generation. Stop closes the
+listen socket to wake `accept` and shuts down the active client socket to wake
+`recv`. The worker HANDLE and WSA ownership are released only after confirmed
+completion. An incomplete join retains ownership, poisons restart and prevents
+teardown of backend, settings, logging and other state that the worker could
+still read. HTTP framing and connection concurrency remain separate concerns.
+
 ## Files a new protocol owns
 
 Generated default:

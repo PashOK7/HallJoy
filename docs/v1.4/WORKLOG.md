@@ -634,3 +634,43 @@
   `hotplug.stale`-only rule produced a false warning for Irok's transport-exit
   path; the static audit covers both forms.
 - `HJ-V14-P1-004` and `V14-06D.1` are Verified. The next package is V14-07C.
+
+## 2026-07-31 - V14-07C private UAP C ABI and unload safety
+
+### Implementation
+
+- Added a common catch-all C ABI invocation barrier and portable RAII mutex
+  guard for the private UAP.
+- Converted every manual Soup mutex lock/unlock pair to scope-bound ownership.
+- Made initialization state truthful and validated null/zero-length ABI inputs.
+- Wrapped UAP device/discovery workers and all throwing C exports so exceptions
+  publish a transport fault, stop the generation and block unsafe restart.
+- Reworked unload around one deadline: worker pointers are captured under the
+  devices mutex, but HID cancellation and bounded joins happen after it is
+  released. Device ownership is cleared only after confirmed completion.
+- Added optional `halljoy_unload_bounded` consumption in the isolated child.
+  An incomplete plugin unload ends the disposable child without `FreeLibrary`
+  or dependent CRT cleanup; parent/job containment confirms its exit.
+- Added the real ABI1 load/init/null/unload check to the official build.
+
+### Validation
+
+- Private UAP ABI/unload static audit and portable C ABI exception/RAII test:
+  PASS.
+- Full static and portable C++20 gate: PASS.
+- Real newly built ABI1 runtime gate: PASS (`abi=1`, `initial_devices=0`; the
+  Irok VID/PID is deliberately owned by the native SparkLink route).
+- Production MSVC x64 Release: PASS, 0 errors and only allowlisted `LNK4099`.
+- Four-second production smoke launched parent, diagnostic-watch and isolated
+  analog-host child; termination produced balanced child/worker exits,
+  `analog-host:stop.joined`, `backend:shutdown.end`, `main:session.end`, and
+  left zero HallJoy processes.
+- `HallJoy.exe`: 2,141,184 bytes,
+  SHA-256 `15228FC17B70FB84AD2861FC04904E872B3571CCABBCEB26D6DFD3AE894D533B`.
+
+### Package result
+
+- `HJ-AUD-P1-015`, `HJ-AUD-P1-016`, `HJ-AUD-P2-008` and `HJ-AUD-P2-009` are
+  Verified. UAP worker/C ABI coverage is complete; `HJ-AUD-P1-004` remains
+  Partial only for deferred device-owner/soak gates.
+- V14-07 is Verified. The next implementation package is V14-08.

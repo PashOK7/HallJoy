@@ -278,6 +278,7 @@ namespace
         int (__cdecl* initialise)(void*, PluginEventHandler) = nullptr;
         bool (__cdecl* isInitialised)() = nullptr;
         void (__cdecl* unload)() = nullptr;
+        bool (__cdecl* unloadBounded)(std::uint32_t) = nullptr;
         int (__cdecl* readFullBuffer)(unsigned short*, float*, unsigned int, PluginDeviceId) = nullptr;
         std::uint32_t (__cdecl* getDeviceTelemetry)(HallJoyPluginTelemetry::DeviceV1*, std::uint32_t, std::uint32_t) = nullptr;
         std::uint32_t (__cdecl* getDenseSnapshots)(HallJoyDenseSnapshot::DeviceV1*, std::uint32_t, std::uint32_t) = nullptr;
@@ -309,6 +310,7 @@ namespace
         ok = Resolve(api.module, "initialise", api.initialise) && ok;
         ok = Resolve(api.module, "is_initialised", api.isInitialised) && ok;
         ok = Resolve(api.module, "unload", api.unload) && ok;
+        Resolve(api.module, "halljoy_unload_bounded", api.unloadBounded);
         ok = Resolve(api.module, "read_full_buffer", api.readFullBuffer) && ok;
         Resolve(api.module, "halljoy_get_device_telemetry", api.getDeviceTelemetry);
         Resolve(api.module, "halljoy_get_dense_snapshots", api.getDenseSnapshots);
@@ -332,6 +334,20 @@ namespace
             api.module, static_cast<unsigned long>(*api.abiVersion),
             pluginName ? pluginName : "<null>");
         return true;
+    }
+
+    void PublishHostError(SharedState* shared, LONG error, LONG initResult);
+
+    bool UnloadHostPlugin(HostApi& api, SharedState* shared)
+    {
+        const bool joined = api.unloadBounded ? api.unloadBounded(3000u) : (api.unload(), true);
+        if (joined)
+            return true;
+        constexpr LONG kUnloadTimeout = static_cast<LONG>(0xE048554Cu); // "UL"
+        PublishHostError(shared, kUnloadTimeout, WootingAnalogResult_Failure);
+        HostLog(L"bounded plugin unload incomplete; terminating isolated child without FreeLibrary/CRT teardown");
+        TerminateProcess(GetCurrentProcess(), static_cast<UINT>(kUnloadTimeout));
+        return false;
     }
 
     void PublishHostError(SharedState* shared, LONG error, LONG initResult)
@@ -565,6 +581,8 @@ namespace
         if (initResult < 0)
         {
             PublishHostError(shared, initResult, initResult);
+            if (!UnloadHostPlugin(api, shared))
+                return 38;
             FreeLibrary(api.module);
             g_hostFaultSnapshotEvent.store(nullptr, std::memory_order_release);
             g_hostFaultShared.store(nullptr, std::memory_order_release);
@@ -795,8 +813,8 @@ namespace
         }
 
         HostSetCheckpoint(shared, Checkpoint_SdkUninitialise);
-        if (api.unload)
-            api.unload();
+        if (!UnloadHostPlugin(api, shared))
+            return 38;
         if (api.setDiagnosticCheckpoint)
             api.setDiagnosticCheckpoint(nullptr);
         if (api.setDiagnosticTransportError)

@@ -102,6 +102,7 @@ def main() -> int:
             ("worker_join_policy", [tests / "worker_join_policy_test.cpp"]),
             ("worker_primitives", [tests / "worker_primitives_test.cpp"]),
             ("worker_exception_barrier", [tests / "worker_exception_barrier_test.cpp"]),
+            ("uap_cabi_guard", [tests / "uap_cabi_guard_test.cpp"]),
             ("windows_command_line", [tests / "windows_command_line_test.cpp"]),
         ]
         for name, sources in fixed_tests:

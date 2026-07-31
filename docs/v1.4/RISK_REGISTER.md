@@ -64,7 +64,7 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P1-001` | P1 | `TerminateThread` используется как обычный механизм shutdown | `S04/S05/S08` | Implemented | all ordinary occurrences removed in V14-06A-F and deterministic timeout containment passed; final soak/device qualification remains |
 | `HJ-AUD-P1-002` | P1 | «Ограниченный shutdown» трёх native backend'ов всё равно может зависнуть навсегда | `S06/S07` | Open | pending-I/O cancel/join fault tests |
 | `HJ-AUD-P1-003` | P1 | Контракт `stop()` недостоверен | `S03` | Verified | generation-scoped StopResult, poison-on-failure and registry fault tests passed |
-| `HJ-AUD-P1-004` | P1 | Нет верхней границы C++-исключений в ключевых worker-потоках | `S02` | Partial | Sayo reader boundary verified locally in V14-06F; UAP workers and C ABI exports remain, while deferred native device gates stay in release qualification |
+| `HJ-AUD-P1-004` | P1 | Нет верхней границы C++-исключений в ключевых worker-потоках | `S02` | Partial | UAP workers/C ABI verified in V14-07C; only deferred device-owner and final soak gates remain in release qualification |
 | `HJ-AUD-P1-005` | P1 | Addressed reader закрывает HID HANDLE из другого потока при активном stack `OVERLAPPED` | `S06` | Open | overlapped cancellation/reap tests |
 | `HJ-AUD-P1-006` | P1 | Analog host допускает повторную инициализацию поверх не завершившегося поколения потоков | `S09` | Verified | parent generation, bounded group timeout, retained ownership and restart-rejection gates passed in V14-07A |
 | `HJ-AUD-P1-007` | P1 | Partial-start cleanup analog host может unmap'нуть память под живым bridge thread | `S09` | Verified | injected supervisor-start failure joined bridge before IPC rollback in V14-07A |
@@ -75,8 +75,8 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P1-012` | P1 | Named IPC analog host допускает precreation/spoofing в той же сессии пользователя | `S15` | Open | IPC ACL/creation/memory-order tests |
 | `HJ-AUD-P1-013` | P1 | Встроенный dependency installer имеет TOCTOU и неполную проверку цепочки поставки | `S18` | Open | installer hash/TOCTOU/UI-thread tests |
 | `HJ-AUD-P1-014` | P1 | Dependency installer может навсегда заморозить UI | `S18` | Open | installer hash/TOCTOU/UI-thread tests |
-| `HJ-AUD-P1-015` | P1 | UAP plugin не защищает C ABI от исключений и использует ручные lock/unlock | `S10` | Open | C ABI exception/null/unload tests |
-| `HJ-AUD-P1-016` | P1 | UAP unload выполняет неограниченный join, удерживая глобальный devices mutex | `S10` | Open | C ABI exception/null/unload tests |
+| `HJ-AUD-P1-015` | P1 | UAP plugin не защищает C ABI от исключений и использует ручные lock/unlock | `S10` | Verified | common C ABI barrier, portable exception/RAII test and no-manual-lock static audit passed in V14-07C |
+| `HJ-AUD-P1-016` | P1 | UAP unload выполняет неограниченный join, удерживая глобальный devices mutex | `S10` | Verified | bounded plugin joins occur outside devices mutex; ABI runtime unload and child-process containment gates passed in V14-07C |
 | `HJ-AUD-P2-001` | P2 | Overlay server обслуживает только одного клиента синхронно | `S16` | Open | fragmentation/concurrency/limit tests |
 | `HJ-AUD-P2-002` | P2 | Overlay HTTP parser не реализует framing | `S16` | Open | fragmentation/concurrency/limit tests |
 | `HJ-AUD-P2-003` | P2 | Overlay telemetry parser допускает unsigned overflow | `S16` | Open | fragmentation/concurrency/limit tests |
@@ -84,8 +84,8 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P2-005` | P2 | Mouse IPC читает interlocked-written поля обычными volatile reads | `S15` | Open | IPC ACL/creation/memory-order tests |
 | `HJ-AUD-P2-006` | P2 | UAP poll workers собраны без какого-либо pacing | `S17` | Open | CPU/USB/identity/contention measurements |
 | `HJ-AUD-P2-007` | P2 | UAP device identity нестабильна для двух одинаковых устройств | `S17` | Open | CPU/USB/identity/contention measurements |
-| `HJ-AUD-P2-008` | P2 | `is_initialised()` plugin всегда возвращает `true` | `S10` | Open | C ABI exception/null/unload tests |
-| `HJ-AUD-P2-009` | P2 | `_device_info` не проверяет `buffer == nullptr` | `S10` | Open | C ABI exception/null/unload tests |
+| `HJ-AUD-P2-008` | P2 | `is_initialised()` plugin всегда возвращает `true` | `S10` | Verified | runtime ABI gate proves false before init, true after init and false after bounded unload |
+| `HJ-AUD-P2-009` | P2 | `_device_info` не проверяет `buffer == nullptr` | `S10` | Verified | runtime ABI gate proves null device-info and full-buffer arguments return zero without a fault |
 | `HJ-AUD-P2-010` | P2 | Snapshot export удерживает глобальный devices mutex при копировании всех значений | `S17` | Open | CPU/USB/identity/contention measurements |
 | `HJ-AUD-P2-011` | P2 | Сохранение `settings.ini` может заменить хороший файл неполным temp | `S13` | Open | fault-injected transactional save tests |
 | `HJ-AUD-P2-012` | P2 | Overlay settings сохраняются напрямую и всегда сообщают успех | `S13` | Open | fault-injected transactional save tests |
@@ -109,7 +109,7 @@ exhibits the observed five-second freezes.
 
 ## Evidence package S01
 
-S01 добавил общий lifecycle-контракт, generation-aware state machine и fault-injection seam. V14-05 подключил этот контракт к production registry и backend callbacks, поэтому `HJ-AUD-P1-003` и `HJ-AUD-P2-020` закрыты проверенными локальными gates. V14-06A-F удалили все ordinary `TerminateThread` и закрыли Sayo reader exception boundary локальными fault-injection gates. `HJ-AUD-P1-001` остаётся `Implemented`, потому что `Verified` требует финального soak/device qualification; открытая часть `HJ-AUD-P1-004` теперь ограничена UAP workers/C ABI и отложенными device-owner gates.
+S01 добавил общий lifecycle-контракт, generation-aware state machine и fault-injection seam. V14-05 подключил этот контракт к production registry и backend callbacks, поэтому `HJ-AUD-P1-003` и `HJ-AUD-P2-020` закрыты проверенными локальными gates. V14-06A-F удалили все ordinary `TerminateThread` и закрыли Sayo reader exception boundary локальными fault-injection gates. V14-07C закрыл UAP worker/C ABI часть. `HJ-AUD-P1-001` остаётся `Implemented`, потому что `Verified` требует финального soak/device qualification; открытая часть `HJ-AUD-P1-004` теперь ограничена отложенными device-owner и финальными soak gates.
 
 ## Evidence package S02A
 
@@ -174,7 +174,7 @@ V14-06F ограничен Sayo reader exception/completion boundary и не м�
 - startup publication отклоняет уже завершившуюся или faulted reader group, включая отдельную проверку publish race;
 - simulator-only C++ exception injection, Sayo timeout containment, normal simulator, полный portable gate и production MSVC build прошли.
 
-Статус `HJ-AUD-P1-004` остаётся `Partial` только из-за UAP workers/C ABI и отложенных hardware gates; отсутствие реальной Sayo-клавиатуры не подменяется simulator evidence.
+Статус `HJ-AUD-P1-004` остаётся `Partial` только из-за отложенных hardware/soak gates; UAP workers/C ABI закрыты V14-07C, а отсутствие реальной Sayo-клавиатуры не подменяется simulator evidence.
 
 ## Evidence package S09 / V14-07A
 
@@ -194,9 +194,30 @@ ABI, plugin polling или keyboard protocol behavior.
 - partial-start injection, bridge-timeout injection, normal simulator, полный
   portable/static gate и production MSVC build прошли.
 
-Эти доказательства закрывают `HJ-AUD-P1-006` и `HJ-AUD-P1-007`. Они не меняют
-`HJ-AUD-P1-004`, `HJ-AUD-P1-015` или `HJ-AUD-P1-016`: UAP worker exceptions,
-C ABI и unload остаются V14-07B/C.
+На момент V14-07A эти доказательства закрывали `HJ-AUD-P1-006` и
+`HJ-AUD-P1-007`, но ещё не меняли `HJ-AUD-P1-004`, `HJ-AUD-P1-015` или
+`HJ-AUD-P1-016`; их последующее закрытие описано в V14-07C ниже.
+
+## Evidence package S10 / V14-07C
+
+V14-07C защищает приватный UAP на границе, непосредственно загружаемой
+изолированным child host:
+
+- общий `CAbiInvoke` не выпускает C++-исключения через C ABI и переводит plugin
+  в faulted/restart-blocked state;
+- все Soup mutex'ы освобождаются RAII guard'ами, ручных `lock/unlock` больше нет;
+- `is_initialised()` отражает живое поколение, а null/zero-length входы
+  `_device_info` и `_read_full_buffer` безопасно возвращают ноль;
+- unload снимает global devices lock до cancel/join, ограничивает все ожидания
+  общим deadline и очищает устройства только после confirmed completion;
+- при неподтверждённом unload child host не делает `FreeLibrary`, а завершает
+  disposable child process под уже проверенным parent/job containment.
+
+Portable exception/RAII test, static audit, реальный ABI1 load/init/null/unload
+gate, полный production build и process-clean smoke прошли. Это переводит
+`HJ-AUD-P1-015`, `HJ-AUD-P1-016`, `HJ-AUD-P2-008` и `HJ-AUD-P2-009` в
+`Verified`. `HJ-AUD-P1-004` остаётся `Partial` только до device-owner/soak
+qualification в V14-12.
 
 ## Правило закрытия
 

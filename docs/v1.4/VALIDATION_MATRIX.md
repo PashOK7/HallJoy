@@ -553,3 +553,39 @@ Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
 Evidence: docs/stability/tests/V14-06D.1_SPARK_SERVICE_SHUTDOWN_2026-07-31.txt
 Rollback: parent commit of the V14-06D.1 implementation commit
 ```
+
+## V14-07C evidence
+
+```text
+Package: V14-07C
+Scope: Private UAP C ABI exception, lock/state/null and bounded unload safety
+Commands:
+  python src/HallJoyProject/tests/private_uap_abi_safety_static_audit.py
+  python tools/run_native_backend_checks.py --require-compiler
+  python tools/check_private_uap_abi.py
+    third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  build/output/HallJoy.exe (4-second production smoke, graceful task signal)
+Results:
+  Private UAP C ABI/unload static audit: PASS
+  Portable C ABI exception fallback and RAII lock test: PASS
+  All static audits and portable C++20 tests: PASS
+  Real ABI1 load/init/null/bounded-unload runtime gate: PASS, ABI=1
+  State false before init, true after init, false after unload: PASS
+  Null device-info/full-buffer inputs return zero: PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Production smoke: parent, diagnostic-watch and analog-host child started
+  Graceful termination: child.exit=1, stop.joined=1, backend/main shutdown end
+  Remaining HallJoy processes: 0
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,141,184 bytes
+  SHA-256: 15228FC17B70FB84AD2861FC04904E872B3571CCABBCEB26D6DFD3AE894D533B
+Hardware: Irok MG75 Max remained on the independent native SparkLink route;
+  this package changes only the private UAP/child boundary
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Known limitations: UAP pacing/identity/contention remain V14-11; device-owner
+  and long-run soak qualification remain V14-12
+Evidence: docs/stability/tests/V14-07C_PRIVATE_UAP_ABI_UNLOAD_2026-07-31.txt
+Rollback: parent commit of the V14-07C implementation commit
+```

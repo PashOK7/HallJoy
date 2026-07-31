@@ -31,7 +31,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-04` | Reproducible dependencies, warning baseline, local/CI-equivalent build scripts | Verified | Pinned inputs, clean-room x64 Release, portable tests, documented warning policy |
 | `V14-05` | Truthful lifecycle registry and generation-scoped stop contract | Verified | Failure-injected start/stop/restart tests; timeout/fault poisons the generation and blocks restart |
 | `V14-06` | Cooperative lifecycle migration for realtime, logging and native protocol workers | Verified locally | Per-worker tests, no ordinary `TerminateThread`, plus unchanged protocol and mapping characterization |
-| `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | In progress | Partial-start, crash, hang, unload and bounded restart tests |
+| `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Verified | Partial-start, crash, hang, C ABI, null/state, unload and bounded restart gates passed |
 | `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Planned | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
 | `V14-09` | Transactional persistence and writable state migration | Planned | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
 | `V14-10` | IPC and overlay security/correctness | Planned | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
@@ -197,7 +197,7 @@ Sayo protocol/device compatibility is not inferred from simulation. It remains
 an explicit device-owner gate in `V14-12`, together with the post-change
 SparkLink regression and long-run qualification.
 
-## Current package: V14-07
+## Completed package: V14-07
 
 Harden the isolated analog host and private UAP boundary: generation ownership,
 partial-start rollback, bounded restart/unload and exception-safe C ABI exports.
@@ -224,16 +224,22 @@ Progress:
   process completion; job-assignment or reap failure blocks replacement.
   Parent-fault, child-fault/restart and child-reap-timeout simulator gates pass.
 
-Remaining:
-
-- `V14-07C`: private UAP C ABI exception barriers, RAII locking, argument and
-  initialized-state validation, and unload without an unbounded join under the
-  global devices mutex.
+- `V14-07C` private UAP safety: Verified locally. Every throwing C export is
+  contained by a common exception barrier, all Soup mutex ownership is RAII,
+  initialization state and null arguments are truthful, and device workers are
+  cancelled and bounded-joined without holding the global devices mutex.
+- The child host uses the optional private bounded-unload export. If plugin
+  worker completion cannot be confirmed, it does not unload the DLL or run CRT
+  teardown beneath a live worker; the disposable child process terminates and
+  the existing parent/job containment owns recovery.
+- The official build now runs a real ABI1 load/init/null/unload state gate after
+  compiling the private plugin. Static audits, portable exception/RAII tests,
+  production MSVC build and a process-clean smoke test all pass.
 
 The Irok MG75 Max proved native SparkLink identification, successful vendor
 polling and analog-row changes. `V14-06D.1` now suppresses the shutdown-time
 reconnect and passed its held-key unplug/reconnect and balanced-shutdown hardware
-gate. `HJ-V14-P1-004` is Verified; V14-07C is the next implementation package.
+gate. `HJ-V14-P1-004` and V14-07 are Verified; V14-08 is the next package.
 
 ## Release definition
 

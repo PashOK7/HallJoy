@@ -9,9 +9,9 @@ version or release status.
 
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
-- Completed package: `V14-07B` analog-host exception/restart safety
+- Completed package: `V14-07` analog-host and private UAP boundary safety
 - Completed hotfix: `V14-06D.1` SparkLink shutdown/reconnect race, Verified
-- Next package: `V14-07C` private UAP C ABI and unload safety
+- Next package: `V14-08` startup transaction, wake correctness and ViGEm isolation
 - GitHub publication: not started
 - Release status: not release-ready
 

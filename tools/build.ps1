@@ -36,6 +36,7 @@ $required = @(
     (Join-Path $pluginRoot 'abiv0-mad68native.sun'),
     (Join-Path $pluginRoot 'abiv1-pluswooting-mad68native.sun'),
     (Join-Path $pluginRoot 'main.cpp'),
+    (Join-Path $pluginRoot 'halljoy_uap_cabi_guard.h'),
     (Join-Path $pluginRoot 'halljoy_plugin_telemetry.h'),
     (Join-Path $pluginRoot 'halljoy_dense_snapshot.h'),
     $project,
@@ -56,6 +57,7 @@ $required = @(
     (Join-Path $hallJoyRoot 'HallJoy\windows_command_line.h'),
     (Join-Path $root 'tools\new_native_backend.py'),
     (Join-Path $root 'tools\run_native_backend_checks.py'),
+    (Join-Path $root 'tools\check_private_uap_abi.py'),
     (Join-Path $root 'tools\analyze_stability_trace.py'),
     (Join-Path $root 'tools\collect_stability_trace.ps1'),
     (Join-Path $root 'tools\COLLECT_STABILITY_TRACE.cmd'),
@@ -353,6 +355,9 @@ $abi1 = Join-Path $pluginOut 'abiv1.dll'
 if (-not (Test-Path -LiteralPath $abi0) -or -not (Test-Path -LiteralPath $abi1)) {
     throw 'Universal Analog Plugin build did not produce abiv0.dll and abiv1.dll.'
 }
+$uapAbiCheck = Join-Path $root 'tools\check_private_uap_abi.py'
+& python $uapAbiCheck $abi1
+if ($LASTEXITCODE -ne 0) { throw "Private UAP ABI runtime gate failed: $LASTEXITCODE" }
 New-Item -ItemType Directory -Path $runtime -Force | Out-Null
 Copy-Item -LiteralPath $abi0 -Destination (Join-Path $runtime 'universal_analog_abiv0.dll') -Force
 Copy-Item -LiteralPath $abi1 -Destination (Join-Path $runtime 'universal_analog_abiv1.dll') -Force

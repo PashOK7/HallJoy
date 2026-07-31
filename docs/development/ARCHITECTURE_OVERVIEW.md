@@ -113,8 +113,15 @@ Win32 SEH wrappers. Their fault paths neutralize the shared snapshot, signal
 stop and permanently reject restart. The isolated child entry has the same
 C++/SEH publication boundary. A child must be assigned to the owned job, and
 its process HANDLE is closed only after confirmed completion; timeout retains
-the HANDLE and forbids a replacement child. The private UAP's own worker and C
-ABI boundaries remain a separate V14-07C substage.
+the HANDLE and forbids a replacement child.
+
+Inside that child, private UAP exports use a common catch-all C ABI barrier and
+scope-bound Soup mutex guards. The initialized state is generation-truthful and
+pointer/length arguments are validated before access. Unload snapshots workers
+under the devices mutex but releases it before cancel or bounded join. A join
+timeout retains plugin ownership and poisons restart; the child host then exits
+the disposable process without calling `FreeLibrary`, leaving parent/job
+containment to confirm process completion before any replacement child starts.
 
 ## Files a new protocol owns
 

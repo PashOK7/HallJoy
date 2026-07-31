@@ -51,8 +51,17 @@ state, signal the bridge/child stop events and permanently block restart. Child
 faults publish the same neutral shared state before process exit. The
 supervisor requires job assignment and never replaces a child until the old
 process HANDLE is signaled; an unconfirmed exit retains that HANDLE and blocks
-overlapping generations. Exception-safe private UAP exports and bounded plugin
-unload remain V14-07C.
+overlapping generations.
+
+V14-07C protects the private plugin itself. Throwing C exports enter a common
+catch-all barrier, publish a fixed transport fault and poison restart. Soup
+mutexes use scope-bound guards, state queries reflect the active generation,
+and pointer/length exports reject invalid input before access. Plugin unload
+uses one deadline, snapshots device worker pointers under the devices mutex,
+then cancels and joins them after releasing that mutex. The child host prefers
+the optional `halljoy_unload_bounded` export; an incomplete join deliberately
+ends the disposable child without unloading its DLL or destroying CRT state
+beneath a live worker.
 
 ## Verification
 
@@ -71,3 +80,8 @@ The gate requires an exact-resource-match trace, successful child/backend and
 ViGEm initialization, the full simulated common-pipeline scenario, graceful
 shutdown, and no remaining process. It is runtime/dependency evidence, not
 analog-keyboard hardware evidence.
+
+The official build also runs `tools/check_private_uap_abi.py` against the newly
+built ABI1 DLL. It verifies the ABI version, truthful state before/after
+initialization and unload, null-buffer behavior, bounded unload and idempotent
+cleanup before the DLL is embedded into HallJoy.

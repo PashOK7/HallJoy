@@ -29,6 +29,7 @@
 
 #include "halljoy_plugin_telemetry.h"
 #include "halljoy_dense_snapshot.h"
+#include "halljoy_uap_cabi_guard.h"
 
 #define LOGGING false
 
@@ -63,13 +64,16 @@
 #if SOUP_WINDOWS
 static std::atomic<volatile LONG*> halljoy_checkpoint_target{ nullptr };
 static std::atomic<volatile LONG*> halljoy_transport_error_target{ nullptr };
+static std::atomic_bool running{ false };
+static std::atomic_bool halljoy_restart_blocked{ false };
+static std::atomic<std::uint32_t> halljoy_plugin_fault{ 0 };
 
-SOUP_CEXPORT void halljoy_set_diagnostic_checkpoint(volatile LONG* target)
+SOUP_CEXPORT void halljoy_set_diagnostic_checkpoint(volatile LONG* target) noexcept
 {
 	halljoy_checkpoint_target.store(target, std::memory_order_release);
 }
 
-SOUP_CEXPORT void halljoy_set_diagnostic_transport_error(volatile LONG* target)
+SOUP_CEXPORT void halljoy_set_diagnostic_transport_error(volatile LONG* target) noexcept
 {
 	halljoy_transport_error_target.store(target, std::memory_order_release);
 }
@@ -90,9 +94,20 @@ extern "C" void halljoy_plugin_transport_error(uint32_t error)
 	}
 }
 #else
+static std::atomic_bool running{ false };
+static std::atomic_bool halljoy_restart_blocked{ false };
+static std::atomic<std::uint32_t> halljoy_plugin_fault{ 0 };
 extern "C" void halljoy_plugin_checkpoint(int) {}
 extern "C" void halljoy_plugin_transport_error(uint32_t) {}
 #endif
+
+static void halljoy_mark_plugin_fault(std::uint32_t error) noexcept
+{
+	halljoy_plugin_fault.store(error, std::memory_order_release);
+	halljoy_restart_blocked.store(true, std::memory_order_release);
+	running.store(false, std::memory_order_release);
+	halljoy_plugin_transport_error(error);
+}
 
 
 static uint64_t halljoy_telemetry_now_us()
@@ -264,14 +279,15 @@ SOUP_CEXPORT const uint32_t ANALOG_SDK_PLUGIN_ABI_VERSION = ABI_VERSION_TARGET;
 #define _read_full_buffer read_full_buffer
 #endif
 
-SOUP_CEXPORT const char* _name()
+SOUP_CEXPORT const char* _name() noexcept
 {
 	return "Universal Analog Plugin (HallJoy SafeHID v9 unthrottled telemetry)";
 }
 
-SOUP_CEXPORT bool is_initialised()
+SOUP_CEXPORT bool is_initialised() noexcept
 {
-	return true;
+	return running.load(std::memory_order_acquire)
+		&& !halljoy_restart_blocked.load(std::memory_order_acquire);
 }
 
 // Devices
@@ -322,17 +338,19 @@ static void halljoy_signal_snapshot_update()
 	halljoy_snapshot_wait_cv.notify_one();
 }
 
-SOUP_CEXPORT uint64_t halljoy_wait_for_snapshot_update(uint64_t last_generation, uint32_t timeout_ms)
+SOUP_CEXPORT uint64_t halljoy_wait_for_snapshot_update(uint64_t last_generation, uint32_t timeout_ms) noexcept
 {
-	std::unique_lock<std::mutex> lock(halljoy_snapshot_wait_mtx);
-	const auto changed = [last_generation]() {
-		return halljoy_snapshot_generation.load(std::memory_order_acquire) != last_generation;
-	};
-	if (!changed())
-	{
-		halljoy_snapshot_wait_cv.wait_for(lock, std::chrono::milliseconds(timeout_ms), changed);
-	}
-	return halljoy_snapshot_generation.load(std::memory_order_acquire);
+	return halljoy::uap::CAbiInvoke<uint64_t>(last_generation, [&]() {
+		std::unique_lock<std::mutex> lock(halljoy_snapshot_wait_mtx);
+		const auto changed = [last_generation]() {
+			return halljoy_snapshot_generation.load(std::memory_order_acquire) != last_generation;
+		};
+		if (!changed())
+		{
+			halljoy_snapshot_wait_cv.wait_for(lock, std::chrono::milliseconds(timeout_ms), changed);
+		}
+		return halljoy_snapshot_generation.load(std::memory_order_acquire);
+	}, []() noexcept { halljoy_mark_plugin_fault(0xE0470001u); });
 }
 
 struct Device
@@ -459,7 +477,8 @@ struct Device
 	{
 		const uint64_t now_us = halljoy_telemetry_now_us();
 		std::uint32_t active_count = 0;
-		snapshot_mtx.lock();
+		{
+			halljoy::uap::LockGuard<soup::RecursiveMutex> snapshot_lock(snapshot_mtx);
 		for (std::size_t code = 0; code < KEY_COUNT; ++code)
 		{
 			const float value = std::clamp(dense[code], 0.0f, 1.0f);
@@ -511,8 +530,8 @@ struct Device
 			telemetry_max_interval_us = (std::max)(telemetry_max_interval_us, interval_us);
 		}
 		telemetry_last_update_us = now_us;
-		++telemetry_update_count;
-		snapshot_mtx.unlock();
+			++telemetry_update_count;
+		}
 		halljoy_signal_snapshot_update();
 	}
 
@@ -528,10 +547,9 @@ struct Device
 		{
 			return false;
 		}
-		snapshot_mtx.lock();
+		halljoy::uap::LockGuard<soup::RecursiveMutex> snapshot_lock(snapshot_mtx);
 		const uint64_t reference_us = telemetry_last_update_us != 0 ? telemetry_last_update_us : worker_started_us;
 		const bool stale = now_us > reference_us && now_us - reference_us > timeout_us;
-		snapshot_mtx.unlock();
 		return stale;
 	}
 
@@ -568,7 +586,7 @@ struct Device
 		halljoy_copy_ascii(out.name, sizeof(out.name), kbd.name);
 
 		const uint64_t now_us = halljoy_telemetry_now_us();
-		snapshot_mtx.lock();
+		halljoy::uap::LockGuard<soup::RecursiveMutex> snapshot_lock(snapshot_mtx);
 		out.observedDistinctLevels = telemetry_observed_levels;
 		uint32_t observed_key_count = 0;
 		uint32_t observed_key_min = UINT32_MAX;
@@ -604,7 +622,6 @@ struct Device
 		{
 			out.lastUpdateAgeMs = static_cast<uint32_t>(std::min<uint64_t>((now_us - telemetry_last_update_us) / 1000ull, 0xffffffffull));
 		}
-		snapshot_mtx.unlock();
 	}
 
 	void update_from_keyboard()
@@ -632,84 +649,82 @@ static soup::RecursiveMutex devices_mtx{};
 static soup::RecursiveMutex full_buffer_mtx{};
 static std::vector<soup::UniquePtr<Device>> devices{};
 
-SOUP_CEXPORT int _device_info(DeviceInfo* buffer[], uint32_t len)
+SOUP_CEXPORT int _device_info(DeviceInfo* buffer[], uint32_t len) noexcept
 {
-	devices_mtx.lock();
-	if (len > devices.size())
-	{
-		len = devices.size();
-	}
-	for (uint32_t i = 0; i != len; ++i)
-	{
-		buffer[i] = devices[i]->info;
-	}
-	devices_mtx.unlock();
-	return len;
+	if (buffer == nullptr || len == 0 || !is_initialised())
+		return 0;
+	return halljoy::uap::CAbiInvoke<int>(-2000, [&]() {
+		halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
+		len = static_cast<uint32_t>(std::min<std::size_t>(len, devices.size()));
+		for (uint32_t i = 0; i != len; ++i)
+			buffer[i] = devices[i]->info;
+		return static_cast<int>(len);
+	}, []() noexcept { halljoy_mark_plugin_fault(0xE0470002u); });
 }
 
 SOUP_CEXPORT uint32_t halljoy_get_device_telemetry(
 	HallJoyPluginTelemetry::DeviceV1* buffer,
 	uint32_t len,
-	uint32_t element_size)
+	uint32_t element_size) noexcept
 {
-	if (buffer == nullptr || len == 0 || element_size != sizeof(HallJoyPluginTelemetry::DeviceV1))
+	if (buffer == nullptr || len == 0 || !is_initialised()
+		|| element_size != sizeof(HallJoyPluginTelemetry::DeviceV1))
 	{
 		return 0;
 	}
-	devices_mtx.lock();
-	const uint32_t count = static_cast<uint32_t>(std::min<size_t>(
-		std::min<uint32_t>(len, HallJoyPluginTelemetry::kMaxDevices), devices.size()));
-	for (uint32_t i = 0; i < count; ++i)
-	{
-		devices[i]->get_telemetry(buffer[i]);
-	}
-	devices_mtx.unlock();
-	return count;
+	return halljoy::uap::CAbiInvoke<uint32_t>(0, [&]() {
+		halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
+		const uint32_t count = static_cast<uint32_t>(std::min<size_t>(
+			std::min<uint32_t>(len, HallJoyPluginTelemetry::kMaxDevices), devices.size()));
+		for (uint32_t i = 0; i < count; ++i)
+			devices[i]->get_telemetry(buffer[i]);
+		return count;
+	}, []() noexcept { halljoy_mark_plugin_fault(0xE0470003u); });
 }
 
 
 SOUP_CEXPORT uint32_t halljoy_get_dense_snapshots(
 	HallJoyDenseSnapshot::DeviceV1* buffer,
 	uint32_t len,
-	uint32_t element_size)
+	uint32_t element_size) noexcept
 {
-	if (buffer == nullptr || len == 0 || element_size != sizeof(HallJoyDenseSnapshot::DeviceV1))
+	if (buffer == nullptr || len == 0 || !is_initialised()
+		|| element_size != sizeof(HallJoyDenseSnapshot::DeviceV1))
 	{
 		return 0;
 	}
-	devices_mtx.lock();
-	const uint32_t count = static_cast<uint32_t>(std::min<size_t>(
-		std::min<uint32_t>(len, HallJoyDenseSnapshot::kMaxDevices), devices.size()));
-	for (uint32_t i = 0; i < count; ++i)
-	{
-		const auto& dev = devices[i];
-		auto& out = buffer[i];
-		out = HallJoyDenseSnapshot::DeviceV1{};
-		out.structSize = sizeof(HallJoyDenseSnapshot::DeviceV1);
-		out.version = HallJoyDenseSnapshot::kVersion;
-		out.deviceId = dev->id;
-		out.vendorId = dev->kbd.hid.vendor_id;
-		out.productId = dev->kbd.hid.product_id;
-		out.usagePage = dev->kbd.hid.usage_page;
-		out.usage = dev->kbd.hid.usage;
-		out.flags = HallJoyDenseSnapshot::DeviceFlag_Connected | HallJoyDenseSnapshot::DeviceFlag_DuplicateSafeId;
-		out.flags |= dev->poll_transport
-			? HallJoyDenseSnapshot::DeviceFlag_PolledTransport
-			: HallJoyDenseSnapshot::DeviceFlag_StreamTransport;
-		dev->snapshot_mtx.lock();
-		out.generation = dev->snapshot_generation;
-		out.timestampUs = dev->snapshot_timestamp_us;
-		out.activeKeyCount = dev->active_key_count;
-		std::copy(dev->key_values.begin(), dev->key_values.end(), out.values);
-		dev->snapshot_mtx.unlock();
-	}
-	devices_mtx.unlock();
-	return count;
+	return halljoy::uap::CAbiInvoke<uint32_t>(0, [&]() {
+		halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
+		const uint32_t count = static_cast<uint32_t>(std::min<size_t>(
+			std::min<uint32_t>(len, HallJoyDenseSnapshot::kMaxDevices), devices.size()));
+		for (uint32_t i = 0; i < count; ++i)
+		{
+			const auto& dev = devices[i];
+			auto& out = buffer[i];
+			out = HallJoyDenseSnapshot::DeviceV1{};
+			out.structSize = sizeof(HallJoyDenseSnapshot::DeviceV1);
+			out.version = HallJoyDenseSnapshot::kVersion;
+			out.deviceId = dev->id;
+			out.vendorId = dev->kbd.hid.vendor_id;
+			out.productId = dev->kbd.hid.product_id;
+			out.usagePage = dev->kbd.hid.usage_page;
+			out.usage = dev->kbd.hid.usage;
+			out.flags = HallJoyDenseSnapshot::DeviceFlag_Connected | HallJoyDenseSnapshot::DeviceFlag_DuplicateSafeId;
+			out.flags |= dev->poll_transport
+				? HallJoyDenseSnapshot::DeviceFlag_PolledTransport
+				: HallJoyDenseSnapshot::DeviceFlag_StreamTransport;
+			halljoy::uap::LockGuard<soup::RecursiveMutex> snapshot_lock(dev->snapshot_mtx);
+			out.generation = dev->snapshot_generation;
+			out.timestampUs = dev->snapshot_timestamp_us;
+			out.activeKeyCount = dev->active_key_count;
+			std::copy(dev->key_values.begin(), dev->key_values.end(), out.values);
+		}
+		return count;
+	}, []() noexcept { halljoy_mark_plugin_fault(0xE0470004u); });
 }
 
 // Actual important stuff
 
-static std::atomic_bool running{ false };
 static soup::Thread discover_thread;
 
 [[nodiscard]] static uint16_t mapToWootingKey(soup::Key key)
@@ -751,24 +766,24 @@ static void start_device_worker(Device& dev)
 	dev.worker_started_us = halljoy_telemetry_now_us();
 	dev.thrd.start([](soup::Capture&& cap)
 	{
-		Device& dev = *cap.get<Device*>();
-		soup::AnalogueKeyboard& kbd = dev.kbd;
-		const bool is_poll_device = kbd.isPoll();
-
-		while (running.load(std::memory_order_acquire) && !kbd.disconnected)
+		try
 		{
-			dev.update_from_keyboard();
+			Device& dev = *cap.get<Device*>();
+			soup::AnalogueKeyboard& kbd = dev.kbd;
+			const bool is_poll_device = kbd.isPoll();
 
-			// V9 measurement mode: poll transports are paced only when the build
-			// explicitly requests a sleep. The HallJoy build sets this to zero so
-			// the measured rate is limited by the device/protocol transaction itself.
-			if (is_poll_device && UAP_POLL_SLEEP_MS != 0)
+			while (running.load(std::memory_order_acquire) && !kbd.disconnected)
 			{
-				soup::os::sleep(UAP_POLL_SLEEP_MS);
+				dev.update_from_keyboard();
+				if (is_poll_device && UAP_POLL_SLEEP_MS != 0)
+					soup::os::sleep(UAP_POLL_SLEEP_MS);
 			}
+			dev.clear_snapshot();
 		}
-
-		dev.clear_snapshot();
+		catch (...)
+		{
+			halljoy_mark_plugin_fault(0xE0470010u);
+		}
 #if LOGGING
 		std::cout << "Thread for " << kbd.name << " is stopping" << std::endl;
 #endif
@@ -778,7 +793,7 @@ static void start_device_worker(Device& dev)
 static bool contains_device_id(DeviceID id)
 {
 	bool known = false;
-	devices_mtx.lock();
+	halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
 	for (const auto& dev : devices)
 	{
 		if (dev->id == id)
@@ -787,7 +802,6 @@ static bool contains_device_id(DeviceID id)
 			break;
 		}
 	}
-	devices_mtx.unlock();
 	return known;
 }
 
@@ -796,16 +810,17 @@ static void remove_stopped_devices()
 	for (;;)
 	{
 		Device* stopped = nullptr;
-		devices_mtx.lock();
-		for (const auto& dev : devices)
 		{
-			if (!dev->thrd.isRunning())
+			halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
+			for (const auto& dev : devices)
 			{
-				stopped = dev.get();
-				break;
+				if (!dev->thrd.isRunning())
+				{
+					stopped = dev.get();
+					break;
+				}
 			}
 		}
-		devices_mtx.unlock();
 
 		if (stopped == nullptr)
 		{
@@ -816,16 +831,17 @@ static void remove_stopped_devices()
 		// outside devices_mtx because the SDK may synchronously call back into us.
 		send_device_event(DeviceEventType::Disconnected, stopped->info);
 
-		devices_mtx.lock();
-		for (auto it = devices.begin(); it != devices.end(); ++it)
 		{
-			if (it->get() == stopped)
+			halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
+			for (auto it = devices.begin(); it != devices.end(); ++it)
 			{
-				devices.erase(it);
-				break;
+				if (it->get() == stopped)
+				{
+					devices.erase(it);
+					break;
+				}
 			}
 		}
-		devices_mtx.unlock();
 	}
 }
 
@@ -875,9 +891,10 @@ static void discover_devices(bool initial)
 		Device* raw = upDev.get();
 
 		// Publish the object before starting its thread or announcing it to the SDK.
-		devices_mtx.lock();
-		devices.emplace_back(std::move(upDev));
-		devices_mtx.unlock();
+		{
+			halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
+			devices.emplace_back(std::move(upDev));
+		}
 
 		if (!raw->synchronous_poll)
 		{
@@ -890,8 +907,9 @@ static void discover_devices(bool initial)
 	}
 }
 
-SOUP_CEXPORT int _initialise(void* data, event_handler_t callback)
+SOUP_CEXPORT int _initialise(void* data, event_handler_t callback) noexcept
 {
+	return halljoy::uap::CAbiInvoke<int>(-2000, [&]() {
 #if LOGGING
 	AllocConsole();
 	{
@@ -902,11 +920,12 @@ SOUP_CEXPORT int _initialise(void* data, event_handler_t callback)
 	}
 #endif
 
+	if (halljoy_restart_blocked.load(std::memory_order_acquire))
+		return -2000;
 	if (running.exchange(true, std::memory_order_acq_rel))
 	{
-		devices_mtx.lock();
+		halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
 		const auto count = static_cast<int>(devices.size());
-		devices_mtx.unlock();
 		return count;
 	}
 
@@ -918,63 +937,65 @@ SOUP_CEXPORT int _initialise(void* data, event_handler_t callback)
 	std::cout << "Discovered " << devices.size() << " initial devices" << std::endl;
 #endif
 
-	devices_mtx.lock();
-	const auto num_initial_devices = static_cast<int>(devices.size());
-	devices_mtx.unlock();
+	int num_initial_devices = 0;
+	{
+		halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
+		num_initial_devices = static_cast<int>(devices.size());
+	}
 
 #if !UAP_DISABLE_HOTPLUG
 	discover_thread.start([](soup::Capture&&)
 	{
-		while (running.load(std::memory_order_acquire))
+		try
 		{
-			for (uint16_t i = 0; i != 100 && running.load(std::memory_order_acquire); ++i)
+			while (running.load(std::memory_order_acquire))
 			{
-				soup::os::sleep(10);
+				for (uint16_t i = 0; i != 100 && running.load(std::memory_order_acquire); ++i)
+					soup::os::sleep(10);
+				if (running.load(std::memory_order_acquire))
+					discover_devices(false);
 			}
-			if (running.load(std::memory_order_acquire))
-			{
-				discover_devices(false);
-			}
+		}
+		catch (...)
+		{
+			halljoy_mark_plugin_fault(0xE0470011u);
 		}
 	});
 #endif
 	return num_initial_devices;
+	}, []() noexcept { halljoy_mark_plugin_fault(0xE0470005u); });
 }
 
 #if REPORT_RELEASED_KEYS
 static std::unordered_set<uint16_t> pending_release;
 #endif
 
-SOUP_CEXPORT float read_analog(uint16_t code, DeviceID device_id)
+SOUP_CEXPORT float read_analog(uint16_t code, DeviceID device_id) noexcept
 {
-	if (code >= HallJoyDenseSnapshot::kKeyCount)
-	{
+	if (code >= HallJoyDenseSnapshot::kKeyCount || !is_initialised())
 		return 0.0f;
-	}
-	float ret = 0.0f;
-
-	devices_mtx.lock();
-	for (const auto& dev : devices)
-	{
-		if (device_id == 0 || dev->id == device_id)
+	return halljoy::uap::CAbiInvoke<float>(0.0f, [&]() {
+		float ret = 0.0f;
+		halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
+		for (const auto& dev : devices)
 		{
-			if (dev->synchronous_poll && !dev->kbd.disconnected)
+			if (device_id == 0 || dev->id == device_id)
 			{
-				halljoy_plugin_checkpoint(HjPluginBeforeKeyboardUpdate);
-				dev->update_from_keyboard();
-				halljoy_plugin_checkpoint(HjPluginAfterKeyboardUpdate);
+				if (dev->synchronous_poll && !dev->kbd.disconnected)
+				{
+					halljoy_plugin_checkpoint(HjPluginBeforeKeyboardUpdate);
+					dev->update_from_keyboard();
+					halljoy_plugin_checkpoint(HjPluginAfterKeyboardUpdate);
+				}
+				halljoy::uap::LockGuard<soup::RecursiveMutex> snapshot_lock(dev->snapshot_mtx);
+				ret = (std::max)(ret, dev->key_values[code]);
 			}
-			dev->snapshot_mtx.lock();
-			ret = (std::max)(ret, dev->key_values[code]);
-			dev->snapshot_mtx.unlock();
 		}
-	}
-	devices_mtx.unlock();
-
-	return ret;
+		return ret;
+	}, []() noexcept { halljoy_mark_plugin_fault(0xE0470006u); });
 }
 
-SOUP_CEXPORT int _read_full_buffer(uint16_t* code_buffer, float* analog_buffer, uint32_t len, DeviceID device_id)
+SOUP_CEXPORT int _read_full_buffer(uint16_t* code_buffer, float* analog_buffer, uint32_t len, DeviceID device_id) noexcept
 {
 	halljoy_plugin_checkpoint(HjPluginReadEntry);
 	SOUP_IF_UNLIKELY (len == 0)
@@ -985,10 +1006,15 @@ SOUP_CEXPORT int _read_full_buffer(uint16_t* code_buffer, float* analog_buffer, 
 	{
 		return 0;
 	}
+	SOUP_IF_UNLIKELY (!is_initialised())
+	{
+		return 0;
+	}
 
+	return halljoy::uap::CAbiInvoke<int>(-2000, [&]() {
 	// pending_release is process-global plugin state, so serialize the complete
 	// full-buffer operation even if an SDK application calls it from two threads.
-	full_buffer_mtx.lock();
+	halljoy::uap::LockGuard<soup::RecursiveMutex> full_buffer_lock(full_buffer_mtx);
 
 	uint32_t actives = 0;
 	bool matched_device = false;
@@ -997,35 +1023,29 @@ SOUP_CEXPORT int _read_full_buffer(uint16_t* code_buffer, float* analog_buffer, 
 	std::array<float, HallJoyDenseSnapshot::kKeyCount> merged{};
 	const uint64_t snapshot_now_us = halljoy_telemetry_now_us();
 	halljoy_plugin_checkpoint(HjPluginBeforeDeviceLock);
-	devices_mtx.lock();
-	for (const auto& dev : devices)
 	{
-		if (device_id == 0 || dev->id == device_id)
+		halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
+		for (const auto& dev : devices)
 		{
-			matched_device = true;
-			if (dev->poll_worker_stale(snapshot_now_us, 1500000ull))
+			if (device_id == 0 || dev->id == device_id)
 			{
-				stale_poll_device = true;
+				matched_device = true;
+				if (dev->poll_worker_stale(snapshot_now_us, 1500000ull))
+					stale_poll_device = true;
+				if (dev->synchronous_poll && !dev->kbd.disconnected)
+				{
+					halljoy_plugin_checkpoint(HjPluginBeforeKeyboardUpdate);
+					dev->update_from_keyboard();
+					halljoy_plugin_checkpoint(HjPluginAfterKeyboardUpdate);
+				}
+				if (!dev->kbd.disconnected)
+					live_device = true;
+				halljoy::uap::LockGuard<soup::RecursiveMutex> snapshot_lock(dev->snapshot_mtx);
+				for (std::size_t code = 0; code < merged.size(); ++code)
+					merged[code] = (std::max)(merged[code], dev->key_values[code]);
 			}
-			if (dev->synchronous_poll && !dev->kbd.disconnected)
-			{
-				halljoy_plugin_checkpoint(HjPluginBeforeKeyboardUpdate);
-				dev->update_from_keyboard();
-				halljoy_plugin_checkpoint(HjPluginAfterKeyboardUpdate);
-			}
-			if (!dev->kbd.disconnected)
-			{
-				live_device = true;
-			}
-			dev->snapshot_mtx.lock();
-			for (std::size_t code = 0; code < merged.size(); ++code)
-			{
-				merged[code] = (std::max)(merged[code], dev->key_values[code]);
-			}
-			dev->snapshot_mtx.unlock();
 		}
 	}
-	devices_mtx.unlock();
 
 	for (std::size_t code = 0; code < merged.size() && actives < len; ++code)
 	{
@@ -1043,7 +1063,6 @@ SOUP_CEXPORT int _read_full_buffer(uint16_t* code_buffer, float* analog_buffer, 
 	if (matched_device && (!live_device || stale_poll_device))
 	{
 		halljoy_plugin_checkpoint(349);
-		full_buffer_mtx.unlock();
 		return -2000;
 	}
 
@@ -1078,51 +1097,109 @@ SOUP_CEXPORT int _read_full_buffer(uint16_t* code_buffer, float* analog_buffer, 
 #endif
 
 	halljoy_plugin_checkpoint(HjPluginReadReturn);
-	full_buffer_mtx.unlock();
 	return static_cast<int>(actives);
+	}, []() noexcept { halljoy_mark_plugin_fault(0xE0470007u); });
 }
 
-SOUP_CEXPORT void unload()
+static bool halljoy_wait_thread_until(
+	soup::Thread& thread,
+	const std::chrono::steady_clock::time_point& deadline) noexcept
 {
-	if (!running.exchange(false, std::memory_order_acq_rel))
+	if (!thread.isAttached())
+		return true;
+#if SOUP_WINDOWS
+	const auto now = std::chrono::steady_clock::now();
+	if (now >= deadline)
+		return false;
+	const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
+	const DWORD wait_ms = static_cast<DWORD>(std::max<std::int64_t>(1, remaining.count()));
+	if (WaitForSingleObject(thread.handle, wait_ms) != WAIT_OBJECT_0)
+		return false;
+	thread.awaitCompletion();
+	return true;
+#else
+	while (thread.isRunning() && std::chrono::steady_clock::now() < deadline)
+		soup::os::sleep(1);
+	if (thread.isRunning())
+		return false;
+	thread.awaitCompletion();
+	return true;
+#endif
+}
+
+static bool halljoy_unload_impl(uint32_t timeout_ms)
+{
+	const bool was_running = running.exchange(false, std::memory_order_acq_rel);
+	if (!was_running)
 	{
-		return;
+		halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
+		if (devices.empty())
+			return !halljoy_restart_blocked.load(std::memory_order_acquire);
 	}
 	halljoy_snapshot_wait_cv.notify_all();
+	const auto deadline = std::chrono::steady_clock::now()
+		+ std::chrono::milliseconds(std::max<uint32_t>(1, timeout_ms));
 
 #if !UAP_DISABLE_HOTPLUG
-	discover_thread.awaitCompletion();
+	if (!halljoy_wait_thread_until(discover_thread, deadline))
+	{
+		halljoy_restart_blocked.store(true, std::memory_order_release);
+		return false;
+	}
 #endif
 
 	// Stop callbacks before destroying DeviceInfo objects.
 	event_handler.store(nullptr, std::memory_order_release);
 	event_handler_data.store(nullptr, std::memory_order_release);
 
-	devices_mtx.lock();
-	for (const auto& dev : devices)
+	std::vector<Device*> workers;
+	{
+		halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
+		workers.reserve(devices.size());
+		for (const auto& dev : devices)
+			workers.emplace_back(dev.get());
+	}
+	for (Device* dev : workers)
 	{
 		if (!dev->synchronous_poll)
-		{
 			dev->kbd.hid.cancelReceiveReport();
-		}
 	}
-	for (const auto& dev : devices)
+	for (Device* dev : workers)
 	{
-		if (!dev->synchronous_poll)
+		if (!dev->synchronous_poll && !halljoy_wait_thread_until(dev->thrd, deadline))
 		{
-			dev->thrd.awaitCompletion();
+			halljoy_restart_blocked.store(true, std::memory_order_release);
+			return false;
 		}
 	}
-	devices.clear();
-	devices_mtx.unlock();
+	{
+		halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
+		devices.clear();
+	}
 
 #if REPORT_RELEASED_KEYS
-	full_buffer_mtx.lock();
-	pending_release.clear();
-	full_buffer_mtx.unlock();
+	{
+		halljoy::uap::LockGuard<soup::RecursiveMutex> full_buffer_lock(full_buffer_mtx);
+		pending_release.clear();
+	}
 #endif
 
 #if LOGGING
 	FreeConsole();
 #endif
+	return true;
+}
+
+SOUP_CEXPORT bool halljoy_unload_bounded(uint32_t timeout_ms) noexcept
+{
+	return halljoy::uap::CAbiInvoke<bool>(false,
+		[&]() { return halljoy_unload_impl(timeout_ms); },
+		[]() noexcept { halljoy_mark_plugin_fault(0xE0470008u); });
+}
+
+SOUP_CEXPORT void unload() noexcept
+{
+	halljoy::uap::CAbiInvokeVoid([]() {
+		(void)halljoy_unload_impl(3000);
+	}, []() noexcept { halljoy_mark_plugin_fault(0xE0470009u); });
 }

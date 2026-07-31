@@ -12,6 +12,8 @@ NativeAnalogBackendDescriptor catalog
 HallJoy curve cache → bindings → SOCD
         ↓ changed XInput report
 common fixed-deadline ViGEm scheduler
+        ↓ non-blocking complete newest-state batch
+latest-value mailbox → dedicated ViGEm output worker → driver
 ```
 
 A protocol module never calls ViGEm, applies user curves, reads digital key state as
@@ -69,6 +71,14 @@ pending. Address wakes are a latency optimization, not the correctness carrier.
 Curve settings use the same publication principle: writers release-publish a
 generation after atomic field updates and thread-local curve caches
 acquire-observe the generation before rebuilding their snapshots.
+
+ViGEm client and target creation is a bounded startup responsibility. Once the
+output generation starts, only its dedicated worker may call runtime update,
+reconnect or destruction APIs. Realtime uses a try-only mailbox operation and
+never waits across driver I/O. Pending multi-pad masks merge, while all report
+payloads are refreshed from the newest complete snapshot. Output shutdown has a
+three-second join bound; incomplete completion retains its HANDLEs and driver
+ownership, blocks dependent backend teardown and requires process containment.
 
 The diagnostic writer follows the same rule. Start and shutdown are serialized
 around one generation. Shutdown first closes the producer gate, wakes the

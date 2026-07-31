@@ -341,6 +341,9 @@
     <ClInclude Include="realtime_loop.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="latest_value_mailbox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="vigem_output_scheduler.h">
       <Filter>Header Files</Filter>
     </ClInclude>

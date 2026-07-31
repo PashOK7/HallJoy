@@ -38,13 +38,14 @@ checks = {
         "SIMULATED / NOT HARDWARE" in backend and "hardware=0" in backend,
     "simulator uses the common ViGEm send path":
         "TraceSimulatorPipelineReport(report)" in common_backend and
-        "TraceAcceptedSimulatorVigemUpdate(report)" in common_backend and
-        "vigem_target_x360_update(g_client, pad, report)" in common_backend,
+        "TraceAcceptedSimulatorVigemUpdate(batch.reports[0])" in common_backend and
+        "vigem_target_x360_update(g_client, pad, batch.reports" in common_backend,
     "scenario covers disconnect, reconnect and fault":
         "Phase::Disconnected" in model and "Phase::Reconnected" in model and
         "Phase::SourceFault" in model,
     "scenario runner requires graceful shutdown and labels evidence":
-        "CloseMainWindow" in runner and "NOT hardware verification" in runner,
+        "HallJoySimulatorWindow]::PostClose" in runner and
+        "NOT hardware verification" in runner,
 }
 
 failed = []

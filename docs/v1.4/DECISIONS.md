@@ -129,3 +129,21 @@ not own the notification, and a worker restart never resets the sequence.
 Settings writers release-publish curve generations and cache readers
 acquire-observe them. ViGEm output ownership is deliberately unchanged here and
 is isolated separately in V14-08B.
+
+## D-014 - Runtime ViGEm calls have one isolated owner
+
+Date: 2026-07-31
+
+After initial client/target creation during backend startup, a dedicated output
+worker exclusively owns ViGEm update, reconnect and destruction calls. Realtime
+may only try-publish a complete newest-state report batch and signal the owner;
+it never waits for driver I/O.
+
+Coalescing preserves every pending virtual-pad bit but replaces report payloads
+with the newest complete snapshot. Emergency neutralization discards older
+queued reports and makes neutral the final driver write. Output shutdown has one
+three-second bound.
+If completion is not confirmed, thread/event and driver ownership are retained,
+dependent teardown is forbidden, restart is poisoned and the disposable process
+exits without normal CRT destruction. A simulator-only driver stall may verify
+this containment path but can never be activated in a production build.

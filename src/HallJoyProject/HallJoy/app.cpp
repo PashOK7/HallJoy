@@ -860,7 +860,7 @@ static void AppShutdownNoThrow(HWND hwnd) noexcept
         {
             g_immediateProcessExitRequired.store(true, std::memory_order_release);
             StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.poisoned",
-                L"component=backend analog_host_or_native_join_incomplete=1 dependent_cleanup_skipped=1");
+                L"component=backend dependency_join_incomplete=1 dependent_cleanup_skipped=1");
             DebugLog_Write(L"[app.shutdown] backend worker did not join; immediate process exit required");
             return;
         }

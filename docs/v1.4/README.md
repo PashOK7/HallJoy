@@ -9,11 +9,11 @@ version or release status.
 
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
-- Completed package: `V14-08A` startup transaction, durable wake and ordered
-  curve publication
+- Completed package: `V14-08` startup/wake correctness and isolated ViGEm
+  output ownership
 - Completed hotfix: `V14-06D.1` SparkLink shutdown/reconnect race, Verified
-- Current package: `V14-08` in progress
-- Next package: `V14-08B` ViGEm output isolation and stalled-driver containment
+- Current package: `V14-09` planned
+- Next package: `V14-09` transactional persistence and writable state migration
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -22,7 +22,8 @@ passes SparkLink capability, analog-row, held-key unplug/reconnect and balanced
 shutdown proof on usage page `FFB0`. The V14-06D.1 acceptance trace has three
 balanced worker generations, two successful reconnects, input before and after
 reconnect, and no reconnect after final service stop. Simulator evidence remains
-separate.
+separate. The V14-08B production smoke additionally proves that the Irok route,
+realtime loop and dedicated ViGEm output worker start and stop cleanly together.
 
 ## Authoritative documents
 

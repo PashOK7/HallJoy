@@ -262,6 +262,7 @@
     <ClInclude Include="native_analog_routing.h" />
     <ClInclude Include="addressed_poll_scheduler.h" />
     <ClInclude Include="realtime_loop.h" />
+    <ClInclude Include="latest_value_mailbox.h" />
     <ClInclude Include="vigem_output_scheduler.h" />
     <ClInclude Include="remap_abxy.h" />
     <ClInclude Include="remap_bumpers.h" />

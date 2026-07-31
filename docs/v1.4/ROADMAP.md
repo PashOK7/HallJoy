@@ -32,7 +32,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-05` | Truthful lifecycle registry and generation-scoped stop contract | Verified | Failure-injected start/stop/restart tests; timeout/fault poisons the generation and blocks restart |
 | `V14-06` | Cooperative lifecycle migration for realtime, logging and native protocol workers | Verified locally | Per-worker tests, no ordinary `TerminateThread`, plus unchanged protocol and mapping characterization |
 | `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Verified | Partial-start, crash, hang, C ABI, null/state, unload and bounded restart gates passed |
-| `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | In progress | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
+| `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Verified | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
 | `V14-09` | Transactional persistence and writable state migration | Planned | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
 | `V14-10` | IPC and overlay security/correctness | Planned | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
 | `V14-11` | UAP pacing, identity, modularization and measured performance | Planned | CPU/USB/latency comparison with no unsupported sampling regression |
@@ -239,9 +239,9 @@ Progress:
 The Irok MG75 Max proved native SparkLink identification, successful vendor
 polling and analog-row changes. `V14-06D.1` now suppresses the shutdown-time
 reconnect and passed its held-key unplug/reconnect and balanced-shutdown hardware
-gate. `HJ-V14-P1-004` and V14-07 are Verified; V14-08 is the next package.
+gate. `HJ-V14-P1-004`, V14-07 and V14-08 are Verified; V14-09 is next.
 
-## In-progress package: V14-08
+## Completed package: V14-08
 
 Split the package at the ownership boundary so startup/wake publication changes
 do not obscure the later ViGEm worker transition.
@@ -264,11 +264,25 @@ Progress:
 - Portable concurrency tests, static audit, two startup fault injections, the
   normal simulator, the official production build and an Irok MG75 Max startup/
   shutdown smoke all pass.
-- `V14-08B` remains Planned: move synchronous ViGEm submission out of the
-  realtime worker and prove report equivalence plus bounded behavior under a
-  stalled driver. `HJ-AUD-P1-010` remains Open until that gate passes.
+- `V14-08B` ViGEm output isolation: Verified locally. Realtime now publishes
+  complete newest-state report batches through a non-blocking latest-value
+  mailbox. A dedicated output worker exclusively owns runtime driver updates,
+  reconnect and teardown after initial startup creation.
+- Pending multi-pad masks are merged while every report payload is refreshed
+  from the newest complete snapshot. Portable equivalence tests cover coalesced
+  pads and reject stale intermediate payloads.
+- Output stop has one three-second bound. If a driver call does not return,
+  handles and driver ownership remain retained, dependent backend cleanup is
+  skipped, and final shutdown selects process containment instead of destroying
+  state beneath the live worker.
+- The simulator-only 60-second driver stall left realtime responsive through
+  the complete input scenario and produced the expected bounded timeout/exit 2.
+  Normal simulation, the official production build and an Irok MG75 Max
+  startup/shutdown smoke all pass with balanced output-worker ownership.
+- `HJ-AUD-P1-010` is Verified.
 
-V14-08 is not complete until V14-08B is Verified.
+V14-08 is complete. The next implementation package is V14-09 transactional
+persistence and writable state migration.
 
 ## Release definition
 

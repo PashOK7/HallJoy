@@ -70,7 +70,7 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P1-007` | P1 | Partial-start cleanup analog host может unmap'нуть память под живым bridge thread | `S09` | Verified | injected supervisor-start failure joined bridge before IPC rollback in V14-07A |
 | `HJ-AUD-P1-008` | P1 | Потеря device-change wakeup из-за manual-reset `ResetEvent` после ожидания | `S11` | Verified | durable monotonic wake sequence, notify/wait race tests and production Irok smoke passed in V14-08A |
 | `HJ-AUD-P1-009` | P1 | Initial startup игнорирует отказ realtime и зависимых native phases | `S11` | Verified | explicit commit, reverse rollback and realtime/native-phase fault injections passed in V14-08A |
-| `HJ-AUD-P1-010` | P1 | Синхронный ViGEm update находится внутри realtime worker | `S12` | Open | report equivalence + driver stall tests |
+| `HJ-AUD-P1-010` | P1 | Синхронный ViGEm update находится внутри realtime worker | `S12` | Verified | dedicated output owner, latest-state/multi-pad equivalence and bounded 60-second driver-stall containment passed in V14-08B |
 | `HJ-AUD-P1-011` | P1 | Mouse IPC неверно определяет, создано ли новое mapping | `S15` | Open | IPC ACL/creation/memory-order tests |
 | `HJ-AUD-P1-012` | P1 | Named IPC analog host допускает precreation/spoofing в той же сессии пользователя | `S15` | Open | IPC ACL/creation/memory-order tests |
 | `HJ-AUD-P1-013` | P1 | Встроенный dependency installer имеет TOCTOU и неполную проверку цепочки поставки | `S18` | Open | installer hash/TOCTOU/UI-thread tests |
@@ -238,8 +238,27 @@ Portable race/publication tests, static audit, simulator-only realtime-start и
 native-phase failure injections, normal common-pipeline simulator, официальный
 production build и шестисекундный Irok MG75 Max smoke прошли. Это переводит
 `HJ-AUD-P1-008`, `HJ-AUD-P1-009` и `HJ-AUD-P2-019` в `Verified`.
-Синхронный ViGEm update не изменён и остаётся открытым `HJ-AUD-P1-010` для
-V14-08B.
+Синхронный ViGEm update был вынесен отдельно в V14-08B.
+
+## Evidence package S12 / V14-08B
+
+После начального подключения на startup-потоке runtime-владение ViGEm
+передано отдельному output worker:
+
+- realtime выполняет только неблокирующую публикацию полного newest-state
+  batch; вызов драйвера, reconnect и destroy находятся вне `Backend_Tick`;
+- при coalescing маски ожидающих virtual pads объединяются, а payload всех
+  reports обновляется из самого нового полного snapshot;
+- остановка worker ограничена тремя секундами. Неподтверждённый join сохраняет
+  HANDLE и driver state, запрещает dependent teardown и выбирает process
+  containment;
+- simulator-only блокировка driver update на 60 секунд доказала, что realtime
+  продолжает весь семисекундный сценарий и останавливается штатно до output
+  timeout; production не содержит пути активации этой инъекции;
+- normal simulator, полный native/portable gate, production build и Irok MG75
+  Max smoke с чистым shutdown прошли.
+
+`HJ-AUD-P1-010` переведён в `Verified`.
 
 ## Правило закрытия
 
@@ -247,10 +266,10 @@ V14-08B.
 
 ## Сводка
 
-- P1: 7 open, 1 implemented, 1 partial, 7 verified.
+- P1: 6 open, 1 implemented, 1 partial, 8 verified.
 - P2: 17 open, 4 verified.
 - P3: 6 open, 2 verified.
-- Всего: 30 open, 1 implemented, 1 partial, 13 verified.
+- Всего: 29 open, 1 implemented, 1 partial, 14 verified.
 
 ## Дополнительный риск, обнаруженный при Windows gate S02A
 

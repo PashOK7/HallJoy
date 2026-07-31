@@ -15,6 +15,7 @@
 #include <cstring>
 #include <cstdint>
 #include <cstdlib>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -39,7 +40,10 @@
 #include "hex80_backend.h"
 #include "native_analog_routing.h"
 #include "native_analog_backend_registry.h"
+#include "latest_value_mailbox.h"
 #include "vigem_output_scheduler.h"
+#include "worker_exception_barrier.h"
+#include "worker_join_policy.h"
 #if defined(HALLJOY_ANALOG_SIMULATOR)
 #include "analog_simulator_backend.h"
 #endif
@@ -59,6 +63,29 @@ static std::array<XUSB_REPORT, kMaxVirtualPads> g_lastSentReports{};
 static std::array<LONGLONG, kMaxVirtualPads> g_lastSentQpc{};
 static std::array<uint8_t, kMaxVirtualPads> g_lastSentValid{};
 static std::array<VigemOutputScheduler, kMaxVirtualPads> g_outputSchedulers{};
+
+struct VigemOutputBatch
+{
+    uint8_t count = 0;
+    uint8_t validMask = 0;
+    std::array<XUSB_REPORT, kMaxVirtualPads> reports{};
+};
+
+static halljoy::output::LatestValueMailbox<VigemOutputBatch> g_vigemOutputMailbox;
+static std::mutex g_vigemOutputLifecycleMutex;
+static halljoy::lifecycle::WorkerLifecycle g_vigemOutputLifecycle;
+static HANDLE g_vigemOutputThread = nullptr;
+static HANDLE g_vigemOutputWakeEvent = nullptr;
+static std::atomic<bool> g_vigemOutputRun{ false };
+static std::atomic<bool> g_vigemOutputThreadAlive{ false };
+static std::atomic<bool> g_vigemEmergencyNeutralRequested{ false };
+static std::atomic<bool> g_vigemResubmitRequested{ false };
+static std::atomic<halljoy::worker::WorkerExceptionKind> g_vigemOutputFaultKind{
+    halljoy::worker::WorkerExceptionKind::None };
+static halljoy::worker::WorkerExceptionRecord g_vigemOutputFaultRecord{};
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+static std::atomic<bool> g_vigemTestStallInjected{ false };
+#endif
 
 // Thread-safe last-report snapshot (writer: realtime thread, reader: UI thread).
 // The realtime writer uses a non-blocking try-lock. If the UI is preempted while
@@ -1101,7 +1128,7 @@ static void LogWootingStateSnapshot(const wchar_t* stage)
 
 static float Clamp01(float v) { return std::clamp(v, 0.0f, 1.0f); }
 
-static void Vigem_Destroy()
+static void Vigem_Destroy() noexcept
 {
     if (g_client)
     {
@@ -1109,9 +1136,9 @@ static void Vigem_Destroy()
         {
             if (g_pads[(size_t)i])
             {
-                DebugLog_SetCheckpoint(L"realtime: ViGEm target remove pad=%d", i);
+                DebugLog_SetCheckpoint(L"vigem-owner: target remove pad=%d", i);
                 vigem_target_remove(g_client, g_pads[(size_t)i]);
-                DebugLog_SetCheckpoint(L"realtime: ViGEm target free pad=%d", i);
+                DebugLog_SetCheckpoint(L"vigem-owner: target free pad=%d", i);
                 vigem_target_free(g_pads[(size_t)i]);
                 g_pads[(size_t)i] = nullptr;
             }
@@ -1119,17 +1146,11 @@ static void Vigem_Destroy()
     }
 
     g_connectedPadCount = 0;
-    for (int i = 0; i < kMaxVirtualPads; ++i)
-    {
-        g_lastSentValid[(size_t)i] = 0;
-        g_outputSchedulers[(size_t)i].Reset();
-    }
-
     if (g_client)
     {
-        DebugLog_SetCheckpoint(L"realtime: ViGEm disconnect");
+        DebugLog_SetCheckpoint(L"vigem-owner: disconnect");
         vigem_disconnect(g_client);
-        DebugLog_SetCheckpoint(L"realtime: ViGEm client free");
+        DebugLog_SetCheckpoint(L"vigem-owner: client free");
         vigem_free(g_client);
         g_client = nullptr;
     }
@@ -1139,17 +1160,17 @@ static bool Vigem_Create(int padCount, VIGEM_ERROR* outErr)
 {
     padCount = std::clamp(padCount, 1, kMaxVirtualPads);
     if (outErr) *outErr = VIGEM_ERROR_NONE;
-    DebugLog_SetCheckpoint(L"realtime: ViGEm alloc");
+    DebugLog_SetCheckpoint(L"vigem-owner: alloc");
     g_client = vigem_alloc();
     if (!g_client) { if (outErr) *outErr = VIGEM_ERROR_BUS_NOT_FOUND; return false; }
-    DebugLog_SetCheckpoint(L"realtime: ViGEm connect");
+    DebugLog_SetCheckpoint(L"vigem-owner: connect");
     VIGEM_ERROR err = vigem_connect(g_client);
     if (!VIGEM_SUCCESS(err)) { if (outErr) *outErr = err; vigem_free(g_client); g_client = nullptr; return false; }
 
     g_connectedPadCount = 0;
     for (int i = 0; i < padCount; ++i)
     {
-        DebugLog_SetCheckpoint(L"realtime: ViGEm target alloc pad=%d", i);
+        DebugLog_SetCheckpoint(L"vigem-owner: target alloc pad=%d", i);
         PVIGEM_TARGET pad = vigem_target_x360_alloc();
         if (!pad)
         {
@@ -1158,7 +1179,7 @@ static bool Vigem_Create(int padCount, VIGEM_ERROR* outErr)
             return false;
         }
 
-        DebugLog_SetCheckpoint(L"realtime: ViGEm target add pad=%d", i);
+        DebugLog_SetCheckpoint(L"vigem-owner: target add pad=%d", i);
         err = vigem_target_add(g_client, pad);
         if (!VIGEM_SUCCESS(err))
         {
@@ -1202,7 +1223,302 @@ static bool Vigem_ReconnectThrottled(bool force = false)
     g_vigemLastErr.store(ok ? VIGEM_ERROR_NONE : err, std::memory_order_release);
     StabilityTrace_Write(ok ? L"INFO" : L"ERROR", L"vigem", L"reconnect",
         L"ok=%d pads=%d error=%d forced=%d", ok ? 1 : 0, wantedPads, (int)err, force ? 1 : 0);
+    if (ok)
+    {
+        g_vigemResubmitRequested.store(true, std::memory_order_release);
+        RealtimeLoop_NotifyInputChanged();
+    }
     return ok;
+}
+
+static void VigemOutput_Wake() noexcept
+{
+    HANDLE wakeEvent = g_vigemOutputWakeEvent;
+    if (wakeEvent)
+        SetEvent(wakeEvent);
+}
+
+static bool VigemOutput_SendBatch(const VigemOutputBatch& batch)
+{
+    if (!g_client || g_connectedPadCount <= 0)
+    {
+        g_vigemOk.store(false, std::memory_order_release);
+        g_vigemLastErr.store(VIGEM_ERROR_BUS_NOT_FOUND, std::memory_order_release);
+        g_vigemResubmitRequested.store(true, std::memory_order_release);
+        RealtimeLoop_NotifyInputChanged();
+        return false;
+    }
+
+    VIGEM_ERROR error = VIGEM_ERROR_NONE;
+    bool allOk = true;
+    const int count = std::min<int>(batch.count, g_connectedPadCount);
+    for (int i = 0; i < count; ++i)
+    {
+        if ((batch.validMask & (1u << i)) == 0)
+            continue;
+        PVIGEM_TARGET pad = g_pads[static_cast<size_t>(i)];
+        if (!pad)
+            continue;
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        const wchar_t* commandLine = GetCommandLineW();
+        if (commandLine && wcsstr(commandLine, L"--halljoy-test-vigem-update-stall") &&
+            !g_vigemTestStallInjected.exchange(true, std::memory_order_acq_rel))
+        {
+            StabilityTrace_Write(L"WARN", L"vigem-output", L"test.update_stall.injected",
+                L"simulator_only=1 pad=%d sleep_ms=60000", i);
+            Sleep(60000);
+        }
+#endif
+
+        DebugLog_SetCheckpoint(L"vigem-output: update pad=%d", i);
+        error = vigem_target_x360_update(g_client, pad, batch.reports[static_cast<size_t>(i)]);
+        DebugLog_SetCheckpoint(L"vigem-output: update returned pad=%d", i);
+        if (!VIGEM_SUCCESS(error))
+        {
+            allOk = false;
+            break;
+        }
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        if (i == 0)
+            TraceAcceptedSimulatorVigemUpdate(batch.reports[0]);
+#endif
+    }
+
+    if (!allOk)
+    {
+        ++g_vigemUpdateFailStreak;
+        if (g_vigemUpdateFailStreak == 1)
+        {
+            StabilityTrace_Write(L"WARN", L"vigem", L"update.failed",
+                L"error=%d streak=1 owner=output-worker", static_cast<int>(error));
+        }
+        g_vigemOk.store(false, std::memory_order_release);
+        g_vigemLastErr.store(error, std::memory_order_release);
+        g_vigemResubmitRequested.store(true, std::memory_order_release);
+        RealtimeLoop_NotifyInputChanged();
+        if (g_vigemUpdateFailStreak >= 3)
+        {
+            g_vigemUpdateFailStreak = 0;
+            (void)Vigem_ReconnectThrottled();
+        }
+        return false;
+    }
+
+    g_vigemUpdateFailStreak = 0;
+    g_vigemOk.store(true, std::memory_order_release);
+    g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
+    return true;
+}
+
+static DWORD VigemOutputThreadBody()
+{
+    uint64_t consumedGeneration = g_vigemOutputMailbox.PublishedGeneration();
+    while (g_vigemOutputRun.load(std::memory_order_acquire))
+    {
+        bool didWork = false;
+        const bool forceReconnect = g_reconnectRequested.exchange(false, std::memory_order_acq_rel);
+        const bool deviceReconnect = !forceReconnect &&
+            g_deviceChangeReconnectRequested.exchange(false, std::memory_order_acq_rel);
+        const bool emergencyNeutral =
+            g_vigemEmergencyNeutralRequested.exchange(false, std::memory_order_acq_rel);
+        const bool enabled = g_virtualPadsEnabled.load(std::memory_order_acquire);
+        const int wantedPads = std::clamp(
+            g_virtualPadCount.load(std::memory_order_acquire), 1, kMaxVirtualPads);
+
+        if (forceReconnect || deviceReconnect ||
+            (enabled && (!g_client || g_connectedPadCount != wantedPads)))
+        {
+            if (forceReconnect)
+                g_deviceChangeReconnectRequested.store(false, std::memory_order_release);
+            (void)Vigem_ReconnectThrottled(forceReconnect);
+            didWork = true;
+        }
+        else if (!enabled && (g_client || g_connectedPadCount > 0))
+        {
+            Vigem_Destroy();
+            g_vigemOk.store(true, std::memory_order_release);
+            g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
+            didWork = true;
+        }
+
+        for (;;)
+        {
+            VigemOutputBatch batch{};
+            uint64_t generation = consumedGeneration;
+            const auto read = g_vigemOutputMailbox.TryReadAfter(
+                consumedGeneration, &batch, &generation);
+            if (read == halljoy::output::LatestValueMailbox<VigemOutputBatch>::ReadResult::Busy)
+            {
+                SwitchToThread();
+                continue;
+            }
+            if (read == halljoy::output::LatestValueMailbox<VigemOutputBatch>::ReadResult::Unchanged)
+                break;
+            consumedGeneration = generation;
+            // A realtime fault invalidates every previously queued report. Drain
+            // those generations without submitting them; neutral must be the
+            // final driver write, never followed by stale pre-fault input.
+            if (enabled && !emergencyNeutral)
+                (void)VigemOutput_SendBatch(batch);
+            didWork = true;
+        }
+
+        if (emergencyNeutral)
+        {
+            VigemOutputBatch neutral{};
+            neutral.count = static_cast<uint8_t>(std::clamp(g_connectedPadCount, 0, kMaxVirtualPads));
+            neutral.validMask = neutral.count == 0
+                ? 0
+                : static_cast<uint8_t>((1u << neutral.count) - 1u);
+            (void)VigemOutput_SendBatch(neutral);
+            didWork = true;
+        }
+
+        if (!didWork)
+            WaitForSingleObject(g_vigemOutputWakeEvent, 100);
+    }
+    return 0;
+}
+
+static void VigemOutputThreadOnFault(
+    const halljoy::worker::WorkerExceptionRecord& record) noexcept
+{
+    g_vigemOutputFaultRecord = record;
+    g_vigemOutputFaultKind.store(record.kind, std::memory_order_release);
+    g_vigemOutputRun.store(false, std::memory_order_release);
+    g_vigemOk.store(false, std::memory_order_release);
+    StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"worker.fault",
+        L"kind=%u restart_blocked=1", static_cast<unsigned>(record.kind));
+}
+
+static void VigemOutputThreadOnCompletion(
+    const halljoy::worker::WorkerExceptionRecord& record) noexcept
+{
+    g_vigemOutputThreadAlive.store(false, std::memory_order_release);
+    StabilityTrace_Write(record.kind == halljoy::worker::WorkerExceptionKind::None ? L"INFO" : L"ERROR",
+        L"vigem-output", L"worker.exit", L"fault_kind=%u", static_cast<unsigned>(record.kind));
+}
+
+static DWORD WINAPI VigemOutputThreadProc(LPVOID) noexcept
+{
+    g_vigemOutputThreadAlive.store(true, std::memory_order_release);
+    StabilityTrace_Write(L"INFO", L"vigem-output", L"worker.start");
+    const DWORD result = static_cast<DWORD>(halljoy::worker::RunWorkerEntryBarrier(
+        [] { return VigemOutputThreadBody(); },
+        VigemOutputThreadOnFault,
+        [](const halljoy::worker::WorkerExceptionRecord&) noexcept {},
+        0xE0564947u));
+    Vigem_Destroy();
+    VigemOutputThreadOnCompletion(g_vigemOutputFaultRecord);
+    return result;
+}
+
+static bool VigemOutput_Start()
+{
+    std::lock_guard<std::mutex> lock(g_vigemOutputLifecycleMutex);
+    if (g_vigemOutputLifecycle.State() == halljoy::lifecycle::WorkerState::Running)
+    {
+        return g_vigemOutputThreadAlive.load(std::memory_order_acquire) &&
+            g_vigemOutputFaultKind.load(std::memory_order_acquire) ==
+                halljoy::worker::WorkerExceptionKind::None;
+    }
+
+    const auto start = g_vigemOutputLifecycle.BeginStart();
+    if (start.status != halljoy::lifecycle::StartStatus::Starting)
+        return false;
+
+    g_vigemOutputWakeEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    if (!g_vigemOutputWakeEvent)
+    {
+        (void)g_vigemOutputLifecycle.FailStartBeforeWorker(start.generation, GetLastError());
+        return false;
+    }
+
+    g_vigemOutputFaultRecord = {};
+    g_vigemOutputFaultKind.store(halljoy::worker::WorkerExceptionKind::None, std::memory_order_release);
+    g_vigemEmergencyNeutralRequested.store(false, std::memory_order_release);
+    g_vigemResubmitRequested.store(false, std::memory_order_release);
+    g_vigemOutputMailbox.DiscardPending();
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    g_vigemTestStallInjected.store(false, std::memory_order_release);
+#endif
+    g_vigemOutputRun.store(true, std::memory_order_release);
+    g_vigemOutputThread = CreateThread(nullptr, 0, VigemOutputThreadProc, nullptr, 0, nullptr);
+    if (!g_vigemOutputThread)
+    {
+        const DWORD error = GetLastError();
+        g_vigemOutputRun.store(false, std::memory_order_release);
+        CloseHandle(g_vigemOutputWakeEvent);
+        g_vigemOutputWakeEvent = nullptr;
+        (void)g_vigemOutputLifecycle.FailStartBeforeWorker(start.generation, error);
+        return false;
+    }
+
+    const auto running = g_vigemOutputLifecycle.ConfirmRunning(start.generation);
+    if (!running.IsRunning())
+        return false;
+    StabilityTrace_Write(L"INFO", L"vigem-output", L"start.ok",
+        L"generation=%llu", static_cast<unsigned long long>(start.generation.Value()));
+    return true;
+}
+
+static halljoy::lifecycle::StopResult VigemOutput_Stop()
+{
+    std::lock_guard<std::mutex> lock(g_vigemOutputLifecycleMutex);
+    const auto state = g_vigemOutputLifecycle.State();
+    if (state == halljoy::lifecycle::WorkerState::Stopped ||
+        state == halljoy::lifecycle::WorkerState::Joined)
+        return g_vigemOutputLifecycle.RequestStop();
+    if (state == halljoy::lifecycle::WorkerState::Poisoned)
+        return g_vigemOutputLifecycle.RequestStop(g_vigemOutputLifecycle.Generation());
+
+    const auto requested = g_vigemOutputLifecycle.RequestStop(g_vigemOutputLifecycle.Generation());
+    if (requested.status != halljoy::lifecycle::StopStatus::StopRequested)
+        return requested;
+    if (!g_vigemOutputThread)
+    {
+        return g_vigemOutputLifecycle.MarkPoisoned(requested.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            halljoy::lifecycle::LifecycleErrorCode::PrimitiveFailed,
+            ERROR_INVALID_HANDLE);
+    }
+
+    StabilityTrace_Write(L"INFO", L"vigem-output", L"stop.begin",
+        L"generation=%llu", static_cast<unsigned long long>(requested.generation.Value()));
+    g_vigemOutputRun.store(false, std::memory_order_release);
+    VigemOutput_Wake();
+    const DWORD waitResult = WaitForSingleObject(g_vigemOutputThread, 3000);
+    const DWORD waitError = waitResult == WAIT_OBJECT_0
+        ? ERROR_SUCCESS
+        : (waitResult == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT);
+    const auto observed = halljoy::lifecycle::ObserveWorkerJoin(
+        requested.generation,
+        waitResult == WAIT_OBJECT_0
+            ? halljoy::lifecycle::JoinWaitStatus::Joined
+            : (waitResult == WAIT_FAILED
+                ? halljoy::lifecycle::JoinWaitStatus::Failed
+                : halljoy::lifecycle::JoinWaitStatus::TimedOut),
+        waitError);
+    if (!observed.Completed())
+    {
+        StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"stop.timeout",
+            L"generation=%llu wait=%lu win32=%lu handles_retained=1 restart_blocked=1",
+            static_cast<unsigned long long>(requested.generation.Value()), waitResult, waitError);
+        return g_vigemOutputLifecycle.MarkPoisoned(requested.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            observed.error.code, observed.error.native_error);
+    }
+
+    CloseHandle(g_vigemOutputThread);
+    g_vigemOutputThread = nullptr;
+    CloseHandle(g_vigemOutputWakeEvent);
+    g_vigemOutputWakeEvent = nullptr;
+    g_vigemOutputThreadAlive.store(false, std::memory_order_release);
+    const auto joined = g_vigemOutputLifecycle.ConfirmJoined(requested.generation);
+    StabilityTrace_Write(L"INFO", L"vigem-output", L"stop.end",
+        L"generation=%llu", static_cast<unsigned long long>(requested.generation.Value()));
+    return joined;
 }
 
 // Cache: for HID <= 255 read once per tick
@@ -2376,7 +2692,8 @@ static void BackendLatencyTraceMaybeLog(LONGLONG nowQpc)
         return;
 
     const double windowSeconds = static_cast<double>(windowUs) / 1000000.0;
-    const int padsToLog = std::max(1, std::clamp(g_connectedPadCount, 0, kMaxVirtualPads));
+    const int padsToLog = std::max(1, std::clamp(
+        g_virtualPadCount.load(std::memory_order_acquire), 0, kMaxVirtualPads));
     for (int i = 0; i < padsToLog; ++i)
     {
         auto& p = g_backendTracePads[static_cast<size_t>(i)];
@@ -2456,6 +2773,14 @@ bool Backend_Init()
 {
     StabilityTrace_Write(L"INFO", L"backend", L"init.begin");
     DebugLog_Write(L"[backend.init] begin");
+    const auto previousOutput = VigemOutput_Stop();
+    if (!previousOutput.RestartSafe())
+    {
+        g_lastInitIssues.store(BackendInitIssue_Unknown, std::memory_order_release);
+        StabilityTrace_WriteCritical(L"ERROR", L"backend", L"init.failed",
+            L"stage=previous_vigem_output_stop");
+        return false;
+    }
     ResetPersistentFilteredCache();
     g_wootingSdkFaulted.store(false, std::memory_order_release);
     g_wootingOptionalFaultCount.store(0, std::memory_order_relaxed);
@@ -2618,6 +2943,12 @@ bool Backend_Init()
         g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
     }
 
+    if (initIssues == BackendInitIssue_None && !VigemOutput_Start())
+    {
+        initIssues |= BackendInitIssue_Unknown;
+        StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"start.failed");
+    }
+
     if (initIssues != BackendInitIssue_None)
     {
         StabilityTrace_WriteCritical(L"ERROR", L"backend", L"init.failed",
@@ -2628,7 +2959,12 @@ bool Backend_Init()
         Spark_ResetKeyState();
         Sayo_ResetKeyState();
         g_wootingReady.store(false, std::memory_order_release);
-        Vigem_Destroy();
+        const auto outputStopped = VigemOutput_Stop();
+        if (outputStopped.RestartSafe())
+            Vigem_Destroy();
+        else
+            StabilityTrace_WriteCritical(L"ERROR", L"backend", L"init.rollback_incomplete",
+                L"component=vigem-output dependent_cleanup_skipped=1");
         const WootingAnalogResult analogStop = wooting_analog_uninitialise();
         if (analogStop != WootingAnalogResult_Ok)
         {
@@ -2661,6 +2997,13 @@ bool Backend_Shutdown()
 {
     StabilityTrace_Write(L"INFO", L"backend", L"shutdown.begin");
     DebugLog_Write(L"[backend] shutdown");
+    const auto outputStopped = VigemOutput_Stop();
+    if (!outputStopped.RestartSafe())
+    {
+        StabilityTrace_WriteCritical(L"ERROR", L"backend", L"shutdown.blocked",
+            L"component=vigem-output dependent_cleanup_skipped=1");
+        return false;
+    }
     BackendLatencyTraceFlushDetailedSamples();
     g_wootingReady.store(false, std::memory_order_release);
     g_knownDeviceCount.store(0, std::memory_order_relaxed);
@@ -2697,16 +3040,13 @@ bool Backend_Shutdown()
     Spark_ResetKeyState();
     Sayo_ResetKeyState();
     DebugLog_Write(L"[backend.shutdown] pre-UAP native stop joined=%d", nativeStopped ? 1 : 0);
-    DebugLog_Write(L"[backend.shutdown] Vigem_Destroy begin");
-    Vigem_Destroy();
-    DebugLog_Write(L"[backend.shutdown] Vigem_Destroy done");
     DebugLog_Write(L"[backend.shutdown] analog host stop begin");
     const WootingAnalogResult analogStop = wooting_analog_uninitialise();
     const bool analogHostStopped = analogStop == WootingAnalogResult_Ok;
     DebugLog_Write(L"[backend.shutdown] analog host stop done joined=%d result=%d",
         analogHostStopped ? 1 : 0, static_cast<int>(analogStop));
     StabilityTrace_Write(nativeStopped && analogHostStopped ? L"INFO" : L"ERROR",
-        L"backend", L"shutdown.end", L"native_joined=%d analog_host_joined=%d",
+        L"backend", L"shutdown.end", L"native_joined=%d analog_host_joined=%d vigem_output_joined=1",
         nativeStopped ? 1 : 0, analogHostStopped ? 1 : 0);
     DebugLog_Write(L"[backend.shutdown] complete");
     return nativeStopped && analogHostStopped;
@@ -2737,8 +3077,6 @@ void Backend_ResetPublishedStateAfterRealtimeFault() noexcept
     g_mouseRawAccumDy.store(0, std::memory_order_release);
 
     const XUSB_REPORT neutral{};
-    VIGEM_ERROR neutral_error = VIGEM_ERROR_NONE;
-    bool neutral_ok = true;
     for (int i = 0; i < kMaxVirtualPads; ++i)
     {
         const size_t index = static_cast<size_t>(i);
@@ -2748,22 +3086,13 @@ void Backend_ResetPublishedStateAfterRealtimeFault() noexcept
         g_lastSentValid[index] = 0;
         g_outputSchedulers[index].Reset();
         PublishLastReport(i, neutral);
-
-        if (g_client && i < g_connectedPadCount && g_pads[index])
-        {
-            const VIGEM_ERROR err = vigem_target_x360_update(g_client, g_pads[index], neutral);
-            if (!VIGEM_SUCCESS(err))
-            {
-                neutral_ok = false;
-                neutral_error = err;
-            }
-        }
     }
 
-    g_vigemUpdateFailStreak = 0;
+    // The faulting realtime worker must never enter the driver. The independent
+    // output owner observes this request and submits neutral state if possible.
+    g_vigemEmergencyNeutralRequested.store(true, std::memory_order_release);
+    VigemOutput_Wake();
     g_vigemOk.store(false, std::memory_order_release);
-    if (!neutral_ok)
-        g_vigemLastErr.store(neutral_error, std::memory_order_release);
 }
 
 void Backend_Tick()
@@ -2805,18 +3134,6 @@ void Backend_Tick()
     }
     SparkTickHotplug(nowMs);
     SayoTickHotplug(nowMs);
-
-    if (g_reconnectRequested.exchange(false, std::memory_order_acq_rel))
-    {
-        DebugLog_Write(L"[backend.tick] reconnect requested (force)");
-        g_deviceChangeReconnectRequested.store(false, std::memory_order_release);
-        Vigem_ReconnectThrottled(true);
-    }
-    else if (g_deviceChangeReconnectRequested.exchange(false, std::memory_order_acq_rel))
-    {
-        DebugLog_Write(L"[backend.tick] reconnect requested (device change)");
-        Vigem_ReconnectThrottled(false);
-    }
 
     HidCache cache;
     cache.sparkConnected = g_sparkConnected.load(std::memory_order_acquire);
@@ -3114,163 +3431,132 @@ void Backend_Tick()
                 mad68Batch.latestA0ReceivedQpc, mad68ReportReadyQpc));
     }
 
-    if (g_virtualPadsEnabled.load(std::memory_order_acquire))
+    if (g_vigemResubmitRequested.exchange(false, std::memory_order_acq_rel))
     {
-        if (g_client && g_connectedPadCount > 0) {
-            VIGEM_ERROR err = VIGEM_ERROR_NONE;
-            bool allOk = true;
-            const LONGLONG nowQpc = BackendQpcNow();
-            for (int i = 0; i < g_connectedPadCount; ++i)
-            {
-                PVIGEM_TARGET pad = g_pads[(size_t)i];
-                if (!pad) continue;
-
-                int idx = std::clamp(i, 0, kMaxVirtualPads - 1);
-                const XUSB_REPORT& report = g_reports[(size_t)idx];
-
-                bool valid = g_lastSentValid[(size_t)idx] != 0;
-                bool changed = !valid || IsReportDifferent(report, g_lastSentReports[(size_t)idx]);
-                BackendTracePadWindow* tracePad = latencyTrace ? &g_backendTracePads[(size_t)idx] : nullptr;
-                if (tracePad)
-                {
-                    ++tracePad->decisions;
-                    if (changed) ++tracePad->changedCandidates;
-                    else ++tracePad->unchangedCandidates;
-                }
-
-                auto& outputScheduler = g_outputSchedulers[(size_t)idx];
-                const auto outputDecision = outputScheduler.Evaluate(
-                    changed, static_cast<uint64_t>(nowQpc));
-
-                if (!changed)
-                {
-                    // ViGEm retains the last XUSB state until a new report or
-                    // target removal. Periodic duplicate keepalives add no
-                    // information and could consume the 1 ms output window just
-                    // before real input, so unchanged reports are never sent.
-                    if (tracePad) ++tracePad->unchangedSkipped;
-                    continue;
-                }
-                if (changed && outputDecision == VigemOutputScheduler::Decision::DeferUntilDeadline)
-                {
-                    // All analogue backends share the same scheduler. The first
-                    // change after an idle period is immediate; additional
-                    // changes inside the 1 ms ViGEm window are coalesced into
-                    // the newest report and a precise realtime deadline is
-                    // armed. The report is therefore never left waiting for a
-                    // user-configured heartbeat or another input packet.
-                    if (tracePad) ++tracePad->rateLimited;
-                    if (mad68BatchPresent) mad68RateLimited = true;
-                    continue;
-                }
-
-                const LONGLONG sendStartQpc = latencyTrace ? BackendQpcNow() : nowQpc;
-                const uint64_t preciseIntervalUs = valid
-                    ? BackendQpcElapsedUs(g_lastSentQpc[(size_t)idx], sendStartQpc)
-                    : 0;
-                const uint64_t inputSequence = latencyTrace ? RealtimeLoop_GetInputNotifySequence() : 0;
-                const LONGLONG inputNotifyQpc = latencyTrace ? RealtimeLoop_GetLastInputNotifyQpc() : 0;
-                uint64_t signalToSendUs = 0;
-                if (latencyTrace && changed && inputSequence != g_backendTraceLastInputSequence[(size_t)idx] && inputNotifyQpc > 0)
-                    signalToSendUs = BackendQpcElapsedUs(inputNotifyQpc, sendStartQpc);
-
-                DebugLog_SetCheckpoint(L"realtime: ViGEm update pad=%d", i);
-                err = vigem_target_x360_update(g_client, pad, report);
-                const LONGLONG sendEndQpc = latencyTrace ? BackendQpcNow() : sendStartQpc;
-                DebugLog_SetCheckpoint(L"realtime: Backend_Tick after ViGEm update");
-                if (!VIGEM_SUCCESS(err))
-                {
-                    if (tracePad) ++tracePad->failures;
-                    allOk = false;
-                    break;
-                }
-#if defined(HALLJOY_ANALOG_SIMULATOR)
-                if (idx == 0)
-                    TraceAcceptedSimulatorVigemUpdate(report);
-#endif
-
-                if (latencyTrace && mad68BatchPresent && changed && !mad68SendRecorded)
-                {
-                    auto& madTrace = g_mad68PipelineTrace;
-                    ++madTrace.changedSends;
-                    if (mad68ReportReadyQpc > 0)
-                        madTrace.reportReadyToSendUs.Add(BackendQpcElapsedUs(
-                            mad68ReportReadyQpc, sendStartQpc));
-                    madTrace.vigemCallUs.Add(BackendQpcElapsedUs(sendStartQpc, sendEndQpc));
-                    if (mad68Batch.latestA0ReceivedQpc > 0)
-                        madTrace.receiveToVigemEndUs.Add(BackendQpcElapsedUs(
-                            mad68Batch.latestA0ReceivedQpc, sendEndQpc));
-                    mad68SendRecorded = true;
-                }
-
-                if (tracePad)
-                {
-                    ++tracePad->sends;
-                    ++tracePad->changedSends;
-                    tracePad->vigemCallUs.Add(BackendQpcElapsedUs(sendStartQpc, sendEndQpc));
-                    if (valid)
-                    {
-                        tracePad->sendIntervalUs.Add(preciseIntervalUs);
-                        if (preciseIntervalUs < 4000) ++tracePad->intervalsBelow4ms;
-                        if (preciseIntervalUs < 2000) ++tracePad->intervalsBelow2ms;
-                    }
-                    if (signalToSendUs != 0)
-                        tracePad->signalToSendUs.Add(signalToSendUs);
-                    g_backendTraceLastInputSequence[(size_t)idx] = inputSequence;
-
-                    ++g_backendTraceSendSequence;
-                    if (changed && g_backendTraceDetailedCount < g_backendTraceDetailedSamples.size())
-                    {
-                        auto& sample = g_backendTraceDetailedSamples[g_backendTraceDetailedCount++];
-                        sample.sequence = g_backendTraceSendSequence;
-                        sample.pad = idx;
-                        sample.inputSequence = inputSequence;
-                        sample.intervalUs = preciseIntervalUs;
-                        sample.signalToSendUs = signalToSendUs;
-                        sample.vigemCallUs = BackendQpcElapsedUs(sendStartQpc, sendEndQpc);
-                        sample.report = report;
-                    }
-                }
-
-                g_lastSentReports[(size_t)idx] = report;
-                g_lastSentQpc[(size_t)idx] = sendStartQpc;
-                g_lastSentValid[(size_t)idx] = 1;
-                outputScheduler.MarkSent(static_cast<uint64_t>(sendStartQpc));
-            }
-
-            if (!allOk) {
-                DebugLog_Write(L"[backend.tick] vigem update failed err=%d streak=%d", (int)err, g_vigemUpdateFailStreak + 1);
-                if (g_vigemUpdateFailStreak == 0)
-                    StabilityTrace_Write(L"WARN", L"vigem", L"update.failed", L"error=%d streak=1", (int)err);
-                g_vigemOk.store(false, std::memory_order_release);
-                g_vigemLastErr.store(err, std::memory_order_release);
-                ++g_vigemUpdateFailStreak;
-                if (g_vigemUpdateFailStreak >= 3)
-                {
-                    g_vigemUpdateFailStreak = 0;
-                    Vigem_ReconnectThrottled();
-                }
-            }
-            else {
-                g_vigemUpdateFailStreak = 0;
-                g_vigemOk.store(true, std::memory_order_release);
-                g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
-            }
-        }
-        else {
-            DebugLog_Write(L"[backend.tick] no vigem client/targets, reconnect");
-            g_vigemUpdateFailStreak = 0;
-            g_vigemOk.store(false, std::memory_order_release);
-            g_vigemLastErr.store(VIGEM_ERROR_BUS_NOT_FOUND, std::memory_order_release);
-            Vigem_ReconnectThrottled();
+        for (int i = 0; i < kMaxVirtualPads; ++i)
+        {
+            g_lastSentValid[static_cast<size_t>(i)] = 0;
+            g_outputSchedulers[static_cast<size_t>(i)].Reset();
         }
     }
-    else {
-        g_vigemUpdateFailStreak = 0;
-        if (g_client || g_connectedPadCount > 0)
-            Vigem_Destroy();
-        g_vigemOk.store(true, std::memory_order_release);
-        g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
+
+    if (g_virtualPadsEnabled.load(std::memory_order_acquire))
+    {
+        VigemOutputBatch batch{};
+        batch.count = static_cast<uint8_t>(std::clamp(
+            g_virtualPadCount.load(std::memory_order_acquire), 1, kMaxVirtualPads));
+        const LONGLONG publishQpc = BackendQpcNow();
+        bool hasChangedCandidate = false;
+        for (int i = 0; i < batch.count; ++i)
+        {
+            const size_t index = static_cast<size_t>(i);
+            const XUSB_REPORT& report = g_reports[index];
+            batch.reports[index] = report;
+            const bool valid = g_lastSentValid[index] != 0;
+            const bool changed = !valid || IsReportDifferent(report, g_lastSentReports[index]);
+            hasChangedCandidate = hasChangedCandidate || changed;
+            BackendTracePadWindow* tracePad = latencyTrace ? &g_backendTracePads[index] : nullptr;
+            if (tracePad)
+            {
+                ++tracePad->decisions;
+                if (changed) ++tracePad->changedCandidates;
+                else ++tracePad->unchangedCandidates;
+            }
+
+            auto& scheduler = g_outputSchedulers[index];
+            // All analogue backends share the same scheduler. It governs
+            // realtime-to-mailbox publication; driver latency is isolated
+            // behind the output worker and cannot extend Backend_Tick.
+            const auto decision = scheduler.Evaluate(changed, static_cast<uint64_t>(publishQpc));
+            if (!changed)
+            {
+                // Periodic duplicate keepalives add no information. The output
+                // owner retains the last submitted XUSB state until a changed
+                // complete snapshot or target removal arrives.
+                if (tracePad) ++tracePad->unchangedSkipped;
+                continue;
+            }
+            if (decision == VigemOutputScheduler::Decision::DeferUntilDeadline)
+            {
+                if (tracePad) ++tracePad->rateLimited;
+                if (mad68BatchPresent) mad68RateLimited = true;
+                continue;
+            }
+
+            batch.validMask |= static_cast<uint8_t>(1u << i);
+        }
+
+        // Even when every changed pad is still rate-limited, refresh an
+        // already-pending batch with the newest complete snapshot. Its due-pad
+        // mask is preserved by the merge, so the output worker never emits an
+        // older intermediate state merely because it was queued first.
+        if (batch.validMask != 0 || hasChangedCandidate)
+        {
+            if (g_vigemOutputMailbox.TryPublishMerged(batch,
+                [](const VigemOutputBatch& pending, VigemOutputBatch& next) noexcept {
+                    const uint8_t validPads = next.count == 0
+                        ? 0
+                        : static_cast<uint8_t>((1u << next.count) - 1u);
+                    next.validMask = static_cast<uint8_t>(
+                        next.validMask | (pending.validMask & validPads));
+                }))
+            {
+                VigemOutput_Wake();
+                const uint64_t inputSequence = latencyTrace
+                    ? RealtimeLoop_GetInputNotifySequence()
+                    : 0;
+                const LONGLONG inputNotifyQpc = latencyTrace
+                    ? RealtimeLoop_GetLastInputNotifyQpc()
+                    : 0;
+                for (int i = 0; i < batch.count; ++i)
+                {
+                    if ((batch.validMask & (1u << i)) == 0)
+                        continue;
+                    const size_t index = static_cast<size_t>(i);
+                    const bool valid = g_lastSentValid[index] != 0;
+                    const uint64_t intervalUs = valid
+                        ? BackendQpcElapsedUs(g_lastSentQpc[index], publishQpc)
+                        : 0;
+                    const uint64_t signalToPublishUs = latencyTrace && inputNotifyQpc > 0
+                        ? BackendQpcElapsedUs(inputNotifyQpc, publishQpc)
+                        : 0;
+                    BackendTracePadWindow* tracePad = latencyTrace
+                        ? &g_backendTracePads[index]
+                        : nullptr;
+                    if (tracePad)
+                    {
+                        ++tracePad->sends;
+                        ++tracePad->changedSends;
+                        if (valid)
+                        {
+                            tracePad->sendIntervalUs.Add(intervalUs);
+                            if (intervalUs < 4000) ++tracePad->intervalsBelow4ms;
+                            if (intervalUs < 2000) ++tracePad->intervalsBelow2ms;
+                        }
+                        if (signalToPublishUs != 0)
+                            tracePad->signalToSendUs.Add(signalToPublishUs);
+                        g_backendTraceLastInputSequence[index] = inputSequence;
+                    }
+                    g_lastSentReports[index] = batch.reports[index];
+                    g_lastSentQpc[index] = publishQpc;
+                    g_lastSentValid[index] = 1;
+                    g_outputSchedulers[index].MarkSent(static_cast<uint64_t>(publishQpc));
+                }
+
+                if (latencyTrace && mad68BatchPresent)
+                {
+                    ++g_mad68PipelineTrace.changedSends;
+                    if (mad68ReportReadyQpc > 0)
+                        g_mad68PipelineTrace.reportReadyToSendUs.Add(
+                            BackendQpcElapsedUs(mad68ReportReadyQpc, publishQpc));
+                    mad68SendRecorded = true;
+                }
+            }
+            else if (mad68BatchPresent)
+            {
+                mad68RateLimited = true;
+            }
+        }
     }
 
     if (latencyTrace && mad68BatchPresent && !mad68SendRecorded)
@@ -3709,6 +3995,7 @@ void Backend_NotifyDeviceChange()
         return;
 
     g_deviceChangeReconnectRequested.store(true, std::memory_order_release);
+    VigemOutput_Wake();
 }
 
 void Backend_NotifyKeyboardEvent(
@@ -3804,7 +4091,10 @@ void Backend_SetVirtualGamepadCount(int count)
     count = std::clamp(count, 1, kMaxVirtualPads);
     int old = g_virtualPadCount.exchange(count, std::memory_order_acq_rel);
     if (old != count)
+    {
         g_reconnectRequested.store(true, std::memory_order_release);
+        VigemOutput_Wake();
+    }
 }
 
 int Backend_GetVirtualGamepadCount()
@@ -3816,7 +4106,10 @@ void Backend_SetVirtualGamepadsEnabled(bool on)
 {
     bool old = g_virtualPadsEnabled.exchange(on, std::memory_order_acq_rel);
     if (old != on)
+    {
         g_reconnectRequested.store(true, std::memory_order_release);
+        VigemOutput_Wake();
+    }
 }
 
 bool Backend_GetVirtualGamepadsEnabled()

@@ -110,7 +110,7 @@ def main() -> int:
             "analog_host_joined=%d" in backend_stop,
             "backend shutdown reports analog-host completion")
     require("backendStopped = Backend_Shutdown()" in app and
-            "component=backend analog_host_or_native_join_incomplete=1" in app,
+            "component=backend dependency_join_incomplete=1" in app,
             "application selects process containment after analog-host poison")
     require("InjectAnalogHostBridgeStopTimeout" in runner and
             "InjectAnalogHostSupervisorStartFailure" in runner and

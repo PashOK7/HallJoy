@@ -17,6 +17,7 @@ param(
     [switch]$InjectAnalogHostChildReapTimeout,
     [switch]$InjectRealtimeStartFailure,
     [switch]$InjectNativePhaseStartFailure,
+    [switch]$InjectVigemUpdateStall,
     [ValidateRange(7, 120)]
     [int]$RunSeconds = 8
 )
@@ -38,7 +39,8 @@ $injectionCount = @(
     $InjectAnalogHostChildCppFault.IsPresent,
     $InjectAnalogHostChildReapTimeout.IsPresent,
     $InjectRealtimeStartFailure.IsPresent,
-    $InjectNativePhaseStartFailure.IsPresent
+    $InjectNativePhaseStartFailure.IsPresent,
+    $InjectVigemUpdateStall.IsPresent
 ).Where({ $_ }).Count
 $isFaultInjection = $injectionCount -ne 0
 if ($injectionCount -gt 1) {
@@ -66,6 +68,34 @@ function Find-MSBuild {
     $fallback = 'C:\BuildTools\MSBuild\Current\Bin\amd64\MSBuild.exe'
     if (Test-Path -LiteralPath $fallback) { return $fallback }
     throw 'MSBuild x64 was not found.'
+}
+
+if (-not ('HallJoySimulatorWindow' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class HallJoySimulatorWindow {
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+    [DllImport("user32.dll")]
+    public static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+    [DllImport("user32.dll")]
+    public static extern bool PostMessage(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam);
+
+    public static int PostClose(uint targetProcessId) {
+        int sent = 0;
+        EnumWindows((window, unused) => {
+            uint processId;
+            GetWindowThreadProcessId(window, out processId);
+            if (processId == targetProcessId && PostMessage(window, 0x0010, IntPtr.Zero, IntPtr.Zero))
+                ++sent;
+            return true;
+        }, IntPtr.Zero);
+        return sent;
+    }
+}
+'@
 }
 
 if (-not $SkipBuild) {
@@ -134,12 +164,16 @@ if ($InjectRealtimeStartFailure) {
 if ($InjectNativePhaseStartFailure) {
     $arguments += '--halljoy-test-native-phase-start-failure'
 }
+if ($InjectVigemUpdateStall) {
+    $arguments += '--halljoy-test-vigem-update-stall'
+}
 if ($StartOverlay) {
     $arguments += @('--overlay-server', '--port', '18765')
 }
 $process = Start-Process -FilePath $exe `
     -ArgumentList $arguments `
-    -PassThru
+    -PassThru `
+    -WindowStyle Hidden
 try {
     if ($StartOverlay) {
         & python (Join-Path $root 'tools\check_overlay_responsiveness.py') `
@@ -155,7 +189,7 @@ try {
     do {
         $process.Refresh()
         if ($process.HasExited) { break }
-        if ($process.CloseMainWindow()) { $closeAccepted = $true }
+        if ([HallJoySimulatorWindow]::PostClose([uint32]$process.Id) -gt 0) { $closeAccepted = $true }
         if ($process.WaitForExit(250)) { break }
     } while ([DateTime]::UtcNow -lt $closeDeadline)
     if (-not $closeAccepted) {
@@ -215,6 +249,9 @@ if ($InjectRealtimeStartFailure -and $process.ExitCode -ne 0) {
 }
 if ($InjectNativePhaseStartFailure -and $process.ExitCode -ne 0) {
     throw "Native-phase-start-failure simulator exited with code $($process.ExitCode), expected 0."
+}
+if ($InjectVigemUpdateStall -and $process.ExitCode -ne 2) {
+    throw "ViGEm-update-stall simulator exited with code $($process.ExitCode), expected 2."
 }
 if (-not $isFaultInjection -and $process.ExitCode -ne 0) {
     throw "Simulator exited with code $($process.ExitCode)."
@@ -316,6 +353,15 @@ $required = if ($InjectRealtimeStopTimeout) { @(
     '[component=analog-host][event=child.reaped_after_timeout]',
     '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
     '[component=main][event=session.end] exit_code=0'
+) } elseif ($InjectVigemUpdateStall) { @(
+    '[component=vigem-output][event=test.update_stall.injected] simulator_only=1',
+    '[component=analog-simulator][event=stop]',
+    '[component=realtime][event=stop.end]',
+    '[component=vigem-output][event=stop.timeout]',
+    'handles_retained=1 restart_blocked=1',
+    '[component=backend][event=shutdown.blocked] component=vigem-output dependent_cleanup_skipped=1',
+    '[component=app][event=shutdown.poisoned] component=backend',
+    '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
 ) } elseif ($InjectRealtimeStartFailure) { @(
     '[component=realtime][event=test.start_failure.injected] simulator_only=1',
     '[component=app][event=startup.rollback.begin] failed_stage=realtime',
@@ -442,6 +488,8 @@ if ($InjectRealtimeStopTimeout) {
     Write-Host 'HallJoy realtime-start rollback scenario: PASS' -ForegroundColor Green
 } elseif ($InjectNativePhaseStartFailure) {
     Write-Host 'HallJoy native-phase reverse rollback scenario: PASS' -ForegroundColor Green
+} elseif ($InjectVigemUpdateStall) {
+    Write-Host 'HallJoy ViGEm stalled-driver containment scenario: PASS' -ForegroundColor Green
 } elseif ($StartOverlay) {
     Write-Host 'HallJoy overlay HTTP and cooperative shutdown scenario: PASS' -ForegroundColor Green
 } else {

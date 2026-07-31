@@ -635,3 +635,52 @@ Known limitation: synchronous ViGEm submission remains HJ-AUD-P1-010/V14-08B
 Evidence: docs/stability/tests/V14-08A_STARTUP_WAKE_PUBLICATION_2026-07-31.txt
 Rollback: parent commit of the V14-08A implementation commit
 ```
+
+## V14-08B evidence
+
+```text
+Package: V14-08B
+Scope: ViGEm runtime output isolation, newest-state equivalence and stalled-driver containment
+Commands:
+  python src/HallJoyProject/tests/vigem_output_isolation_static_audit.py
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectVigemUpdateStall -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  build/output/HallJoy.exe (10-second hidden Irok production smoke, PID WM_CLOSE)
+Results:
+  ViGEm output-isolation static audit: PASS
+  All static audits and portable C++20 tests: PASS
+  Latest-value mailbox complete-copy/newest-payload/multi-pad mask tests: PASS
+  Normal common-pipeline simulator: PASS, graceful output-worker join, exit 0
+  Normal simulator trace SHA-256:
+    AEF9EB00E29E1963602EA1E1C0DFDD73750639C5C5FD3FB76D1C0B6A7C232DBA
+  Simulator-only 60-second driver-update stall: PASS; the complete realtime
+    scenario and realtime stop finished before the bounded 3-second output
+    timeout, dependent backend teardown was skipped and containment exited 2
+  Stalled-driver simulator trace SHA-256:
+    BD7C5ED4CBB3FF4CC3BE5DDC75F4F700C1057D46590893B4C6CDCC5E1B5F19DE
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Real ABI1 load/init/null/bounded-unload runtime gate: PASS
+  Production Irok route: SparkLink VID 1CA6, PID 0529, usage page FFB0
+  Startup transaction committed; realtime and ViGEm output worker started
+  Graceful WM_CLOSE: output worker joined before dependent backend teardown,
+    analog-host child exited, backend/main shutdown ended, exit 0, 0 processes
+  User settings, bindings, layouts and profiles restored hash-identically
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,147,840 bytes
+  SHA-256: 73F425BFED6B090015842A987C79CBCA99E07CEA38FD6DB6C227084E4A719CA3
+  Production trace SHA-256:
+    700E580F65862C2E4EC5FD8F8AFB406CC72306D3FE30B4B55F6C21438C87FE6C
+Hardware: startup, native Irok input route and balanced shutdown passed; the
+  stalled-driver injection is simulator-only and is not hardware evidence
+Remote CI: NOT RUN; optional, no push permitted
+Known limitation: initial ViGEm client/target creation remains a startup-thread
+  operation; runtime update, reconnect and destroy are output-worker-owned
+Evidence: docs/stability/tests/V14-08B_VIGEM_OUTPUT_ISOLATION_2026-07-31.txt
+Rollback: parent commit of the V14-08B implementation commit
+```

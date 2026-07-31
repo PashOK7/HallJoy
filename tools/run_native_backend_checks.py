@@ -96,6 +96,7 @@ def main() -> int:
             ("addressed_scheduler", [tests / "addressed_poll_scheduler_test.cpp", hall / "addressed_poll_scheduler.cpp"]),
             ("hid_lifecycle", [tests / "hid_io_operation_lifecycle_test.cpp"]),
             ("vigem_scheduler", [tests / "vigem_output_scheduler_test.cpp"]),
+            ("latest_value_mailbox", [tests / "latest_value_mailbox_test.cpp"]),
             ("native_contract", [tests / "native_analog_backend_contract_test.cpp"]),
             ("native_lifecycle_registry", [tests / "native_backend_lifecycle_registry_test.cpp"]),
             ("worker_lifecycle", [tests / "worker_lifecycle_test.cpp"]),

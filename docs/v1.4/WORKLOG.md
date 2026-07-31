@@ -722,3 +722,56 @@
 - `HJ-AUD-P1-008`, `HJ-AUD-P1-009` and `HJ-AUD-P2-019` are Verified.
 - V14-08 remains In progress. Next is V14-08B: isolate synchronous ViGEm
   submission and prove report equivalence plus bounded stalled-driver behavior.
+
+## 2026-07-31 - V14-08B ViGEm output isolation
+
+### Implementation
+
+- Moved every runtime `vigem_target_x360_update`, reconnect and final ViGEm
+  destruction behind a dedicated output-worker generation. Initial client and
+  target creation remains an explicit startup-thread operation.
+- Realtime now performs only a bounded, non-blocking latest-value mailbox
+  publication and wake. Driver latency can no longer extend `Backend_Tick`.
+- Added pending-batch merge semantics for up to four virtual pads: due-pad masks
+  accumulate, while report payloads always come from the newest complete
+  snapshot. A rate-limited newer state also refreshes an already-pending batch.
+- Emergency realtime neutralization drains older pending generations without
+  submitting them and makes neutral the final driver write.
+- Added a three-second cooperative output stop. Timeout retains thread/event and
+  ViGEm ownership, poisons restart, skips dependent backend cleanup and selects
+  immediate process containment with exit code 2.
+- Added simulator-only 60-second driver-update stall injection and changed the
+  hidden simulator runner to post `WM_CLOSE` to windows belonging to the exact
+  launched PID.
+- Added the portable mailbox/report-equivalence test and the ViGEm ownership
+  static audit to both the common native gate and official build.
+
+### Validation
+
+- Full static and portable C++20 gate: PASS.
+- Normal MSVC simulator: PASS, output worker joined, exit 0; trace SHA-256
+  `AEF9EB00E29E1963602EA1E1C0DFDD73750639C5C5FD3FB76D1C0B6A7C232DBA`.
+- Injected update stall: PASS. Realtime completed all 634 simulator updates and
+  stopped before the output worker hit its three-second bound; backend teardown
+  stopped safely and process containment exited 2. Trace SHA-256
+  `BD7C5ED4CBB3FF4CC3BE5DDC75F4F700C1057D46590893B4C6CDCC5E1B5F19DE`.
+- Official production MSVC x64 Release: PASS, 0 errors and only allowlisted
+  `LNK4099`; private ABI1 runtime gate also passed.
+- Ten-second hidden production smoke connected the Irok MG75 Max through
+  SparkLink `1CA6:0529/FFB0`, committed startup, cleanly joined realtime,
+  ViGEm output and analog-host ownership, exited 0 and left zero processes.
+- `HallJoy.exe`: 2,147,840 bytes,
+  SHA-256 `73F425BFED6B090015842A987C79CBCA99E07CEA38FD6DB6C227084E4A719CA3`.
+- Production trace SHA-256:
+  `700E580F65862C2E4EC5FD8F8AFB406CC72306D3FE30B4B55F6C21438C87FE6C`.
+- Pre-change source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-08B-prechange-20260731-2255`.
+- Pre-production runtime backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-08B-preproduction-20260731-2313`;
+  all 13 runtime-package files matched by SHA-256 and user state was restored
+  exactly.
+
+### Package result
+
+- `HJ-AUD-P1-010` and V14-08 are Verified.
+- Next is V14-09: transactional persistence and writable state migration.

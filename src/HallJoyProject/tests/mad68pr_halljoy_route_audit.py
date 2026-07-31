@@ -35,7 +35,9 @@ checks = {
     'UI publication receives filtered analog': 'g_uiAnalogM[hid].store(newV' in backend,
     'blue keyboard render consumes standard UI analog': 'BackendUI_GetAnalogMilli(hid)' in render,
     'ViGEm report builder consumes filtered analog': 'static XUSB_REPORT BuildReportForPad' in backend and 'ReadFiltered01Cached' in backend,
-    'ViGEm update receives built report': 'vigem_target_x360_update(g_client, pad, report)' in backend,
+    'ViGEm update receives built report': (
+        'batch.reports[index] = report' in backend and
+        'vigem_target_x360_update(g_client, pad, batch.reports' in backend),
     'routing and lifecycle use central manager': (
         'NativeAnalogBackends_PrepareRouting()' in app
         and 'NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRawInput)' in app

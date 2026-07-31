@@ -2,11 +2,12 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include "worker_lifecycle.h"
 
 // Writes diagnostic log near the executable. Normal lines are queued to a
 // background writer; fatal handlers use separate synchronous crash reports.
 void DebugLog_Init();
-void DebugLog_Shutdown();
+halljoy::lifecycle::StopResult DebugLog_Shutdown();
 void DebugLog_Write(const wchar_t* fmt, ...);
 // Explicit asynchronous alias retained for latency/high-rate call sites.
 void DebugLog_WriteBuffered(const wchar_t* fmt, ...);

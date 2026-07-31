@@ -223,3 +223,34 @@ Known limitations: a blocking ViGEm call is isolated later; four other worker
   families still retain forced-termination paths
 Rollback: parent commit of the V14-06A implementation commit
 ```
+
+## V14-06B evidence
+
+```text
+Package: V14-06B
+Scope: Diagnostic logger cooperative shutdown
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1
+    -InjectDebugLogStopTimeout -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild -RunSeconds 7
+Results:
+  Diagnostic logger TerminateThread occurrences: 0
+  Queue/drain/flush ownership static audit: PASS
+  Timeout resource retention and restart poison audit: PASS
+  Poisoned process-exit audit: PASS
+  Static audits and portable C++20 tests: PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Simulator forced writer join timeout containment, expected exit 3: PASS
+  Simulator common pipeline and cooperative shutdown: PASS
+  Normal simulator ERROR trace events: 0
+  Remaining simulator processes: 0
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Hardware: Not required; common pipeline simulation only
+Known limitations: overlay, SparkLink and Sayo retain forced-termination paths
+Rollback: parent commit of the V14-06B implementation commit
+```

@@ -38,6 +38,25 @@ static void InitDpiAwareness()
     if (setAware) setAware();
 }
 
+static bool ShutdownDebugLogSafely()
+{
+    const auto logStop = DebugLog_Shutdown();
+    if (logStop.RestartSafe())
+        return true;
+
+    constexpr int logPoisonedExitCode = 3;
+    StabilityTrace_WriteCritical(L"ERROR", L"main", L"process_exit.log_poisoned",
+        L"state=%u generation=%llu error=%u native_error=%lu exit_code=%d crt_cleanup_skipped=1",
+        static_cast<unsigned>(logStop.state),
+        static_cast<unsigned long long>(logStop.generation.Value()),
+        static_cast<unsigned>(logStop.error.code),
+        static_cast<unsigned long>(logStop.error.native_error),
+        logPoisonedExitCode);
+    StabilityTrace_Shutdown(logPoisonedExitCode);
+    TerminateProcess(GetCurrentProcess(), logPoisonedExitCode);
+    return false;
+}
+
 int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow)
 {
     int embeddedInstallerExit = 0;
@@ -93,7 +112,8 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow)
             L"Failed to prepare the private crash-isolated Universal Analog Plugin.",
             L"HallJoy",
             MB_ICONERROR | MB_OK);
-        DebugLog_Shutdown();
+        if (!ShutdownDebugLogSafely())
+            return 3;
         StabilityTrace_Shutdown(1);
         return 1;
 #endif
@@ -147,7 +167,8 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow)
     if (gdiStatus == Gdiplus::Ok && gdiToken != 0)
         Gdiplus::GdiplusShutdown(gdiToken);
     DebugLog_Write(L"[main] exit");
-    DebugLog_Shutdown();
+    if (!ShutdownDebugLogSafely())
+        return 3;
     StabilityTrace_Shutdown(result);
 
     return result;

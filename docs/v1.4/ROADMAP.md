@@ -30,7 +30,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-03` | Self-contained private UAP runtime and truthful dependency diagnostics | Verified | Works from writable and protected install locations; never recommends system SDK |
 | `V14-04` | Reproducible dependencies, warning baseline, local/CI-equivalent build scripts | Verified | Pinned inputs, clean-room x64 Release, portable tests, documented warning policy |
 | `V14-05` | Truthful lifecycle registry and generation-scoped stop contract | Verified | Failure-injected start/stop/restart tests; timeout/fault poisons the generation and blocks restart |
-| `V14-06` | Cooperative lifecycle migration for realtime, logging and native protocol workers | Planned | Per-worker tests, no ordinary `TerminateThread`, plus unchanged protocol and mapping characterization |
+| `V14-06` | Cooperative lifecycle migration for realtime, logging and native protocol workers | In progress | Per-worker tests, no ordinary `TerminateThread`, plus unchanged protocol and mapping characterization |
 | `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Planned | Partial-start, crash, hang, unload and bounded restart tests |
 | `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Planned | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
 | `V14-09` | Transactional persistence and writable state migration | Planned | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
@@ -147,9 +147,12 @@ Progress:
   confirmed completion. Timeout/failure retains ownership, poisons restart,
   guards backend teardown, and uses process-level exit without CRT destruction
   if a potentially live realtime worker survives final shutdown.
-- Remaining V14-06 workers: diagnostic logger, overlay server, SparkLink and
-  Sayo. Their existing `TerminateThread` paths remain open and are not covered
-  by the realtime result.
+- `V14-06B` diagnostic logger: Verified locally. Shutdown closes its producer
+  gate, wakes and drains the writer, and releases HANDLE/file/event ownership
+  only after a confirmed join. Timeout retains all reachable resources,
+  poisons restart and uses process-level exit without CRT destruction.
+- Remaining V14-06 workers: overlay server, SparkLink and Sayo. Their existing
+  `TerminateThread` paths remain open and are not covered by these results.
 
 ## Release definition
 

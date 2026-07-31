@@ -3,12 +3,17 @@ param(
     [switch]$SkipBuild,
     [switch]$ForceUserUapRuntime,
     [switch]$InjectRealtimeStopTimeout,
+    [switch]$InjectDebugLogStopTimeout,
     [ValidateRange(7, 120)]
     [int]$RunSeconds = 8
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+if ($InjectRealtimeStopTimeout -and $InjectDebugLogStopTimeout) {
+    throw 'Select only one timeout injection scenario.'
+}
 
 $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root 'src\HallJoyProject\HallJoy\HallJoy.vcxproj'
@@ -57,6 +62,9 @@ if ($ForceUserUapRuntime) {
 if ($InjectRealtimeStopTimeout) {
     $arguments += '--halljoy-test-realtime-stop-timeout'
 }
+if ($InjectDebugLogStopTimeout) {
+    $arguments += '--halljoy-test-debug-log-stop-timeout'
+}
 $process = Start-Process -FilePath $exe `
     -ArgumentList $arguments `
     -PassThru
@@ -77,7 +85,10 @@ finally {
 if ($InjectRealtimeStopTimeout -and $process.ExitCode -ne 2) {
     throw "Timeout-injected simulator exited with code $($process.ExitCode), expected 2."
 }
-if (-not $InjectRealtimeStopTimeout -and $process.ExitCode -ne 0) {
+if ($InjectDebugLogStopTimeout -and $process.ExitCode -ne 3) {
+    throw "Debug-log-timeout simulator exited with code $($process.ExitCode), expected 3."
+}
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and $process.ExitCode -ne 0) {
     throw "Simulator exited with code $($process.ExitCode)."
 }
 if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
@@ -92,6 +103,12 @@ $required = if ($InjectRealtimeStopTimeout) { @(
     '[component=app][event=shutdown.poisoned]',
     'backend_cleanup_skipped=1',
     '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
+) } elseif ($InjectDebugLogStopTimeout) { @(
+    '[component=debug-log][event=test.stop_timeout.injected] simulator_only=1',
+    '[component=debug-log][event=stop.timeout]',
+    'handles_retained=1 restart_blocked=1',
+    '[component=main][event=process_exit.log_poisoned]',
+    'exit_code=3 crt_cleanup_skipped=1'
 ) } else { @(
     '[component=analog-simulator][event=start]',
     'name=w-ramp',
@@ -123,7 +140,7 @@ if ($ForceUserUapRuntime -and -not $traceText.Contains('[component=embedded-uap]
 if ($missing.Count -ne 0) {
     throw "Simulator trace is incomplete. Missing: $($missing -join ', ')"
 }
-if (-not $InjectRealtimeStopTimeout -and $traceText -match '\[level=ERROR\]') {
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and $traceText -match '\[level=ERROR\]') {
     throw 'Simulator trace contains an ERROR event.'
 }
 
@@ -139,11 +156,13 @@ if ($remaining.Count -ne 0) {
 
 if ($InjectRealtimeStopTimeout) {
     Write-Host 'HallJoy realtime timeout containment scenario: PASS' -ForegroundColor Green
+} elseif ($InjectDebugLogStopTimeout) {
+    Write-Host 'HallJoy debug-log timeout containment scenario: PASS' -ForegroundColor Green
 } else {
     Write-Host 'HallJoy analog simulator scenario: PASS' -ForegroundColor Green
 }
 Write-Host "Trace: $trace"
-if ($InjectRealtimeStopTimeout) {
+if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout) {
     Write-Host 'Evidence classification: simulator lifecycle fault injection; NOT hardware verification.'
 } else {
     Write-Host 'Evidence classification: common pipeline simulation; NOT hardware verification.'

@@ -264,3 +264,34 @@
 
 - Diagnostic logger, overlay server, SparkLink and Sayo still contain their
   separately owned forced-termination fallbacks.
+
+## 2026-07-31 - V14-06B diagnostic logger cooperative shutdown
+
+### Implemented
+
+- Diagnostic writer start/stop now uses the common generation-scoped
+  `WorkerLifecycle`; lifecycle transitions are serialized independently of the
+  queue lock.
+- Shutdown closes the producer gate, wakes the writer, permits its bounded
+  drain/flush and closes HANDLE, event and file only after confirmed join.
+- Timeout or wait failure retains every resource reachable by the writer,
+  marks the generation `Poisoned` and blocks replacement.
+- Final shutdown exits at process level with code 3 after recording the
+  containment event, avoiding CRT destruction under a potentially live writer.
+- Removed `TerminateThread` from the logger only. Simulator builds enable the
+  otherwise Release-disabled logger solely to exercise its lifecycle contract.
+
+### Validation
+
+- Diagnostic logger static audit: PASS.
+- All static and portable C++20 tests: PASS.
+- Full production MSVC x64 Release build: PASS, only allowlisted `LNK4099`.
+- Simulator-only blocked-writer injection: PASS; resources retained, restart
+  poisoned and expected process exit code 3 observed.
+- Normal deterministic simulator after the injected run: PASS, no `ERROR`
+  trace event and no remaining process.
+
+### Remaining V14-06 scope
+
+- Overlay server, SparkLink and Sayo still contain separately owned
+  forced-termination fallbacks.

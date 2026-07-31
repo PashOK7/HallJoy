@@ -31,7 +31,7 @@ maintained in `ROADMAP.md`.
 
 | ID | Приоритет | Краткое описание | Пакет | Статус | Ключевая проверка |
 |---|---|---|---|---|---|
-| `HJ-AUD-P1-001` | P1 | `TerminateThread` используется как обычный механизм shutdown | `S04/S05/S08` | Partial | realtime removed and verified in V14-06A; logger, overlay, SparkLink and Sayo remain |
+| `HJ-AUD-P1-001` | P1 | `TerminateThread` используется как обычный механизм shutdown | `S04/S05/S08` | Partial | realtime and logger removed and verified in V14-06A/B; overlay, SparkLink and Sayo remain |
 | `HJ-AUD-P1-002` | P1 | «Ограниченный shutdown» трёх native backend'ов всё равно может зависнуть навсегда | `S06/S07` | Open | pending-I/O cancel/join fault tests |
 | `HJ-AUD-P1-003` | P1 | Контракт `stop()` недостоверен | `S03` | Verified | generation-scoped StopResult, poison-on-failure and registry fault tests passed |
 | `HJ-AUD-P1-004` | P1 | Нет верхней границы C++-исключений в ключевых worker-потоках | `S02` | Partial | S02A verified; S02B.1 MAD68/Hex80 implemented with device gates deferred; S02B.2 SparkLink verified on device; S02B.3 Addressed main/reader implemented with device gate deferred; Sayo/UAP remain |
@@ -79,7 +79,7 @@ maintained in `ROADMAP.md`.
 
 ## Evidence package S01
 
-S01 добавил общий lifecycle-контракт, generation-aware state machine и fault-injection seam. V14-05 подключил этот контракт к production registry и backend callbacks, поэтому `HJ-AUD-P1-003` и `HJ-AUD-P2-020` закрыты проверенными локальными gates. Риск `HJ-AUD-P1-001` остаётся `Open`: принудительное завершение отдельных worker'ов удаляется только последующими lifecycle-пакетами.
+S01 добавил общий lifecycle-контракт, generation-aware state machine и fault-injection seam. V14-05 подключил этот контракт к production registry и backend callbacks, поэтому `HJ-AUD-P1-003` и `HJ-AUD-P2-020` закрыты проверенными локальными gates. Риск `HJ-AUD-P1-001` остаётся `Partial`: V14-06A/B удалили принудительное завершение realtime и logger worker'ов, но overlay, SparkLink и Sayo ещё требуют миграции.
 
 ## Evidence package S02A
 

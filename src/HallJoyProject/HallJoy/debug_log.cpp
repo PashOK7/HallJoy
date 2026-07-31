@@ -12,9 +12,12 @@
 #include <cstdlib>
 #include <atomic>
 #include <algorithm>
+#include <mutex>
 
 #include "debug_log.h"
 #include "worker_exception_barrier.h"
+#include "worker_join_policy.h"
+#include "stability_trace.h"
 #if defined(HALLJOY_MAD68PR_NATIVE)
 #include "mad68pr_backend.h"
 #endif
@@ -31,6 +34,8 @@ static std::atomic<bool> g_writerExited{ true };
 static std::atomic<halljoy::worker::WorkerExceptionKind> g_writerFaultKind{
     halljoy::worker::WorkerExceptionKind::None };
 static halljoy::worker::WorkerExceptionRecord g_writerFaultRecord{};
+static halljoy::lifecycle::WorkerLifecycle g_writerLifecycle;
+static std::mutex g_writerLifecycleMutex;
 static thread_local wchar_t g_lastCheckpoint[384] = L"startup";
 static std::atomic<bool> g_watchdogStarted{ false };
 static HANDLE g_watchdogNormalExitEvent = nullptr;
@@ -38,7 +43,7 @@ static PVOID g_vectoredExceptionHandler = nullptr;
 static std::atomic<bool> g_vectoredFatalReportWritten{ false };
 static constexpr DWORD kBufferedFlushIntervalMs = 250;
 
-#if defined(NDEBUG) && !defined(HALLJOY_DIAGNOSTIC)
+#if defined(NDEBUG) && !defined(HALLJOY_DIAGNOSTIC) && !defined(HALLJOY_ANALOG_SIMULATOR)
 #define HALLJOY_LOG_DISABLED 1
 #else
 #define HALLJOY_LOG_DISABLED 0
@@ -190,6 +195,16 @@ static DWORD DebugLogWriterThreadBody()
     std::vector<std::wstring> batch;
     batch.reserve(256);
 
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-debug-log-stop-timeout"))
+    {
+        StabilityTrace_Write(L"WARN", L"debug-log", L"test.stop_timeout.injected",
+            L"simulator_only=1");
+        Sleep(INFINITE);
+    }
+#endif
+
     for (;;)
     {
         HANDLE writeEvent = nullptr;
@@ -287,6 +302,8 @@ void DebugLog_Init()
     return;
 #endif
 
+    const std::lock_guard<std::mutex> lifecycleGuard(g_writerLifecycleMutex);
+
 #if defined(HALLJOY_DIAGNOSTIC)
     // Prevent a report from an earlier run being mistaken for the current one.
     DeleteFileW(BuildPathNearExe(L"HallJoyDiagnosticCrash.txt").c_str());
@@ -305,6 +322,13 @@ void DebugLog_Init()
     {
         // A failed writer generation must be reaped by DebugLog_Shutdown before
         // a new generation can replace any of its HANDLEs or file state.
+        ReleaseSRWLockExclusive(&g_logLock);
+        return;
+    }
+
+    const auto start = g_writerLifecycle.BeginStart();
+    if (start.status != halljoy::lifecycle::StartStatus::Starting)
+    {
         ReleaseSRWLockExclusive(&g_logLock);
         return;
     }
@@ -362,10 +386,12 @@ void DebugLog_Init()
             g_logFile = INVALID_HANDLE_VALUE;
         }
         g_logReady.store(false, std::memory_order_relaxed);
+        (void)g_writerLifecycle.FailStartBeforeWorker(start.generation);
     }
     else
     {
-        g_logReady.store(true, std::memory_order_relaxed);
+        const auto running = g_writerLifecycle.ConfirmRunning(start.generation);
+        g_logReady.store(running.IsRunning(), std::memory_order_relaxed);
     }
 
     ReleaseSRWLockExclusive(&g_logLock);
@@ -383,8 +409,10 @@ void DebugLog_Init()
         g_logPath.c_str());
 }
 
-void DebugLog_Shutdown()
+halljoy::lifecycle::StopResult DebugLog_Shutdown()
 {
+    const std::lock_guard<std::mutex> lifecycleGuard(g_writerLifecycleMutex);
+
 #if defined(HALLJOY_DIAGNOSTIC) || defined(HALLJOY_MAD68PR_NATIVE)
     // The quiet native watchdog remains active in production so an unexpected
     // process exit can still restore A9. Signalling normal shutdown must happen
@@ -398,7 +426,7 @@ void DebugLog_Shutdown()
 #endif
 
 #if HALLJOY_LOG_DISABLED
-    return;
+    return g_writerLifecycle.RequestStop();
 #endif
 
     HANDLE threadToJoin = nullptr;
@@ -406,11 +434,35 @@ void DebugLog_Shutdown()
     HANDLE eventToClose = nullptr;
 
     AcquireSRWLockExclusive(&g_logLock);
+    const auto lifecycleState = g_writerLifecycle.State();
+    if (lifecycleState == halljoy::lifecycle::WorkerState::Stopped ||
+        lifecycleState == halljoy::lifecycle::WorkerState::Joined)
+    {
+        const auto stopped = g_writerLifecycle.RequestStop();
+        ReleaseSRWLockExclusive(&g_logLock);
+        return stopped;
+    }
+    if (lifecycleState == halljoy::lifecycle::WorkerState::Poisoned)
+    {
+        const auto poisoned = g_writerLifecycle.RequestStop(g_writerLifecycle.Generation());
+        ReleaseSRWLockExclusive(&g_logLock);
+        return poisoned;
+    }
+    const auto requested = g_writerLifecycle.RequestStop(g_writerLifecycle.Generation());
+    if (requested.status != halljoy::lifecycle::StopStatus::StopRequested)
+    {
+        ReleaseSRWLockExclusive(&g_logLock);
+        return requested;
+    }
     const bool ownsResources = g_writerThread || g_writeEvent || g_logFile != INVALID_HANDLE_VALUE;
     if (!g_logReady.load(std::memory_order_relaxed) && !ownsResources)
     {
+        const auto poisoned = g_writerLifecycle.MarkPoisoned(requested.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            halljoy::lifecycle::LifecycleErrorCode::PrimitiveFailed,
+            ERROR_INVALID_HANDLE);
         ReleaseSRWLockExclusive(&g_logLock);
-        return;
+        return poisoned;
     }
 
     // Stop accepting new normal log lines before the writer drains the queue.
@@ -420,35 +472,65 @@ void DebugLog_Shutdown()
     if (g_writeEvent)
         SetEvent(g_writeEvent);
     threadToJoin = g_writerThread;
-    g_writerThread = nullptr;
+    if (!threadToJoin)
+    {
+        const auto poisoned = g_writerLifecycle.MarkPoisoned(requested.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            halljoy::lifecycle::LifecycleErrorCode::PrimitiveFailed,
+            ERROR_INVALID_HANDLE);
+        ReleaseSRWLockExclusive(&g_logLock);
+        StabilityTrace_WriteCritical(L"ERROR", L"debug-log", L"stop.invalid_thread",
+            L"generation=%llu win32=%lu handles_retained=1 restart_blocked=1",
+            static_cast<unsigned long long>(requested.generation.Value()),
+            static_cast<unsigned long>(ERROR_INVALID_HANDLE));
+        return poisoned;
+    }
     ReleaseSRWLockExclusive(&g_logLock);
 
-    if (threadToJoin)
+    const DWORD waitResult = WaitForSingleObject(threadToJoin, 3000);
+    const DWORD waitError = waitResult == WAIT_OBJECT_0
+        ? ERROR_SUCCESS
+        : (waitResult == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT);
+    const auto observedJoin = halljoy::lifecycle::ObserveWorkerJoin(
+        requested.generation,
+        waitResult == WAIT_OBJECT_0
+            ? halljoy::lifecycle::JoinWaitStatus::Joined
+            : (waitResult == WAIT_FAILED
+                ? halljoy::lifecycle::JoinWaitStatus::Failed
+                : halljoy::lifecycle::JoinWaitStatus::TimedOut),
+        waitError);
+    if (!observedJoin.Completed())
     {
-        DWORD wr = WaitForSingleObject(threadToJoin, 3000);
-        if (wr != WAIT_OBJECT_0)
-        {
-            // Final process-exit fallback. A blocked filesystem write must not
-            // keep the watchdog, analogue host, or HallJoy process alive forever.
-            TerminateThread(threadToJoin, 0xE0514C47u);
-            WaitForSingleObject(threadToJoin, 1000);
-        }
-        CloseHandle(threadToJoin);
+        AcquireSRWLockExclusive(&g_logLock);
+        const auto poisoned = g_writerLifecycle.MarkPoisoned(requested.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            observedJoin.error.code, observedJoin.error.native_error);
+        ReleaseSRWLockExclusive(&g_logLock);
+        StabilityTrace_WriteCritical(L"ERROR", L"debug-log", L"stop.timeout",
+            L"generation=%llu wait=%lu win32=%lu handles_retained=1 restart_blocked=1",
+            static_cast<unsigned long long>(requested.generation.Value()),
+            waitResult, waitError);
+        return poisoned;
     }
 
     AcquireSRWLockExclusive(&g_logLock);
+    g_writerThread = nullptr;
     fileToClose = g_logFile;
     g_logFile = INVALID_HANDLE_VALUE;
     eventToClose = g_writeEvent;
     g_writeEvent = nullptr;
     g_pendingLines.clear();
     g_logReady.store(false, std::memory_order_release);
+    const auto joined = g_writerLifecycle.ConfirmJoined(requested.generation);
     ReleaseSRWLockExclusive(&g_logLock);
 
+    if (threadToJoin)
+        CloseHandle(threadToJoin);
     if (eventToClose)
         CloseHandle(eventToClose);
     if (fileToClose != INVALID_HANDLE_VALUE)
         CloseHandle(fileToClose);
+    return joined;
 }
 
 void DebugLog_Write(const wchar_t* fmt, ...)
@@ -1076,4 +1158,3 @@ void DebugLog_LogAnalogModules()
     DebugLog_Write(L"[diagnostic.modules] matched=%d enum_end=%lu", matched, enumError);
 #endif
 }
-

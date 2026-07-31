@@ -158,6 +158,8 @@ Wrapper — `noexcept`, ловит `std::exception` и `...`, записывае
 
 Закрыть producer gate, разбудить writer, bounded drain, flush на writer-потоке, затем completion. При timeout не уничтожать объекты, которые worker ещё может использовать.
 
+Статус v1.4: `Verified` локально в V14-06B. Writer использует общий generation-scoped lifecycle и сериализованный start/stop. Timeout сохраняет HANDLE, event, file и очередь, переводит generation в `Poisoned`, блокирует restart и завершает процесс без CRT cleanup. Simulator-only fault injection подтверждает этот путь воспроизводимо; production Release по-прежнему не включает обычный debug log.
+
 ### S06 — Addressed overlapped I/O ownership
 
 Reader generation владеет HID HANDLE, event, buffer и `OVERLAPPED`. Stop инициирует cancellation, а reader reap'ит completion до выхода. Запрещён cross-thread close активного I/O.

@@ -54,6 +54,13 @@ thread HANDLE. An incomplete join retains ownership and poisons restart. Final
 application shutdown then avoids destroying backend state that a live
 `Backend_Tick` could still access.
 
+The diagnostic writer follows the same rule. Start and shutdown are serialized
+around one generation. Shutdown first closes the producer gate, wakes the
+writer and waits for its bounded drain. A confirmed join transfers HANDLE,
+event, file and queue ownership back to the caller for cleanup. Timeout retains
+those resources, poisons restart and requires process-level exit without CRT
+destruction so no live writer can access destroyed storage.
+
 ## Files a new protocol owns
 
 Generated default:

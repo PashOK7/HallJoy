@@ -29,6 +29,8 @@
   0 and no analog-host child remained.
 - Received the expected trace `WARN` because no SparkLink hardware was
   exercised. There were no backend or ViGEm failures after driver installation.
+- Ignored the generated private UAP `.build-tools` directory so a clean build
+  does not contaminate the Git worktree.
 
 ### Baseline observations
 

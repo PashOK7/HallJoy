@@ -61,5 +61,6 @@ Desktop.ini
 .tmp_*
 third_party/UniversalAnalogPluginFixed/Soup/
 third_party/UniversalAnalogPluginFixed/Sun/
+third_party/UniversalAnalogPluginFixed/.build-tools/
 third_party/UniversalAnalogPluginFixed/dist/
 third_party/UniversalAnalogPluginFixed/build/

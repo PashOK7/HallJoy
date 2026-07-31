@@ -264,7 +264,7 @@ if ($appText -notmatch 'RegisterRawInputDevices\(rid, 2' -or
     (Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\keyboard_render.cpp') -Raw) -notmatch 'DrawDigitalIndicatorAA') {
     throw 'UI regression guard failed: Raw Input keyboard preview indicators or telemetry rendering were removed.'
 }
-if ($madBackendText -notmatch 'HallJoy-Universal-Analog-Final-v3.9.0' -or
+if ($madBackendText -notmatch 'HALLJOY_BUILD_ID_W' -or
     $madBackendText -notmatch 'kA8SemanticEvidenceMinFresh' -or
     $madBackendText -notmatch 'waiting for a true post-edge A0' -or
     $madBackendText -notmatch 'STEADY-STATE A0 CONFIRMED' -or
@@ -387,7 +387,7 @@ if (Test-Path -LiteralPath $pdb) { Copy-Item -LiteralPath $pdb -Destination $sym
 if (Test-Path -LiteralPath $map) { Copy-Item -LiteralPath $map -Destination $symbols -Force }
 
 @'
-HallJoy Universal Analog Final v3.9.0
+HallJoy v1.4 integration build
 
 Запускайте HallJoyMAD68ProRNative.exe обычным способом.
 

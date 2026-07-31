@@ -50,3 +50,22 @@ Rollback:
 
 Historical PASS reports do not automatically verify changed v1.4 code. A gate
 must be rerun whenever its covered code or build inputs change.
+
+## V14-01 evidence
+
+```text
+Package: V14-01
+Scope: Product identity and active documentation ownership
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+Results:
+  Static audits: PASS
+  Portable C++20 tests (Clang 19.1.5): PASS
+  MSVC x64 Release: PASS, 0 errors, 1 inherited ViGEm PDB warning
+  EXE FileVersion: 1.4.0.0
+  EXE ProductVersion: 1.4.0.0
+Hardware: Not required; runtime protocol behavior was unchanged
+Known limitations: GCC reruns in CI before publication
+Rollback: parent commit of the V14-01 implementation commit
+```

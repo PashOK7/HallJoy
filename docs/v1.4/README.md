@@ -9,7 +9,7 @@ version or release status.
 
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
-- Current package: `V14-01` product identity
+- Current package: `V14-02` deterministic analog simulator
 - GitHub publication: not started
 - Release status: not release-ready
 

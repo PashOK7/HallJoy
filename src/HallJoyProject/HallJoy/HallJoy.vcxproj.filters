@@ -380,6 +380,9 @@
     <ClInclude Include="ui_theme.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="win_util.h">
       <Filter>Header Files</Filter>
     </ClInclude>

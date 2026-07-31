@@ -14,7 +14,7 @@ maintained in `ROADMAP.md`.
 |---|---|---|---|---|---|
 | `HJ-V14-P1-001` | P1 | Private UAP extraction beside the EXE fails in protected locations | `V14-03` | Open | protected-location launch and per-user atomic extraction tests |
 | `HJ-V14-P1-002` | P1 | Legacy recovery recommends a system Wooting SDK that the embedded architecture does not use | `V14-03` | Open | forced extraction/host failure diagnostics |
-| `HJ-V14-P1-003` | P1 | Imported product/build strings expose the wrong public version | `V14-01` | Open | version-resource and active-document scan |
+| `HJ-V14-P1-003` | P1 | Imported product/build strings expose the wrong public version | `V14-01` | Verified | version-resource and active-document scan passed |
 | `HJ-V14-P2-001` | P2 | v1.3 self-contained runtime improvements can be lost during architectural migration | `V14-03` | Open | comparison against checkpoint `b3fefce` |
 | `HJ-V14-P2-002` | P2 | Imported historical validation may be mistaken for validation of later v1.4 code | all | Open | per-package evidence enforcement |
 | `HJ-V14-P2-003` | P2 | Simulation could be mistaken for real analog-protocol evidence or leak into production | `V14-02` | Open | compile-time exclusion and evidence-label tests |

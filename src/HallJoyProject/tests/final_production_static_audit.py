@@ -62,7 +62,7 @@ checks = {
     'both UI pages request live telemetry': ui.count('Backend_GetAnalogTelemetry') >= 4,
     'Raw Input registration remains': 'RegisterRawInputDevices(rid, 2' in app,
     'green digital indicator remains': 'DrawDigitalIndicatorAA' in render,
-    'final build identity is present': 'HallJoy-Universal-Analog-Final-v3.9.0' in mad,
+    'v1.4 build identity is present': 'HALLJOY_BUILD_ID_W' in mad,
 }
 
 failed = []

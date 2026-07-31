@@ -28,6 +28,7 @@
 #include "realtime_loop.h"
 #include "native_analog_routing.h"
 #include "worker_exception_barrier.h"
+#include "version.h"
 
 #pragma comment(lib, "setupapi.lib")
 #pragma comment(lib, "hid.lib")
@@ -67,7 +68,7 @@ constexpr std::size_t kMaxMalformedWireLogPackets = 32;
 // enough to reject ordinary event-mode noise but low enough to tolerate loss.
 constexpr std::uint32_t kA8SemanticEvidenceMinFresh = 12;
 constexpr std::uint16_t kSignificantRawLogDelta = 80;
-constexpr wchar_t kBuildName[] = L"HallJoy-Universal-Analog-Final-v3.9.0";
+constexpr wchar_t kBuildName[] = HALLJOY_BUILD_ID_W;
 
 enum class UiState : int
 {

@@ -1,6 +1,9 @@
-# HallJoy Universal Analog — Final v3.9.0
+# HallJoy v1.4
 
-Production-сборка HallJoy с единым low-latency трактом `аналог → кривая → SOCD → ViGEm` и централизованным безопасным арбитражем native-протоколов и Universal Analog Plugin.
+Текущая ветка содержит разработку HallJoy v1.4 и ещё не является релизом.
+HallJoy использует единый low-latency тракт `аналог → кривая → SOCD → ViGEm`
+и централизованный безопасный арбитраж native-протоколов и Universal Analog
+Plugin.
 
 ## Сборка
 
@@ -87,7 +90,7 @@ MAD68 runtime allow-list остаётся ограничен A8/A9. Прошив
 
 ## Hex80-compatible native `0x96`
 
-Для известных Hex80 наблюдались PID `1176 / 1177 / 1250`, но v3.9.0 не ограничивается этим списком. Другой PID `VID 373B` принимается только при точном `FF60:0061` fingerprint и валидных GET-ответах:
+Для известных Hex80 наблюдались PID `1176 / 1177 / 1250`, но v1.4 не ограничивается этим списком. Другой PID `VID 373B` принимается только при точном `FF60:0061` fingerprint и валидных GET-ответах:
 
 ```text
 02 96 24 — travel_max
@@ -130,7 +133,7 @@ Production-target не создаёт непрерывные per-key, latency, a
 
 ## Добавление нового протокола
 
-Архитектура v3.9.0 рассчитана на независимые protocol modules. Новый backend не
+Архитектура v1.4 рассчитана на независимые protocol modules. Новый backend не
 должен добавлять специальные ветки в lifecycle, общий raw path, UI или ViGEm.
 
 Быстрый старт:
@@ -171,4 +174,7 @@ BUILD.cmd
 
 ## Программа стабилизации
 
-План повышения стабильности и производительности без изменения существующего поведения находится в `docs/stability/README_RU.md`. Текущий архив содержит baseline, пакет S01 и подэтап S02A: общий allocation-free exception barrier для realtime/debug/overlay workers, fault-safe публикации и переносимые тесты. Перед следующим runtime-пакетом требуется Windows/MSVC x64 Release build и smoke test.
+Актуальные roadmap, решения, риски, матрица проверок и журнал разработки v1.4
+находятся в [`docs/v1.4`](docs/v1.4/README.md). Документы в `docs/stability`
+сохранены как исторические evidence-материалы импортированной линии и не
+определяют текущую версию или готовность релиза.

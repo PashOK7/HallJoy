@@ -263,6 +263,7 @@
     <ClInclude Include="tab_dark.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="ui_theme.h" />
+    <ClInclude Include="version.h" />
     <ClInclude Include="win_util.h" />
     <ClInclude Include="worker_lifecycle.h" />
     <ClInclude Include="worker_primitives.h" />

@@ -25,8 +25,8 @@ The word "final" is not used before every release gate in this roadmap passes.
 | Package | Scope | Status | Required completion gate |
 |---|---|---|---|
 | `V14-00` | Preserve v1.3 SDK work; import and verify the advanced archive | Verified | Provenance commits, clean tree, baseline build and test evidence |
-| `V14-01` | Product identity, version resources, current README and documentation ownership | Planned | No active product surface reports 3.9.0; historical evidence remains intact |
-| `V14-02` | Development-only deterministic analog simulator and scenario runner | Planned | Full common pipeline, ramps, SOCD, hotplug, disconnect and fault scenarios without production enablement |
+| `V14-01` | Product identity, version resources, current README and documentation ownership | Verified | No active product surface reports 3.9.0; historical evidence remains intact |
+| `V14-02` | Development-only deterministic analog simulator and scenario runner | In progress | Full common pipeline, ramps, SOCD, hotplug, disconnect and fault scenarios without production enablement |
 | `V14-03` | Self-contained private UAP runtime and truthful dependency diagnostics | Planned | Works from writable and protected install locations; never recommends system SDK |
 | `V14-04` | Reproducible dependencies, warning baseline, local/CI-equivalent build scripts | Planned | Pinned inputs, x64 Release CI, portable tests, documented warning policy |
 | `V14-05` | Truthful lifecycle registry and cooperative worker shutdown | Planned | Failure-injected start/stop/restart tests; no unsafe ordinary `TerminateThread` path |
@@ -61,10 +61,21 @@ rerun in CI before publication.
 
 ## Next packages
 
-`V14-01` establishes the v1.4 product identity. `V14-02` then adds a
-development-only deterministic analog simulator so the common analog pipeline
-can be exercised on this membrane-keyboard workstation. Simulation never
-closes a protocol-specific hardware gate.
+## Completed package: V14-01
+
+- Central version macros define `1.4.0.0` and runtime build ID `HallJoy-v1.4`.
+- The Windows resource exposes `FileVersion` and `ProductVersion` `1.4.0.0`.
+- The About dialog and current README identify v1.4.
+- Active runtime and build surfaces no longer identify `3.9.0`.
+- Historical imported evidence and provenance filenames remain intact.
+- A version identity static audit prevents regression.
+- Static audits, portable C++20 tests, and the full MSVC x64 Release build pass.
+
+## Current package: V14-02
+
+Add a development-only deterministic analog simulator so the common analog
+pipeline can be exercised on this membrane-keyboard workstation. Simulation
+never closes a protocol-specific hardware gate.
 
 ## Release definition
 

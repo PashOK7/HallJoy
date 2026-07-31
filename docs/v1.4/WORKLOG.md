@@ -48,3 +48,25 @@
 - Apply `V14-01` version identity changes.
 - Add the `V14-02` development-only deterministic analog simulator.
 - Begin `V14-03` self-contained UAP runtime and dependency diagnostics.
+
+## 2026-07-31 - V14-01 product identity
+
+### Completed
+
+- Added central version macros for `1.4.0.0`.
+- Added Windows `VERSIONINFO` metadata and updated the About dialog.
+- Changed the runtime build identifier to `HallJoy-v1.4`.
+- Updated active README and build output text to v1.4.
+- Added an automatic version identity audit that preserves historical evidence
+  while rejecting `3.9.0` on active product surfaces.
+
+### Validation
+
+- Static audits: PASS.
+- Portable C++20 tests with Clang 19.1.5: PASS.
+- Full MSVC x64 Release build: PASS with the inherited ViGEm PDB warning.
+- Built EXE reports `FileVersion=1.4.0.0` and `ProductVersion=1.4.0.0`.
+
+### Next
+
+- Implement the `V14-02` development-only analog simulator and scenario runner.

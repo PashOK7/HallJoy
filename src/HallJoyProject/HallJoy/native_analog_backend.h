@@ -4,12 +4,13 @@
 #include <cstdint>
 
 #include "native_analog_routing.h"
+#include "worker_lifecycle.h"
 
 // Internal ABI for HallJoy native analogue protocol modules.
 // A new protocol implementation owns its USB/HID transport and publishes only
 // normalized [0..1000] values. The common backend owns curves, bindings, SOCD,
 // UI snapshots and ViGEm scheduling.
-static constexpr std::uint32_t kNativeAnalogBackendAbiVersion = 1;
+static constexpr std::uint32_t kNativeAnalogBackendAbiVersion = 2;
 static constexpr std::size_t kNativeAnalogBackendStatusChars = 160;
 
 enum class NativeAnalogStartPhase : std::uint8_t
@@ -67,7 +68,7 @@ struct NativeAnalogBackendDescriptor
     // only after the response semantics are validated.
     bool (*prepareRouting)() = nullptr;
     bool (*start)() = nullptr;
-    bool (*stop)() = nullptr;
+    halljoy::lifecycle::StopResult (*stop)(halljoy::lifecycle::GenerationId generation) = nullptr;
     void (*notifyDeviceChange)() = nullptr;
     bool (*isProtocolDevicePresent)() = nullptr;
     bool (*isConnected)() = nullptr;
@@ -94,4 +95,26 @@ inline bool NativeAnalogBackendDescriptor_IsValid(const NativeAnalogBackendDescr
         (d.flags & ~knownFlags) == 0 &&
         d.start && d.stop && d.isProtocolDevicePresent && d.isConnected &&
         d.ownsHid && d.getMilli && d.getTelemetry;
+}
+
+inline halljoy::lifecycle::StopResult NativeAnalogBackendStopJoined(
+    halljoy::lifecycle::GenerationId generation) noexcept
+{
+    return { halljoy::lifecycle::StopStatus::Joined,
+        halljoy::lifecycle::WorkerState::Joined, generation, {} };
+}
+
+inline halljoy::lifecycle::StopResult NativeAnalogBackendStopFailed(
+    halljoy::lifecycle::GenerationId generation,
+    halljoy::lifecycle::LifecycleErrorCode reason,
+    std::uint32_t nativeError = 0) noexcept
+{
+    const auto status = reason == halljoy::lifecycle::LifecycleErrorCode::StopTimedOut
+        ? halljoy::lifecycle::StopStatus::TimedOut
+        : halljoy::lifecycle::StopStatus::Faulted;
+    return { status, halljoy::lifecycle::WorkerState::Faulted, generation,
+        { reason, halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            halljoy::lifecycle::WorkerState::StopRequested,
+            halljoy::lifecycle::WorkerState::Faulted,
+            generation, generation, nativeError } };
 }

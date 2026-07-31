@@ -40,6 +40,13 @@ AfterRawInput phase
 Catalog order is classification priority. A claim is first-proof-wins; a later
 backend cannot steal the same exact VID/PID.
 
+The native registry owns a monotonic generation for every catalog entry.
+Lifecycle mutations are serialized and bound to the first owner thread. A
+backend stop callback receives that generation and returns `StopResult`; only a
+confirmed `Joined` result permits replacement. Timeout, fault, wrong-thread, or
+generation mismatch remains visible through `NativeAnalogBackends_GetLifecycle`
+and blocks unsafe restart instead of being cleared by reset.
+
 ## Files a new protocol owns
 
 Generated default:

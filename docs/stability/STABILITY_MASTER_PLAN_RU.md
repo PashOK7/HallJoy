@@ -146,6 +146,8 @@ Wrapper — `noexcept`, ловит `std::exception` и `...`, записывае
 
 Сначала fake backend tests, затем один реальный минимальный backend как pilot.
 
+Статус v1.4: `Verified` в V14-05. Production registry и все native descriptor callbacks переведены на generation-scoped `StopResult`; simulator служит воспроизводимым runtime pilot, а hardware-specific cooperative shutdown остаётся в S04-S08.
+
 ### S04 — Realtime loop cooperative shutdown
 
 Удалить `TerminateThread` только из realtime loop. Stop event должен прерывать ожидание; cleanup MMCSS/timer/time period выполняется самим worker. ViGEm call пока не переносится — это отдельный пакет.

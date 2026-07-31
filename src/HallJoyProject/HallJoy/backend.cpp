@@ -3952,7 +3952,12 @@ const NativeAnalogBackendDescriptor& BackendNative_GetSparkDescriptor()
             NativeAnalogBackendFlag_DynamicVidPid,
         nullptr,
         &SparkStart,
-        [] { return SparkStop(); },
+        [](halljoy::lifecycle::GenerationId generation) {
+            return SparkStop()
+                ? NativeAnalogBackendStopJoined(generation)
+                : NativeAnalogBackendStopFailed(generation,
+                    halljoy::lifecycle::LifecycleErrorCode::StopTimedOut, ERROR_TIMEOUT);
+        },
         nullptr,
         &BackendNative_SparkPresent,
         &BackendNative_SparkPresent,
@@ -3977,7 +3982,12 @@ const NativeAnalogBackendDescriptor& BackendNative_GetSayoDescriptor()
             NativeAnalogBackendFlag_DynamicVidPid,
         nullptr,
         &SayoStart,
-        [] { return SayoStop(); },
+        [](halljoy::lifecycle::GenerationId generation) {
+            return SayoStop()
+                ? NativeAnalogBackendStopJoined(generation)
+                : NativeAnalogBackendStopFailed(generation,
+                    halljoy::lifecycle::LifecycleErrorCode::StopTimedOut, ERROR_TIMEOUT);
+        },
         nullptr,
         &BackendNative_SayoPresent,
         &BackendNative_SayoPresent,

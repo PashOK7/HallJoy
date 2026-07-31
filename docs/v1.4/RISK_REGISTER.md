@@ -33,7 +33,7 @@ maintained in `ROADMAP.md`.
 |---|---|---|---|---|---|
 | `HJ-AUD-P1-001` | P1 | `TerminateThread` используется как обычный механизм shutdown | `S04/S05/S08` | Open | bounded cooperative shutdown + soak |
 | `HJ-AUD-P1-002` | P1 | «Ограниченный shutdown» трёх native backend'ов всё равно может зависнуть навсегда | `S06/S07` | Open | pending-I/O cancel/join fault tests |
-| `HJ-AUD-P1-003` | P1 | Контракт `stop()` недостоверен | `S03` | Open | state-machine and registry tests |
+| `HJ-AUD-P1-003` | P1 | Контракт `stop()` недостоверен | `S03` | Verified | generation-scoped StopResult, poison-on-failure and registry fault tests passed |
 | `HJ-AUD-P1-004` | P1 | Нет верхней границы C++-исключений в ключевых worker-потоках | `S02` | Partial | S02A verified; S02B.1 MAD68/Hex80 implemented with device gates deferred; S02B.2 SparkLink verified on device; S02B.3 Addressed main/reader implemented with device gate deferred; Sayo/UAP remain |
 | `HJ-AUD-P1-005` | P1 | Addressed reader закрывает HID HANDLE из другого потока при активном stack `OVERLAPPED` | `S06` | Open | overlapped cancellation/reap tests |
 | `HJ-AUD-P1-006` | P1 | Analog host допускает повторную инициализацию поверх не завершившегося поколения потоков | `S09` | Open | generation/partial-start/restart tests |
@@ -66,7 +66,7 @@ maintained in `ROADMAP.md`.
 | `HJ-AUD-P2-017` | P2 | Writable state хранится рядом с executable | `S14` | Open | migration/name/path tests |
 | `HJ-AUD-P2-018` | P2 | Имена профилей недостаточно нормализованы | `S14` | Open | migration/name/path tests |
 | `HJ-AUD-P2-019` | P2 | Публикация curve settings имеет слабый memory-order contract | `S11` | Open | startup rollback and wake sequence tests |
-| `HJ-AUD-P2-020` | P2 | Глобальный lifecycle registry не защищён и не кодирует thread affinity | `S03` | Open | state-machine and registry tests |
+| `HJ-AUD-P2-020` | P2 | Глобальный lifecycle registry не защищён и не кодирует thread affinity | `S03` | Verified | mutex serialization, owner token and wrong-thread fault test passed |
 | `HJ-AUD-P2-021` | P2 | VID:PID ownership слишком крупнозернистый | `S17` | Open | CPU/USB/identity/contention measurements |
 | `HJ-AUD-P3-001` | P3 | TESTING.md описывает отсутствующий тестовый контур | `S20` | Open | build/docs/manifest validation |
 | `HJ-AUD-P3-002` | P3 | Внутренние README/BUILD документы относятся к другим поколениям проекта | `S20` | Open | build/docs/manifest validation |
@@ -79,7 +79,7 @@ maintained in `ROADMAP.md`.
 
 ## Evidence package S01
 
-S01 добавил общий lifecycle-контракт, generation-aware state machine и fault-injection seam. Это является prerequisite для `HJ-AUD-P1-003` и `HJ-AUD-P2-020`, но production registry/backend callbacks ещё не мигрированы. Поэтому статусы всех 45 записей остаются `Open`; преждевременного закрытия риска нет.
+S01 добавил общий lifecycle-контракт, generation-aware state machine и fault-injection seam. V14-05 подключил этот контракт к production registry и backend callbacks, поэтому `HJ-AUD-P1-003` и `HJ-AUD-P2-020` закрыты проверенными локальными gates. Риск `HJ-AUD-P1-001` остаётся `Open`: принудительное завершение отдельных worker'ов удаляется только последующими lifecycle-пакетами.
 
 ## Evidence package S02A
 

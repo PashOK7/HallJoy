@@ -164,3 +164,29 @@ Hardware: Not required; runtime/protocol behavior is unchanged
 Known limitations: GitHub-hosted jobs were not run; they are not a V14-04 gate
 Rollback: parent commit of the V14-04 implementation commit
 ```
+
+## V14-05 evidence
+
+```text
+Package: V14-05
+Scope: Truthful lifecycle registry and generation-scoped stop contract
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -RunSeconds 8
+Results:
+  Static audits and portable C++20 tests: PASS
+  Registry failure injection: PASS
+  Wrong-thread mutation rejection: PASS
+  Failed start then new generation: PASS
+  Confirmed join then restart: PASS
+  Timeout and stale generation poison/restart block: PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Simulator common-pipeline and graceful shutdown scenario: PASS
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Hardware: Not required for the registry contract; per-worker device gates remain
+Known limitations: ordinary TerminateThread paths remain open for V14-06+
+Rollback: parent commit of the V14-05 implementation commit
+```

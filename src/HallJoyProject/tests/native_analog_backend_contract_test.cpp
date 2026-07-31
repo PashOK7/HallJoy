@@ -5,7 +5,10 @@
 namespace
 {
 bool Start() { return true; }
-bool Stop() { return true; }
+halljoy::lifecycle::StopResult Stop(halljoy::lifecycle::GenerationId generation)
+{
+    return NativeAnalogBackendStopJoined(generation);
+}
 bool Present() { return true; }
 bool Connected() { return true; }
 bool Owns(std::uint16_t hid) { return hid == 0x1A; }

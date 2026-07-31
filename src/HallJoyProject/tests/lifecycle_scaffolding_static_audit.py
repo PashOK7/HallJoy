@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify that S01 lifecycle contracts remain isolated from production runtime."""
+"""Verify that the S01 lifecycle contract is integrated by V14-05."""
 
 from __future__ import annotations
 
@@ -39,31 +39,37 @@ def main() -> int:
     require("StartThread" in primitives_text and "JoinThread" in primitives_text,
             "thread start/join seams are injectable")
 
-    production_extensions = {".cpp", ".h", ".inc"}
-    allowed = {lifecycle.resolve(), primitives.resolve()}
-    forbidden_includes: list[str] = []
-    for path in HALL.iterdir():
-        if path.suffix.lower() not in production_extensions or path.resolve() in allowed:
-            continue
-        text = path.read_text(encoding="utf-8-sig", errors="replace")
-        if '"worker_lifecycle.h"' in text or '"worker_primitives.h"' in text:
-            forbidden_includes.append(path.name)
-    require(not forbidden_includes,
-            "S01 headers are not included by production translation units: " + ", ".join(forbidden_includes))
+    registry_contract = (HALL / "native_backend_lifecycle_registry.h").read_text(encoding="utf-8")
+    registry_runtime = (HALL / "native_analog_backend_registry.cpp").read_text(encoding="utf-8")
+    descriptor = (HALL / "native_analog_backend.h").read_text(encoding="utf-8")
+    require('"worker_lifecycle.h"' in registry_contract,
+            "production registry controller uses the lifecycle contract")
+    require("BackendLifecycleRegistry" in registry_runtime and "g_started" not in registry_runtime,
+            "runtime registry no longer uses lossy boolean started state")
+    require("StopResult (*stop)" in descriptor and "GenerationId generation" in descriptor,
+            "backend stop ABI carries a generation-scoped StopResult")
+    require("NativeAnalogBackends_GetLifecycle" in registry_runtime,
+            "exact lifecycle diagnostics are exposed")
 
     project = ET.parse(HALL / "HallJoy.vcxproj").getroot()
     includes = {node.attrib.get("Include") for node in project.findall(".//m:ClInclude", NS)}
     compiles = {node.attrib.get("Include") for node in project.findall(".//m:ClCompile", NS)}
     require("worker_lifecycle.h" in includes, "lifecycle header is visible in MSVC project")
     require("worker_primitives.h" in includes, "primitive seam header is visible in MSVC project")
+    require("native_backend_lifecycle_registry.h" in includes,
+            "production lifecycle registry header is visible in MSVC project")
     require("worker_lifecycle.cpp" not in compiles and "worker_primitives.cpp" not in compiles,
             "S01 adds no production object file")
 
     runner_text = RUNNER.read_text(encoding="utf-8")
     require("worker_lifecycle_test.cpp" in runner_text, "lifecycle unit test is in portable gate")
     require("worker_primitives_test.cpp" in runner_text, "primitive seam test is in portable gate")
+    require("native_backend_lifecycle_registry_test.cpp" in runner_text,
+            "failure-injected registry test is in portable gate")
     require((TESTS / "worker_lifecycle_test.cpp").is_file(), "lifecycle unit test exists")
     require((TESTS / "worker_primitives_test.cpp").is_file(), "primitive seam unit test exists")
+    require((TESTS / "native_backend_lifecycle_registry_test.cpp").is_file(),
+            "failure-injected registry unit test exists")
 
     print("LIFECYCLE_SCAFFOLDING_STATIC_AUDIT=PASS")
     return 0

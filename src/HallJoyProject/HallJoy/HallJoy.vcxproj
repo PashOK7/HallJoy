@@ -282,6 +282,7 @@
     <ClInclude Include="version.h" />
     <ClInclude Include="win_util.h" />
     <ClInclude Include="worker_lifecycle.h" />
+    <ClInclude Include="native_backend_lifecycle_registry.h" />
     <ClInclude Include="worker_primitives.h" />
     <ClInclude Include="worker_exception_barrier.h" />
     <ClInclude Include="windows_command_line.h" />

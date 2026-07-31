@@ -401,6 +401,9 @@
     <ClInclude Include="worker_lifecycle.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="native_backend_lifecycle_registry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="worker_primitives.h">
       <Filter>Header Files</Filter>
     </ClInclude>

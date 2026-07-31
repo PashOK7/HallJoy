@@ -1271,6 +1271,7 @@ static DWORD WINAPI SparkPollThreadProc(LPVOID) noexcept
 
 static bool SparkStop()
 {
+    bool cooperativelyJoined = true;
     const bool hadResources = g_sparkThread || g_sparkHandle || g_sparkStopEvent;
     if (hadResources)
         StabilityTrace_Write(L"INFO", L"spark", L"stop.begin", L"has_thread=%d has_handle=%d",
@@ -1286,6 +1287,7 @@ static bool SparkStop()
         DWORD wr = WaitForSingleObject(g_sparkThread, 3000);
         if (wr != WAIT_OBJECT_0)
         {
+            cooperativelyJoined = false;
             const DWORD waitError = wr == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT;
             DebugLog_Write(L"[backend.spark] stop join timeout wait=%lu err=%lu; forcing shutdown-only termination",
                 (unsigned long)wr, (unsigned long)waitError);
@@ -1325,7 +1327,7 @@ static bool SparkStop()
         StabilityTrace_Write(L"INFO", L"spark", L"disconnected", L"reason=stop");
         StabilityTrace_Write(L"INFO", L"spark", L"stop.end");
     }
-    return true;
+    return cooperativelyJoined;
 }
 
 static bool SparkStart()

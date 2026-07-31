@@ -855,7 +855,10 @@ const NativeAnalogBackendDescriptor& Hex80_GetNativeBackendDescriptor()
             NativeAnalogBackendFlag_DynamicVidPid,
         &Hex80_PrepareProtocolRouting,
         &Hex80_Start,
-        [] { Hex80_Stop(); return true; },
+        [](halljoy::lifecycle::GenerationId generation) {
+            Hex80_Stop();
+            return NativeAnalogBackendStopJoined(generation);
+        },
         &Hex80_NotifyDeviceChange,
         &Hex80_IsProtocolDevicePresent,
         &Hex80_IsConnected,

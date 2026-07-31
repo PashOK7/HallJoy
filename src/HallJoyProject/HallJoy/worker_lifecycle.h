@@ -60,6 +60,8 @@ enum class LifecycleErrorCode : std::uint8_t
     WorkerFaulted,
     StopTimedOut,
     PrimitiveFailed,
+    WrongThread,
+    BackendContractViolation,
 };
 
 // A fixed-size, allocation-free diagnostic record. It is safe to copy through

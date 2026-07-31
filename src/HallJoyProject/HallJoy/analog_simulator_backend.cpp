@@ -227,7 +227,12 @@ const NativeAnalogBackendDescriptor& AnalogSimulator_GetNativeBackendDescriptor(
         NativeAnalogBackendFlag_StreamTransport,
         nullptr,
         &Start,
-        &Stop,
+        [](halljoy::lifecycle::GenerationId generation) {
+            return Stop()
+                ? NativeAnalogBackendStopJoined(generation)
+                : NativeAnalogBackendStopFailed(generation,
+                    halljoy::lifecycle::LifecycleErrorCode::WorkerFaulted);
+        },
         nullptr,
         &IsPresent,
         &IsConnected,

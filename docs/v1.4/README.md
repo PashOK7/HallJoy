@@ -9,7 +9,7 @@ version or release status.
 
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
-- Current package: `V14-05` lifecycle registry and cooperative shutdown
+- Current package: `V14-06` cooperative per-worker lifecycle migration
 - GitHub publication: not started
 - Release status: not release-ready
 

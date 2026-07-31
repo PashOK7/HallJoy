@@ -29,8 +29,8 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-02` | Development-only deterministic analog simulator and scenario runner | Verified | Full common pipeline, ramps, SOCD, hotplug, disconnect and fault scenarios without production enablement |
 | `V14-03` | Self-contained private UAP runtime and truthful dependency diagnostics | Verified | Works from writable and protected install locations; never recommends system SDK |
 | `V14-04` | Reproducible dependencies, warning baseline, local/CI-equivalent build scripts | Verified | Pinned inputs, clean-room x64 Release, portable tests, documented warning policy |
-| `V14-05` | Truthful lifecycle registry and cooperative worker shutdown | In progress | Failure-injected start/stop/restart tests; no unsafe ordinary `TerminateThread` path |
-| `V14-06` | Addressed, MAD68, Hex80, SparkLink and Sayo lifecycle migration | Planned | Per-backend tests plus unchanged protocol and mapping characterization |
+| `V14-05` | Truthful lifecycle registry and generation-scoped stop contract | Verified | Failure-injected start/stop/restart tests; timeout/fault poisons the generation and blocks restart |
+| `V14-06` | Cooperative lifecycle migration for realtime, logging and native protocol workers | Planned | Per-worker tests, no ordinary `TerminateThread`, plus unchanged protocol and mapping characterization |
 | `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Planned | Partial-start, crash, hang, unload and bounded restart tests |
 | `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Planned | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
 | `V14-09` | Transactional persistence and writable state migration | Planned | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
@@ -113,11 +113,32 @@ C++20 tests, the full Windows build, and a production runtime smoke without
 using repository build caches. GitHub Actions remains an optional
 post-publication check.
 
-## Current package: V14-05
+## Completed package: V14-05
 
-Migrate the truthful lifecycle registry and cooperative shutdown contract with
-failure-injected start, stop, timeout, and restart tests before changing
-individual protocol workers.
+- Replaced the lossy global `g_started` array with a fixed-capacity,
+  generation-aware lifecycle registry protected by a mutex and owner-thread
+  contract.
+- Changed the internal native descriptor ABI to return a generation-scoped
+  `StopResult`.
+- A timed-out, faulted, or malformed stop result leaves the entry `Poisoned`;
+  reset cannot erase that state and restart is rejected.
+- Exact lifecycle diagnostics are available through a registry snapshot and
+  critical stability trace.
+- SparkLink and Sayo no longer report forced termination as a successful
+  cooperative join.
+- Failure-injected portable tests cover wrong-thread access, failed start,
+  normal join/restart, timeout poisoning, and stale-generation poisoning.
+- Portable/static gates, full MSVC x64 Release build, and the deterministic
+  analog simulator runtime scenario pass.
+
+`TerminateThread` removal and bounded cooperative shutdown remain open and
+begin in V14-06; V14-05 makes those failures truthful instead of masking them.
+
+## Current package: V14-06
+
+Migrate workers one ownership boundary at a time to bounded cooperative
+shutdown, beginning with the realtime loop. Protocol bytes, mappings, and
+polling behavior remain characterization-locked during each migration.
 
 ## Release definition
 

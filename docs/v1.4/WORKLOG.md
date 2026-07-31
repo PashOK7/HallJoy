@@ -200,3 +200,31 @@
 ### Next
 
 - Begin `V14-05`: truthful lifecycle registry and cooperative worker shutdown.
+
+## 2026-07-31 - V14-05 truthful lifecycle registry
+
+### Implemented
+
+- Replaced `g_started` with a mutex-protected, fixed-capacity lifecycle state
+  machine with monotonic generations and owner-thread enforcement.
+- Changed native descriptor stop callbacks to return generation-scoped
+  `StopResult` values.
+- Made timeout, fault, and malformed generation results poison the entry and
+  reject restart; `Reset()` no longer erases an incomplete stop.
+- Exposed exact lifecycle snapshots and critical trace diagnostics.
+- Made SparkLink and Sayo report forced termination as an incomplete stop.
+- Added failure-injected tests for wrong-thread access, failed start, normal
+  join/restart, timeout, and stale callback generations.
+
+### Validation
+
+- Static audits and portable C++20 tests: PASS with Clang 19.1.5.
+- Full MSVC x64 Release build: PASS, 0 errors and only allowlisted `LNK4099`.
+- Deterministic analog simulator runtime scenario: PASS, including graceful
+  shutdown and no remaining process.
+- Hardware behavior was not claimed by this registry package.
+
+### Remaining risk
+
+- `TerminateThread` remains open as `HJ-AUD-P1-001`. V14-06 begins bounded
+  cooperative migration one worker at a time, starting with realtime.

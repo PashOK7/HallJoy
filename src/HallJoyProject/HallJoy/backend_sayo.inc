@@ -555,12 +555,11 @@ static bool SayoStop()
         DWORD wr = WaitForSingleObject(reader.thread, 3000);
         if (wr != WAIT_OBJECT_0)
         {
+            allJoined = false;
             DebugLog_Write(L"[backend.sayo] stop join timeout wait=%lu err=%lu; forcing shutdown-only termination",
                 (unsigned long)wr, (unsigned long)GetLastError());
             TerminateThread(reader.thread, 0xE0515341u);
             wr = WaitForSingleObject(reader.thread, 1000);
-            if (wr != WAIT_OBJECT_0)
-                allJoined = false;
         }
     }
     if (!allJoined)
@@ -584,7 +583,7 @@ static bool SayoStop()
     g_sayoReaderCount.store(0, std::memory_order_relaxed);
     g_sayoConnectedVid.store(0, std::memory_order_relaxed);
     g_sayoConnectedPid.store(0, std::memory_order_relaxed);
-    return true;
+    return allJoined;
 }
 
 static bool SayoStart()

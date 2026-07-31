@@ -2589,7 +2589,10 @@ const NativeAnalogBackendDescriptor& Mad68ProR_GetNativeBackendDescriptor()
             NativeAnalogBackendFlag_RequiresRawInput,
         &Mad68ProR_PrepareProtocolRouting,
         &Mad68ProR_Start,
-        [] { Mad68ProR_Stop(); return true; },
+        [](halljoy::lifecycle::GenerationId generation) {
+            Mad68ProR_Stop();
+            return NativeAnalogBackendStopJoined(generation);
+        },
         &Mad68ProR_NotifyDeviceChange,
         &Mad68ProR_IsProtocolDevicePresent,
         &Mad68ProR_IsConnected,

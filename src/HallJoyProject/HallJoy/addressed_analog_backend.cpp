@@ -1597,7 +1597,10 @@ const NativeAnalogBackendDescriptor& AddressedAnalog_GetNativeBackendDescriptor(
             NativeAnalogBackendFlag_DynamicVidPid,
         &AddressedAnalog_PrepareProtocolRouting,
         &AddressedAnalog_Start,
-        [] { AddressedAnalog_Stop(); return true; },
+        [](halljoy::lifecycle::GenerationId generation) {
+            AddressedAnalog_Stop();
+            return NativeAnalogBackendStopJoined(generation);
+        },
         &AddressedAnalog_NotifyDeviceChange,
         &AddressedAnalog_IsProtocolDevicePresent,
         &AddressedAnalog_IsConnected,

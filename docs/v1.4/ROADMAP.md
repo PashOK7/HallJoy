@@ -28,8 +28,8 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-01` | Product identity, version resources, current README and documentation ownership | Verified | No active product surface reports 3.9.0; historical evidence remains intact |
 | `V14-02` | Development-only deterministic analog simulator and scenario runner | Verified | Full common pipeline, ramps, SOCD, hotplug, disconnect and fault scenarios without production enablement |
 | `V14-03` | Self-contained private UAP runtime and truthful dependency diagnostics | Verified | Works from writable and protected install locations; never recommends system SDK |
-| `V14-04` | Reproducible dependencies, warning baseline, local/CI-equivalent build scripts | Implemented | Pinned inputs, clean-room x64 Release, portable tests, documented warning policy |
-| `V14-05` | Truthful lifecycle registry and cooperative worker shutdown | Planned | Failure-injected start/stop/restart tests; no unsafe ordinary `TerminateThread` path |
+| `V14-04` | Reproducible dependencies, warning baseline, local/CI-equivalent build scripts | Verified | Pinned inputs, clean-room x64 Release, portable tests, documented warning policy |
+| `V14-05` | Truthful lifecycle registry and cooperative worker shutdown | In progress | Failure-injected start/stop/restart tests; no unsafe ordinary `TerminateThread` path |
 | `V14-06` | Addressed, MAD68, Hex80, SparkLink and Sayo lifecycle migration | Planned | Per-backend tests plus unchanged protocol and mapping characterization |
 | `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Planned | Partial-start, crash, hang, unload and bounded restart tests |
 | `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Planned | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
@@ -94,7 +94,7 @@ rerun in CI before publication.
 - Static, portable, forced-fallback, corruption-repair, production build, and
   runtime shutdown gates pass.
 
-## Current package: V14-04
+## Completed package: V14-04
 
 Implemented locally:
 
@@ -108,9 +108,16 @@ Implemented locally:
 - workflow Actions use full commit SHAs and fixed runner labels;
 - a static audit prevents mutable dependency and gate regressions.
 
-GitHub Actions remains an optional post-publication check. The package becomes
-`Verified` after the corrected local clean-room clone completes the portable
-and full Windows gates without using repository build caches.
+The corrected independent clone completed fresh dependency bootstrap, portable
+C++20 tests, the full Windows build, and a production runtime smoke without
+using repository build caches. GitHub Actions remains an optional
+post-publication check.
+
+## Current package: V14-05
+
+Migrate the truthful lifecycle registry and cooperative shutdown contract with
+failure-injected start, stop, timeout, and restart tests before changing
+individual protocol workers.
 
 ## Release definition
 

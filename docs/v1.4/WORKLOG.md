@@ -190,10 +190,13 @@
 
 - The first independent clone correctly exposed that the ignored local Soup
   cache contained more HallJoy changes than the old generator reproduced.
-- The build now owns those five files as a checked-in locked overlay; the
-  corrected clean-room rerun is still required before `Verified`.
+- The corrected clone at `2230dee` fetched both exact commits from scratch,
+  verified the five-file overlay, completed the full build, and remained clean.
+- Its packaged production EXE opened and shut down gracefully with exit code 0
+  and no remaining parent or child process.
+- GitHub Actions was not run because the account quota is unavailable; it is an
+  optional post-publication check rather than a V14-04 blocker.
 
 ### Next
 
-- Rerun the complete build from a new local clone after the overlay correction,
-  then mark V14-04 `Verified` and begin V14-05. GitHub Actions is optional.
+- Begin `V14-05`: truthful lifecycle registry and cooperative worker shutdown.

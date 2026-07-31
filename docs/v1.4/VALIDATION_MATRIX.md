@@ -59,6 +59,10 @@ Scope: Product identity and active documentation ownership
 Commands:
   python tools/run_native_backend_checks.py --require-compiler
   powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  git clone --no-local --branch v1.4-integration --single-branch
+    C:\VSCode\HallJoy C:\VSCode\HallJoy-v14-04-cleanroom
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+    (from the independent clone)
 Results:
   Static audits: PASS
   Portable C++20 tests (Clang 19.1.5): PASS
@@ -153,8 +157,10 @@ Results:
   MSVC x64 Release: PASS, 0 errors
   Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
   GitHub workflow lock/parity audit: PASS
+  Independent clean-room clone at 2230dee: PASS
+  Clean-room production smoke: PASS, graceful exit 0, no process left
 Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
 Hardware: Not required; runtime/protocol behavior is unchanged
-Known limitations: independent clean-room build must pass after overlay fix
+Known limitations: GitHub-hosted jobs were not run; they are not a V14-04 gate
 Rollback: parent commit of the V14-04 implementation commit
 ```

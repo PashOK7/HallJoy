@@ -10,7 +10,7 @@ version or release status.
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
 - Current package: `V14-04` reproducible dependencies and build/CI gates
-  (`Implemented`; remote CI evidence pending)
+  (`Implemented`; corrected clean-room rerun pending)
 - GitHub publication: not started
 - Release status: not release-ready
 

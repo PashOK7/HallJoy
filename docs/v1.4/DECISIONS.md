@@ -94,11 +94,13 @@ dependency.
 Date: 2026-07-31
 
 `tools/dependency-lock.json` is authoritative for remote source commits,
-GitHub Action commits, runner labels, toolchain families, and binary dependency
-integrity. Build scripts consume the lock rather than duplicating moving
-references. Full commit SHAs are required; human-readable tags are comments.
+the reviewed Soup overlay and its hashes, GitHub Action commits, runner labels,
+toolchain families, and binary dependency integrity. Build scripts consume the
+lock rather than duplicating moving references. Full commit SHAs are required;
+human-readable tags are comments.
 
 Local and CI gates use the same checked-in entry points. The official Windows
 build requires portable C++20 tests and rejects warnings outside the explicit
-ViGEm `LNK4099` PDB allowlist. A package requiring CI cannot become `Verified`
-from local-equivalent evidence alone.
+ViGEm `LNK4099` PDB allowlist. V14-04 verification requires an independent
+local clone with empty build caches; GitHub Actions is useful but optional and
+must not block development when account quotas are unavailable.

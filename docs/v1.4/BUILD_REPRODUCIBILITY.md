@@ -10,11 +10,14 @@ The official build consumes the lock directly for:
 
 - the exact Sun commit used to generate the private UAP;
 - the exact Soup commit patched for HallJoy routing;
+- five reviewed HallJoy Soup overlay files and their normalized SHA-256 values;
 - the path, size, and SHA-256 of `ViGEmClient.lib`.
 
 The private Sun bootstrap never accepts an unrelated `sun` command from
 `PATH`. Sun and Soup are fetched by full 40-character commit and checked out in
-detached mode. Moving branches and release tags are not build inputs.
+detached mode. The build then copies only the five locked overlay files, checks
+their hashes before and after copying, and rejects every additional changed or
+untracked Soup file. Moving branches and release tags are not build inputs.
 
 GitHub Actions are referenced by full commit SHA. Human-readable major
 versions remain comments only. Runner labels are fixed to `ubuntu-24.04` and
@@ -56,9 +59,11 @@ an explicit decision and updated validation evidence.
 1. Select and review an exact upstream commit or binary.
 2. Update `tools/dependency-lock.json` in the same change as any required code.
 3. For a binary input, update both size and SHA-256.
-4. Run the dependency-lock audit, portable tests, and full Windows build.
-5. Record the reason, old value, new value, and results in the v1.4 worklog.
-6. Run both GitHub jobs before marking the package `Verified`.
+4. For a Soup change, update the reviewed overlay file and its normalized
+   SHA-256; do not rely on an ignored local Soup working tree.
+5. Run the dependency-lock audit, portable tests, and full Windows build.
+6. Record the reason, old value, new value, and results in the v1.4 worklog.
+7. Run the documented clean-room build before marking the package `Verified`.
 
 `dependency_lock_static_audit.py` rejects mutable Actions references, moving
 runner aliases, build scripts that bypass the lock, a missing portable compiler

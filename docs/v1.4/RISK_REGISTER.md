@@ -18,8 +18,8 @@ maintained in `ROADMAP.md`.
 | `HJ-V14-P2-001` | P2 | v1.3 self-contained runtime improvements can be lost during architectural migration | `V14-03` | Verified | checkpoint `b3fefce` compared; embedded self-contained behavior retained in isolated ABI1 architecture |
 | `HJ-V14-P2-002` | P2 | Imported historical validation may be mistaken for validation of later v1.4 code | all | Open | per-package evidence enforcement |
 | `HJ-V14-P2-003` | P2 | Simulation could be mistaken for real analog-protocol evidence or leak into production | `V14-02` | Verified | sources excluded from production compile; compile/runtime gates and evidence labels passed |
-| `HJ-V14-P2-004` | P2 | Moving remote build inputs can silently change the private UAP or CI behavior | `V14-04` | Implemented | common lock, full commit SHAs, detached source checkout and static lock audit pass; remote CI pending |
-| `HJ-V14-P2-005` | P2 | Local build can omit portable tests or accept warnings rejected by CI | `V14-04` | Implemented | official build requires portable compiler gate and enforces warning allowlist; remote CI pending |
+| `HJ-V14-P2-004` | P2 | Moving remote build inputs can silently change the private UAP or CI behavior | `V14-04` | Implemented | common lock, full commit SHAs, detached source checkout and overlay audit pass; corrected clean-room rerun pending |
+| `HJ-V14-P2-005` | P2 | Local build can omit portable tests or accept warnings rejected by CI | `V14-04` | Implemented | official build requires portable compiler gate and enforces warning allowlist; corrected clean-room rerun pending |
 
 ## Статусы
 
@@ -74,8 +74,8 @@ maintained in `ROADMAP.md`.
 | `HJ-AUD-P3-004` | P3 | Validation docs переоценивают lifecycle validation | `S20` | Open | build/docs/manifest validation |
 | `HJ-AUD-P3-005` | P3 | Release Win32 конфигурация ссылается на x64 ViGEm library | `S20` | Open | build/docs/manifest validation |
 | `HJ-AUD-P3-006` | P3 | Проект компилируется только с Warning Level 3 | `S20` | Open | build/docs/manifest validation |
-| `HJ-AUD-P3-007` | P3 | Корневой README не перечисляет реальные build dependencies | `S20` | Implemented | README lists VS C++, x64 Clang, Python, Git and PowerShell; remote CI pending |
-| `HJ-AUD-P3-008` | P3 | Sun build tool берётся с moving branch | `S20` | Implemented | exact locked commit and patched-tree integrity pass locally; remote CI pending |
+| `HJ-AUD-P3-007` | P3 | Корневой README не перечисляет реальные build dependencies | `S20` | Implemented | README lists VS C++, x64 Clang, Python, Git and PowerShell; clean-room rerun pending |
+| `HJ-AUD-P3-008` | P3 | Sun build tool берётся с moving branch | `S20` | Implemented | exact locked commit and overlay integrity pass locally; clean-room rerun pending |
 
 ## Evidence package S01
 

@@ -146,15 +146,15 @@ Results:
   Static audits and portable C++20 tests with Clang 19.1.5: PASS
   Locked Sun revision: 83c195bd61314bdbfdccc161653dbb652e3b6678
   Locked Soup revision: b02796b0b20276277c8a4b4d3759643eeab43ff7
-  Generated HallJoy Soup patch diff SHA-256 verification: PASS
+  Five-file HallJoy Soup overlay SHA-256 verification: PASS
   Fresh shallow fetch by both locked commit SHAs: PASS
   ViGEmClient size/SHA-256 verification: PASS
   Private UAP rebuild from locked inputs: PASS
   MSVC x64 Release: PASS, 0 errors
   Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
   GitHub workflow lock/parity audit: PASS
-Remote CI: PENDING; no push is permitted during local integration
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
 Hardware: Not required; runtime/protocol behavior is unchanged
-Known limitations: Ubuntu and GitHub-hosted Windows jobs need their first run
+Known limitations: independent clean-room build must pass after overlay fix
 Rollback: parent commit of the V14-04 implementation commit
 ```

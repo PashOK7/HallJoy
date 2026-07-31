@@ -26,7 +26,15 @@ $SunRepository = [string]$lock.sources.sun.repository
 $SunCommit = [string]$lock.sources.sun.commit
 $SoupRepository = [string]$lock.sources.soup.repository
 $SoupCommit = [string]$lock.sources.soup.commit
-$SoupPatchedDiffSha256 = [string]$lock.sources.soup.patchedDiffSha256
+$SoupOverlayRoot = Join-Path $Root 'overlay\Soup\soup'
+$SoupOverlayFiles = @($lock.sources.soup.patchedOverlayFiles.PSObject.Properties)
+
+function Get-NormalizedTextSha256([string]$Path) {
+    $text = [IO.File]::ReadAllText($Path).Replace("`r`n", "`n").Replace("`r", "`n")
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes($text)
+    return [BitConverter]::ToString(
+        [Security.Cryptography.SHA256]::Create().ComputeHash($bytes)).Replace('-', '')
+}
 
 function Require-Command([string]$Name, [string]$Message) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -183,6 +191,20 @@ Require-Command 'git' 'Git is required to download the Soup source.'
 $SunExe = Resolve-SunExecutable
 $null = Resolve-ClangX64
 
+if ($SoupOverlayFiles.Count -eq 0) {
+    throw 'The dependency lock contains no Soup overlay files.'
+}
+foreach ($entry in $SoupOverlayFiles) {
+    $overlayPath = Join-Path $SoupOverlayRoot $entry.Name
+    if (-not (Test-Path -LiteralPath $overlayPath -PathType Leaf)) {
+        throw "Soup overlay file is missing: $overlayPath"
+    }
+    $actualHash = Get-NormalizedTextSha256 $overlayPath
+    if ($actualHash -ne [string]$entry.Value) {
+        throw "Soup overlay integrity failed for $($entry.Name). Expected=$($entry.Value) Actual=$actualHash"
+    }
+}
+
 $currentSoupCommit = ''
 if (Test-Path -LiteralPath (Join-Path $SoupRoot '.git')) {
     $currentSoupCommit = (& git -C $SoupRoot rev-parse HEAD 2>$null | Select-Object -First 1)
@@ -204,23 +226,29 @@ if (-not (Test-Path -LiteralPath (Join-Path $SoupRoot 'soup\AnalogueKeyboard.cpp
     if ($LASTEXITCODE -ne 0) { throw 'git checkout for pinned Soup revision failed.' }
 }
 
-& (Join-Path $PSScriptRoot 'Apply-Soup-Madlions-Fix.ps1') -SoupRoot $SoupRoot
+foreach ($entry in $SoupOverlayFiles) {
+    Copy-Item -LiteralPath (Join-Path $SoupOverlayRoot $entry.Name) `
+        -Destination (Join-Path $SoupRoot "soup\$($entry.Name)") -Force
+}
 
-$soupStatus = @(& git -C $SoupRoot status --porcelain --untracked-files=all)
-$soupUntracked = @($soupStatus | Where-Object { [string]$_ -match '^\?\?' })
+$expectedChangedFiles = @($SoupOverlayFiles | ForEach-Object { "soup/$($_.Name)" } | Sort-Object)
+$actualChangedFiles = @(& git -C $SoupRoot diff --name-only HEAD -- | Sort-Object)
+if (($expectedChangedFiles -join "`n") -ne ($actualChangedFiles -join "`n")) {
+    throw "Patched Soup file set differs from the locked overlay. Actual=$($actualChangedFiles -join ',')"
+}
+$soupUntracked = @(& git -C $SoupRoot status --porcelain --untracked-files=all |
+    Where-Object { [string]$_ -match '^\?\?' })
 if ($soupUntracked.Count -ne 0) {
-    $soupUntracked | ForEach-Object { Write-Host $_ -ForegroundColor Red }
-    throw 'Pinned Soup source has unexpected untracked files.'
+    throw "Pinned Soup source has unexpected untracked files: $($soupUntracked -join ',')"
 }
-$soupDiffLines = @(& git -C $SoupRoot diff --binary --no-ext-diff HEAD --)
-$soupDiffText = ($soupDiffLines -join "`n") + "`n"
-$soupDiffBytes = [Text.Encoding]::UTF8.GetBytes($soupDiffText)
-$soupDiffHash = [BitConverter]::ToString(
-    [Security.Cryptography.SHA256]::Create().ComputeHash($soupDiffBytes)).Replace('-', '')
-if ($soupDiffHash -ne $SoupPatchedDiffSha256) {
-    throw "Patched Soup diff integrity failed. Expected=$SoupPatchedDiffSha256 Actual=$soupDiffHash"
+foreach ($entry in $SoupOverlayFiles) {
+    $patchedPath = Join-Path $SoupRoot "soup\$($entry.Name)"
+    $actualHash = Get-NormalizedTextSha256 $patchedPath
+    if ($actualHash -ne [string]$entry.Value) {
+        throw "Patched Soup integrity failed for $($entry.Name). Expected=$($entry.Value) Actual=$actualHash"
+    }
 }
-Write-Host "Verified patched Soup diff SHA-256: $soupDiffHash" -ForegroundColor DarkGray
+Write-Host "Verified $($SoupOverlayFiles.Count) locked Soup overlay files." -ForegroundColor DarkGray
 
 if (Test-Path -LiteralPath $DistRoot) {
     Remove-Item -LiteralPath $DistRoot -Recurse -Force

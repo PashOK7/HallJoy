@@ -21,9 +21,11 @@ checks = {
     "Sun and Soup use immutable commits": all(
         full_sha(lock["sources"][name]["commit"]) for name in ("sun", "soup")
     ),
-    "generated Soup patch has locked integrity":
-        re.fullmatch(r"[0-9A-F]{64}", lock["sources"]["soup"]["patchedDiffSha256"]) is not None and
-        "SoupPatchedDiffSha256" in plugin_build and "diff --binary --no-ext-diff" in plugin_build,
+    "Soup overlay has locked per-file integrity":
+        len(lock["sources"]["soup"]["patchedOverlayFiles"]) == 5 and
+        all(re.fullmatch(r"[0-9A-F]{64}", value) for value in
+            lock["sources"]["soup"]["patchedOverlayFiles"].values()) and
+        "SoupOverlayFiles" in plugin_build and "Get-NormalizedTextSha256" in plugin_build,
     "GitHub Actions use immutable commits": all(
         full_sha(action["commit"]) for action in lock["githubActions"].values()
     ),

@@ -1,0 +1,1452 @@
+#include "hwHid.hpp"
+
+// Based on hidapi:
+// - https://github.com/libusb/hidapi/blob/master/windows/hid.c
+// - https://github.com/libusb/hidapi/blob/master/linux/hid.c
+
+#if SOUP_WINDOWS
+#include <algorithm> // sort
+
+#include <cfgmgr32.h>
+#include <hidsdi.h>
+
+#pragma comment(lib, "cfgmgr32.lib")
+#pragma comment(lib, "hid.lib")
+
+#include "unicode.hpp"
+#elif SOUP_LINUX
+#include <sys/stat.h> // open
+#include <fcntl.h> // O_RDWR etc
+#include <unistd.h> // read
+#include <poll.h>
+
+#include <linux/hidraw.h>
+#include <sys/ioctl.h>
+
+#include "SharedLibrary.hpp"
+#include "signal.hpp"
+#include "string.hpp"
+
+// https://github.com/systemd/systemd/blob/main/src/libudev/libudev.h
+
+struct udev;
+struct udev_enumerate;
+struct udev_list_entry;
+struct udev_device;
+
+using udev_new_t = udev*(*)();
+using udev_unref_t = udev*(*)(udev*);
+
+using udev_enumerate_unref_t = udev_enumerate*(*)(udev_enumerate*);
+using udev_enumerate_new_t = udev_enumerate*(*)(udev*);
+using udev_enumerate_add_match_subsystem_t = int(*)(udev_enumerate*, const char*);
+using udev_enumerate_scan_devices_t = int(*)(udev_enumerate*);
+using udev_enumerate_get_list_entry_t = udev_list_entry*(*)(udev_enumerate*);
+
+using udev_list_entry_get_next_t = udev_list_entry*(*)(udev_list_entry*);
+using udev_list_entry_get_name_t = const char*(*)(udev_list_entry*);
+
+using udev_device_unref_t = udev_device*(*)(udev_device*);
+using udev_device_new_from_syspath_t = udev_device*(*)(udev*, const char*);
+using udev_device_get_devnode_t = const char*(*)(udev_device*);
+using udev_device_get_parent_with_subsystem_devtype_t = udev_device*(*)(udev_device*, const char*, const char*);
+using udev_device_get_sysattr_value_t = const char*(*)(udev_device*, const char*);
+
+#define udev_list_entry_foreach(list_entry, first_entry) for (list_entry = first_entry; list_entry; list_entry = udev_list_entry_get_next(list_entry))
+#elif SOUP_MACOS
+#include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/hid/IOHIDManager.h>
+#include <IOKit/hid/IOHIDKeys.h>
+#include <IOKit/IOKitLib.h>
+#endif
+
+NAMESPACE_SOUP
+{
+#if SOUP_LINUX
+	[[nodiscard]] static bool parse_uevent_info(std::string uevent, uint8_t& bus_type, uint16_t& vendor_id, uint16_t& product_id, std::string& product_name_utf8, std::string& serial_number_utf8)
+	{
+		char* saveptr = NULL;
+		char* line;
+		char* key;
+		char* value;
+
+		bool found_id = false;
+		bool found_serial = false;
+		bool found_name = false;
+
+		line = strtok_r(uevent.data(), "\n", &saveptr);
+		while (line != NULL)
+		{
+			/* line: "KEY=value" */
+			key = line;
+			value = strchr(line, '=');
+			if (value)
+			{
+				*value = '\0';
+				value++;
+
+				if (strcmp(key, "HID_ID") == 0)
+				{
+					/**
+					 *        type vendor   product
+					 * HID_ID=0003:000005AC:00008242
+					 **/
+					int ret = sscanf(value, "%hhx:%hx:%hx", &bus_type, &vendor_id, &product_id);
+					if (ret == 3) {
+						found_id = true;
+					}
+				}
+				else if (strcmp(key, "HID_NAME") == 0)
+				{
+					product_name_utf8 = value;
+					found_name = true;
+				}
+				else if (strcmp(key, "HID_UNIQ") == 0)
+				{
+					serial_number_utf8 = value;
+					found_serial = true;
+				}
+			}
+			line = strtok_r(NULL, "\n", &saveptr);
+		}
+
+		return (found_id && found_name && found_serial);
+	}
+#endif
+
+	std::vector<hwHid> hwHid::getAll()
+	{
+		std::vector<hwHid> res{};
+#if SOUP_WINDOWS
+		GUID HIDGuid;
+#if true
+		HidD_GetHidGuid(&HIDGuid);
+#else
+		HIDGuid.Data1 = 0x4D1E55B2;
+		HIDGuid.Data2 = 0xf16f;
+		HIDGuid.Data3 = 0x11cf;
+		HIDGuid.Data4[0] = 0x88;
+		HIDGuid.Data4[1] = 0xcb;
+		HIDGuid.Data4[2] = 0x00;
+		HIDGuid.Data4[3] = 0x11;
+		HIDGuid.Data4[4] = 0x11;
+		HIDGuid.Data4[5] = 0x00;
+		HIDGuid.Data4[6] = 0x00;
+		HIDGuid.Data4[7] = 0x30;
+#endif
+
+		wchar_t* device_interface_list = nullptr;
+
+		// Could also use SetupDiEnumDeviceInterfaces & SetupDiGetDeviceInterfaceDetailW to iterate devices,
+		// but allocating it all in one go is preferable.
+		CONFIGRET cr;
+		do
+		{
+			DWORD len;
+			cr = CM_Get_Device_Interface_List_SizeW(&len, &HIDGuid, NULL, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
+			if (cr != CR_SUCCESS)
+			{
+				return {};
+			}
+
+			if (device_interface_list != nullptr)
+			{
+				free(device_interface_list);
+			}
+			device_interface_list = (wchar_t*)calloc(len, sizeof(wchar_t));
+			SOUP_ASSERT(device_interface_list != nullptr);
+
+			cr = CM_Get_Device_Interface_ListW(&HIDGuid, NULL, device_interface_list, len, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
+			if (cr != CR_SUCCESS && cr != CR_BUFFER_SMALL)
+			{
+				return {};
+			}
+		} while (cr == CR_BUFFER_SMALL);
+
+		for (const wchar_t* device_interface = device_interface_list; *device_interface; device_interface += wcslen(device_interface) + 1)
+		{
+			#if defined(UAP_EXCLUDE_HALLJOY_NATIVE)
+			// HallJoy native analogue pre-open exclusion.
+			// The parent process performs protocol-specific capability proofs and
+			// publishes exact VID/PID tokens.
+			// This gate runs before CreateFileW, so UAP never opens a native-owned HID.
+			const auto halljoy_path_contains_ci = [](const wchar_t* value, const wchar_t* token) noexcept
+			{
+				if (value == nullptr || token == nullptr || *token == L'\0') return false;
+				const size_t token_length = wcslen(token);
+				for (; *value != L'\0'; ++value)
+				{
+					if (_wcsnicmp(value, token, token_length) == 0) return true;
+				}
+				return false;
+			};
+			wchar_t halljoy_native_ids[2048]{};
+			const DWORD halljoy_native_chars = GetEnvironmentVariableW(
+				L"HALLJOY_UAP_NATIVE_HID_IDS", halljoy_native_ids,
+				static_cast<DWORD>(sizeof(halljoy_native_ids) / sizeof(halljoy_native_ids[0])));
+			if (halljoy_native_chars != 0 &&
+				halljoy_native_chars < (sizeof(halljoy_native_ids) / sizeof(halljoy_native_ids[0])))
+			{
+				bool halljoy_exclude_path = false;
+				wchar_t* context = nullptr;
+				for (wchar_t* token = wcstok_s(halljoy_native_ids, L";", &context);
+					token != nullptr; token = wcstok_s(nullptr, L";", &context))
+				{
+					if (halljoy_path_contains_ci(device_interface, token))
+					{
+						halljoy_exclude_path = true;
+						break;
+					}
+				}
+				if (halljoy_exclude_path) continue;
+			}
+			#endif
+			hwHid hid{};
+			hid.path = unicode::utf16_to_utf8<std::wstring>(device_interface);
+
+			hid.handle = CreateFileW(
+				device_interface,
+				GENERIC_READ | GENERIC_WRITE,
+				FILE_SHARE_READ | FILE_SHARE_WRITE,
+				NULL,
+				OPEN_EXISTING,
+				FILE_FLAG_OVERLAPPED,
+				NULL
+			);
+			if (!hid.handle.isValid())
+			{
+				continue;
+			}
+
+			HIDD_ATTRIBUTES attrib;
+			attrib.Size = sizeof(HIDD_ATTRIBUTES);
+			if (HidD_GetAttributes(hid.handle, &attrib))
+			{
+				hid.vendor_id = attrib.VendorID;
+				hid.product_id = attrib.ProductID;
+
+				PHIDP_PREPARSED_DATA pp_data = nullptr;
+				if (HidD_GetPreparsedData(hid.handle, &pp_data))
+				{
+					HIDP_CAPS caps;
+					if (HidP_GetCaps(pp_data, &caps) == HIDP_STATUS_SUCCESS)
+					{
+						hid.usage = caps.Usage;
+						hid.usage_page = caps.UsagePage;
+						hid.input_report_byte_length = caps.InputReportByteLength;
+						hid.output_report_byte_length = caps.OutputReportByteLength;
+						hid.feature_report_byte_length = caps.FeatureReportByteLength;
+
+						// Example USB path: \\?\HID#VID_31E3&PID_1230&MI_02#8&39d6d828&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}
+						// Example BT path: \\?\HID#{00001124-0000-1000-8000-00805f9b34fb}_VID&0002054c_PID&09cc#8&1e16befc&6&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}
+						hid.is_bluetooth = (wcsstr(device_interface, L"HID#{") != nullptr);
+
+						hid.read_buffer.reserve(caps.InputReportByteLength);
+
+						res.emplace_back(std::move(hid));
+					}
+					HidD_FreePreparsedData(pp_data);
+				}
+			}
+		}
+
+		free(device_interface_list);
+#elif SOUP_LINUX
+		SharedLibrary libudev("libudev.so.1");
+		SOUP_ASSERT(libudev.isLoaded(), "Failed to load libudev.so.1");
+
+#define use_udev_func(name) const auto name = (name ## _t)libudev.getAddressMandatory(#name);
+
+		use_udev_func(udev_new);
+		use_udev_func(udev_unref);
+
+		use_udev_func(udev_enumerate_unref);
+		use_udev_func(udev_enumerate_new);
+		use_udev_func(udev_enumerate_add_match_subsystem);
+		use_udev_func(udev_enumerate_scan_devices);
+		use_udev_func(udev_enumerate_get_list_entry);
+
+		use_udev_func(udev_list_entry_get_next);
+		use_udev_func(udev_list_entry_get_name);
+
+		use_udev_func(udev_device_unref);
+		use_udev_func(udev_device_new_from_syspath);
+		use_udev_func(udev_device_get_devnode);
+		use_udev_func(udev_device_get_parent_with_subsystem_devtype);
+		use_udev_func(udev_device_get_sysattr_value);
+
+		if (udev* udev = udev_new())
+		{
+			udev_enumerate* enumerate = udev_enumerate_new(udev);
+			udev_enumerate_add_match_subsystem(enumerate, "hidraw");
+			udev_enumerate_scan_devices(enumerate);
+
+			udev_list_entry* devices;
+			devices = udev_enumerate_get_list_entry(enumerate);
+
+			udev_list_entry* entry;
+			udev_list_entry_foreach(entry, devices)
+			{
+				const char* path = udev_list_entry_get_name(entry); // same as udev_device_get_syspath, /sys/devices/...
+
+				hwHid hid{};
+				hid.path = path;
+
+				uint8_t bus_type;
+				if (parse_uevent_info(string::fromFile(hid.path + "/device/uevent"), bus_type, hid.vendor_id, hid.product_id, hid.product_name, hid.serial_number))
+				{
+					hid.is_bluetooth = (bus_type == 0x05); // https://elixir.bootlin.com/linux/v6.10.8/source/include/uapi/linux/input.h#L258
+
+					const auto rawdesc = string::fromFile(hid.path + "/device/report_descriptor");
+					const auto report_desc = HidReportDescriptor::parse(rawdesc.data(), rawdesc.size());
+
+					hid.usage_page = report_desc.usage_page;
+					hid.usage = report_desc.usage;
+					hid.input_report_byte_length = report_desc.input_report_byte_length;
+					hid.output_report_byte_length = report_desc.output_report_byte_length;
+					hid.feature_report_byte_length = report_desc.feature_report_byte_length;
+					hid.report_ids = std::move(report_desc.report_ids);
+
+					udev_device* device = udev_device_new_from_syspath(udev, path);
+					const char* dev_path = udev_device_get_devnode(device); // /dev/hidraw0 etc
+
+					hid.handle = ::open(dev_path, O_RDWR | O_CLOEXEC);
+
+					// The product string we got from `parse_uevent_info` is a bit bad because it is actually vendor string + product string.
+					if (auto usb_dev = udev_device_get_parent_with_subsystem_devtype(device, "usb", "usb_device"))
+					{
+						hid.manufacturer_name = udev_device_get_sysattr_value(usb_dev, "manufacturer");
+						hid.product_name = udev_device_get_sysattr_value(usb_dev, "product");
+					}
+
+					// I don't quite trust input_report_byte_length yet, so ensuring a minimum of 1024 bytes.
+					hid.read_buffer.reserve(hid.input_report_byte_length < 1024 ? 1024 : hid.input_report_byte_length);
+
+					res.emplace_back(std::move(hid));
+
+					udev_device_unref(device);
+				}
+			}
+
+			udev_enumerate_unref(enumerate);
+			udev_unref(udev);
+		}
+#elif SOUP_MACOS
+		// Keep a single persistent IOHIDManager for the process. IOHIDManagerClose() also closes every
+		// device the manager opened, which would leave our retained device refs non-null but un-open
+		// (later IOHIDDeviceSetReport/read calls then fail with kIOReturnNotOpen). Mirrors hidapi's
+		// shared-manager model: create + open once, never close.
+		static IOHIDManagerRef manager = nullptr;
+		if (!manager)
+		{
+			manager = IOHIDManagerCreate(kCFAllocatorDefault, kIOHIDOptionsTypeNone);
+			if (manager)
+			{
+				IOHIDManagerSetDeviceMatching(manager, NULL);
+				IOHIDManagerOpen(manager, kIOHIDOptionsTypeNone);
+			}
+		}
+		if (manager)
+		{
+			CFSetRef device_set = IOHIDManagerCopyDevices(manager);
+			if (device_set)
+			{
+				CFIndex num = CFSetGetCount(device_set);
+				std::vector<IOHIDDeviceRef> devices(num);
+				CFSetGetValues(device_set, (const void**)devices.data());
+				for (CFIndex i = 0; i < num; ++i)
+				{
+					IOHIDDeviceRef dev = devices[i];
+					hwHid hid{};
+
+					if (io_registry_entry_t entry = IOHIDDeviceGetService(dev))
+					{
+						io_string_t path;
+						if (IORegistryEntryGetPath(entry, kIOServicePlane, path) == KERN_SUCCESS)
+						{
+							hid.path = path;
+						}
+					}
+
+					int32_t vid = 0, pid = 0, usage_page = 0, usage = 0;
+					if (CFTypeRef ref = IOHIDDeviceGetProperty(dev, CFSTR(kIOHIDVendorIDKey)))
+					{
+						if (CFGetTypeID(ref) == CFNumberGetTypeID())
+						{
+							CFNumberGetValue((CFNumberRef)ref, kCFNumberSInt32Type, &vid);
+						}
+					}
+					if (CFTypeRef ref = IOHIDDeviceGetProperty(dev, CFSTR(kIOHIDProductIDKey)))
+					{
+						if (CFGetTypeID(ref) == CFNumberGetTypeID())
+						{
+							CFNumberGetValue((CFNumberRef)ref, kCFNumberSInt32Type, &pid);
+						}
+					}
+					if (CFTypeRef ref = IOHIDDeviceGetProperty(dev, CFSTR(kIOHIDPrimaryUsagePageKey)))
+					{
+						if (CFGetTypeID(ref) == CFNumberGetTypeID())
+						{
+							CFNumberGetValue((CFNumberRef)ref, kCFNumberSInt32Type, &usage_page);
+						}
+					}
+					if (CFTypeRef ref = IOHIDDeviceGetProperty(dev, CFSTR(kIOHIDPrimaryUsageKey)))
+					{
+						if (CFGetTypeID(ref) == CFNumberGetTypeID())
+						{
+							CFNumberGetValue((CFNumberRef)ref, kCFNumberSInt32Type, &usage);
+						}
+					}
+					hid.vendor_id = static_cast<uint16_t>(vid);
+					hid.product_id = static_cast<uint16_t>(pid);
+					hid.usage_page = static_cast<uint16_t>(usage_page);
+					hid.usage = static_cast<uint16_t>(usage);
+
+					int32_t in_sz = 0, out_sz = 0, feat_sz = 0;
+					if (CFTypeRef ref = IOHIDDeviceGetProperty(dev, CFSTR(kIOHIDMaxInputReportSizeKey)))
+					{
+						if (CFGetTypeID(ref) == CFNumberGetTypeID())
+						{
+							CFNumberGetValue((CFNumberRef)ref, kCFNumberSInt32Type, &in_sz);
+						}
+					}
+					if (CFTypeRef ref = IOHIDDeviceGetProperty(dev, CFSTR(kIOHIDMaxOutputReportSizeKey)))
+					{
+						if (CFGetTypeID(ref) == CFNumberGetTypeID())
+						{
+							CFNumberGetValue((CFNumberRef)ref, kCFNumberSInt32Type, &out_sz);
+						}
+					}
+					if (CFTypeRef ref = IOHIDDeviceGetProperty(dev, CFSTR(kIOHIDMaxFeatureReportSizeKey)))
+					{
+						if (CFGetTypeID(ref) == CFNumberGetTypeID())
+						{
+							CFNumberGetValue((CFNumberRef)ref, kCFNumberSInt32Type, &feat_sz);
+						}
+					}
+					hid.input_report_byte_length = static_cast<uint16_t>(in_sz);
+					hid.output_report_byte_length = static_cast<uint16_t>(out_sz);
+					hid.feature_report_byte_length = static_cast<uint16_t>(feat_sz);
+
+					if (CFTypeRef transport = IOHIDDeviceGetProperty(dev, CFSTR(kIOHIDTransportKey)))
+					{
+						if (CFGetTypeID(transport) == CFStringGetTypeID())
+						{
+							hid.is_bluetooth = (CFStringCompare((CFStringRef)transport, CFSTR("Bluetooth"), 0) == kCFCompareEqualTo);
+						}
+					}
+
+					if (CFTypeRef manu = IOHIDDeviceGetProperty(dev, CFSTR(kIOHIDManufacturerKey)))
+					{
+						if (CFGetTypeID(manu) == CFStringGetTypeID())
+						{
+							char buf[256];
+							if (CFStringGetCString((CFStringRef)manu, buf, sizeof(buf), kCFStringEncodingUTF8))
+							{
+								hid.manufacturer_name = buf;
+							}
+						}
+					}
+					if (CFTypeRef prod = IOHIDDeviceGetProperty(dev, CFSTR(kIOHIDProductKey)))
+					{
+						if (CFGetTypeID(prod) == CFStringGetTypeID())
+						{
+							char buf[256];
+							if (CFStringGetCString((CFStringRef)prod, buf, sizeof(buf), kCFStringEncodingUTF8))
+							{
+								hid.product_name = buf;
+							}
+						}
+					}
+					if (CFTypeRef serial = IOHIDDeviceGetProperty(dev, CFSTR(kIOHIDSerialNumberKey)))
+					{
+						if (CFGetTypeID(serial) == CFStringGetTypeID())
+						{
+							char buf[256];
+							if (CFStringGetCString((CFStringRef)serial, buf, sizeof(buf), kCFStringEncodingUTF8))
+							{
+								hid.serial_number = buf;
+							}
+						}
+					}
+
+					if (CFTypeRef desc = IOHIDDeviceGetProperty(dev, CFSTR(kIOHIDReportDescriptorKey)))
+					{
+						if (CFGetTypeID(desc) == CFDataGetTypeID())
+						{
+							const UInt8* data = CFDataGetBytePtr((CFDataRef)desc);
+							CFIndex len = CFDataGetLength((CFDataRef)desc);
+							auto rd = HidReportDescriptor::parse((const char*)data, len);
+							hid.report_ids = std::move(rd.report_ids);
+							if (!in_sz) hid.input_report_byte_length = rd.input_report_byte_length;
+							if (!out_sz) hid.output_report_byte_length = rd.output_report_byte_length;
+							if (!feat_sz) hid.feature_report_byte_length = rd.feature_report_byte_length;
+						}
+					}
+
+					if (IOHIDDeviceOpen(dev, kIOHIDOptionsTypeNone) == kIOReturnSuccess)
+					{
+						CFRetain(dev);
+						hid.device = dev;
+					}
+
+					hid.read_buffer.reserve(hid.input_report_byte_length < 1024 ? 1024 : hid.input_report_byte_length);
+					res.emplace_back(std::move(hid));
+				}
+				CFRelease(device_set);
+			}
+			// Intentionally not closed/released: the manager must outlive the devices it opened.
+		}
+#endif
+		return res;
+	}
+
+#if SOUP_WINDOWS
+	std::string hwHid::getManufacturerName() const
+	{
+		std::string ret{};
+
+		wchar_t buf[256];
+		buf[0] = 0;
+		if (HidD_GetManufacturerString(handle, buf, sizeof(buf)))
+		{
+			ret = unicode::utf16_to_utf8<std::wstring>(buf);
+		}
+
+		return ret;
+	}
+
+	std::string hwHid::getProductName() const
+	{
+		std::string ret{};
+
+		wchar_t buf[256];
+		buf[0] = 0;
+		if (HidD_GetProductString(handle, buf, sizeof(buf)))
+		{
+			ret = unicode::utf16_to_utf8<std::wstring>(buf);
+		}
+
+		return ret;
+	}
+
+	std::string hwHid::getSerialNumber() const
+	{
+		std::string ret{};
+
+		wchar_t buf[256];
+		buf[0] = 0;
+		if (HidD_GetSerialNumberString(handle, buf, sizeof(buf)))
+		{
+			ret = unicode::utf16_to_utf8<std::wstring>(buf);
+		}
+
+		return ret;
+	}
+#endif
+
+	bool hwHid::isSamePhysicalDeviceAs(const hwHid& b) const
+	{
+		return vendor_id == b.vendor_id
+			&& product_id == b.product_id
+			&& getSerialNumber() == b.getSerialNumber()
+			;
+	}
+
+	bool hwHid::hasReportId(uint8_t report_id) const noexcept
+	{
+		bool ret = false;
+#if SOUP_WINDOWS
+		PHIDP_PREPARSED_DATA pp_data = nullptr;
+		if (HidD_GetPreparsedData(handle, &pp_data))
+		{
+			if (HidP_InitializeReportForID(HidP_Input, report_id, pp_data, (char*)read_buffer.data(), static_cast<ULONG>(read_buffer.capacity())) == HIDP_STATUS_SUCCESS)
+			{
+				ret = true;
+			}
+			HidD_FreePreparsedData(pp_data);
+		}
+#else
+		if (report_id == 0)
+		{
+			ret = report_ids.empty();
+		}
+		else
+		{
+			ret = report_ids.count(report_id) != 0;
+		}
+#endif
+		return ret;
+	}
+
+	bool hwHid::hasReport() noexcept
+	{
+#if SOUP_WINDOWS
+		if (pending_read == 0)
+		{
+			kickOffRead();
+		}
+		return pending_read == 1
+			|| (pending_read == 2 && HasOverlappedIoCompleted(&read_overlapped))
+			|| disconnected
+			;
+#elif SOUP_LINUX
+		pollfd pfd;
+		pfd.fd = handle;
+		pfd.events = POLLIN;
+		pfd.revents = 0;
+		return poll(&pfd, 1, 0) != 0;
+#elif SOUP_MACOS
+		if (!registered_callback)
+		{
+			kickOffRead();
+		}
+		CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true); // Pump the run loop once to allow the callback to fire
+		return got_a_report;
+#else
+		return false;
+#endif
+	}
+
+#if SOUP_LINUX
+	static bool setup_sig_handler = false;
+	static thread_local bool killed_via_signal;
+#endif
+
+	// URB_INTERRUPT in
+	const Buffer<>& hwHid::receiveReport() noexcept
+	{
+#if SOUP_LINUX
+		if (!setup_sig_handler)
+		{
+			signal::handle(SIGUSR1, [](int)
+			{
+				killed_via_signal = true;
+			});
+		}
+		killed_via_signal = false;
+		read_thrd = pthread_self();
+		reading = true;
+		int bytes_read = ::read(handle, read_buffer.data(), read_buffer.capacity());
+		reading = false;
+		read_buffer.resize(bytes_read < 0 ? 0 : bytes_read);
+#else
+		SOUP_UNUSED(receiveReportWithReportId());
+		if (!read_buffer.empty()
+			&& read_buffer.at(0) == 0 // When a device uses report ids, `read` on Linux does prepend them, so to ensure we have the same result on all platforms, we only remove it when report ids are not being used.
+			)
+		{
+			read_buffer.erase(0, 1);
+		}
+#endif
+		return read_buffer;
+	}
+
+	const Buffer<>& hwHid::receiveReport(uint8_t& out_report_id) noexcept
+	{
+		out_report_id = 0;
+#if SOUP_LINUX
+		SOUP_UNUSED(receiveReport());
+		if (!report_ids.empty() && !read_buffer.empty())
+		{
+			out_report_id = read_buffer.at(0);
+			read_buffer.erase(0, 1);
+		}
+#else
+		SOUP_UNUSED(receiveReportWithReportId());
+		if (!read_buffer.empty())
+		{
+			out_report_id = read_buffer.at(0);
+			read_buffer.erase(0, 1);
+		}
+#endif
+		return read_buffer;
+	}
+
+	// URB_INTERRUPT in
+	const Buffer<>& hwHid::receiveReportWithReportId() noexcept
+	{
+#if SOUP_WINDOWS
+		if (pending_read == 0)
+		{
+			kickOffRead();
+		}
+		if (pending_read != 0)
+		{
+			while (!GetOverlappedResult(handle, &read_overlapped, &bytes_read, FALSE)
+				&& GetLastError() == ERROR_IO_INCOMPLETE
+				)
+			{
+				Sleep(1);
+			}
+			pending_read = 0;
+		}
+		read_buffer.resize(bytes_read);
+#elif SOUP_LINUX
+		SOUP_UNUSED(receiveReport());
+		if (report_ids.empty())
+		{
+			read_buffer.insert_front(1, 0);
+		}
+#elif SOUP_MACOS
+		if (!registered_callback)
+		{
+			kickOffRead();
+		}
+		while (!got_a_report)
+		{
+			CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.001, true);
+		}
+		got_a_report = false;
+#endif
+		return read_buffer;
+	}
+
+	// URB_INTERRUPT in
+	const Buffer<>& hwHid::receiveReportWithoutReportId() noexcept
+	{
+#if SOUP_LINUX
+		SOUP_UNUSED(receiveReport());
+		if (input_report_byte_length != 0
+			&& !report_ids.empty()
+			&& !read_buffer.empty()
+			)
+		{
+			read_buffer.erase(0, 1);
+		}
+#else
+		SOUP_UNUSED(receiveReportWithReportId());
+		if (!read_buffer.empty())
+		{
+			read_buffer.erase(0, 1);
+		}
+#endif
+		return read_buffer;
+	}
+
+	void hwHid::discardStaleReports() noexcept
+	{
+#if SOUP_WINDOWS
+		while (pending_read != 2 && !disconnected)
+		{
+			kickOffRead();
+		}
+#endif
+	}
+
+	void hwHid::cancelReceiveReport() noexcept
+	{
+#if SOUP_WINDOWS
+		CancelIoEx(handle, &read_overlapped);
+#elif SOUP_LINUX
+		if (reading)
+		{
+			pthread_kill(read_thrd, SIGUSR1);
+		}
+#endif
+	}
+
+	// SET_REPORT response
+	void hwHid::receiveFeatureReport(Buffer<>& buf) const
+	{
+#if SOUP_WINDOWS
+		if (buf.size() < feature_report_byte_length)
+		{
+			buf.insert_back(feature_report_byte_length - buf.size(), '\0');
+		}
+
+		SOUP_ASSERT(HidD_GetFeature(handle, buf.data(), static_cast<ULONG>(buf.size())));
+#elif SOUP_LINUX
+		if (buf.size() < feature_report_byte_length)
+		{
+			buf.insert_back(feature_report_byte_length - buf.size(), '\0');
+		}
+		int len = ioctl(handle, HIDIOCGFEATURE(buf.size()), buf.data());
+		if (len != -1)
+		{
+			buf.resize(len);
+		}
+#elif SOUP_MACOS
+		if (!device)
+		{
+			buf.clear();
+			return;
+		}
+		if (buf.size() < feature_report_byte_length)
+		{
+			buf.insert_back(feature_report_byte_length - buf.size(), '\0');
+		}
+		CFIndex len = buf.size();
+		IOHIDDeviceGetReport((IOHIDDeviceRef)device, kIOHIDReportTypeFeature, buf.empty()?0:static_cast<uint8_t>(buf.at(0)), (uint8_t*)buf.data(), &len);
+		buf.resize(len);
+#endif
+	}
+
+#if SOUP_WINDOWS
+	extern "C" void halljoy_plugin_checkpoint(int);
+	extern "C" void halljoy_plugin_transport_error(uint32_t);
+
+	namespace
+	{
+		struct HallJoySafeHidContext
+		{
+			HandleRaii read_event{ CreateEventW(nullptr, TRUE, FALSE, nullptr) };
+			HandleRaii write_event{ CreateEventW(nullptr, TRUE, FALSE, nullptr) };
+			OVERLAPPED read_overlapped{};
+			OVERLAPPED write_overlapped{};
+			DWORD last_error = ERROR_SUCCESS;
+			bool poisoned = false;
+
+			void set_error(DWORD error) noexcept
+			{
+				last_error = error;
+				halljoy_plugin_transport_error(error);
+			}
+
+			[[nodiscard]] bool valid() const noexcept
+			{
+				return !poisoned && read_event.isValid() && write_event.isValid();
+			}
+
+			[[nodiscard]] static bool prepare(OVERLAPPED& overlapped, HANDLE event) noexcept
+			{
+				ZeroMemory(&overlapped, sizeof(overlapped));
+				overlapped.hEvent = event;
+				return ResetEvent(event) != FALSE;
+			}
+		};
+
+		[[nodiscard]] static bool halljoy_finish_io(
+			HANDLE device,
+			OVERLAPPED& overlapped,
+			HANDLE event,
+			DWORD timeout_ms,
+			DWORD& transferred,
+			int wait_checkpoint,
+			int cancel_checkpoint,
+			HallJoySafeHidContext& context) noexcept
+		{
+			halljoy_plugin_checkpoint(wait_checkpoint);
+			const DWORD wait_result = WaitForSingleObject(event, timeout_ms);
+			if (wait_result == WAIT_OBJECT_0)
+			{
+				if (GetOverlappedResult(device, &overlapped, &transferred, FALSE))
+				{
+					return true;
+				}
+
+				const DWORD completion_error = GetLastError();
+				context.set_error(completion_error);
+				if (completion_error != ERROR_IO_INCOMPLETE)
+				{
+					// The operation completed with an error; the context is no longer
+					// owned by the kernel and may be reused.
+					return false;
+				}
+			}
+			else
+			{
+				context.set_error(wait_result == WAIT_TIMEOUT ? ERROR_TIMEOUT : GetLastError());
+			}
+
+			halljoy_plugin_checkpoint(cancel_checkpoint);
+
+			// CancelIoEx only requests cancellation. Do not clear, reuse, destroy, or
+			// return from the context while the kernel may still reference the
+			// OVERLAPPED structure or its buffer.
+			if (!CancelIoEx(device, &overlapped))
+			{
+				const DWORD cancel_error = GetLastError();
+				if (cancel_error != ERROR_NOT_FOUND)
+				{
+					context.set_error(cancel_error);
+				}
+			}
+
+			DWORD completion_bytes = 0;
+			if (GetOverlappedResult(device, &overlapped, &completion_bytes, TRUE))
+			{
+				transferred = completion_bytes;
+			}
+			else
+			{
+				const DWORD completion_error = GetLastError();
+				if (completion_error != ERROR_OPERATION_ABORTED)
+				{
+					context.set_error(completion_error);
+					context.poisoned = true;
+				}
+			}
+			return false;
+		}
+
+		[[nodiscard]] static bool halljoy_start_and_finish_write(
+			HANDLE device,
+			const void* data,
+			DWORD size,
+			HallJoySafeHidContext& context,
+			DWORD timeout_ms) noexcept
+		{
+			halljoy_plugin_checkpoint(330); // madlions_write_begin
+			if (!HallJoySafeHidContext::prepare(context.write_overlapped, context.write_event))
+			{
+				context.set_error(GetLastError());
+				context.poisoned = true;
+				return false;
+			}
+
+			DWORD written = 0;
+			if (WriteFile(device, data, size, &written, &context.write_overlapped))
+			{
+				halljoy_plugin_checkpoint(332); // madlions_write_complete
+				if (written != size)
+				{
+					context.set_error(ERROR_WRITE_FAULT);
+					return false;
+				}
+				return true;
+			}
+
+			const DWORD error = GetLastError();
+			if (error != ERROR_IO_PENDING)
+			{
+				context.set_error(error);
+				return false;
+			}
+
+			const bool completed = halljoy_finish_io(device, context.write_overlapped,
+				context.write_event, timeout_ms, written, 331, 343, context);
+			halljoy_plugin_checkpoint(332); // madlions_write_complete
+			if (!completed)
+			{
+				return false;
+			}
+			if (written != size)
+			{
+				context.set_error(ERROR_WRITE_FAULT);
+				return false;
+			}
+			return true;
+		}
+
+		[[nodiscard]] static bool halljoy_start_and_finish_read(
+			HANDLE device,
+			uint8_t* data,
+			DWORD capacity,
+			HallJoySafeHidContext& context,
+			DWORD timeout_ms,
+			DWORD& read_bytes) noexcept
+		{
+			halljoy_plugin_checkpoint(321); // madlions_read_arm
+			if (!HallJoySafeHidContext::prepare(context.read_overlapped, context.read_event))
+			{
+				context.set_error(GetLastError());
+				context.poisoned = true;
+				return false;
+			}
+
+			read_bytes = 0;
+			if (ReadFile(device, data, capacity, &read_bytes, &context.read_overlapped))
+			{
+				halljoy_plugin_checkpoint(341); // madlions_read_complete
+				return true;
+			}
+
+			const DWORD error = GetLastError();
+			if (error != ERROR_IO_PENDING)
+			{
+				context.set_error(error);
+				return false;
+			}
+
+			halljoy_plugin_checkpoint(323); // madlions_read_pending
+			const bool ok = halljoy_finish_io(device, context.read_overlapped,
+				context.read_event, timeout_ms, read_bytes, 340, 342, context);
+			if (ok)
+			{
+				halljoy_plugin_checkpoint(341); // madlions_read_complete
+			}
+			return ok;
+		}
+
+		[[nodiscard]] static bool halljoy_drain_stale_reports(
+			HANDLE device,
+			uint8_t* data,
+			DWORD capacity,
+			HallJoySafeHidContext& context) noexcept
+		{
+			for (uint8_t stale = 0; stale != 32; ++stale)
+			{
+				if (!HallJoySafeHidContext::prepare(context.read_overlapped, context.read_event))
+				{
+					context.set_error(GetLastError());
+					context.poisoned = true;
+					return false;
+				}
+
+				DWORD ignored = 0;
+				halljoy_plugin_checkpoint(321); // madlions_read_arm
+				if (ReadFile(device, data, capacity, &ignored, &context.read_overlapped))
+				{
+					halljoy_plugin_checkpoint(322); // madlions_stale_report_discarded
+					continue;
+				}
+
+				const DWORD error = GetLastError();
+				if (error != ERROR_IO_PENDING)
+				{
+					context.set_error(error);
+					return false;
+				}
+
+				// No stale report was queued. Cancel and fully drain this probe before
+				// starting the request. Therefore the request write and response read
+				// are never concurrent and never share a completion signal.
+				halljoy_plugin_checkpoint(342); // madlions_cancel_read
+				if (!CancelIoEx(device, &context.read_overlapped))
+				{
+					const DWORD cancel_error = GetLastError();
+					if (cancel_error != ERROR_NOT_FOUND)
+					{
+						context.set_error(cancel_error);
+					}
+				}
+				if (!GetOverlappedResult(device, &context.read_overlapped, &ignored, TRUE))
+				{
+					const DWORD completion_error = GetLastError();
+					if (completion_error != ERROR_OPERATION_ABORTED)
+					{
+						context.set_error(completion_error);
+						context.poisoned = true;
+						return false;
+					}
+				}
+				return true;
+			}
+
+			context.set_error(ERROR_BUSY);
+			context.poisoned = true;
+			return false;
+		}
+	}
+#endif
+
+	const Buffer<>& hwHid::transactReport(const void* data, size_t size, uint32_t timeout_ms) noexcept
+	{
+#if SOUP_WINDOWS
+		static thread_local HallJoySafeHidContext context{};
+		read_buffer.clear();
+		context.set_error(ERROR_SUCCESS);
+
+		if (!context.valid() || disconnected || data == nullptr || size == 0
+			|| size > MAXDWORD || read_buffer.capacity() == 0
+			|| read_buffer.capacity() > MAXDWORD || pending_read != 0)
+		{
+			context.set_error(ERROR_INVALID_STATE);
+			halljoy_plugin_checkpoint(349); // madlions_transport_rejected
+			return read_buffer;
+		}
+
+		if (!halljoy_drain_stale_reports(handle, read_buffer.data(),
+			static_cast<DWORD>(read_buffer.capacity()), context))
+		{
+			const DWORD error = context.last_error;
+			if (error == ERROR_DEVICE_NOT_CONNECTED || error == ERROR_INVALID_HANDLE)
+			{
+				disconnected = true;
+			}
+			halljoy_plugin_checkpoint(349); // madlions_transport_failed
+			return read_buffer;
+		}
+		halljoy_plugin_checkpoint(322); // stale queue drained
+
+		// The vendor request is completed before the response read is started.
+		// Windows HID queues input reports, and this strictly serial state machine
+		// avoids every shared-handle or overlapping-lifetime ambiguity.
+		if (!halljoy_start_and_finish_write(handle, data, static_cast<DWORD>(size),
+			context, timeout_ms))
+		{
+			const DWORD error = context.last_error;
+			if (error == ERROR_DEVICE_NOT_CONNECTED || error == ERROR_INVALID_HANDLE)
+			{
+				disconnected = true;
+			}
+			halljoy_plugin_checkpoint(349);
+			return read_buffer;
+		}
+
+		DWORD read_bytes = 0;
+		if (!halljoy_start_and_finish_read(handle, read_buffer.data(),
+			static_cast<DWORD>(read_buffer.capacity()), context, timeout_ms, read_bytes))
+		{
+			const DWORD error = context.last_error;
+			if (error == ERROR_DEVICE_NOT_CONNECTED || error == ERROR_INVALID_HANDLE)
+			{
+				disconnected = true;
+			}
+			halljoy_plugin_checkpoint(349);
+			return read_buffer;
+		}
+
+		if (read_bytes > read_buffer.capacity())
+		{
+			context.set_error(ERROR_INVALID_DATA);
+			context.poisoned = true;
+			halljoy_plugin_checkpoint(349);
+			return read_buffer;
+		}
+		read_buffer.resize(read_bytes);
+
+		// Match receiveReport() semantics: Windows prepends report-id zero for
+		// unnumbered HID reports, while Soup callers expect it removed.
+		if (!read_buffer.empty() && read_buffer.at(0) == 0)
+		{
+			read_buffer.erase(0, 1);
+		}
+
+		context.set_error(ERROR_SUCCESS);
+		halljoy_plugin_checkpoint(348); // madlions_transport_return
+		return read_buffer;
+#else
+		discardStaleReports();
+		if (!sendReport(data, size))
+		{
+			read_buffer.clear();
+			return read_buffer;
+		}
+		return receiveReport();
+#endif
+	}
+
+	bool hwHid::sendReport(Buffer<>&& buf) const noexcept
+	{
+#if SOUP_WINDOWS
+		// The output report has to be at least as long as output_report_byte_length.
+		// On Windows, we can make it work. On Linux, `write` will fail silently.
+		if (buf.size() < output_report_byte_length)
+		{
+			buf.insert_back(output_report_byte_length - buf.size(), '\0');
+		}
+#endif
+		return sendReport(buf.data(), buf.size());
+	}
+
+	// URB_INTERRUPT out
+	bool hwHid::sendReport(const void* data, size_t size) const noexcept
+	{
+#if SOUP_WINDOWS
+		if (data == nullptr || size == 0)
+		{
+			return false;
+		}
+		HandleRaii event(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+		if (!event.isValid())
+		{
+			return false;
+		}
+		OVERLAPPED overlapped{};
+		overlapped.hEvent = event;
+		DWORD bytesWritten = 0;
+		BOOL result = WriteFile(handle, data, static_cast<DWORD>(size), &bytesWritten, &overlapped);
+		if (result == FALSE && GetLastError() == ERROR_IO_PENDING)
+		{
+			result = GetOverlappedResult(handle, &overlapped, &bytesWritten, TRUE);
+		}
+		return result != FALSE && bytesWritten == size;
+#elif SOUP_LINUX
+		return write(handle, data, size) == size;
+#elif SOUP_MACOS
+		if (!device || size == 0)
+		{
+			return false;
+		}
+		const uint8_t* bytes = static_cast<const uint8_t*>(data);
+		uint8_t report_id = bytes[0];
+		const uint8_t* send_data = bytes;
+		size_t send_size = size;
+		if (report_id == 0)
+		{
+			send_data = bytes + 1;
+			send_size = size - 1;
+		}
+		return IOHIDDeviceSetReport((IOHIDDeviceRef)device, kIOHIDReportTypeOutput, report_id, send_data, send_size) == kIOReturnSuccess;
+#else
+		return false;
+#endif
+	}
+	bool hwHid::sendFeatureReport(Buffer<>&& buf) const noexcept
+	{
+#if SOUP_WINDOWS
+		// On Windows, the feature report has to be at least as long as feature_report_byte_length.
+		if (buf.size() < feature_report_byte_length)
+		{
+			buf.insert_back(feature_report_byte_length - buf.size(), '\0');
+		}
+
+		return HidD_SetFeature(handle, buf.data(), static_cast<ULONG>(buf.size()));
+#elif SOUP_LINUX
+		return ioctl(handle, HIDIOCSFEATURE(buf.size()), buf.data()) == buf.size();
+#elif SOUP_MACOS
+		if (!device)
+		{
+			return false;
+		}
+		return IOHIDDeviceSetReport((IOHIDDeviceRef)device, kIOHIDReportTypeFeature, buf.empty()?0:static_cast<uint8_t>(buf.at(0)), (uint8_t*)buf.data(), buf.size()) == kIOReturnSuccess;
+#else
+		return false;
+#endif
+	}
+
+#if SOUP_WINDOWS
+	void hwHid::kickOffRead() noexcept
+	{
+		bytes_read = 0;
+		if (disconnected)
+		{
+			return;
+		}
+		if (ReadFile(handle, read_buffer.data(), static_cast<DWORD>(read_buffer.capacity()), &bytes_read, &read_overlapped))
+		{
+			pending_read = 1;
+		}
+		else
+		{
+			SOUP_IF_LIKELY (GetLastError() == ERROR_IO_PENDING)
+			{
+				pending_read = 2;
+			}
+			else
+			{
+				// Device was likely disconnected (ERROR_DEVICE_NOT_CONNECTED), in which case subsequent calls to ReadFile will block.
+				disconnected = true;
+			}
+		}
+	}
+#elif SOUP_MACOS
+	void hwHid::kickOffRead() noexcept
+	{
+		if (device)
+		{
+			registered_callback = true;
+			IOHIDDeviceRegisterInputReportCallback((IOHIDDeviceRef)device, read_buffer.data(), read_buffer.capacity(), [](void* context, IOReturn result, void* sender, IOHIDReportType type, uint32_t reportID, uint8_t* report, CFIndex reportLength)
+			{
+				static_cast<hwHid*>(context)->read_buffer.resize(reportLength);
+				static_cast<hwHid*>(context)->read_buffer.insert_front(1, reportID);
+				static_cast<hwHid*>(context)->got_a_report = true;
+			}, this);
+			IOHIDDeviceScheduleWithRunLoop((IOHIDDeviceRef)device, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode); // Schedule with the current run loop so that callbacks are delivered
+		}
+	}
+#endif
+
+#if SOUP_WINDOWS
+	// Stolen from https://chromium.googlesource.com/chromium/src/+/73fdaaf605bb60caf34d5f30bb84a417688aa528/services/device/hid/hid_preparsed_data.cc
+#pragma pack(push, 1)
+	struct PreparsedDataHeader
+	{
+		// Unknown constant value. _HIDP_PREPARSED_DATA identifier?
+		uint64_t magic;
+		// Top-level collection usage information.
+		uint16_t usage;
+		uint16_t usage_page;
+		uint16_t unknown[3];
+		// Number of report items for input reports.
+		uint16_t input_item_count;
+		uint16_t unknown2;
+		// Maximum input report size, in bytes. Includes the report ID byte. Zero if
+		// there are no input reports.
+		uint16_t input_report_byte_length;
+		uint16_t unknown3;
+		// Number of report items for output reports.
+		uint16_t output_item_count;
+		uint16_t unknown4;
+		// Maximum output report size, in bytes. Includes the report ID byte. Zero if
+		// there are no output reports.
+		uint16_t output_report_byte_length;
+		uint16_t unknown5;
+		// Number of report items for feature reports.
+		uint16_t feature_item_count;
+		// Total number of report items (input, output, and feature).
+		uint16_t item_count;
+		// Maximum feature report size, in bytes. Includes the report ID byte. Zero if
+		// there are no feature reports.
+		uint16_t feature_report_byte_length;
+		// Total size of all report items, in bytes.
+		uint16_t size_bytes;
+		uint16_t unknown6;
+	};
+	static_assert(sizeof(PreparsedDataHeader) == 44);
+
+	struct PreparsedDataItem
+	{
+		// Usage page for |usage_minimum| and |usage_maximum|.
+		uint16_t usage_page;
+		// Report ID for the report containing this item.
+		uint8_t report_id;
+		// Bit offset from |byte_index|.
+		uint8_t bit_index;
+		// Bit width of a single field defined by this item.
+		uint16_t bit_size;
+		// The number of fields defined by this item.
+		uint16_t report_count;
+		// Byte offset from the start of the report containing this item, including
+		// the report ID byte.
+		uint16_t byte_index;
+		// The total number of bits for all fields defined by this item.
+		uint16_t bit_count;
+		// The bit field for the corresponding main item in the HID report. This bit
+		// field is defined in the Device Class Definition for HID v1.11 section
+		// 6.2.2.5.
+		// https://www.usb.org/document-library/device-class-definition-hid-111
+		uint32_t bit_field;
+		uint32_t unknown;
+		// Usage information for the collection containing this item.
+		uint16_t link_usage_page;
+		uint16_t link_usage;
+		uint32_t unknown2[9];
+		// The usage range for this item.
+		uint16_t usage_minimum;
+		uint16_t usage_maximum;
+		// The string descriptor index range associated with this item. If the item
+		// has no string descriptors, |string_minimum| and |string_maximum| are set to
+		// zero.
+		uint16_t string_minimum;
+		uint16_t string_maximum;
+		// The designator index range associated with this item. If the item has no
+		// designators, |designator_minimum| and |designator_maximum| are set to zero.
+		uint16_t designator_minimum;
+		uint16_t designator_maximum;
+		// The data index range associated with this item.
+		uint16_t data_index_minimum;
+		uint16_t data_index_maximum;
+		uint32_t unknown3;
+		// The range of fields defined by this item in logical units.
+		int32_t logical_minimum;
+		int32_t logical_maximum;
+		// The range of fields defined by this item in units defined by |unit| and
+		// |unit_exponent|. If this item does not use physical units,
+		// |physical_minimum| and |physical_maximum| are set to zero.
+		int32_t physical_minimum;
+		int32_t physical_maximum;
+		// The unit definition for this item. The format for this definition is
+		// described in the Device Class Definition for HID v1.11 section 6.2.2.7.
+		// https://www.usb.org/document-library/device-class-definition-hid-111
+		uint32_t unit;
+		uint32_t unit_exponent;
+	};
+	static_assert(sizeof(PreparsedDataItem) == 104);
+
+	struct PreparsedData
+	{
+		PreparsedDataHeader header;
+		PreparsedDataItem items[1];
+	};
+#pragma pack(pop)
+#endif
+
+	HidReportDescriptor hwHid::getReportDescriptor() const
+	{
+#if SOUP_WINDOWS
+		HidReportDescriptor result;
+		result.usage_page = this->usage_page;
+		result.usage = this->usage;
+		result.input_report_byte_length = this->input_report_byte_length;
+		result.output_report_byte_length = this->output_report_byte_length;
+		result.feature_report_byte_length = this->feature_report_byte_length;
+		/*for (unsigned int i = 1; i != 0x100; ++i)
+		{
+			if (hasReportId(i))
+			{
+				result.report_ids.emplace(i);
+			}
+		}*/
+		if (PHIDP_PREPARSED_DATA _pp_data; HidD_GetPreparsedData(this->handle, &_pp_data))
+		{
+			const auto pp_data = reinterpret_cast<PreparsedData*>(_pp_data);
+
+			// The report items are currently unordered, so I'm assuming/hoping the preparsed data was allocated just for us and/or it's fine for us to reorder its items.
+			std::sort(&pp_data->items[0], &pp_data->items[pp_data->header.input_item_count], [](const PreparsedDataItem& a, const PreparsedDataItem& b)
+			{
+				if (a.byte_index < b.byte_index)
+				{
+					return true;
+				}
+				if (a.byte_index > b.byte_index)
+				{
+					return false;
+				}
+
+				return a.bit_index < b.bit_index;
+			});
+
+			uint32_t bit_index = 8;
+			for (uint32_t i = 0; i != pp_data->header.input_item_count; ++i)
+			{
+				//std::cout << "report_id: " << (int)pp_data->items[i].report_id << std::endl;
+				//std::cout << (int)pp_data->items[i].byte_index << ", " << (int)pp_data->items[i].bit_index << std::endl;
+
+				if (pp_data->items[i].report_id != 0)
+				{
+					result.report_ids.emplace(pp_data->items[i].report_id);
+				}
+
+				const uint32_t this_item_bit_index = (pp_data->items[i].byte_index * 8) + pp_data->items[i].bit_index;
+				if (this_item_bit_index > bit_index)
+				{
+					const auto pad_bits = this_item_bit_index - bit_index;
+					//std::cout << "inserting " << pad_bits << " bits of padding" << std::endl;
+					result.input_report_fields.emplace_back(HidReportDescriptor::ReportField{
+						1,
+						pad_bits,
+						0,
+						false,
+						0,
+						{}
+					});
+					bit_index = this_item_bit_index;
+				}
+
+				std::vector<uint16_t> usage_ids{};
+				for (uint32_t usage = pp_data->items[i].usage_minimum; usage != (pp_data->items[i].usage_maximum + 1); ++usage)
+				{
+					usage_ids.emplace_back(usage);
+				}
+				result.input_report_fields.emplace_back(HidReportDescriptor::ReportField{
+					pp_data->items[i].bit_size,
+					pp_data->items[i].report_count,
+					static_cast<uint32_t>(pp_data->items[i].logical_maximum) + (((pp_data->items[i].bit_field >> 6) & 1) != 0),
+					((pp_data->items[i].bit_field >> 1) & 1) != 0,
+					pp_data->items[i].usage_page,
+					std::move(usage_ids)
+				});
+
+				bit_index += pp_data->items[i].bit_size * pp_data->items[i].report_count;
+			}
+
+			HidD_FreePreparsedData(_pp_data);
+		}
+
+		return result;
+#elif SOUP_LINUX
+		const auto rawdesc = string::fromFile(this->path + "/device/report_descriptor");
+		return HidReportDescriptor::parse(rawdesc.data(), rawdesc.size());
+#elif SOUP_MACOS
+		if (!device)
+		{
+			return {};
+		}
+		if (CFTypeRef desc = IOHIDDeviceGetProperty((IOHIDDeviceRef)device, CFSTR(kIOHIDReportDescriptorKey)))
+		{
+			if (CFGetTypeID(desc) == CFDataGetTypeID())
+			{
+				const UInt8* data = CFDataGetBytePtr((CFDataRef)desc);
+				CFIndex len = CFDataGetLength((CFDataRef)desc);
+				return HidReportDescriptor::parse((const char*)data, len);
+			}
+		}
+		return {};
+#else
+		return {};
+#endif
+	}
+}

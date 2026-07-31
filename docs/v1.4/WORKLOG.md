@@ -161,8 +161,8 @@
   with an exact detached commit checkout.
 - Kept Soup on its existing audited exact commit and moved both repositories to
   lock-owned configuration.
-- Locked the complete generated HallJoy Soup diff SHA-256 and rejected extra
-  source-tree changes before compilation.
+- Added five reviewed HallJoy Soup overlay files with normalized per-file
+  SHA-256 values and rejected every extra changed/untracked Soup file.
 - Pinned all GitHub Actions by full SHA and replaced `ubuntu-latest` with
   `ubuntu-24.04`.
 - Made the official Windows build run the same required portable C++20 tests as
@@ -188,11 +188,12 @@
 
 ### Limitations
 
-- No WSL distribution or Docker engine is installed on this workstation.
-- GitHub-hosted Ubuntu and Windows jobs cannot run until publication/push is
-  explicitly approved, so V14-04 is `Implemented`, not `Verified`.
+- The first independent clone correctly exposed that the ignored local Soup
+  cache contained more HallJoy changes than the old generator reproduced.
+- The build now owns those five files as a checked-in locked overlay; the
+  corrected clean-room rerun is still required before `Verified`.
 
 ### Next
 
-- Run both pinned GitHub Actions jobs after publication approval, record their
-  URLs/results, then mark V14-04 `Verified` and begin V14-05.
+- Rerun the complete build from a new local clone after the overlay correction,
+  then mark V14-04 `Verified` and begin V14-05. GitHub Actions is optional.

@@ -28,7 +28,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-01` | Product identity, version resources, current README and documentation ownership | Verified | No active product surface reports 3.9.0; historical evidence remains intact |
 | `V14-02` | Development-only deterministic analog simulator and scenario runner | Verified | Full common pipeline, ramps, SOCD, hotplug, disconnect and fault scenarios without production enablement |
 | `V14-03` | Self-contained private UAP runtime and truthful dependency diagnostics | Verified | Works from writable and protected install locations; never recommends system SDK |
-| `V14-04` | Reproducible dependencies, warning baseline, local/CI-equivalent build scripts | Implemented | Pinned inputs, x64 Release CI, portable tests, documented warning policy |
+| `V14-04` | Reproducible dependencies, warning baseline, local/CI-equivalent build scripts | Implemented | Pinned inputs, clean-room x64 Release, portable tests, documented warning policy |
 | `V14-05` | Truthful lifecycle registry and cooperative worker shutdown | Planned | Failure-injected start/stop/restart tests; no unsafe ordinary `TerminateThread` path |
 | `V14-06` | Addressed, MAD68, Hex80, SparkLink and Sayo lifecycle migration | Planned | Per-backend tests plus unchanged protocol and mapping characterization |
 | `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Planned | Partial-start, crash, hang, unload and bounded restart tests |
@@ -100,17 +100,17 @@ Implemented locally:
 
 - one machine-readable lock owns Sun, Soup, ViGEm, Action commits, runner
   labels, and toolchain families;
-- Sun and Soup bootstrap by immutable commit and ignore arbitrary tools from
-  `PATH`;
+- Sun and Soup bootstrap by immutable commit, ignore arbitrary tools from
+  `PATH`, and apply a five-file hash-locked Soup overlay;
 - local and CI portable gates both require a C++20 compiler;
 - the official Windows build fails on every warning outside the documented
   `LNK4099` ViGEm PDB allowlist;
 - workflow Actions use full commit SHAs and fixed runner labels;
 - a static audit prevents mutable dependency and gate regressions.
 
-The package remains `Implemented` rather than `Verified` until both GitHub
-Actions jobs run after publication is explicitly approved. V14-05 does not
-start before that evidence is recorded or the sequencing rule is revised.
+GitHub Actions remains an optional post-publication check. The package becomes
+`Verified` after the corrected local clean-room clone completes the portable
+and full Windows gates without using repository build caches.
 
 ## Release definition
 

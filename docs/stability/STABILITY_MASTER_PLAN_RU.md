@@ -187,6 +187,8 @@ Reader generation владеет HID HANDLE, event, buffer и `OVERLAPPED`. Stop
 
 Статус v1.4: `Partial`. SparkLink `Verified` локально в V14-06D: внутренние hotplug-поколения сериализованы, stop event и `CancelIoEx` предшествуют bounded join, HANDLE освобождаются только после completion, а join/lock timeout блокирует restart и зависимый teardown. Protocol discovery, claim policy, commands и polling не менялись. Simulator fault injection пройден; реальный S02B.2 gate предшествует этому lifecycle-only diff, поэтому повторный device regression остаётся release qualification. Sayo ещё открыт.
 
+Sayo shutdown `Implemented` и локально проверен в V14-06E: reader group имеет одно внутреннее поколение и общий трёхсекундный deadline вместо последовательных ожиданий до 24 секунд. Shared stop event и `CancelIoEx` будят все readers; HANDLE освобождаются только после group completion. Timeout сохраняет всю группу, блокирует restart и зависимый teardown. Реального Sayo hardware gate нет, а C++/SEH boundary и early-reader-exit publication остаются обязательным V14-06F.
+
 ### S09 — Analog host generation safety
 
 Ввести immutable `ClientGeneration`, shared ownership до confirmed completion, запрет reinitialize после timeout, корректный partial-start rollback. Старое поколение не читает mutable поля нового.

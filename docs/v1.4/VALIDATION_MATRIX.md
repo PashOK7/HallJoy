@@ -322,3 +322,37 @@ Hardware: Existing S02B.2 device gate predates V14-06D. Protocol behavior is
 Known limitations: Sayo retains the final forced-termination path
 Rollback: parent commit of the V14-06D implementation commit
 ```
+
+## V14-06E evidence
+
+```text
+Package: V14-06E
+Scope: Sayo cooperative reader-group shutdown
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1
+    -InjectSayoStopTimeout -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+Results:
+  Production TerminateThread occurrences: 0
+  Sayo cooperative reader-group static audit: PASS
+  Static audits and portable C++20 tests: PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Simulator forced Sayo reader timeout containment, expected exit 2: PASS
+  One shared three-second deadline for all readers: PASS
+  Neutral publication before cancellation and after confirmed join: PASS
+  Reader group/event retained and inner restart poisoned: PASS
+  Outer native registry poisoned and dependent cleanup skipped: PASS
+  Normal simulator common pipeline and cooperative shutdown: PASS
+  Normal simulator ERROR trace events: 0
+  Remaining simulator processes: 0
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Hardware: NOT RUN; Sayo hardware unavailable. Simulator proves lifecycle
+  containment only, not Sayo protocol/device compatibility
+Known limitations: Sayo C++/SEH and early-reader-exit containment remain V14-06F
+Rollback: parent commit of the V14-06E implementation commit
+```

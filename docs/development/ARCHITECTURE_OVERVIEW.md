@@ -77,6 +77,15 @@ probe cannot make shutdown unbounded. Stop signals the event and cancels HID
 I/O before joining. Only confirmed completion releases thread, HID and event
 HANDLEs; join or lock timeout blocks both inner restart and outer registry reuse.
 
+Sayo applies the same outer-service/inner-generation split to a reader group.
+Every active reader observes one shared stop event, and shutdown issues
+`CancelIoEx` for every HID handle before one bounded `WaitForMultipleObjects`
+group join. This is one three-second deadline, not three seconds per reader.
+The shared event, reader records, thread and HID HANDLEs remain owned until the
+entire group completes; an incomplete group poisons inner and outer restart.
+Published Sayo values are neutralized before cancellation and once more after
+confirmed completion to cover a final in-flight reader publication.
+
 ## Files a new protocol owns
 
 Generated default:

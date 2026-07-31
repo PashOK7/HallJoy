@@ -363,3 +363,44 @@
 ### Remaining V14-06 scope
 
 - Sayo retains the final forced-termination fallback.
+
+## 2026-07-31 - V14-06E Sayo cooperative group shutdown
+
+### Implemented
+
+- Sayo reader groups now use a serialized internal generation within a
+  long-lived outer hotplug-service generation.
+- Stop signals the shared event and calls `CancelIoEx` for every reader before
+  joining.
+- Up to eight readers now share one three-second `WaitForMultipleObjects`
+  deadline instead of sequential three-second waits.
+- Confirmed group completion alone releases reader thread, HID and shared-event
+  HANDLEs.
+- Stop publishes a neutral analog snapshot before cancellation and repeats the
+  neutralization after group join to cover a final in-flight reader update.
+- Timeout retains the complete reachable group, poisons restart, propagates an
+  incomplete result through the registry and blocks dependent teardown.
+- Lifecycle-lock acquisition is bounded so synchronous device discovery cannot
+  make final shutdown unbounded.
+- Late-hotplug readers remain covered by final registry stop even when no Sayo
+  device existed at initial startup.
+- Removed the final production `TerminateThread`; Sayo discovery, depth probe,
+  parser, mapping, polling interval and normalization were not changed.
+
+### Validation
+
+- Sayo cooperative group-shutdown static audit: PASS.
+- All static and portable C++20 tests: PASS.
+- Full production MSVC x64 Release build: PASS, only allowlisted `LNK4099`.
+- Simulator-only blocked-reader injection: PASS; one shared deadline, reader
+  group/event retained, inner and registry restart poisoned, dependent cleanup
+  skipped and expected process exit code 2 observed.
+- Normal deterministic simulator after the injected run: PASS, no `ERROR`
+  trace event and no remaining process.
+- Sayo hardware is unavailable; protocol-specific compatibility is not inferred
+  from lifecycle simulation.
+
+### Remaining V14-06 scope
+
+- `V14-06F`: Sayo C++/SEH exception boundary, neutral fail-safe publication,
+  early-reader-exit handling and a final package-wide regression gate.

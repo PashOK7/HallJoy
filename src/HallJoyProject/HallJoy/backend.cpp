@@ -3985,12 +3985,16 @@ const NativeAnalogBackendDescriptor& BackendNative_GetSayoDescriptor()
             NativeAnalogBackendFlag_ReversibleControlProbe |
             NativeAnalogBackendFlag_DynamicVidPid,
         nullptr,
-        &SayoStart,
+        &SayoStartService,
         [](halljoy::lifecycle::GenerationId generation) {
-            return SayoStop()
-                ? NativeAnalogBackendStopJoined(generation)
-                : NativeAnalogBackendStopFailed(generation,
-                    halljoy::lifecycle::LifecycleErrorCode::StopTimedOut, ERROR_TIMEOUT);
+            const auto stopped = SayoStop();
+            if (stopped.RestartSafe())
+                return NativeAnalogBackendStopJoined(generation);
+            const auto reason = stopped.error.code == halljoy::lifecycle::LifecycleErrorCode::None
+                ? halljoy::lifecycle::LifecycleErrorCode::PrimitiveFailed
+                : stopped.error.code;
+            return NativeAnalogBackendStopFailed(
+                generation, reason, stopped.error.native_error);
         },
         nullptr,
         &BackendNative_SayoPresent,

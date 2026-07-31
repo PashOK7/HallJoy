@@ -1,3 +1,8 @@
+#include "worker_join_policy.h"
+
+#include <chrono>
+#include <mutex>
+
 // ---- native HID path for SayoDevice O3C-compatible protocol ----
 static constexpr USHORT kSayoVendorId = 0x8089;
 static constexpr USHORT kSayoKnownProductId = 0x0009;
@@ -50,6 +55,9 @@ static std::atomic<uint32_t>      g_sayoWriteCapableReaders{ 0 };
 static constexpr uint32_t         kSayoObservedWordsPerKey = (kSayoRawFullScale + 64u) / 64u;
 static std::array<std::array<std::atomic<uint64_t>, kSayoObservedWordsPerKey>, 16> g_sayoObservedDepthValues{};
 static std::array<std::atomic<uint16_t>, 16> g_sayoObservedDepthCounts{};
+static std::timed_mutex             g_sayoLifecycleMutex;
+static halljoy::lifecycle::WorkerLifecycle g_sayoLifecycle;
+static std::atomic<bool>            g_sayoRestartBlocked{ false };
 
 static void SayoRecordObservedDepth(uint8_t index, uint16_t raw)
 {
@@ -98,6 +106,21 @@ static void Sayo_ResetKeyState()
     g_sayoIndexToHid[0].store(0x09, std::memory_order_relaxed);
     g_sayoIndexToHid[1].store(0x0A, std::memory_order_relaxed);
     g_sayoIndexToHid[2].store(0x0B, std::memory_order_relaxed);
+}
+
+static bool SayoReleasePublishedInput() noexcept
+{
+    bool releasedAny = false;
+    for (auto& value : g_sayoAnalogMilli)
+    {
+        if (value.exchange(0, std::memory_order_relaxed) != 0)
+            releasedAny = true;
+    }
+    g_sayoConnected.store(false, std::memory_order_release);
+    g_sayoLastPacketMs.store(0, std::memory_order_relaxed);
+    if (releasedAny)
+        RealtimeLoop_NotifyInputChanged();
+    return releasedAny;
 }
 
 static void SayoRecordDepthTiming()
@@ -311,6 +334,16 @@ static bool SayoProbeDepthProtocol(SayoReader* reader)
 
 static DWORD WINAPI SayoReaderThreadProc(LPVOID param)
 {
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-sayo-stop-timeout"))
+    {
+        StabilityTrace_Write(L"WARN", L"sayo", L"test.stop_timeout.injected",
+            L"simulator_only=1");
+        Sleep(INFINITE);
+    }
+#endif
+
     SayoReader* reader = (SayoReader*)param;
     if (!reader || !reader->handle || !g_sayoStopEvent)
         return 0;
@@ -535,35 +568,84 @@ static bool SayoCollectMatchingDevices(std::vector<SayoReader>* outReaders)
     return !outReaders->empty();
 }
 
-static bool SayoStop()
+static halljoy::lifecycle::StopResult SayoStopLocked()
 {
-    g_sayoConnected.store(false, std::memory_order_release);
+    const auto lifecycleState = g_sayoLifecycle.State();
+    if (lifecycleState == halljoy::lifecycle::WorkerState::Stopped ||
+        lifecycleState == halljoy::lifecycle::WorkerState::Joined)
+    {
+        return g_sayoLifecycle.RequestStop();
+    }
+    if (lifecycleState == halljoy::lifecycle::WorkerState::Poisoned)
+    {
+        return g_sayoLifecycle.RequestStop(g_sayoLifecycle.Generation());
+    }
+    const auto requested = g_sayoLifecycle.RequestStop(g_sayoLifecycle.Generation());
+    if (requested.status != halljoy::lifecycle::StopStatus::StopRequested)
+        return requested;
+
+    const bool releasedBeforeJoin = SayoReleasePublishedInput();
     if (g_sayoStopEvent)
         SetEvent(g_sayoStopEvent);
 
+    std::array<HANDLE, kSayoMaxDevices> threadHandles{};
+    DWORD threadCount = 0;
     for (auto& reader : g_sayoReaders)
     {
         if (reader.handle)
             CancelIoEx(reader.handle, nullptr);
+        if (reader.thread)
+            threadHandles[threadCount++] = reader.thread;
     }
 
-    bool allJoined = true;
-    for (auto& reader : g_sayoReaders)
+    if (threadCount == 0)
     {
-        if (!reader.thread)
-            continue;
-        DWORD wr = WaitForSingleObject(reader.thread, 3000);
-        if (wr != WAIT_OBJECT_0)
-        {
-            allJoined = false;
-            DebugLog_Write(L"[backend.sayo] stop join timeout wait=%lu err=%lu; forcing shutdown-only termination",
-                (unsigned long)wr, (unsigned long)GetLastError());
-            TerminateThread(reader.thread, 0xE0515341u);
-            wr = WaitForSingleObject(reader.thread, 1000);
-        }
+        g_sayoRestartBlocked.store(true, std::memory_order_release);
+        const auto poisoned = g_sayoLifecycle.MarkPoisoned(requested.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            halljoy::lifecycle::LifecycleErrorCode::PrimitiveFailed,
+            ERROR_INVALID_HANDLE);
+        StabilityTrace_WriteCritical(L"ERROR", L"sayo", L"stop.invalid_threads",
+            L"generation=%llu reader_group_retained=1 stop_event_retained=%d restart_blocked=1",
+            static_cast<unsigned long long>(requested.generation.Value()),
+            g_sayoStopEvent ? 1 : 0);
+        return poisoned;
     }
-    if (!allJoined)
-        DebugLog_Write(L"[backend.sayo] one or more forced worker waits did not confirm completion; closing process-exit resources");
+
+    const DWORD waitResult = WaitForMultipleObjects(
+        threadCount, threadHandles.data(), TRUE, 3000);
+    const bool allJoined = waitResult >= WAIT_OBJECT_0 &&
+        waitResult < WAIT_OBJECT_0 + threadCount;
+    const DWORD waitError = allJoined
+        ? ERROR_SUCCESS
+        : (waitResult == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT);
+    const auto observedJoin = halljoy::lifecycle::ObserveWorkerJoin(
+        requested.generation,
+        allJoined
+            ? halljoy::lifecycle::JoinWaitStatus::Joined
+            : (waitResult == WAIT_FAILED
+                ? halljoy::lifecycle::JoinWaitStatus::Failed
+                : halljoy::lifecycle::JoinWaitStatus::TimedOut),
+        waitError);
+    if (!observedJoin.Completed())
+    {
+        bool hidHandlesRetained = false;
+        for (const auto& reader : g_sayoReaders)
+            hidHandlesRetained = hidHandlesRetained || reader.handle != nullptr;
+        g_sayoRestartBlocked.store(true, std::memory_order_release);
+        const auto poisoned = g_sayoLifecycle.MarkPoisoned(requested.generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            observedJoin.error.code, observedJoin.error.native_error);
+        DebugLog_Write(L"[backend.sayo] reader group join incomplete wait=%lu err=%lu; resources retained and restart blocked",
+            static_cast<unsigned long>(waitResult), static_cast<unsigned long>(waitError));
+        StabilityTrace_WriteCritical(L"ERROR", L"sayo", L"stop.timeout",
+            L"generation=%llu readers=%lu wait=%lu win32=%lu reader_group_retained=1 hid_handles_retained=%d stop_event_retained=1 restart_blocked=1",
+            static_cast<unsigned long long>(requested.generation.Value()),
+            static_cast<unsigned long>(threadCount),
+            static_cast<unsigned long>(waitResult),
+            static_cast<unsigned long>(waitError), hidHandlesRetained ? 1 : 0);
+        return poisoned;
+    }
 
     for (auto& reader : g_sayoReaders)
     {
@@ -583,25 +665,116 @@ static bool SayoStop()
     g_sayoReaderCount.store(0, std::memory_order_relaxed);
     g_sayoConnectedVid.store(0, std::memory_order_relaxed);
     g_sayoConnectedPid.store(0, std::memory_order_relaxed);
-    return allJoined;
+    const bool releasedAfterJoin = SayoReleasePublishedInput();
+    StabilityTrace_Write(L"INFO", L"sayo", L"neutralized",
+        L"released_before_join=%d released_after_join=%d",
+        releasedBeforeJoin ? 1 : 0, releasedAfterJoin ? 1 : 0);
+    return g_sayoLifecycle.ConfirmJoined(requested.generation);
+}
+
+static halljoy::lifecycle::StopResult SayoStop()
+{
+    std::unique_lock<std::timed_mutex> lifecycleGuard(g_sayoLifecycleMutex, std::defer_lock);
+    if (!lifecycleGuard.try_lock_for(std::chrono::milliseconds(500)))
+    {
+        g_sayoRestartBlocked.store(true, std::memory_order_release);
+        StabilityTrace_WriteCritical(L"ERROR", L"sayo", L"stop.lock_timeout",
+            L"wait_ms=500 lifecycle_lock_retained=1 restart_blocked=1");
+        return {
+            halljoy::lifecycle::StopStatus::TimedOut,
+            halljoy::lifecycle::WorkerState::Poisoned,
+            {},
+            { halljoy::lifecycle::LifecycleErrorCode::StopTimedOut,
+                halljoy::lifecycle::LifecycleOperation::RequestStop,
+                halljoy::lifecycle::WorkerState::Running,
+                halljoy::lifecycle::WorkerState::Poisoned,
+                {}, {}, ERROR_TIMEOUT }
+        };
+    }
+    return SayoStopLocked();
 }
 
 static bool SayoStart()
 {
+    if (g_sayoRestartBlocked.load(std::memory_order_acquire))
+        return false;
+    const std::lock_guard<std::timed_mutex> lifecycleGuard(g_sayoLifecycleMutex);
+    if (g_sayoRestartBlocked.load(std::memory_order_acquire))
+        return false;
+
     if (g_sayoConnected.load(std::memory_order_acquire))
         return true;
-    if (g_sayoStopEvent && !SayoStop())
+    if (g_sayoStopEvent && !SayoStopLocked().RestartSafe())
         return false;
+
+    const auto start = g_sayoLifecycle.BeginStart();
+    if (start.status != halljoy::lifecycle::StartStatus::Starting)
+    {
+        StabilityTrace_WriteCritical(L"ERROR", L"sayo", L"start.rejected",
+            L"state=%u generation=%llu error=%u restart_blocked=1",
+            static_cast<unsigned>(start.state),
+            static_cast<unsigned long long>(start.generation.Value()),
+            static_cast<unsigned>(start.error.code));
+        return false;
+    }
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-sayo-stop-timeout"))
+    {
+        g_sayoStopEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        if (!g_sayoStopEvent)
+        {
+            const DWORD error = GetLastError();
+            (void)g_sayoLifecycle.FailStartBeforeWorker(start.generation, error);
+            return false;
+        }
+        DWORD tid = 0;
+        g_sayoReaders[0].thread = CreateThread(
+            nullptr, 0, SayoReaderThreadProc, &g_sayoReaders[0], 0, &tid);
+        if (!g_sayoReaders[0].thread)
+        {
+            const DWORD error = GetLastError();
+            CloseHandle(g_sayoStopEvent);
+            g_sayoStopEvent = nullptr;
+            (void)g_sayoLifecycle.FailStartBeforeWorker(start.generation, error);
+            return false;
+        }
+        const auto running = g_sayoLifecycle.ConfirmRunning(start.generation);
+        if (!running.IsRunning())
+            return false;
+        g_sayoReaderCount.store(1, std::memory_order_relaxed);
+        g_sayoConnectedVid.store(0xFFFF, std::memory_order_relaxed);
+        g_sayoConnectedPid.store(0x0002, std::memory_order_relaxed);
+        g_sayoConnected.store(true, std::memory_order_release);
+        StabilityTrace_Write(L"WARN", L"sayo", L"test.start",
+            L"simulator_only=1 generation=%llu readers=1",
+            static_cast<unsigned long long>(start.generation.Value()));
+        return true;
+    }
+#endif
 
     std::vector<SayoReader> readers;
     if (!SayoCollectMatchingDevices(&readers))
+    {
+        (void)g_sayoLifecycle.FailStartBeforeWorker(start.generation);
         return false;
+    }
+    if (g_sayoRestartBlocked.load(std::memory_order_acquire))
+    {
+        for (auto& reader : readers)
+            if (reader.handle) CloseHandle(reader.handle);
+        (void)g_sayoLifecycle.FailStartBeforeWorker(start.generation, ERROR_CANCELLED);
+        return false;
+    }
 
     g_sayoStopEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     if (!g_sayoStopEvent)
     {
+        const DWORD error = GetLastError();
         for (auto& r : readers)
             if (r.handle) CloseHandle(r.handle);
+        (void)g_sayoLifecycle.FailStartBeforeWorker(start.generation, error);
         return false;
     }
 
@@ -637,14 +810,22 @@ static bool SayoStart()
 
     if (started == 0)
     {
-        SayoStop();
+        CloseHandle(g_sayoStopEvent);
+        g_sayoStopEvent = nullptr;
+        (void)g_sayoLifecycle.FailStartBeforeWorker(start.generation, ERROR_NOT_FOUND);
         return false;
     }
     if (!NativeAnalogRouting_Claim(
             readers.front().vendorId, readers.front().productId,
             NativeAnalogProtocol::SayoDepth))
     {
-        SayoStop();
+        (void)SayoStopLocked();
+        return false;
+    }
+
+    if (g_sayoRestartBlocked.load(std::memory_order_acquire))
+    {
+        (void)SayoStopLocked();
         return false;
     }
 
@@ -653,7 +834,18 @@ static bool SayoStart()
     g_sayoConnectedVid.store(readers.front().vendorId, std::memory_order_relaxed);
     g_sayoConnectedPid.store(readers.front().productId, std::memory_order_relaxed);
     g_sayoConnected.store(true, std::memory_order_release);
+    const auto running = g_sayoLifecycle.ConfirmRunning(start.generation);
+    if (!running.IsRunning())
+        return false;
     DebugLog_Write(L"[backend.sayo] connected readers=%d", started);
+    return true;
+}
+
+static bool SayoStartService()
+{
+    // Keep the outer registry generation alive even when no device is present
+    // initially, so a later hotplug reader group always receives final stop.
+    (void)SayoStart();
     return true;
 }
 

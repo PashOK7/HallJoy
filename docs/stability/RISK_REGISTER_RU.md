@@ -12,7 +12,7 @@
 
 | ID | Приоритет | Краткое описание | Пакет | Статус | Ключевая проверка |
 |---|---|---|---|---|---|
-| `HJ-AUD-P1-001` | P1 | `TerminateThread` используется как обычный механизм shutdown | `S04/S05/S08` | Partial | realtime, logger, overlay and SparkLink verified locally in V14-06A-D; Sayo remains |
+| `HJ-AUD-P1-001` | P1 | `TerminateThread` используется как обычный механизм shutdown | `S04/S05/S08` | Implemented | all ordinary occurrences removed in V14-06A-E; final soak/device qualification remains |
 | `HJ-AUD-P1-002` | P1 | «Ограниченный shutdown» трёх native backend'ов всё равно может зависнуть навсегда | `S06/S07` | Open | pending-I/O cancel/join fault tests |
 | `HJ-AUD-P1-003` | P1 | Контракт `stop()` недостоверен | `S03` | Verified | generation-scoped StopResult, poison-on-failure and registry tests passed in V14-05 |
 | `HJ-AUD-P1-004` | P1 | Нет верхней границы C++-исключений в ключевых worker-потоках | `S02` | Partial | S02A verified; S02B.1 MAD68/Hex80 implemented with device gates deferred; S02B.2 SparkLink verified on device; S02B.3 Addressed main/reader implemented with device gate deferred; Sayo/UAP remain |
@@ -60,7 +60,7 @@
 
 ## Evidence package S01
 
-S01 добавил общий lifecycle-контракт, generation-aware state machine и fault-injection seam. V14-05 подключил его к production registry/backend callbacks и закрыл `HJ-AUD-P1-003` и `HJ-AUD-P2-020` локальными verified gates. V14-06A-D удалили forced termination из realtime, logger, overlay и SparkLink; поэтому `HJ-AUD-P1-001` остаётся `Partial` до миграции Sayo.
+S01 добавил общий lifecycle-контракт, generation-aware state machine и fault-injection seam. V14-05 подключил его к production registry/backend callbacks и закрыл `HJ-AUD-P1-003` и `HJ-AUD-P2-020` локальными verified gates. V14-06A-E удалили все ordinary `TerminateThread`; `HJ-AUD-P1-001` теперь `Implemented`, а `Verified` требует финального soak/device qualification. Sayo exception containment остаётся отдельной частью `HJ-AUD-P1-004` в V14-06F.
 
 ## Evidence package S02A
 

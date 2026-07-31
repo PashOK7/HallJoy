@@ -163,8 +163,17 @@ Progress:
   teardown. The outer generation represents the long-lived hotplug service, so
   a worker connected after initial device absence is still stopped at shutdown.
   Protocol discovery, claim policy, commands and polling are unchanged.
-- Remaining V14-06 worker: Sayo. Its existing `TerminateThread` path remains
-  open and is not covered by these results.
+- `V14-06E` Sayo shutdown: Implemented and verified locally without hardware.
+  All readers share one generation and one three-second group deadline. Stop
+  signals the shared event, cancels every HID operation and releases reader,
+  HID and event HANDLEs only after the whole group joins. Timeout retains the
+  group, poisons restart and prevents dependent teardown. The old worst case of
+  sequential per-reader waits followed by `TerminateThread` is removed. Stop
+  publishes neutral analog input before cancellation and again after join.
+- Remaining V14-06 work: `V14-06F` Sayo C++/SEH exception containment and
+  early-reader-exit publication. There are no remaining ordinary
+  `TerminateThread` calls, but V14-06 stays open until that P1 worker boundary
+  and the final package-wide regression gate pass.
 
 ## Release definition
 

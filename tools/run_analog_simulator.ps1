@@ -7,6 +7,7 @@ param(
     [switch]$InjectDebugLogStopTimeout,
     [switch]$InjectOverlayStopTimeout,
     [switch]$InjectSparkStopTimeout,
+    [switch]$InjectSayoStopTimeout,
     [ValidateRange(7, 120)]
     [int]$RunSeconds = 8
 )
@@ -18,7 +19,8 @@ $injectionCount = @(
     $InjectRealtimeStopTimeout.IsPresent,
     $InjectDebugLogStopTimeout.IsPresent,
     $InjectOverlayStopTimeout.IsPresent,
-    $InjectSparkStopTimeout.IsPresent
+    $InjectSparkStopTimeout.IsPresent,
+    $InjectSayoStopTimeout.IsPresent
 ).Where({ $_ }).Count
 if ($injectionCount -gt 1) {
     throw 'Select only one timeout injection scenario.'
@@ -83,6 +85,9 @@ if ($InjectOverlayStopTimeout) {
 if ($InjectSparkStopTimeout) {
     $arguments += '--halljoy-test-spark-stop-timeout'
 }
+if ($InjectSayoStopTimeout) {
+    $arguments += '--halljoy-test-sayo-stop-timeout'
+}
 if ($StartOverlay) {
     $arguments += @('--overlay-server', '--port', '18765')
 }
@@ -134,7 +139,10 @@ if ($InjectOverlayStopTimeout -and $process.ExitCode -ne 2) {
 if ($InjectSparkStopTimeout -and $process.ExitCode -ne 2) {
     throw "Spark-timeout simulator exited with code $($process.ExitCode), expected 2."
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and $process.ExitCode -ne 0) {
+if ($InjectSayoStopTimeout -and $process.ExitCode -ne 2) {
+    throw "Sayo-timeout simulator exited with code $($process.ExitCode), expected 2."
+}
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and $process.ExitCode -ne 0) {
     throw "Simulator exited with code $($process.ExitCode)."
 }
 if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
@@ -170,6 +178,15 @@ $required = if ($InjectRealtimeStopTimeout) { @(
     '[component=spark][event=test.stop_timeout.injected] simulator_only=1',
     '[component=spark][event=stop.timeout]',
     'thread_handle_retained=1 hid_handle_retained=0 stop_event_retained=1 restart_blocked=1',
+    '[component=native-registry][event=stop.incomplete]',
+    '[component=app][event=shutdown.poisoned] component=native-analog dependent_cleanup_skipped=1',
+    '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
+) } elseif ($InjectSayoStopTimeout) { @(
+    '[component=sayo][event=test.start] simulator_only=1',
+    '[component=sayo][event=test.stop_timeout.injected] simulator_only=1',
+    '[component=sayo][event=stop.timeout]',
+    'readers=1',
+    'reader_group_retained=1 hid_handles_retained=0 stop_event_retained=1 restart_blocked=1',
     '[component=native-registry][event=stop.incomplete]',
     '[component=app][event=shutdown.poisoned] component=native-analog dependent_cleanup_skipped=1',
     '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
@@ -213,7 +230,7 @@ if ($ForceUserUapRuntime -and -not $traceText.Contains('[component=embedded-uap]
 if ($missing.Count -ne 0) {
     throw "Simulator trace is incomplete. Missing: $($missing -join ', ')"
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and $traceText -match '\[level=ERROR\]') {
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and $traceText -match '\[level=ERROR\]') {
     throw 'Simulator trace contains an ERROR event.'
 }
 
@@ -235,13 +252,15 @@ if ($InjectRealtimeStopTimeout) {
     Write-Host 'HallJoy overlay timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectSparkStopTimeout) {
     Write-Host 'HallJoy SparkLink timeout containment scenario: PASS' -ForegroundColor Green
+} elseif ($InjectSayoStopTimeout) {
+    Write-Host 'HallJoy Sayo timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($StartOverlay) {
     Write-Host 'HallJoy overlay HTTP and cooperative shutdown scenario: PASS' -ForegroundColor Green
 } else {
     Write-Host 'HallJoy analog simulator scenario: PASS' -ForegroundColor Green
 }
 Write-Host "Trace: $trace"
-if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout -or $InjectOverlayStopTimeout -or $InjectSparkStopTimeout) {
+if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout -or $InjectOverlayStopTimeout -or $InjectSparkStopTimeout -or $InjectSayoStopTimeout) {
     Write-Host 'Evidence classification: simulator lifecycle fault injection; NOT hardware verification.'
 } else {
     Write-Host 'Evidence classification: common pipeline simulation; NOT hardware verification.'

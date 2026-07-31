@@ -30,7 +30,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-03` | Self-contained private UAP runtime and truthful dependency diagnostics | Verified | Works from writable and protected install locations; never recommends system SDK |
 | `V14-04` | Reproducible dependencies, warning baseline, local/CI-equivalent build scripts | Verified | Pinned inputs, clean-room x64 Release, portable tests, documented warning policy |
 | `V14-05` | Truthful lifecycle registry and generation-scoped stop contract | Verified | Failure-injected start/stop/restart tests; timeout/fault poisons the generation and blocks restart |
-| `V14-06` | Cooperative lifecycle migration for realtime, logging and native protocol workers | In progress | Per-worker tests, no ordinary `TerminateThread`, plus unchanged protocol and mapping characterization |
+| `V14-06` | Cooperative lifecycle migration for realtime, logging and native protocol workers | Verified locally | Per-worker tests, no ordinary `TerminateThread`, plus unchanged protocol and mapping characterization |
 | `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Planned | Partial-start, crash, hang, unload and bounded restart tests |
 | `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Planned | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
 | `V14-09` | Transactional persistence and writable state migration | Planned | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
@@ -134,7 +134,7 @@ post-publication check.
 `TerminateThread` removal and bounded cooperative shutdown remain open and
 begin in V14-06; V14-05 makes those failures truthful instead of masking them.
 
-## Current package: V14-06
+## Completed package: V14-06
 
 Migrate workers one ownership boundary at a time to bounded cooperative
 shutdown, beginning with the realtime loop. Protocol bytes, mappings, and
@@ -170,10 +170,27 @@ Progress:
   group, poisons restart and prevents dependent teardown. The old worst case of
   sequential per-reader waits followed by `TerminateThread` is removed. Stop
   publishes neutral analog input before cancellation and again after join.
-- Remaining V14-06 work: `V14-06F` Sayo C++/SEH exception containment and
-  early-reader-exit publication. There are no remaining ordinary
-  `TerminateThread` calls, but V14-06 stays open until that P1 worker boundary
-  and the final package-wide regression gate pass.
+- `V14-06F` Sayo exception and completion boundary: Verified locally without
+  hardware. Every reader enters through the common allocation-free C++ barrier
+  inside a separate SEH wrapper. Faults retain a fixed per-reader diagnostic,
+  neutralize published input, stop the complete reader group and publish
+  completion. Startup rejects an already exited or faulted reader generation;
+  loss of the final live reader clears connected state.
+- The simulator C++-fault injection, the earlier blocked-reader timeout
+  injection, the normal common-pipeline scenario, all static/portable tests and
+  the official production MSVC build pass. Production contains no ordinary
+  `TerminateThread` call.
+
+Sayo protocol/device compatibility is not inferred from simulation. It remains
+an explicit device-owner gate in `V14-12`, together with the post-change
+SparkLink regression and long-run qualification.
+
+## Next package: V14-07
+
+Harden the isolated analog host and private UAP boundary: generation ownership,
+partial-start rollback, bounded restart/unload and exception-safe C ABI exports.
+This package must preserve the self-contained runtime and exact ABI behavior
+verified in `V14-03`/`V14-04`.
 
 ## Release definition
 

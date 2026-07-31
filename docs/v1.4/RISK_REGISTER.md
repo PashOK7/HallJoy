@@ -31,10 +31,10 @@ maintained in `ROADMAP.md`.
 
 | ID | Приоритет | Краткое описание | Пакет | Статус | Ключевая проверка |
 |---|---|---|---|---|---|
-| `HJ-AUD-P1-001` | P1 | `TerminateThread` используется как обычный механизм shutdown | `S04/S05/S08` | Implemented | all ordinary occurrences removed in V14-06A-E and deterministic timeout containment passed; final soak/device qualification remains |
+| `HJ-AUD-P1-001` | P1 | `TerminateThread` используется как обычный механизм shutdown | `S04/S05/S08` | Implemented | all ordinary occurrences removed in V14-06A-F and deterministic timeout containment passed; final soak/device qualification remains |
 | `HJ-AUD-P1-002` | P1 | «Ограниченный shutdown» трёх native backend'ов всё равно может зависнуть навсегда | `S06/S07` | Open | pending-I/O cancel/join fault tests |
 | `HJ-AUD-P1-003` | P1 | Контракт `stop()` недостоверен | `S03` | Verified | generation-scoped StopResult, poison-on-failure and registry fault tests passed |
-| `HJ-AUD-P1-004` | P1 | Нет верхней границы C++-исключений в ключевых worker-потоках | `S02` | Partial | S02A verified; S02B.1 MAD68/Hex80 implemented with device gates deferred; S02B.2 SparkLink verified on device; S02B.3 Addressed main/reader implemented with device gate deferred; Sayo/UAP remain |
+| `HJ-AUD-P1-004` | P1 | Нет верхней границы C++-исключений в ключевых worker-потоках | `S02` | Partial | Sayo reader boundary verified locally in V14-06F; UAP workers and C ABI exports remain, while deferred native device gates stay in release qualification |
 | `HJ-AUD-P1-005` | P1 | Addressed reader закрывает HID HANDLE из другого потока при активном stack `OVERLAPPED` | `S06` | Open | overlapped cancellation/reap tests |
 | `HJ-AUD-P1-006` | P1 | Analog host допускает повторную инициализацию поверх не завершившегося поколения потоков | `S09` | Open | generation/partial-start/restart tests |
 | `HJ-AUD-P1-007` | P1 | Partial-start cleanup analog host может unmap'нуть память под живым bridge thread | `S09` | Open | generation/partial-start/restart tests |
@@ -79,7 +79,7 @@ maintained in `ROADMAP.md`.
 
 ## Evidence package S01
 
-S01 добавил общий lifecycle-контракт, generation-aware state machine и fault-injection seam. V14-05 подключил этот контракт к production registry и backend callbacks, поэтому `HJ-AUD-P1-003` и `HJ-AUD-P2-020` закрыты проверенными локальными gates. V14-06A-E удалили все ordinary `TerminateThread`; `HJ-AUD-P1-001` теперь `Implemented`, а `Verified` требует финального soak/device qualification. Sayo exception containment остаётся отдельной открытой частью `HJ-AUD-P1-004` в V14-06F.
+S01 добавил общий lifecycle-контракт, generation-aware state machine и fault-injection seam. V14-05 подключил этот контракт к production registry и backend callbacks, поэтому `HJ-AUD-P1-003` и `HJ-AUD-P2-020` закрыты проверенными локальными gates. V14-06A-F удалили все ordinary `TerminateThread` и закрыли Sayo reader exception boundary локальными fault-injection gates. `HJ-AUD-P1-001` остаётся `Implemented`, потому что `Verified` требует финального soak/device qualification; открытая часть `HJ-AUD-P1-004` теперь ограничена UAP workers/C ABI и отложенными device-owner gates.
 
 ## Evidence package S02A
 
@@ -132,7 +132,19 @@ S02B.3 ограничен Addressed exception containment и не меняет p
 - повторный start reap'ит завершившееся main generation до замены `std::thread`;
 - session polling loop, reader I/O loop и packet constructors token-identical S02B.2.
 
-Статус риска остаётся `Partial`: Addressed device gate отложен до предфинального внешнего архива; Sayo и UAP/C ABI ещё не покрыты. Риск `HJ-AUD-P1-005` не закрывается — cross-thread force-close активного overlapped HANDLE остаётся S06.
+Статус риска остаётся `Partial`: Addressed device gate отложен до предфинального внешнего архива; UAP/C ABI ещё не покрыт. Sayo boundary закрыт локально в V14-06F, но его device gate остаётся release qualification. Риск `HJ-AUD-P1-005` не закрывается — cross-thread force-close активного overlapped HANDLE остаётся S06.
+
+## Evidence package S02B.4 / V14-06F
+
+V14-06F ограничен Sayo reader exception/completion boundary и не меняет discovery, depth protocol, mapping, polling interval или normalization.
+
+- каждый Win32 reader входит через отдельный `noexcept` C++ barrier внутри SEH wrapper;
+- C++ и structured faults сохраняют фиксированную per-reader диагностику, обнуляют published input и сигналят общий stop event;
+- completion каждого reader публикуется независимо, а выход последнего reader снимает connected state и повторно нейтрализует input;
+- startup publication отклоняет уже завершившуюся или faulted reader group, включая отдельную проверку publish race;
+- simulator-only C++ exception injection, Sayo timeout containment, normal simulator, полный portable gate и production MSVC build прошли.
+
+Статус `HJ-AUD-P1-004` остаётся `Partial` только из-за UAP workers/C ABI и отложенных hardware gates; отсутствие реальной Sayo-клавиатуры не подменяется simulator evidence.
 
 ## Правило закрытия
 
@@ -140,10 +152,10 @@ S02B.3 ограничен Addressed exception containment и не меняет p
 
 ## Сводка
 
-- P1: 15 open, 1 partial.
-- P2: 21 open.
+- P1: 13 open, 1 implemented, 1 partial, 1 verified.
+- P2: 20 open, 1 verified.
 - P3: 6 open, 2 verified.
-- Всего: 42 open, 2 verified, 1 partial.
+- Всего: 39 open, 1 implemented, 1 partial, 4 verified.
 
 ## Дополнительный риск, обнаруженный при Windows gate S02A
 
@@ -164,4 +176,4 @@ S02V1 не меняет статус ни одного исходного рис
 - проверяемый SparkLink/ViGEm сценарий;
 - обязательное удаление специализированных событий после подтверждения пакета.
 
-Ручной SparkLink smoke S02B.3 зафиксирован как положительное наблюдение, но evidence-verified статус для будущих runtime-пакетов требует trace bundle. `HJ-AUD-P1-004` остаётся `Partial`; Sayo и UAP/C ABI boundaries ещё не завершены, а device-specific MAD68/Hex80/Addressed gates отложены.
+Ручной SparkLink smoke S02B.3 зафиксирован как положительное наблюдение, но evidence-verified статус для будущих runtime-пакетов требует trace bundle. `HJ-AUD-P1-004` остаётся `Partial`; UAP/C ABI boundaries ещё не завершены, а device-specific MAD68/Hex80/Addressed/Sayo gates отложены.

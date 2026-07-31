@@ -404,3 +404,43 @@
 
 - `V14-06F`: Sayo C++/SEH exception boundary, neutral fail-safe publication,
   early-reader-exit handling and a final package-wide regression gate.
+
+## 2026-07-31 - V14-06F Sayo exception containment
+
+### Implemented
+
+- Split the Sayo reader algorithm from its Win32 entry and routed every reader
+  through the common allocation-free C++ exception barrier.
+- Preserved a separate outer SEH boundary for structured faults.
+- Added fixed per-reader C++ fault records and SEH codes without introducing
+  exception-driven control flow into the polling loop.
+- C++ and SEH faults neutralize published Sayo input and signal the shared stop
+  event so sibling readers leave the same group generation.
+- Every normal or exceptional reader exit publishes completion; exit of the
+  last expected reader clears connected state and wakes the neutral pipeline.
+- Startup now rejects an already exited or faulted reader group and rechecks
+  fault publication after connected-state publication.
+- Added simulator-only C++ fault injection and a trace gate proving containment
+  without requiring an analog keyboard.
+- Sayo discovery, protocol proof, packet parsing, mapping, poll timing and
+  normalization were not changed.
+
+### Validation
+
+- Sayo exception-boundary and cooperative-shutdown static audits: PASS.
+- All static and portable C++20 tests: PASS.
+- Full production MSVC x64 Release build: PASS, only allowlisted `LNK4099`.
+- Simulator-only Sayo C++ exception: PASS; fixed fault publication, neutral
+  input, group stop, completion, rejected startup and process exit code 0.
+- Earlier blocked-reader timeout scenario repeated: PASS, expected exit code 2.
+- Normal deterministic simulator repeated: PASS, no `ERROR` trace event and no
+  remaining process.
+- Sayo hardware is unavailable; device compatibility and reconnect are not
+  inferred from simulation.
+
+### Package result
+
+- `V14-06` is Verified locally against its automated acceptance gate.
+- Production has no ordinary `TerminateThread` call.
+- Device-specific regressions and long-run soak remain `V14-12` release
+  qualification; `V14-07` begins analog-host and UAP boundary hardening.

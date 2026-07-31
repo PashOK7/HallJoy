@@ -8,6 +8,7 @@ param(
     [switch]$InjectOverlayStopTimeout,
     [switch]$InjectSparkStopTimeout,
     [switch]$InjectSayoStopTimeout,
+    [switch]$InjectSayoReaderCppFault,
     [ValidateRange(7, 120)]
     [int]$RunSeconds = 8
 )
@@ -20,13 +21,14 @@ $injectionCount = @(
     $InjectDebugLogStopTimeout.IsPresent,
     $InjectOverlayStopTimeout.IsPresent,
     $InjectSparkStopTimeout.IsPresent,
-    $InjectSayoStopTimeout.IsPresent
+    $InjectSayoStopTimeout.IsPresent,
+    $InjectSayoReaderCppFault.IsPresent
 ).Where({ $_ }).Count
 if ($injectionCount -gt 1) {
-    throw 'Select only one timeout injection scenario.'
+    throw 'Select only one fault-injection scenario.'
 }
 if ($StartOverlay -and $injectionCount -ne 0) {
-    throw 'StartOverlay cannot be combined with a timeout injection scenario.'
+    throw 'StartOverlay cannot be combined with a fault-injection scenario.'
 }
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -88,6 +90,9 @@ if ($InjectSparkStopTimeout) {
 if ($InjectSayoStopTimeout) {
     $arguments += '--halljoy-test-sayo-stop-timeout'
 }
+if ($InjectSayoReaderCppFault) {
+    $arguments += '--halljoy-test-sayo-reader-cpp-fault'
+}
 if ($StartOverlay) {
     $arguments += @('--overlay-server', '--port', '18765')
 }
@@ -142,7 +147,10 @@ if ($InjectSparkStopTimeout -and $process.ExitCode -ne 2) {
 if ($InjectSayoStopTimeout -and $process.ExitCode -ne 2) {
     throw "Sayo-timeout simulator exited with code $($process.ExitCode), expected 2."
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and $process.ExitCode -ne 0) {
+if ($InjectSayoReaderCppFault -and $process.ExitCode -ne 0) {
+    throw "Sayo reader C++ fault simulator exited with code $($process.ExitCode), expected 0."
+}
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and $process.ExitCode -ne 0) {
     throw "Simulator exited with code $($process.ExitCode)."
 }
 if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
@@ -190,6 +198,13 @@ $required = if ($InjectRealtimeStopTimeout) { @(
     '[component=native-registry][event=stop.incomplete]',
     '[component=app][event=shutdown.poisoned] component=native-analog dependent_cleanup_skipped=1',
     '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
+) } elseif ($InjectSayoReaderCppFault) { @(
+    '[component=sayo][event=worker.start] reader=0',
+    '[component=sayo][event=worker.fault] reader=0 kind=1 neutralized=1',
+    'group_stop_signaled=1',
+    '[component=sayo][event=worker.exit] reader=0 fault_kind=1 live_readers=0',
+    '[component=sayo][event=start.failed] stage=reader_early_exit',
+    '[component=backend][event=shutdown.end]'
 ) } else { @(
     '[component=analog-simulator][event=start]',
     'name=w-ramp',
@@ -230,7 +245,7 @@ if ($ForceUserUapRuntime -and -not $traceText.Contains('[component=embedded-uap]
 if ($missing.Count -ne 0) {
     throw "Simulator trace is incomplete. Missing: $($missing -join ', ')"
 }
-if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and $traceText -match '\[level=ERROR\]') {
+if (-not $InjectRealtimeStopTimeout -and -not $InjectDebugLogStopTimeout -and -not $InjectOverlayStopTimeout -and -not $InjectSparkStopTimeout -and -not $InjectSayoStopTimeout -and -not $InjectSayoReaderCppFault -and $traceText -match '\[level=ERROR\]') {
     throw 'Simulator trace contains an ERROR event.'
 }
 
@@ -254,13 +269,15 @@ if ($InjectRealtimeStopTimeout) {
     Write-Host 'HallJoy SparkLink timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectSayoStopTimeout) {
     Write-Host 'HallJoy Sayo timeout containment scenario: PASS' -ForegroundColor Green
+} elseif ($InjectSayoReaderCppFault) {
+    Write-Host 'HallJoy Sayo reader C++ fault containment scenario: PASS' -ForegroundColor Green
 } elseif ($StartOverlay) {
     Write-Host 'HallJoy overlay HTTP and cooperative shutdown scenario: PASS' -ForegroundColor Green
 } else {
     Write-Host 'HallJoy analog simulator scenario: PASS' -ForegroundColor Green
 }
 Write-Host "Trace: $trace"
-if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout -or $InjectOverlayStopTimeout -or $InjectSparkStopTimeout -or $InjectSayoStopTimeout) {
+if ($InjectRealtimeStopTimeout -or $InjectDebugLogStopTimeout -or $InjectOverlayStopTimeout -or $InjectSparkStopTimeout -or $InjectSayoStopTimeout -or $InjectSayoReaderCppFault) {
     Write-Host 'Evidence classification: simulator lifecycle fault injection; NOT hardware verification.'
 } else {
     Write-Host 'Evidence classification: common pipeline simulation; NOT hardware verification.'

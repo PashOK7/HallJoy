@@ -356,3 +356,41 @@ Hardware: NOT RUN; Sayo hardware unavailable. Simulator proves lifecycle
 Known limitations: Sayo C++/SEH and early-reader-exit containment remain V14-06F
 Rollback: parent commit of the V14-06E implementation commit
 ```
+
+## V14-06F evidence
+
+```text
+Package: V14-06F
+Scope: Sayo reader exception containment and completion publication
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1
+    -InjectSayoReaderCppFault -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectSayoStopTimeout -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+Results:
+  Production TerminateThread occurrences: 0
+  Sayo exception-boundary and cooperative-shutdown static audits: PASS
+  Static audits and portable C++20 tests: PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Simulator C++ reader exception containment, expected exit 0: PASS
+  Fixed fault record, neutral input and group stop publication: PASS
+  Early-reader-exit startup rejection: PASS
+  Per-reader completion and final-reader connected reset: PASS
+  Earlier forced Sayo timeout containment, expected exit 2: PASS
+  Normal simulator common pipeline and cooperative shutdown: PASS
+  Normal simulator ERROR trace events: 0
+  Remaining simulator processes: 0
+Remote CI: NOT RUN; optional, account quota unavailable and no push permitted
+Hardware: NOT RUN; Sayo hardware unavailable. Simulator proves exception and
+  lifecycle containment only, not Sayo protocol/device compatibility
+Known limitations: post-change Sayo device/reconnect and long-run gates remain
+  V14-12 release qualification; V14-07 owns UAP/analog-host boundaries
+Rollback: parent commit of the V14-06F implementation commit
+```

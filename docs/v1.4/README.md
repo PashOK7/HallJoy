@@ -9,7 +9,8 @@ version or release status.
 
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
-- Current package: `V14-06` cooperative per-worker lifecycle migration
+- Completed package: `V14-06` cooperative per-worker lifecycle migration
+- Next package: `V14-07` analog host and UAP boundary hardening
 - GitHub publication: not started
 - Release status: not release-ready
 

@@ -38,7 +38,7 @@ def main() -> int:
     start = function_body(sayo, "static bool SayoStart()")
     service_start = function_body(sayo, "static bool SayoStartService()")
     stop = function_body(sayo, "static halljoy::lifecycle::StopResult SayoStopLocked()")
-    reader = function_body(sayo, "static DWORD WINAPI SayoReaderThreadProc(LPVOID param)")
+    reader = function_body(sayo, "static DWORD SayoReaderThreadBody(SayoReader* reader)")
 
     require("TerminateThread" not in sayo,
             "Sayo has no forced thread termination")

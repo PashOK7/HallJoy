@@ -86,6 +86,13 @@ entire group completes; an incomplete group poisons inner and outer restart.
 Published Sayo values are neutralized before cancellation and once more after
 confirmed completion to cover a final in-flight reader publication.
 
+Each Sayo reader also has two exception boundaries: the common allocation-free
+C++ barrier and an outer Win32 SEH wrapper. C++/SEH faults retain fixed
+per-reader diagnostics, neutralize publication and signal the shared group stop
+event. Completion is published for normal and exceptional exits. Startup cannot
+publish a group whose reader already exited or faulted, and loss of the final
+live reader clears connected state without waiting for the hotplug watchdog.
+
 ## Files a new protocol owns
 
 Generated default:

@@ -1,7 +1,9 @@
 #include "worker_join_policy.h"
+#include "worker_exception_barrier.h"
 
 #include <chrono>
 #include <mutex>
+#include <stdexcept>
 
 // ---- native HID path for SayoDevice O3C-compatible protocol ----
 static constexpr USHORT kSayoVendorId = 0x8089;
@@ -58,6 +60,14 @@ static std::array<std::atomic<uint16_t>, 16> g_sayoObservedDepthCounts{};
 static std::timed_mutex             g_sayoLifecycleMutex;
 static halljoy::lifecycle::WorkerLifecycle g_sayoLifecycle;
 static std::atomic<bool>            g_sayoRestartBlocked{ false };
+static std::array<std::atomic<bool>, kSayoMaxDevices> g_sayoReaderExpected{};
+static std::array<std::atomic<bool>, kSayoMaxDevices> g_sayoReaderExited{};
+static std::array<std::atomic<halljoy::worker::WorkerExceptionKind>, kSayoMaxDevices>
+    g_sayoReaderFaultKind{};
+static std::array<halljoy::worker::WorkerExceptionRecord, kSayoMaxDevices>
+    g_sayoReaderFaultRecord{};
+static std::array<std::atomic<DWORD>, kSayoMaxDevices> g_sayoReaderSehCode{};
+static std::atomic<bool> g_sayoReaderStartupPublishing{ false };
 
 static void SayoRecordObservedDepth(uint8_t index, uint16_t raw)
 {
@@ -100,6 +110,16 @@ static void Sayo_ResetKeyState()
             word.store(0, std::memory_order_relaxed);
     for (auto& count : g_sayoObservedDepthCounts)
         count.store(0, std::memory_order_relaxed);
+    for (size_t i = 0; i < g_sayoReaderExpected.size(); ++i)
+    {
+        g_sayoReaderExpected[i].store(false, std::memory_order_relaxed);
+        g_sayoReaderExited[i].store(true, std::memory_order_relaxed);
+        g_sayoReaderFaultKind[i].store(
+            halljoy::worker::WorkerExceptionKind::None, std::memory_order_relaxed);
+        g_sayoReaderFaultRecord[i] = {};
+        g_sayoReaderSehCode[i].store(0, std::memory_order_relaxed);
+    }
+    g_sayoReaderStartupPublishing.store(false, std::memory_order_relaxed);
 
     // F/G/H are only a fallback for the current O3C capture. The runtime remaps
     // these indices from normal keyboard HID reports when the device is pressed.
@@ -332,7 +352,7 @@ static bool SayoProbeDepthProtocol(SayoReader* reader)
     return false;
 }
 
-static DWORD WINAPI SayoReaderThreadProc(LPVOID param)
+static DWORD SayoReaderThreadBody(SayoReader* reader)
 {
 #if defined(HALLJOY_ANALOG_SIMULATOR)
     const wchar_t* commandLine = GetCommandLineW();
@@ -342,9 +362,10 @@ static DWORD WINAPI SayoReaderThreadProc(LPVOID param)
             L"simulator_only=1");
         Sleep(INFINITE);
     }
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-sayo-reader-cpp-fault"))
+        throw std::runtime_error("injected Sayo reader C++ fault");
 #endif
 
-    SayoReader* reader = (SayoReader*)param;
     if (!reader || !reader->handle || !g_sayoStopEvent)
         return 0;
 
@@ -402,6 +423,122 @@ static DWORD WINAPI SayoReaderThreadProc(LPVOID param)
 
     DebugLog_Write(L"[backend.sayo] reader stop");
     return 0;
+}
+
+static size_t SayoReaderIndex(const SayoReader* reader) noexcept
+{
+    const auto address = reinterpret_cast<std::uintptr_t>(reader);
+    const auto base = reinterpret_cast<std::uintptr_t>(g_sayoReaders.data());
+    const auto bytes = sizeof(SayoReader) * g_sayoReaders.size();
+    if (!reader || address < base || address >= base + bytes ||
+        (address - base) % sizeof(SayoReader) != 0)
+        return g_sayoReaders.size();
+    return static_cast<size_t>((address - base) / sizeof(SayoReader));
+}
+
+static int SayoPublishReaderCompletion(size_t index) noexcept
+{
+    if (index >= g_sayoReaderExited.size())
+        return g_sayoReaderCount.load(std::memory_order_relaxed);
+
+    g_sayoReaderExited[index].store(true, std::memory_order_release);
+    int liveReaders = 0;
+    bool anyExpected = false;
+    for (size_t i = 0; i < g_sayoReaderExpected.size(); ++i)
+    {
+        if (!g_sayoReaderExpected[i].load(std::memory_order_acquire))
+            continue;
+        anyExpected = true;
+        if (!g_sayoReaderExited[i].load(std::memory_order_acquire))
+            ++liveReaders;
+    }
+    g_sayoReaderCount.store(liveReaders, std::memory_order_release);
+    if (anyExpected && liveReaders == 0 &&
+        !g_sayoReaderStartupPublishing.load(std::memory_order_acquire))
+    {
+        const bool releasedAny = SayoReleasePublishedInput();
+        StabilityTrace_WriteCritical(L"WARN", L"sayo", L"reader_group.exit",
+            L"all_readers_exited=1 neutralized=1 released_any=%d",
+            releasedAny ? 1 : 0);
+    }
+    return liveReaders;
+}
+
+static void SayoReaderOnCppFault(
+    size_t index,
+    const halljoy::worker::WorkerExceptionRecord& record) noexcept
+{
+    if (index < g_sayoReaderFaultRecord.size())
+    {
+        g_sayoReaderFaultRecord[index] = record;
+        g_sayoReaderFaultKind[index].store(record.kind, std::memory_order_release);
+    }
+    const bool releasedAny = SayoReleasePublishedInput();
+    if (g_sayoStopEvent)
+        SetEvent(g_sayoStopEvent);
+    StabilityTrace_WriteCritical(L"ERROR", L"sayo", L"worker.fault",
+        L"reader=%llu kind=%u neutralized=1 released_any=%d group_stop_signaled=1",
+        static_cast<unsigned long long>(index),
+        static_cast<unsigned>(record.kind), releasedAny ? 1 : 0);
+    OutputDebugStringA("[HallJoy] Sayo reader exception: ");
+    OutputDebugStringA(record.message[0] ? record.message : "unknown");
+    OutputDebugStringA("\n");
+}
+
+static void SayoReaderOnCppCompletion(
+    size_t index,
+    const halljoy::worker::WorkerExceptionRecord& record) noexcept
+{
+    const int liveReaders = SayoPublishReaderCompletion(index);
+    StabilityTrace_Write(record.kind == halljoy::worker::WorkerExceptionKind::None ? L"INFO" : L"ERROR",
+        L"sayo", L"worker.exit", L"reader=%llu fault_kind=%u live_readers=%d",
+        static_cast<unsigned long long>(index),
+        static_cast<unsigned>(record.kind), liveReaders);
+}
+
+static DWORD SayoReaderThreadProcCpp(SayoReader* reader, size_t index) noexcept
+{
+    return static_cast<DWORD>(halljoy::worker::RunWorkerEntryBarrier(
+        [reader] { return static_cast<std::uint32_t>(SayoReaderThreadBody(reader)); },
+        [index](const halljoy::worker::WorkerExceptionRecord& record) noexcept {
+            SayoReaderOnCppFault(index, record);
+        },
+        [index](const halljoy::worker::WorkerExceptionRecord& record) noexcept {
+            SayoReaderOnCppCompletion(index, record);
+        },
+        0xE0520005u));
+}
+
+static void SayoReaderOnStructuredFault(size_t index, DWORD code) noexcept
+{
+    halljoy::worker::WorkerExceptionRecord record{};
+    record.kind = halljoy::worker::WorkerExceptionKind::UnknownException;
+    halljoy::worker::CopyWorkerExceptionMessage(record, "structured exception");
+    if (index < g_sayoReaderSehCode.size())
+        g_sayoReaderSehCode[index].store(code, std::memory_order_release);
+    SayoReaderOnCppFault(index, record);
+    SayoReaderOnCppCompletion(index, record);
+    StabilityTrace_WriteCritical(L"ERROR", L"sayo", L"worker.seh",
+        L"reader=%llu code=0x%08lX", static_cast<unsigned long long>(index), code);
+}
+
+static DWORD WINAPI SayoReaderThreadProc(LPVOID param) noexcept
+{
+    auto* reader = static_cast<SayoReader*>(param);
+    const size_t index = SayoReaderIndex(reader);
+    StabilityTrace_Write(L"INFO", L"sayo", L"worker.start",
+        L"reader=%llu", static_cast<unsigned long long>(index));
+    __try
+    {
+        return SayoReaderThreadProcCpp(reader, index);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        const DWORD code = GetExceptionCode();
+        SayoReaderOnStructuredFault(index, code);
+        OutputDebugStringA("[HallJoy] Sayo reader structured exception\n");
+        return 0;
+    }
 }
 
 static bool SayoCollectMatchingDevices(std::vector<SayoReader>* outReaders)
@@ -720,7 +857,11 @@ static bool SayoStart()
 
 #if defined(HALLJOY_ANALOG_SIMULATOR)
     const wchar_t* commandLine = GetCommandLineW();
-    if (commandLine && wcsstr(commandLine, L"--halljoy-test-sayo-stop-timeout"))
+    const bool injectReaderCppFault = commandLine &&
+        wcsstr(commandLine, L"--halljoy-test-sayo-reader-cpp-fault");
+    if (commandLine &&
+        (wcsstr(commandLine, L"--halljoy-test-sayo-stop-timeout") ||
+         injectReaderCppFault))
     {
         g_sayoStopEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
         if (!g_sayoStopEvent)
@@ -729,15 +870,34 @@ static bool SayoStart()
             (void)g_sayoLifecycle.FailStartBeforeWorker(start.generation, error);
             return false;
         }
+        Sayo_ResetKeyState();
+        g_sayoReaderStartupPublishing.store(true, std::memory_order_release);
+        g_sayoReaderExpected[0].store(true, std::memory_order_release);
+        g_sayoReaderExited[0].store(false, std::memory_order_release);
         DWORD tid = 0;
         g_sayoReaders[0].thread = CreateThread(
             nullptr, 0, SayoReaderThreadProc, &g_sayoReaders[0], 0, &tid);
         if (!g_sayoReaders[0].thread)
         {
             const DWORD error = GetLastError();
+            g_sayoReaderExpected[0].store(false, std::memory_order_release);
+            g_sayoReaderExited[0].store(true, std::memory_order_release);
+            g_sayoReaderStartupPublishing.store(false, std::memory_order_release);
             CloseHandle(g_sayoStopEvent);
             g_sayoStopEvent = nullptr;
             (void)g_sayoLifecycle.FailStartBeforeWorker(start.generation, error);
+            return false;
+        }
+        if (injectReaderCppFault)
+            (void)WaitForSingleObject(g_sayoReaders[0].thread, 1000);
+        g_sayoReaderStartupPublishing.store(false, std::memory_order_release);
+        if (g_sayoReaderExited[0].load(std::memory_order_acquire) ||
+            g_sayoReaderFaultKind[0].load(std::memory_order_acquire) !=
+                halljoy::worker::WorkerExceptionKind::None)
+        {
+            StabilityTrace_WriteCritical(L"ERROR", L"sayo", L"start.failed",
+                L"stage=reader_early_exit live_readers=0 faulted=1");
+            (void)SayoStopLocked();
             return false;
         }
         const auto running = g_sayoLifecycle.ConfirmRunning(start.generation);
@@ -794,25 +954,51 @@ static bool SayoStart()
     g_sayoWriteCapableReaders.store(writeCapableReaders, std::memory_order_relaxed);
 
     int started = 0;
+    g_sayoReaderStartupPublishing.store(true, std::memory_order_release);
     for (size_t i = 0; i < readers.size() && i < g_sayoReaders.size(); ++i)
     {
         g_sayoReaders[i] = readers[i];
+        g_sayoReaderExpected[i].store(true, std::memory_order_release);
+        g_sayoReaderExited[i].store(false, std::memory_order_release);
         DWORD tid = 0;
         g_sayoReaders[i].thread = CreateThread(nullptr, 0, SayoReaderThreadProc, &g_sayoReaders[i], 0, &tid);
         if (!g_sayoReaders[i].thread)
         {
+            g_sayoReaderExpected[i].store(false, std::memory_order_release);
+            g_sayoReaderExited[i].store(true, std::memory_order_release);
             CloseHandle(g_sayoReaders[i].handle);
             g_sayoReaders[i] = SayoReader{};
             continue;
         }
         ++started;
     }
+    g_sayoReaderStartupPublishing.store(false, std::memory_order_release);
 
     if (started == 0)
     {
         CloseHandle(g_sayoStopEvent);
         g_sayoStopEvent = nullptr;
         (void)g_sayoLifecycle.FailStartBeforeWorker(start.generation, ERROR_NOT_FOUND);
+        return false;
+    }
+    int liveReaders = 0;
+    bool readerFaulted = false;
+    for (size_t i = 0; i < g_sayoReaderExpected.size(); ++i)
+    {
+        if (!g_sayoReaderExpected[i].load(std::memory_order_acquire))
+            continue;
+        if (!g_sayoReaderExited[i].load(std::memory_order_acquire))
+            ++liveReaders;
+        readerFaulted = readerFaulted ||
+            g_sayoReaderFaultKind[i].load(std::memory_order_acquire) !=
+                halljoy::worker::WorkerExceptionKind::None;
+    }
+    if (liveReaders == 0 || readerFaulted)
+    {
+        StabilityTrace_WriteCritical(L"ERROR", L"sayo", L"start.failed",
+            L"stage=reader_early_exit live_readers=%d faulted=%d",
+            liveReaders, readerFaulted ? 1 : 0);
+        (void)SayoStopLocked();
         return false;
     }
     if (!NativeAnalogRouting_Claim(
@@ -829,7 +1015,7 @@ static bool SayoStart()
         return false;
     }
 
-    g_sayoReaderCount.store(started, std::memory_order_relaxed);
+    g_sayoReaderCount.store(liveReaders, std::memory_order_relaxed);
     g_sayoLastReconnectTryMs = GetTickCount64();
     g_sayoConnectedVid.store(readers.front().vendorId, std::memory_order_relaxed);
     g_sayoConnectedPid.store(readers.front().productId, std::memory_order_relaxed);
@@ -837,7 +1023,22 @@ static bool SayoStart()
     const auto running = g_sayoLifecycle.ConfirmRunning(start.generation);
     if (!running.IsRunning())
         return false;
-    DebugLog_Write(L"[backend.sayo] connected readers=%d", started);
+    readerFaulted = false;
+    for (size_t i = 0; i < g_sayoReaderExpected.size(); ++i)
+    {
+        readerFaulted = readerFaulted ||
+            g_sayoReaderFaultKind[i].load(std::memory_order_acquire) !=
+                halljoy::worker::WorkerExceptionKind::None;
+    }
+    if (g_sayoReaderCount.load(std::memory_order_acquire) == 0 || readerFaulted)
+    {
+        StabilityTrace_WriteCritical(L"ERROR", L"sayo", L"start.failed",
+            L"stage=publish_race live_readers=%d faulted=%d",
+            g_sayoReaderCount.load(std::memory_order_relaxed), readerFaulted ? 1 : 0);
+        (void)SayoStopLocked();
+        return false;
+    }
+    DebugLog_Write(L"[backend.sayo] connected readers=%d", liveReaders);
     return true;
 }
 

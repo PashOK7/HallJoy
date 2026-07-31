@@ -1,0 +1,16 @@
+ASAN_UBSAN_ALL_PORTABLE=START
+COMPILER=clang++
+FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer -Wall -Wextra -Werror -pedantic
++ clang++ addressed_scheduler
+addressed scheduler tests passed
++ clang++ hid_lifecycle
++ clang++ vigem_scheduler
++ clang++ native_contract
++ clang++ worker_lifecycle
++ clang++ worker_primitives
++ clang++ worker_exception_barrier
++ clang++ hex80_protocol_test
+hex80 protocol tests passed: 104 slots, 82 mapped HID keys
++ clang++ mad68pr_protocol_test
+mad68pr full protocol tests passed: 68 descriptors, 67 HID keys
+ASAN_UBSAN_ALL_PORTABLE=PASS

@@ -1,0 +1,20 @@
+HallJoy S02A.1 package verification — pass 1
+Date: 2026-07-30
+
+Pre-verification archive:
+HallJoy_v3_9_0_STABILITY_S02A1_SOUP_PATCH_HOTFIX_PREVERIFY.zip
+SHA-256:
+c7fa87d8478a53d3caded2de8125ae57c012648921753f68ab56a0bcd4249cbc
+
+After clean unpack:
+- CLEAN_PACKAGE_MANIFEST: PASS
+- Manifest files: 298
+- Manifest bytes: 39797709
+- python tools/run_native_backend_checks.py --require-compiler: PASS
+- New plugin pre-open patch contract audit: PASS
+- Static audits: PASS
+- Portable C++ tests: PASS
+
+The final archive adds this verification record, updates CHANGED_FILES_S02A1.txt,
+and regenerates the self-excluding package manifest. The final archive is then
+verified again after clean extraction.

@@ -1,0 +1,3 @@
+mad68pr_backend.cpp: BODY_EQUAL=TRUE old_chars=2447 new_chars=2447
+hex80_backend.cpp: BODY_EQUAL=TRUE old_chars=1568 new_chars=1568
+S02B1_HOT_PATH_COMPARISON=PASS

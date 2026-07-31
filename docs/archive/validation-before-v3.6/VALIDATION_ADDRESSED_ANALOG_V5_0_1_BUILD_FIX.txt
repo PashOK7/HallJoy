@@ -1,0 +1,13 @@
+HallJoy Addressed Analog v5.0.1 Build Fix validation
+===================================================
+
+PASS: g_physicalDown is declared exactly once in common backend.cpp.
+PASS: declaration appears before every use in backend.cpp.
+PASS: removed legacy backend_aula.inc is not restored.
+PASS: MSVC C4244 expression was replaced by explicit size_t/double conversion.
+PASS: tools/validate_addressed_protocol_backend.py completed successfully.
+PASS: addressed_poll_scheduler_test compiled with g++ -std=c++20 -Wall -Wextra -pedantic and passed.
+PASS: source files preserve UTF-8/ASCII without an added BOM or line-ending rewrite.
+PASS: diff against v5 Stable Clean changes only backend.cpp and addressed_analog_backend.cpp, plus documentation.
+
+Full Windows/MSVC linking cannot be executed in this Linux environment. The reported C2065/C2737 cascade is directly resolved by restoring the missing common declaration; the C4244 warning is removed at its source.

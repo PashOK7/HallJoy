@@ -1,137 +1,174 @@
-# HallJoy
+# HallJoy Universal Analog — Final v3.9.0
 
-HallJoy is a Windows desktop app that turns an analog keyboard into one or more virtual Xbox 360 controllers.
+Production-сборка HallJoy с единым low-latency трактом `аналог → кривая → SOCD → ViGEm` и централизованным безопасным арбитражем native-протоколов и Universal Analog Plugin.
 
-It reads per-key analog values through the Wooting Analog SDK and publishes XInput-compatible gamepads through ViGEmBus.
+## Сборка
 
-## Video Overview
+1. Распакуйте архив в новую папку.
+2. Запустите единственный сценарий `BUILD.cmd`.
+3. Готовый файл появится в:
 
-- YouTube: https://youtu.be/MI_ZTS6UFhM?si=Cpn9DY95S9no9ncJ
+```text
+build\output\HallJoyMAD68ProRNative.exe
+```
 
-## Why This Exists
+Требуются Visual Studio 2022 Build Tools с компонентом **Desktop development with C++**.
 
-I bought a DrunkDeer A75 Pro HE and wanted a native gamepad mode, but could not find one that matched what I needed.
-So I built HallJoy with heavy AI assistance (ChatGPT), then kept improving it feature by feature.
+## Поддерживаемые аналоговые маршруты
 
-I didn't write a single line of code, I'm not a programmer, even this readme file was written by chatgpt completely except for this paragraph 🙂
+| Семейство | Протокол | Обнаружение |
+|---|---|---|
+| MAD68 Pro R и совместимые MAD68 | native async A0 | точный HID fingerprint, граница 68-клавишной таблицы, проверенный PID/firmware либо корректный reversible A9 ACK |
+| ATK × QK Hex80 и совместимые | native `0x96` matrix polling | `VID 373B`, `FF60:0061`, валидные GET `02 96 24` и `02 96 1C`; PID не обязан быть заранее внесён |
+| IPI/QBZ75 и совместимые | Addressed Analog `09/94/02` | `FF60:0061`, 64-байтные reports, валидный checksum и ответ на запрошенные key ID; до 9 клавиш за запрос |
+| Sayo и совместимые модели бренда | native depth `0x22` | проверенный `8089:0009` либо валидный depth-ответ другого PID `VID 8089` |
+| SparkLink/XD | native matrix/route polling | capability fingerprint и валидный ответ протокола |
+| Wooting, часть MADLIONS и другие | UAP/Soup | поддержка зафиксированной версией Universal Analog Plugin |
 
-## Key Features
+Совпадения одного бренда или VID недостаточно. Native-backend получает устройство только после протокольного доказательства. Неподтверждённое устройство остаётся доступным UAP либо работает как обычная цифровая клавиатура Windows.
 
-- Analog keyboard -> virtual gamepad bridge with real-time updates.
-- Up to 4 virtual gamepads at once (if your game supports multi-controller binds).
-- Full remap UI for sticks, triggers, ABXY, bumpers, D-pad, Start/Back/Home.
-- Advanced per-key curve/deadzone tuning.
-- Last Key Priority and Snap Stick options.
-- Optional block of physical key output when that key is bound to gamepad input.
-- Keyboard layout editor (move/add/remove keys, set labels/HID/size/position/spacing, and save/share presets as `.ini` files).
-- Custom layout presets and fast switching from the app.
-- Settings saved next to the executable.
+## Централизованный арбитраж native и UAP
 
-## Keyboard Support
+При запуске HallJoy выполняет классификацию в фиксированном порядке:
 
-HallJoy uses:
+1. MAD68 native A0;
+2. Hex80-compatible `0x96`;
+3. Addressed Analog `09/94/02`;
+4. SparkLink и Sayo выполняют собственные capability-проверки внутри общего `Backend_Init`;
+5. UAP запускается только после формирования полного списка подтверждённых native `VID:PID`.
 
-- Wooting Analog SDK: https://github.com/WootingKb/wooting-analog-sdk
-- Universal Analog Plugin: https://github.com/AnalogSense/universal-analog-plugin
+Каждый native-backend:
 
-That means it can work with many HE keyboards supported by that stack (not only Wooting).
+- проверяет свой HID fingerprint;
+- выполняет только известный capability probe;
+- заявляет точную пару `VID:PID` только после валидного ответа;
+- публикует общий список подтверждённых native-устройств дочернему UAP до его HID enumeration.
 
-If your keyboard works and you created a good layout preset, send it to me on Discord: `pash.ok`
+Патч Soup применяет исключение **до `CreateFileW`**, поэтому UAP не успевает открыть endpoint, уже зарезервированный native-протоколом. Первый доказавший протокол получает пару `VID:PID`; другой native-backend не может забрать её повторно.
 
-### Aula Keyboards (Experimental)
+Новое устройство, подключённое после запуска, требует перезапуска HallJoy для повторного безопасного арбитража до запуска UAP. Переподключение уже классифицированной пары внутри текущего сеанса поддерживается native-worker.
 
-Experimental support for Aula keyboards is currently available, but it is limited.
+## Addressed Analog возвращён
 
-Right now, HallJoy can only do a best-effort emulation of a calibration-like mode (similar to how it appears in Aula web drivers). In this mode, regular keyboard input is effectively blocked while HallJoy is using the device.
+Addressed backend снова включён в production-target. Он поддерживает QBZ75-совместимое семейство и другие устройства с тем же подтверждённым протоколом:
 
-Proper native Aula support is not realistically possible from the app side alone. It would require either firmware-level changes or direct help from the Aula firmware developers.
+```text
+Usage Page: FF60
+Usage:      0061
+Reports:    не менее 64 байт
+Map:        09 83 00
+Analog:     09 94 02
+Batch:      до 9 key ID за запрос
+```
 
-### SparkLink PCB Keyboards
+Backend сначала пытается получить динамическую карту `0x83`. При полной карте используется она. Для проверенного QBZ-совместимого семейства сохранён канонический fallback. Ответ `09/94/02` принимается только при корректном checksum, точном количестве записей, совпадении запрошенных key ID без дублей и правдоподобных Hall-значениях.
 
-HallJoy includes a native HID path for keyboards that expose the SparkLink/XD protocol on vendor usage pages `0xFFB0` or `0xFFA0`.
+Scheduler приоритизирует:
 
-This path is separate from the Wooting Analog SDK. When a supported SparkLink device is detected, HallJoy reads the keyboard layout and per-row analog route data directly from HID, then feeds those values into the normal remap and curve pipeline.
+- забинденные клавиши;
+- движущиеся и удерживаемые;
+- недавно отпущенные;
+- фоновый обход остальных позиций.
 
-This support is intentionally limited to the SparkLink/XD protocol. The old MG75 v2 probing path is not part of the runtime because that keyboard revision uses a different MCU/protocol family.
+Каждое реально изменившееся значение сразу будит общий realtime-тракт. Production не пишет отдельные Addressed per-key или trace-файлы.
 
-SparkLink support has been tested on Irok MG75 Max.
+## MADLIONS: несколько протоколов без конфликта
 
-### SayoDevice OSU O3C
+Устройства `VID 373B` могут использовать разные протоколы:
 
-HallJoy includes native HID support for SayoDevice OSU O3C (`VID 0x8089`, `PID 0x0009`).
+- Soup/UAP;
+- MAD68 native A0;
+- Hex80-compatible `0x96`;
+- потенциально Addressed `09/94/02`, если устройство действительно отвечает этому fingerprint.
 
-The SayoDevice path reads the device's realtime depth polling stream directly and maps the three physical buttons to their current keyboard HID outputs, so it can follow user-configured key bindings instead of assuming fixed letters.
+HallJoy не маршрутизирует их по бренду. MAD68 требует границу совместимого 68-клавишного семейства и корректный A9 ACK; Hex80 требует два валидных GET-ответа; Addressed требует валидный `09/94/02` ответ на конкретно запрошенные key ID. Все остальные устройства `373B` остаются у UAP.
 
-## Requirements
+MAD68 runtime allow-list остаётся ограничен A8/A9. Прошивка клавиатуры не изменяется.
 
-- Windows 10/11 (x64)
-- ViGEmBus
-- Wooting Analog SDK
-- (Optional but recommended) Universal Analog Plugin for wider keyboard support
+## Hex80-compatible native `0x96`
 
-On missing dependencies, HallJoy can prompt to download/install them automatically.
+Для известных Hex80 наблюдались PID `1176 / 1177 / 1250`, но v3.9.0 не ограничивается этим списком. Другой PID `VID 373B` принимается только при точном `FF60:0061` fingerprint и валидных GET-ответах:
 
-## Build
+```text
+02 96 24 — travel_max
+02 96 1C — матричный блок
+```
 
-1. Open `HallJoy.sln` in Visual Studio 2022.
-2. Select `Release | x64`.
-3. Build.
+После повторной проверки открытого устройства backend один раз отправляет документированную `03 96 19` для выхода из режима калибровки. Команда входа в калибровку `03 96 18` не используется. Читаются 104 слота блоками по четыре; публикуются 82 стандартные HID-клавиши.
 
-## Run
+## Единый low-latency вывод ViGEm
 
-1. Start `HallJoy.exe`.
-2. Select or create a keyboard layout.
-3. Map keys to gamepad controls in the `Remap` tab.
-4. Tune curves and behavior in `Configuration`.
+Все источники используют один output scheduler:
 
-## Troubleshooting
+1. Первое изменившееся состояние после простоя отправляется в ViGEm немедленно.
+2. Изменения внутри следующего окна 1 мс объединяются в самое свежее полное XInput-состояние.
+3. Отложенное состояние гарантированно уходит по фиксированному дедлайну; новый пакет не переносит дедлайн.
+4. Кривые, бинды и SOCD применяются до фактической отправки.
+5. Неизменившиеся keepalive-report не отправляются.
 
-- If HallJoy starts normally but all analog values stay at `0`, check your keyboard firmware/software mode first.
-- Some keyboards disable analog output for the Wooting SDK when `Turbo mode` (or similar performance mode) is enabled.
-- Disable `Turbo mode`, then restart HallJoy and test again.
-- Recent Universal Analog Plugin releases may include multiple plugin folders (`universal-analog-plugin` and `universal-analog-plugin-with-wooting-device-support`).
-- For non-Wooting keyboards, use `universal-analog-plugin` (do not install both variants at the same time).
-- If analog stops working after a plugin update, reinstall UAP and keep only one plugin variant in `C:\Program Files\WootingAnalogPlugins`.
+Интерполяция, предсказание, цифровой fallback и повторная выдача старого значения как нового измерения не используются.
 
-### Roll Back Wooting SDK Runtime (quick)
+## Интерфейс
 
-If a newer Wooting SDK release causes unstable input/flicker, you can download and install an older runtime into this repo:
+Живая debug-информация в памяти сохранена во вкладках:
 
-1. List available tags:
-   - `powershell -ExecutionPolicy Bypass -File .\tools\rollback-wooting-sdk.ps1 -ListOnly`
-2. Install a specific tag (example `v0.8.0`):
-   - `powershell -ExecutionPolicy Bypass -File .\tools\rollback-wooting-sdk.ps1 -Tag v0.8.0`
-3. Rebuild in VS (`Release | x64`) and run again.
+- **Configuration**;
+- **Gamepad Tester**.
 
-The script updates DLLs in:
-- `runtime\`
-- `x64\Release\` (if present)
-- `x64\Debug\` (if present)
+Она отображает MAD68 A0, Hex80 `0x96`, Addressed `09/94/02`, SparkLink, Sayo и UAP/Wooting. Синие аналоговые полосы и зелёные цифровые точки превью сохранены. Цифровые события используются только интерфейсом и не участвуют в аналоговом управлении ViGEm.
 
-It also creates automatic backups under `runtime\backup\...`.
+## Production-диагностика
 
-## Config Files
+Production-target не создаёт непрерывные per-key, latency, analog-host, Addressed trace и общие diagnostic-файлы. Тихий watchdog аварийного A9-восстановления MAD68 сохранён.
 
-Stored near the executable:
+## Ограничения
 
-- `settings.ini` - global settings
-- `bindings.ini` - key-to-gamepad bindings
-- `Layouts/` - keyboard layout presets (`1 file = 1 preset`)
-- `CurvePresets/` - curve preset files
+- Новый неизвестный протокол не выводится автоматически из произвольных пакетов: HallJoy безопасно подтверждает только уже изученные семейства протоколов.
+- MAD68 A0 использует проверенную таблицу 68 физических позиций; несовместимые MADLIONS остаются у UAP.
+- Неизвестное Addressed-устройство без достаточно полной карты `0x83` должно совпадать с каноническим QBZ key-ID mapping, иначе capability probe будет отклонён.
+- Официальный конфигуратор клавиатуры следует закрыть, пока HallJoy владеет vendor-интерфейсом.
 
-## Third-Party Dependencies
+## Добавление нового протокола
 
-- ViGEmBus: https://github.com/ViGEm/ViGEmBus
-- Wooting Analog SDK: https://github.com/WootingKb/wooting-analog-sdk
-- Universal Analog Plugin: https://github.com/AnalogSense/universal-analog-plugin
+Архитектура v3.9.0 рассчитана на независимые protocol modules. Новый backend не
+должен добавлять специальные ветки в lifecycle, общий raw path, UI или ViGEm.
 
-## License
+Быстрый старт:
 
-HallJoy uses dual licensing:
+```text
+python tools/new_native_backend.py --help
+python tools/new_native_backend.py ^
+  --slug foo_matrix ^
+  --prefix FooMatrix ^
+  --enum FooMatrix ^
+  --protocol-value 6 ^
+  --display-name "Foo Matrix" ^
+  --start-phase AfterRealtime
+```
 
-- Open source: `AGPL-3.0` (see `LICENSE`)
-- Commercial licensing: see `COMMERCIAL_LICENSE.md`
+Генератор создаёт отдельные parser/backend-файлы, portable unit test, protocol doc,
+уникальный enum и одну запись в центральном каталоге. После реализации:
 
-For commercial licensing inquiries:
+```text
+python tools/run_native_backend_checks.py --require-compiler
+BUILD.cmd
+```
 
-- Discord: `pash.ok`
+Общий каталог автоматически предоставляет новому протоколу:
+
+- безопасный порядок discovery относительно UAP;
+- точный `VID:PID` ownership после capability proof;
+- lifecycle и device-change dispatch;
+- max-агрегацию нескольких реальных аналоговых устройств;
+- блокировку цифрового fallback только для авторитетно принадлежащих HID;
+- общий curve/SOCD/low-latency ViGEm path;
+- Configuration и Gamepad Tester без ручного UI-кода;
+- обратный порядок shutdown и очистку состояния.
+
+Начинать следует с `docs/development/ARCHITECTURE_OVERVIEW.md` и
+`docs/development/NEW_PROTOCOL_WORKSHEET.md`. Pull request для нового протокола
+должен пройти шаблон `.github/PULL_REQUEST_TEMPLATE/new-protocol.md`.
+
+## Программа стабилизации
+
+План повышения стабильности и производительности без изменения существующего поведения находится в `docs/stability/README_RU.md`. Текущий архив содержит baseline, пакет S01 и подэтап S02A: общий allocation-free exception barrier для realtime/debug/overlay workers, fault-safe публикации и переносимые тесты. Перед следующим runtime-пакетом требуется Windows/MSVC x64 Release build и smoke test.

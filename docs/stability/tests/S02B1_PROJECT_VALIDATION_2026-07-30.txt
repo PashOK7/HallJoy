@@ -1,0 +1,10 @@
+S02B.1 PROJECT VALIDATION
+
+HallJoy.vcxproj XML parse: PASS
+HallJoy.vcxproj.filters XML parse: PASS
+New production object files: 0
+New production headers: 0
+New static audit: native_worker_exception_barrier_static_audit.py
+Addressed/Sayo/SparkLink/UAP runtime sources changed: 0
+
+S02B1_PROJECT_VALIDATION=PASS

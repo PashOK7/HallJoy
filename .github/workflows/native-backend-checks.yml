@@ -1,0 +1,31 @@
+name: Native backend checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  portable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Static audits and portable protocol tests
+        run: python tools/run_native_backend_checks.py --require-compiler
+
+  windows-release:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build production x64
+        shell: powershell
+        run: .\tools\build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HallJoy-Windows-x64
+          path: build/output/*

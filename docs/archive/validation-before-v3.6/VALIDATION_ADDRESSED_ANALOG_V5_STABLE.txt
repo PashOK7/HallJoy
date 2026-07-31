@@ -1,0 +1,77 @@
+HallJoy Addressed Analog v5 Stable Clean — validation report
+
+Scope
+- Removed the obsolete single-last-key legacy backend from source, project, settings and UI.
+- Hardened addressed 0x94/02 response recovery.
+- Added cancellable/bounded HID reader shutdown.
+- Simplified production analog-host supervision and shutdown.
+- Reduced normal log cadence while preserving anomaly context.
+
+Legacy backend removal
+- backend_aula.inc does not exist.
+- HallJoy.vcxproj and HallJoy.vcxproj.filters contain no backend_aula reference.
+- backend.cpp/app.cpp contain no legacy ownership or read path.
+- AulaCommMode setting and INI persistence are absent.
+- Obsolete safety validator requiring the deleted worker was removed.
+
+Addressed transport recovery
+- One absent 28 ms response no longer terminates the session.
+- Recovery limit: 8 consecutive fully missed transactions or 1000 ms without a valid response.
+- Pending request token is cleared after a miss so a late packet cannot terminate the session.
+- Late responses and recovered misses are tracked separately from invalid protocol responses.
+- Recovery exhaustion saves the bounded 256-transaction trace and reconnects.
+
+Reader shutdown
+- Active reader HANDLE is registered under a mutex.
+- AddressedAnalog_Stop and device-change notification call CancelIoEx.
+- RunSession waits 750 ms for reader exit.
+- If cancellation does not complete, the HID handle is closed and another bounded wait is performed before join.
+- Reader exit is signalled by a dedicated manual-reset event.
+
+Analog-host process lifecycle
+- Release build sets kUseChildDebugger=false.
+- DEBUG_ONLY_THIS_PROCESS is selected only by a compile-time diagnostic branch.
+- Production supervisor waits on the child process handle instead of WaitForDebugEvent.
+- TerminateThread was removed from supervisor and snapshot-bridge shutdown.
+- Shutdown uses cooperative stop events, child job termination as fallback, and bounded waits.
+- If a third-party plugin thread still refuses to stop, shared resources are left intact for OS process teardown rather than being unmapped underneath a live thread.
+- Parent lifecycle markers are appended to HallJoyAnalogHost.log.
+
+Logging
+- HallJoyAddressedAnalog.log aggregate cadence remains 10 seconds and is capped at 2 MiB.
+- HallJoyAddressedAnalogTrace.log is anomaly-only and bounded to 256 recent transactions.
+- HallJoyAnalogHost.log periodic stats cadence changed from 2 seconds to 10 seconds.
+- Child start/exit, restart, supervisor mode and shutdown completion are event-logged.
+
+Automated checks executed
+1. Static validator:
+   Addressed analogue v5 stable-clean static validation passed
+2. Native scheduler simulation:
+   addressed scheduler tests passed
+3. Full-matrix chord scheduler stress:
+   82 non-zero keys, 24 bound keys, five seconds simulated at ~855 packets/s; all positions serviced without duplicate packet slots, index overflow or starvation.
+4. C++20 syntax-only check of addressed_analog_backend.cpp and addressed_poll_scheduler.cpp using Win32/HID API stubs:
+   passed
+5. XML parse of HallJoy.vcxproj and HallJoy.vcxproj.filters:
+   passed
+6. Patch reproducibility:
+   ADDRESSED_ANALOG_V5_STABLE_CLEAN.patch applies cleanly to HallJoy_AddressedAnalog_v4_Source.
+   Static validation, scheduler tests and XML validation pass after applying the patch.
+7. Source/package comparison:
+   Patched clean baseline matches the packaged v5 source tree.
+
+Observed user log
+- HallJoyAnalogHost (1).log contained 9 child "session start" records and only 1 clean "session exit".
+- It contained no persistent plugin transport error, heartbeat-timeout or captured crash record.
+- The log does not contain addressed-backend telemetry, so it cannot prove the exact cause of the one analog stop.
+- The source-level single-28-ms termination and debugger-based child supervision are therefore treated as plausible causes, not retrospectively proven causes.
+
+Not executed in this environment
+- Full Visual Studio/MSVC link.
+- Physical QBZ75 chord/reconnect/shutdown soak test.
+- VirusTotal or Microsoft Defender scan of the rebuilt EXE.
+- Authenticode signing.
+
+Security/false-positive note
+- No malicious payload, network downloader, packer or obfuscation was found in the reviewed source.
+- Removing production self-debugging and unsafe analog-host TerminateThread calls should reduce heuristic detections, but an unsigned low-prevalence binary can still receive a reputation/ML false positive.

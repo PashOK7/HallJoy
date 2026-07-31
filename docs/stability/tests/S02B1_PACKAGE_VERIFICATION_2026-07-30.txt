@@ -1,0 +1,11 @@
+S02B.1 PACKAGE VERIFICATION
+
+Pass-1 archive:
+- archive creation: PASS
+- clean extraction: PASS
+- CLEAN_PACKAGE_MANIFEST.json: PASS
+- full static + portable common gate after extraction: PASS
+
+Final archive is rebuilt after adding this report and regenerating the self-excluding manifest. Final extraction/hash verification is performed externally after packaging.
+
+S02B1_PACKAGE_PASS1=PASS

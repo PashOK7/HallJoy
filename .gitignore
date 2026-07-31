@@ -6,10 +6,13 @@
 *.VC.VC.opendb
 *.ipch
 
-# Build folders
+# Build and generated output
 build/
 dist/
+runtime/
 captures/
+tests_bin/
+perf_results/
 **/Debug/
 **/Release/
 **/x64/
@@ -18,13 +21,7 @@ captures/
 **/bin/
 **/obj/
 
-# Keep required third-party import lib in repository
-!third_party/ViGEmClient/lib/
-!third_party/ViGEmClient/lib/release/
-!third_party/ViGEmClient/lib/release/x64/
-!third_party/ViGEmClient/lib/release/x64/ViGEmClient.lib
-
-# MSBuild/VS intermediates
+# MSBuild intermediates and local binaries
 *.obj
 *.pdb
 *.idb
@@ -36,33 +33,33 @@ captures/
 *.ilk
 *.exp
 *.lib.recipe
+*.exe
+*.dll
 *.exe.recipe
 *.lastbuildstate
 
-# CMake (на будущее, даже если пока не используешь)
-CMakeFiles/
-CMakeCache.txt
-cmake-build-*/
+# Keep the audited import library bundled with HallJoy
+!src/HallJoyProject/third_party/ViGEmClient/lib/
+!src/HallJoyProject/third_party/ViGEmClient/lib/release/
+!src/HallJoyProject/third_party/ViGEmClient/lib/release/x64/
+!src/HallJoyProject/third_party/ViGEmClient/lib/release/x64/ViGEmClient.lib
 
-# Windows junk
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# OS/editor
+.DS_Store
 Thumbs.db
 Desktop.ini
+.vscode/
+.idea/
 
-# Local reverse-engineering scratch
+# Local protocol research and generated dependency worktrees
 .tmp_*/
 .tmp_*
-IROK_REVERSE_NOTES.md*
-README.md.*.bak
-*.bak-*
-*.bak-sayo-*
-irok_*.cpp
-irok_*.cpp.*
-rawkbd_probe.cpp
-spark_probe.cpp
-LS3DF_Function_Rename_Report.md
-
-# Local Wooting SDK rollback artifacts
-runtime/backup/
-runtime/wooting_analog_sdk.dll
-runtime/wooting_analog_plugin.dll
-runtime/wooting_analog_test_plugin.dll
+third_party/UniversalAnalogPluginFixed/Soup/
+third_party/UniversalAnalogPluginFixed/Sun/
+third_party/UniversalAnalogPluginFixed/dist/
+third_party/UniversalAnalogPluginFixed/build/

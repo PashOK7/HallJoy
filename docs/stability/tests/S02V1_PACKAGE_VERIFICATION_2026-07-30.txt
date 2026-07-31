@@ -1,0 +1,18 @@
+S02V1 CLEAN PACKAGE PREVERIFICATION
+Date: 2026-07-30
+
+Archive root: HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source
+Manifest: PASS
+Manifest files: 342
+Unexpected/missing files: 0
+Hash/size mismatches: 0
+
+Clean-unpack gates:
+- GCC static + portable C++ suite: PASS
+- Clang static + portable C++ suite: PASS
+- Python syntax: PASS
+- MSVC project/filter XML parse (inside common gate): PASS
+- generated cache artifacts removed before final packaging
+
+This report was added after the first clean-unpack pass. The final archive is
+rebuilt with a new self-excluding manifest and verified again before delivery.

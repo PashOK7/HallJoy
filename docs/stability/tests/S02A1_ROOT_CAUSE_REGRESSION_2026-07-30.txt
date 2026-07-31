@@ -1,0 +1,14 @@
+S02A.1 root-cause regression evidence
+Date: 2026-07-30
+
+Original S02A Apply-Soup-Madlions-Fix.ps1:
+- $preOpenMarker declaration exists: YES
+- marker inside generated $preOpenBlock: NO
+- post-patch IndexOf(marker) therefore returns -1 on fresh Soup: deterministic failure
+
+S02A.1:
+- $preOpenMarker declaration exists: YES
+- marker inside generated $preOpenBlock: YES
+- validator reuses $preOpenMarker: YES
+- modeled marker ordering before hid.handle = CreateFileW: PASS
+- plugin_preopen_patch_contract_audit.py: PASS

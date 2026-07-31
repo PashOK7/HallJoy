@@ -1,0 +1,40 @@
+S02V1 CHANGED FILES AGAINST S02B.3
+
+A  docs/stability/CHANGED_FILES_S02V1.txt
+M  docs/stability/DECISIONS_RU.md
+M  docs/stability/README_RU.md
+M  docs/stability/RISK_REGISTER_RU.md
+M  docs/stability/STABILITY_MASTER_PLAN_RU.md
+A  docs/stability/STAGE_S02V1_RESULT_RU.md
+A  docs/stability/TRACE_PROTOCOL_S02V1_RU.md
+M  docs/stability/VALIDATION_MATRIX_RU.md
+M  docs/stability/WORKLOG_RU.md
+A  docs/stability/tests/S02V1_FINAL_CLANG_CHECKS_2026-07-30.txt
+A  docs/stability/tests/S02V1_FINAL_GCC_CHECKS_2026-07-30.txt
+A  docs/stability/tests/S02V1_HOT_PATH_COMPARISON_2026-07-30.txt
+A  docs/stability/tests/S02V1_PACKAGE_VERIFICATION_2026-07-30.txt
+A  docs/stability/tests/S02V1_PROJECT_VALIDATION_2026-07-30.txt
+A  docs/stability/tests/S02V1_SANITIZERS_2026-07-30.txt
+M  docs/validation/CLEAN_PACKAGE_MANIFEST.json
+A  docs/validation/VALIDATION_PACKAGE_STABILITY_S02V1_TRACE_RU.txt
+M  src/HallJoyProject/HallJoy/HallJoy.vcxproj
+M  src/HallJoyProject/HallJoy/HallJoy.vcxproj.filters
+M  src/HallJoyProject/HallJoy/addressed_analog_backend.cpp
+M  src/HallJoyProject/HallJoy/backend.cpp
+M  src/HallJoyProject/HallJoy/backend_sparklink.inc
+M  src/HallJoyProject/HallJoy/hex80_backend.cpp
+M  src/HallJoyProject/HallJoy/mad68pr_backend.cpp
+M  src/HallJoyProject/HallJoy/main.cpp
+M  src/HallJoyProject/HallJoy/overlay_server.cpp
+M  src/HallJoyProject/HallJoy/realtime_loop.cpp
+M  src/HallJoyProject/HallJoy/settings.cpp
+A  src/HallJoyProject/HallJoy/stability_trace.cpp
+A  src/HallJoyProject/HallJoy/stability_trace.h
+A  src/HallJoyProject/tests/stability_trace_static_audit.py
+A  tools/COLLECT_STABILITY_TRACE.cmd
+A  tools/analyze_stability_trace.py
+M  tools/build.ps1
+A  tools/collect_stability_trace.ps1
+
+A=added, M=modified, D=deleted
+Changed entries: 35

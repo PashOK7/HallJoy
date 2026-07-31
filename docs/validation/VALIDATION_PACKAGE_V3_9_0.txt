@@ -1,0 +1,92 @@
+HallJoy Universal Analog Final v3.9.0 validation
+================================================
+
+Scope
+-----
+This revision turns native keyboard support into an explicit extension contract.
+Existing USB protocol implementations remain intact; lifecycle, ownership, common
+analogue reads, UI telemetry and shutdown are dispatched through one descriptor
+catalog.
+
+Extension architecture
+----------------------
+- NativeAnalogBackendDescriptor defines discovery/lifecycle/read/telemetry callbacks.
+- native_analog_backends.def is the ordered classification manifest.
+- The manifest generates both getter declarations and the runtime catalog.
+- app.cpp uses only catalog phases: PrepareRouting, BeforeUap, AfterRealtime,
+  AfterRawInput, device-change notification and reverse-order shutdown.
+- backend.cpp reads all native values through NativeAnalogBackends_ReadMilli.
+- New protocols automatically use real-analogue max aggregation, curve/SOCD logic,
+  the fixed-deadline ViGEm scheduler and generic Configuration/Gamepad Tester output.
+- Digital HID is not converted into analogue depth.
+
+Fail-closed catalog validation
+------------------------------
+Startup rejects:
+- descriptor ABI/size mismatch;
+- empty stable ID or display name;
+- duplicate stable IDs;
+- duplicate NativeAnalogProtocol values;
+- invalid startup phase;
+- unknown flags;
+- missing mandatory lifecycle/read/telemetry callbacks.
+
+Developer workflow
+------------------
+- tools/new_native_backend.py creates:
+  * pure <slug>_protocol.h/.cpp parser/normalizer files;
+  * standalone <slug>_backend.h/.cpp transport module;
+  * portable <slug>_protocol_test.cpp;
+  * protocol evidence/safety document;
+  * enum, catalog and Visual Studio project entries.
+- Generated backends are inert: no commands and no ownership until implemented.
+- tools/run_native_backend_checks.py runs all static audits and auto-discovers every
+  *_protocol_test.cpp using the matching HallJoy/*_protocol.cpp source.
+- Generator round-trip was tested on a clean package copy with a sixth demo protocol;
+  all architecture audits and portable tests passed after generation.
+
+GitHub/contributor support
+--------------------------
+- Root LICENSE, COMMERCIAL_LICENSE.md, CONTRIBUTING.md and .gitignore added.
+- THIRD_PARTY_NOTICES.md added.
+- New-protocol issue and pull-request templates added.
+- GitHub Actions workflow added for Linux portable checks and Windows Release build.
+- Development docs include architecture overview, worksheet, contract, safety review
+  checklist and testing procedure.
+
+Automated validation completed
+------------------------------
+PASS: tools/run_native_backend_checks.py --require-compiler
+PASS: all eight Python static audits
+PASS: addressed_poll_scheduler_test (portable C++20)
+PASS: hex80_protocol_test (104 slots, 82 mapped HID keys)
+PASS: mad68pr_protocol_test (68 descriptors, 67 HID keys)
+PASS: vigem_output_scheduler_test (portable C++20)
+PASS: hid_io_operation_lifecycle_test (portable C++20)
+PASS: native_analog_backend_contract_test (portable C++20)
+PASS: generated demo protocol parser test (temporary clean-copy validation)
+PASS: HallJoy.vcxproj and HallJoy.vcxproj.filters XML parse
+PASS: Python syntax compilation for generator/check runner/audits
+PASS: exactly one CMD file: BUILD.cmd
+
+Regression boundaries versus v3.8.0
+-----------------------------------
+Byte-identical:
+- realtime_loop.cpp
+- vigem_output_scheduler.h
+- backend_curve.cpp
+- keyboard_render.cpp
+- mad68pr_protocol.cpp/.h
+- hex80_protocol.cpp/.h
+- addressed_poll_scheduler.cpp/.h
+
+The protocol-specific HID workers/parsers retain their existing packet semantics.
+Changes in existing backend files are descriptor/telemetry registration and common
+lifecycle integration, not new firmware commands or analogue synthesis.
+
+Environment limitation
+----------------------
+The package was prepared in Linux. Complete Visual Studio/MSBuild linking and
+physical USB testing cannot be performed here. BUILD.cmd and the Windows GitHub
+Actions job perform the final MSVC Release x64 build. Hardware validation remains
+required for every newly implemented protocol/model.

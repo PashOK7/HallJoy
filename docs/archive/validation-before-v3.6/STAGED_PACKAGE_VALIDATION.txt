@@ -1,0 +1,110 @@
+HallJoy MAD68 Pro R Native Stable v3.5 — staged package validation
+
+===== protocol_test =====
+mad68pr full protocol tests passed: 68 descriptors, 67 HID keys
+
+===== backend_syntax =====
+
+===== static_safety =====
+MAD68PR NATIVE STATIC SAFETY AUDIT PASSED
+root=<historical-staging-root>/HallJoyProject
+device opcode allow-list: A8, A9 only
+firmware mutation gate: bcdDevice 0x0102 only
+publication modes: full 67 HID keys or emergency real W/A/S/D
+UAP/Wooting: preserved and embedded
+strategies: hardware-confirmed primary + clean retry + 11 finite fallbacks; max 2 recovery cycles per 60-second window
+UAP/Wooting: preserved; only VID 373B PID 1109 excluded from child host to prevent EP82 races
+
+===== route_audit =====
+PASS: MAD68 value enters common raw path
+PASS: MAD68 enters multi-device max arbitration
+PASS: UAP stays available for other analogue keyboards
+PASS: digital fallback stays blocked for MAD-owned HID
+PASS: native UAP child excludes only exact MAD68 Pro R
+PASS: normal UAP target remains unchanged
+PASS: native build explicitly selects dedicated UAP
+PASS: native UAP preserves baseline hotplug policy
+PASS: MAD68 exclusion happens before Soup CreateFileW
+PASS: normal UAP initialization preserved
+PASS: normal embedded UAP preparation preserved
+PASS: normal UAP resource preserved
+PASS: realtime curve path consumes common raw
+PASS: UI publication receives filtered analog
+PASS: blue keyboard render consumes standard UI analog
+PASS: ViGEm report builder consumes filtered analog
+PASS: ViGEm update receives built report
+PASS: UAP and Raw Input init complete before MAD worker owns EP82
+PASS: dedicated UAP excludes Pro R before Soup CreateFileW
+PASS: MAD worker stops cleanly
+PASS: stale full-matrix key falls back per HID without dropping healthy keys
+PASS: stale WASD falls back per HID and only dead global transport re-arms
+PASS: per-key digital edge freshness gates MAD68 ownership
+PASS: leading packet mismatch waits for post-edge A0
+PASS: lost A8 ACK can be confirmed semantically
+PASS: startup snapshot cannot directly grant full ownership
+PASS: exit watchdog performs idempotent A9 recovery
+
+HALLJOY_ROUTE_AUDIT=PASS
+route=MAD68 A0 -> ReadRaw01Cached -> curve -> UI blue bar + BuildReportForPad -> ViGEm
+
+===== hardware_log =====
+expected_descriptors=68
+observed_descriptors=68
+missing=0
+unexpected=0
+raw_samples=272
+raw_min=0
+raw_max=1600
+checksum_error_markers=0
+marker[ACK valid strategy=interrupt-caps-normal-strict opcode=A9]=1
+marker[ACK valid strategy=interrupt-caps-normal-strict opcode=A8]=1
+marker[strategy 1 end result=SUCCESS]=1
+HARDWARE_LOG_VALIDATION=PASS
+
+===== hardware_timing =====
+a8_ack_found=1
+unique_descriptors=68
+a0_packets=272
+first_68_coverage_seconds=1.066
+median_a0_interval_ms=15.0
+HARDWARE_TIMING_VALIDATION=PASS
+
+===== critique_verify =====
+firmware_sha256=2a7df4ffc491476b79da5333f51179f68fbbb5c5e146e987cfb5df764b79cead
+gp=0x200032A0
+A8_A9_service_state=0x20002B40
+forced_sweep_count=0x20002B3F
+A0_telemetry_gate=0x2000580B
+A9_touches_telemetry_gate=0
+firmware_state_machine=PASS
+a8_ack=2026-07-29 06:22:26.751000
+final_a9_tx=2026-07-29 06:22:26.751000
+final_a9_ack=2026-07-29 06:22:26.761000
+post_final_A9_TX_A0_packets=272
+post_final_A9_ACK_A0_packets=271
+exact_ordered_cycles_after_final_A9_TX=4
+exact_ordered_cycles_after_final_A9_ACK=3
+fourth_cycle_end_after_final_A9_ACK_s=4.236
+median_A0_interval_ms=15.0
+host_opcode_A0_TX=0
+queued_packet_explanation_possible=0
+hardware_A9_persistence_evidence=PASS
+post_startup_physical_edge_steady_state=NOT_TESTED_BY_THIS_LOG
+MAD68PR_A8_A9_CRITIQUE_VERIFY=PASS
+
+===== xml_parse =====
+PROJECT_XML_PARSE=PASS
+
+===== package_markers =====
+build_name=PASS
+steady_gate=PASS
+edge_snapshot=PASS
+per_key_fallback=PASS
+dead_transport_only_rearm=PASS
+watchdog_a9=PASS
+raw_before_worker=PASS
+uap_preserved=PASS
+preopen_filter_guard=PASS
+build_script_guard=PASS
+STAGED_PACKAGE_MARKERS=PASS
+

@@ -1,0 +1,22 @@
+HallJoy S02A worker exception barrier sanitizer gate
+Date: 2026-07-30
+
+Compilers:
+- g++ 14.2.0
+- clang++ 17.0.0
+
+Source:
+- src/HallJoyProject/tests/worker_exception_barrier_test.cpp
+- include: src/HallJoyProject/HallJoy
+
+Flags per compiler:
+-std=c++20 -O1 -g -Wall -Wextra -Werror -pedantic
+-fno-omit-frame-pointer
+
+Runs:
+- GCC + AddressSanitizer: PASS
+- GCC + UndefinedBehaviorSanitizer: PASS
+- Clang + AddressSanitizer: PASS
+- Clang + UndefinedBehaviorSanitizer: PASS
+
+Result: PASS

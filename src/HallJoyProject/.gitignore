@@ -1,0 +1,73 @@
+# Visual Studio / MSVC
+.vs/
+*.user
+*.suo
+*.VC.db
+*.VC.VC.opendb
+*.ipch
+
+# Build folders
+build/
+dist/
+captures/
+tests_bin/
+perf_results/
+**/Debug/
+**/Release/
+**/x64/
+**/x86/
+**/ARM64/
+**/bin/
+**/obj/
+
+# Keep required third-party import lib in repository
+!third_party/ViGEmClient/lib/
+!third_party/ViGEmClient/lib/release/
+!third_party/ViGEmClient/lib/release/x64/
+!third_party/ViGEmClient/lib/release/x64/ViGEmClient.lib
+
+# MSBuild/VS intermediates
+*.obj
+*.pdb
+*.idb
+*.iobj
+*.ipdb
+*.tlog
+*.log
+*.res
+*.ilk
+*.exp
+*.lib.recipe
+*.exe.recipe
+*.lastbuildstate
+
+# CMake (на будущее, даже если пока не используешь)
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+
+# Windows junk
+Thumbs.db
+Desktop.ini
+
+# Local reverse-engineering scratch
+.tmp_*/
+.tmp_*
+IROK_REVERSE_NOTES.md*
+README.md.*.bak
+*.bak-*
+*.bak-sayo-*
+irok_*.cpp
+irok_*.cpp.*
+rawkbd_probe.cpp
+spark_probe.cpp
+LS3DF_Function_Rename_Report.md
+
+# Local Wooting SDK rollback artifacts
+runtime/backup/
+runtime/wooting_analog_sdk.dll
+runtime/wooting_analog_plugin.dll
+runtime/wooting_analog_test_plugin.dll
+
+# Local third-party source/build cache restored by tools/ensure_blend2d.ps1
+third_party/blend2d/

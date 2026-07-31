@@ -1,0 +1,11 @@
+HallJoy S01 project validation
+Date: 2026-07-30
+
+- HallJoy.vcxproj XML parse: PASS
+- HallJoy.vcxproj.filters XML parse: PASS
+- Python syntax check for modified runner/static audit: PASS
+- worker_lifecycle.h compiled by GCC 14.2 and Clang 17: PASS
+- worker_primitives.h compiled by GCC 14.2 and Clang 17: PASS
+- Werror + ASan + UBSan for new tests: PASS
+
+Windows/MSVC executable build was not available in this Linux environment.

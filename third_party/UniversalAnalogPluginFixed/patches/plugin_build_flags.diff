@@ -1,0 +1,92 @@
+--- orig_plugin/universal-analog-plugin-senpai/abiv0.sun	2026-02-27 08:30:51.000000000 +0000
++++ universal-analog-plugin-senpai/abiv0.sun	2026-07-20 23:04:43.775714713 +0000
+@@ -1,8 +1,11 @@
+-+*.cpp
+-dynamic
+-require Soup/soup include_dir=Soup
+-
+-arg -O3
+-
+-name abiv0
+-arg -DABI_VERSION_TARGET=0
+++*.cpp
++dynamic
++require Soup/soup include_dir=Soup
++
++arg -O3
++arg -DUAP_DISABLE_HOTPLUG=1
++arg -DUAP_POLL_SLEEP_MS=2
++arg -DUAP_MADLIONS_DISABLE_DIGITAL_ASSIST=1
++
++name abiv0
++arg -DABI_VERSION_TARGET=0
+--- orig_plugin/universal-analog-plugin-senpai/abiv1.sun	2026-02-27 08:30:51.000000000 +0000
++++ universal-analog-plugin-senpai/abiv1.sun	2026-07-20 23:04:43.776529936 +0000
+@@ -1,8 +1,11 @@
+-+*.cpp
+-dynamic
+-require Soup/soup include_dir=Soup
+-
+-arg -O3
+-
+-name abiv1
+-arg -DABI_VERSION_TARGET=1
+++*.cpp
++dynamic
++require Soup/soup include_dir=Soup
++
++arg -O3
++arg -DUAP_DISABLE_HOTPLUG=1
++arg -DUAP_POLL_SLEEP_MS=2
++arg -DUAP_MADLIONS_DISABLE_DIGITAL_ASSIST=1
++
++name abiv1
++arg -DABI_VERSION_TARGET=1
+--- orig_plugin/universal-analog-plugin-senpai/abiv0-pluswooting.sun	2026-02-27 08:30:51.000000000 +0000
++++ universal-analog-plugin-senpai/abiv0-pluswooting.sun	2026-07-20 23:04:43.775109949 +0000
+@@ -1,9 +1,12 @@
+-+*.cpp
+-dynamic
+-require Soup/soup include_dir=Soup
+-
+-arg -O3
+-
+-name abiv0-pluswooting
+-arg -DABI_VERSION_TARGET=0
+-arg -DWOOTING_SUPPORT
+++*.cpp
++dynamic
++require Soup/soup include_dir=Soup
++
++arg -O3
++arg -DUAP_DISABLE_HOTPLUG=1
++arg -DUAP_POLL_SLEEP_MS=2
++arg -DUAP_MADLIONS_DISABLE_DIGITAL_ASSIST=1
++
++name abiv0-pluswooting
++arg -DABI_VERSION_TARGET=0
++arg -DWOOTING_SUPPORT
+--- orig_plugin/universal-analog-plugin-senpai/abiv1-pluswooting.sun	2026-02-27 08:30:51.000000000 +0000
++++ universal-analog-plugin-senpai/abiv1-pluswooting.sun	2026-07-20 23:04:43.776149127 +0000
+@@ -1,9 +1,12 @@
+-+*.cpp
+-dynamic
+-require Soup/soup include_dir=Soup
+-
+-arg -O3
+-
+-name abiv1-pluswooting
+-arg -DABI_VERSION_TARGET=1
+-arg -DWOOTING_SUPPORT
+++*.cpp
++dynamic
++require Soup/soup include_dir=Soup
++
++arg -O3
++arg -DUAP_DISABLE_HOTPLUG=1
++arg -DUAP_POLL_SLEEP_MS=2
++arg -DUAP_MADLIONS_DISABLE_DIGITAL_ASSIST=1
++
++name abiv1-pluswooting
++arg -DABI_VERSION_TARGET=1
++arg -DWOOTING_SUPPORT

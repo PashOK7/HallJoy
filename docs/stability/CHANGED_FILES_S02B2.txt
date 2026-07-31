@@ -1,0 +1,27 @@
+S02B.2 changed files
+
+PRODUCTION
+MODIFIED src/HallJoyProject/HallJoy/backend_sparklink.inc
+
+TESTS
+ADDED    src/HallJoyProject/tests/sparklink_exception_boundary_static_audit.py
+
+DOCUMENTATION
+MODIFIED docs/stability/README_RU.md
+MODIFIED docs/stability/STABILITY_MASTER_PLAN_RU.md
+MODIFIED docs/stability/RISK_REGISTER_RU.md
+MODIFIED docs/stability/WORKLOG_RU.md
+MODIFIED docs/stability/DECISIONS_RU.md
+MODIFIED docs/stability/tests/README_RU.md
+ADDED    docs/stability/VALIDATION_MATRIX_RU.md
+ADDED    docs/stability/STAGE_S02B2_RESULT_RU.md
+ADDED    docs/stability/CHANGED_FILES_S02B2.txt
+ADDED    docs/stability/tests/S02B1_SPARKLINK_AVAILABLE_GATE_2026-07-30.txt
+ADDED    docs/stability/tests/S02B2_FINAL_GCC_CHECKS_2026-07-30.txt
+ADDED    docs/stability/tests/S02B2_FINAL_CLANG_CHECKS_2026-07-30.txt
+ADDED    docs/stability/tests/S02B2_SANITIZERS_2026-07-30.txt
+ADDED    docs/stability/tests/S02B2_HOT_PATH_COMPARISON_2026-07-30.txt
+ADDED    docs/stability/tests/S02B2_PACKAGE_VERIFICATION_2026-07-30.txt
+
+PACKAGE
+MODIFIED docs/validation/CLEAN_PACKAGE_MANIFEST.json

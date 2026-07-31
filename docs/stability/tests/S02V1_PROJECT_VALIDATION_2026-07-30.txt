@@ -1,0 +1,6 @@
+src/HallJoyProject/HallJoy/HallJoy.vcxproj: XML PASS
+src/HallJoyProject/HallJoy/HallJoy.vcxproj.filters: XML PASS
+tools/analyze_stability_trace.py: PRESENT size=9019
+tools/collect_stability_trace.ps1: PRESENT size=1497
+tools/COLLECT_STABILITY_TRACE.cmd: PRESENT size=253
+project validation: PASS

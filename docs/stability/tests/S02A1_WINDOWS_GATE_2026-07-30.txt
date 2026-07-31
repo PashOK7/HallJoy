@@ -1,0 +1,14 @@
+S02A.1 WINDOWS GATE
+Date: 2026-07-30
+Environment: user Windows workstation, clean extracted S02A.1 package
+
+User-reported result:
+- BUILD.cmd completed successfully after the Soup patch hotfix.
+- HallJoy launched normally.
+- ViGEm output worked normally.
+- Overlay enable/disable and shutdown worked normally.
+- No crash, hang, or functional regression was observed.
+
+Evidence classification: user-executed platform/hardware smoke gate. The complete successful build transcript was not retained in this artifact; the result was reported directly in the continuation chat.
+
+S02A1_WINDOWS_GATE=PASS

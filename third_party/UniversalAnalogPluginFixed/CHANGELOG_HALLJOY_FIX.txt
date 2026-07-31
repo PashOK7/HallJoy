@@ -1,0 +1,42 @@
+HallJoy Madlions SafeHID root-cause fix v6 + V9 unthrottled pipeline
+
+Confirmed by the V5 field logs:
+- Eight isolated-host crashes occurred in roughly 33 minutes.
+- Every crash was 0xC0000005 execute at 0x21.
+- Every crash stopped at madlions_before_receive.
+- All snapshots before each crash were valid.
+- The failure is therefore not Steam-specific and is not a Madlions value/parser overflow.
+
+Root-cause transport rewrite:
+- Replaces the old Soup Madlions sequence that overlapped ReadFile and WriteFile
+  on one HID handle while both OVERLAPPED structures had hEvent == NULL.
+- Uses a dedicated serial request/response state machine for Madlions.
+- Drains stale reports, then fully completes the write, then starts the read.
+  Read and write are never outstanding at the same time.
+- Every OVERLAPPED operation has its own persistent manual-reset event.
+- Every pending operation is completed or CancelIoEx-cancelled and drained
+  before its OVERLAPPED structure, event, or buffer can be reused.
+- Buffers keep a stable address for the complete I/O lifetime.
+- Timeouts and Windows transport errors are exported to HallJoy diagnostics.
+- Persistent transport errors cause a controlled fresh-process/HID-handle
+  restart instead of an access violation or a frozen snapshot.
+- The parent clears analog output immediately when a host crash/hang is seen.
+
+Retained safety fixes:
+- Bounds-checks every Madlions layout index, including the incomplete final chunk.
+- Rejects HID responses shorter than the 27 bytes required by the parser.
+- Clears the complete AnalogueKeyboard state union.
+- Stores failed-report state per keyboard object.
+- Uses a 16-bit layout offset and correct state-count rounding.
+- Clamps travel to 0..350 and normalized analog values to 0..1.
+- Clears failed chunks so keys cannot remain stuck.
+- Uses an RAII cross-process Madlions mutex guard.
+- Fixes undefined object-lifetime behavior in Soup HandleRaii move assignment.
+- Serializes snapshots and full-buffer release state.
+- Disables hotplug for the isolated HallJoy path.
+- V9 restores one independent worker per analog device; poll workers have no artificial sleep.
+- V9 makes the isolated host publish on fresh-device notifications instead of a fixed 8 ms cadence.
+- Bypasses the Wooting SDK dynamic layer and calls private ABI1 directly.
+- Keeps process isolation as a final fault-containment boundary.
+- Pins Soup to b02796b0b20276277c8a4b4d3759643eeab43ff7.
+- Uses optimization plus frame pointers for post-crash analysis.

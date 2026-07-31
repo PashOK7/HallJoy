@@ -1,0 +1,8 @@
+addressed scheduler tests passed
+hex80 protocol tests passed: 104 slots, 82 mapped HID keys
+mad68pr full protocol tests passed: 68 descriptors, 67 HID keys
+g++ ASan+UBSan: PASS
+addressed scheduler tests passed
+hex80 protocol tests passed: 104 slots, 82 mapped HID keys
+mad68pr full protocol tests passed: 68 descriptors, 67 HID keys
+clang++ ASan+UBSan: PASS

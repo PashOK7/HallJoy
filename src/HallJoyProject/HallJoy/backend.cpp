@@ -40,6 +40,9 @@
 #include "native_analog_routing.h"
 #include "native_analog_backend_registry.h"
 #include "vigem_output_scheduler.h"
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+#include "analog_simulator_backend.h"
+#endif
 
 #pragma comment(lib, "setupapi.lib")
 #pragma comment(lib, "hid.lib")
@@ -74,6 +77,76 @@ static void PublishLastReport(int padIndex, const XUSB_REPORT& report)
         ReleaseSRWLockExclusive(&g_lastReportLock);
     }
 }
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+static void TraceSimulatorPipelineReport(const XUSB_REPORT& report)
+{
+    using halljoy::analog_simulator::Phase;
+    static std::array<bool, static_cast<std::size_t>(Phase::Complete) + 1> traced{};
+    const Phase phase = AnalogSimulator_GetCurrentPhase();
+    const std::size_t index = static_cast<std::size_t>(phase);
+    if (index >= traced.size() || traced[index])
+        return;
+
+    const bool stickNeutral = report.sThumbLX == 0 && report.sThumbLY == 0;
+    bool accepted = false;
+    switch (phase)
+    {
+    case Phase::Neutral:
+    case Phase::Disconnected:
+    case Phase::Reconnected:
+    case Phase::SourceFault:
+    case Phase::Recovered:
+    case Phase::Complete:
+        accepted = stickNeutral;
+        break;
+    case Phase::WRamp:
+    case Phase::WHold:
+    case Phase::WRelease:
+    case Phase::PostReconnectInput:
+        accepted = report.sThumbLY != 0;
+        break;
+    case Phase::OpposingWS:
+        accepted = report.sThumbLY == 0;
+        break;
+    case Phase::OpposingAD:
+        accepted = report.sThumbLX == 0;
+        break;
+    case Phase::Diagonal:
+        accepted = report.sThumbLX != 0 && report.sThumbLY != 0;
+        break;
+    }
+    if (!accepted)
+        return;
+
+    traced[index] = true;
+    StabilityTrace_Write(L"INFO", L"analog-simulator", L"pipeline-report.observed",
+        L"phase=%s lx=%d ly=%d simulated=1 hardware=0",
+        halljoy::analog_simulator::PhaseName(phase),
+        static_cast<int>(report.sThumbLX), static_cast<int>(report.sThumbLY));
+}
+
+static void TraceAcceptedSimulatorVigemUpdate(const XUSB_REPORT& report)
+{
+    static bool nonNeutralAccepted = false;
+    static bool neutralAfterInputAccepted = false;
+    const bool neutral = report.wButtons == 0 && report.bLeftTrigger == 0 &&
+        report.bRightTrigger == 0 && report.sThumbLX == 0 && report.sThumbLY == 0 &&
+        report.sThumbRX == 0 && report.sThumbRY == 0;
+    if (!neutral && !nonNeutralAccepted)
+    {
+        nonNeutralAccepted = true;
+        StabilityTrace_Write(L"INFO", L"analog-simulator", L"vigem-report.accepted",
+            L"state=non-neutral simulated=1 hardware=0");
+    }
+    else if (neutral && nonNeutralAccepted && !neutralAfterInputAccepted)
+    {
+        neutralAfterInputAccepted = true;
+        StabilityTrace_Write(L"INFO", L"analog-simulator", L"vigem-report.accepted",
+            L"state=neutral-after-input simulated=1 hardware=0");
+    }
+}
+#endif
 
 // ---- UI snapshot ----
 static std::array<std::atomic<uint16_t>, 256> g_uiAnalogM{}; // filtered output (after curve)
@@ -3003,6 +3076,10 @@ void Backend_Tick()
         g_reports[(size_t)pad] = report;
 
         PublishLastReport(pad, report);
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        if (pad == 0)
+            TraceSimulatorPipelineReport(report);
+#endif
     }
     for (int pad = logicalPads; pad < kMaxVirtualPads; ++pad)
     {
@@ -3098,6 +3175,10 @@ void Backend_Tick()
                     allOk = false;
                     break;
                 }
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+                if (idx == 0)
+                    TraceAcceptedSimulatorVigemUpdate(report);
+#endif
 
                 if (latencyTrace && mad68BatchPresent && changed && !mad68SendRecorded)
                 {

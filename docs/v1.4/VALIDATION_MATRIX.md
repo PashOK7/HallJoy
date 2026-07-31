@@ -69,3 +69,30 @@ Hardware: Not required; runtime protocol behavior was unchanged
 Known limitations: GCC reruns in CI before publication
 Rollback: parent commit of the V14-01 implementation commit
 ```
+
+## V14-02 evidence
+
+```text
+Package: V14-02
+Scope: Development-only deterministic analog simulator
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_analog_simulator.ps1
+  MSBuild HallJoy.vcxproj /t:Rebuild /p:Configuration=Release /p:Platform=x64
+    /p:HallJoyMad68ProRNative=true /p:HallJoyStabilityTrace=true /m
+Results:
+  Static audits: PASS
+  Portable simulator boundary/replay tests: PASS with Clang 19.1.5
+  Simulator MSVC x64 Release: PASS, 0 errors, 1 inherited ViGEm PDB warning
+  Script scenario: PASS
+  Common pipeline: ramp and diagonal non-neutral reports observed
+  SOCD: W+S and A+D both produced exact neutral left-stick reports
+  Safety: disconnect and source fault produced exact neutral reports
+  ViGEm: changed non-neutral and subsequent neutral reports accepted
+  Shutdown: graceful exit code 0; no remaining simulator process
+  Production MSVC x64 Release: PASS; simulator sources absent from compile
+Hardware: NOT VERIFIED; simulator evidence cannot close any device gate
+Known limitations: real protocol timing, HID transport and firmware behavior
+  remain assigned to V14-12 hardware gates
+Rollback: parent commit of the V14-02 implementation commit
+```

@@ -70,3 +70,40 @@
 ### Next
 
 - Implement the `V14-02` development-only analog simulator and scenario runner.
+
+## 2026-07-31 - V14-02 deterministic analog simulator
+
+### Completed
+
+- Added a portable deterministic model for WASD analog values.
+- Covered ramp, hold, release, W+S, A+D, diagonal, disconnect, reconnect,
+  post-reconnect input, source fault, and recovery.
+- Registered a simulator backend only under `HALLJOY_ANALOG_SIMULATOR`.
+- Required exact runtime opt-in with
+  `--halljoy-simulate-analog=script`.
+- Added temporary process-local WASD-to-left-stick bindings for the scenario.
+- Added explicit `SIMULATED / NOT HARDWARE` telemetry and trace labels.
+- Added a repeatable PowerShell build/runtime/trace gate.
+- Excluded simulator translation units from ordinary MSBuild targets.
+
+### Validation
+
+- All static and portable C++20 tests passed with Clang 19.1.5.
+- Simulator x64 Release build passed with 0 errors and the inherited ViGEm PDB
+  warning.
+- Scenario runner confirmed common curve/SOCD/report behavior, successful ViGEm
+  updates, disconnect/fault neutralization, exit code 0, and no remaining
+  process.
+- Ordinary production x64 Release build passed and its compile command omitted
+  both simulator translation units.
+
+### Limitations
+
+- No analog keyboard was available on this workstation.
+- This package does not verify HID transport, firmware, VID/PID routing, device
+  timing, or any protocol-specific hardware behavior.
+
+### Next
+
+- Begin `V14-03`: private UAP extraction in protected locations and truthful
+  embedded-runtime dependency diagnostics.

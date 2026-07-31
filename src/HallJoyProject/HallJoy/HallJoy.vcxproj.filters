@@ -21,6 +21,12 @@
     <ClCompile Include="analog_host_client.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="analog_simulator_backend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="analog_simulator_model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="app_deps.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -198,6 +204,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="analog_host_shared.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="analog_simulator_backend.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="analog_simulator_model.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="app_deps.h">

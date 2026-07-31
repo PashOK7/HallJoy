@@ -26,8 +26,8 @@ The word "final" is not used before every release gate in this roadmap passes.
 |---|---|---|---|
 | `V14-00` | Preserve v1.3 SDK work; import and verify the advanced archive | Verified | Provenance commits, clean tree, baseline build and test evidence |
 | `V14-01` | Product identity, version resources, current README and documentation ownership | Verified | No active product surface reports 3.9.0; historical evidence remains intact |
-| `V14-02` | Development-only deterministic analog simulator and scenario runner | In progress | Full common pipeline, ramps, SOCD, hotplug, disconnect and fault scenarios without production enablement |
-| `V14-03` | Self-contained private UAP runtime and truthful dependency diagnostics | Planned | Works from writable and protected install locations; never recommends system SDK |
+| `V14-02` | Development-only deterministic analog simulator and scenario runner | Verified | Full common pipeline, ramps, SOCD, hotplug, disconnect and fault scenarios without production enablement |
+| `V14-03` | Self-contained private UAP runtime and truthful dependency diagnostics | In progress | Works from writable and protected install locations; never recommends system SDK |
 | `V14-04` | Reproducible dependencies, warning baseline, local/CI-equivalent build scripts | Planned | Pinned inputs, x64 Release CI, portable tests, documented warning policy |
 | `V14-05` | Truthful lifecycle registry and cooperative worker shutdown | Planned | Failure-injected start/stop/restart tests; no unsafe ordinary `TerminateThread` path |
 | `V14-06` | Addressed, MAD68, Hex80, SparkLink and Sayo lifecycle migration | Planned | Per-backend tests plus unchanged protocol and mapping characterization |
@@ -59,8 +59,6 @@ SparkLink device. It proves generic startup/shutdown and ViGEm lifecycle only.
 GCC evidence is inherited from the byte-identical archive baseline and will be
 rerun in CI before publication.
 
-## Next packages
-
 ## Completed package: V14-01
 
 - Central version macros define `1.4.0.0` and runtime build ID `HallJoy-v1.4`.
@@ -71,11 +69,23 @@ rerun in CI before publication.
 - A version identity static audit prevents regression.
 - Static audits, portable C++20 tests, and the full MSVC x64 Release build pass.
 
-## Current package: V14-02
+## Completed package: V14-02
 
-Add a development-only deterministic analog simulator so the common analog
-pipeline can be exercised on this membrane-keyboard workstation. Simulation
-never closes a protocol-specific hardware gate.
+- Added a deterministic pure C++ analog model with ramps, holds, releases,
+  opposing axes, diagonal input, disconnect, reconnect, fault, and recovery.
+- Added a compile-time and command-line gated native backend.
+- The simulator uses common curve, SOCD, report construction, ViGEm scheduling,
+  telemetry, and shutdown paths.
+- The Windows scenario proves neutral SOCD output, non-neutral diagonal output,
+  disconnect/fault neutralization, accepted ViGEm changes, and clean shutdown.
+- Simulator sources are excluded from the production compile.
+- Evidence is always labelled simulated and never closes hardware gates.
+
+## Current package: V14-03
+
+Make the private UAP runtime reliable in protected installation locations and
+replace legacy system-SDK advice with diagnostics that match the embedded
+architecture.
 
 ## Release definition
 

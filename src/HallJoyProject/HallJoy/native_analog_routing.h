@@ -9,6 +9,7 @@ enum class NativeAnalogProtocol : std::uint8_t
     Addressed09402 = 3,
     SparkLink = 4,
     SayoDepth = 5,
+    Simulator = 250,
 };
 
 // Central startup-time ownership registry for native analogue protocols.

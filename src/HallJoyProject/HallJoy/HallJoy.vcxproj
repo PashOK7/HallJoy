@@ -85,6 +85,11 @@
     <OutDir>$(ProjectDir)..\x64\MAD68ProRNative\</OutDir>
     <IntDir>$(ProjectDir)..\x64\MAD68ProRNative\obj\</IntDir>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyAnalogSimulator)'=='true'">
+    <TargetName>HallJoyV14Simulator</TargetName>
+    <OutDir>$(ProjectDir)..\x64\AnalogSimulator\</OutDir>
+    <IntDir>$(ProjectDir)..\x64\AnalogSimulator\obj\</IntDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -199,10 +204,21 @@
       <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
     </Link>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyAnalogSimulator)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_MAD68PR_NATIVE;HALLJOY_ANALOG_SIMULATOR;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+    </Link>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="app.h" />
     <ClInclude Include="analog_host_client.h" />
     <ClInclude Include="analog_host_shared.h" />
+    <ClInclude Include="analog_simulator_backend.h" />
+    <ClInclude Include="analog_simulator_model.h" />
     <ClInclude Include="app_deps.h" />
     <ClInclude Include="app_paths.h" />
     <ClInclude Include="backend.h" />
@@ -279,6 +295,12 @@
   <ItemGroup>
     <ClCompile Include="app.cpp" />
     <ClCompile Include="analog_host_client.cpp" />
+    <ClCompile Include="analog_simulator_backend.cpp">
+      <ExcludedFromBuild Condition="'$(HallJoyAnalogSimulator)'!='true'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="analog_simulator_model.cpp">
+      <ExcludedFromBuild Condition="'$(HallJoyAnalogSimulator)'!='true'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="app_deps.cpp" />
     <ClCompile Include="app_paths.cpp" />
     <ClCompile Include="backend.cpp" />

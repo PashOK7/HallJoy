@@ -83,6 +83,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="halljoy-native-tests-") as temp:
         out = Path(temp)
         fixed_tests: list[tuple[str, list[Path]]] = [
+            ("analog_simulator", [tests / "analog_simulator_model_test.cpp", hall / "analog_simulator_model.cpp"]),
             ("addressed_scheduler", [tests / "addressed_poll_scheduler_test.cpp", hall / "addressed_poll_scheduler.cpp"]),
             ("hid_lifecycle", [tests / "hid_io_operation_lifecycle_test.cpp"]),
             ("vigem_scheduler", [tests / "vigem_output_scheduler_test.cpp"]),

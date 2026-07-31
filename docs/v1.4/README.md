@@ -9,13 +9,13 @@ version or release status.
 
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
-- Current package: `V14-02` deterministic analog simulator
+- Current package: `V14-03` self-contained private UAP runtime
 - GitHub publication: not started
 - Release status: not release-ready
 
-This workstation has a membrane keyboard. Common pipeline behavior can be
-verified with the planned development-only simulator, but protocol-specific
-hardware status must not be inferred from those tests.
+This workstation has a membrane keyboard. Common pipeline behavior is verified
+with the development-only simulator, but protocol-specific hardware status
+must not be inferred from those tests.
 
 ## Authoritative documents
 
@@ -26,6 +26,8 @@ hardware status must not be inferred from those tests.
   evidence.
 - [DECISIONS.md](DECISIONS.md) - decisions that constrain later changes.
 - [WORKLOG.md](WORKLOG.md) - chronological implementation and validation log.
+- [ANALOG_SIMULATOR.md](ANALOG_SIMULATOR.md) - simulator purpose, isolation
+  contract, and repeatable gate.
 
 ## Documentation rule
 

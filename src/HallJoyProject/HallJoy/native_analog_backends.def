@@ -6,3 +6,6 @@ HALLJOY_NATIVE_BACKEND(Hex80_GetNativeBackendDescriptor)
 HALLJOY_NATIVE_BACKEND(AddressedAnalog_GetNativeBackendDescriptor)
 HALLJOY_NATIVE_BACKEND(BackendNative_GetSparkDescriptor)
 HALLJOY_NATIVE_BACKEND(BackendNative_GetSayoDescriptor)
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+HALLJOY_NATIVE_BACKEND(AnalogSimulator_GetNativeBackendDescriptor)
+#endif

@@ -66,3 +66,13 @@ aggregation, curve, SOCD, ViGEm, telemetry, hotplug, and fault paths on machines
 without an analog keyboard. It is excluded from production builds by default,
 uses an explicit test launch mode, and cannot mark MAD68, Hex80, Addressed,
 SparkLink, Sayo, or UAP device gates as verified.
+
+## D-009 - Simulator output uses the production pipeline
+
+Date: 2026-07-31
+
+The simulator publishes only normalized native values. It does not implement a
+parallel curve, SOCD, report, or ViGEm path. Its scenario assigns temporary
+in-memory WASD bindings and verifies reports after the common processing path.
+Simulator trace events are compiled only into the simulator target and are
+labelled `simulated=1 hardware=0`.

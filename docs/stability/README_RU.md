@@ -53,3 +53,6 @@
   и финальных soak gates; Sayo и UAP code-level gates уже закрыты V14-06F и
   V14-07C.
 - GitHub и любые удалённые репозитории в процессе не используются.
+- V14-12I: финальный normal-operation gate 1000/1000 PASS на текущем
+  `HallJoy.exe`; 1000 trace hashes и неизменность 11 user-state файлов
+  перепроверены. Остались long soak, ручной Irok input/reconnect и внешняя Aula.

@@ -170,3 +170,10 @@ builds.
 - `Verified`: all package-specific gates have passed and evidence is recorded.
 - `Blocked`: progress requires an unavailable device or external state.
 - `Deferred`: explicitly moved out of v1.4 with a documented reason.
+
+## Latest qualification status
+
+V14-12I completed the final 1000/1000 ordinary production start/graceful-stop
+gate on the current `HallJoy.exe` hash. All traces and state manifests verified;
+the long soak, manual Irok input/reconnect exercise and external Aula hardware
+result remain release gates.

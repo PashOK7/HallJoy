@@ -1684,3 +1684,23 @@ zero survivors and unchanged 11-file state.
 V14-12H verifies the automation, not the final duration/count/device claims.
 The 1000-cycle run, 8-24-hour soak, manual Irok input/reconnect and external Aula
 hardware result remain S21 release gates.
+
+## 2026-08-01 - V14-12I / S21 final 1000 production cycles
+
+Ran the persistent qualification runner against the exact 2,206,208-byte
+`HallJoy.exe` SHA-256
+`6A2E82709F6FC6B652ECAEA657BA4FBD1544B0832934865779D9FF7F0306D97F`.
+All 1000/1000 ordinary production cycles passed with one second of operation,
+bounded `WM_CLOSE`, exit zero, complete error-free trace, no process survivor
+and unchanged 11-file LocalAppData state.
+
+Independent evidence verification found 1000 trace files and zero SHA-256
+mismatch. Shutdown min/avg/p50/p95/p99/max was
+101/277.1/250/430/1315/2662 ms; 16 cycles exceeded one second and all remained
+below the 15-second bound. Peak HANDLE count was 217 and peak working set was
+13,828,096 bytes. Spark accounting was exact: 1,598,879 queries = 1,598,454
+successful + 425 single shutdown-window cancellations; no cycle recorded more
+than one, and no corresponding ERROR or worker fault occurred.
+
+The 1000-cycle S21 gate is Verified. The long soak, manual Irok input/reconnect,
+unavailable device-owner matrix and external Aula hardware result remain.

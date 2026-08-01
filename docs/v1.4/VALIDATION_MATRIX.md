@@ -1570,3 +1570,26 @@ Scope: persistent normal-cycle evidence and bounded long production soak.
 Status: automation Verified; final S21 executions remain in progress.
 Limits: 1000 cycles, 8-24 hours, manual input/reconnect, unavailable device
 matrix and external Aula hardware validation are not claimed by this package.
+
+## V14-12I / S21 1000-cycle evidence
+
+Artifact: `build/output/HallJoy.exe`, 2,206,208 bytes, SHA-256
+`6A2E82709F6FC6B652ECAEA657BA4FBD1544B0832934865779D9FF7F0306D97F`.
+
+- Result: 1000/1000 production start/one-second-run/graceful-stop cycles PASS.
+- Exit/process/state: exit zero every cycle, zero remaining HallJoy processes,
+  before/after 11-file LocalAppData manifests identical.
+- Trace: 1000/1000 files present, 1000/1000 recorded SHA-256 values reverified,
+  zero mismatch, zero ERROR and zero capped/incomplete trace.
+- Shutdown: min 101 ms, average 277.1 ms, p50 250 ms, p95 430 ms, p99 1315 ms,
+  max 2662 ms; 16/1000 exceeded one second, all below the 15-second bound.
+- Resources: maximum 217 HANDLEs, maximum working set 13,828,096 bytes; no
+  cross-cycle process or user-state accumulation.
+- Spark: 1,598,879 queries = 1,598,454 successful + 425 non-ok. Exactly 425
+  cycles recorded one non-ok transaction, none recorded more than one; each was
+  observed only in the worker shutdown statistics with no trace ERROR/fault.
+- Evidence size: 11,617,796 bytes; machine summary/checkpoint status `passed`.
+
+Status: 1000-cycle gate Verified.
+Remaining: 8-24-hour soak, manual Irok input/reconnect, unavailable device-owner
+matrix and external Aula hardware validation.

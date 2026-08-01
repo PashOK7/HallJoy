@@ -135,3 +135,10 @@ Addressed и Sayo также требуют реального hardware gate д�
   плюс две cancellation в shutdown window.
 - Статус: automation Verified. Финальные 1000 циклов, 8–24 часа, ручные
   input/reconnect и внешняя Aula hardware validation пока не закрыты.
+- S21/V14-12I: 1000/1000 обычных production циклов PASS на EXE SHA-256
+  `6A2E82709F6FC6B652ECAEA657BA4FBD1544B0832934865779D9FF7F0306D97F`.
+  Exit 0, процессов 0, trace ERROR/capped 0, 11 state files unchanged.
+  Shutdown min/avg/p50/p95/p99/max = 101/277,1/250/430/1315/2662 ms; max 217
+  HANDLE. Все 1000 trace hashes совпали. Spark 1 598 879 = 1 598 454 ok + 425
+  одиночных shutdown-window cancellation. 1000-cycle gate Verified; long soak,
+  manual Irok input/reconnect и external Aula остаются.

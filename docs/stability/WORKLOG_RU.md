@@ -463,3 +463,20 @@ survivors, 11 files unchanged.
 
 Automation Verified; 1000 cycles, 8–24h soak, manual Irok reconnect/input и
 external Aula hardware result остаются release gates.
+
+## 2026-08-01 — V14-12I / S21 1000 production cycles
+
+На exact `HallJoy.exe` SHA-256
+`6A2E82709F6FC6B652ECAEA657BA4FBD1544B0832934865779D9FF7F0306D97F`
+выполнены 1000/1000 обычных production start/one-second-run/bounded `WM_CLOSE`.
+Все циклы PASS: exit 0, полный trace без ERROR/capped, zero remaining process,
+before/after manifests 11 LocalAppData files идентичны.
+
+Независимая проверка evidence: 1000 trace files, 0 SHA-256 mismatch. Shutdown
+min/avg/p50/p95/p99/max = 101/277,1/250/430/1315/2662 ms; 16 циклов >1 s, все
+ниже 15-second bound. Max 217 HANDLE, max working set 13 828 096 bytes. Spark
+accounting exact: 1 598 879 queries = 1 598 454 ok + 425 одиночных cancellation
+в worker shutdown statistics; ни в одном цикле больше одной, ERROR/fault 0.
+
+1000-cycle gate Verified. Остались long soak, manual Irok input/reconnect,
+недоступная device-owner matrix и external Aula hardware result.

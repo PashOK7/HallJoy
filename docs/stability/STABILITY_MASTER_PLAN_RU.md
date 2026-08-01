@@ -409,3 +409,11 @@ soak с post-warm-up baseline, CSV ресурсов, overlay probes, bounded shu
 trace analyzer. Короткие пилоты, unified gate и официальный build пройдены.
 Это готовность контура, а не выполнение финальных 1000 циклов, 8–24 часов или
 недоступной hardware matrix.
+
+## Статус выполнения S21 — V14-12I
+
+Финальный normal-operation lifecycle gate выполнен: 1000/1000 production
+start/one-second-run/`WM_CLOSE` PASS на одном exact EXE hash. Все 1000 trace
+SHA-256 перепроверены, LocalAppData manifests идентичны, процессов после циклов
+нет. 1000-cycle пункт закрыт; long soak, ручной input/reconnect и hardware matrix
+остаются отдельными gates.

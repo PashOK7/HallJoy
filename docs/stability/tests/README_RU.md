@@ -71,3 +71,5 @@ Baseline-лог исходной версии хранится отдельно 
   normal Irok regression перед S21 qualification.
 - `V14-12H_S21_QUALIFICATION_AUTOMATION_2026-08-01.txt` — persistent 1000-cycle
   runner, long production soak, static/full/build gates и post-build Irok pilot.
+- `V14-12I_S21_1000_CYCLES_2026-08-01.txt` — финальный 1000/1000 production
+  lifecycle gate, trace hashes, shutdown distribution, resources и state proof.

@@ -533,3 +533,19 @@ v1.4 can be tagged only when:
 - This package makes the final S21 runs reproducible; it does not itself close
   the pending 1000-cycle, 8-24-hour, manual reconnect/input or Aula hardware
   gates.
+
+### V14-12I / S21 1000-cycle qualification
+
+- Final production lifecycle gate completed 1000/1000 PASS on the exact
+  `HallJoy.exe` SHA-256
+  `6A2E82709F6FC6B652ECAEA657BA4FBD1544B0832934865779D9FF7F0306D97F`.
+- Every cycle used normal startup, one second of operation and bounded graceful
+  `WM_CLOSE`: exit zero, complete trace, no ERROR/capping, no surviving process
+  and unchanged 11-file LocalAppData state.
+- Shutdown p50/p95/p99 was 250/430/1315 ms, maximum 2662 ms against the 15 s
+  limit; maximum observed HANDLE count was 217 without accumulation.
+- All 1000 trace SHA-256 values reverified. Spark accounting was exact:
+  1,598,879 queries = 1,598,454 successful + 425 single shutdown-window
+  cancellations.
+- The 1000-cycle gate is closed. Remaining S21 work is the long soak, manual
+  Irok input/reconnect check, unavailable device matrix and external Aula result.

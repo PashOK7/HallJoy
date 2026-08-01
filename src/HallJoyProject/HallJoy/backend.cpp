@@ -42,6 +42,7 @@
 #include "native_analog_routing.h"
 #include "native_analog_backend_registry.h"
 #include "latest_value_mailbox.h"
+#include "monotonic_time.h"
 #include "saturating_int.h"
 #include "vigem_output_scheduler.h"
 #include "worker_exception_barrier.h"
@@ -595,7 +596,7 @@ static void SparkMissedHid_Tick(ULONGLONG nowMs)
     const bool enabled = false;
     if (!enabled || !g_sparkConnected.load(std::memory_order_acquire))
     {
-        if (g_sparkMissedHidWasEnabled || enabled)
+        if (g_sparkMissedHidWasEnabled)
             SparkMissedHid_ResetWatch();
         g_sparkMissedHidWasEnabled = enabled;
         return;
@@ -4249,8 +4250,9 @@ void BackendNative_SparkTelemetry(NativeAnalogBackendTelemetry* out)
     out->averageIntervalUs = g_sparkAvgRouteIntervalUs.load(std::memory_order_relaxed);
     out->maximumIntervalUs = g_sparkMaxRouteIntervalUs.load(std::memory_order_relaxed);
     const ULONGLONG last = g_sparkLastRouteMs.load(std::memory_order_relaxed);
-    out->lastUpdateAgeMs = last == 0 ? 0u : static_cast<std::uint32_t>(
-        std::min<ULONGLONG>(GetTickCount64() - last, 0xFFFFFFFFull));
+    out->lastUpdateAgeMs = static_cast<std::uint32_t>(std::min<ULONGLONG>(
+        halljoy::monotonic_time::SaturatingAgeMs(GetTickCount64(), last),
+        0xFFFFFFFFull));
     if (out->averageIntervalUs != 0)
         out->updateHz10 = static_cast<std::uint32_t>(10000000ull / out->averageIntervalUs);
     _snwprintf_s(out->status, kNativeAnalogBackendStatusChars, _TRUNCATE,
@@ -4303,8 +4305,9 @@ void BackendNative_SayoTelemetry(NativeAnalogBackendTelemetry* out)
     out->averageIntervalUs = g_sayoAvgDepthIntervalUs.load(std::memory_order_relaxed);
     out->maximumIntervalUs = g_sayoMaxDepthIntervalUs.load(std::memory_order_relaxed);
     const ULONGLONG last = g_sayoLastDepthMs.load(std::memory_order_relaxed);
-    out->lastUpdateAgeMs = last == 0 ? 0u : static_cast<std::uint32_t>(
-        std::min<ULONGLONG>(GetTickCount64() - last, 0xFFFFFFFFull));
+    out->lastUpdateAgeMs = static_cast<std::uint32_t>(std::min<ULONGLONG>(
+        halljoy::monotonic_time::SaturatingAgeMs(GetTickCount64(), last),
+        0xFFFFFFFFull));
     if (out->averageIntervalUs != 0)
         out->updateHz10 = static_cast<std::uint32_t>(10000000ull / out->averageIntervalUs);
     _snwprintf_s(out->status, kNativeAnalogBackendStatusChars, _TRUNCATE,

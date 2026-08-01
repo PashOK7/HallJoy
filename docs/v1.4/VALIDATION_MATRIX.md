@@ -1660,3 +1660,41 @@ Artifact: `build/output/HallJoy.exe`, 2,209,280 bytes, SHA-256
 
 Status: V14-12L Verified. External Aula hardware validation remains open and
 release-blocking; no physical Aula claim is added by this package.
+
+## V14-12M / S21 MAD68 HE UAP-shutdown validation
+
+Classification and static/portable gates:
+
+- MAD68 HE is covered by the private modified UAP/Soup path; MAD68 Pro R is a
+  separate native A0 backend and was not used to infer the tester's failure;
+- unified native gate: 48 static audits and 29 portable C++20 tests PASS,
+  including the 250,000-frame parser fuzz smoke;
+- dependency lock/notice audit PASS for exact Sun and Soup commits and required
+  `THIRD_PARTY_NOTICES.md` packaging.
+
+Deterministic process containment:
+
+- `-InjectAnalogHostChildStopHang`: PASS. The child blocked forever before
+  plugin unload, emitted `child.stop_timeout` after approximately 2.64 seconds,
+  was terminated with restart disabled, reaped, and the parent exited zero;
+- `-InjectMad68OwnerStopHang`: PASS. The owner thread blocked before any native
+  join and the independent watchdog terminated the process after 12 seconds
+  with expected exit code 4 and no survivor;
+- normal simulator: PASS. These are lifecycle tests, not MAD68 HE hardware
+  evidence. Raw traces are retained in
+  `build/evidence/V14-12M-uap-shutdown-20260801`.
+
+Production artifact and runtime:
+
+- clean locked UAP generation, ABI gate and official x64 Release build PASS;
+  zero compiler warnings and only allowlisted external ViGEm `LNK4099`;
+- `build/output/HallJoy.exe`: 2,210,304 bytes, SHA-256
+  `C06AD4C7257244E4370738465BBADF815DBC41A081065CA30B0BCFF8059FA1A3`;
+- 5/5 Irok MG75 Max production cycles PASS, exit zero, 122-226 ms shutdown,
+  maximum 209 HANDLEs, 33,461 successful routes plus one shutdown-window
+  cancellation, zero survivor and unchanged 11-file user state;
+- evidence: `build/evidence/release-qualification/20260801-235837`.
+
+Status: code-level containment Verified. `HJ-V14-P1-008` remains Partial and
+release-blocking until the physical MAD68 HE tester closes this exact artifact.
+The external Aula hardware gate remains independently release-blocking.

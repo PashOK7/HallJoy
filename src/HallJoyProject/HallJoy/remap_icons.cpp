@@ -93,9 +93,12 @@ int RemapIcons_Count()
 
 const RemapIconDef& RemapIcons_Get(int idx)
 {
-    int n = RemapIcons_Count();
-    if (n <= 0) idx = 0;
-    idx = std::clamp(idx, 0, n - 1);
+    static_assert(sizeof(g_icons) / sizeof(g_icons[0]) > 0);
+    const int n = RemapIcons_Count();
+    if (idx < 0)
+        idx = 0;
+    else if (idx >= n)
+        idx = n - 1;
     return g_icons[idx];
 }
 

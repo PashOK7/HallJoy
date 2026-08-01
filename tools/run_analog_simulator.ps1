@@ -10,6 +10,7 @@ param(
     [switch]$InjectAddressedStopTimeout,
     [switch]$InjectHex80StopTimeout,
     [switch]$InjectMad68StopTimeout,
+    [switch]$InjectMad68OwnerStopHang,
     [switch]$InjectSparkShutdownRace,
     [switch]$InjectSayoStopTimeout,
     [switch]$InjectSayoReaderCppFault,
@@ -18,6 +19,7 @@ param(
     [switch]$InjectAnalogHostSupervisorCppFault,
     [switch]$InjectAnalogHostChildCppFault,
     [switch]$InjectAnalogHostChildReapTimeout,
+    [switch]$InjectAnalogHostChildStopHang,
     [switch]$InjectAnalogHostIpcHandleRejection,
     [switch]$InjectRealtimeStartFailure,
     [switch]$InjectNativePhaseStartFailure,
@@ -46,6 +48,7 @@ $injectionCount = @(
     $InjectAddressedStopTimeout.IsPresent,
     $InjectHex80StopTimeout.IsPresent,
     $InjectMad68StopTimeout.IsPresent,
+    $InjectMad68OwnerStopHang.IsPresent,
     $InjectSparkShutdownRace.IsPresent,
     $InjectSayoStopTimeout.IsPresent,
     $InjectSayoReaderCppFault.IsPresent,
@@ -54,6 +57,7 @@ $injectionCount = @(
     $InjectAnalogHostSupervisorCppFault.IsPresent,
     $InjectAnalogHostChildCppFault.IsPresent,
     $InjectAnalogHostChildReapTimeout.IsPresent,
+    $InjectAnalogHostChildStopHang.IsPresent,
     $InjectAnalogHostIpcHandleRejection.IsPresent,
     $InjectRealtimeStartFailure.IsPresent,
     $InjectNativePhaseStartFailure.IsPresent,
@@ -222,6 +226,9 @@ if ($InjectHex80StopTimeout) {
 if ($InjectMad68StopTimeout) {
     $arguments += '--halljoy-test-mad68-stop-timeout'
 }
+if ($InjectMad68OwnerStopHang) {
+    $arguments += '--halljoy-test-mad68-owner-stop-hang'
+}
 if ($InjectSparkShutdownRace) {
     $arguments += '--halljoy-test-spark-service-shutdown'
 }
@@ -245,6 +252,9 @@ if ($InjectAnalogHostChildCppFault) {
 }
 if ($InjectAnalogHostChildReapTimeout) {
     $arguments += '--halljoy-test-analog-host-child-reap-timeout'
+}
+if ($InjectAnalogHostChildStopHang) {
+    $arguments += '--halljoy-test-analog-host-child-stop-hang'
 }
 if ($InjectAnalogHostIpcHandleRejection) {
     $arguments += '--halljoy-test-analog-host-ipc-handle-rejection'
@@ -329,7 +339,8 @@ try {
         }
     }
     Start-Sleep -Seconds $RunSeconds
-    $processExitTimeoutMs = if ($InjectAnalogHostBridgeStopTimeout) { 15000 } else { 10000 }
+    $processExitTimeoutMs = if ($InjectAnalogHostBridgeStopTimeout -or
+        $InjectMad68OwnerStopHang) { 15000 } else { 10000 }
     $closeDeadline = [DateTime]::UtcNow.AddMilliseconds($processExitTimeoutMs)
     $closeAccepted = $false
     do {
@@ -409,6 +420,9 @@ if ($InjectHex80StopTimeout -and $process.ExitCode -ne 2) {
 if ($InjectMad68StopTimeout -and $process.ExitCode -ne 2) {
     throw "MAD68-timeout simulator exited with code $($process.ExitCode), expected 2."
 }
+if ($InjectMad68OwnerStopHang -and $process.ExitCode -ne 4) {
+    throw "MAD68 owner-stop-hang simulator exited with code $($process.ExitCode), expected 4."
+}
 if ($InjectSparkShutdownRace -and $process.ExitCode -ne 0) {
     throw "Spark service-shutdown simulator exited with code $($process.ExitCode), expected 0."
 }
@@ -432,6 +446,9 @@ if ($InjectAnalogHostChildCppFault -and $process.ExitCode -ne 0) {
 }
 if ($InjectAnalogHostChildReapTimeout -and $process.ExitCode -ne 0) {
     throw "Analog-host child reap-timeout simulator exited with code $($process.ExitCode), expected 0."
+}
+if ($InjectAnalogHostChildStopHang -and $process.ExitCode -ne 0) {
+    throw "Analog-host child-stop-hang simulator exited with code $($process.ExitCode), expected 0."
 }
 if ($InjectRealtimeStartFailure -and $process.ExitCode -ne 0) {
     throw "Realtime-start-failure simulator exited with code $($process.ExitCode), expected 0."
@@ -530,6 +547,9 @@ $required = if ($RequireStorageMigrationFailure) { @(
     '[component=native-registry][event=stop.incomplete]',
     '[component=app][event=shutdown.poisoned] component=native-analog dependent_cleanup_skipped=1',
     '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
+) } elseif ($InjectMad68OwnerStopHang) { @(
+    '[component=app][event=shutdown.watchdog.armed] deadline_ms=12000 exit_code=4',
+    '[component=mad68][event=test.owner_stop_hang.injected] simulator_only=1'
 ) } elseif ($InjectSparkShutdownRace) { @(
     '[component=spark][event=service.start]',
     '[component=spark][event=test.service_worker] simulator_only=1 cooperative_wait=1',
@@ -589,6 +609,13 @@ $required = if ($RequireStorageMigrationFailure) { @(
     '[component=analog-host][event=child.reap_timeout]',
     'process_handle_retained=1 restart_blocked=1',
     '[component=analog-host][event=child.reaped_after_timeout]',
+    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
+    '[component=main][event=session.end] exit_code=0'
+) } elseif ($InjectAnalogHostChildStopHang) { @(
+    '[component=analog-host][event=child.stop_timeout]',
+    'action=terminate_process restart=0',
+    '[component=analog-host][event=child.exit]',
+    '[component=analog-host][event=stop.joined]',
     '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
     '[component=main][event=session.end] exit_code=0'
 ) } elseif ($InjectAnalogHostIpcHandleRejection) { @(
@@ -783,6 +810,8 @@ if ($RequireStorageMigrationFailure) {
     Write-Host 'HallJoy Hex80 timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectMad68StopTimeout) {
     Write-Host 'HallJoy MAD68 timeout containment scenario: PASS' -ForegroundColor Green
+} elseif ($InjectMad68OwnerStopHang) {
+    Write-Host 'HallJoy process-wide shutdown watchdog scenario: PASS' -ForegroundColor Green
 } elseif ($InjectSparkShutdownRace) {
     Write-Host 'HallJoy SparkLink service-stop reconnect suppression scenario: PASS' -ForegroundColor Green
 } elseif ($InjectSayoStopTimeout) {
@@ -799,6 +828,8 @@ if ($RequireStorageMigrationFailure) {
     Write-Host 'HallJoy analog-host child C++ fault restart scenario: PASS' -ForegroundColor Green
 } elseif ($InjectAnalogHostChildReapTimeout) {
     Write-Host 'HallJoy analog-host child reap-timeout ownership scenario: PASS' -ForegroundColor Green
+} elseif ($InjectAnalogHostChildStopHang) {
+    Write-Host 'HallJoy analog-host child shutdown-hang containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectRealtimeStartFailure) {
     Write-Host 'HallJoy realtime-start rollback scenario: PASS' -ForegroundColor Green
 } elseif ($InjectNativePhaseStartFailure) {

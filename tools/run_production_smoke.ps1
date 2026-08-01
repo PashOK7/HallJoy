@@ -4,6 +4,8 @@ param(
     [switch]$StartOverlay,
     [ValidateRange(1, 65535)]
     [int]$OverlayPort = 18765,
+    [ValidateRange(1, 100000)]
+    [int]$OverlayFuzzIterations = 2000,
     [ValidateRange(3, 60)]
     [int]$RunSeconds = 10
 )
@@ -84,6 +86,12 @@ try {
             --port $OverlayPort --connect-deadline-ms 5000 --deadline-ms 1000
         if ($LASTEXITCODE -ne 0) {
             throw "Production overlay concurrency/origin gate failed with exit code $LASTEXITCODE."
+        }
+        & python (Join-Path $root 'tools\fuzz_overlay_http.py') `
+            --port $OverlayPort --connect-deadline-ms 5000 `
+            --iterations $OverlayFuzzIterations --workers 8
+        if ($LASTEXITCODE -ne 0) {
+            throw "Production overlay fuzz gate failed with exit code $LASTEXITCODE."
         }
     }
     Start-Sleep -Seconds $RunSeconds

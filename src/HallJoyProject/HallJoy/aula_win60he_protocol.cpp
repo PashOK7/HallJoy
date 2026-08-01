@@ -171,7 +171,8 @@ bool FlattenHidReports(
         if (!DecodeHidReport(reports + report * reportBytes, reportBytes, &block))
             return false;
         std::copy(block.begin(), block.end(),
-            out->begin() + report * kWireReportBytes);
+            out->begin() + static_cast<std::ptrdiff_t>(
+                report * kWireReportBytes));
     }
     *outBytes = reportCount * kWireReportBytes;
     return true;

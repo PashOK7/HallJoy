@@ -8,8 +8,10 @@ and required toolchain families.
 
 The official build consumes the lock directly for:
 
-- the exact Sun commit used to generate the private UAP;
-- the exact Soup commit patched for HallJoy routing;
+- Sun commit `83c195bd61314bdbfdccc161653dbb652e3b6678`, used to
+  generate the private UAP;
+- Soup commit `b02796b0b20276277c8a4b4d3759643eeab43ff7`, patched for
+  HallJoy routing;
 - five reviewed HallJoy Soup overlay files and their normalized SHA-256 values;
 - the path, size, and SHA-256 of `ViGEmClient.lib`.
 
@@ -41,6 +43,8 @@ The build script also executes the portable gate, rebuilds the pinned private
 UAP, verifies the ViGEm library, and performs a clean MSVC x64 Release rebuild.
 The same dependency lock is copied into `build/output` and uploaded with the CI
 artifact so its provenance remains inspectable beside the executable.
+`THIRD_PARTY_NOTICES.md` is also mandatory beside `HallJoy.exe`; the build and
+static audit fail if the pinned Sun/Soup/UAP MIT notices are absent.
 
 ## Warning policy
 

@@ -575,9 +575,11 @@ static bool SparkTransact(
         inBuf = fallbackIn.data();
     }
 
-    while (GetTickCount64() < deadline)
+    while (true)
     {
-        DWORD remain = (DWORD)std::clamp<ULONGLONG>(deadline - GetTickCount64(), 1, 80);
+        const ULONGLONG nowMs = GetTickCount64();
+        const DWORD remain = halljoy::monotonic_time::RemainingTimeoutMs(nowMs, deadline, 80);
+        if (remain == 0) break;
         DWORD readBytes = 0;
         DWORD err = 0;
         if (!SparkReadFileOverlapped(g_sparkHandle, inBuf, (DWORD)inSize, remain, &readBytes, &err))
@@ -694,9 +696,11 @@ static int SparkQueryRouteRowsBurst(
     }
 
     int got = 0;
-    while (got < sent && GetTickCount64() < deadline)
+    while (got < sent)
     {
-        DWORD remain = (DWORD)std::clamp<ULONGLONG>(deadline - GetTickCount64(), 1, 20);
+        const ULONGLONG nowMs = GetTickCount64();
+        const DWORD remain = halljoy::monotonic_time::RemainingTimeoutMs(nowMs, deadline, 20);
+        if (remain == 0) break;
         DWORD readBytes = 0;
         DWORD err = 0;
         if (!SparkReadFileOverlapped(g_sparkHandle, inBuf, (DWORD)inSize, remain, &readBytes, &err))
@@ -925,7 +929,8 @@ static HANDLE SparkTryOpenDevice(
             (unsigned)usagePage,
             (unsigned)usage);
 
-        HidD_SetNumInputBuffers(h, 64);
+        if (!HidD_SetNumInputBuffers(h, 64))
+            DebugLog_Write(L"[backend.spark] input-buffer tuning unavailable err=%lu", GetLastError());
         if (writeCapable)
         {
             if (!bestWritable || score > bestWritableScore)

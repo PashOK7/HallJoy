@@ -18,6 +18,7 @@ $pdb = Join-Path $outDir ($targetName + '.pdb')
 $map = Join-Path $outDir ($targetName + '.map')
 $sendDir = Join-Path $root 'build\output'
 $dependencyLockPath = Join-Path $root 'tools\dependency-lock.json'
+$thirdPartyNoticesPath = Join-Path $root 'THIRD_PARTY_NOTICES.md'
 if (-not (Test-Path -LiteralPath $dependencyLockPath -PathType Leaf)) {
     throw "Dependency lock is missing: $dependencyLockPath"
 }
@@ -29,6 +30,7 @@ $vigemExpectedSha256 = [string]$vigemSpec.sha256
 
 $required = @(
     $dependencyLockPath,
+    $thirdPartyNoticesPath,
     $pluginBuild,
     $soupPatch,
     (Join-Path $pluginRoot 'abiv0.sun'),
@@ -72,6 +74,8 @@ $required = @(
     (Join-Path $hallJoyRoot 'HallJoy\saturating_int.h'),
     (Join-Path $hallJoyRoot 'tests\runtime_arithmetic_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\runtime_arithmetic_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\protocol_parser_fuzz_smoke_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\prerelease_hardening_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\resource_ownership_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\native_backend_architecture_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\startup_wake_transaction_static_audit.py'),
@@ -111,9 +115,11 @@ $required = @(
     (Join-Path $root 'tools\new_native_backend.py'),
     (Join-Path $root 'tools\run_native_backend_checks.py'),
     (Join-Path $root 'tools\run_aula_win60he_sanitizers.py'),
+    (Join-Path $root 'tools\run_protocol_fuzz_sanitizers.py'),
     (Join-Path $root 'tools\check_overlay_responsiveness.py'),
     (Join-Path $root 'tools\check_overlay_http_framing.py'),
     (Join-Path $root 'tools\check_overlay_concurrency_origin.py'),
+    (Join-Path $root 'tools\fuzz_overlay_http.py'),
     (Join-Path $root 'tools\run_production_smoke.ps1'),
     (Join-Path $root 'tools\run_release_qualification.ps1'),
     (Join-Path $root 'tools\run_long_soak.ps1'),
@@ -504,6 +510,7 @@ Copy-Item -LiteralPath (Join-Path $root 'tools\analyze_stability_trace.py') -Des
 Copy-Item -LiteralPath (Join-Path $root 'tools\collect_stability_trace.ps1') -Destination $sendDir -Force
 Copy-Item -LiteralPath (Join-Path $root 'tools\COLLECT_STABILITY_TRACE.cmd') -Destination $sendDir -Force
 Copy-Item -LiteralPath $dependencyLockPath -Destination $sendDir -Force
+Copy-Item -LiteralPath $thirdPartyNoticesPath -Destination $sendDir -Force
 
 $symbols = Join-Path $outDir 'LOCAL_SYMBOLS_DO_NOT_SEND'
 New-Item -ItemType Directory -Path $symbols -Force | Out-Null

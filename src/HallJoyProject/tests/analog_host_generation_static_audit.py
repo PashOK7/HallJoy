@@ -103,9 +103,12 @@ def main() -> int:
             "process_handle_retained=1 restart_blocked=1" in supervisor_impl and
             "child.reaped_after_timeout" in supervisor_impl,
             "unconfirmed child exit retains ownership and forbids overlap")
-    require(supervisor_impl.find("CloseHandle(pi.hProcess)") >
+    require("child.invalid_process_info" in supervisor_impl and
+            "if (!pi.hProcess || !pi.hThread)" in supervisor_impl,
+            "impossible incomplete CreateProcess postconditions fail defensively")
+    require(supervisor_impl.rfind("CloseHandle(pi.hProcess)") >
             supervisor_impl.find("child.reaped_after_timeout"),
-            "child process handle closes only after confirmed completion")
+            "valid child process handle closes only after confirmed completion")
     require("[[nodiscard]] bool Backend_Shutdown();" in backend_h and
             "analog_host_joined=%d" in backend_stop,
             "backend shutdown reports analog-host completion")
@@ -120,6 +123,10 @@ def main() -> int:
             "InjectAnalogHostChildCppFault" in runner and
             "InjectAnalogHostChildReapTimeout" in runner,
             "simulator runner covers parent fault, child fault and reap timeout")
+    require("--halljoy-test-analog-host-child-stop-hang" in host and
+            "InjectAnalogHostChildStopHang" in runner and
+            "child.stop_timeout" in supervisor_impl,
+            "simulator covers a UAP child that never begins plugin unload")
     require("--halljoy-test-analog-host-bridge-stop-timeout" in host and
             "--halljoy-test-analog-host-supervisor-start-failure" in host,
             "runtime fault injection is simulator-only")

@@ -658,12 +658,12 @@ static std::wstring ModuleNameAndOffset(const void* address)
         return L"<unknown>";
     }
 
-    wchar_t path[32768]{};
-    DWORD len = GetModuleFileNameW(module, path, (DWORD)_countof(path));
-    const wchar_t* name = path;
-    if (len > 0 && len < _countof(path))
+    std::vector<wchar_t> path(32768);
+    DWORD len = GetModuleFileNameW(module, path.data(), static_cast<DWORD>(path.size()));
+    const wchar_t* name = path.data();
+    if (len > 0 && len < path.size())
     {
-        const wchar_t* slash = wcsrchr(path, L'\\');
+        const wchar_t* slash = wcsrchr(path.data(), L'\\');
         if (slash) name = slash + 1;
     }
 

@@ -1796,3 +1796,51 @@ routes plus two shutdown-window cancellations, 196-232 ms shutdown, maximum
 Final `HallJoy.exe` is 2,209,280 bytes, SHA-256
 `9C5C206E196753D25C83F2DE012607B6ED372AEB3B72593E410865FF4B0777D4`.
 V14-12L is Verified. External Aula hardware remains release-blocking.
+
+## 2026-08-01 - V14-12M / S21 MAD68 HE UAP shutdown containment
+
+A tester reported that an earlier executable remained running with MAD68 HE.
+The device clarification changed the affected route: MAD68 HE uses HallJoy's
+modified private UAP and Soup, while MAD68 Pro R is the unrelated native A0
+backend. The historical root cause is not asserted without the old tester
+trace. Physical retest instructions request waiting up to 15 seconds, checking
+whether only the window or also the process remains, and returning
+`HallJoyStabilityTrace.log` beside the old EXE.
+
+The isolated analog-host supervisor now treats a heartbeat loss during shutdown
+as a shutdown deadline, not a runtime crash. A simulator child that blocks
+forever before plugin unload is terminated after the 2.5-second graceful
+deadline, confirmed exited, and joined without restart. Its saved trace records
+2,641 ms from shutdown arm to `child.stop_timeout`, normal parent exit zero and
+released IPC/worker ownership.
+
+A process-wide 12-second watchdog is armed before the first app cleanup call
+and stays armed through GDI+, debug-log and stability-trace teardown. It uses an
+independent Win32 thread and `TerminateProcess` without logger or CRT calls.
+The permanent owner-stop injection exits with expected code 4 and leaves zero
+processes. Native MAD68 Pro R owner cancellation was separately moved behind
+its bounded join boundary; the worker retains its OVERLAPPED/buffer/HID lifetime
+and observes stop in 25 ms read slices, preserving final A9 recovery.
+
+Dependency provenance was made explicit. HallJoy uses both layers: a locally
+modified UAP, with pinned Soup inside it; Sun is only the pinned build tool.
+All three are MIT-licensed at the locked revisions. Full notices now ship beside
+the EXE, and updates cannot enter automatically because immutable commits and
+all five Soup overlay hashes are enforced by the build.
+
+The full gate passed 48 static audits and 29 portable C++20 tests. Permanent
+UAP-child, permanent owner-shutdown and normal simulator scenarios passed. The
+clean locked plugin/ABI build and official Release x64 build passed with zero
+compiler warnings and only the allowlisted external ViGEm `LNK4099`.
+
+Final `HallJoy.exe` is 2,210,304 bytes, SHA-256
+`C06AD4C7257244E4370738465BBADF815DBC41A081065CA30B0BCFF8059FA1A3`.
+The exact production artifact passed 5/5 Irok cycles: 122-226 ms shutdown,
+maximum 209 HANDLEs, 33,461 successful Spark routes plus one shutdown-window
+cancellation, no survivor and unchanged 11-file state. Raw evidence is retained
+under `build/evidence/V14-12M-uap-shutdown-20260801` and
+`build/evidence/release-qualification/20260801-235837`.
+
+V14-12M code containment is Verified. Physical MAD68 HE retest remains a P1
+release blocker, independently of the already open physical Aula gate. The old
+tester EXE is superseded and must not be used for release acceptance.

@@ -179,4 +179,9 @@ builds.
 V14-12I completed 1000/1000 ordinary production start/graceful-stop cycles.
 The one-hour V14-12K soak then found and isolated a SparkLink timestamp-underflow
 restart; the corrected artifact passed its deterministic/full-build/targeted
-runtime gates. Manual device-matrix items and external Aula hardware remain.
+runtime gates. V14-12M additionally contains a reported MAD68 HE/UAP shutdown
+stall at both boundaries: permanent child unload stalls are disposed after the
+bounded child deadline, and a 12-second process watchdog covers every explicit
+shutdown stage through final logging. The exact production artifact passed 5/5
+Irok cycles with no survivor. Physical MAD68 HE retest, manual device-matrix
+items and external Aula hardware remain release-blocking.

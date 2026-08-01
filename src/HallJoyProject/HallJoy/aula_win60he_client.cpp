@@ -415,6 +415,13 @@ bool Client::ReadActiveMapGeneration(
         KeyQuery query{};
         const std::size_t remaining = factoryKeys.size() - begin;
         const std::size_t count = std::min(remaining, query.size());
+        if (count == 0u)
+        {
+            Fail(failure, FailureStage::DecodeActiveMap,
+                kCommandKeyFunctions, kKeyLayoutFn0, 0,
+                "error:active-map-empty-batch");
+            return false;
+        }
         for (std::size_t index = 0; index < count; ++index)
             query[index] = factoryKeys[begin + index];
         const std::uint8_t paddingKey = query[count - 1u];

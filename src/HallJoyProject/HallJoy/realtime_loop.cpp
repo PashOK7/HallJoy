@@ -13,6 +13,7 @@
 #include <array>
 #include <cstdint>
 #include <cwchar>
+#include <memory>
 #include <mutex>
 
 #include "realtime_loop.h"
@@ -138,6 +139,12 @@ struct TraceSamples
     void Reset() { count = 0; sum = 0; maximum = 0; }
 };
 
+struct RealtimeTraceBuffers
+{
+    TraceSamples signalToWakeUs{};
+    TraceSamples tickUs{};
+};
+
 struct RealtimeThreadResources
 {
     DWORD mmcssTaskIndex = 0;
@@ -195,8 +202,11 @@ static DWORD RealtimeThreadBody()
     uint64_t traceInputWakes = 0;
     uint64_t traceHeartbeatWakes = 0;
     uint64_t traceNotificationsStart = g_inputWakeSequence.Observe();
-    TraceSamples signalToWakeUs{};
-    TraceSamples tickUs{};
+    const bool latencyTraceEnabled =
+        g_latencyTraceEnabled.load(std::memory_order_relaxed);
+    std::unique_ptr<RealtimeTraceBuffers> traceBuffers;
+    if (latencyTraceEnabled)
+        traceBuffers = std::make_unique<RealtimeTraceBuffers>();
 
     while (g_run.load(std::memory_order_acquire))
     {
@@ -301,11 +311,12 @@ static DWORD RealtimeThreadBody()
         if (inputPending)
         {
             ++traceInputWakes;
-            if (g_latencyTraceEnabled.load(std::memory_order_relaxed))
+            if (latencyTraceEnabled)
             {
                 const LONGLONG sourceQpc = g_lastInputNotifyQpc.load(std::memory_order_acquire);
                 if (sourceQpc > 0)
-                    signalToWakeUs.Add(RealtimeQpcElapsedUs(sourceQpc, wakeQpc));
+                    traceBuffers->signalToWakeUs.Add(
+                        RealtimeQpcElapsedUs(sourceQpc, wakeQpc));
             }
         }
         else
@@ -327,9 +338,10 @@ static DWORD RealtimeThreadBody()
         nextHeartbeatQpc = RealtimeQpcAddUs(
             tickEndQpc, static_cast<uint64_t>(nextInterval) * 1000ull);
 
-        if (g_latencyTraceEnabled.load(std::memory_order_relaxed))
+        if (latencyTraceEnabled)
         {
-            tickUs.Add(RealtimeQpcElapsedUs(tickStartQpc, tickEndQpc));
+            traceBuffers->tickUs.Add(
+                RealtimeQpcElapsedUs(tickStartQpc, tickEndQpc));
             const uint64_t windowUs = RealtimeQpcElapsedUs(traceWindowStart, tickEndQpc);
             if (windowUs >= 1000000ull)
             {
@@ -341,23 +353,24 @@ static DWORD RealtimeThreadBody()
                     static_cast<unsigned long long>(notifications),
                     static_cast<unsigned long long>(traceInputWakes),
                     static_cast<unsigned long long>(traceHeartbeatWakes),
-                    static_cast<unsigned long long>(signalToWakeUs.Average()),
-                    signalToWakeUs.Percentile(50),
-                    signalToWakeUs.Percentile(95),
-                    signalToWakeUs.Percentile(99),
-                    signalToWakeUs.maximum,
-                    static_cast<unsigned long long>(tickUs.Average()),
-                    tickUs.Percentile(50),
-                    tickUs.Percentile(95),
-                    tickUs.Percentile(99),
-                    tickUs.maximum);
+                    static_cast<unsigned long long>(
+                        traceBuffers->signalToWakeUs.Average()),
+                    traceBuffers->signalToWakeUs.Percentile(50),
+                    traceBuffers->signalToWakeUs.Percentile(95),
+                    traceBuffers->signalToWakeUs.Percentile(99),
+                    traceBuffers->signalToWakeUs.maximum,
+                    static_cast<unsigned long long>(traceBuffers->tickUs.Average()),
+                    traceBuffers->tickUs.Percentile(50),
+                    traceBuffers->tickUs.Percentile(95),
+                    traceBuffers->tickUs.Percentile(99),
+                    traceBuffers->tickUs.maximum);
 
                 traceWindowStart = tickEndQpc;
                 traceNotificationsStart = g_inputWakeSequence.Observe();
                 traceInputWakes = 0;
                 traceHeartbeatWakes = 0;
-                signalToWakeUs.Reset();
-                tickUs.Reset();
+                traceBuffers->signalToWakeUs.Reset();
+                traceBuffers->tickUs.Reset();
             }
         }
     }

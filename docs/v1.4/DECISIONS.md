@@ -480,3 +480,39 @@ Recovery must be proven by one-shot production C++ fault injections that show
 the failed generation reaped, a new generation started, normal work resumed and
 final shutdown balanced. Fault-injection arguments remain simulator-only and
 must not appear in release qualification commands.
+
+## D-031 - UAP and Soup are pinned layers, not alternative runtimes
+
+Date: 2026-08-01
+
+HallJoy's universal route loads a locally modified Universal Analog Plugin in a
+private child process. Soup is the plugin's lower-level HID/device library; it
+is not an alternative selected instead of UAP. Sun is used only to build the
+plugin. The exact Sun and Soup commits and every reviewed Soup overlay are
+immutable inputs in `tools/dependency-lock.json`.
+
+The pinned UAP, Soup and Sun sources are MIT-licensed. Distribution must retain
+their copyright and permission notices, so the official build must place
+`THIRD_PARTY_NOTICES.md` beside `HallJoy.exe`. An upstream release never changes
+HallJoy automatically. Adoption requires an explicit lock update, source and
+license review, overlay-hash update, clean rebuild, automated gates and relevant
+hardware requalification. HallJoy's own license obligations remain separate.
+
+## D-032 - Explicit shutdown is bounded through final trace teardown
+
+Date: 2026-08-01
+
+Subsystems keep their narrower cooperative deadlines and ownership rules. For
+the private UAP path, a child that has not exited 2.5 seconds after stop is
+terminated as a disposable process, confirmed reaped and never restarted.
+Shutdown heartbeat loss must not be classified as a runtime crash.
+
+The main process also arms one independent 12-second Win32 watchdog before the
+first app cleanup/log call. The deadline exceeds the analog-host 6-second
+graceful plus 4-second child-job containment budget, so it cannot pre-empt the
+normal ownership policy. It remains armed through GDI+, debug-log and
+stability-trace shutdown and is released only after all explicit teardown is
+complete. If it fires, it uses no logger or CRT and terminates the process with
+exit code 4. This last resort prevents a faulty driver or arbitrary teardown
+lock from requiring Task Manager; it does not convert a forced exit into a
+clean hardware qualification result.

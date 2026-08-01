@@ -173,8 +173,8 @@ namespace
         bool equal = GetFileSizeEx(left, &leftSize) != FALSE &&
             GetFileSizeEx(right, &rightSize) != FALSE &&
             leftSize.QuadPart == rightSize.QuadPart;
-        std::array<unsigned char, 64 * 1024> leftBuffer{};
-        std::array<unsigned char, 64 * 1024> rightBuffer{};
+        std::vector<unsigned char> leftBuffer(64 * 1024);
+        std::vector<unsigned char> rightBuffer(64 * 1024);
         while (equal)
         {
             DWORD leftRead = 0;

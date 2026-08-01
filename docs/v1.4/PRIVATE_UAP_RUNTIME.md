@@ -5,6 +5,9 @@
 HallJoy embeds the exact ABI1 Universal Analog Plugin used by its isolated
 analog-host child. It does not load or require a system-wide Wooting Analog SDK
 and does not consume a global `C:\Program Files\WootingAnalogPlugins` install.
+The runtime is not a choice between UAP and Soup: HallJoy loads a locally
+modified UAP, and that plugin uses the pinned Soup revision as its lower-level
+device/HID implementation.
 
 At startup HallJoy:
 
@@ -24,7 +27,10 @@ complete write and successful `FlushFileBuffers`.
 ## Dependencies and diagnostics
 
 ViGEmBus remains a system driver dependency for virtual Xbox controllers.
-HallJoy may offer to download its trusted installer when the driver is missing.
+HallJoy never downloads, executes, or elevates an installer. When ViGEmBus is
+missing it provides manual guidance for the exact lock-pinned official 1.22.0
+release page and remains in degraded mode until the user installs it and
+restarts HallJoy.
 
 Private UAP failures never offer a system Wooting SDK or global UAP installer,
 because those installations are outside the runtime path HallJoy actually
@@ -70,6 +76,15 @@ and 256-value copies occur only after the helper has released the registry.
 Hotplug callback/removal also retains a pin, so concurrent registry erasure
 cannot destroy an object still used by an export or callback.
 
+V14-12M separates runtime failure classification from shutdown containment.
+Once parent shutdown begins, a child that stops heartbeating is not reported as
+a runtime crash. If UAP/Soup never reaches or completes plugin unload, the
+supervisor terminates only the disposable child after the 2.5-second graceful
+deadline and confirms its process HANDLE before releasing IPC ownership. A
+separate 12-second main-process watchdog remains armed from the first app
+cleanup call through debug-log and stability-trace teardown. It is a last
+resort for an arbitrary owner/driver teardown stall and exits with code 4.
+
 ## Verification
 
 The development verification build accepts
@@ -92,3 +107,19 @@ The official build also runs `tools/check_private_uap_abi.py` against the newly
 built ABI1 DLL. It verifies the ABI version, truthful state before/after
 initialization and unload, null-buffer behavior, bounded unload and idempotent
 cleanup before the DLL is embedded into HallJoy.
+
+Shutdown containment has two simulator-only gates:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\run_analog_simulator.ps1 `
+  -InjectAnalogHostChildStopHang -RunSeconds 7
+
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\run_analog_simulator.ps1 `
+  -InjectMad68OwnerStopHang -RunSeconds 7
+```
+
+The first proves bounded disposal of a child that never starts plugin unload.
+The second proves the process-wide last resort. Neither is physical MAD68 HE
+hardware validation.

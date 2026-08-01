@@ -2,8 +2,6 @@
 
 #include <algorithm>
 #include <cwctype>
-#include <string>
-#include <utility>
 
 namespace aula_win60he
 {
@@ -42,16 +40,22 @@ bool ContainsDuplicateIdentity(
     return false;
 }
 
+struct CanonicalSerial
+{
+    std::array<char, 16> bytes{};
+    std::size_t size = 0;
+};
+
 bool CanonicalFirmwareSerial(
     const std::array<char, 17>& serial,
-    std::string* out) noexcept
+    CanonicalSerial* out) noexcept
 {
-    if (out) out->clear();
+    if (out) *out = CanonicalSerial{};
     if (!out)
         return false;
 
-    std::string value;
-    value.reserve(serial.size() - 1u);
+    std::array<char, 16> value{};
+    std::size_t valueSize = 0;
     bool paddingStarted = false;
     for (std::size_t index = 0; index + 1u < serial.size(); ++index)
     {
@@ -69,18 +73,20 @@ bool CanonicalFirmwareSerial(
         }
         if (byte < 0x20u || byte > 0x7Eu)
             return false;
-        value.push_back(static_cast<char>(byte));
+        value[valueSize++] = static_cast<char>(byte);
     }
 
-    while (!value.empty() && value.back() == ' ')
-        value.pop_back();
-    const auto first = value.find_first_not_of(' ');
-    if (first == std::string::npos)
+    while (valueSize != 0u && value[valueSize - 1u] == ' ')
+        --valueSize;
+    std::size_t first = 0;
+    while (first < valueSize && value[first] == ' ')
+        ++first;
+    if (first == valueSize)
         return false;
-    if (first != 0u)
-        value.erase(0u, first);
-    *out = std::move(value);
-    return !out->empty();
+    out->size = valueSize - first;
+    std::copy_n(value.begin() + static_cast<std::ptrdiff_t>(first),
+        out->size, out->bytes.begin());
+    return true;
 }
 }
 
@@ -147,7 +153,7 @@ DeviceSelectionPlan PlanDeviceSelection(
 bool IsMeaningfulDeviceSerial(
     const std::array<char, 17>& serial) noexcept
 {
-    std::string canonical;
+    CanonicalSerial canonical{};
     return CanonicalFirmwareSerial(serial, &canonical);
 }
 
@@ -155,11 +161,15 @@ bool SameDeviceSerial(
     const std::array<char, 17>& left,
     const std::array<char, 17>& right) noexcept
 {
-    std::string canonicalLeft;
-    std::string canonicalRight;
+    CanonicalSerial canonicalLeft{};
+    CanonicalSerial canonicalRight{};
     return CanonicalFirmwareSerial(left, &canonicalLeft) &&
         CanonicalFirmwareSerial(right, &canonicalRight) &&
-        canonicalLeft == canonicalRight;
+        canonicalLeft.size == canonicalRight.size &&
+        std::equal(canonicalLeft.bytes.begin(),
+            canonicalLeft.bytes.begin() +
+                static_cast<std::ptrdiff_t>(canonicalLeft.size),
+            canonicalRight.bytes.begin());
 }
 
 bool MatchesRetainedDeviceIdentity(

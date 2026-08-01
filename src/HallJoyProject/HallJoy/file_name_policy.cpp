@@ -126,7 +126,7 @@ namespace
 
     std::wstring FitSuffix(const std::wstring& base, const std::wstring& suffix)
     {
-        const std::size_t maxLength = FileNamePolicy_MaxStemLength();
+        constexpr std::size_t maxLength = FileNamePolicy_MaxStemLength();
         if (suffix.size() >= maxLength) return {};
         std::wstring fitted = base.substr(0, maxLength - suffix.size());
         while (!fitted.empty() && (fitted.back() == L' ' || fitted.back() == L'.'))

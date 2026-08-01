@@ -18,6 +18,7 @@
 #include <memory>
 #include <process.h>
 #include <string>
+#include <stdexcept>
 #include <vector>
 
 #include "mad68pr_backend.h"
@@ -25,6 +26,7 @@
 #include "debug_log.h"
 #include "stability_trace.h"
 #include "hid_io_operation.h"
+#include "monotonic_time.h"
 #include "realtime_loop.h"
 #include "native_analog_routing.h"
 #include "worker_exception_barrier.h"
@@ -337,6 +339,17 @@ bool InjectStopTimeout() noexcept
 #endif
 }
 
+bool InjectOwnerStopHang() noexcept
+{
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    return commandLine &&
+        wcsstr(commandLine, L"--halljoy-test-mad68-owner-stop-hang");
+#else
+    return false;
+#endif
+}
+
 void RegisterActiveSessionRead(const void* owner, HANDLE handle)
 {
     std::lock_guard<std::mutex> lock(g_activeSessionMutex);
@@ -350,14 +363,6 @@ void UnregisterActiveSessionRead(const void* owner)
     if (g_activeSessionOwner != owner) return;
     g_activeSessionOwner = nullptr;
     g_activeSessionReadHandle = INVALID_HANDLE_VALUE;
-}
-
-void CancelActiveSessionRead()
-{
-    std::lock_guard<std::mutex> lock(g_activeSessionMutex);
-    if (g_activeSessionReadHandle &&
-        g_activeSessionReadHandle != INVALID_HANDLE_VALUE)
-        (void)CancelIoEx(g_activeSessionReadHandle, nullptr);
 }
 
 bool ActiveSessionReadIsRegistered()
@@ -375,7 +380,7 @@ void SignalWakeEvent()
 
 std::wstring PathNearExe(const wchar_t* name)
 {
-    std::array<wchar_t, 32768> buffer{};
+    std::vector<wchar_t> buffer(32768);
     const DWORD n = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
     std::wstring out(buffer.data(), n);
     const auto slash = out.find_last_of(L"\\/");
@@ -1326,10 +1331,12 @@ bool ProcessPayload(
 void PumpFor(Session& session, DWORD durationMs, DigitalWatch& digital)
 {
     const ULONGLONG deadline = GetTickCount64() + durationMs;
-    while (!g_stop.load(std::memory_order_acquire) && GetTickCount64() < deadline)
+    while (!g_stop.load(std::memory_order_acquire))
     {
+        const ULONGLONG nowMs = GetTickCount64();
+        const DWORD remaining = halljoy::monotonic_time::RemainingTimeoutMs(nowMs, deadline);
+        if (remaining == 0) break;
         std::array<std::uint8_t, mad68pr::kPayloadBytes> packet{};
-        const DWORD remaining = static_cast<DWORD>(std::max<ULONGLONG>(1, deadline - GetTickCount64()));
         const bool received = session.ReadPayload(
             std::min<DWORD>(kReadSliceMs, remaining), packet);
         if (g_stop.load(std::memory_order_acquire)) return;
@@ -1346,10 +1353,12 @@ bool WaitForAck(
     DWORD timeoutMs)
 {
     const ULONGLONG deadline = GetTickCount64() + timeoutMs;
-    while (!g_stop.load(std::memory_order_acquire) && GetTickCount64() < deadline)
+    while (!g_stop.load(std::memory_order_acquire))
     {
+        const ULONGLONG nowMs = GetTickCount64();
+        const DWORD remaining = halljoy::monotonic_time::RemainingTimeoutMs(nowMs, deadline);
+        if (remaining == 0) break;
         std::array<std::uint8_t, mad68pr::kPayloadBytes> packet{};
-        const DWORD remaining = static_cast<DWORD>(std::max<ULONGLONG>(1, deadline - GetTickCount64()));
         if (!session.ReadPayload(std::min<DWORD>(kReadSliceMs, remaining), packet)) continue;
         if (g_stop.load(std::memory_order_acquire)) return false;
 
@@ -2129,12 +2138,15 @@ bool RunSession(const HidPath& path)
 
 std::uint32_t Mad68WorkerBody()
 {
+    const HANDLE wakeEvent = g_wakeEvent;
+    if (!wakeEvent)
+        throw std::runtime_error("MAD68 worker started without wake event");
 #if defined(HALLJOY_ANALOG_SIMULATOR)
     if (InjectStopTimeout())
     {
         StabilityTrace_Write(L"INFO", L"mad68", L"test.start", L"simulator_only=1");
         while (!g_stop.load(std::memory_order_acquire))
-            WaitForSingleObject(g_wakeEvent, 100);
+            WaitForSingleObject(wakeEvent, 100);
         StabilityTrace_Write(L"WARN", L"mad68", L"test.stop_timeout.injected",
             L"simulator_only=1");
         WaitForSingleObject(GetCurrentProcess(), INFINITE);
@@ -2156,8 +2168,8 @@ std::uint32_t Mad68WorkerBody()
             g_firmwareVersion.store(0, std::memory_order_release);
             g_productId.store(0, std::memory_order_release);
             g_uiState.store(static_cast<int>(UiState::NoDevice), std::memory_order_release);
-            WaitForSingleObject(g_wakeEvent, kReconnectWaitMs);
-            if (g_wakeEvent) ResetEvent(g_wakeEvent);
+            WaitForSingleObject(wakeEvent, kReconnectWaitMs);
+            ResetEvent(wakeEvent);
             continue;
         }
 
@@ -2178,8 +2190,8 @@ std::uint32_t Mad68WorkerBody()
         ResetSessionPublished();
         if (!g_stop.load(std::memory_order_acquire))
         {
-            WaitForSingleObject(g_wakeEvent, 250);
-            if (g_wakeEvent) ResetEvent(g_wakeEvent);
+            WaitForSingleObject(wakeEvent, 250);
+            ResetEvent(wakeEvent);
         }
     }
 
@@ -2359,8 +2371,21 @@ halljoy::lifecycle::StopResult Mad68ProR_StopGeneration(
     g_productId.store(0, std::memory_order_release);
     g_uiState.store(static_cast<int>(UiState::Stopped), std::memory_order_release);
     SignalWakeEvent();
-    CancelActiveSessionRead();
 
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    if (InjectOwnerStopHang())
+    {
+        StabilityTrace_WriteCritical(L"ERROR", L"mad68",
+            L"test.owner_stop_hang.injected", L"simulator_only=1");
+        WaitForSingleObject(GetCurrentProcess(), INFINITE);
+    }
+#endif
+
+    // ReadPayload waits in 25 ms slices and observes g_stop. The worker owns the
+    // OVERLAPPED request, its buffer and its HID handle through terminal reap.
+    // Do not issue driver cancellation from this UI/owner thread before the
+    // bounded join: a misbehaving HID stack must not move the unbounded part in
+    // front of our timeout containment boundary.
     const DWORD wait = WaitForSingleObject(g_threadHandle, kStopJoinTimeoutMs);
     if (wait != WAIT_OBJECT_0)
     {

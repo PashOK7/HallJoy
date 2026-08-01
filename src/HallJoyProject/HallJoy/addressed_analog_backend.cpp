@@ -14,8 +14,10 @@
 #include <cstdarg>
 #include <cwchar>
 #include <mutex>
+#include <memory>
 #include <process.h>
 #include <string>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
@@ -239,7 +241,7 @@ std::uint64_t NowUs()
 
 std::wstring PathNearExe(const wchar_t* fileName)
 {
-    std::array<wchar_t, 32768> path{};
+    std::vector<wchar_t> path(32768);
     const DWORD n = GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size()));
     std::wstring out(path.data(), n);
     const auto slash = out.find_last_of(L"\\/");
@@ -592,7 +594,8 @@ bool ProbeCandidate(const HidPath& path, DeviceProfile& outProfile, std::uint32_
     auto read = OpenPath(path.path, GENERIC_READ | GENERIC_WRITE, true);
     if (!read) read = OpenPath(path.path, GENERIC_READ, true);
     if (!read) return false;
-    HidD_SetNumInputBuffers(read.value, 64);
+    if (!HidD_SetNumInputBuffers(read.value, 64))
+        SupportLog(L"probe input-buffer tuning unavailable err=%lu", GetLastError());
     Transport transport(path);
 
     std::array<std::uint16_t, 256> dynamicMap{};
@@ -1001,7 +1004,8 @@ std::uint32_t ReaderLoopBody(const HidPath* path)
     opened.value = INVALID_HANDLE_VALUE;
     RegisterReaderHandle(handle);
     ScopedRegisteredReaderHandle registeredHandle(handle);
-    HidD_SetNumInputBuffers(handle, 128);
+    if (!HidD_SetNumInputBuffers(handle, 128))
+        SupportLog(L"reader input-buffer tuning unavailable err=%lu", GetLastError());
     std::vector<std::uint8_t> buffer(
         std::max<std::size_t>(kProtocolReportBytes, path->caps.InputReportByteLength), 0);
 
@@ -1156,14 +1160,15 @@ void LogSummary(std::uint64_t windowStartUs, std::uint64_t nowUs, const SessionS
 bool RunSession(const HidPath& path, const DeviceProfile& profile)
 {
     ResetPublished(&profile);
-    addressed::PollScheduler scheduler(profile.keys.data(), profile.keys.size());
+    auto scheduler = std::make_unique<addressed::PollScheduler>(
+        profile.keys.data(), profile.keys.size());
     std::thread reader;
     try
     {
-        scheduler.Reset(NowUs());
+        scheduler->Reset(NowUs());
         {
             std::lock_guard<std::mutex> schedulerLock(g_schedulerMutex);
-            g_scheduler = &scheduler;
+            g_scheduler = scheduler.get();
         }
         {
             std::lock_guard<std::mutex> lock(g_sessionMutex);
@@ -1202,7 +1207,7 @@ bool RunSession(const HidPath& path, const DeviceProfile& profile)
             addressed::PollPlan plan{};
             {
                 std::lock_guard<std::mutex> schedulerLock(g_schedulerMutex);
-                plan = scheduler.BuildPlan(sendUs);
+                plan = scheduler->BuildPlan(sendUs);
             }
             if (!plan.count) { Sleep(1); continue; }
             const auto packet = MakePollPacket(plan);
@@ -1346,12 +1351,15 @@ bool RunSession(const HidPath& path, const DeviceProfile& profile)
 
 std::uint32_t AddressedWorkerBody()
 {
+    const HANDLE wakeEvent = g_wakeEvent;
+    if (!wakeEvent)
+        throw std::runtime_error("Addressed worker started without wake event");
 #if defined(HALLJOY_ANALOG_SIMULATOR)
     if (InjectStopTimeout())
     {
         StabilityTrace_Write(L"INFO", L"addressed", L"test.start", L"simulator_only=1");
         while (!g_stop.load(std::memory_order_acquire))
-            WaitForSingleObject(g_wakeEvent, 100);
+            WaitForSingleObject(wakeEvent, 100);
         StabilityTrace_Write(L"WARN", L"addressed", L"test.stop_timeout.injected",
             L"simulator_only=1");
         Sleep(INFINITE);
@@ -1369,8 +1377,8 @@ std::uint32_t AddressedWorkerBody()
             if (!GetClaimSnapshot(path, profile))
             {
                 ResetPublished();
-                WaitForSingleObject(g_wakeEvent, 5000);
-                if (g_wakeEvent) ResetEvent(g_wakeEvent);
+                WaitForSingleObject(wakeEvent, 5000);
+                ResetEvent(wakeEvent);
                 continue;
             }
         }
@@ -1378,8 +1386,8 @@ std::uint32_t AddressedWorkerBody()
         ClearClaimForPath(path.path);
         if (!g_stop.load(std::memory_order_acquire))
         {
-            WaitForSingleObject(g_wakeEvent, 500);
-            if (g_wakeEvent) ResetEvent(g_wakeEvent);
+            WaitForSingleObject(wakeEvent, 500);
+            ResetEvent(wakeEvent);
         }
     }
     ResetPublished();

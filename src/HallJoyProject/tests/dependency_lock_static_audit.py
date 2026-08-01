@@ -12,6 +12,7 @@ plugin_build = (repo / "third_party" / "UniversalAnalogPluginFixed" / "tools" /
                 "build_fixed_plugin.ps1").read_text(encoding="utf-8-sig")
 guidance_policy = (repo / "src" / "HallJoyProject" / "HallJoy" /
                    "dependency_guidance_policy.h").read_text(encoding="utf-8-sig")
+notices = (repo / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8-sig")
 
 
 def full_sha(value: str) -> bool:
@@ -50,6 +51,11 @@ checks = {
     "official build consumes dependency lock":
         "dependency-lock.json" in build and "binaryInputs.vigemClient" in build and
         "Copy-Item -LiteralPath $dependencyLockPath -Destination $sendDir" in build,
+    "pinned MIT notices ship with HallJoy.exe":
+        all(lock["sources"][name]["commit"] in notices for name in ("sun", "soup")) and
+        "Copyright (c) 2021-2026 Calamity, Inc." in notices and
+        "Copyright (c) 2022-2025 Calamity, Inc." in notices and
+        "Copy-Item -LiteralPath $thirdPartyNoticesPath -Destination $sendDir" in build,
     "plugin bootstrap consumes locked source commits":
         "dependency-lock.json" in plugin_build and
         "sources.sun" in plugin_build and "sources.soup" in plugin_build,

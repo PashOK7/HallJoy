@@ -70,6 +70,12 @@ static bool g_backendReady = false;
 static bool g_digitalFallbackWarnShown = false;
 static std::atomic<bool> g_shutdownStarted{ false };
 static std::atomic<bool> g_immediateProcessExitRequired{ false };
+static HANDLE g_shutdownWatchdogCancelEvent = nullptr;
+static HANDLE g_shutdownWatchdogThread = nullptr;
+// Analog-host shutdown has a 6 s graceful phase followed by a 4 s child-job
+// containment phase. The process-wide last resort must not pre-empt either.
+static constexpr DWORD kShutdownWatchdogTimeoutMs = 12000;
+static constexpr UINT kShutdownWatchdogExitCode = 4;
 static bool g_cmdStartOverlay = false;
 static bool g_cmdStartMinimized = false;
 static bool g_cmdLatencyTrace = false;
@@ -84,6 +90,55 @@ static bool g_rawInputRegistered = false;
 #endif
 static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam);
 static LRESULT CALLBACK MouseBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam);
+
+static DWORD WINAPI ShutdownWatchdogThreadProc(void* parameter) noexcept
+{
+    const HANDLE cancelEvent = static_cast<HANDLE>(parameter);
+    if (WaitForSingleObject(cancelEvent, kShutdownWatchdogTimeoutMs) == WAIT_TIMEOUT)
+    {
+        // This is the final containment boundary. Do not call any logger here:
+        // shutdown may be stuck while holding an arbitrary logger/CRT lock.
+        OutputDebugStringW(L"[HallJoy] shutdown watchdog deadline exceeded; terminating process\n");
+        TerminateProcess(GetCurrentProcess(), kShutdownWatchdogExitCode);
+    }
+    return 0;
+}
+
+static bool ArmShutdownWatchdog() noexcept
+{
+    g_shutdownWatchdogCancelEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    if (!g_shutdownWatchdogCancelEvent)
+        return false;
+
+    g_shutdownWatchdogThread = CreateThread(
+        nullptr, 0, ShutdownWatchdogThreadProc, g_shutdownWatchdogCancelEvent, 0, nullptr);
+    if (!g_shutdownWatchdogThread)
+    {
+        const DWORD error = GetLastError();
+        CloseHandle(g_shutdownWatchdogCancelEvent);
+        g_shutdownWatchdogCancelEvent = nullptr;
+        SetLastError(error);
+        return false;
+    }
+    return true;
+}
+
+static void DisarmShutdownWatchdog() noexcept
+{
+    if (g_shutdownWatchdogCancelEvent)
+        SetEvent(g_shutdownWatchdogCancelEvent);
+    if (g_shutdownWatchdogThread)
+    {
+        WaitForSingleObject(g_shutdownWatchdogThread, INFINITE);
+        CloseHandle(g_shutdownWatchdogThread);
+        g_shutdownWatchdogThread = nullptr;
+    }
+    if (g_shutdownWatchdogCancelEvent)
+    {
+        CloseHandle(g_shutdownWatchdogCancelEvent);
+        g_shutdownWatchdogCancelEvent = nullptr;
+    }
+}
 #if defined(HALLJOY_MAD68PR_NATIVE)
 static std::unordered_map<HANDLE, bool> g_mad68RawKeyboardCache;
 
@@ -803,6 +858,20 @@ static void AppShutdownNoThrow(HWND hwnd) noexcept
     if (g_shutdownStarted.exchange(true, std::memory_order_acq_rel))
         return;
 
+    // Arm before the first cleanup/logging call. Even a broken HID driver or a
+    // poisoned dependency lock cannot leave HallJoy requiring Task Manager.
+    if (ArmShutdownWatchdog())
+    {
+        StabilityTrace_Write(L"INFO", L"app", L"shutdown.watchdog.armed",
+            L"deadline_ms=%lu exit_code=%u",
+            static_cast<unsigned long>(kShutdownWatchdogTimeoutMs),
+            static_cast<unsigned>(kShutdownWatchdogExitCode));
+    }
+    else
+    {
+        StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.watchdog.arm_failed",
+            L"native_error=%lu", static_cast<unsigned long>(GetLastError()));
+    }
     DebugLog_Write(L"[app.shutdown] begin hwnd=%p", hwnd);
     g_mouseBlockPauseByRShift.store(false, std::memory_order_relaxed);
     UpdateMouseCursorLockState(false);
@@ -1496,6 +1565,11 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
 void App_ForceFinalShutdown() noexcept
 {
     AppShutdownNoThrow(g_hMainWnd);
+}
+
+void App_DisarmShutdownWatchdog() noexcept
+{
+    DisarmShutdownWatchdog();
 }
 
 bool App_RequiresImmediateProcessExit() noexcept

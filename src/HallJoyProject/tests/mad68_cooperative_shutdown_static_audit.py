@@ -40,13 +40,13 @@ def require_post_read_stop(body: str, read_marker: str, process_marker: str,
 def main() -> int:
     mad = (HALL / "mad68pr_backend.cpp").read_text(encoding="utf-8-sig")
     app = (HALL / "app.cpp").read_text(encoding="utf-8-sig")
+    main_source = (HALL / "main.cpp").read_text(encoding="utf-8-sig")
     runner = (ROOT.parents[1] / "tools" / "run_analog_simulator.ps1").read_text(
         encoding="utf-8"
     )
 
     session = function_body(mad, "class Session")
     close = function_body(mad, "void Close()")
-    cancel = function_body(mad, "void CancelActiveSessionRead()")
     pump = function_body(mad, "void PumpFor(")
     wait_ack = function_body(mad, "bool WaitForAck(")
     wait_release = function_body(mad, "bool WaitForAllReleased(")
@@ -72,9 +72,9 @@ def main() -> int:
             close.index("UnregisterActiveSessionRead(this)") <
             close.index("CancelPendingRead()") < close.index("read_.reset()"),
             "session registration is withdrawn before worker-owned cancel/reap/close")
-    require("CloseHandle" not in cancel and
-            "CancelIoEx(g_activeSessionReadHandle, nullptr)" in cancel,
-            "owner stop may cancel but never close the active session read handle")
+    require("void CancelActiveSessionRead()" not in mad and
+            "CancelIoEx(g_activeSessionReadHandle, nullptr)" not in mad,
+            "owner stop cannot enter HID cancellation before its bounded join")
     require("Session session(path, true);" in run_session,
             "only the live worker session publishes its active read handle")
 
@@ -106,10 +106,10 @@ def main() -> int:
     require("std::lock_guard<std::mutex> serviceLock(g_serviceMutex)" in start and
             "_beginthreadex" in start and "g_threadHandle" in start,
             "start is serialized and creates a waitable native generation")
-    require("SignalWakeEvent();" in stop and "CancelActiveSessionRead();" in stop and
-            stop.index("CancelActiveSessionRead();") <
+    require("SignalWakeEvent();" in stop and
+            stop.index("SignalWakeEvent();") <
             stop.index("WaitForSingleObject(g_threadHandle"),
-            "stop wakes and cancels the persistent read before joining")
+            "stop wakes the 25 ms sliced reader before its bounded join")
     require("WaitForSingleObject(g_threadHandle, kStopJoinTimeoutMs)" in stop and
             "ObserveWorkerJoin" in stop,
             "MAD68 stop has one bounded truthful join")
@@ -134,6 +134,17 @@ def main() -> int:
             "runtime timeout injection is simulator-only")
     require("InjectMad68StopTimeout" in runner and "expected 2" in runner,
             "simulator runner verifies MAD68 process containment")
+    require("--halljoy-test-mad68-owner-stop-hang" in mad and
+            "InjectMad68OwnerStopHang" in runner and "expected 4" in runner,
+            "simulator runner verifies the application shutdown watchdog")
+    require("ArmShutdownWatchdog()" in app and
+            app.index("ArmShutdownWatchdog()") < app.index("runStep(L\"overlay\"") and
+            "shutdown.watchdog.armed" in app and
+            "shutdown.watchdog.arm_failed" in app and
+            "App_DisarmShutdownWatchdog();" in main_source and
+            main_source.index("StabilityTrace_Shutdown(result);") <
+            main_source.index("App_DisarmShutdownWatchdog();"),
+            "application shutdown is protected through final logger teardown")
 
     print("MAD68_COOPERATIVE_SHUTDOWN_STATIC_AUDIT=PASS")
     return 0

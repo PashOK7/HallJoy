@@ -25,6 +25,7 @@
 #include <mutex>
 #include <process.h>
 #include <string>
+#include <stdexcept>
 #include <vector>
 
 #pragma comment(lib, "setupapi.lib")
@@ -362,7 +363,8 @@ public:
             FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, nullptr));
         if (!handle_) return false;
-        HidD_SetNumInputBuffers(handle_.value, 128);
+        if (!HidD_SetNumInputBuffers(handle_.value, 128))
+            DebugLog_Write(L"[backend.hex80] input-buffer tuning unavailable err=%lu", GetLastError());
         return true;
     }
 
@@ -587,12 +589,15 @@ bool RunSession(const Candidate& candidate)
 
 std::uint32_t Hex80WorkerBody()
 {
+    const HANDLE wakeEvent = g_wakeEvent;
+    if (!wakeEvent)
+        throw std::runtime_error("Hex80 worker started without wake event");
 #if defined(HALLJOY_ANALOG_SIMULATOR)
     if (InjectStopTimeout())
     {
         StabilityTrace_Write(L"INFO", L"hex80", L"test.start", L"simulator_only=1");
         while (!g_stop.load(std::memory_order_acquire))
-            WaitForSingleObject(g_wakeEvent, 100);
+            WaitForSingleObject(wakeEvent, 100);
         StabilityTrace_Write(L"WARN", L"hex80", L"test.stop_timeout.injected",
             L"simulator_only=1");
         WaitForSingleObject(GetCurrentProcess(), INFINITE);
@@ -610,8 +615,8 @@ std::uint32_t Hex80WorkerBody()
             g_connected.store(false, std::memory_order_release);
             g_detectedPid.store(0, std::memory_order_relaxed);
             ClearPublishedValues();
-            WaitForSingleObject(g_wakeEvent, kReconnectWaitMs);
-            if (g_wakeEvent) ResetEvent(g_wakeEvent);
+            WaitForSingleObject(wakeEvent, kReconnectWaitMs);
+            ResetEvent(wakeEvent);
             continue;
         }
 
@@ -631,8 +636,8 @@ std::uint32_t Hex80WorkerBody()
         ClearPublishedValues();
         if (!g_stop.load(std::memory_order_acquire))
         {
-            WaitForSingleObject(g_wakeEvent, 250);
-            if (g_wakeEvent) ResetEvent(g_wakeEvent);
+            WaitForSingleObject(wakeEvent, 250);
+            ResetEvent(wakeEvent);
         }
     }
 

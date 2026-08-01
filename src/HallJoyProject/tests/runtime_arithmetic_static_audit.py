@@ -19,6 +19,9 @@ time_math = (HALL / "monotonic_time.h").read_text(encoding="utf-8-sig")
 int_math = (HALL / "saturating_int.h").read_text(encoding="utf-8-sig")
 sayo = (HALL / "backend_sayo.inc").read_text(encoding="utf-8-sig")
 addressed = (HALL / "addressed_analog_backend.cpp").read_text(encoding="utf-8-sig")
+mad68 = (HALL / "mad68pr_backend.cpp").read_text(encoding="utf-8-sig")
+spark = (HALL / "backend_sparklink.inc").read_text(encoding="utf-8-sig")
+host = (HALL / "analog_host_client.cpp").read_text(encoding="utf-8-sig")
 backend = (HALL / "backend.cpp").read_text(encoding="utf-8-sig")
 test = (TESTS / "runtime_arithmetic_test.cpp").read_text(encoding="utf-8-sig")
 runner = (ROOT / "tools" / "run_native_backend_checks.py").read_text(encoding="utf-8-sig")
@@ -35,6 +38,16 @@ require("IsStale(nowMs, lastPacket" in sayo and "nowMs - lastPacket" not in sayo
 require(addressed.count("RemainingTimeoutMs(nowMs, deadline)") == 2 and
         "deadline - GetTickCount64()" not in addressed,
         "Addressed probe waits cannot wrap into an infinite timeout")
+require(mad68.count("RemainingTimeoutMs(nowMs, deadline)") == 2 and
+        "deadline - GetTickCount64()" not in mad68,
+        "MAD68 bounded waits cannot wrap into an infinite timeout")
+require(spark.count("RemainingTimeoutMs(nowMs, deadline,") == 2 and
+        "deadline - GetTickCount64()" not in spark,
+        "SparkLink transactions stop at their deadline without a final overshoot")
+require("SaturatingAgeMs(\n            nowMs, g_telemetryRate.lastSampleMs)" in host,
+        "concurrent host telemetry sampling cannot underflow its elapsed interval")
+require(backend.count("SaturatingAgeMs(GetTickCount64(), last)") == 2,
+        "native SparkLink and Sayo telemetry ages saturate future publications")
 require(backend.count("SaturatingAddInt(old") == 2 and "old + dx" not in backend and
         "old + dy" not in backend,
         "both raw mouse axes use defined saturating addition")

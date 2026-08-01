@@ -117,6 +117,12 @@ def main() -> int:
             ("windows_command_line", [tests / "windows_command_line_test.cpp"]),
             ("sparklink_hotplug_age", [tests / "sparklink_hotplug_age_test.cpp"]),
             ("runtime_arithmetic", [tests / "runtime_arithmetic_test.cpp"]),
+            ("protocol_parser_fuzz_smoke", [
+                tests / "protocol_parser_fuzz_smoke_test.cpp",
+                hall / "aula_win60he_protocol.cpp",
+                hall / "hex80_protocol.cpp",
+                hall / "mad68pr_protocol.cpp",
+            ]),
             ("aula_win60he_oracle", [
                 tests / "aula_win60he_oracle_test.cpp",
                 hall / "aula_win60he_protocol.cpp",

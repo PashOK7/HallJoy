@@ -10,6 +10,8 @@
 UINT WinUtil_GetDpiForWindowCompat(HWND hwnd)
 {
     HMODULE u32 = GetModuleHandleW(L"user32.dll");
+    if (!u32)
+        return 96;
     using Fn = UINT(WINAPI*)(HWND);
     auto p = (Fn)GetProcAddress(u32, "GetDpiForWindow");
     if (p) return p(hwnd);

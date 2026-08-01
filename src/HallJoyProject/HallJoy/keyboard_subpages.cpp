@@ -2157,8 +2157,9 @@ static void OverlayCustom_DrawItem(HWND hWnd, HDC hdc, Graphics& g, OverlayCusto
         {
             RECT trc = rc;
             InflateRect(&trc, -S(hWnd, 8), 0);
-            const std::wstring& editText = (it.id == OVERLAY_ID_PORT) ? st->portText :
-                ((it.id == OVERLAY_ID_LABEL_COLOR_HEX) ? st->labelHexText : st->hexText);
+            const std::wstring& editText = !st ? it.text :
+                ((it.id == OVERLAY_ID_PORT) ? st->portText :
+                ((it.id == OVERLAY_ID_LABEL_COLOR_HEX) ? st->labelHexText : st->hexText));
             OverlayCustom_DrawText(hdc, editText, trc, text, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
             if (focused && it.enabled)
             {
@@ -5339,7 +5340,7 @@ struct GlobalSettingsPageState
     bool  pendingDeleteIsGlobalProfile = false;
     HWND hToast = nullptr;
     std::wstring toastText;
-    DWORD toastHideAt = 0;
+    ULONGLONG toastHideAt = 0;
 };
 
 static constexpr int GLOB_ID_POLL_SLIDER = 7601;
@@ -5572,7 +5573,7 @@ static void GlobalToast_ShowNearCursor(HWND hPage, GlobalSettingsPageState* st, 
 
     SetWindowPos(st->hToast, HWND_TOPMOST, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
     InvalidateRect(st->hToast, nullptr, TRUE);
-    st->toastHideAt = GetTickCount() + TOAST_SHOW_MS;
+    st->toastHideAt = GetTickCount64() + TOAST_SHOW_MS;
     SetTimer(hPage, TOAST_TIMER_ID, 30, nullptr);
 }
 
@@ -6201,7 +6202,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
     case WM_TIMER:
         if (st && wParam == TOAST_TIMER_ID)
         {
-            DWORD now = GetTickCount();
+            const ULONGLONG now = GetTickCount64();
             if (st->toastHideAt != 0 && now >= st->toastHideAt)
                 GlobalToast_Hide(hWnd, st);
             return 0;
@@ -7995,7 +7996,7 @@ struct ConfigPageState
     // --- Premium toast (popup hint) ---
     HWND hToast = nullptr;
     std::wstring toastText;
-    DWORD toastHideAt = 0;
+    ULONGLONG toastHideAt = 0;
 
     // vertical scroll state for Configuration page
     CustomPageSurface surface;
@@ -9387,7 +9388,7 @@ static void Toast_ShowNearCursor(HWND hPage, ConfigPageState* st, const wchar_t*
 
     InvalidateRect(st->hToast, nullptr, TRUE);
 
-    st->toastHideAt = GetTickCount() + TOAST_SHOW_MS;
+    st->toastHideAt = GetTickCount64() + TOAST_SHOW_MS;
     SetTimer(hPage, TOAST_TIMER_ID, 30, nullptr);
 }
 
@@ -9567,7 +9568,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         // 1) toast auto-hide
         if (wParam == TOAST_TIMER_ID && st)
         {
-            DWORD now = GetTickCount();
+            const ULONGLONG now = GetTickCount64();
             if (st->toastHideAt != 0 && now >= st->toastHideAt)
                 Toast_Hide(hWnd, st);
             return 0;

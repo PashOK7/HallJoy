@@ -19,6 +19,7 @@ maintained in `ROADMAP.md`.
 | `HJ-V14-P1-005` | P1 | One-shot overlay HTTP connections can block `/state` for the five-second keep-alive receive timeout | `V14-06C.1` | Verified | captured 5.001-5.002 s fetch stalls; simulator and production socket gates now return the next `/state` in under 1 ms |
 | `HJ-V14-P1-006` | P1 | Sayo freshness timestamps can underflow when a worker publishes a newer timestamp than the UI tick snapshot | `V14-12L` | Verified | saturating monotonic-age helpers, maximum-value regression, full automated/build gate and Irok regression pass |
 | `HJ-V14-P1-007` | P1 | An expired Addressed probe deadline can wrap to `DWORD_MAX` and turn a bounded HID wait into an effectively infinite wait | `V14-12L` | Verified | saturating remaining-time helper, expired/future/max-deadline regressions, full automated/build gate and Irok regression pass |
+| `HJ-V14-P1-008` | P1 | A tester's MAD68 HE build can remain running while the private UAP/Soup path is shutting down | `V14-12M` | Partial | permanent child-unload and whole-process shutdown stalls are contained automatically; physical MAD68 HE retest of the new EXE and the old trace remain required |
 | `HJ-V14-P2-001` | P2 | v1.3 self-contained runtime improvements can be lost during architectural migration | `V14-03` | Verified | checkpoint `b3fefce` compared; embedded self-contained behavior retained in isolated ABI1 architecture |
 | `HJ-V14-P2-002` | P2 | Imported historical validation may be mistaken for validation of later v1.4 code | all | Open | per-package evidence enforcement |
 | `HJ-V14-P2-003` | P2 | Simulation could be mistaken for real analog-protocol evidence or leak into production | `V14-02` | Verified | sources excluded from production compile; compile/runtime gates and evidence labels passed |
@@ -68,6 +69,28 @@ measured the next `/state` at 0.3 ms in simulation and 0.4 ms in the production
 `HallJoy.exe`; the normal and forced-timeout overlay lifecycle gates also pass.
 The user subsequently confirmed that the browser input overlay no longer
 exhibits the observed five-second freezes.
+
+### Evidence boundary for HJ-V14-P1-008
+
+The reported device is MAD68 HE, handled by the modified private UAP with Soup
+inside it. It is not MAD68 Pro R, whose native A0 backend has a separate
+protocol and lifecycle. The old tester EXE and exact failure phase have not
+been reproduced locally, so V14-12M does not claim a confirmed historical root
+cause. The old `HallJoyStabilityTrace.log` is still requested.
+
+Code-level containment is deterministic. A child deliberately blocked forever
+before plugin unload produced `child.stop_timeout` 2,641 ms after shutdown
+began, was terminated without restart, joined both parent workers and exited
+the main process normally. A separate permanent owner-thread stall was ended by
+the 12-second watchdog with exit code 4 and zero survivor. Raw traces are under
+`build/evidence/V14-12M-uap-shutdown-20260801`.
+
+The exact production `HallJoy.exe` then passed 5/5 ordinary Irok close cycles in
+122-226 ms with exit zero, no trace error, no survivor and no change to 11 user
+state files. Evidence is
+`build/evidence/release-qualification/20260801-235837`. The risk remains
+`Partial` and release-blocking until the MAD68 HE tester closes this exact
+artifact successfully; simulator evidence is not hardware validation.
 
 ## Статусы
 

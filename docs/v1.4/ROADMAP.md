@@ -590,3 +590,29 @@ v1.4 can be tagged only when:
   tests pass. Official Release x64 has zero compiler warnings, and the resulting
   production artifact passes 3/3 Irok cycles with unchanged state. V14-12L is
   Verified; external Aula hardware remains the release blocker.
+
+### V14-12M / S21 UAP shutdown containment and dependency provenance
+
+- A tester report on MAD68 HE is explicitly routed through the modified private
+  UAP and its internal Soup transport. MAD68 Pro R is a different keyboard on
+  HallJoy's native A0 backend; no root cause is transferred between them.
+- Shutdown heartbeat monitoring is disabled only after shutdown begins, so a
+  stuck child unload is classified as `child.stop_timeout`, not as a runtime
+  crash. The supervisor terminates the disposable child after its 2.5-second
+  deadline, confirms exit and releases IPC without restarting it.
+- A last-resort 12-second watchdog is armed before app cleanup and remains live
+  through debug-log and stability-trace shutdown. A permanent owner-thread
+  stall exits code 4 and leaves no HallJoy process.
+- Sun, Soup and the modified UAP are MIT-licensed and exact-commit pinned. Their
+  complete required notices now ship as `THIRD_PARTY_NOTICES.md`; upstream
+  changes cannot enter a build until the lock and reviewed overlays are
+  deliberately updated and the full qualification is rerun.
+- The unified gate, permanent UAP-child stall, permanent process stall, normal
+  simulator, clean locked UAP build and official Release x64 build pass. The
+  2,210,304-byte `HallJoy.exe` SHA-256 is
+  `C06AD4C7257244E4370738465BBADF815DBC41A081065CA30B0BCFF8059FA1A3`.
+- Production Irok regression is 5/5, shutdown 122-226 ms, maximum 209 HANDLEs,
+  33,461/33,462 Spark routes, zero survivor and unchanged 11-file user state.
+  V14-12M code containment is Verified, but `HJ-V14-P1-008` remains Partial
+  until the actual MAD68 HE tester repeats close on this EXE. Aula physical
+  validation also remains release-blocking.

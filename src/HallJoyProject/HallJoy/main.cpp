@@ -22,6 +22,8 @@ static constexpr int kDebugLogSchemaVersion = 17;
 static void InitDpiAwareness()
 {
     HMODULE u32 = GetModuleHandleW(L"user32.dll");
+    if (!u32)
+        return;
 
     using SetCtxFn = BOOL(WINAPI*)(DPI_AWARENESS_CONTEXT);
     auto setCtx = (SetCtxFn)GetProcAddress(u32, "SetProcessDpiAwarenessContext");
@@ -57,7 +59,11 @@ static bool ShutdownDebugLogSafely()
     return false;
 }
 
-int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow)
+int WINAPI wWinMain(
+    _In_ HINSTANCE hInst,
+    _In_opt_ HINSTANCE,
+    _In_ PWSTR,
+    _In_ int nCmdShow)
 {
     int embeddedInstallerExit = 0;
     if (EmbeddedAnalogStack_TryRunInstallerCommand(hInst, embeddedInstallerExit))
@@ -170,6 +176,9 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow)
     if (!ShutdownDebugLogSafely())
         return 3;
     StabilityTrace_Shutdown(result);
+    // Keep the watchdog armed through logger and stability-trace teardown. It
+    // is safe to release only after every explicit shutdown stage completed.
+    App_DisarmShutdownWatchdog();
 
     return result;
 }

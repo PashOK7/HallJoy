@@ -627,7 +627,8 @@ static bool SayoCollectMatchingDevices(std::vector<SayoReader>* outReaders)
             continue;
         }
 
-        HidD_SetNumInputBuffers(h, 64);
+        if (!HidD_SetNumInputBuffers(h, 64))
+            DebugLog_Write(L"[backend.sayo] input-buffer tuning unavailable err=%lu", GetLastError());
         SayoReader reader{};
         reader.path = detail->DevicePath;
         reader.handle = h;

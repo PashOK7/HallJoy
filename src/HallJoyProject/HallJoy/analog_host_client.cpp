@@ -22,6 +22,7 @@
 #include "analog_host_shared.h"
 #include "debug_log.h"
 #include "embedded_analog_stack.h"
+#include "monotonic_time.h"
 #include "realtime_loop.h"
 #include "stability_trace.h"
 #include "worker_exception_barrier.h"
@@ -471,6 +472,18 @@ namespace
         std::wstring privatePluginPath;
     };
 
+    struct HostPollBuffers
+    {
+        std::array<unsigned short, kMaxKeys> rawCodes{};
+        std::array<float, kMaxKeys> rawValues{};
+        std::array<unsigned short, kMaxKeys> validCodes{};
+        std::array<float, kMaxKeys> validValues{};
+        std::array<float, kMaxKeys> mergedDense{};
+        std::array<HallJoyDenseSnapshot::DeviceV1, kMaxDevices> rawDenseDevices{};
+        std::array<HallJoyDenseSnapshot::DeviceV1, kMaxDevices> validDenseDevices{};
+        std::array<HallJoyPluginTelemetry::DeviceV1, kMaxDevices> pluginTelemetry{};
+    };
+
     bool ParseHandleArgument(const wchar_t* text, HANDLE& handle) noexcept
     {
         if (!text || !*text)
@@ -644,16 +657,9 @@ namespace
         int hostExitCode = 0;
         ULONGLONG lastStats = GetTickCount64();
         std::uint64_t observedPluginGeneration = 0;
-        std::array<unsigned short, kMaxKeys> rawCodes{};
-        std::array<float, kMaxKeys> rawValues{};
-        std::array<unsigned short, kMaxKeys> validCodes{};
-        std::array<float, kMaxKeys> validValues{};
-        std::array<float, kMaxKeys> mergedDense{};
-        std::array<HallJoyDenseSnapshot::DeviceV1, kMaxDevices> rawDenseDevices{};
-        std::array<HallJoyDenseSnapshot::DeviceV1, kMaxDevices> validDenseDevices{};
+        auto buffers = std::make_unique<HostPollBuffers>();
         int validDenseDeviceCount = 0;
         std::uint64_t snapshotTimestampUs = 0;
-        std::array<HallJoyPluginTelemetry::DeviceV1, kMaxDevices> pluginTelemetry{};
         int pluginTelemetryCount = 0;
         ULONGLONG nextTelemetryRefresh = 0;
 
@@ -692,9 +698,12 @@ namespace
             if (api.getDeviceTelemetry && now >= nextTelemetryRefresh)
             {
                 pluginTelemetryCount = static_cast<int>(api.getDeviceTelemetry(
-                    pluginTelemetry.data(), static_cast<std::uint32_t>(pluginTelemetry.size()),
-                    static_cast<std::uint32_t>(sizeof(pluginTelemetry[0]))));
-                pluginTelemetryCount = std::clamp(pluginTelemetryCount, 0, static_cast<int>(pluginTelemetry.size()));
+                    buffers->pluginTelemetry.data(),
+                    static_cast<std::uint32_t>(buffers->pluginTelemetry.size()),
+                    static_cast<std::uint32_t>(sizeof(buffers->pluginTelemetry[0]))));
+                pluginTelemetryCount = std::clamp(
+                    pluginTelemetryCount, 0,
+                    static_cast<int>(buffers->pluginTelemetry.size()));
                 nextTelemetryRefresh = now + 250;
             }
 
@@ -717,15 +726,17 @@ namespace
                 reinterpret_cast<CrashFn>(static_cast<uintptr_t>(0x21))();
             }
             HostSetCheckpoint(shared, Checkpoint_BeforeReadFullBuffer);
-            const int result = api.readFullBuffer(rawCodes.data(), rawValues.data(),
-                static_cast<unsigned int>(rawCodes.size()), static_cast<PluginDeviceId>(0));
+            const int result = api.readFullBuffer(
+                buffers->rawCodes.data(), buffers->rawValues.data(),
+                static_cast<unsigned int>(buffers->rawCodes.size()),
+                static_cast<PluginDeviceId>(0));
             HostSetCheckpoint(shared, Checkpoint_AfterReadFullBuffer);
 
             int validCount = 0;
             validDenseDeviceCount = 0;
             snapshotTimestampUs = HostNowUs();
-            mergedDense.fill(0.0f);
-            for (auto& item : validDenseDevices)
+            buffers->mergedDense.fill(0.0f);
+            for (auto& item : buffers->validDenseDevices)
                 item = HallJoyDenseSnapshot::DeviceV1{};
 
             if (result >= 0)
@@ -735,34 +746,38 @@ namespace
                 const int n = std::min(result, static_cast<int>(kMaxKeys));
                 for (int i = 0; i < n; ++i)
                 {
-                    const unsigned short code = rawCodes[static_cast<size_t>(i)];
-                    const float value = rawValues[static_cast<size_t>(i)];
+                    const unsigned short code = buffers->rawCodes[static_cast<size_t>(i)];
+                    const float value = buffers->rawValues[static_cast<size_t>(i)];
                     if (code >= kMaxKeys || !std::isfinite(value))
                     {
                         InterlockedIncrement(&shared->invalidSnapshotCount);
                         continue;
                     }
-                    validCodes[static_cast<size_t>(validCount)] = code;
-                    validValues[static_cast<size_t>(validCount)] = std::clamp(value, 0.0f, 1.0f);
+                    buffers->validCodes[static_cast<size_t>(validCount)] = code;
+                    buffers->validValues[static_cast<size_t>(validCount)] =
+                        std::clamp(value, 0.0f, 1.0f);
                     ++validCount;
                 }
 
                 if (api.getDenseSnapshots)
                 {
                     const std::uint32_t rawDenseCount = api.getDenseSnapshots(
-                        rawDenseDevices.data(), static_cast<std::uint32_t>(rawDenseDevices.size()),
-                        static_cast<std::uint32_t>(sizeof(rawDenseDevices[0])));
+                        buffers->rawDenseDevices.data(),
+                        static_cast<std::uint32_t>(buffers->rawDenseDevices.size()),
+                        static_cast<std::uint32_t>(sizeof(buffers->rawDenseDevices[0])));
                     const int denseCount = std::clamp(static_cast<int>(rawDenseCount), 0, static_cast<int>(kMaxDevices));
                     for (int di = 0; di < denseCount; ++di)
                     {
-                        const auto& input = rawDenseDevices[static_cast<std::size_t>(di)];
+                        const auto& input =
+                            buffers->rawDenseDevices[static_cast<std::size_t>(di)];
                         if (input.structSize != sizeof(HallJoyDenseSnapshot::DeviceV1) ||
                             input.version != HallJoyDenseSnapshot::kVersion)
                         {
                             InterlockedIncrement(&shared->invalidSnapshotCount);
                             continue;
                         }
-                        auto& output = validDenseDevices[static_cast<std::size_t>(validDenseDeviceCount)];
+                        auto& output = buffers->validDenseDevices[
+                            static_cast<std::size_t>(validDenseDeviceCount)];
                         output = input;
                         std::uint32_t active = 0;
                         for (std::size_t code = 0; code < kMaxKeys; ++code)
@@ -775,7 +790,8 @@ namespace
                             }
                             value = std::clamp(value, 0.0f, 1.0f);
                             output.values[code] = value;
-                            mergedDense[code] = (std::max)(mergedDense[code], value);
+                            buffers->mergedDense[code] =
+                                (std::max)(buffers->mergedDense[code], value);
                             if (value > 0.0f)
                                 ++active;
                         }
@@ -788,8 +804,10 @@ namespace
                 {
                     for (int i = 0; i < validCount; ++i)
                     {
-                        const auto code = validCodes[static_cast<std::size_t>(i)];
-                        mergedDense[code] = (std::max)(mergedDense[code], validValues[static_cast<std::size_t>(i)]);
+                        const auto code = buffers->validCodes[static_cast<std::size_t>(i)];
+                        buffers->mergedDense[code] = (std::max)(
+                            buffers->mergedDense[code],
+                            buffers->validValues[static_cast<std::size_t>(i)]);
                     }
                 }
 
@@ -797,12 +815,14 @@ namespace
                 // table. This deduplicates the same HID key across devices and
                 // removes dependence on the plugin's sparse ordering.
                 validCount = 0;
-                for (std::size_t code = 0; code < mergedDense.size(); ++code)
+                for (std::size_t code = 0; code < buffers->mergedDense.size(); ++code)
                 {
-                    if (mergedDense[code] > 0.0f)
+                    if (buffers->mergedDense[code] > 0.0f)
                     {
-                        validCodes[static_cast<std::size_t>(validCount)] = static_cast<unsigned short>(code);
-                        validValues[static_cast<std::size_t>(validCount)] = mergedDense[code];
+                        buffers->validCodes[static_cast<std::size_t>(validCount)] =
+                            static_cast<unsigned short>(code);
+                        buffers->validValues[static_cast<std::size_t>(validCount)] =
+                            buffers->mergedDense[code];
                         ++validCount;
                     }
                 }
@@ -814,9 +834,13 @@ namespace
             }
 
             HostSetCheckpoint(shared, Checkpoint_PublishSnapshot);
-            PublishSnapshot(shared, validCodes.data(), validValues.data(), result >= 0 ? validCount : 0,
-                mergedDense.data(), validDenseDevices.data(), result >= 0 ? validDenseDeviceCount : 0, snapshotTimestampUs,
-                result, polls, successful, pluginTelemetry.data(), pluginTelemetryCount, snapshotEvent);
+            PublishSnapshot(
+                shared, buffers->validCodes.data(), buffers->validValues.data(),
+                result >= 0 ? validCount : 0,
+                buffers->mergedDense.data(), buffers->validDenseDevices.data(),
+                result >= 0 ? validDenseDeviceCount : 0, snapshotTimestampUs,
+                result, polls, successful, buffers->pluginTelemetry.data(),
+                pluginTelemetryCount, snapshotEvent);
             InterlockedExchange(&shared->status, Status_Ready);
 
             if (consecutivePluginErrors >= 4)
@@ -832,7 +856,8 @@ namespace
             {
                 float maxValue = 0.0f;
                 for (int i = 0; i < validCount; ++i)
-                    maxValue = std::max(maxValue, validValues[static_cast<size_t>(i)]);
+                    maxValue = std::max(
+                        maxValue, buffers->validValues[static_cast<size_t>(i)]);
                 HostLog(L"stats polls=%llu successful=%llu last_result=%d transport_error=%ld count=%d dense_devices=%d dense_generation=%lld max=%d checkpoint=%s",
                     polls, successful, result,
                     InterlockedCompareExchange(&shared->transportError, 0, 0),
@@ -845,6 +870,13 @@ namespace
         }
 
         HostSetCheckpoint(shared, Checkpoint_SdkUninitialise);
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        if (wcsstr(GetCommandLineW(), L"--halljoy-test-analog-host-child-stop-hang"))
+        {
+            HostLog(L"simulated child-host shutdown hang before plugin unload");
+            WaitForSingleObject(GetCurrentProcess(), INFINITE);
+        }
+#endif
         if (!UnloadHostPlugin(api, shared))
             return 38;
         if (api.setDiagnosticCheckpoint)
@@ -1224,9 +1256,9 @@ namespace
 
     bool CreateHostProcess(PROCESS_INFORMATION& pi)
     {
-        wchar_t exePath[32768]{};
-        const DWORD len = GetModuleFileNameW(nullptr, exePath, static_cast<DWORD>(_countof(exePath)));
-        if (len == 0 || len >= _countof(exePath))
+        std::vector<wchar_t> exePath(32768);
+        const DWORD len = GetModuleFileNameW(nullptr, exePath.data(), static_cast<DWORD>(exePath.size()));
+        if (len == 0 || len >= exePath.size())
             return false;
         std::uintptr_t mappingArgument = reinterpret_cast<std::uintptr_t>(g_client.mapping);
 #if defined(HALLJOY_ANALOG_SIMULATOR)
@@ -1248,9 +1280,13 @@ namespace
             static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(g_client.stopEvent)),
             static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(g_client.snapshotEvent)),
             static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(g_client.ownerProcess)));
-        std::wstring command = halljoy::windows_command_line::QuoteArgument(exePath);
+        std::wstring command = halljoy::windows_command_line::QuoteArgument(exePath.data());
         command += identity;
         command += halljoy::windows_command_line::QuoteArgument(g_client.privatePluginPath);
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        if (wcsstr(GetCommandLineW(), L"--halljoy-test-analog-host-child-stop-hang"))
+            command += L" --halljoy-test-analog-host-child-stop-hang";
+#endif
 
         HANDLE inheritedHandles[] = {
             g_client.mapping,
@@ -1285,7 +1321,7 @@ namespace
         ZeroMemory(&pi, sizeof(pi));
         const DWORD creationFlags = CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT |
             (kUseChildDebugger ? DEBUG_ONLY_THIS_PROCESS : 0u);
-        const BOOL ok = CreateProcessW(exePath, command.data(), nullptr, nullptr, TRUE,
+        const BOOL ok = CreateProcessW(exePath.data(), command.data(), nullptr, nullptr, TRUE,
             creationFlags, nullptr, nullptr, &si.StartupInfo, &pi);
         const DWORD error = ok ? ERROR_SUCCESS : GetLastError();
         DeleteProcThreadAttributeList(si.lpAttributeList);
@@ -1326,6 +1362,27 @@ namespace
                 if (g_client.shared)
                     PublishHostError(g_client.shared, static_cast<LONG>(error), WootingAnalogResult_Failure);
                 DebugLog_Write(L"[analog.host] CreateProcess failed err=%lu", error);
+                if (WaitForSingleObject(g_client.stopEvent, kRestartDelayMs) == WAIT_OBJECT_0)
+                    break;
+                ++restartCount;
+                continue;
+            }
+            if (!pi.hProcess || !pi.hThread)
+            {
+                constexpr DWORD invalidProcessInfo = ERROR_INVALID_HANDLE;
+                const bool hadProcessHandle = pi.hProcess != nullptr;
+                const bool hadThreadHandle = pi.hThread != nullptr;
+                if (pi.hProcess)
+                {
+                    TerminateProcess(pi.hProcess, invalidProcessInfo);
+                    CloseHandle(pi.hProcess);
+                }
+                if (pi.hThread)
+                    CloseHandle(pi.hThread);
+                PublishHostError(g_client.shared, static_cast<LONG>(invalidProcessInfo), WootingAnalogResult_Failure);
+                StabilityTrace_WriteCritical(L"ERROR", L"analog-host", L"child.invalid_process_info",
+                    L"process_handle=%d thread_handle=%d restart_blocked=0",
+                    hadProcessHandle ? 1 : 0, hadThreadHandle ? 1 : 0);
                 if (WaitForSingleObject(g_client.stopEvent, kRestartDelayMs) == WAIT_OBJECT_0)
                     break;
                 ++restartCount;
@@ -1442,6 +1499,8 @@ namespace
                 if (stopDeadline != 0 && GetTickCount64() >= stopDeadline && !processExited)
                 {
                     DebugLog_Write(L"[analog.host] graceful stop timed out; terminating pid=%lu", pi.dwProcessId);
+                    StabilityTrace_WriteCritical(L"WARN", L"analog-host", L"child.stop_timeout",
+                        L"pid=%lu action=terminate_process restart=0", pi.dwProcessId);
                     TerminateProcess(pi.hProcess, 0);
                     stopDeadline = GetTickCount64() + 1000;
                 }
@@ -1454,7 +1513,8 @@ namespace
                         lastHeartbeatValue = heartbeat;
                         lastHeartbeatSeen = GetTickCount64();
                     }
-                    else if (InterlockedCompareExchange(&g_client.shared->status, 0, 0) == Status_Ready &&
+                    else if (!g_client.stopping.load(std::memory_order_acquire) &&
+                        InterlockedCompareExchange(&g_client.shared->status, 0, 0) == Status_Ready &&
                         GetTickCount64() - lastHeartbeatSeen > kHeartbeatTimeoutMs)
                     {
                         if (!crashCaptured)
@@ -2204,7 +2264,8 @@ bool AnalogHostClient_GetTelemetry(AnalogHostTelemetry* out)
     }
     else
     {
-        const ULONGLONG elapsedMs = nowMs - g_telemetryRate.lastSampleMs;
+        const ULONGLONG elapsedMs = halljoy::monotonic_time::SaturatingAgeMs(
+            nowMs, g_telemetryRate.lastSampleMs);
         if (elapsedMs >= 250)
         {
             const std::uint64_t deltaPolls = result.totalPolls - g_telemetryRate.lastPolls;

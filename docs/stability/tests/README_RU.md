@@ -63,3 +63,6 @@ Baseline-лог исходной версии хранится отдельно 
 - `V14-12E_RELEASE_CYCLES_2026-08-01.txt` — normal-operation production runner,
   официальный post-build 25-cycle gate, trace/process/HANDLE/state invariants и
   явные границы оставшихся 1000-cycle/soak/hardware gates.
+- `V14-12F_S18_INSTALLER_REMOVAL_2026-08-01.txt` — structural removal of
+  download/elevation/wait, exact manual-only ViGEmBus lock, policy/static/MSVC/
+  build gates и normal Irok regression.

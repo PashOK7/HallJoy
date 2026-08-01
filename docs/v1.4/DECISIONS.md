@@ -425,3 +425,17 @@ Unconfirmed completion retains the full session stack and kernel ownership,
 poisons restart and requires process containment. Protocol builders, write
 transports, A8/A9 strategy, restore and decoder must remain unchanged in this
 lifecycle package.
+
+## D-028 - Remove privileged dependency installation from HallJoy
+
+HallJoy must not download or elevate executable content. Missing ViGEmBus is a
+recoverable dependency diagnostic, not authority for the application to resolve
+a mutable `latest` asset, write it to a shared predictable temp location and
+run it with administrator rights.
+
+The only accepted recovery path is manual guidance to the exact official
+ViGEmBus 1.22.0 release page. Version, URL and `manual-only` policy are pinned in
+`tools/dependency-lock.json` and checked against the immutable production
+constant. HallJoy never reports `Installed`; it stays in degraded mode until the
+user installs the dependency and restarts. This structurally removes both TOCTOU
+and unbounded installer-process waiting from the application.

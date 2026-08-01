@@ -486,6 +486,14 @@ qualification and the hardware matrix.
 - V14-12E is a verified harness/pilot, not the final S21 gate. The required
   1000-cycle run, 8-24 hour soak, reconnect/input exercise and unavailable
   device-owner matrix remain open.
+- `V14-12F/S18` removes the embedded dependency installer instead of trying to
+  contain an unsafe privileged path. HallJoy no longer resolves `latest`,
+  downloads to temp, verifies then executes a mutable file, invokes `runas` or
+  `msiexec`, or waits for an installer on the startup/UI thread.
+- Missing ViGEm now produces truthful manual guidance for the exact official
+  ViGEmBus 1.22.0 release page. Version, URL and `manual-only` policy are pinned
+  in the central dependency lock and matched to the production constant by
+  static gates. S18 is Verified; no physical-device claim is inferred.
 
 ## Release definition
 

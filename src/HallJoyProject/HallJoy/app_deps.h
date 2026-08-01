@@ -4,12 +4,11 @@
 #include <windows.h>
 #include <cstdint>
 
-enum class DependencyInstallResult
+enum class DependencyGuidanceResult
 {
-    Skipped = 0,
-    Installed = 1,
-    Failed = 2,
+    NoAction = 0,
+    ManualInstallRequired = 1,
 };
 
-DependencyInstallResult AppDeps_TryInstallMissingDependencies(HWND hwnd, uint32_t issues);
+DependencyGuidanceResult AppDeps_ShowMissingDependencyGuidance(HWND hwnd, uint32_t issues);
 

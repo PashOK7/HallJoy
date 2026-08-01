@@ -386,3 +386,23 @@ shutdown, zero ERROR. 42 static audit и 26 portable tests PASS. EXE SHA-256:
 V14-08A/B, V14-09A-C, V14-10A-C и V14-04. Production-код и статус hardware/
 soak gates не менялись. Итог машинного пересчёта: 8 Open, 3 Implemented,
 1 Partial, 33 Verified; расхождений между двумя таблицами по 45 ID нет.
+
+## 2026-08-01 — V14-12F / S18 удаление dependency installer
+
+Из `app_deps.cpp` удалены GitHub `latest` resolution, WinHTTP/URLMon download,
+predictable temp, Authenticode-before-execute, `runas`, `msiexec` и бесконечный
+wait. Новый контракт только показывает manual guidance: exact official
+ViGEmBus 1.22.0 URL, установка пользователем и обязательный restart; HallJoy
+не заявляет ложный `Installed` и остаётся degraded.
+
+Pure policy test покрывает четыре комбинации ViGEm/private-runtime issues.
+Central dependency lock и production constant обязаны совпадать по version,
+URL и `manual-only`. Negative installer/static lock audits PASS; 43 static и 27
+portable tests PASS; policy и production TU MSVC `/W4 /WX` PASS; `BUILD.cmd`
+PASS с 0 ошибок. Post-build Irok 3/3: exit 0, shutdown 112-241 ms, 209 HANDLE,
+0 процессов, 11/11 файлов неизменны, 6 309/6 309 routes, trace ERROR 0.
+`HallJoy.exe`: 2 206 208 bytes, SHA-256
+`6B5A3FB1009C1DB0C1916A3843A411EADA90DFAABFF5AE1D4EE08D2CC90E6C83`.
+
+`HJ-AUD-P1-013` и `HJ-AUD-P1-014` Verified. Modal guidance вручную не открывался,
+так как ViGEm установлен; это явно не hardware/device evidence.

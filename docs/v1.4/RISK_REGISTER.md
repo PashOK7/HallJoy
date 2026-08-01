@@ -87,8 +87,8 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P1-010` | P1 | Синхронный ViGEm update находится внутри realtime worker | `S12` | Verified | dedicated output owner, latest-state/multi-pad equivalence and bounded 60-second driver-stall containment passed in V14-08B |
 | `HJ-AUD-P1-011` | P1 | Mouse IPC неверно определяет, создано ли новое mapping | `S15` | Verified | immediate `CreateFileMappingW` disposition capture, preserve/validate-existing runtime self-test and production init trace passed in V14-10A |
 | `HJ-AUD-P1-012` | P1 | Named IPC analog host допускает precreation/spoofing в той же сессии пользователя | `S15` | Verified | named transport removed; explicit inherited-handle list, v10 owner/token schema, child/parent identity checks and invalid-handle restart gate passed in V14-10B |
-| `HJ-AUD-P1-013` | P1 | Встроенный dependency installer имеет TOCTOU и неполную проверку цепочки поставки | `S18` | Open | installer hash/TOCTOU/UI-thread tests |
-| `HJ-AUD-P1-014` | P1 | Dependency installer может навсегда заморозить UI | `S18` | Open | installer hash/TOCTOU/UI-thread tests |
+| `HJ-AUD-P1-013` | P1 | Встроенный dependency installer имеет TOCTOU и неполную проверку цепочки поставки | `S18` | Verified | automatic download/elevation removed; exact official ViGEmBus 1.22.0 manual-only page is lock-pinned and negative primitive audits pass in V14-12F |
+| `HJ-AUD-P1-014` | P1 | Dependency installer может навсегда заморозить UI | `S18` | Verified | installer process launch and every wait path removed; pure guidance policy, MSVC W4/WX, official build and normal Irok regression pass in V14-12F |
 | `HJ-AUD-P1-015` | P1 | UAP plugin не защищает C ABI от исключений и использует ручные lock/unlock | `S10` | Verified | common C ABI barrier, portable exception/RAII test and no-manual-lock static audit passed in V14-07C |
 | `HJ-AUD-P1-016` | P1 | UAP unload выполняет неограниченный join, удерживая глобальный devices mutex | `S10` | Verified | bounded plugin joins occur outside devices mutex; ABI runtime unload and child-process containment gates passed in V14-07C |
 | `HJ-AUD-P2-001` | P2 | Overlay server обслуживает только одного клиента синхронно | `S16` | Verified | fixed 16-client worker table, 8 slow plus 8 parallel state requests, prompt saturation rejection and active-client shutdown passed in V14-10D |
@@ -359,10 +359,10 @@ production build и шестисекундный Irok MG75 Max smoke прошл�
 
 ## Сводка
 
-- P1: 2 open, 3 implemented, 1 partial, 10 verified.
+- P1: 3 implemented, 1 partial, 12 verified.
 - P2: 0 open, 21 verified.
 - P3: 6 open, 2 verified.
-- Всего: 8 open, 3 implemented, 1 partial, 33 verified.
+- Всего: 6 open, 3 implemented, 1 partial, 35 verified.
 
 ## Дополнительный риск, обнаруженный при Windows gate S02A
 

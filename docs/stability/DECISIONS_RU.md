@@ -199,3 +199,13 @@ evidence notes. При расхождении статус переноситс�
 зафиксированным package evidence; наличие кода без обязательного gate не даёт
 права повысить статус. Reconciliation 2026-08-01 синхронизировал все 45 общих
 ID, не меняя hardware/soak ограничения V14-12.
+
+## D-S18-001 — runtime не имеет права устанавливать privileged dependencies
+
+Отказ от автоматической установки безопаснее отдельного helper: HallJoy больше
+не получает полномочий скачивать mutable executable, писать его в temp и
+запускать elevated. При отсутствии ViGEmBus приложение показывает точную
+официальную страницу версии 1.22.0 и остаётся degraded до ручной установки и
+перезапуска. URL, версия и `manual-only` закреплены в dependency lock и
+production constant. Никакой timeout не используется как маскировка живого
+installer process — самого process launch в HallJoy больше нет.

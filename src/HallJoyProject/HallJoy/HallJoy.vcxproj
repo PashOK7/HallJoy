@@ -220,6 +220,7 @@
     <ClInclude Include="analog_simulator_backend.h" />
     <ClInclude Include="analog_simulator_model.h" />
     <ClInclude Include="app_deps.h" />
+    <ClInclude Include="dependency_guidance_policy.h" />
     <ClInclude Include="app_paths.h" />
     <ClInclude Include="file_name_policy.h" />
     <ClInclude Include="backend.h" />

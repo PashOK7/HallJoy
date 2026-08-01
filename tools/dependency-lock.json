@@ -41,6 +41,13 @@
       }
     }
   },
+  "runtimeDependencies": {
+    "vigemBus": {
+      "version": "1.22.0",
+      "releasePage": "https://github.com/nefarius/ViGEmBus/releases/tag/v1.22.0",
+      "installationPolicy": "manual-only"
+    }
+  },
   "binaryInputs": {
     "vigemClient": {
       "path": "src/HallJoyProject/third_party/ViGEmClient/lib/release/x64/ViGEmClient.lib",

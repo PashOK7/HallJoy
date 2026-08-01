@@ -10,6 +10,8 @@ workflow = (repo / ".github" / "workflows" / "native-backend-checks.yml").read_t
 build = (repo / "tools" / "build.ps1").read_text(encoding="utf-8-sig")
 plugin_build = (repo / "third_party" / "UniversalAnalogPluginFixed" / "tools" /
                 "build_fixed_plugin.ps1").read_text(encoding="utf-8-sig")
+guidance_policy = (repo / "src" / "HallJoyProject" / "HallJoy" /
+                   "dependency_guidance_policy.h").read_text(encoding="utf-8-sig")
 
 
 def full_sha(value: str) -> bool:
@@ -29,6 +31,14 @@ checks = {
     "GitHub Actions use immutable commits": all(
         full_sha(action["commit"]) for action in lock["githubActions"].values()
     ),
+    "manual ViGEm runtime dependency is immutable and matches production":
+        lock["runtimeDependencies"]["vigemBus"] == {
+            "version": "1.22.0",
+            "releasePage": "https://github.com/nefarius/ViGEmBus/releases/tag/v1.22.0",
+            "installationPolicy": "manual-only",
+        } and
+        'kPinnedVigemVersion[] = L"1.22.0"' in guidance_policy and
+        'L"https://github.com/nefarius/ViGEmBus/releases/tag/v1.22.0"' in guidance_policy,
     "workflow uses fixed runner labels":
         f'runs-on: {lock["toolchains"]["linuxRunner"]}' in workflow and
         f'runs-on: {lock["toolchains"]["windowsRunner"]}' in workflow and

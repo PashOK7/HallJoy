@@ -969,25 +969,24 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         {
             uint32_t issues = Backend_GetLastInitIssues();
             DebugLog_Write(L"[app] Backend_Init failed issues=0x%08X", issues);
-            DependencyInstallResult depRes = AppDeps_TryInstallMissingDependencies(hwnd, issues);
+            const DependencyGuidanceResult depRes =
+                AppDeps_ShowMissingDependencyGuidance(hwnd, issues);
             bool backendReady = false;
 
-            if (depRes == DependencyInstallResult::Installed)
+            if (depRes == DependencyGuidanceResult::NoAction)
             {
-                // First try to continue in the same process after installer finished.
+                // A transient private-runtime failure may clear without external
+                // action. ViGEm manual-install guidance deliberately never claims
+                // that a dependency changed inside this process.
                 backendReady = Backend_Init();
-                DebugLog_Write(L"[app] Backend_Init after install result=%d issues=0x%08X", backendReady ? 1 : 0, Backend_GetLastInitIssues());
-            }
-            else if (depRes != DependencyInstallResult::Failed)
-            {
-                // User skipped/canceled install: give backend one more direct try.
-                backendReady = Backend_Init();
-                DebugLog_Write(L"[app] Backend_Init retry after skip result=%d issues=0x%08X", backendReady ? 1 : 0, Backend_GetLastInitIssues());
+                DebugLog_Write(L"[app] Backend_Init retry after guidance result=%d issues=0x%08X",
+                    backendReady ? 1 : 0, Backend_GetLastInitIssues());
             }
 
-            if (depRes == DependencyInstallResult::Failed || !backendReady)
+            if (!backendReady)
             {
-                DebugLog_Write(L"[app] backend not ready, continue in degraded mode");
+                DebugLog_Write(L"[app] backend not ready, continue in degraded mode manual_install_required=%d",
+                    depRes == DependencyGuidanceResult::ManualInstallRequired ? 1 : 0);
                 backendInitialised = false;
             }
             else

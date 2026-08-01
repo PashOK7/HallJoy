@@ -302,6 +302,13 @@ V14-11 завершён code-level проверками; физические CP
 - безопасная очистка;
 - предпочтительно отделить installer helper от основного runtime.
 
+Статус v1.4: `Verified` в V14-12F более строгим решением — встроенный installer
+полностью удалён. HallJoy не скачивает, не запускает и не повышает привилегии
+для dependency-файлов и не ждёт installer process. Вместо этого показывается
+закреплённая официальная страница ViGEmBus 1.22.0; version/URL/manual-only policy
+совпадают между central dependency lock и production constant. Negative static,
+portable policy, MSVC `/W4 /WX`, официальный build и normal Irok gates прошли.
+
 ### S19 — Modularization without behavior change
 
 Только после стабилизации и characterization tests:

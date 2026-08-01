@@ -230,6 +230,9 @@
     <ClInclude Include="app_deps.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="dependency_guidance_policy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="app_paths.h">
       <Filter>Header Files</Filter>
     </ClInclude>

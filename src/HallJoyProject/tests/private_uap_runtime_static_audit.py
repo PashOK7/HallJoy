@@ -44,8 +44,9 @@ checks = {
         "WootingKb/wooting-analog-sdk" not in deps and
         "WootingAnalogPlugins" not in deps and
         "AnalogSense/universal-analog-plugin" not in deps,
-    "ViGEm remains the only downloadable runtime dependency":
-        "ViGEm/ViGEmBus" in deps and "RunInstallerElevatedAndWait" in deps,
+    "private runtime recovery never invokes a system installer":
+        "never downloads, starts, or elevates an installer" in deps and
+        "AppDeps_ShowMissingDependencyGuidance" in deps,
     "runtime scenario can force and verify per-user fallback":
         "ForceUserUapRuntime" in runner and "location=user" in runner,
 }

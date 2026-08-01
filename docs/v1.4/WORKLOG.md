@@ -1567,3 +1567,42 @@
 - The repeatable normal-cycle harness and 25-cycle pilot are Verified locally.
 - This does not close the required 1000-cycle run, 8-24 hour soak, key/input
   exercise, reconnect or unavailable hardware-owner gates.
+
+## 2026-08-01 - V14-12F / S18 dependency installer removal
+
+### Implementation
+
+- Deleted runtime GitHub API/latest resolution, WinHTTP/URLMon download,
+  predictable temp output, Authenticode-before-execute, `runas`, `msiexec` and
+  infinite installer waits from `app_deps.cpp`.
+- Replaced the install contract with truthful manual guidance. When ViGEmBus is
+  absent HallJoy displays exact version 1.22.0 and the official pinned release
+  page, then remains in degraded mode until manual installation and restart.
+- Added a pure constexpr guidance plan. Its four issue combinations and exact
+  URL/version are portable-tested. The dependency lock independently pins the
+  same version, URL and `manual-only` policy.
+- Updated the private-UAP recovery audit: a system SDK/global UAP remains
+  explicitly irrelevant, and no dependency installer exists in that path.
+
+### Validation
+
+- Installer-removal and dependency-lock negative static gates: PASS. Forbidden
+  production tokens include URLDownload, WinHTTP, WinVerifyTrust, ShellExecute,
+  runas, msiexec, waits and `releases/latest`.
+- 43 repository static audits and 27 portable C++20 tests: PASS.
+- Policy test and production `app_deps.cpp`: MSVC `/W4 /WX` PASS.
+- Final official `BUILD.cmd`: PASS, zero errors and only allowlisted LNK4099.
+- Post-build normal Irok regression: 3/3 cycles, exit zero, shutdown 112-241 ms,
+  stable 209 HANDLE, zero remaining processes and 11 unchanged user files.
+  Final trace recorded 6,309/6,309 successful SparkLink route queries and no
+  ERROR event.
+- `HallJoy.exe`: 2,206,208 bytes, SHA-256
+  `6B5A3FB1009C1DB0C1916A3843A411EADA90DFAABFF5AE1D4EE08D2CC90E6C83`.
+
+### Package result
+
+- `HJ-AUD-P1-013` and `HJ-AUD-P1-014`: Verified. The dangerous installer path
+  is absent rather than hidden behind a timeout.
+- The missing-ViGEm modal was not opened manually because this workstation has
+  ViGEm installed; message/policy correctness is covered structurally and by the
+  pure test. Normal installed-driver behavior is runtime-verified on Irok.

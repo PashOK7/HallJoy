@@ -1472,3 +1472,39 @@ Evidence:
   docs/stability/tests/V14-12E_RELEASE_CYCLES_2026-08-01.txt
 Rollback: parent commit of the V14-12E implementation commit
 ```
+
+## V14-12F / S18 dependency guidance evidence
+
+```text
+Package: V14-12F / S18
+Scope: remove embedded privileged installer and provide pinned manual guidance
+Commands:
+  python src/HallJoyProject/tests/dependency_installer_removal_static_audit.py
+  python src/HallJoyProject/tests/dependency_lock_static_audit.py
+  python tools/run_native_backend_checks.py --require-compiler
+  cl /std:c++20 /EHsc /permissive- /W4 /WX dependency_guidance_policy_test.cpp
+  cl /c /std:c++20 /EHsc /permissive- /W4 /WX app_deps.cpp
+  cmd /c BUILD.cmd
+  tools/run_release_qualification.ps1 -Cycles 3 -RunSeconds 2
+Results:
+  Installer/download/elevation/wait primitives absent: PASS
+  Exact 1.22.0 URL and manual-only lock/production match: PASS
+  Static audits: 43 PASS
+  Portable C++20 tests: 27 PASS
+  MSVC W4/WX targeted gates: PASS
+  Official x64 Release build: PASS, 0 errors
+  Normal production cycles: 3/3 PASS; exit 0; fault injection false
+  Shutdown: 112-241 ms; max handles 209; remaining processes 0
+  User state: 11/11 files, 0 changed
+  Irok final trace: route_ok=6309, route_fail=0, trace ERROR=0
+Artifact:
+  build/output/HallJoy.exe
+  Size: 2,206,208 bytes
+  SHA-256: 6B5A3FB1009C1DB0C1916A3843A411EADA90DFAABFF5AE1D4EE08D2CC90E6C83
+Limit: ViGEm was already installed, so the modal guidance was not manually
+  displayed. Its exact message/policy and inability to execute are covered by
+  pure/static gates. This is not a device compatibility gate.
+Evidence:
+  docs/stability/tests/V14-12F_S18_INSTALLER_REMOVAL_2026-08-01.txt
+Rollback: parent commit of the V14-12F implementation commit
+```

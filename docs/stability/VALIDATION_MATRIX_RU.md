@@ -112,3 +112,9 @@ Addressed и Sayo также требуют реального hardware gate д�
   PASS; shutdown 138-326 ms, 11/11 файлов неизменны. Один transient peak 225
   HANDLE вернулся к обычным 218 и не накапливался. Финальные 1000 циклов,
   8-24-часовой soak, reconnect/input и device-owner matrix остаются открыты.
+- S18/V14-12F: embedded dependency installer удалён. Negative audit запрещает
+  download/WinHTTP/AuthentiCode/ShellExecute/runas/msiexec/wait/latest в
+  production recovery; exact ViGEmBus 1.22.0 manual page совпадает с central
+  lock. 43 static, 27 portable, MSVC `/W4 /WX`, официальный build и post-build
+  Irok 3/3 PASS. Modal missing-ViGEm guidance не открывался из-за установленного
+  драйвера; его policy проверен pure/static gates, не hardware наблюдением.

@@ -107,6 +107,7 @@ def main() -> int:
             ("input_wake_sequence", [tests / "input_wake_sequence_test.cpp"]),
             ("publication_generation", [tests / "publication_generation_test.cpp"]),
             ("transactional_file_store", [tests / "transactional_file_store_test.cpp"]),
+            ("dependency_guidance_policy", [tests / "dependency_guidance_policy_test.cpp"]),
             ("uap_cabi_guard", [tests / "uap_cabi_guard_test.cpp"]),
             ("uap_device_identity", [tests / "uap_device_identity_test.cpp"]),
             ("uap_poll_pacing", [tests / "uap_poll_pacing_test.cpp"]),

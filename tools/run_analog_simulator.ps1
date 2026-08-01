@@ -7,6 +7,7 @@ param(
     [switch]$InjectDebugLogStopTimeout,
     [switch]$InjectOverlayStopTimeout,
     [switch]$InjectSparkStopTimeout,
+    [switch]$InjectAddressedStopTimeout,
     [switch]$InjectSparkShutdownRace,
     [switch]$InjectSayoStopTimeout,
     [switch]$InjectSayoReaderCppFault,
@@ -38,6 +39,7 @@ $injectionCount = @(
     $InjectDebugLogStopTimeout.IsPresent,
     $InjectOverlayStopTimeout.IsPresent,
     $InjectSparkStopTimeout.IsPresent,
+    $InjectAddressedStopTimeout.IsPresent,
     $InjectSparkShutdownRace.IsPresent,
     $InjectSayoStopTimeout.IsPresent,
     $InjectSayoReaderCppFault.IsPresent,
@@ -202,6 +204,9 @@ if ($InjectOverlayStopTimeout) {
 }
 if ($InjectSparkStopTimeout) {
     $arguments += '--halljoy-test-spark-stop-timeout'
+}
+if ($InjectAddressedStopTimeout) {
+    $arguments += '--halljoy-test-addressed-stop-timeout'
 }
 if ($InjectSparkShutdownRace) {
     $arguments += '--halljoy-test-spark-service-shutdown'
@@ -375,6 +380,9 @@ if ($InjectOverlayStopTimeout -and $process.ExitCode -ne 2) {
 if ($InjectSparkStopTimeout -and $process.ExitCode -ne 2) {
     throw "Spark-timeout simulator exited with code $($process.ExitCode), expected 2."
 }
+if ($InjectAddressedStopTimeout -and $process.ExitCode -ne 2) {
+    throw "Addressed-timeout simulator exited with code $($process.ExitCode), expected 2."
+}
 if ($InjectSparkShutdownRace -and $process.ExitCode -ne 0) {
     throw "Spark service-shutdown simulator exited with code $($process.ExitCode), expected 0."
 }
@@ -463,6 +471,14 @@ $required = if ($RequireStorageMigrationFailure) { @(
     '[component=spark][event=test.stop_timeout.injected] simulator_only=1',
     '[component=spark][event=stop.timeout]',
     'thread_handle_retained=1 hid_handle_retained=0 stop_event_retained=1 restart_blocked=1',
+    '[component=native-registry][event=stop.incomplete]',
+    '[component=app][event=shutdown.poisoned] component=native-analog dependent_cleanup_skipped=1',
+    '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
+) } elseif ($InjectAddressedStopTimeout) { @(
+    '[component=addressed][event=test.start] simulator_only=1',
+    '[component=addressed][event=test.stop_timeout.injected] simulator_only=1',
+    '[component=addressed][event=stop.incomplete]',
+    'thread_handle_retained=1 signal_handles_retained=1 reader_handle_retained=0 restart_blocked=1',
     '[component=native-registry][event=stop.incomplete]',
     '[component=app][event=shutdown.poisoned] component=native-analog dependent_cleanup_skipped=1',
     '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
@@ -699,6 +715,8 @@ if ($RequireStorageMigrationFailure) {
     Write-Host 'HallJoy overlay timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectSparkStopTimeout) {
     Write-Host 'HallJoy SparkLink timeout containment scenario: PASS' -ForegroundColor Green
+} elseif ($InjectAddressedStopTimeout) {
+    Write-Host 'HallJoy Addressed timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectSparkShutdownRace) {
     Write-Host 'HallJoy SparkLink service-stop reconnect suppression scenario: PASS' -ForegroundColor Green
 } elseif ($InjectSayoStopTimeout) {

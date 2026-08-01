@@ -1320,3 +1320,42 @@ Evidence:
   docs/stability/tests/V14-12A_AULA_WIN60HE_FIRMWARE_PROVEN_2026-08-01.txt
 Rollback: checkpoint c4b6d36810581d716af322386040745ffca2042d
 ```
+
+## V14-12B / S06 evidence
+
+```text
+Package: V14-12B / S06
+Scope: Addressed reader-owned OVERLAPPED lifetime and bounded outer shutdown
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  cl.exe /std:c++20 /EHsc /permissive- /W4 /WX /c
+    src/HallJoyProject/HallJoy/addressed_analog_backend.cpp
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1
+    -InjectAddressedStopTimeout -RunSeconds 7
+  cmd /c BUILD.cmd
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -RunSeconds 15
+Results:
+  Reader-only HID handle close and cancellation-reap audit: PASS
+  No ForceCloseReaderHandle/TerminateThread: PASS
+  Bounded 3000 ms main worker join and resource retention: PASS
+  Registry truthful stop/poison and dependent cleanup containment: PASS
+  Complete repository gate: 39/39 static audits, 26/26 portable tests PASS
+  MSVC 19.44 /W4 /WX: PASS
+  Simulator Addressed stop-timeout containment: PASS, exit code 2
+  Packet constructors and session polling core: token-identical
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: only allowlisted LNK4099 ViGEm PDB diagnostic
+  Production Irok route: 57,161 successful queries, one shutdown cancellation,
+    291 us average and 434 us maximum route interval
+  Shutdown: balanced, exit 0, zero trace ERROR; 11 user files unchanged
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,270,208 bytes
+  SHA-256: 3D05EE5FA435343E633B991DC45B949C1484AD06CC086F993C6D788255510F7E
+Hardware: Irok regression PASS; Addressed physical hardware NOT AVAILABLE
+Status: Implemented; Addressed device gate deferred
+Evidence:
+  docs/stability/tests/V14-12B_S06_ADDRESSED_IO_OWNERSHIP_2026-08-01.txt
+Rollback: parent commit of the V14-12B implementation commit
+```

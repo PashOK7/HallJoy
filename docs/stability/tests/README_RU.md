@@ -51,3 +51,6 @@ Baseline-лог исходной версии хранится отдельно 
   перепроверка firmware/oracle, exact read-only protocol, parser/end-to-end/
   session-policy tests, три toolchain-gate, официальный build и Irok regression.
   Статус Aula явно ограничен `hardware-unvalidated`.
+- `V14-12B_S06_ADDRESSED_IO_OWNERSHIP_2026-08-01.txt` — reader-owned HID/
+  `OVERLAPPED` lifetime, bounded outer join, retained-generation timeout
+  injection, unchanged packet/polling core и реальный Irok regression.

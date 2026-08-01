@@ -12,7 +12,9 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdarg>
+#include <cwchar>
 #include <mutex>
+#include <process.h>
 #include <string>
 #include <thread>
 #include <vector>
@@ -26,6 +28,7 @@
 #include "native_analog_routing.h"
 #include "realtime_loop.h"
 #include "worker_exception_barrier.h"
+#include "worker_join_policy.h"
 
 #pragma comment(lib, "setupapi.lib")
 #pragma comment(lib, "hid.lib")
@@ -39,7 +42,7 @@ constexpr DWORD kResponseTimeoutMs = 8;
 constexpr DWORD kLateResponseWindowMs = 20;
 constexpr DWORD kReadWaitMs = 100;
 constexpr DWORD kReaderStopWaitMs = 750;
-constexpr DWORD kReaderForceCloseWaitMs = 750;
+constexpr DWORD kStopJoinTimeoutMs = 3000;
 constexpr std::uint32_t kMaxConsecutiveResponseMisses = 8;
 constexpr std::uint64_t kMaxNoResponseUs = 1000000ull;
 constexpr DWORD kProbeMapWindowMs = 35;
@@ -183,7 +186,7 @@ std::array<std::atomic<ULONGLONG>, 256> g_sampleMs{};
 HANDLE g_wakeEvent = nullptr;
 HANDLE g_responseEvent = nullptr;
 HANDLE g_readerExitEvent = nullptr;
-std::thread g_thread;
+HANDLE g_threadHandle = nullptr;
 std::atomic<bool> g_workerExited{true};
 halljoy::worker::WorkerExceptionRecord g_workerFaultRecord{};
 std::atomic<halljoy::worker::WorkerExceptionKind> g_workerFaultKind{
@@ -199,6 +202,8 @@ std::mutex g_schedulerMutex;
 std::mutex g_statsMutex;
 std::mutex g_claimMutex;
 std::mutex g_probeMutex;
+std::mutex g_serviceMutex;
+std::mutex g_signalMutex;
 std::mutex g_readerHandleMutex;
 HANDLE g_readerHandle = INVALID_HANDLE_VALUE;
 addressed::PollScheduler* g_scheduler = nullptr;
@@ -209,6 +214,17 @@ std::array<TraceRecord, kTraceCount> g_trace{};
 std::size_t g_traceNext = 0;
 ULONGLONG g_lastTraceDumpMs = 0;
 ClaimState g_claim{};
+
+bool InjectStopTimeout() noexcept
+{
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    return commandLine &&
+        wcsstr(commandLine, L"--halljoy-test-addressed-stop-timeout");
+#else
+    return false;
+#endif
+}
 
 std::uint64_t NowUs()
 {
@@ -842,16 +858,10 @@ void CancelReaderIo()
         CancelIoEx(g_readerHandle, nullptr);
 }
 
-void ForceCloseReaderHandle()
+bool ReaderHandleIsRegistered()
 {
-    HANDLE handle = INVALID_HANDLE_VALUE;
-    {
-        std::lock_guard<std::mutex> lock(g_readerHandleMutex);
-        handle = g_readerHandle;
-        g_readerHandle = INVALID_HANDLE_VALUE;
-    }
-    if (handle && handle != INVALID_HANDLE_VALUE)
-        CloseHandle(handle);
+    std::lock_guard<std::mutex> lock(g_readerHandleMutex);
+    return g_readerHandle && g_readerHandle != INVALID_HANDLE_VALUE;
 }
 
 void RecordRtt(std::uint32_t rtt)
@@ -979,8 +989,9 @@ std::uint32_t ReaderLoopBody(const HidPath* path)
         return 0u;
     }
 
-    // Ownership is registered so the shutdown thread can cancel or, as a
-    // last resort, close the exact handle that owns the pending overlapped read.
+    // The reader generation exclusively owns and closes this HID handle. Other
+    // threads may only request cancellation; buffer/OVERLAPPED/event lifetimes
+    // remain on this stack until CancelAndDrain confirms completion.
     HANDLE handle = opened.value;
     opened.value = INVALID_HANDLE_VALUE;
     RegisterReaderHandle(handle);
@@ -1021,7 +1032,9 @@ std::uint32_t ReaderLoopBody(const HidPath* path)
                 continue;
             }
         }
-        if (ok && transferred)
+        if (ok && transferred &&
+            !g_stop.load(std::memory_order_acquire) &&
+            !g_deviceChanged.load(std::memory_order_acquire))
             PublishResponse(buffer.data(), transferred, NowUs());
         else if (error == ERROR_INVALID_HANDLE || error == ERROR_DEVICE_NOT_CONNECTED ||
             error == ERROR_OPERATION_ABORTED)
@@ -1280,11 +1293,13 @@ bool RunSession(const HidPath& path, const DeviceProfile& profile)
         CancelReaderIo();
         if (g_readerExitEvent && WaitForSingleObject(g_readerExitEvent, kReaderStopWaitMs) != WAIT_OBJECT_0)
         {
-            SupportLog(L"reader cancellation delayed; force-closing HID handle");
-            StabilityTrace_WriteCritical(L"ERROR", L"addressed.reader", L"force_close", L"phase=normal_cleanup");
-            ForceCloseReaderHandle();
-            WaitForSingleObject(g_readerExitEvent, kReaderForceCloseWaitMs);
+            SupportLog(L"reader cancellation reap delayed; preserving reader-owned HID resources");
+            StabilityTrace_WriteCritical(L"ERROR", L"addressed.reader", L"cancellation_reap_delayed",
+                L"phase=normal_cleanup owner=reader resources_retained=1");
         }
+        // This join is deliberately inside the main worker. If the kernel never
+        // reaps the cancelled request, the externally visible main-worker wait
+        // times out while this stack and every reader-owned resource stay alive.
         if (reader.joinable()) reader.join();
         {
             std::lock_guard<std::mutex> schedulerLock(g_schedulerMutex);
@@ -1307,9 +1322,8 @@ bool RunSession(const HidPath& path, const DeviceProfile& profile)
         CancelReaderIo();
         if (g_readerExitEvent && WaitForSingleObject(g_readerExitEvent, kReaderStopWaitMs) != WAIT_OBJECT_0)
         {
-            StabilityTrace_WriteCritical(L"ERROR", L"addressed.reader", L"force_close", L"phase=exception_cleanup");
-            ForceCloseReaderHandle();
-            WaitForSingleObject(g_readerExitEvent, kReaderForceCloseWaitMs);
+            StabilityTrace_WriteCritical(L"ERROR", L"addressed.reader", L"cancellation_reap_delayed",
+                L"phase=exception_cleanup owner=reader resources_retained=1");
         }
         if (reader.joinable()) reader.join();
         {
@@ -1327,6 +1341,18 @@ bool RunSession(const HidPath& path, const DeviceProfile& profile)
 
 std::uint32_t AddressedWorkerBody()
 {
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    if (InjectStopTimeout())
+    {
+        StabilityTrace_Write(L"INFO", L"addressed", L"test.start", L"simulator_only=1");
+        while (!g_stop.load(std::memory_order_acquire))
+            WaitForSingleObject(g_wakeEvent, 100);
+        StabilityTrace_Write(L"WARN", L"addressed", L"test.stop_timeout.injected",
+            L"simulator_only=1");
+        Sleep(INFINITE);
+    }
+#endif
+
     while (!g_stop.load(std::memory_order_acquire))
     {
         g_deviceChanged.store(false, std::memory_order_release);
@@ -1381,14 +1407,14 @@ void AddressedWorkerOnCompletion(
         L"addressed", L"worker.exit", L"fault_kind=%u", static_cast<unsigned>(record.kind));
 }
 
-void AddressedWorkerEntry() noexcept
+unsigned __stdcall AddressedWorkerEntry(void*) noexcept
 {
     StabilityTrace_Write(L"INFO", L"addressed", L"worker.start");
-    (void)halljoy::worker::RunWorkerEntryBarrier(
+    return static_cast<unsigned>(halljoy::worker::RunWorkerEntryBarrier(
         [] { return AddressedWorkerBody(); },
         AddressedWorkerOnFault,
         AddressedWorkerOnCompletion,
-        0xE0520005u);
+        0xE0520005u));
 }
 } // namespace
 
@@ -1405,21 +1431,14 @@ bool AddressedAnalog_PrepareProtocolRouting()
 
 bool AddressedAnalog_Start()
 {
-    if (!AddressedAnalog_PrepareProtocolRouting()) return false;
+    std::lock_guard<std::mutex> serviceLock(g_serviceMutex);
+    const bool injectStopTimeout = InjectStopTimeout();
+    if (!injectStopTimeout && !AddressedAnalog_PrepareProtocolRouting()) return false;
+    if (g_threadHandle)
+        return g_running.load(std::memory_order_acquire);
     bool expected = false;
     if (!g_running.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) return true;
 
-    // A completed/faulted std::thread remains joinable until its owner reaps it.
-    // Reap before assigning the next generation to avoid std::terminate.
-    if (g_thread.joinable())
-    {
-        try { g_thread.join(); }
-        catch (...)
-        {
-            g_running.store(false, std::memory_order_release);
-            return false;
-        }
-    }
     g_workerFaultRecord = {};
     g_workerFaultKind.store(halljoy::worker::WorkerExceptionKind::None,
         std::memory_order_release);
@@ -1431,37 +1450,47 @@ bool AddressedAnalog_Start()
     g_deviceChanged.store(false, std::memory_order_release);
     QueryPerformanceFrequency(&g_qpcFreq);
     QueryPerformanceCounter(&g_qpcStart);
-    g_wakeEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-    g_responseEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
-    g_readerExitEvent = CreateEventW(nullptr, TRUE, TRUE, nullptr);
-    if (!g_wakeEvent || !g_responseEvent || !g_readerExitEvent)
     {
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
+        g_wakeEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        g_responseEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+        g_readerExitEvent = CreateEventW(nullptr, TRUE, TRUE, nullptr);
+        if (!g_wakeEvent || !g_responseEvent || !g_readerExitEvent)
+        {
+            if (g_wakeEvent) CloseHandle(g_wakeEvent);
+            if (g_responseEvent) CloseHandle(g_responseEvent);
+            if (g_readerExitEvent) CloseHandle(g_readerExitEvent);
+            g_wakeEvent = g_responseEvent = g_readerExitEvent = nullptr;
+            g_workerExited.store(true, std::memory_order_release);
+            g_running.store(false, std::memory_order_release);
+            StabilityTrace_WriteCritical(L"ERROR", L"addressed", L"start.failed", L"stage=create_events");
+            return false;
+        }
+    }
+
+    // The startup routing pass already proved and reserved the device before UAP.
+    unsigned threadId = 0;
+    const uintptr_t thread = _beginthreadex(
+        nullptr, 0, AddressedWorkerEntry, nullptr, 0, &threadId);
+    if (thread == 0)
+    {
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
         if (g_wakeEvent) CloseHandle(g_wakeEvent);
         if (g_responseEvent) CloseHandle(g_responseEvent);
         if (g_readerExitEvent) CloseHandle(g_readerExitEvent);
         g_wakeEvent = g_responseEvent = g_readerExitEvent = nullptr;
         g_workerExited.store(true, std::memory_order_release);
         g_running.store(false, std::memory_order_release);
-        StabilityTrace_WriteCritical(L"ERROR", L"addressed", L"start.failed", L"stage=create_events");
-        return false;
-    }
-
-    // The startup routing pass already proved and reserved the device before UAP.
-    try { g_thread = std::thread(AddressedWorkerEntry); }
-    catch (...)
-    {
-        CloseHandle(g_wakeEvent);
-        CloseHandle(g_responseEvent);
-        CloseHandle(g_readerExitEvent);
-        g_wakeEvent = g_responseEvent = g_readerExitEvent = nullptr;
-        g_workerExited.store(true, std::memory_order_release);
-        g_running.store(false, std::memory_order_release);
         StabilityTrace_WriteCritical(L"ERROR", L"addressed", L"start.failed", L"stage=create_thread");
         return false;
     }
-    if (g_workerExited.load(std::memory_order_acquire))
+    g_threadHandle = reinterpret_cast<HANDLE>(thread);
+    if (WaitForSingleObject(g_threadHandle, 0) == WAIT_OBJECT_0 &&
+        !g_running.load(std::memory_order_acquire))
     {
-        if (g_thread.joinable()) g_thread.join();
+        CloseHandle(g_threadHandle);
+        g_threadHandle = nullptr;
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
         if (g_wakeEvent) CloseHandle(g_wakeEvent);
         if (g_responseEvent) CloseHandle(g_responseEvent);
         if (g_readerExitEvent) CloseHandle(g_readerExitEvent);
@@ -1470,38 +1499,76 @@ bool AddressedAnalog_Start()
         StabilityTrace_WriteCritical(L"ERROR", L"addressed", L"start.failed", L"stage=worker_early_exit");
         return false;
     }
-    StabilityTrace_Write(L"INFO", L"addressed", L"start.ok");
+    StabilityTrace_Write(L"INFO", L"addressed", L"start.ok", L"thread_id=%u", threadId);
     return true;
 }
 
-void AddressedAnalog_Stop()
+halljoy::lifecycle::StopResult AddressedAnalog_StopGeneration(
+    halljoy::lifecycle::GenerationId generation)
 {
-    if (!g_running.load(std::memory_order_acquire) && !g_thread.joinable()) return;
-    StabilityTrace_Write(L"INFO", L"addressed", L"stop.begin", L"joinable=%d", g_thread.joinable() ? 1 : 0);
+    std::lock_guard<std::mutex> serviceLock(g_serviceMutex);
+    if (!g_threadHandle)
+        return NativeAnalogBackendStopJoined(generation);
+    StabilityTrace_Write(L"INFO", L"addressed", L"stop.begin", L"worker_handle=1");
     g_stop.store(true, std::memory_order_release);
     g_deviceChanged.store(true, std::memory_order_release);
-    if (g_wakeEvent) SetEvent(g_wakeEvent);
-    if (g_responseEvent) SetEvent(g_responseEvent);
+    ResetPublished();
+    {
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
+        if (g_wakeEvent) SetEvent(g_wakeEvent);
+        if (g_responseEvent) SetEvent(g_responseEvent);
+    }
     CancelReaderIo();
-    if (g_thread.joinable()) g_thread.join();
-    if (g_wakeEvent) CloseHandle(g_wakeEvent);
-    if (g_responseEvent) CloseHandle(g_responseEvent);
-    if (g_readerExitEvent) CloseHandle(g_readerExitEvent);
-    g_wakeEvent = g_responseEvent = g_readerExitEvent = nullptr;
+
+    const DWORD wait = WaitForSingleObject(g_threadHandle, kStopJoinTimeoutMs);
+    if (wait != WAIT_OBJECT_0)
+    {
+        const DWORD error = wait == WAIT_TIMEOUT ? WAIT_TIMEOUT : GetLastError();
+        StabilityTrace_WriteCritical(L"ERROR", L"addressed", L"stop.incomplete",
+            L"wait=%lu native_error=%lu thread_handle_retained=1 signal_handles_retained=1 reader_handle_retained=%d restart_blocked=1",
+            static_cast<unsigned long>(wait), static_cast<unsigned long>(error),
+            ReaderHandleIsRegistered() ? 1 : 0);
+        return halljoy::lifecycle::ObserveWorkerJoin(
+            generation,
+            wait == WAIT_TIMEOUT
+                ? halljoy::lifecycle::JoinWaitStatus::TimedOut
+                : halljoy::lifecycle::JoinWaitStatus::Failed,
+            error);
+    }
+
+    CloseHandle(g_threadHandle);
+    g_threadHandle = nullptr;
+    {
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
+        if (g_wakeEvent) CloseHandle(g_wakeEvent);
+        if (g_responseEvent) CloseHandle(g_responseEvent);
+        if (g_readerExitEvent) CloseHandle(g_readerExitEvent);
+        g_wakeEvent = g_responseEvent = g_readerExitEvent = nullptr;
+    }
     {
         std::lock_guard<std::mutex> lock(g_claimMutex);
         g_claim = ClaimState{};
     }
     g_running.store(false, std::memory_order_release);
     StabilityTrace_Write(L"INFO", L"addressed", L"neutralized", L"reason=stop");
-    StabilityTrace_Write(L"INFO", L"addressed", L"stop.end");
+    StabilityTrace_Write(L"INFO", L"addressed", L"stop.joined");
+    return NativeAnalogBackendStopJoined(generation);
+}
+
+void AddressedAnalog_Stop()
+{
+    (void)AddressedAnalog_StopGeneration(halljoy::lifecycle::GenerationId{});
 }
 
 void AddressedAnalog_NotifyDeviceChange()
 {
     g_deviceChanged.store(true, std::memory_order_release);
-    if (g_wakeEvent) SetEvent(g_wakeEvent);
-    if (g_responseEvent) SetEvent(g_responseEvent);
+    std::unique_lock<std::mutex> signalLock(g_signalMutex, std::try_to_lock);
+    if (signalLock.owns_lock())
+    {
+        if (g_wakeEvent) SetEvent(g_wakeEvent);
+        if (g_responseEvent) SetEvent(g_responseEvent);
+    }
     CancelReaderIo();
 }
 
@@ -1601,8 +1668,7 @@ const NativeAnalogBackendDescriptor& AddressedAnalog_GetNativeBackendDescriptor(
         &AddressedAnalog_PrepareProtocolRouting,
         &AddressedAnalog_Start,
         [](halljoy::lifecycle::GenerationId generation) {
-            AddressedAnalog_Stop();
-            return NativeAnalogBackendStopJoined(generation);
+            return AddressedAnalog_StopGeneration(generation);
         },
         &AddressedAnalog_NotifyDeviceChange,
         &AddressedAnalog_IsProtocolDevicePresent,

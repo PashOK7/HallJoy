@@ -1415,3 +1415,44 @@
   and the available Irok route shows no regression. Physical Aula input,
   unplug/reconnect, multiple devices and other firmware versions remain open;
   no hardware-tested claim is made.
+
+## 2026-08-01 - V14-12B / S06 Addressed overlapped-I/O ownership
+
+### Implementation
+
+- Removed the cross-thread `ForceCloseReaderHandle` fallback. The Addressed
+  reader now exclusively closes its HID handle after its stack `OVERLAPPED`,
+  event and caller-owned buffer reach terminal completion.
+- Cancellation remains cross-thread and cooperative; a completion racing stop
+  is discarded instead of republishing non-neutral input.
+- Moved the outer Addressed worker to a waitable `_beginthreadex` handle. Stop
+  has one three-second deadline and returns a truthful generation-scoped result.
+  Timeout retains the thread, signal events, active reader ownership and claim,
+  so the native registry poisons restart and application teardown uses process
+  containment.
+- Added a simulator-only stop-timeout path and runner assertions for exit code 2,
+  retained resources, registry poison and skipped dependent cleanup.
+
+### Validation
+
+- Complete gate: 39/39 static audits and 26/26 portable C++ tests PASS.
+- Addressed production translation unit: MSVC 19.44 `/W4 /WX` PASS.
+- Simulator rebuild and Addressed timeout containment scenario: PASS.
+- Packet constructors and the complete session polling core are token-identical
+  to the pre-change backup.
+- Official `BUILD.cmd`: exit 0, 0 errors, only allowlisted `LNK4099`.
+- 15-second Irok MG75 Max production regression: 57,161 successful route
+  requests, one shutdown-window cancellation, 291 us average / 434 us maximum
+  route interval, balanced shutdown and zero trace ERROR events. All 11 user
+  state files remained hash-identical.
+- `HallJoy.exe`: 2,270,208 bytes,
+  SHA-256 `3D05EE5FA435343E633B991DC45B949C1484AD06CC086F993C6D788255510F7E`.
+- Source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-12B-S06-prechange-20260801`.
+
+### Package result
+
+- `HJ-AUD-P1-005` is implemented in code; physical Addressed qualification is
+  still required before `Verified`.
+- `HJ-AUD-P1-002` becomes `Partial`: Addressed is bounded and contained, while
+  MAD68 and Hex80 remain assigned to S07.

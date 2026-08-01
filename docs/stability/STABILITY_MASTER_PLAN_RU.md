@@ -170,6 +170,13 @@ Wrapper — `noexcept`, ловит `std::exception` и `...`, записывае
 
 Reader generation владеет HID HANDLE, event, buffer и `OVERLAPPED`. Stop инициирует cancellation, а reader reap'ит completion до выхода. Запрещён cross-thread close активного I/O.
 
+Статус v1.4: `Implemented / Addressed hardware gate deferred` в V14-12B. HID
+HANDLE теперь закрывает только reader после terminal completion; внешний stop
+ожидает native main-worker HANDLE не более трёх секунд и при timeout сохраняет
+всё поколение, возвращает точный `StopResult` и блокирует зависимый teardown.
+Simulator-only зависание прошло process-containment gate. Packet constructors и
+session polling core посимвольно сохранены; реальный Irok regression пройден.
+
 ### S07 — MAD68 and Hex80 lifecycle migration
 
 По одному backend на архив:

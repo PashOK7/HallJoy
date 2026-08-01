@@ -90,3 +90,7 @@ Addressed и Sayo также требуют реального hardware gate д�
 - S02B.2 SparkLink exception/SEH boundary: V0, V1 и V2 пройдены; ручной hardware-gate подтвердил SparkLink, ViGEm, режимы и lifecycle.
 - S02B.3 Addressed main/reader exception boundaries: V0 и ручной общий Windows/SparkLink regression smoke пройдены; Addressed device gate отложен до предфинального внешнего архива.
 - S02V1 evidence trace: локальный V0 пройден; следующий Windows/SparkLink gate должен предоставить machine-verifiable bundle. Устное «работает» сохраняется как наблюдение, но больше не переводит runtime-пакет в evidence-verified.
+- S06/V14-12B Addressed I/O ownership: static ownership/containment gate, portable
+  cancel-and-drain/lifecycle suites, MSVC `/W4 /WX`, simulator stop-timeout,
+  официальный build и доступный Irok regression пройдены. Addressed hardware
+  отсутствует, поэтому статус ограничен `Implemented / device gate deferred`.

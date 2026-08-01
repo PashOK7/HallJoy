@@ -34,6 +34,9 @@ version or release status.
 - Implemented subpackage: `V14-12A` Aula WIN 60 HE MAX native support,
   firmware-proven and implementation-tested; physical Aula hardware remains
   unvalidated
+- Implemented subpackage: `V14-12B/S06` Addressed overlapped-I/O ownership and
+  bounded stop; deterministic timeout containment and available Irok regression
+  pass, while physical Addressed hardware remains unvalidated
 - Next work: `V14-12` release qualification and hardware matrix, including the
   open Aula physical-device gate
 - GitHub publication: not started

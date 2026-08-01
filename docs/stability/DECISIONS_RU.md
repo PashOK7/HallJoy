@@ -141,3 +141,20 @@ Sequence назначается внутри того же exclusive lock, чт�
 
 Temporary trace не накапливается как постоянная телеметрия. После подтверждения конкретного изменения его специализированные события удаляются, evidence report и SHA-256 сохраняются, а следующая функция получает отдельные события и новый stage marker. Перед финальным релизом temporary trace/build flag/collector удаляются, если отдельным решением не утверждён opt-in support mode.
 
+## D-S06 — pending Addressed I/O завершает и освобождает только reader
+
+**Статус:** принято для V14-12B.
+
+`CancelIoEx` является запросом, а не подтверждением завершения. Поэтому
+Addressed reader единолично владеет HID HANDLE, buffer, event и stack
+`OVERLAPPED`, вызывает blocking reap и только после terminal completion закрывает
+HANDLE. Owner threads могут лишь запросить cancellation; cross-thread close
+запрещён.
+
+Чтобы неисправный HID driver не заставил UI shutdown зависнуть, вложенный reader
+остаётся joinable внутри main worker и тем самым сохраняет весь session stack. Сам main
+worker запускается через `_beginthreadex` и имеет waitable HANDLE. Registry ждёт
+его не более трёх секунд; timeout сохраняет thread/event/session ownership,
+возвращает `TimedOut`, poison'ит generation и требует немедленного process
+containment без зависимого teardown. Это сознательное сохранение памяти до
+завершения процесса, а не leak в продолжающей работу программе.

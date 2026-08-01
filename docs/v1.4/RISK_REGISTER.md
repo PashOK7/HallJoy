@@ -76,10 +76,10 @@ exhibits the observed five-second freezes.
 | ID | Приоритет | Краткое описание | Пакет | Статус | Ключевая проверка |
 |---|---|---|---|---|---|
 | `HJ-AUD-P1-001` | P1 | `TerminateThread` используется как обычный механизм shutdown | `S04/S05/S08` | Implemented | all ordinary occurrences removed in V14-06A-F and deterministic timeout containment passed; final soak/device qualification remains |
-| `HJ-AUD-P1-002` | P1 | «Ограниченный shutdown» трёх native backend'ов всё равно может зависнуть навсегда | `S06/S07` | Open | pending-I/O cancel/join fault tests |
+| `HJ-AUD-P1-002` | P1 | «Ограниченный shutdown» трёх native backend'ов всё равно может зависнуть навсегда | `S06/S07` | Partial | Addressed bounded join/retention fault gate passed in V14-12B; MAD68/Hex80 remain S07 |
 | `HJ-AUD-P1-003` | P1 | Контракт `stop()` недостоверен | `S03` | Verified | generation-scoped StopResult, poison-on-failure and registry fault tests passed |
 | `HJ-AUD-P1-004` | P1 | Нет верхней границы C++-исключений в ключевых worker-потоках | `S02` | Partial | UAP workers/C ABI verified in V14-07C; only deferred device-owner and final soak gates remain in release qualification |
-| `HJ-AUD-P1-005` | P1 | Addressed reader закрывает HID HANDLE из другого потока при активном stack `OVERLAPPED` | `S06` | Open | overlapped cancellation/reap tests |
+| `HJ-AUD-P1-005` | P1 | Addressed reader закрывает HID HANDLE из другого потока при активном stack `OVERLAPPED` | `S06` | Implemented | reader-only close, cancel-and-reap ownership audit and simulator containment passed; Addressed hardware gate deferred |
 | `HJ-AUD-P1-006` | P1 | Analog host допускает повторную инициализацию поверх не завершившегося поколения потоков | `S09` | Verified | parent generation, bounded group timeout, retained ownership and restart-rejection gates passed in V14-07A |
 | `HJ-AUD-P1-007` | P1 | Partial-start cleanup analog host может unmap'нуть память под живым bridge thread | `S09` | Verified | injected supervisor-start failure joined bridge before IPC rollback in V14-07A |
 | `HJ-AUD-P1-008` | P1 | Потеря device-change wakeup из-за manual-reset `ResetEvent` после ожидания | `S11` | Verified | durable monotonic wake sequence, notify/wait race tests and production Irok smoke passed in V14-08A |
@@ -252,6 +252,10 @@ S02B.3 ограничен Addressed exception containment и не меняет p
 - session polling loop, reader I/O loop и packet constructors token-identical S02B.2.
 
 Статус риска остаётся `Partial`: Addressed device gate отложен до предфинального внешнего архива; UAP/C ABI ещё не покрыт. Sayo boundary закрыт локально в V14-06F, но его device gate остаётся release qualification. Риск `HJ-AUD-P1-005` не закрывается — cross-thread force-close активного overlapped HANDLE остаётся S06.
+
+This paragraph records the historical S02B.3 result. V14-12B subsequently
+removed the force-close path; the current status is the table entry above, with
+physical Addressed qualification still deferred.
 
 ## Evidence package S02B.4 / V14-06F
 

@@ -287,3 +287,25 @@ Regression gate:
 - MSVC project XML: PASS;
 - GCC/Clang ASan + UBSan с `-Werror`: PASS; clean-unpack package gate выполняется при финальной упаковке.
 
+## 2026-08-01 — S06 / V14-12B: Addressed overlapped I/O ownership
+
+Статус: `Implemented / Addressed hardware gate deferred`.
+
+- удалён `ForceCloseReaderHandle`: внешний поток больше не закрывает HID HANDLE
+  при живом stack `OVERLAPPED`;
+- reader владеет handle, buffer, event и операцией до `CancelAndDrain`/terminal
+  completion, затем сам закрывает handle через RAII;
+- позднее успешное завершение read после stop не может повторно опубликовать
+  ненулевой input;
+- main Addressed worker переведён на waitable `_beginthreadex` HANDLE;
+- внешний stop имеет общий трёхсекундный deadline, возвращает точный
+  generation-scoped `StopResult`, сохраняет ресурсы при timeout и блокирует
+  зависимый teardown через registry poison;
+- simulator-only timeout принудительно оставляет worker живым и подтвердил
+  process containment с exit code 2.
+
+Проверки: полный gate 39 static + 26 portable PASS; Addressed MSVC `/W4 /WX`
+PASS; официальный `BUILD.cmd` PASS (0 ошибок, только разрешённый LNK4099);
+packet constructors и session polling core token-identical; 15-секундный Irok
+smoke — 57 161 successful routes, balanced shutdown, zero trace ERROR, 11
+пользовательских файлов без изменений. Physical Addressed hardware отсутствует.

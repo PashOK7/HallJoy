@@ -454,6 +454,14 @@ qualification and the hardware matrix.
 - Aula remains `hardware-unvalidated`: no physical input, held-key reconnect,
   multi-device or alternate-firmware claim is made. This gate stays open in the
   V14-12 hardware matrix.
+- `V14-12B/S06` removes Addressed cross-thread HID handle close. The reader owns
+  handle, buffer, event and `OVERLAPPED` through terminal reap; the outer native
+  worker has a three-second truthful join and retains all generation resources
+  on timeout.
+- Addressed timeout containment passes a deterministic simulator process gate;
+  packet constructors and session polling core are token-identical. The 15-second
+  Irok regression completed 57,161 successful routes, balanced shutdown and no
+  trace ERROR. Physical Addressed qualification remains open.
 
 ## Release definition
 

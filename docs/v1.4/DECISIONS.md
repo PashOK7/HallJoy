@@ -254,3 +254,34 @@ and trailing junk are invalid, every metric is limited to one billion, and all
 fields are validated before any aggregate counter changes. This decision owns
 framing and numeric correctness only. Multi-client scheduling and browser
 origin policy remain the separate V14-10D boundary.
+
+## D-020 - Overlay clients are bounded owners with generation-scoped browser access
+
+Date: 2026-08-01
+
+The accept thread must not execute attacker-controlled request reads. It owns
+only `accept`, completed-worker reaping and assignment into a fixed table of 16
+client slots. Every assigned socket has one worker HANDLE and one exception
+boundary. Saturation is rejected immediately; the `503` response is best effort
+because Winsock may reset a newly accepted connection whose request remains
+unread. Blocking the accept owner to guarantee delivery would reintroduce the
+slow-client serialization this boundary removes.
+
+Stop shuts down the listen socket and every owned client socket before joining
+the accept generation. The accept owner does not complete until all client
+workers have completed and their handles and sockets can be released. A failed
+outer join retains the accept HANDLE, WSA and reachable client ownership and
+poisons restart.
+
+Every successful server generation creates an independent 128-bit token with
+the Windows CSPRNG. Direct navigation to `/` publishes it as an `HttpOnly`,
+`SameSite=Strict` session cookie. `/state` and `/client_perf` require the exact
+cookie. A browser `Origin` header is accepted only when it exactly equals the
+bound `http://127.0.0.1:<port>` origin; that value alone is echoed with
+`Vary: Origin`. Missing Origin remains valid for direct same-host HTTP clients,
+but does not bypass the session requirement. Wildcard CORS is forbidden.
+The embedded page treats `401` as a generation change, fetches `/` once to
+receive the new HttpOnly cookie and resumes its normal polling loop.
+
+This is a loopback browser boundary, not authentication against another process
+already able to read HallJoy's memory, browser cookie store or local traffic.

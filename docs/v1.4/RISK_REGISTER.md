@@ -77,10 +77,10 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P1-014` | P1 | Dependency installer может навсегда заморозить UI | `S18` | Open | installer hash/TOCTOU/UI-thread tests |
 | `HJ-AUD-P1-015` | P1 | UAP plugin не защищает C ABI от исключений и использует ручные lock/unlock | `S10` | Verified | common C ABI barrier, portable exception/RAII test and no-manual-lock static audit passed in V14-07C |
 | `HJ-AUD-P1-016` | P1 | UAP unload выполняет неограниченный join, удерживая глобальный devices mutex | `S10` | Verified | bounded plugin joins occur outside devices mutex; ABI runtime unload and child-process containment gates passed in V14-07C |
-| `HJ-AUD-P2-001` | P2 | Overlay server обслуживает только одного клиента синхронно | `S16` | Open | fragmentation/concurrency/limit tests |
+| `HJ-AUD-P2-001` | P2 | Overlay server обслуживает только одного клиента синхронно | `S16` | Verified | fixed 16-client worker table, 8 slow plus 8 parallel state requests, prompt saturation rejection and active-client shutdown passed in V14-10D |
 | `HJ-AUD-P2-002` | P2 | Overlay HTTP parser не реализует framing | `S16` | Verified | incremental fragmentation/pipelining/body framing, strict length/transfer-coding rejection and 8/4/2 KiB socket limit gates passed in V14-10C |
 | `HJ-AUD-P2-003` | P2 | Overlay telemetry parser допускает unsigned overflow | `S16` | Verified | exact-key `from_chars`, duplicate/junk/overflow rejection and one-billion bound passed simulator and production socket gates in V14-10C |
-| `HJ-AUD-P2-004` | P2 | Overlay endpoint открыт любому origin | `S16` | Open | fragmentation/concurrency/limit tests |
+| `HJ-AUD-P2-004` | P2 | Overlay endpoint открыт любому origin | `S16` | Verified | per-generation 128-bit session cookie, exact loopback origin echo and hostile/null-origin rejection passed simulator and production gates in V14-10D |
 | `HJ-AUD-P2-005` | P2 | Mouse IPC читает interlocked-written поля обычными volatile reads | `S15` | Verified | peer-owned attach/heartbeat and schema fields use interlocked reads; static audit and simulator policy self-test passed in V14-10A |
 | `HJ-AUD-P2-006` | P2 | UAP poll workers собраны без какого-либо pacing | `S17` | Open | CPU/USB/identity/contention measurements |
 | `HJ-AUD-P2-007` | P2 | UAP device identity нестабильна для двух одинаковых устройств | `S17` | Open | CPU/USB/identity/contention measurements |
@@ -267,9 +267,9 @@ production build и шестисекундный Irok MG75 Max smoke прошл�
 ## Сводка
 
 - P1: 4 open, 1 implemented, 1 partial, 10 verified.
-- P2: 6 open, 15 verified.
+- P2: 4 open, 17 verified.
 - P3: 6 open, 2 verified.
-- Всего: 16 open, 1 implemented, 1 partial, 27 verified.
+- Всего: 14 open, 1 implemented, 1 partial, 29 verified.
 
 ## Дополнительный риск, обнаруженный при Windows gate S02A
 

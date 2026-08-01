@@ -34,7 +34,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Verified | Partial-start, crash, hang, C ABI, null/state, unload and bounded restart gates passed |
 | `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Verified | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
 | `V14-09` | Transactional persistence and writable state migration | Verified | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
-| `V14-10` | IPC and overlay security/correctness | In progress | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
+| `V14-10` | IPC and overlay security/correctness | Verified | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
 | `V14-11` | UAP pacing, identity, modularization and measured performance | Planned | CPU/USB/latency comparison with no unsupported sampling regression |
 | `V14-12` | Release qualification and hardware matrix | Planned | Clean package, 8-24h soak, reconnect cycles and required device-owner gates |
 
@@ -329,7 +329,7 @@ real production migration/replay and Irok balanced shutdown all pass.
 V14-09 is complete. The next implementation package is V14-10 IPC and overlay
 security/correctness.
 
-## Package in progress: V14-10
+## Completed package: V14-10
 
 Split IPC ownership/authentication work from overlay protocol work so every
 change has a narrow behavioral gate.
@@ -374,11 +374,23 @@ Progress:
   counter update. Simulator and production socket regressions, the complete
   static/portable gate, timeout containment, official build and Irok route/
   balanced shutdown pass. `HJ-AUD-P2-002` and `HJ-AUD-P2-003` are Verified.
+- `V14-10D` overlay concurrency, origin policy and shutdown: Verified locally.
+  Accepted sockets run in a fixed table of 16 independent workers; saturation
+  is rejected promptly, while eight slow clients and eight concurrent state
+  requests remain responsive. Stop shuts down every client and joins all
+  client workers before releasing WSA ownership.
+- Each overlay generation has a new 128-bit CSPRNG session cookie. State and
+  telemetry require that cookie; browser requests accept only the exact bound
+  loopback origin, echo it with `Vary: Origin`, and never publish wildcard
+  CORS. Hostile and `null` origins are rejected without issuing a cookie. An
+  open overlay page refreshes the root once after a stale-generation `401`, so
+  restarting the server does not require a manual browser refresh.
+- Static and socket gates, active-client shutdown, prior forced-timeout
+  containment, official production build and Irok route/balanced shutdown all
+  pass. `HJ-AUD-P2-001` and `HJ-AUD-P2-004` are Verified.
 
-Remaining:
-
-- `V14-10D`: overlay origin, concurrency and shutdown gates
-  (`HJ-AUD-P2-001` and `HJ-AUD-P2-004`).
+V14-10 is complete. The next implementation package is V14-11 UAP pacing,
+identity, modularization and measured performance.
 
 ## Release definition
 

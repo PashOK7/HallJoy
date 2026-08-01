@@ -245,6 +245,10 @@ if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
 if ($StartOverlay) {
     $arguments += @('--overlay-server', '--port', '18765')
 }
+$overlayShutdownProbe = $null
+$overlayProbeReady = $null
+$overlayProbeOutput = $null
+$overlayProbeError = $null
 $process = Start-Process -FilePath $exe `
     -ArgumentList $arguments `
     -PassThru `
@@ -260,6 +264,43 @@ try {
             --port 18765 --connect-deadline-ms 5000
         if ($LASTEXITCODE -ne 0) {
             throw "Overlay HTTP framing regression gate failed with exit code $LASTEXITCODE."
+        }
+        & python (Join-Path $root 'tools\check_overlay_concurrency_origin.py') `
+            --port 18765 --connect-deadline-ms 5000 --deadline-ms 1000
+        if ($LASTEXITCODE -ne 0) {
+            throw "Overlay concurrency/origin regression gate failed with exit code $LASTEXITCODE."
+        }
+
+        $probeNonce = [Guid]::NewGuid().ToString('N')
+        $overlayProbeReady = Join-Path ([IO.Path]::GetTempPath()) "halljoy-overlay-$probeNonce.ready"
+        $overlayProbeOutput = Join-Path ([IO.Path]::GetTempPath()) "halljoy-overlay-$probeNonce.out"
+        $overlayProbeError = Join-Path ([IO.Path]::GetTempPath()) "halljoy-overlay-$probeNonce.err"
+        $probeArguments = @(
+            (Join-Path $root 'tools\check_overlay_concurrency_origin.py'),
+            '--port', '18765',
+            '--connect-deadline-ms', '5000',
+            '--deadline-ms', '15000',
+            '--shutdown-probe-clients', '8',
+            '--ready-file', $overlayProbeReady
+        )
+        $overlayShutdownProbe = Start-Process -FilePath 'python' `
+            -ArgumentList $probeArguments `
+            -PassThru `
+            -WindowStyle Hidden `
+            -RedirectStandardOutput $overlayProbeOutput `
+            -RedirectStandardError $overlayProbeError
+        $probeReadyDeadline = [DateTime]::UtcNow.AddSeconds(5)
+        while (-not (Test-Path -LiteralPath $overlayProbeReady) -and
+            [DateTime]::UtcNow -lt $probeReadyDeadline) {
+            $overlayShutdownProbe.Refresh()
+            if ($overlayShutdownProbe.HasExited) { break }
+            Start-Sleep -Milliseconds 50
+        }
+        if (-not (Test-Path -LiteralPath $overlayProbeReady)) {
+            $probeErrorText = if (Test-Path -LiteralPath $overlayProbeError) {
+                Get-Content -LiteralPath $overlayProbeError -Raw
+            } else { '' }
+            throw "Overlay active-client shutdown probe did not become ready. $probeErrorText"
         }
     }
     Start-Sleep -Seconds $RunSeconds
@@ -279,6 +320,28 @@ try {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         throw "Simulator did not exit within $processExitTimeoutMs ms after graceful close."
     }
+    if ($overlayShutdownProbe) {
+        if (-not $overlayShutdownProbe.WaitForExit(10000)) {
+            throw 'Overlay active-client shutdown probe did not finish after server stop.'
+        }
+        # Complete asynchronous stdout/stderr draining before reading ExitCode
+        # and the redirected evidence files.
+        $overlayShutdownProbe.WaitForExit()
+        $overlayShutdownProbe.Refresh()
+        $probeOutputText = if (Test-Path -LiteralPath $overlayProbeOutput) {
+            Get-Content -LiteralPath $overlayProbeOutput -Raw
+        } else { '' }
+        $probeErrorText = if (Test-Path -LiteralPath $overlayProbeError) {
+            Get-Content -LiteralPath $overlayProbeError -Raw
+        } else { '' }
+        $probeExitCode = $overlayShutdownProbe.ExitCode
+        $probeSuccess = $probeOutputText.Contains('OVERLAY_ACTIVE_CLIENT_SHUTDOWN=PASS clients=8')
+        if (($null -ne $probeExitCode -and $probeExitCode -ne 0) -or
+            -not $probeSuccess -or -not [string]::IsNullOrWhiteSpace($probeErrorText)) {
+            throw "Overlay active-client shutdown probe failed with exit code $probeExitCode. stdout=$probeOutputText stderr=$probeErrorText"
+        }
+        Write-Host $probeOutputText.Trim()
+    }
 }
 finally {
     if (-not $process.HasExited) {
@@ -286,6 +349,18 @@ finally {
         $process.WaitForExit(5000) | Out-Null
     }
     $process.Refresh()
+    if ($overlayShutdownProbe) {
+        $overlayShutdownProbe.Refresh()
+        if (-not $overlayShutdownProbe.HasExited) {
+            Stop-Process -Id $overlayShutdownProbe.Id -Force -ErrorAction SilentlyContinue
+            $overlayShutdownProbe.WaitForExit(5000) | Out-Null
+        }
+    }
+    foreach ($probePath in @($overlayProbeReady, $overlayProbeOutput, $overlayProbeError)) {
+        if ($probePath -and (Test-Path -LiteralPath $probePath)) {
+            Remove-Item -LiteralPath $probePath -Force
+        }
+    }
 }
 
 if ($InjectRealtimeStopTimeout -and $process.ExitCode -ne 2) {

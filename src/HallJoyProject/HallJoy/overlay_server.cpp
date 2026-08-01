@@ -3,8 +3,10 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#include <bcrypt.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <climits>
 #include <charconv>
@@ -12,6 +14,7 @@
 #include <cwchar>
 #include <limits>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -23,6 +26,8 @@
 #include "stability_trace.h"
 #include "worker_exception_barrier.h"
 #include "worker_join_policy.h"
+
+#pragma comment(lib, "bcrypt.lib")
 
 static std::atomic<bool> g_overlayRunning{ false };
 static std::atomic<bool> g_overlayWsaStarted{ false };
@@ -59,12 +64,19 @@ static std::atomic<int> g_overlayLabelShadowPercent{ 50 };
 static std::atomic<uint32_t> g_overlayLabelColor{ 0xffffffu };
 static HANDLE g_overlayThread = nullptr;
 static SOCKET g_overlayListenSocket = INVALID_SOCKET;
-static SOCKET g_overlayClientSocket = INVALID_SOCKET;
+static constexpr size_t kOverlayMaxConcurrentClients = 16;
+struct OverlayClientSlot
+{
+    SOCKET socket = INVALID_SOCKET;
+    HANDLE thread = nullptr;
+};
+static std::array<OverlayClientSlot, kOverlayMaxConcurrentClients> g_overlayClients{};
 static std::mutex g_overlaySocketMutex;
 static std::mutex g_overlayStateMutex;
 static std::mutex g_overlayLifecycleMutex;
 static halljoy::lifecycle::WorkerLifecycle g_overlayLifecycle;
 static std::wstring g_overlayLastError;
+static std::string g_overlaySessionToken;
 
 static std::atomic<uint64_t> g_perfStateRequests{ 0 };
 static std::atomic<uint64_t> g_perfStateBytes{ 0 };
@@ -311,6 +323,37 @@ static void OverlaySetLastError(const wchar_t* msg)
 {
     std::lock_guard<std::mutex> lock(g_overlayStateMutex);
     g_overlayLastError = msg ? msg : L"";
+}
+
+static bool OverlayGenerateSessionToken(std::string& token)
+{
+    std::array<unsigned char, 16> randomBytes{};
+    const NTSTATUS status = BCryptGenRandom(
+        nullptr, randomBytes.data(), static_cast<ULONG>(randomBytes.size()),
+        BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+    if (status < 0)
+        return false;
+
+    static constexpr char kHex[] = "0123456789abcdef";
+    token.resize(randomBytes.size() * 2u);
+    for (size_t i = 0; i < randomBytes.size(); ++i)
+    {
+        token[i * 2u] = kHex[randomBytes[i] >> 4u];
+        token[i * 2u + 1u] = kHex[randomBytes[i] & 0x0fu];
+    }
+    return true;
+}
+
+static void OverlayPublishSessionToken(const std::string& token)
+{
+    std::lock_guard<std::mutex> lock(g_overlayStateMutex);
+    g_overlaySessionToken = token;
+}
+
+static std::string OverlaySessionTokenCopy()
+{
+    std::lock_guard<std::mutex> lock(g_overlayStateMutex);
+    return g_overlaySessionToken;
 }
 
 static std::string OverlayBuildStateJson()
@@ -870,7 +913,10 @@ async function poll(){
   try{
     if(syntheticMode&&latest){polling=false;setTimeout(poll,1000);return;}
     const fetchStart=performance.now();
-    latest=await fetch('/state',{cache:'no-store'}).then(r=>r.json());
+    const response=await fetch('/state',{cache:'no-store'});
+    if(response.status===401){await fetch('/',{cache:'no-store'});throw new Error('session refreshed');}
+    if(!response.ok)throw new Error('state fetch failed');
+    latest=await response.json();
     if(syntheticMode&&latest&&latest.settings)latest.settings.refreshMs=1;
     lastRefreshMs=Math.max(1,Math.min(250,((latest.settings||{}).refreshMs||1)));
     perfFetch+=(performance.now()-fetchStart)*1000;perfFetches++;
@@ -897,7 +943,9 @@ static bool OverlaySendAll(SOCKET s, const char* data, int size)
     return true;
 }
 
-static bool OverlaySend(SOCKET s, const std::string& status, const std::string& contentType, const std::string& body, bool keepAlive)
+static bool OverlaySend(SOCKET s, const std::string& status, const std::string& contentType,
+    const std::string& body, bool keepAlive, std::string_view allowedOrigin = {},
+    std::string_view sessionCookie = {})
 {
     uint64_t beginUs = OverlayNowUs();
     std::string header;
@@ -908,7 +956,20 @@ static bool OverlaySend(SOCKET s, const std::string& status, const std::string& 
     header += contentType;
     header += "\r\nContent-Length: ";
     AppendUInt64(header, (unsigned long long)body.size());
-    header += "\r\nCache-Control: no-store\r\nAccess-Control-Allow-Origin: *\r\nConnection: ";
+    header += "\r\nCache-Control: no-store\r\n";
+    if (!allowedOrigin.empty())
+    {
+        header += "Access-Control-Allow-Origin: ";
+        header.append(allowedOrigin.data(), allowedOrigin.size());
+        header += "\r\nVary: Origin\r\n";
+    }
+    if (!sessionCookie.empty())
+    {
+        header += "Set-Cookie: HallJoySession=";
+        header.append(sessionCookie.data(), sessionCookie.size());
+        header += "; Path=/; HttpOnly; SameSite=Strict\r\n";
+    }
+    header += "Connection: ";
     header += keepAlive ? "keep-alive\r\nKeep-Alive: timeout=5, max=256\r\n\r\n" : "close\r\n\r\n";
 
     bool ok = OverlaySendAll(s, header.data(), (int)header.size());
@@ -941,8 +1002,12 @@ enum class OverlayHttpParseResult
 struct OverlayHttpRequest
 {
     std::string target;
+    std::string origin;
+    std::string cookie;
     size_t frameBytes = 0;
     bool keepAlive = false;
+    bool originPresent = false;
+    bool cookiePresent = false;
 };
 
 static char OverlayAsciiLower(char value)
@@ -1060,6 +1125,8 @@ static OverlayHttpParseResult OverlayParseHttpRequest(
     uint64_t contentLength = 0;
     bool connectionClose = false;
     bool connectionKeepAlive = false;
+    bool originSeen = false;
+    bool cookieSeen = false;
     size_t headerCount = 0;
     size_t lineStart = requestLineEnd + 2;
     while (lineStart < headerEnd)
@@ -1100,6 +1167,22 @@ static OverlayHttpParseResult OverlayParseHttpRequest(
             connectionClose = connectionClose || OverlayHeaderHasToken(value, "close");
             connectionKeepAlive = connectionKeepAlive || OverlayHeaderHasToken(value, "keep-alive");
         }
+        else if (OverlayAsciiEquals(name, "origin"))
+        {
+            if (originSeen)
+                return OverlayHttpParseResult::BadRequest;
+            originSeen = true;
+            request.origin.assign(value.data(), value.size());
+            request.originPresent = true;
+        }
+        else if (OverlayAsciiEquals(name, "cookie"))
+        {
+            if (cookieSeen)
+                return OverlayHttpParseResult::BadRequest;
+            cookieSeen = true;
+            request.cookie.assign(value.data(), value.size());
+            request.cookiePresent = true;
+        }
         lineStart = lineEnd + 2;
     }
 
@@ -1112,6 +1195,55 @@ static OverlayHttpParseResult OverlayParseHttpRequest(
     request.frameBytes = frameBytes;
     request.keepAlive = http11 ? !connectionClose : connectionKeepAlive && !connectionClose;
     return OverlayHttpParseResult::Ready;
+}
+
+static bool OverlaySecureEquals(std::string_view left, std::string_view right)
+{
+    if (left.size() != right.size())
+        return false;
+    unsigned char difference = 0;
+    for (size_t i = 0; i < left.size(); ++i)
+        difference |= static_cast<unsigned char>(left[i] ^ right[i]);
+    return difference == 0;
+}
+
+static bool OverlayOriginAllowed(const OverlayHttpRequest& request)
+{
+    if (!request.originPresent)
+        return true;
+    std::string expected = "http://127.0.0.1:";
+    AppendUInt(expected, static_cast<unsigned>(g_overlayPort.load(std::memory_order_acquire)));
+    return request.origin == expected;
+}
+
+static bool OverlayRequestHasSessionCookie(const OverlayHttpRequest& request)
+{
+    if (!request.cookiePresent)
+        return false;
+    const std::string sessionToken = OverlaySessionTokenCopy();
+    if (sessionToken.empty())
+        return false;
+
+    static constexpr std::string_view kName = "HallJoySession=";
+    std::string_view remaining = request.cookie;
+    bool found = false;
+    bool matched = false;
+    while (!remaining.empty())
+    {
+        const size_t separator = remaining.find(';');
+        const std::string_view field = OverlayTrimOws(remaining.substr(0, separator));
+        if (field.size() >= kName.size() && field.substr(0, kName.size()) == kName)
+        {
+            if (found)
+                return false;
+            found = true;
+            matched = OverlaySecureEquals(field.substr(kName.size()), sessionToken);
+        }
+        if (separator == std::string_view::npos)
+            break;
+        remaining.remove_prefix(separator + 1u);
+    }
+    return found && matched;
 }
 
 enum class OverlayQueryResult
@@ -1198,11 +1330,11 @@ static bool OverlayRecordClientPerf(const std::string& query)
     return true;
 }
 
-static bool OverlayHandleClientRequest(SOCKET client, const std::string& target,
-    bool keepAlive, bool& closeAfterResponse)
+static bool OverlayHandleClientRequest(SOCKET client, const OverlayHttpRequest& request,
+    bool& closeAfterResponse)
 {
     closeAfterResponse = false;
-    std::string path = target;
+    std::string path = request.target;
 
     std::string query;
     size_t q = path.find('?');
@@ -1213,29 +1345,51 @@ static bool OverlayHandleClientRequest(SOCKET client, const std::string& target,
     }
 
     g_perfHttpRequests.fetch_add(1, std::memory_order_relaxed);
+    const std::string_view responseOrigin = request.originPresent
+        ? std::string_view(request.origin)
+        : std::string_view{};
     if (path == "/" || path == "/index.html")
-        return OverlaySend(client, "200 OK", "text/html; charset=utf-8", OverlayHtml(), keepAlive);
+    {
+        const std::string sessionToken = OverlaySessionTokenCopy();
+        return OverlaySend(client, "200 OK", "text/html; charset=utf-8", OverlayHtml(),
+            request.keepAlive, responseOrigin, sessionToken);
+    }
     else if (path == "/state")
-        return OverlaySend(client, "200 OK", "application/json; charset=utf-8", OverlayBuildStateJson(), keepAlive);
+    {
+        if (!OverlayRequestHasSessionCookie(request))
+        {
+            closeAfterResponse = true;
+            return OverlaySend(client, "401 Unauthorized", "text/plain; charset=utf-8",
+                "session required", false, responseOrigin);
+        }
+        return OverlaySend(client, "200 OK", "application/json; charset=utf-8",
+            OverlayBuildStateJson(), request.keepAlive, responseOrigin);
+    }
     else if (path == "/client_perf")
     {
+        if (!OverlayRequestHasSessionCookie(request))
+        {
+            closeAfterResponse = true;
+            return OverlaySend(client, "401 Unauthorized", "text/plain; charset=utf-8",
+                "session required", false, responseOrigin);
+        }
         if (!OverlayRecordClientPerf(query))
         {
             closeAfterResponse = true;
             return OverlaySend(client, "400 Bad Request", "text/plain; charset=utf-8",
-                "invalid telemetry", false);
+                "invalid telemetry", false, responseOrigin);
         }
-        // This endpoint is issued as an independent fetch every five seconds.
-        // The overlay server is intentionally single-threaded, so retaining
-        // this otherwise idle connection would block /state until the five-
-        // second receive timeout expires.
+        // Telemetry uses an independent periodic fetch and has no reason to
+        // retain an otherwise idle client worker.
         closeAfterResponse = true;
-        return OverlaySend(client, "204 No Content", "text/plain; charset=utf-8", "", false);
+        return OverlaySend(client, "204 No Content", "text/plain; charset=utf-8", "", false,
+            responseOrigin);
     }
     else
     {
         closeAfterResponse = true;
-        return OverlaySend(client, "404 Not Found", "text/plain; charset=utf-8", "not found", false);
+        return OverlaySend(client, "404 Not Found", "text/plain; charset=utf-8", "not found", false,
+            responseOrigin);
     }
 }
 
@@ -1297,13 +1451,183 @@ static void OverlayHandleClient(SOCKET client)
 
         buffered.erase(0, request.frameBytes);
         ++requestCount;
+        if (!OverlayOriginAllowed(request))
+        {
+            OverlaySend(client, "403 Forbidden", "text/plain; charset=utf-8",
+                "origin forbidden", false);
+            break;
+        }
         bool closeAfterResponse = false;
-        const bool ok = OverlayHandleClientRequest(
-            client, request.target, request.keepAlive, closeAfterResponse);
+        const bool ok = OverlayHandleClientRequest(client, request, closeAfterResponse);
         OverlayPerfMaybeLog();
         if (!ok || !request.keepAlive || closeAfterResponse)
             break;
     }
+}
+
+static DWORD OverlayClientThreadBody(OverlayClientSlot* slot)
+{
+    SOCKET client = INVALID_SOCKET;
+    {
+        std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
+        client = slot ? slot->socket : INVALID_SOCKET;
+    }
+    if (client == INVALID_SOCKET)
+        return ERROR_INVALID_HANDLE;
+    OverlayHandleClient(client);
+    return 0;
+}
+
+static void OverlayClientThreadOnFault(OverlayClientSlot* slot,
+    const halljoy::worker::WorkerExceptionRecord& record) noexcept
+{
+    try
+    {
+        std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
+        if (slot && slot->socket != INVALID_SOCKET)
+            shutdown(slot->socket, SD_BOTH);
+    }
+    catch (...)
+    {
+    }
+    StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"client.fault",
+        L"kind=%u", static_cast<unsigned>(record.kind));
+}
+
+static void OverlayClientThreadOnCompletion(OverlayClientSlot* slot,
+    const halljoy::worker::WorkerExceptionRecord&) noexcept
+{
+    try
+    {
+        std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
+        if (slot && slot->socket != INVALID_SOCKET)
+        {
+            closesocket(slot->socket);
+            slot->socket = INVALID_SOCKET;
+        }
+    }
+    catch (...)
+    {
+    }
+}
+
+static DWORD WINAPI OverlayClientThreadProc(LPVOID param) noexcept
+{
+    auto* slot = static_cast<OverlayClientSlot*>(param);
+    return static_cast<DWORD>(halljoy::worker::RunWorkerEntryBarrier(
+        [slot] { return OverlayClientThreadBody(slot); },
+        [slot](const halljoy::worker::WorkerExceptionRecord& record) noexcept {
+            OverlayClientThreadOnFault(slot, record);
+        },
+        [slot](const halljoy::worker::WorkerExceptionRecord& record) noexcept {
+            OverlayClientThreadOnCompletion(slot, record);
+        },
+        0xE0514C49u));
+}
+
+static void OverlayReapCompletedClientWorkers()
+{
+    std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
+    for (OverlayClientSlot& slot : g_overlayClients)
+    {
+        if (slot.thread && WaitForSingleObject(slot.thread, 0) == WAIT_OBJECT_0)
+        {
+            CloseHandle(slot.thread);
+            slot.thread = nullptr;
+            if (slot.socket != INVALID_SOCKET)
+            {
+                closesocket(slot.socket);
+                slot.socket = INVALID_SOCKET;
+            }
+        }
+    }
+}
+
+static bool OverlayStartClientWorker(SOCKET client)
+{
+    DWORD timeoutMs = 5000;
+    setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeoutMs),
+        sizeof(timeoutMs));
+    setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeoutMs),
+        sizeof(timeoutMs));
+
+    std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
+    for (OverlayClientSlot& slot : g_overlayClients)
+    {
+        if (slot.thread || slot.socket != INVALID_SOCKET)
+            continue;
+        slot.socket = client;
+        slot.thread = CreateThread(nullptr, 0, OverlayClientThreadProc, &slot, 0, nullptr);
+        if (!slot.thread)
+        {
+            slot.socket = INVALID_SOCKET;
+            return false;
+        }
+        return true;
+    }
+    return false;
+}
+
+static size_t OverlayShutdownClientSockets()
+{
+    size_t active = 0;
+    std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
+    for (OverlayClientSlot& slot : g_overlayClients)
+    {
+        if (slot.socket != INVALID_SOCKET)
+        {
+            ++active;
+            shutdown(slot.socket, SD_BOTH);
+        }
+    }
+    return active;
+}
+
+static void OverlayClientOwnershipCounts(size_t& sockets, size_t& workers)
+{
+    sockets = 0;
+    workers = 0;
+    std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
+    for (const OverlayClientSlot& slot : g_overlayClients)
+    {
+        if (slot.socket != INVALID_SOCKET)
+            ++sockets;
+        if (slot.thread)
+            ++workers;
+    }
+}
+
+static bool OverlayJoinAllClientWorkers()
+{
+    std::array<HANDLE, kOverlayMaxConcurrentClients> handles{};
+    DWORD count = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
+        for (const OverlayClientSlot& slot : g_overlayClients)
+        {
+            if (slot.thread)
+                handles[count++] = slot.thread;
+        }
+    }
+
+    if (count != 0 && WaitForMultipleObjects(count, handles.data(), TRUE, INFINITE) != WAIT_OBJECT_0)
+        return false;
+
+    std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
+    for (OverlayClientSlot& slot : g_overlayClients)
+    {
+        if (slot.thread)
+        {
+            CloseHandle(slot.thread);
+            slot.thread = nullptr;
+        }
+        if (slot.socket != INVALID_SOCKET)
+        {
+            closesocket(slot.socket);
+            slot.socket = INVALID_SOCKET;
+        }
+    }
+    return true;
 }
 
 static DWORD OverlayThreadBody(SOCKET listenSocket)
@@ -1329,25 +1653,27 @@ static DWORD OverlayThreadBody(SOCKET listenSocket)
             continue;
         }
 
+        if (!g_overlayRunning.load(std::memory_order_acquire))
         {
-            std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
-            if (!g_overlayRunning.load(std::memory_order_acquire))
-            {
-                closesocket(client);
-                break;
-            }
-            g_overlayClientSocket = client;
+            closesocket(client);
+            break;
         }
 
-        OverlayHandleClient(client);
-
+        OverlayReapCompletedClientWorkers();
+        if (!OverlayStartClientWorker(client))
         {
-            std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
-            if (g_overlayClientSocket == client)
-                g_overlayClientSocket = INVALID_SOCKET;
+            DWORD timeoutMs = 1000;
+            setsockopt(client, SOL_SOCKET, SO_SNDTIMEO,
+                reinterpret_cast<const char*>(&timeoutMs), sizeof(timeoutMs));
+            OverlaySend(client, "503 Service Unavailable", "text/plain; charset=utf-8",
+                "client limit reached", false);
             closesocket(client);
         }
     }
+
+    OverlayShutdownClientSockets();
+    if (!OverlayJoinAllClientWorkers())
+        throw std::runtime_error("overlay client worker join failed");
     return 0;
 }
 
@@ -1359,26 +1685,26 @@ static void OverlayThreadOnFault(
     g_overlayRunning.store(false, std::memory_order_release);
     g_overlayPort.store(0, std::memory_order_release);
     StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"worker.fault",
-        L"kind=%u sockets_closed=1", static_cast<unsigned>(record.kind));
+        L"kind=%u sockets_shutdown=1", static_cast<unsigned>(record.kind));
 
-    // The worker will not reach its normal per-client close path after stack
-    // unwinding. Close only sockets owned by this worker; Stop() still owns WSA
-    // teardown and the thread HANDLE.
+    // Client workers close their own sockets. The accept worker only requests
+    // cancellation and confirms every bounded client worker before returning;
+    // Stop() still owns WSA teardown and the accept-thread HANDLE.
     try
     {
-        std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
-        if (g_overlayClientSocket != INVALID_SOCKET)
+        SOCKET listenSocket = INVALID_SOCKET;
         {
-            shutdown(g_overlayClientSocket, SD_BOTH);
-            closesocket(g_overlayClientSocket);
-            g_overlayClientSocket = INVALID_SOCKET;
-        }
-        if (g_overlayListenSocket != INVALID_SOCKET)
-        {
-            shutdown(g_overlayListenSocket, SD_BOTH);
-            closesocket(g_overlayListenSocket);
+            std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
+            listenSocket = g_overlayListenSocket;
             g_overlayListenSocket = INVALID_SOCKET;
         }
+        if (listenSocket != INVALID_SOCKET)
+        {
+            shutdown(listenSocket, SD_BOTH);
+            closesocket(listenSocket);
+        }
+        OverlayShutdownClientSockets();
+        (void)OverlayJoinAllClientWorkers();
     }
     catch (...)
     {
@@ -1452,6 +1778,16 @@ bool OverlayServer_Start(uint16_t port)
         port = 8765;
     OverlayServer_SetConfiguredPort(port);
 
+    std::string sessionToken;
+    if (!OverlayGenerateSessionToken(sessionToken))
+    {
+        OverlaySetLastError(L"Secure overlay session token generation failed");
+        StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"start.failed",
+            L"stage=session_token");
+        (void)g_overlayLifecycle.FailStartBeforeWorker(start.generation, ERROR_GEN_FAILURE);
+        return false;
+    }
+
     WSADATA wsa{};
     int wsaRet = WSAStartup(MAKEWORD(2, 2), &wsa);
     if (wsaRet != 0)
@@ -1518,6 +1854,7 @@ bool OverlayServer_Start(uint16_t port)
     g_overlayFaultKind.store(halljoy::worker::WorkerExceptionKind::None, std::memory_order_release);
     g_overlayThreadExited.store(true, std::memory_order_release);
     g_overlayPort.store(port, std::memory_order_release);
+    OverlayPublishSessionToken(sessionToken);
     g_overlayRunning.store(true, std::memory_order_release);
     OverlaySetLastError(L"");
 
@@ -1536,6 +1873,7 @@ bool OverlayServer_Start(uint16_t port)
         if (failedListen != INVALID_SOCKET)
             closesocket(failedListen);
         g_overlayPort.store(0, std::memory_order_release);
+        OverlayPublishSessionToken(std::string{});
         if (g_overlayWsaStarted.exchange(false, std::memory_order_acq_rel))
             WSACleanup();
         OverlaySetLastError(L"CreateThread failed");
@@ -1559,7 +1897,9 @@ bool OverlayServer_Start(uint16_t port)
         return false;
     }
 
-    StabilityTrace_Write(L"INFO", L"overlay", L"start.ok", L"port=%u", (unsigned)port);
+    StabilityTrace_Write(L"INFO", L"overlay", L"start.ok",
+        L"port=%u max_clients=%u session_cookie=1 origin_policy=strict",
+        (unsigned)port, static_cast<unsigned>(kOverlayMaxConcurrentClients));
     DebugLog_Write(L"[overlay] server started port=%u", (unsigned)port);
     return true;
 }
@@ -1604,9 +1944,8 @@ halljoy::lifecycle::StopResult OverlayServer_Stop()
         std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
         listenSocket = g_overlayListenSocket;
         g_overlayListenSocket = INVALID_SOCKET;
-        if (g_overlayClientSocket != INVALID_SOCKET)
-            shutdown(g_overlayClientSocket, SD_BOTH);
     }
+    const size_t activeClients = OverlayShutdownClientSockets();
     if (listenSocket != INVALID_SOCKET)
     {
         shutdown(listenSocket, SD_BOTH);
@@ -1627,20 +1966,20 @@ halljoy::lifecycle::StopResult OverlayServer_Stop()
         waitError);
     if (!observedJoin.Completed())
     {
-        bool clientRetained = false;
-        {
-            const std::lock_guard<std::mutex> socketGuard(g_overlaySocketMutex);
-            clientRetained = g_overlayClientSocket != INVALID_SOCKET;
-        }
+        size_t retainedClientSockets = 0;
+        size_t retainedClientWorkers = 0;
+        OverlayClientOwnershipCounts(retainedClientSockets, retainedClientWorkers);
         const auto poisoned = g_overlayLifecycle.MarkPoisoned(requested.generation,
             halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
             observedJoin.error.code, observedJoin.error.native_error);
         OverlaySetLastError(L"Overlay worker join timed out; restart is blocked");
         StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"stop.timeout",
-            L"generation=%llu wait=%lu win32=%lu thread_handle_retained=1 wsa_retained=1 client_socket_retained=%d restart_blocked=1",
+            L"generation=%llu wait=%lu win32=%lu thread_handle_retained=1 wsa_retained=1 client_sockets_retained=%u client_workers_retained=%u restart_blocked=1",
             static_cast<unsigned long long>(requested.generation.Value()),
             static_cast<unsigned long>(waitResult),
-            static_cast<unsigned long>(waitError), clientRetained ? 1 : 0);
+            static_cast<unsigned long>(waitError),
+            static_cast<unsigned>(retainedClientSockets),
+            static_cast<unsigned>(retainedClientWorkers));
         DebugLog_Write(L"[overlay] stop join incomplete wait=%lu err=%lu; resources retained and restart blocked",
             static_cast<unsigned long>(waitResult), static_cast<unsigned long>(waitError));
         return poisoned;
@@ -1649,10 +1988,12 @@ halljoy::lifecycle::StopResult OverlayServer_Stop()
     CloseHandle(g_overlayThread);
     g_overlayThread = nullptr;
     g_overlayPort.store(0, std::memory_order_release);
+    OverlayPublishSessionToken(std::string{});
     if (g_overlayWsaStarted.exchange(false, std::memory_order_acq_rel))
         WSACleanup();
     const auto joined = g_overlayLifecycle.ConfirmJoined(requested.generation);
-    StabilityTrace_Write(L"INFO", L"overlay", L"stop.end");
+    StabilityTrace_Write(L"INFO", L"overlay", L"stop.end", L"active_clients=%u",
+        static_cast<unsigned>(activeClients));
     DebugLog_Write(L"[overlay] server stopped");
     return joined;
 }

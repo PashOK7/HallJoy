@@ -87,15 +87,16 @@ event, file and queue ownership back to the caller for cleanup. Timeout retains
 those resources, poisons restart and requires process-level exit without CRT
 destruction so no live writer can access destroyed storage.
 
-The loopback overlay server also has a serialized generation. Stop closes the
-listen socket to wake `accept` and shuts down the active client socket to wake
-`recv`. The worker HANDLE and WSA ownership are released only after confirmed
-completion. An incomplete join retains ownership, poisons restart and prevents
-teardown of backend, settings, logging and other state that the worker could
-still read. The high-rate `/state` path retains keep-alive, while one-shot
-telemetry and error responses close immediately so the single worker never
-holds an idle connection for its five-second receive timeout. General HTTP
-framing and multi-client concurrency remain V14-10 concerns.
+The loopback overlay server also has a serialized generation. Its accept owner
+delegates sockets to a fixed table of 16 independent client workers. Stop closes
+the listen socket to wake `accept`, shuts down every client to wake `recv` and
+joins all client workers before releasing the accept HANDLE or WSA ownership.
+An incomplete join retains reachable socket/thread ownership, poisons restart
+and prevents teardown of state the workers could still read. Each connection
+uses bounded incremental HTTP framing; one-shot telemetry and error responses
+close immediately, while `/state` may retain keep-alive. Each server generation
+also owns a 128-bit session cookie. Protected routes require it, browser origins
+must exactly match the bound IPv4 loopback origin, and wildcard CORS is absent.
 
 SparkLink has an inner worker generation because device hotplug can restart its
 poller while the outer native-registry generation remains active. That outer

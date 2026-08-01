@@ -18,8 +18,11 @@ version or release status.
   Verified locally
 - Completed subpackage: `V14-10C` bounded overlay HTTP framing and telemetry
   parsing, Verified locally
-- Current package: `V14-10` in progress
-- Next work: `V14-10D` overlay concurrency, origin policy and shutdown gates
+- Completed subpackage: `V14-10D` bounded overlay concurrency, strict origin
+  policy and cooperative client shutdown, Verified locally
+- Completed package: `V14-10` IPC and overlay security/correctness
+- Next work: `V14-11` UAP pacing, identity, modularization and measured
+  performance
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -53,6 +56,16 @@ and pipelined requests, rejects transfer coding, and enforces 8 KiB header,
 4 KiB body and 2 KiB target limits. Client metrics use exact-key
 `from_chars` conversion with a one-billion upper bound, so malformed,
 duplicate and overflowing telemetry is rejected before counters change.
+V14-10D delegates accepted clients to a fixed 16-worker ownership table, so
+slow or fragmented clients cannot serialize the live state stream. Stop wakes
+and joins every client before WSA cleanup; a simulator gate held eight partial
+requests through application shutdown. Each server generation also creates a
+128-bit CSPRNG session cookie, protects state and telemetry with that cookie,
+accepts only the exact `http://127.0.0.1:<port>` browser origin and emits no
+wildcard CORS policy. An already open overlay page automatically refreshes a
+cookie from the new generation after an overlay restart. Simulator and
+production socket gates, timeout
+containment, the full build and the Irok route/balanced-shutdown smoke pass.
 
 ## Authoritative documents
 

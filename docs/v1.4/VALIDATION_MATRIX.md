@@ -983,3 +983,63 @@ Evidence:
   docs/stability/tests/V14-10C_OVERLAY_HTTP_FRAMING_2026-08-01.txt
 Rollback: parent commit of the V14-10C implementation commit
 ```
+
+## V14-10D evidence
+
+```text
+Package: V14-10D
+Scope: bounded multi-client overlay scheduling, strict browser origin/session
+  policy and cooperative shutdown of active client workers
+Commands:
+  python -m py_compile tools/check_overlay_responsiveness.py
+    tools/check_overlay_http_framing.py
+    tools/check_overlay_concurrency_origin.py
+  python src/HallJoyProject/tests/overlay_concurrency_origin_static_audit.py
+  python src/HallJoyProject/tests/overlay_cooperative_shutdown_static_audit.py
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -StartOverlay -RunSeconds 10
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectOverlayStopTimeout -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -StartOverlay
+    -OverlayPort 18765 -RunSeconds 10
+Results:
+  Overlay concurrency/origin and cooperative-shutdown audits: PASS
+  Static audits: 34/34 PASS
+  Portable C++20 tests: 18/18 PASS
+  Simulator overlay responsiveness/framing: PASS; next /state 0.4 ms,
+    fragmented=1, pipelined=2 and bounded_rejections=8
+  Simulator concurrency/origin: PASS; 8 slow clients plus 8 parallel /state,
+    maximum latency 2.3 ms, fixed client limit 16, prompt reset rejection,
+    hostile origins=2, stale-session 401/browser rebootstrap and 128-bit cookie
+  Active-client shutdown: PASS; 8/8 heartbeat-held partial clients closed by
+    server stop and trace recorded active_clients=8
+  Overlay timeout containment regression: PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Real ABI1 load/init/null/bounded-unload runtime gate: PASS
+  Production overlay responsiveness: PASS; next /state 0.4 ms
+  Production concurrency/origin: PASS; maximum parallel latency 1.6 ms,
+    fixed limit 16 and strict origin/session checks
+  Production Irok route: SparkLink VID 1CA6, PID 0529, usage page FFB0;
+    45,867 successful queries, zero failures, average route interval 249 us,
+    balanced shutdown and exit 0
+  Runtime user state: 11 files, zero differences from pre-smoke backup
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,231,296 bytes
+  SHA-256: BF44786B93C34C2E310949C69EBDF641753A8729339736F7D1F2278A6A1D9BE2
+  Production trace SHA-256:
+    7ED922357B9E1F4EF8FBC95C86614F361CF6712C1B3D76BC49B87DA3C3694294
+Hardware: Irok startup/route/balanced shutdown passed; no analog-row changes,
+  so this package makes no new hardware input claim
+Threat limit: loopback origin/session boundary; not a sandbox against a process
+  already authorized to inspect HallJoy or the user's browser state
+Remote CI: NOT RUN; optional, no push permitted
+Known limitation: UAP pacing, device identity and snapshot contention remain
+  V14-11
+Evidence:
+  docs/stability/tests/V14-10D_OVERLAY_CONCURRENCY_ORIGIN_2026-08-01.txt
+Rollback: parent commit of the V14-10D implementation commit
+```

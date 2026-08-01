@@ -1089,3 +1089,67 @@
 - `HJ-AUD-P2-002` and `HJ-AUD-P2-003` are Verified.
 - V14-10 remains In progress. Next is V14-10D overlay concurrency, origin
   policy and shutdown gates (`HJ-AUD-P2-001`, `HJ-AUD-P2-004`).
+
+## 2026-08-01 - V14-10D overlay concurrency, origin and shutdown
+
+### Implementation
+
+- Replaced synchronous client handling in the accept owner with a fixed table
+  of 16 independently owned socket/thread slots. Completed workers are reaped
+  before assignment; saturation is rejected immediately without reading
+  attacker-controlled input on the accept thread.
+- Added a common C++ exception boundary to every client worker. Normal stop
+  shuts down all active client sockets, and the accept owner joins every client
+  before its own completion. An incomplete outer join retains the accept
+  HANDLE, WSA and reachable client ownership and poisons restart.
+- Added a new 128-bit `BCryptGenRandom` session token for every server
+  generation. Root navigation issues an `HttpOnly; SameSite=Strict` cookie;
+  state and telemetry require the exact cookie. The embedded page detects a
+  stale-generation `401`, refreshes the root to receive the new cookie and
+  resumes polling without a manual browser reload.
+- Removed wildcard CORS. Browser requests accept only the exact
+  `http://127.0.0.1:<port>` origin and echo it with `Vary: Origin`; hostile and
+  `null` origins receive closing `403` responses without a cookie.
+- Updated responsiveness/framing tools to bootstrap the session and added a
+  build-required concurrency/origin socket gate. The simulator runner also
+  keeps eight partial clients alive with header heartbeats until application
+  shutdown, preventing idle timeout from masquerading as shutdown coverage.
+
+### Validation
+
+- New concurrency/origin static audit, existing cooperative-shutdown audit,
+  all 34 static audits and all 18 portable C++20 tests: PASS.
+- Simulator overlay socket suite: PASS. With eight partial slow clients, eight
+  parallel authenticated `/state` requests completed with 2.3 ms maximum
+  latency. The 17th client was rejected promptly at the fixed 16-client limit,
+  and authenticated state recovered immediately.
+- Exact origin echo, no-origin direct client, missing session, hostile origin,
+  `null` origin and hostile root bootstrap cases all passed. The cookie is 128
+  bits and carries `HttpOnly` plus `SameSite=Strict`.
+- Active-client shutdown: PASS. Eight heartbeat-held incomplete requests were
+  closed by stop, and the simulator trace recorded `active_clients=8`.
+- Existing forced overlay stop-timeout containment regression: PASS.
+- Official x64 production build: PASS, 0 errors and only allowlisted
+  `LNK4099`; embedded ABI1 runtime gate passed.
+- Production overlay smoke repeated framing, concurrency and origin gates;
+  next-state responsiveness was 0.4 ms and maximum parallel latency was
+  1.6 ms. Overlay and process shutdown completed normally.
+- Irok MG75 Max route `1CA6:0529/FFB0` completed 45,867/45,867 queries with
+  zero failures, a 249 us average route interval and balanced shutdown. No
+  analog rows changed, so this is route/lifecycle evidence only.
+- All 11 LocalAppData files matched the pre-production backup; zero HallJoy
+  processes and zero persistence transaction temp files remained.
+- `HallJoy.exe`: 2,231,296 bytes,
+  SHA-256 `BF44786B93C34C2E310949C69EBDF641753A8729339736F7D1F2278A6A1D9BE2`.
+- Production trace SHA-256:
+  `7ED922357B9E1F4EF8FBC95C86614F361CF6712C1B3D76BC49B87DA3C3694294`.
+- Source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-10D-prechange-20260801-1217`.
+- Runtime/package backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-10D-preproduction-20260801-1235`.
+
+### Package result
+
+- `HJ-AUD-P2-001` and `HJ-AUD-P2-004` are Verified.
+- V14-10 is complete. Next is V14-11 UAP pacing, device identity,
+  modularization and measured performance.

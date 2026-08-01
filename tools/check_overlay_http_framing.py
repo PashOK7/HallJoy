@@ -28,7 +28,7 @@ class ResponseReader:
         for line in lines[1:]:
             if ":" in line:
                 name, value = line.split(":", 1)
-                headers[name.strip().lower()] = value.strip().lower()
+                headers[name.strip().lower()] = value.strip()
         length = int(headers.get("content-length", "0"))
         while len(self.buffer) < length:
             self._receive()
@@ -43,13 +43,22 @@ class ResponseReader:
         self.buffer.extend(chunk)
 
 
-def request(port: int, path: str, connection: str = "close", body: bytes = b"") -> bytes:
-    return (
+def request(
+    port: int,
+    path: str,
+    connection: str = "close",
+    body: bytes = b"",
+    cookie: str = "",
+) -> bytes:
+    header = (
         f"GET {path} HTTP/1.1\r\n"
         f"Host: 127.0.0.1:{port}\r\n"
         f"Connection: {connection}\r\n"
-        f"Content-Length: {len(body)}\r\n\r\n"
-    ).encode("ascii") + body
+        f"Content-Length: {len(body)}\r\n"
+    )
+    if cookie:
+        header += f"Cookie: {cookie}\r\n"
+    return (header + "\r\n").encode("ascii") + body
 
 
 def connect(address: tuple[str, int]) -> socket.socket:
@@ -77,11 +86,23 @@ def expect_status(address: tuple[str, int], payload: bytes, code: int) -> bytes:
         status, headers, body = ResponseReader(connection).read()
         if f" {code} " not in status:
             raise RuntimeError(f"expected HTTP {code}, received {status}")
-        if code >= 400 and headers.get("connection") != "close":
+        if code >= 400 and headers.get("connection", "").lower() != "close":
             raise RuntimeError(f"HTTP {code} did not close the rejected request")
         if code >= 400 and connection.recv(1) != b"":
             raise RuntimeError(f"HTTP {code} kept the rejected connection open")
         return body
+
+
+def bootstrap_session(address: tuple[str, int], port: int) -> str:
+    with connect(address) as connection:
+        connection.sendall(request(port, "/"))
+        status, headers, _ = ResponseReader(connection).read()
+    if " 200 " not in status:
+        raise RuntimeError(f"session bootstrap returned {status}")
+    cookie = headers.get("set-cookie", "").split(";", 1)[0]
+    if not cookie.startswith("HallJoySession=") or len(cookie) != 47:
+        raise RuntimeError("session bootstrap did not return a 128-bit cookie")
+    return cookie
 
 
 def main() -> int:
@@ -91,9 +112,10 @@ def main() -> int:
     args = parser.parse_args()
     address = ("127.0.0.1", args.port)
     wait_until_ready(address, args.connect_deadline_ms)
+    cookie = bootstrap_session(address, args.port)
 
     # A request line and headers may span arbitrary recv() boundaries.
-    fragmented = request(args.port, "/state")
+    fragmented = request(args.port, "/state", cookie=cookie)
     with connect(address) as connection:
         previous = 0
         for offset in (1, 7, 19, len(fragmented)):
@@ -106,7 +128,8 @@ def main() -> int:
     # Two complete requests delivered by one send must produce two framed responses.
     with connect(address) as connection:
         connection.sendall(
-            request(args.port, "/state", "keep-alive") + request(args.port, "/state")
+            request(args.port, "/state", "keep-alive", cookie=cookie)
+            + request(args.port, "/state", cookie=cookie)
         )
         reader = ResponseReader(connection)
         first = reader.read()
@@ -115,8 +138,8 @@ def main() -> int:
             raise RuntimeError("pipelined /state requests were not both served")
 
     # Content-Length bytes belong to the first frame, even when body and next request coalesce.
-    first_request = request(args.port, "/state", "keep-alive", b"TEST")
-    second_request = request(args.port, "/state")
+    first_request = request(args.port, "/state", "keep-alive", b"TEST", cookie)
+    second_request = request(args.port, "/state", cookie=cookie)
     split = len(first_request) - 2
     with connect(address) as connection:
         connection.sendall(first_request[:split])
@@ -152,15 +175,23 @@ def main() -> int:
         400,
     )
     expect_status(address, request(args.port, "/" + "a" * 2048), 414)
-    expect_status(address, request(args.port, "/client_perf?frames=184467440737095516160"), 400)
-    expect_status(address, request(args.port, "/client_perf?frames=1&frames=2"), 400)
-    expect_status(address, request(args.port, "/client_perf?frames=1"), 204)
+    expect_status(
+        address,
+        request(args.port, "/client_perf?frames=184467440737095516160", cookie=cookie),
+        400,
+    )
+    expect_status(
+        address,
+        request(args.port, "/client_perf?frames=1&frames=2", cookie=cookie),
+        400,
+    )
+    expect_status(address, request(args.port, "/client_perf?frames=1", cookie=cookie), 204)
     expect_status(
         address,
         f"POST /state HTTP/1.1\r\nHost: 127.0.0.1:{args.port}\r\nConnection: close\r\n\r\n".encode("ascii"),
         405,
     )
-    final_body = expect_status(address, request(args.port, "/state"), 200)
+    final_body = expect_status(address, request(args.port, "/state", cookie=cookie), 200)
     parsed = json.loads(final_body.decode("utf-8"))
     if "tick" not in parsed or "keys" not in parsed:
         raise RuntimeError("final /state response is missing required fields")

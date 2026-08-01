@@ -49,13 +49,14 @@ def main() -> int:
             "start publishes one truthful lifecycle generation")
     require("g_overlayLifecycleMutex" in start and "g_overlayLifecycleMutex" in stop,
             "start and stop transitions are serialized")
-    require("shutdown(g_overlayClientSocket" in stop and "closesocket(listenSocket)" in stop and
+    require("OverlayShutdownClientSockets" in stop and "closesocket(listenSocket)" in stop and
             stop.index("closesocket(listenSocket)") < stop.index("WaitForSingleObject"),
-            "stop wakes accept and recv before joining")
+            "stop wakes accept and every client before joining")
     require("ObserveWorkerJoin" in stop,
             "stop uses the common join policy")
     require("MarkPoisoned" in stop and "thread_handle_retained=1" in stop and
-            "wsa_retained=1" in stop and "restart_blocked=1" in stop,
+            "wsa_retained=1" in stop and "client_workers_retained=%u" in stop and
+            "restart_blocked=1" in stop,
             "incomplete join retains ownership and poisons restart")
     require(stop.index("if (!observedJoin.Completed())") < stop.index("CloseHandle(g_overlayThread)"),
             "thread handle closes only after confirmed completion")

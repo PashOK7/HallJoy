@@ -80,6 +80,11 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw "Production overlay framing gate failed with exit code $LASTEXITCODE."
         }
+        & python (Join-Path $root 'tools\check_overlay_concurrency_origin.py') `
+            --port $OverlayPort --connect-deadline-ms 5000 --deadline-ms 1000
+        if ($LASTEXITCODE -ne 0) {
+            throw "Production overlay concurrency/origin gate failed with exit code $LASTEXITCODE."
+        }
     }
     Start-Sleep -Seconds $RunSeconds
     $deadline = [DateTime]::UtcNow.AddSeconds(15)

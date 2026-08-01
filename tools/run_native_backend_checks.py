@@ -74,6 +74,8 @@ def main() -> int:
     ET.parse(hall / "HallJoy.vcxproj")
     ET.parse(hall / "HallJoy.vcxproj.filters")
 
+    run([sys.executable, str(project_root / "tools" / "validate_addressed_protocol_backend.py")])
+
     for script in sorted(tests.glob("*audit.py")):
         run([sys.executable, str(script)])
 

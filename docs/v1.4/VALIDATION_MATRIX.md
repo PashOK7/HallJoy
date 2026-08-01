@@ -1508,3 +1508,40 @@ Evidence:
   docs/stability/tests/V14-12F_S18_INSTALLER_REMOVAL_2026-08-01.txt
 Rollback: parent commit of the V14-12F implementation commit
 ```
+
+## V14-12G / S20 pre-qualification build and docs evidence
+
+```text
+Package: V14-12G / S20
+Scope: current local gates/docs, x64-only project and W4 warning policy
+Commands:
+  python tools/run_native_backend_checks.py --static-only
+  python tools/run_native_backend_checks.py --require-compiler
+  cmd /c BUILD.cmd
+  powershell -NoProfile -ExecutionPolicy Bypass -File
+    tools/run_release_qualification.ps1 -Cycles 3 -RunSeconds 2
+Results:
+  Current Addressed catalog/lifecycle validator: PASS
+  Repository static audits: 44 PASS
+  Portable C++20 tests: 27 PASS
+  Supported configurations: Debug|x64, Release|x64 only
+  Warning policy: W4; narrow C4100/C4127/C4324/C4505 legacy baseline
+  Official MSVC Release x64: PASS, 0 errors, 0 compiler warnings
+  Direct MSVC Debug x64: PASS, 0 errors, 0 compiler warnings; release static CRT
+    is intentional because bundled ViGEmClient.lib is /MT release
+  Linker: only allowlisted external ViGEm LNK4099
+  Normal production cycles: 3/3 PASS; shutdown 139-254 ms; max handles 209
+  Remaining processes: 0; user state: 11/11 files unchanged
+  Irok traces: no ERROR; SparkLink 17,674 success plus one expected
+    shutdown-window cancellation
+Artifact:
+  build/output/HallJoy.exe
+  Size: 2,206,208 bytes
+  SHA-256: 01A046A667DA012237E12C597ED84BE531AF20BC6338F55881C1C5197272559A
+Status: S20 Verified; pre-qualification work complete
+Limits: this does not execute S21's 1000 cycles, 8-24 hour soak or unavailable
+  physical-device matrix. Aula physical result remains release-blocking.
+Evidence:
+  docs/stability/tests/V14-12G_S20_BUILD_DOCS_2026-08-01.txt
+Rollback: parent commit of the V14-12G implementation commit
+```

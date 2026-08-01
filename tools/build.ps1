@@ -271,7 +271,9 @@ if ($projectText -notmatch 'HALLJOY_MAD68PR_NATIVE;HALLJOY_PRODUCTION' -or
     $projectText -match 'HALLJOY_MAD68PR_NATIVE;HALLJOY_DIAGNOSTIC') {
     throw 'Final-build preflight failed: native target must be production and must not enable file diagnostics.'
 }
-if (([regex]::Matches($projectText, 'Synchronization\.lib')).Count -lt 4) {
+$linkConfigurationCount = ([regex]::Matches($projectText, '<AdditionalDependencies>')).Count
+$synchronizationLibraryCount = ([regex]::Matches($projectText, 'Synchronization\.lib')).Count
+if ($linkConfigurationCount -eq 0 -or $synchronizationLibraryCount -ne $linkConfigurationCount) {
     throw 'Linker preflight failed: all HallJoy configurations must link Synchronization.lib for WaitOnAddress/WakeByAddress.'
 }
 if ($realtimeText -notmatch 'WaitOnAddress' -or

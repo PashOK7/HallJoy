@@ -118,3 +118,9 @@ Addressed и Sayo также требуют реального hardware gate д�
   lock. 43 static, 27 portable, MSVC `/W4 /WX`, официальный build и post-build
   Irok 3/3 PASS. Modal missing-ViGEm guidance не открывался из-за установленного
   драйвера; его policy проверен pure/static gates, не hardware наблюдением.
+- S20/V14-12G: TESTING/README/BUILD соответствуют поставляемой v1.4, Addressed
+  validator проверяет catalog/lifecycle и входит в unified runner, v3.9 validation
+  помечен historical. Win32/x86 удалён; Debug/Release x64 — W4 с узким baseline.
+  Current validator + 44 audits + 27 portable tests, официальный build с 0
+  compiler warnings и Irok normal 3/3 PASS. S20 завершён; 1000 циклов, 8-24h,
+  reconnect/input и недоступная hardware matrix остаются S21 qualification.

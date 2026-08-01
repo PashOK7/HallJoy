@@ -495,8 +495,12 @@ namespace
         GetPrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"{missing}", kind, (DWORD)_countof(kind), temporaryPath);
         bool ok = wcscmp(schema, L"1") == 0 && wcscmp(kind, L"LayoutPreset") == 0;
         ok &= GetPrivateProfileIntW(L"LayoutPreset", L"Count", -1, temporaryPath) == (int)p.keys.size();
-        ok &= GetPrivateProfileIntW(L"LayoutPreset", L"UniformSpacing", -1, temporaryPath) == (p.uniformSpacing ? 1 : 0);
-        ok &= GetPrivateProfileIntW(L"LayoutPreset", L"UniformGap", -1, temporaryPath) == ClampUniformGap(p.uniformGap);
+        ok &= static_cast<int>(GetPrivateProfileIntW(
+            L"LayoutPreset", L"UniformSpacing", static_cast<UINT>(-1), temporaryPath)) ==
+            (p.uniformSpacing ? 1 : 0);
+        ok &= static_cast<int>(GetPrivateProfileIntW(
+            L"LayoutPreset", L"UniformGap", static_cast<UINT>(-1), temporaryPath)) ==
+            ClampUniformGap(p.uniformGap);
 
         for (int i = 0; ok && i < (int)p.keys.size(); ++i)
         {

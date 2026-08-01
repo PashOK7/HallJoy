@@ -1606,3 +1606,50 @@
 - The missing-ViGEm modal was not opened manually because this workstation has
   ViGEm installed; message/policy correctness is covered structurally and by the
   pure test. Normal installed-driver behavior is runtime-verified on Irok.
+
+## 2026-08-01 - V14-12G / S20 pre-qualification build and docs
+
+### Implementation
+
+- Replaced stale V6/V11 project testing/build/readme instructions with the real
+  v1.4 unified runner, `BUILD.cmd`, x64 `HallJoy.exe`, LocalAppData storage and
+  explicit hardware limitations.
+- Rewrote the stale Addressed validator for central catalog/start/read/stop,
+  exact-path ownership and bounded retained-generation shutdown, then required
+  it from `run_native_backend_checks.py`.
+- Marked the v3.9 validation package historical and non-authoritative.
+- Removed unsupported Win32/x86 configurations because only x64 ViGEm/UAP
+  artifacts ship. Both x64 configurations now use W4 with the documented narrow
+  C4100/C4127/C4324/C4505 legacy baseline; actionable conversion warnings were
+  fixed explicitly.
+- The first direct Debug|x64 gate exposed its old debug-CRT/release-ViGEm
+  mismatch. Debug now retains symbols, runtime checks, `/Od` and a project-local
+  feature macro while deliberately using the `/MT` release CRT required by the
+  bundled ViGEm client.
+- Added a regression audit for all S20 invariants and converted the old fixed
+  four-configuration Synchronization.lib assertions to per-supported-config
+  checks.
+
+### Validation
+
+- Current Addressed validator and 44/44 repository static audits: PASS.
+- 27/27 portable C++20 tests: PASS.
+- Official clean `BUILD.cmd`: PASS, 0 errors, 0 compiler warnings and only the
+  allowlisted external ViGEm LNK4099 diagnostic.
+- Direct Debug|x64 rebuild: PASS, 0 errors, 0 compiler warnings and the same
+  external LNK4099 diagnostic.
+- Post-build Irok normal cycles: 3/3 PASS, exit 0, shutdown 139-254 ms, max 209
+  HANDLE, zero remaining processes and 11 unchanged user files. Traces contain
+  no ERROR; SparkLink total was 17,674 successful queries plus one expected
+  shutdown-window cancellation.
+- `HallJoy.exe`: 2,206,208 bytes, SHA-256
+  `01A046A667DA012237E12C597ED84BE531AF20BC6338F55881C1C5197272559A`.
+- Verified backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-12G-S20-prechange-20260801-173804`.
+
+### Package result
+
+- `HJ-AUD-P3-001` through `HJ-AUD-P3-006`: Verified. Risk count is now 0 Open,
+  3 Implemented, 1 Partial and 41 Verified.
+- S20 is complete. S21 qualification is next. The pending external Aula result
+  does not block ongoing work, but remains mandatory before release approval.

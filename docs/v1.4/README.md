@@ -37,8 +37,11 @@ version or release status.
 - Implemented subpackage: `V14-12B/S06` Addressed overlapped-I/O ownership and
   bounded stop; deterministic timeout containment and available Irok regression
   pass, while physical Addressed hardware remains unvalidated
-- Next work: `V14-12` release qualification and hardware matrix, including the
-  open Aula physical-device gate
+- Completed pre-qualification package: `V14-12G/S20` current build/test docs,
+  catalog-driven Addressed audit, x64-only project configurations and MSVC
+  Warning Level 4 with zero unexpected production warnings
+- Next work: `V14-12/S21` release qualification and hardware matrix. The Aula
+  physical result may arrive asynchronously but remains mandatory before release
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -121,6 +124,14 @@ end-to-end, poisoned-session and ambiguous-device tests pass GCC, MSVC
 Irok regression pass with 65,379/65,379 SparkLink queries and unchanged user
 state. This is firmware-proven support, not physical Aula validation; input,
 hotplug, multiple devices and other firmware versions remain open.
+V14-12G closes the remaining S20 build/documentation risks. Unsupported
+Win32/x86 configurations were removed, both supported x64 configurations use
+Warning Level 4 with a narrow documented legacy baseline, and the official
+build rejects every warning except the external ViGEm PDB diagnostic. Current
+project guides name the real unified runner and `HallJoy.exe`; the old Addressed
+validator now checks the central catalog and bounded lifecycle, while the v3.9
+validation record is explicitly historical. Automated gates and a normal Irok
+3-cycle regression pass. This completes pre-qualification work, not S21.
 
 ## Authoritative documents
 

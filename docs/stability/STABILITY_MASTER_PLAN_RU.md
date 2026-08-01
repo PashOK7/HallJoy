@@ -330,6 +330,14 @@ portable policy, MSVC `/W4 /WX`, официальный build и normal Irok gat
 - проверить x64 library references;
 - обновить validation package без завышенных утверждений.
 
+Статус v1.4: `Verified` в V14-12G. Три внутренние инструкции описывают реальные
+v1.4 scripts/output/storage, Addressed validator переписан под central catalog и
+включён в unified runner, v3.9 validation явно помечен историческим. Фиктивные
+Win32/x86-конфигурации удалены: поставляемые ViGEm/UAP artifacts и продукт
+x64-only. Debug/Release x64 используют W4 с узким задокументированным baseline
+`4100/4127/4324/4505`; официальный build отклоняет остальные warnings и прошёл
+с нулём compiler warnings. S20 завершён; следующий этап — S21 qualification.
+
 ### S21 — Performance and long-run qualification
 
 После correctness:

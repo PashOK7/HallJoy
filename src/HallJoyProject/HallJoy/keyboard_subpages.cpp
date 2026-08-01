@@ -81,7 +81,7 @@ static Color Gp(COLORREF c, BYTE a = 255);
 
 static void SnappyDebugLog(const wchar_t* stage, HWND hBtn, int extraA = -1, int extraB = -1)
 {
-#if defined(_DEBUG)
+#if defined(HALLJOY_DEBUG_BUILD)
     if (!kEnableSnappyDebug) return;
 
     int check = -1;

@@ -1103,8 +1103,8 @@ static void DrawKey_Impl(const DRAWITEMSTRUCT* dis, uint16_t hid, bool selected,
                 Graphics g(hdc);
                 g.SetCompositingQuality(CompositingQualityHighQuality);
 
-                int a = (int)(flashAlpha * 200.0f); // max 200/255 alpha
-                Color cTop(a, 255, 255, 255);
+                const int alpha = std::clamp(static_cast<int>(flashAlpha * 200.0f), 0, 255);
+                Color cTop(static_cast<BYTE>(alpha), 255, 255, 255);
                 Color cBot(0, 255, 255, 255);
 
                 RectF rFill((REAL)fill.left, (REAL)fill.top, (REAL)(fill.right - fill.left), (REAL)(fill.bottom - fill.top));

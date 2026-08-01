@@ -29,7 +29,10 @@ checks = {
     'native target is production': 'HALLJOY_MAD68PR_NATIVE;HALLJOY_PRODUCTION' in project,
     'native target does not force diagnostic': 'HALLJOY_MAD68PR_NATIVE;HALLJOY_DIAGNOSTIC' not in project,
     'address wake is used': all(x in rt for x in ('WaitOnAddress', 'WakeByAddressSingle', 'WakeByAddressAll')),
-    'address wake import library is linked in every configuration': project.count('Synchronization.lib') >= 4,
+    'address wake import library is linked in every supported configuration': (
+        project.count('<AdditionalDependencies>') > 0 and
+        project.count('Synchronization.lib') == project.count('<AdditionalDependencies>')
+    ),
     'precise output deadline timer is used': all(x in rt for x in ('CREATE_WAITABLE_TIMER_HIGH_RESOLUTION', 'Backend_GetNextOutputDeadlineQpc', 'precise_output_deadline')),
     'all native families participate in UAP arbitration': ('NativeAnalogProtocol::Mad68A0' in mad and 'NativeAnalogProtocol::Hex80' in hex80 and 'NativeAnalogProtocol::Addressed09402' in addressed and 'NativeAnalogProtocol::SparkLink' in spark and 'NativeAnalogProtocol::SayoDepth' in sayo),
     'universal native target can run without UAP': ('universal native continuation enabled; UAP unavailable for this run' in main and 'if (Mad68ProR_IsProtocolDevicePresent())' not in main),

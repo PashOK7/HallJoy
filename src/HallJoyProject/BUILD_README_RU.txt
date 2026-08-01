@@ -1,37 +1,50 @@
-HALLJOY MADLIONS V6 — SAFE HID TRANSPORT + ИЗОЛИРОВАННЫЙ HOST
+HALLJOY v1.4 — АКТУАЛЬНАЯ СБОРКА
+================================
 
-Главное изменение V6:
-- старый Windows overlapped-I/O путь Madlions полностью заменён;
-- write и read выполняются строго последовательно;
-- у каждой операции собственный manual-reset event;
-- pending I/O всегда завершён либо отменён и дренирован до повторного
-  использования памяти;
-- PnP/timeout/ошибка HID приводят к контролируемому открытию нового handle,
-  а не к повреждению стека.
+Поддерживаемая цель: Windows x64. Win32/x86 не поддерживается и не заявляется,
+поскольку поставляемые ViGEm/UAP-компоненты собраны для x64.
 
-Дополнительные границы:
-- Wooting Analog SDK исключён из пути Madlions;
-- private Universal Analog Plugin ABI1 вызывается напрямую;
-- plugin, Soup и HID-код работают только в дочернем процессе;
-- основной HallJoy немедленно обнуляет snapshot при crash/hang;
-- внешний supervisor сохраняет регистры, стек, модули и minidump;
-- host автоматически перезапускается с новым HID handle.
+Конфигурации Release|x64 и Debug|x64 собираются. Debug сохраняет symbols,
+runtime checks и отключённую оптимизацию, но использует совместимый static
+release CRT: bundled ViGEmClient.lib собран с /MT release.
 
 Требования:
-- Visual Studio 2022 / Build Tools: Desktop development with C++
-- C++ Clang tools for Windows x64
-- Git
-- интернет при первой загрузке Sun и Soup
+- Visual Studio 2022 Build Tools;
+- workload Desktop development with C++;
+- x64 Clang tools for Windows;
+- Python 3.12;
+- Git;
+- PowerShell 5.1 или новее.
 
-Сборка:
-  powershell -NoProfile -ExecutionPolicy Bypass -File .\build_all.ps1
+Собирать из корня репозитория единственной командой:
+
+  BUILD.cmd
+
+Эквивалентный прямой вызов:
+
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+
+Перед MSVC-сборкой сценарий проверяет dependency lock, static audits и
+portable C++20 tests. Production собирается с Warning Level 4; любое новое
+неразрешённое предупреждение прерывает официальную сборку.
 
 Результат:
-  HallJoyProject\x64\MadlionsDiagnostic\SEND_TO_MADLIONS_TESTER\
 
-Сначала проверить fault containment:
-  .\HallJoyMadlionsSafeHID.exe --diagnostic-analog-host-crash-test
+  build\output\HallJoy.exe
 
-Затем выполнить стресс-тест из README_TEST.txt. Критерий V6 — не просто
-сохранение окна HallJoy, а отсутствие новых реальных
-HallJoyAnalogHostCrash_*.txt/.dmp при PnP-нагрузке.
+Не использовать старые build_all.ps1, V6/Madlions diagnostic paths или
+HallJoyMadlionsSafeHID.exe — они не являются текущим release target.
+
+HallJoy не скачивает и не запускает драйверные установщики с повышением прав.
+Если ViGEmBus отсутствует, программа показывает точную официальную ссылку для
+ручной установки. Private UAP runtime собирается и проверяется самим BUILD.cmd.
+
+Проверки и release-гейты описаны в:
+
+  src\HallJoyProject\TESTING.md
+  docs\v1.4\VALIDATION_MATRIX.md
+  docs\v1.4\RISK_REGISTER.md
+
+Aula WIN 60 HE MAX пока имеет статус firmware-proven/hardware-unvalidated.
+Разработка и автоматические проверки продолжаются, но релиз без физического
+теста Aula не утверждается.

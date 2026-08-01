@@ -1,5 +1,17 @@
-HallJoy Universal Analog Final v3.9.0 validation
-================================================
+HISTORICAL RECORD ONLY - NOT CURRENT v1.4 RELEASE EVIDENCE
+===========================================================
+
+This file records the v3.9.0 package state at the time it was created. It does
+not describe the current v1.4 code, does not prove bounded worker lifecycle or
+physical-device compatibility, and must not be used for release qualification.
+Current claims and open hardware gates are maintained in:
+
+- docs/v1.4/VALIDATION_MATRIX.md
+- docs/v1.4/RISK_REGISTER.md
+- docs/stability/tests/
+
+HallJoy Universal Analog Final v3.9.0 historical validation
+-----------------------------------------------------------
 
 Scope
 -----
@@ -54,8 +66,8 @@ GitHub/contributor support
 - Development docs include architecture overview, worksheet, contract, safety review
   checklist and testing procedure.
 
-Automated validation completed
-------------------------------
+Historical automated validation recorded at that time
+------------------------------------------------------
 PASS: tools/run_native_backend_checks.py --require-compiler
 PASS: all eight Python static audits
 PASS: addressed_poll_scheduler_test (portable C++20)

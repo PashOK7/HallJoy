@@ -494,6 +494,17 @@ qualification and the hardware matrix.
   ViGEmBus 1.22.0 release page. Version, URL and `manual-only` policy are pinned
   in the central dependency lock and matched to the production constant by
   static gates. S18 is Verified; no physical-device claim is inferred.
+- `V14-12G/S20` completes the pre-qualification build/documentation package.
+  Current project guides use only shipped commands and the canonical
+  `build/output/HallJoy.exe`; the stale Addressed validator now checks the
+  catalog-driven lifecycle and runs in the unified gate. The old v3.9 validation
+  package is prominently historical.
+- Unsupported Win32/x86 configurations are removed because only x64 ViGEm/UAP
+  artifacts ship. Debug and Release x64 now use W4 with the documented
+  `4100/4127/4324/4505` legacy baseline; the official build reports zero
+  unexpected warnings. Full automated gates and a normal Irok 3-cycle regression
+  pass. S20 is complete; S21 qualification is next, while Aula testing continues
+  asynchronously and remains release-blocking.
 
 ## Release definition
 

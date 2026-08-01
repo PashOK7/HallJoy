@@ -406,3 +406,32 @@ PASS с 0 ошибок. Post-build Irok 3/3: exit 0, shutdown 112-241 ms, 209 HA
 
 `HJ-AUD-P1-013` и `HJ-AUD-P1-014` Verified. Modal guidance вручную не открывался,
 так как ViGEm установлен; это явно не hardware/device evidence.
+
+## 2026-08-01 — V14-12G / S20 build, local gates и документация
+
+Устаревшие V6/V11 project README/BUILD/TESTING заменены актуальными v1.4
+инструкциями. Addressed validator переписан под central catalog, exact-path
+ownership и bounded retained-generation shutdown и теперь обязательно запускается
+unified runner. V3.9 validation package явно помечен историческим.
+
+Фиктивные Win32/x86-конфигурации удалены: поставляемые ViGEm/UAP artifacts
+x64-only. Debug/Release x64 переведены на W4 с узким объяснённым baseline
+C4100/C4127/C4324/C4505; содержательные type-conversion warnings исправлены.
+Первый прямой Debug build обнаружил старый debug-CRT/release-ViGEm mismatch;
+Debug сохраняет symbols/checks/`/Od` и project-local feature macro, но использует
+совместимый `/MT` release CRT.
+S20 audit фиксирует эти контракты. Старые проверки четырёх конфигураций теперь
+сравнивают Synchronization.lib с фактически поддерживаемыми link configs.
+
+Проверки: current Addressed validator, 44/44 static audits, 27/27 portable tests,
+официальный Release и прямой Debug|x64 rebuild PASS. Обе MSVC-конфигурации:
+0 errors, 0 compiler warnings, только разрешённый внешний LNK4099. Post-build
+Irok 3/3: exit 0, shutdown 139-254 ms,
+max 209 HANDLE, 0 процессов, 11/11 файлов без изменений, zero trace ERROR;
+SparkLink 17 674 successful плюс одна ожидаемая shutdown-window cancellation.
+EXE SHA-256:
+`01A046A667DA012237E12C597ED84BE531AF20BC6338F55881C1C5197272559A`.
+
+S20 завершён; общий risk count: 0 Open, 3 Implemented, 1 Partial, 41 Verified.
+Дальше S21 qualification. Aula может тестироваться асинхронно, но без её
+физического результата релиз не утверждается.

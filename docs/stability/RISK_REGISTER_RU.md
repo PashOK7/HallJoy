@@ -49,12 +49,12 @@
 | `HJ-AUD-P2-019` | P2 | Публикация curve settings имеет слабый memory-order contract | `S11` | Verified | release generation publication, acquire cache observation and concurrency test passed in V14-08A |
 | `HJ-AUD-P2-020` | P2 | Глобальный lifecycle registry не защищён и не кодирует thread affinity | `S03` | Verified | serialized owner-thread registry and wrong-thread tests passed in V14-05 |
 | `HJ-AUD-P2-021` | P2 | VID:PID ownership слишком крупнозернистый | `S17` | Verified | V14-11D exact path claims, same-pair siblings, pre-open native/Soup gates, three toolchains, ABI/build and Irok regression passed under D-022/D-024 |
-| `HJ-AUD-P3-001` | P3 | TESTING.md описывает отсутствующий тестовый контур | `S20` | Open | build/docs/manifest validation |
-| `HJ-AUD-P3-002` | P3 | Внутренние README/BUILD документы относятся к другим поколениям проекта | `S20` | Open | build/docs/manifest validation |
-| `HJ-AUD-P3-003` | P3 | Один static audit сам устарел относительно текущей архитектуры | `S20` | Open | build/docs/manifest validation |
-| `HJ-AUD-P3-004` | P3 | Validation docs переоценивают lifecycle validation | `S20` | Open | build/docs/manifest validation |
-| `HJ-AUD-P3-005` | P3 | Release Win32 конфигурация ссылается на x64 ViGEm library | `S20` | Open | build/docs/manifest validation |
-| `HJ-AUD-P3-006` | P3 | Проект компилируется только с Warning Level 3 | `S20` | Open | build/docs/manifest validation |
+| `HJ-AUD-P3-001` | P3 | TESTING.md описывает отсутствующий тестовый контур | `S20` | Verified | current shipped commands, unified runner and S20 docs audit |
+| `HJ-AUD-P3-002` | P3 | Внутренние README/BUILD документы относятся к другим поколениям проекта | `S20` | Verified | v1.4 x64 build/runtime/storage guides and stale-marker audit |
+| `HJ-AUD-P3-003` | P3 | Один static audit сам устарел относительно текущей архитектуры | `S20` | Verified | Addressed validator rewritten for catalog/lifecycle and required by unified runner |
+| `HJ-AUD-P3-004` | P3 | Validation docs переоценивают lifecycle validation | `S20` | Verified | v3.9 record prominently historical; current matrix owns release claims |
+| `HJ-AUD-P3-005` | P3 | Release Win32 конфигурация ссылается на x64 ViGEm library | `S20` | Verified | unsupported Win32/x86 configurations removed; exact x64 library audit/build pass |
+| `HJ-AUD-P3-006` | P3 | Проект компилируется только с Warning Level 3 | `S20` | Verified | Debug/Release x64 use W4 with documented narrow baseline; official build has 0 unexpected warnings |
 | `HJ-AUD-P3-007` | P3 | Корневой README не перечисляет реальные build dependencies | `S20` | Verified | README dependency list and independent clean-room build pass |
 | `HJ-AUD-P3-008` | P3 | Sun build tool берётся с moving branch | `S20` | Verified | exact locked commit, fresh fetch and independent build pass |
 

@@ -66,3 +66,6 @@ Baseline-лог исходной версии хранится отдельно 
 - `V14-12F_S18_INSTALLER_REMOVAL_2026-08-01.txt` — structural removal of
   download/elevation/wait, exact manual-only ViGEmBus lock, policy/static/MSVC/
   build gates и normal Irok regression.
+- `V14-12G_S20_BUILD_DOCS_2026-08-01.txt` — актуальные project docs и unified
+  Addressed gate, x64-only configurations, W4 baseline, clean official build и
+  normal Irok regression перед S21 qualification.

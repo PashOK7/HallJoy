@@ -3712,7 +3712,6 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
     const ULONGLONG nowMs = GetTickCount64();
     const bool sparkConnected = g_sparkConnected.load(std::memory_order_acquire);
     const bool sayoConnected = g_sayoConnected.load(std::memory_order_acquire);
-    const bool addressedConnected = AddressedAnalog_IsConnected();
     const bool mad68Present = Mad68ProR_IsDevicePresent();
     const bool mad68Connected = Mad68ProR_IsConnected();
     Hex80Telemetry hex80{};

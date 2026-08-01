@@ -39,11 +39,14 @@
   запусков и штатных `WM_CLOSE` завершились exit 0, без оставшихся процессов,
   trace ERROR и изменений 11 пользовательских файлов. Это pilot S21, не
   замена 1000 циклам, 8-24-часовому soak и hardware matrix.
-- Статусы всех 45 общих `HJ-AUD-*` синхронизированы с release-регистром по уже
-  существующим evidence; после S18 остаются 6 Open, 3 Implemented, 1 Partial и
-  35 Verified.
+- Статусы всех 45 общих `HJ-AUD-*` синхронизированы с release-регистром. После
+  V14-12G/S20 остаются 0 Open, 3 Implemented, 1 Partial и 41 Verified; открытая
+  работа теперь относится к qualification, а не к незавершённым S20-правкам.
 - S18/V14-12F Verified: автоматический privileged dependency installer удалён,
   отсутствующий ViGEm получает только lock-pinned manual guidance 1.22.0.
+- S20/V14-12G Verified: инструкции соответствуют поставляемым scripts, старый
+  Addressed audit переписан и включён в unified runner, Win32/x86 удалён, а обе
+  x64-конфигурации собираются с W4 и нулём неожиданных предупреждений.
 - `S02V1` локально добавил временную bounded evidence trace, машинный анализатор и сборщик log bundle; Windows/SparkLink evidence gate ожидается.
 - Normal MAD68/Hex80/SparkLink hot paths, Addressed polling loop, reader I/O loop и packet constructors сохранены относительно предыдущих пакетов.
 - Риск `HJ-AUD-P1-004` остаётся `Partial` только из-за отложенных device-owner

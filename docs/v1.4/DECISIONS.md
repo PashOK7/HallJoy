@@ -373,3 +373,22 @@ Under D-022, deterministic production-code properties, three compiler modes,
 sanitizers, ABI/build and available native Irok integration are sufficient to
 verify this code-level risk. This does not prove physical multi-UAP coexistence
 or mathematically rule out every collision in a finite 64-bit fingerprint.
+
+## D-025 - Aula support may ship only as explicitly firmware-proven
+
+Date: 2026-08-01
+
+The reproducible Aula WIN 60 HE MAX archive is accepted as protocol evidence
+because its firmware verifier and official npm-source oracle were independently
+reproduced, and the production implementation passes parser, end-to-end,
+session-policy, ambiguity, three-toolchain, sanitizer, build, ABI and available
+Irok regression gates. This is sufficient to implement the exact read-only
+backend without waiting indefinitely for unavailable hardware.
+
+It is not sufficient to label Aula hardware-tested. Production accepts only
+the exact `1CA2:1902`, `FFA0:0001`, 65-byte envelope and `App V1.1.6 / Feb 4
+2026` proof. The backend claims no interface before all 17 read transactions
+complete on the same exclusive handle, never reserves a VID/PID family, and
+destroys a session after any transaction uncertainty. Multiple candidates fail
+closed. Physical input, held-key reconnect, multi-device coexistence and other
+firmware versions remain separate release-matrix gates.

@@ -22,6 +22,7 @@ backend = read(hall / "backend.cpp")
 mad = read(hall / "mad68pr_backend.cpp")
 hex80 = read(hall / "hex80_backend.cpp")
 addressed = read(hall / "addressed_analog_backend.cpp")
+aula = read(hall / "aula_win60he_backend.cpp")
 spark = read(hall / "backend_sparklink.inc")
 sayo = read(hall / "backend_sayo.inc")
 uap = read(plugin / "main.cpp")
@@ -31,13 +32,14 @@ families = {
     "Mad68ProR_GetNativeBackendDescriptor": mad,
     "Hex80_GetNativeBackendDescriptor": hex80,
     "AddressedAnalog_GetNativeBackendDescriptor": addressed,
+    "AulaWin60He_GetNativeBackendDescriptor": aula,
     "BackendNative_GetSparkDescriptor": backend,
     "BackendNative_GetSayoDescriptor": backend,
 }
 
 checks = {
     "routing registry enumerates every native protocol family": all(token in routing_h for token in (
-        "Mad68A0", "Hex80", "Addressed09402", "SparkLink", "SayoDepth")),
+        "Mad68A0", "Hex80", "Addressed09402", "SparkLink", "SayoDepth", "AulaWin60He")),
     "backend contract owns discovery lifecycle read and telemetry": all(token in contract for token in (
         "prepareRouting", "start", "stop", "notifyDeviceChange", "ownsHid", "getMilli", "getTelemetry")),
     "catalog registers every native backend exactly once": all(catalog.count(name) == 1 for name in families),
@@ -57,8 +59,8 @@ checks = {
         and backend.index("NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::BeforeUap)")
             < backend.index("wooting_analog_initialise()")
     ),
-    "all native probes respect foreign ownership": all("NativeAnalogRouting_IsClaimed" in source for source in (mad, hex80, addressed, spark, sayo)),
-    "all native routes publish a validated claim": all("NativeAnalogRouting_Claim" in source for source in (mad, hex80, addressed, spark, sayo)),
+    "all native probes respect foreign ownership": all("NativeAnalogRouting_IsClaimed" in source for source in (mad, hex80, addressed, aula, spark, sayo)),
+    "all native routes publish a validated claim": all("NativeAnalogRouting_Claim" in source for source in (mad, hex80, addressed, aula, spark, sayo)),
     "UAP exclusion occurs before any Soup HID open": (
         "HallJoy native analogue pre-open exclusion" in patch
         and "$hidSourceText.Insert($braceStart + 1, $preOpenBlock)" in patch

@@ -21,6 +21,9 @@ registry = read(hall / "native_analog_backend_registry.cpp")
 catalog = read(hall / "native_analog_backends.def")
 hex80 = read(hall / "hex80_backend.cpp")
 addressed = read(hall / "addressed_analog_backend.cpp")
+aula = read(hall / "aula_win60he_backend.cpp")
+aula_client = read(hall / "aula_win60he_client.cpp")
+aula_protocol = read(hall / "aula_win60he_protocol.h")
 
 checks = {
     "all routing prepares before UAP through manager": (
@@ -93,6 +96,22 @@ checks = {
         "attrs.VendorID !=" not in addressed
         and "attrs.ProductID !=" not in addressed
         and "ProbeAddressedResponse" in addressed),
+    "Aula WIN60HE exact protocol is independently catalogued": (
+        "AulaWin60He_GetNativeBackendDescriptor" in catalog
+        and "NativeAnalogProtocol::AulaWin60He" in aula
+        and "kAulaVendorId = 0x1CA2" in aula_protocol
+        and "kAulaProductId = 0x1902" in aula_protocol
+        and "kAulaUsagePage = 0xFFA0" in aula_protocol
+        and "kAulaUsage = 0x0001" in aula_protocol),
+    "Aula claims only after full read-only proof": (
+        "client.Probe(&capability" in aula
+        and aula.index("client.Probe(&capability", aula.index("AulaWin60He_PrepareProtocolRouting"))
+            < aula.index("NativeAnalogRouting_Claim(", aula.index("AulaWin60He_PrepareProtocolRouting"))
+        and "session.candidate.path.c_str()," in aula
+        and "ReserveExact" not in aula
+        and "NativeAnalogBackendFlag_ReadOnlyProbe" in aula
+        and "ReadActiveMapGeneration(defaultKeyMap, &first" in aula_client
+        and "ReadActiveMapGeneration(defaultKeyMap, &second" in aula_client),
     "Backend accepts any registered native source": (
         "NativeAnalogBackends_AnyProtocolDevicePresent()" in backend
         and "NativeAnalogBackends_ReadMilli(hidKeycode)" in backend

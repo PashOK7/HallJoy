@@ -31,7 +31,11 @@ version or release status.
   sibling interfaces with the same VID/PID are no longer hidden as one device
 - Completed package: `V14-11` UAP pacing, identity, snapshot contention and
   exact interface ownership
-- Next work: `V14-12` release qualification and hardware matrix
+- Implemented subpackage: `V14-12A` Aula WIN 60 HE MAX native support,
+  firmware-proven and implementation-tested; physical Aula hardware remains
+  unvalidated
+- Next work: `V14-12` release qualification and hardware matrix, including the
+  open Aula physical-device gate
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -104,6 +108,16 @@ reconnect generations and 300,000 synthetic paths; GCC, MSVC `/W4 /WX`, Clang
 ASan+UBSan, ABI, the official build and native Irok regression pass. Under
 D-022 this verifies the code-level ownership contract, not physical multi-UAP
 hardware or an impossible mathematical proof against every 64-bit collision.
+V14-12A independently reproduced the supplied Aula WIN 60 HE MAX protocol
+evidence against exact npm sources and the supplied firmware. The native
+backend accepts only `1CA2:1902`, `FFA0:0001`, the 65-byte Windows envelope and
+firmware `App V1.1.6 / Feb 4 2026`; it runs a 17-transaction read-only proof on
+one exclusive session before claiming the exact interface path. Parser, oracle,
+end-to-end, poisoned-session and ambiguous-device tests pass GCC, MSVC
+`/W4 /WX` and Clang ASan+UBSan. The official build, private ABI, overlay and
+Irok regression pass with 65,379/65,379 SparkLink queries and unchanged user
+state. This is firmware-proven support, not physical Aula validation; input,
+hotplug, multiple devices and other firmware versions remain open.
 
 ## Authoritative documents
 

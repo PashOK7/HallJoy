@@ -9,6 +9,7 @@ enum class NativeAnalogProtocol : std::uint8_t
     Addressed09402 = 3,
     SparkLink = 4,
     SayoDepth = 5,
+    AulaWin60He = 6,
     Simulator = 250,
 };
 

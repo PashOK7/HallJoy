@@ -1272,3 +1272,51 @@ Evidence:
   docs/stability/tests/V14-11D_EXACT_HID_INTERFACE_OWNERSHIP_2026-08-01.txt
 Rollback: parent commit of the V14-11D implementation commit
 ```
+
+## V14-12A evidence
+
+```text
+Package: V14-12A
+Scope: exact firmware-proven Aula WIN 60 HE MAX native read-only support
+Commands:
+  python src/HallJoyProject/tests/aula_win60he_backend_static_audit.py
+  python tools/run_native_backend_checks.py --require-compiler
+  python tools/run_aula_win60he_sanitizers.py
+  cl.exe /std:c++20 /EHsc /permissive- /W4 /WX /c
+    (all eight new production/test translation units)
+  cmd /c BUILD.cmd
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -StartOverlay
+    -OverlayPort 18765 -RunSeconds 15
+Results:
+  Archive path/manifest/bundle audit: PASS
+  Firmware verifier: 57/57 PASS
+  Independent oracle-source hashes: 10/10 PASS
+  Official oracle rerun: PASS, output hash identical
+  Aula backend static audit: PASS
+  Protocol/oracle/end-to-end/session-policy suites: PASS
+  Complete repository gate: 39/39 static audits, 26/26 portable tests PASS
+  GCC 15.2 warning-clean: PASS
+  MSVC 19.44 /W4 /WX: PASS
+  Clang 21.1.8 ASan+UBSan: PASS, zero reports
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: only allowlisted LNK4099 ViGEm PDB diagnostic
+  ABI1 load/init/name/null/bounded-unload: PASS, SafeHID v13
+  Production overlay suite: PASS, maximum parallel state latency 2.1 ms
+  Production Irok route: 65,379/65,379 queries, zero failures,
+    250 us average and 1,003 us maximum route interval
+  Aula absent-device worker: one clean generation, fault_kind=0, joined
+  Runtime user state: 16 files, zero differences; no process remained
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,268,672 bytes
+  SHA-256: C3F1F954619059C900A2F47DF861C2A7B0D02C1E7F7646D800101CFF5183F833
+  Production trace SHA-256:
+    137915EA746C344FFF0C38E4C23E92ED88BEBD53B7E6AFBFA7FBEA2BC1616418
+Hardware: Irok regression PASS; Aula physical hardware NOT AVAILABLE
+Limit: exact V1.1.6 firmware only; Fn0 only; no physical input/hotplug,
+  multiple-Aula or alternate-firmware claim
+Status: Implemented under D-025; physical Aula gate remains open
+Evidence:
+  docs/stability/tests/V14-12A_AULA_WIN60HE_FIRMWARE_PROVEN_2026-08-01.txt
+Rollback: checkpoint c4b6d36810581d716af322386040745ffca2042d
+```

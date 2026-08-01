@@ -48,6 +48,14 @@ $required = @(
     (Join-Path $hallJoyRoot 'HallJoy\mad68pr_protocol.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\hex80_backend.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\hex80_protocol.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_backend.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_backend.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_client.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_client.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_protocol.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_protocol.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_session_policy.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_session_policy.h'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_routing.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\native_hid_interface_claim_registry.h'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_backend.h'),
@@ -71,6 +79,12 @@ $required = @(
     (Join-Path $hallJoyRoot 'tests\native_analog_backend_contract_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\native_hid_interface_claim_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\native_hid_interface_claim_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\aula_win60he_backend_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\aula_win60he_protocol_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\aula_win60he_oracle_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\aula_win60he_oracle_fixtures.h'),
+    (Join-Path $hallJoyRoot 'tests\aula_win60he_end_to_end_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\aula_win60he_session_policy_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\private_uap_runtime_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\uap_device_identity_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\uap_device_identity_test.cpp'),
@@ -85,6 +99,7 @@ $required = @(
     (Join-Path $hallJoyRoot 'HallJoy\file_name_policy.cpp'),
     (Join-Path $root 'tools\new_native_backend.py'),
     (Join-Path $root 'tools\run_native_backend_checks.py'),
+    (Join-Path $root 'tools\run_aula_win60he_sanitizers.py'),
     (Join-Path $root 'tools\check_overlay_responsiveness.py'),
     (Join-Path $root 'tools\check_overlay_http_framing.py'),
     (Join-Path $root 'tools\check_overlay_concurrency_origin.py'),
@@ -98,6 +113,9 @@ $required = @(
     (Join-Path $root 'docs\development\NATIVE_BACKEND_CONTRACT.md'),
     (Join-Path $root 'docs\development\PROTOCOL_REVIEW_CHECKLIST.md'),
     (Join-Path $root 'docs\development\TESTING_NEW_PROTOCOL.md'),
+    (Join-Path $root 'docs\development\AULA_WIN60HE_MAX_WORKSHEET.md'),
+    (Join-Path $root 'docs\protocols\AULA_WIN60HE_MAX_PROTOCOL.md'),
+    (Join-Path $root 'docs\stability\tests\V14-12A_AULA_WIN60HE_FIRMWARE_PROVEN_2026-08-01.txt'),
     (Join-Path $hallJoyRoot 'HallJoy\vigem_output_scheduler.h'),
     (Join-Path $hallJoyRoot 'HallJoy\app.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\addressed_analog_backend.cpp'),
@@ -419,7 +437,7 @@ if (-not $msbuild) {
 }
 
 if (Test-Path -LiteralPath $outDir) { Remove-Item -LiteralPath $outDir -Recurse -Force }
-Write-Host "Building $targetName.exe with MAD68 + Hex80 + Addressed + Spark + Sayo + UAP..." -ForegroundColor Cyan
+Write-Host "Building $targetName.exe with MAD68 + Hex80 + Addressed + Aula + Spark + Sayo + UAP..." -ForegroundColor Cyan
 $buildOutput = @(& $msbuild $project `
     '/t:Rebuild' `
     '/p:Configuration=Release' `
@@ -480,6 +498,9 @@ if (Test-Path -LiteralPath $map) { Copy-Item -LiteralPath $map -Destination $sym
 @'
 HallJoy v1.4 integration build
 
+Aula WIN60HE: firmware-proven support for exact 1CA2:1902 / FFA0:0001 /
+App V1.1.6 (Feb 4 2026); physical Aula hardware is not yet validated.
+
 Запускайте HallJoy.exe обычным способом.
 
 В финальной сборке:
@@ -490,7 +511,7 @@ HallJoy v1.4 integration build
 - для управления используются только реальные аналоговые значения;
 - зелёные цифровые индикаторы превью сохранены только как функция интерфейса;
 - живая информация в Configuration и Gamepad Tester работает для MAD68 Pro R,
-  ATK x QK Hex80, Addressed 09/94/02, SparkLink, SayoDevice и UAP/Wooting-совместимых клавиатур;
+  ATK x QK Hex80, Addressed 09/94/02, Aula WIN60HE, SparkLink, SayoDevice и UAP/Wooting-совместимых клавиатур;
 - любой VID 373B Hex80-совместимый PID направляется в native 0x96 только после двух
   валидных GET-ответов и не конфликтует с UAP, Addressed или native A0;
 - Addressed 09/94/02 возвращён: точный FF60:0061/64-byte fingerprint и валидный
@@ -498,6 +519,8 @@ HallJoy v1.4 integration build
 - другие PID Sayo принимаются только после валидного ответа штатного depth-протокола;
 - MADLIONS MAD68-family направляется в native A0 только после строгого fingerprint/ACK,
   а остальные MADLIONS остаются в UAP, поэтому два протокола не конфликтуют;
+- Aula WIN60HE поддерживается только для точного 1CA2:1902, FFA0:0001 и
+  App V1.1.6 / Feb 4 2026 после полного read-only proof; физическая Aula пока не проверена;
 - realtime-поток пробуждается через WaitOnAddress/WakeByAddress;
 - временный ограниченный HallJoyStabilityTrace.log создаётся рядом с EXE для проверки текущего этапа;
 - trace содержит только редкие lifecycle/state-события, не записывает нажатые клавиши,

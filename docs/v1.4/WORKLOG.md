@@ -1370,3 +1370,48 @@
   physical UAP/multi-UAP hardware behavior or mathematical no-collision claim
   is inferred.
 - V14-11 is complete. Next is V14-12 release qualification and hardware matrix.
+
+## 2026-08-01 - V14-12A Aula WIN 60 HE MAX firmware-proven support
+
+### Evidence review and implementation
+
+- Audited the supplied 44-entry archive: zero unsafe paths, 37/37 manifest
+  payload hashes, zero unlisted payloads and a complete source Git bundle.
+- Reproduced the firmware verifier (57/57) and official oracle independently.
+  Ten oracle sources matched fixed npm packages byte-for-byte; reproduced oracle
+  JSON SHA-256 is
+  `85C70BFAABE599F65A7EECBB5E6566D1B95679DB41520AAAEA8AF0566E7EFDC4`.
+- Added pure protocol/parser, exclusive transaction client, device-selection
+  policy and a production native backend. Exact fingerprint is `1CA2:1902`,
+  `FFA0:0001`, 65-byte input/output and firmware `App V1.1.6 / Feb 4 2026`.
+- Full proof is 17 read-only transactions. Every transaction flushes the input
+  queue; any uncertainty poisons the session. Two complete Fn0 generations must
+  match, both travel halves are sequential, and only 16-bit functions mapping
+  safely to keyboard usages are published.
+- The backend rejects foreign exact claims before opening HID, re-correlates
+  identity/caps after exclusive open and claims the exact path only after proof.
+  Ambiguous multiple candidates fail closed; no VID/PID reservation exists.
+
+### Validation
+
+- Aula static, protocol, official-oracle, end-to-end and session-policy suites:
+  PASS. Complete gate: 39/39 audits and 26/26 portable tests PASS.
+- GCC 15.2 warning-clean, all eight new units under MSVC 19.44 `/W4 /WX`, and
+  four suites under Clang 21.1.8 ASan+UBSan: PASS, zero reports.
+- Official `BUILD.cmd`: exit 0, 0 errors, only allowlisted `LNK4099`; private
+  ABI1 and production overlay framing/concurrency/origin gates PASS.
+- Irok MG75 Max regression: 65,379/65,379 SparkLink route queries, zero
+  failures, 250 us average / 1,003 us maximum interval, balanced shutdown and
+  zero trace ERROR. All 16 user-state files remained hash-identical.
+- `HallJoy.exe`: 2,268,672 bytes,
+  SHA-256 `C3F1F954619059C900A2F47DF861C2A7B0D02C1E7F7646D800101CFF5183F833`.
+- Source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-12A-Aula-prechange-20260801-1454`,
+  30 files copied and hash-verified.
+
+### Package result
+
+- V14-12A is `Implemented`: firmware and production code are strongly proven,
+  and the available Irok route shows no regression. Physical Aula input,
+  unplug/reconnect, multiple devices and other firmware versions remain open;
+  no hardware-tested claim is made.

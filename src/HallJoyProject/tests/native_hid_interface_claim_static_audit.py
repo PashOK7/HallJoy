@@ -39,6 +39,7 @@ def main() -> int:
     mad = read(HALL / "mad68pr_backend.cpp")
     hex80 = read(HALL / "hex80_backend.cpp")
     addressed = read(HALL / "addressed_analog_backend.cpp")
+    aula = read(HALL / "aula_win60he_backend.cpp")
     spark = read(HALL / "backend_sparklink.inc")
     sayo = read(HALL / "backend_sayo.inc")
     test = read(PROJECT / "tests" / "native_hid_interface_claim_test.cpp")
@@ -77,6 +78,8 @@ def main() -> int:
                              "ScopedHandle metadata(CreateFileW", "Hex80")
     require_gate_before_open(addressed, "EnumerateCandidates", "NativeAnalogRouting_IsClaimed(",
                              "auto metadata = OpenPath", "Addressed")
+    require_gate_before_open(aula, "EnumerateCandidates", "NativeAnalogRouting_IsClaimed(",
+                             "ScopedHandle metadata(CreateFileW", "Aula WIN60HE")
     require_gate_before_open(spark, "SparkTryOpenDevice", "NativeAnalogRouting_IsClaimed(",
                              "HANDLE h = CreateFileW", "SparkLink")
     require_gate_before_open(sayo, "SayoCollectMatchingDevices", "NativeAnalogRouting_IsClaimed(",
@@ -88,6 +91,10 @@ def main() -> int:
             "Hex80 claims the exact interface it proved")
     require("candidate.path.c_str(), NativeAnalogProtocol::Addressed09402" in addressed,
             "Addressed claims the exact interface it proved")
+    require("session.candidate.path.c_str()," in aula and
+            "NativeAnalogProtocol::AulaWin60He" in aula and
+            "ReserveExact" not in aula,
+            "Aula claims only the exact interface after full proof")
     require("vid, pid, path.c_str(), NativeAnalogProtocol::SparkLink" in spark,
             "SparkLink claims the exact interface it opened")
     require("std::wstring path;" in sayo and "std::all_of(readers.begin(), readers.end()" in sayo and

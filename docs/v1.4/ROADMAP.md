@@ -36,7 +36,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-09` | Transactional persistence and writable state migration | Verified | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
 | `V14-10` | IPC and overlay security/correctness | Verified | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
 | `V14-11` | UAP pacing, identity, modularization and measured performance | Verified | D-022 production-code gates for pacing, identity, snapshot lifetime and exact interface ownership; no unsupported hardware claim |
-| `V14-12` | Release qualification and hardware matrix | Planned | Clean package, 8-24h soak, reconnect cycles and required device-owner gates |
+| `V14-12` | Release qualification, Aula integration and hardware matrix | In progress | Clean package, 8-24h soak, reconnect cycles and required device-owner gates |
 
 ## Completed package: V14-00
 
@@ -433,6 +433,27 @@ identity, modularization and measured performance.
 
 V14-11 is complete. The next implementation package is V14-12 release
 qualification and the hardware matrix.
+
+## In-progress package: V14-12
+
+- `V14-12A` Aula WIN 60 HE MAX support: Implemented at firmware/code level.
+  The supplied archive passed path, manifest and complete Git-bundle checks.
+  Exact firmware verification passed 57 checks; ten oracle source files matched
+  independently fetched fixed npm packages, and the official oracle reproduced
+  the archived JSON hash.
+- Production accepts only `1CA2:1902`, `FFA0:0001`, exact 65-byte input/output,
+  `App V1.1.6 / Feb 4 2026`, canonical precision and layout. A full 17-read
+  capability proof occurs on one exclusive session before exact-path ownership.
+  No coarse VID/PID reservation or mutating command is present.
+- Protocol, oracle, end-to-end and session-policy suites pass GCC 15.2, MSVC
+  `/W4 /WX` and Clang 21 ASan+UBSan. All 39 repository audits and 26 portable
+  tests, official build, private UAP ABI and overlay gates pass.
+- Available-hardware regression: Irok MG75 Max completed 65,379/65,379
+  SparkLink route queries with zero failures, balanced shutdown and unchanged
+  user state. This proves absence of regression on the available native route.
+- Aula remains `hardware-unvalidated`: no physical input, held-key reconnect,
+  multi-device or alternate-firmware claim is made. This gate stays open in the
+  V14-12 hardware matrix.
 
 ## Release definition
 

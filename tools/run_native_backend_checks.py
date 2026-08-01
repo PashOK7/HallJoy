@@ -112,6 +112,19 @@ def main() -> int:
             ("uap_poll_pacing", [tests / "uap_poll_pacing_test.cpp"]),
             ("uap_snapshot_pinning", [tests / "uap_snapshot_pinning_test.cpp"]),
             ("windows_command_line", [tests / "windows_command_line_test.cpp"]),
+            ("aula_win60he_oracle", [
+                tests / "aula_win60he_oracle_test.cpp",
+                hall / "aula_win60he_protocol.cpp",
+            ]),
+            ("aula_win60he_end_to_end", [
+                tests / "aula_win60he_end_to_end_test.cpp",
+                hall / "aula_win60he_protocol.cpp",
+                hall / "aula_win60he_client.cpp",
+            ]),
+            ("aula_win60he_session_policy", [
+                tests / "aula_win60he_session_policy_test.cpp",
+                hall / "aula_win60he_session_policy.cpp",
+            ]),
         ]
         for name, sources in fixed_tests:
             compile_and_run(cxx, out / name, sources, hall)

@@ -44,3 +44,10 @@ Baseline-лог исходной версии хранится отдельно 
 - `V14-11D_EXACT_HID_INTERFACE_OWNERSHIP_2026-08-01.txt` — exact path claims,
   same-VID/PID sibling/reorder/collision stress, Soup pre-open, ABI/build and
   available native Irok regression evidence.
+
+## V14-12
+
+- `V14-12A_AULA_WIN60HE_FIRMWARE_PROVEN_2026-08-01.txt` — независимая
+  перепроверка firmware/oracle, exact read-only protocol, parser/end-to-end/
+  session-policy tests, три toolchain-gate, официальный build и Irok regression.
+  Статус Aula явно ограничен `hardware-unvalidated`.

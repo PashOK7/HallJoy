@@ -260,6 +260,10 @@
     <ClInclude Include="mad68pr_protocol.h" />
     <ClInclude Include="hex80_backend.h" />
     <ClInclude Include="hex80_protocol.h" />
+    <ClInclude Include="aula_win60he_backend.h" />
+    <ClInclude Include="aula_win60he_client.h" />
+    <ClInclude Include="aula_win60he_protocol.h" />
+    <ClInclude Include="aula_win60he_session_policy.h" />
     <ClInclude Include="native_analog_routing.h" />
     <ClInclude Include="addressed_poll_scheduler.h" />
     <ClInclude Include="realtime_loop.h" />
@@ -347,6 +351,10 @@
     <ClCompile Include="mad68pr_protocol.cpp" />
     <ClCompile Include="hex80_backend.cpp" />
     <ClCompile Include="hex80_protocol.cpp" />
+    <ClCompile Include="aula_win60he_backend.cpp" />
+    <ClCompile Include="aula_win60he_client.cpp" />
+    <ClCompile Include="aula_win60he_protocol.cpp" />
+    <ClCompile Include="aula_win60he_session_policy.cpp" />
     <ClCompile Include="native_analog_routing.cpp" />
     <ClCompile Include="addressed_poll_scheduler.cpp" />
     <ClCompile Include="realtime_loop.cpp" />

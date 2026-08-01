@@ -22,6 +22,20 @@ maintained in `ROADMAP.md`.
 | `HJ-V14-P2-003` | P2 | Simulation could be mistaken for real analog-protocol evidence or leak into production | `V14-02` | Verified | sources excluded from production compile; compile/runtime gates and evidence labels passed |
 | `HJ-V14-P2-004` | P2 | Moving remote build inputs can silently change the private UAP or CI behavior | `V14-04` | Verified | independent clone passed locked fresh bootstrap, overlay verification and full build |
 | `HJ-V14-P2-005` | P2 | Local build can omit portable tests or accept warnings rejected by CI | `V14-04` | Verified | independent clone ran required portable tests and enforced the production warning allowlist |
+| `HJ-V14-P2-006` | P2 | Firmware-derived Aula support could be mistaken for physical hardware validation or could claim a sibling interface too broadly | `V14-12A` | Implemented | exact firmware/oracle reproduction, 17-read proof, exact-path ownership, ambiguity/session tests and Irok regression pass; physical Aula input/hotplug/multi-device gate remains open |
+
+### Evidence boundary for HJ-V14-P2-006
+
+V14-12A accepts only the exact Aula `1CA2:1902`, `FFA0:0001`, 65-byte HID
+envelope and firmware `App V1.1.6 / Feb 4 2026`. The supplied firmware verifier
+passed 57 checks; independently fetched fixed npm packages matched all ten
+oracle sources and reproduced the archived oracle JSON hash. Production tests
+exercise exact framing, response correlation, double-generation Fn0 mapping,
+two-half travel, session poisoning, reconnect identity and ambiguous devices.
+
+The risk remains `Implemented`, not `Verified`, because no physical Aula device
+was available. Real analogue input, held-key unplug/reconnect, multiple Aula
+interfaces and alternate firmware coexistence remain V14-12 hardware gates.
 
 ### Evidence for HJ-V14-P1-004
 

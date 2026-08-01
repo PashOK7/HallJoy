@@ -258,8 +258,13 @@ Latest-wins/coalescing, bounded reconnect policy, telemetry driver fault. Пер
 - stable identity для одинаковых устройств;
 - snapshot export сокращает время удержания global mutex — выполнено в
   V14-11C через bounded `shared_ptr` pins до per-device lock/copy.
+- coarse VID:PID arbitration заменена в V14-11D на first-proof-wins ownership
+  точного normalized HID interface path; same-VID/PID siblings, native pre-open
+  checks и общий Soup hook покрыты production-code gates по D-022/D-024.
 
 Нельзя снижать effective sampling rate без измеренного latency budget.
+V14-11 завершён code-level проверками; физические CPU/USB/latency и multi-UAP
+наблюдения не заявляются и остаются частью доступной hardware qualification.
 
 ### S18 — Installer and supply-chain hardening
 

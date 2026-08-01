@@ -95,7 +95,8 @@ require('AddressedAnalog_GetNativeBackendDescriptor' in catalog and
         'Addressed Analog must be capability-routed before UAP and started in the post-realtime phase')
 require('HallJoy native analogue pre-open exclusion' in uap_soup_patch and
         'UAP_EXCLUDE_HALLJOY_NATIVE' in uap_soup_patch and
-        'HALLJOY_UAP_NATIVE_HID_IDS' in uap_soup_patch and
+        'halljoy_should_exclude_hid_interface(device_interface)' in uap_soup_patch and
+        'HALLJOY_UAP_NATIVE_HID_IDS' not in uap_soup_patch and
         '$hidSourceText.Insert($braceStart + 1, $preOpenBlock)' in uap_soup_patch,
         'dedicated UAP does not apply validated native routing before Soup CreateFileW')
 require('universal native continuation enabled; UAP unavailable for this run' in main and
@@ -211,7 +212,7 @@ require('universal_analog_abiv1.dll' in resource, 'embedded UAP resource was rem
 require('wootingInit = wooting_analog_initialise();' in backend_main, 'UAP/Wooting initialise path disabled')
 require('UAP_EXCLUDE_HALLJOY_NATIVE' in uap_main and
         'halljoy_uap_native_hid_excluded' in uap_main and
-        'HALLJOY_UAP_NATIVE_HID_IDS' in uap_main,
+        'HALLJOY_UAP_NATIVE_HID_PATHS' in uap_main,
         'UAP dynamic native exclusion missing; native/UAP readers could race')
 require('UAP_EXCLUDE_HALLJOY_NATIVE=1' not in uap_standard_sun,
         'normal UAP targets were globally changed to exclude native devices')
@@ -236,7 +237,8 @@ require('cache.mad68Connected = Mad68ProR_IsConnected();' in backend_main,
 require('UAP_DISABLE_HOTPLUG=1' in uap_native_sun,
         'native UAP must preserve the baseline HallJoy hotplug policy')
 require('HallJoy native analogue pre-open exclusion' in uap_apply and
-        'HALLJOY_UAP_NATIVE_HID_IDS' in uap_apply and
+        'halljoy_should_exclude_hid_interface(device_interface)' in uap_apply and
+        'HALLJOY_UAP_NATIVE_HID_IDS' not in uap_apply and
         'before CreateFileW' in uap_apply,
         'dedicated UAP does not apply dynamic native routing before Soup opens HID paths')
 
@@ -253,4 +255,4 @@ print('native mutation gate: exact 65-byte fingerprint + MAD68 layout identity +
 print('publication modes: full 67 HID keys or emergency real W/A/S/D')
 print('UAP/Wooting: preserved and embedded')
 print('strategies: hardware-confirmed primary + clean retry + 11 finite fallbacks; max 2 recovery cycles per 60-second window')
-print('UAP/Wooting: preserved; only runtime-validated exact native VID/PID pairs are excluded before HID open')
+print('UAP/Wooting: preserved; only runtime-validated exact native interfaces are excluded before HID open')

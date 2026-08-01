@@ -23,7 +23,7 @@ checks = {
     'MAD68 enters multi-device max arbitration': 'result.milli = std::max' in registry,
     'UAP stays available for other analogue keyboards': 'cache.wootingReady && modeCode != 0' in backend,
     'digital fallback stays blocked for native-owned HID': 'cache.allowFallback && !native.owned' in backend,
-    'native UAP child excludes only capability-validated exact VID/PID pairs': 'halljoy_uap_native_hid_excluded' in uap_main and 'HALLJOY_UAP_NATIVE_HID_IDS' in uap_main and 'UAP_EXCLUDE_HALLJOY_NATIVE=1' in uap_native_sun,
+    'native UAP child excludes only capability-validated exact interfaces': 'halljoy_uap_native_hid_excluded' in uap_main and 'HALLJOY_UAP_NATIVE_HID_PATHS' in uap_main and 'UAP_EXCLUDE_HALLJOY_NATIVE=1' in uap_native_sun,
     'normal UAP target remains unchanged': 'UAP_EXCLUDE_HALLJOY_NATIVE=1' not in uap_standard_sun,
     'native build explicitly selects dedicated UAP': '-ExcludeMad68ProRNative' in native_build,
     'native UAP preserves baseline hotplug policy': 'UAP_DISABLE_HOTPLUG=1' in uap_native_sun and 'UAP_DISABLE_HOTPLUG=1' in uap_standard_sun,
@@ -42,7 +42,7 @@ checks = {
         'NativeAnalogBackends_PrepareRouting()' in app
         and 'NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRawInput)' in app
         and 'NativeAnalogBackends_StopAll()' in app),
-    'dedicated UAP applies validated routing before Soup CreateFileW': 'HallJoy native analogue pre-open exclusion' in uap_patch and '$hidSourceText.Insert($braceStart + 1, $preOpenBlock)' in uap_patch and 'HALLJOY_UAP_NATIVE_HID_IDS' in uap_patch,
+    'dedicated UAP applies validated routing before Soup CreateFileW': 'HallJoy native analogue pre-open exclusion' in uap_patch and '$hidSourceText.Insert($braceStart + 1, $preOpenBlock)' in uap_patch and 'halljoy_should_exclude_hid_interface(device_interface)' in uap_patch and 'HALLJOY_UAP_NATIVE_HID_IDS' not in uap_patch,
     'stale full-matrix key falls back per HID without dropping healthy keys': 'non-WASD per-key A0 starvation' in mad,
     'stale WASD falls back per HID and only dead global transport re-arms': 'W/A/S/D per-key scheduler starvation' in mad and 'global A0 transport is dead' in mad,
     'ownership freshness is explicitly guarded': 'CaptureAnalogSnapshot' in mad and 'relinquish this HID usage' in mad,

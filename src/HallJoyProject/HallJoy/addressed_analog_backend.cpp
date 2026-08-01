@@ -309,6 +309,10 @@ std::vector<HidPath> EnumerateCandidates()
         if (!SetupDiGetDeviceInterfaceDetailW(info, &iface, detail, bytes, nullptr, nullptr)) continue;
         HidPath item{};
         item.path = detail->DevicePath;
+        const bool routedToAddressed = NativeAnalogRouting_IsClaimedBy(
+            item.path.c_str(), NativeAnalogProtocol::Addressed09402);
+        if (NativeAnalogRouting_IsClaimed(item.path.c_str()) && !routedToAddressed)
+            continue;
         auto metadata = OpenPath(item.path, 0, false);
         if (!metadata || !PopulateCaps(metadata.value, item) || !IsFingerprintCandidate(item)) continue;
         out.push_back(std::move(item));
@@ -612,11 +616,10 @@ bool TryClaimCandidate(const HidPath& candidate)
 {
     if (!IsFingerprintCandidate(candidate)) return false;
     const bool alreadyOurs = NativeAnalogRouting_IsClaimedBy(
-        candidate.attrs.VendorID, candidate.attrs.ProductID,
-        NativeAnalogProtocol::Addressed09402);
-    if (NativeAnalogRouting_IsClaimed(candidate.attrs.VendorID, candidate.attrs.ProductID) && !alreadyOurs)
+        candidate.path.c_str(), NativeAnalogProtocol::Addressed09402);
+    if (NativeAnalogRouting_IsClaimed(candidate.path.c_str()) && !alreadyOurs)
         return false;
-    // After UAP starts, only a previously proven VID/PID may be re-opened.
+    // After UAP starts, only a previously proven interface may be re-opened.
     // A newly attached protocol candidate requires restart so ownership can be
     // recalculated before the UAP child enumerates HID paths.
     if (g_routingPrepared.load(std::memory_order_acquire) && !alreadyOurs)
@@ -648,7 +651,7 @@ bool TryClaimCandidate(const HidPath& candidate)
     }
 
     if (!NativeAnalogRouting_Claim(candidate.attrs.VendorID, candidate.attrs.ProductID,
-            NativeAnalogProtocol::Addressed09402))
+            candidate.path.c_str(), NativeAnalogProtocol::Addressed09402))
         return false;
     {
         std::lock_guard<std::mutex> lock(g_claimMutex);

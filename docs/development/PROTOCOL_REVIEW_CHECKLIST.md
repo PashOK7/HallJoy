@@ -28,9 +28,11 @@
 
 ## Arbitration
 
-- [ ] Exact VID/PID is claimed only after proof.
+- [ ] The exact opened HID interface path is claimed only after proof.
 - [ ] UAP sees unconfirmed devices.
-- [ ] Two native protocols cannot claim the same pair.
+- [ ] Two native protocols cannot claim the same exact interface.
+- [ ] A claimed interface does not hide an unclaimed sibling with the same VID/PID.
+- [ ] Foreign exact claims are rejected before any HID handle is opened.
 - [ ] Simultaneous keyboards aggregate correctly.
 - [ ] Generic UI telemetry identifies the actual protocol and VID/PID.
 

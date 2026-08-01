@@ -48,7 +48,7 @@ Then run `BUILD.cmd` for the full Windows/MSVC and embedded-UAP build.
 Export one `NativeAnalogBackendDescriptor`. The catalog automatically provides:
 
 - lifecycle ordering relative to UAP, realtime and Raw Input;
-- exact VID/PID exclusion from Soup/UAP after capability proof;
+- exact HID interface-path exclusion from Soup/UAP after capability proof;
 - normalized multi-key reads through `NativeAnalogBackends_ReadMilli`;
 - multi-device max aggregation;
 - prevention of generic digital fallback for HID usages owned by the native source;
@@ -81,8 +81,11 @@ A claim is valid only after all relevant invariants are proven:
 5. plausible analogue range and stable semantics;
 6. read-only request or fully documented reversible state transition.
 
-Call `NativeAnalogRouting_Claim(vid, pid, protocol)` only after proof. A failed or
-ambiguous probe must leave the device available to UAP.
+Call `NativeAnalogRouting_Claim(vid, pid, interfacePath, protocol)` only after proof,
+using the exact SetupAPI path that was opened and validated. Before opening a path,
+reject it if another protocol already owns that exact path. A failed or ambiguous
+probe must leave that interface available to UAP; a sibling interface with the same
+VID/PID must not be hidden by association.
 
 ## Worker requirements
 
@@ -106,7 +109,8 @@ See `PROTOCOL_REVIEW_CHECKLIST.md` and `TESTING_NEW_PROTOCOL.md`. At minimum add
 
 - pure parser/builder tests with valid and malformed fixtures;
 - capability-proof false-positive tests;
-- exact ownership/UAP exclusion audit;
+- exact interface ownership/UAP exclusion audit, including sibling paths with the
+  same VID/PID and enumeration reorder/reconnect generations;
 - release-to-zero and disconnect tests;
 - scheduler/freshness tests for polled protocols;
 - hardware evidence before changing status from experimental to tested.

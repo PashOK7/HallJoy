@@ -48,7 +48,7 @@
 | `HJ-AUD-P2-018` | P2 | Имена профилей недостаточно нормализованы | `S14` | Open | migration/name/path tests |
 | `HJ-AUD-P2-019` | P2 | Публикация curve settings имеет слабый memory-order contract | `S11` | Open | startup rollback and wake sequence tests |
 | `HJ-AUD-P2-020` | P2 | Глобальный lifecycle registry не защищён и не кодирует thread affinity | `S03` | Verified | serialized owner-thread registry and wrong-thread tests passed in V14-05 |
-| `HJ-AUD-P2-021` | P2 | VID:PID ownership слишком крупнозернистый | `S17` | Open | CPU/USB/identity/contention measurements |
+| `HJ-AUD-P2-021` | P2 | VID:PID ownership слишком крупнозернистый | `S17` | Verified | V14-11D exact path claims, same-pair siblings, pre-open native/Soup gates, three toolchains, ABI/build and Irok regression passed under D-022/D-024 |
 | `HJ-AUD-P3-001` | P3 | TESTING.md описывает отсутствующий тестовый контур | `S20` | Open | build/docs/manifest validation |
 | `HJ-AUD-P3-002` | P3 | Внутренние README/BUILD документы относятся к другим поколениям проекта | `S20` | Open | build/docs/manifest validation |
 | `HJ-AUD-P3-003` | P3 | Один static audit сам устарел относительно текущей архитектуры | `S20` | Open | build/docs/manifest validation |

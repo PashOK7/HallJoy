@@ -41,3 +41,6 @@ Baseline-лог исходной версии хранится отдельно 
 - `V14-11B_UAP_DEVICE_IDENTITY_2026-08-01.txt` — стабильная identity одинаковых устройств.
 - `V14-11C_UAP_SNAPSHOT_PINNING_2026-08-01.txt` — bounded registry pins,
   blocked-reader removal, lifetime/coherence stress, ABI/build/runtime evidence.
+- `V14-11D_EXACT_HID_INTERFACE_OWNERSHIP_2026-08-01.txt` — exact path claims,
+  same-VID/PID sibling/reorder/collision stress, Soup pre-open, ABI/build and
+  available native Irok regression evidence.

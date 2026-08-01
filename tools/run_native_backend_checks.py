@@ -98,6 +98,7 @@ def main() -> int:
             ("vigem_scheduler", [tests / "vigem_output_scheduler_test.cpp"]),
             ("latest_value_mailbox", [tests / "latest_value_mailbox_test.cpp"]),
             ("native_contract", [tests / "native_analog_backend_contract_test.cpp"]),
+            ("native_hid_interface_claim", [tests / "native_hid_interface_claim_test.cpp"]),
             ("native_lifecycle_registry", [tests / "native_backend_lifecycle_registry_test.cpp"]),
             ("worker_lifecycle", [tests / "worker_lifecycle_test.cpp"]),
             ("worker_join_policy", [tests / "worker_join_policy_test.cpp"]),

@@ -45,7 +45,9 @@ Complete this before implementing a backend.
 
 - Start phase:
 - Descriptor flags:
-- Exact point at which VID/PID ownership is claimed:
+- Exact SetupAPI interface path used for ownership:
+- Exact point after capability proof at which path ownership is claimed:
+- Pre-open foreign-path/reconnect guard:
 - Worker shutdown/reconnect strategy:
 - Telemetry fields:
 - Parser fixture files:

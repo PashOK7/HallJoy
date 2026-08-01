@@ -97,7 +97,7 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P2-018` | P2 | Имена профилей недостаточно нормализованы | `S14` | Verified | shared NFC/case/reserved-name/length/direct-child policy and Unicode collision tests passed |
 | `HJ-AUD-P2-019` | P2 | Публикация curve settings имеет слабый memory-order contract | `S11` | Verified | release generation publication, acquire cache observation and concurrency test passed in V14-08A |
 | `HJ-AUD-P2-020` | P2 | Глобальный lifecycle registry не защищён и не кодирует thread affinity | `S03` | Verified | mutex serialization, owner token and wrong-thread fault test passed |
-| `HJ-AUD-P2-021` | P2 | VID:PID ownership слишком крупнозернистый | `S17` | Open | CPU/USB/identity/contention measurements |
+| `HJ-AUD-P2-021` | P2 | VID:PID ownership слишком крупнозернистый | `S17` | Verified | V14-11D exact path claims, same-pair sibling/reorder/collision tests, shared Soup pre-open hook, three toolchains, ABI/build and Irok regression passed |
 | `HJ-AUD-P3-001` | P3 | TESTING.md описывает отсутствующий тестовый контур | `S20` | Open | build/docs/manifest validation |
 | `HJ-AUD-P3-002` | P3 | Внутренние README/BUILD документы относятся к другим поколениям проекта | `S20` | Open | build/docs/manifest validation |
 | `HJ-AUD-P3-003` | P3 | Один static audit сам устарел относительно текущей архитектуры | `S20` | Open | build/docs/manifest validation |
@@ -162,6 +162,25 @@ publication. GCC 15, MSVC 19.44 `/W4 /WX`, Clang 21 ASan+UBSan, 37 static
 audits, 21 portable tests, the official build, ABI1 v12 load/unload and native
 Irok regression pass. These are code-level contention/lifetime proofs under
 D-022; they do not measure physical UAP latency.
+
+### Evidence for HJ-AUD-P2-021
+
+V14-11D keys native ownership by a compact fingerprint of the complete
+normalized HID interface path rather than VID/PID. The common implementation
+normalizes ASCII case and slash direction, hashes UTF-16 units, includes the
+unit count and performs exact semicolon-token matching. The first successful
+protocol proof owns only that path; a sibling interface with identical VID/PID
+remains independently classifiable. MAD68, Hex80, Addressed, SparkLink and Sayo
+all reject foreign path claims before opening HID and claim the exact path they
+proved. Soup calls the same plugin hook before its first `CreateFileW`.
+
+The production implementation passes same-pair sibling vectors, 10,000
+reorder/reconnect generations, exact prefix/suffix rejection and a 300,000-path
+collision smoke under GCC 15, MSVC 19.44 `/W4 /WX` and Clang 21 ASan+UBSan.
+All 38 static audits, 22 portable tests, the exact ABI1 v13 gate, official build
+and a 45,873/45,874-query native Irok regression pass. D-022 permits code-level
+verification because no UAP or multi-UAP hardware is available; this does not
+claim physical UAP coexistence or mathematically exclude every 64-bit collision.
 
 ## Evidence package S01
 
@@ -323,9 +342,9 @@ production build и шестисекундный Irok MG75 Max smoke прошл�
 ## Сводка
 
 - P1: 4 open, 1 implemented, 1 partial, 10 verified.
-- P2: 1 open, 20 verified.
+- P2: 0 open, 21 verified.
 - P3: 6 open, 2 verified.
-- Всего: 11 open, 1 implemented, 1 partial, 32 verified.
+- Всего: 10 open, 1 implemented, 1 partial, 33 verified.
 
 ## Дополнительный риск, обнаруженный при Windows gate S02A
 

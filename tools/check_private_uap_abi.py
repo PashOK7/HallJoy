@@ -12,13 +12,17 @@ from pathlib import Path
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("dll", type=Path)
-    parser.add_argument("--exclude-hid", default="vid_1ca6&pid_0529")
+    parser.add_argument(
+        "--exclude-token",
+        default="path_b8d4f30578af404c_0000004a",
+        help="exact normalized HallJoy HID interface claim token",
+    )
     args = parser.parse_args()
 
     dll = args.dll.resolve()
     if not dll.is_file():
         raise SystemExit(f"private UAP DLL is missing: {dll}")
-    os.environ["HALLJOY_UAP_NATIVE_HID_IDS"] = args.exclude_hid
+    os.environ["HALLJOY_UAP_NATIVE_HID_PATHS"] = args.exclude_token
 
     api = ctypes.CDLL(str(dll))
     abi = ctypes.c_uint32.in_dll(api, "ANALOG_SDK_PLUGIN_ABI_VERSION").value
@@ -30,7 +34,7 @@ def main() -> int:
     plugin_name_export.argtypes = []
     plugin_name_export.restype = ctypes.c_char_p
     plugin_name = plugin_name_export().decode("utf-8", errors="strict")
-    if "pinned-snapshot stable-identity deadline-paced telemetry" not in plugin_name:
+    if "interface-path pinned-snapshot stable-identity deadline-paced telemetry" not in plugin_name:
         raise RuntimeError(f"unexpected private UAP build identity: {plugin_name!r}")
 
     api.is_initialised.argtypes = []

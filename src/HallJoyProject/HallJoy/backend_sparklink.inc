@@ -859,6 +859,14 @@ static HANDLE SparkTryOpenDevice(
         if (!SetupDiGetDeviceInterfaceDetailW(devInfo, &ifData, detail, detailBytes, nullptr, nullptr))
             continue;
 
+        const bool routedToSpark = NativeAnalogRouting_IsClaimedBy(
+            detail->DevicePath, NativeAnalogProtocol::SparkLink);
+        if (NativeAnalogRouting_IsClaimed(detail->DevicePath) && !routedToSpark)
+            continue;
+        if (NativeAnalogRouting_ProtocolHasClaims(NativeAnalogProtocol::SparkLink) &&
+            !routedToSpark)
+            continue;
+
         bool writeCapable = true;
         HANDLE h = CreateFileW(
             detail->DevicePath,
@@ -890,14 +898,6 @@ static HANDLE SparkTryOpenDevice(
             CloseHandle(h);
             continue;
         }
-        const bool routedToSpark = NativeAnalogRouting_IsClaimedBy(
-            attr.VendorID, attr.ProductID, NativeAnalogProtocol::SparkLink);
-        if (NativeAnalogRouting_IsClaimed(attr.VendorID, attr.ProductID) && !routedToSpark)
-        {
-            CloseHandle(h);
-            continue;
-        }
-
         uint16_t inR = 0, outR = 0, usagePage = 0, usage = 0;
         if (!SparkReadCaps(h, &inR, &outR, &usagePage, &usage))
         {
@@ -1525,7 +1525,7 @@ static bool SparkStart()
     g_sparkUsagePage.store(usagePage, std::memory_order_relaxed);
 
     // Prove the SparkLink command family synchronously before publishing the
-    // exact VID/PID exclusion to UAP. A vendor-page fingerprint alone is not
+    // exact interface-path exclusion to UAP. A vendor-page fingerprint alone is not
     // sufficient because unrelated keyboards may expose similar HID metadata.
     uint8_t routeProbe[kSparkPayloadSize]{};
     if (!SparkQueryDeviceInfo(routeProbe) || routeProbe[2] != 0x01)
@@ -1571,7 +1571,8 @@ static bool SparkStart()
         (void)g_sparkLifecycle.FailStartBeforeWorker(start.generation, error);
         return false;
     }
-    if (!NativeAnalogRouting_Claim(vid, pid, NativeAnalogProtocol::SparkLink))
+    if (!NativeAnalogRouting_Claim(
+            vid, pid, path.c_str(), NativeAnalogProtocol::SparkLink))
     {
         StabilityTrace_Write(L"WARN", L"spark", L"start.failed", L"stage=routing_claim");
         (void)SparkStopLocked();

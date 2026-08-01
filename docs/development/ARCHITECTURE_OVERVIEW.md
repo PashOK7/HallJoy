@@ -25,7 +25,7 @@ analogue, or edits the keyboard UI.
 NativeAnalogBackends_Reset
         ↓
 PrepareRouting for every catalog entry
-        ↓ exact VID:PID claims only after capability proof
+        ↓ exact HID interface-path claims only after capability proof
 BeforeUap start phase
         ↓
 UAP receives complete native exclusion set before Soup CreateFileW
@@ -40,7 +40,10 @@ validate Raw Input prerequisite → AfterRawInput → publish ready
 ```
 
 Catalog order is classification priority. A claim is first-proof-wins; a later
-backend cannot steal the same exact VID/PID.
+backend cannot steal the same exact interface. An unclaimed sibling interface with
+the same VID/PID remains available to another native protocol or UAP. Every native
+enumerator checks foreign ownership after obtaining the SetupAPI path and before
+opening a HID handle.
 
 Dependent startup is transactional. Optional protocol families that are absent
 are recorded as unavailable, while a present-device failure or rejected
@@ -168,6 +171,14 @@ available, metadata plus occurrence remains a compatibility fallback, but
 telemetry does not mark that ID duplicate-safe. For a serial-less keyboard the
 identity follows its Windows interface/port path; software cannot prove that
 two indistinguishable devices were physically swapped between ports.
+
+Native/UAP ownership uses a separate shared path-fingerprint contract. HallJoy
+normalizes ASCII path case and slash direction, hashes normalized UTF-16 units and
+includes the unit count in an exact semicolon-delimited token. The native registry,
+the UAP pre-open hook and the redundant post-open guard all call that same
+implementation. Claims are published before the isolated UAP starts; Soup calls the
+hook before `CreateFileW`, so it never opens an exactly claimed interface. The
+legacy substring-based VID/PID exclusion is not part of this path.
 
 ## Files a new protocol owns
 

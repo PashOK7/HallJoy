@@ -40,8 +40,10 @@ def main() -> int:
     require(marker in block, "validation marker is emitted into generated C++")
     require("UAP_EXCLUDE_HALLJOY_NATIVE" in block,
             "generated block is compile-time gated")
-    require("HALLJOY_UAP_NATIVE_HID_IDS" in block,
-            "generated block consumes the exact native HID route list")
+    require("halljoy_should_exclude_hid_interface(device_interface)" in block,
+            "generated block delegates to the shared exact-interface ownership hook")
+    require("HALLJOY_UAP_NATIVE_HID_IDS" not in text,
+            "legacy coarse VID/PID route list is absent")
     require("continue;" in block,
             "generated block skips a claimed path before opening it")
     require("$hidSourceText.Insert($braceStart + 1, $preOpenBlock)" in text,

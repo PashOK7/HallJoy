@@ -27,9 +27,11 @@ version or release status.
   devices across enumeration reorder and reconnect generations
 - Verified by automated gates: `V14-11C` bounded device-owner capture; snapshot
   and telemetry exports no longer wait on per-device locks under the registry
-- Current package: `V14-11` UAP pacing, identity, modularization and measured
-  performance, In progress
-- Next work: `V14-11D` bound the remaining UAP modularization/performance scope
+- Verified by automated gates: `V14-11D` exact HID interface-path ownership;
+  sibling interfaces with the same VID/PID are no longer hidden as one device
+- Completed package: `V14-11` UAP pacing, identity, snapshot contention and
+  exact interface ownership
+- Next work: `V14-12` release qualification and hardware matrix
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -93,6 +95,15 @@ and only then lock each device and copy telemetry or 256 values. Deterministic
 blocked-reader removal, 100,000 lifetime cycles, 50,000 coherent snapshot
 reads, three toolchains, sanitizers, the ABI gate, full build and Irok
 regression pass. This proves lock/lifetime behavior, not physical UAP latency.
+V14-11D replaces coarse VID/PID arbitration with first-proof-wins ownership of
+the exact normalized SetupAPI interface path. All five native families reject a
+foreign claim before opening HID, Soup calls the same shared fingerprint helper
+before `CreateFileW`, and its redundant post-open guard checks the actual path.
+The portable gate separates same-VID/PID siblings through 10,000 reorder/
+reconnect generations and 300,000 synthetic paths; GCC, MSVC `/W4 /WX`, Clang
+ASan+UBSan, ABI, the official build and native Irok regression pass. Under
+D-022 this verifies the code-level ownership contract, not physical multi-UAP
+hardware or an impossible mathematical proof against every 64-bit collision.
 
 ## Authoritative documents
 

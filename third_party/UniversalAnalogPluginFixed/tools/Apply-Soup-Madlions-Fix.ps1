@@ -404,12 +404,34 @@ if ($hidHeaderText -notmatch 'transactReport\s*\(') {
 
 $hidSourceText = [System.IO.File]::ReadAllText($hidSource)
 
-# The native MAD68 backend must be the only process that ever opens the Pro R
-# vendor interface. AnalogueKeyboard::getAll() filters supported devices only
-# after hwHid::getAll() has already opened every HID path, so a filter in the
-# plugin main loop is too late. Insert the exact VID/PID path exclusion before
-# CreateFileW. The block is compile-time gated and therefore changes only the
-# dedicated *-mad68native Sun targets; ordinary UAP builds enumerate normally.
+# Native backends must be the only code that opens interfaces they have proved.
+# AnalogueKeyboard::getAll() filters supported devices only after hwHid::getAll()
+# has already opened every HID path, so a filter in the plugin main loop is too
+# late. Declare the shared HallJoy ownership hook at namespace scope, then call
+# it before CreateFileW. The block is compile-time gated and therefore changes
+# only dedicated *-mad68native Sun targets; ordinary UAP builds enumerate normally.
+$nativeExcludeDeclarationMarker = 'HallJoy native analogue interface ownership hook'
+if (-not $hidSourceText.Contains($nativeExcludeDeclarationMarker)) {
+    $firstInclude = [System.Text.RegularExpressions.Regex]::Match(
+        $hidSourceText,
+        '(?m)^#include\s+"hwHid\.hpp"\s*\r?$')
+    if (-not $firstInclude.Success) {
+        throw 'Could not locate the primary hwHid include for the HallJoy ownership hook.'
+    }
+    $includeLineEnd = $hidSourceText.IndexOf("`n", $firstInclude.Index + $firstInclude.Length)
+    if ($includeLineEnd -lt 0) {
+        throw 'Could not locate the end of the primary hwHid include line.'
+    }
+    $nativeExcludeDeclaration = @'
+
+// HallJoy native analogue interface ownership hook.
+#if defined(UAP_EXCLUDE_HALLJOY_NATIVE)
+extern "C" bool halljoy_should_exclude_hid_interface(const wchar_t* interface_path) noexcept;
+#endif
+'@
+    $hidSourceText = $hidSourceText.Insert($includeLineEnd + 1, $nativeExcludeDeclaration)
+}
+
 $preOpenMarker = 'HallJoy native analogue pre-open exclusion'
 if (-not $hidSourceText.Contains($preOpenMarker)) {
     $enumerationLoop = [System.Text.RegularExpressions.Regex]::Match(
@@ -438,38 +460,9 @@ if (-not $hidSourceText.Contains($preOpenMarker)) {
 ${indent}#if defined(UAP_EXCLUDE_HALLJOY_NATIVE)
 ${indent}// HallJoy native analogue pre-open exclusion.
 ${indent}// The parent process performs protocol-specific capability proofs and
-${indent}// publishes exact VID/PID tokens.
+${indent}// publishes exact interface-path fingerprints through the shared hook.
 ${indent}// This gate runs before CreateFileW, so UAP never opens a native-owned HID.
-${indent}const auto halljoy_path_contains_ci = [](const wchar_t* value, const wchar_t* token) noexcept
-${indent}{
-${indent}`tif (value == nullptr || token == nullptr || *token == L'\0') return false;
-${indent}`tconst size_t token_length = wcslen(token);
-${indent}`tfor (; *value != L'\0'; ++value)
-${indent}`t{
-${indent}`t`tif (_wcsnicmp(value, token, token_length) == 0) return true;
-${indent}`t}
-${indent}`treturn false;
-${indent}};
-${indent}wchar_t halljoy_native_ids[2048]{};
-${indent}const DWORD halljoy_native_chars = GetEnvironmentVariableW(
-${indent}`tL"HALLJOY_UAP_NATIVE_HID_IDS", halljoy_native_ids,
-${indent}`tstatic_cast<DWORD>(sizeof(halljoy_native_ids) / sizeof(halljoy_native_ids[0])));
-${indent}if (halljoy_native_chars != 0 &&
-${indent}`thalljoy_native_chars < (sizeof(halljoy_native_ids) / sizeof(halljoy_native_ids[0])))
-${indent}{
-${indent}`tbool halljoy_exclude_path = false;
-${indent}`twchar_t* context = nullptr;
-${indent}`tfor (wchar_t* token = wcstok_s(halljoy_native_ids, L";", &context);
-${indent}`t`ttoken != nullptr; token = wcstok_s(nullptr, L";", &context))
-${indent}`t{
-${indent}`t`tif (halljoy_path_contains_ci(device_interface, token))
-${indent}`t`t{
-${indent}`t`t`thalljoy_exclude_path = true;
-${indent}`t`t`tbreak;
-${indent}`t`t}
-${indent}`t}
-${indent}`tif (halljoy_exclude_path) continue;
-${indent}}
+${indent}if (halljoy_should_exclude_hid_interface(device_interface)) continue;
 ${indent}#endif
 "@
     $hidSourceText = $hidSourceText.Insert($braceStart + 1, $preOpenBlock)
@@ -924,7 +917,7 @@ $firstCreateFileIndex = $hidSourceText.IndexOf('hid.handle = CreateFileW')
 if ($preOpenIndex -lt 0 -or $firstCreateFileIndex -lt 0 -or
     $preOpenIndex -gt $firstCreateFileIndex -or
     $hidSourceText -notmatch 'UAP_EXCLUDE_HALLJOY_NATIVE' -or
-        $hidSourceText -notmatch 'HALLJOY_UAP_NATIVE_HID_IDS') {
+        $hidSourceText -notmatch 'halljoy_should_exclude_hid_interface') {
     throw 'Internal error: native analogue exclusion is not applied before CreateFileW.'
 }
 

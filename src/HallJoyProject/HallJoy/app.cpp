@@ -959,7 +959,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         // Backend_Init performs the remaining native capability proofs (SparkLink
         // and Sayo) before it starts UAP/Wooting. The dedicated UAP target patches
         // Soup at the HID-enumeration boundary and skips only runtime-validated
-        // exact VID/PID tokens before CreateFileW, so the child host never opens an
+        // exact interface-path tokens before CreateFileW, so the child never opens an
         // endpoint routed to any HallJoy native backend. All unclaimed devices stay
         // available to Soup/UAP. The universal native target can continue without
         // UAP; Backend_Init then succeeds only when a validated native route exists.

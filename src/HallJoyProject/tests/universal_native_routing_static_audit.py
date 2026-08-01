@@ -12,6 +12,7 @@ def read(path: Path) -> str:
 
 routing_h = read(hall / "native_analog_routing.h")
 routing = read(hall / "native_analog_routing.cpp")
+claim_registry = read(hall / "native_hid_interface_claim_registry.h")
 contract = read(hall / "native_analog_backend.h")
 registry = read(hall / "native_analog_backend_registry.cpp")
 catalog = read(hall / "native_analog_backends.def")
@@ -40,8 +41,12 @@ checks = {
     "backend contract owns discovery lifecycle read and telemetry": all(token in contract for token in (
         "prepareRouting", "start", "stop", "notifyDeviceChange", "ownsHid", "getMilli", "getTelemetry")),
     "catalog registers every native backend exactly once": all(catalog.count(name) == 1 for name in families),
-    "registry is exact first-claim-wins VID/PID ownership": all(token in routing for token in (
-        "SameDevice", "existing->protocol == protocol", "vid_%04x&pid_%04x", "HALLJOY_UAP_NATIVE_HID_IDS")),
+    "registry is exact first-claim-wins interface ownership": (
+        all(token in claim_registry for token in (
+            "MakeInterfaceClaimToken", "existing->protocol == protocol", "claim.token == token"))
+        and "InterfaceClaimRegistry" in routing
+        and "HALLJOY_UAP_NATIVE_HID_PATHS" in routing
+        and "HALLJOY_UAP_NATIVE_HID_IDS" not in routing),
     "pre-UAP route order is descriptor-driven and deterministic": (
         "NativeAnalogBackends_PrepareRouting()" in app
         and app.index("NativeAnalogBackends_PrepareRouting()") < app.index("Backend_Init()")
@@ -57,7 +62,8 @@ checks = {
     "UAP exclusion occurs before any Soup HID open": (
         "HallJoy native analogue pre-open exclusion" in patch
         and "$hidSourceText.Insert($braceStart + 1, $preOpenBlock)" in patch
-        and "HALLJOY_UAP_NATIVE_HID_IDS" in patch
+        and "halljoy_should_exclude_hid_interface(device_interface)" in patch
+        and "HALLJOY_UAP_NATIVE_HID_IDS" not in patch
         and "halljoy_uap_native_hid_excluded" in uap),
     "Addressed protocol is active and event-driven": (
         "AddressedAnalog_GetNativeBackendDescriptor" in catalog

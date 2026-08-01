@@ -1,5 +1,10 @@
 #include "hwHid.hpp"
 
+// HallJoy native analogue interface ownership hook.
+#if defined(UAP_EXCLUDE_HALLJOY_NATIVE)
+extern "C" bool halljoy_should_exclude_hid_interface(const wchar_t* interface_path) noexcept;
+#endif
+
 // Based on hidapi:
 // - https://github.com/libusb/hidapi/blob/master/windows/hid.c
 // - https://github.com/libusb/hidapi/blob/master/linux/hid.c
@@ -168,38 +173,9 @@ NAMESPACE_SOUP
 			#if defined(UAP_EXCLUDE_HALLJOY_NATIVE)
 			// HallJoy native analogue pre-open exclusion.
 			// The parent process performs protocol-specific capability proofs and
-			// publishes exact VID/PID tokens.
+			// publishes exact interface-path fingerprints through the shared hook.
 			// This gate runs before CreateFileW, so UAP never opens a native-owned HID.
-			const auto halljoy_path_contains_ci = [](const wchar_t* value, const wchar_t* token) noexcept
-			{
-				if (value == nullptr || token == nullptr || *token == L'\0') return false;
-				const size_t token_length = wcslen(token);
-				for (; *value != L'\0'; ++value)
-				{
-					if (_wcsnicmp(value, token, token_length) == 0) return true;
-				}
-				return false;
-			};
-			wchar_t halljoy_native_ids[2048]{};
-			const DWORD halljoy_native_chars = GetEnvironmentVariableW(
-				L"HALLJOY_UAP_NATIVE_HID_IDS", halljoy_native_ids,
-				static_cast<DWORD>(sizeof(halljoy_native_ids) / sizeof(halljoy_native_ids[0])));
-			if (halljoy_native_chars != 0 &&
-				halljoy_native_chars < (sizeof(halljoy_native_ids) / sizeof(halljoy_native_ids[0])))
-			{
-				bool halljoy_exclude_path = false;
-				wchar_t* context = nullptr;
-				for (wchar_t* token = wcstok_s(halljoy_native_ids, L";", &context);
-					token != nullptr; token = wcstok_s(nullptr, L";", &context))
-				{
-					if (halljoy_path_contains_ci(device_interface, token))
-					{
-						halljoy_exclude_path = true;
-						break;
-					}
-				}
-				if (halljoy_exclude_path) continue;
-			}
+			if (halljoy_should_exclude_hid_interface(device_interface)) continue;
 			#endif
 			hwHid hid{};
 			hid.path = unicode::utf16_to_utf8<std::wstring>(device_interface);

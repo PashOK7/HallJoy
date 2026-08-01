@@ -347,3 +347,29 @@ reader cannot delay registry removal by retaining the global lock.
 Automated tests may prove lock ordering, coherent copies and object lifetime.
 Without a UAP-routed keyboard they do not establish a physical latency or USB
 throughput number; D-022's evidence boundary still applies.
+
+## D-024 - Native ownership is exact HID interface-path ownership
+
+Date: 2026-08-01
+
+VID/PID identifies a product family, not one openable HID interface. Native
+arbitration therefore uses a compact fingerprint of the complete normalized
+SetupAPI interface path. ASCII case and slash direction are normalized; the
+shared token contains a 64-bit hash and normalized UTF-16 unit count. Token-list
+membership is exact and delimited, never a path substring search.
+
+The first protocol that completes its capability proof owns that exact path.
+Same-VID/PID sibling interfaces remain unclaimed unless independently proved.
+Every native enumerator must reject a foreign exact claim after obtaining the
+SetupAPI path and before any HID open, then claim the exact path it proved.
+Reconnect may reopen only that protocol's prior path once routing is published.
+
+HallJoy publishes the exact token list before starting the isolated UAP. Soup
+calls a plugin-owned shared hook before `CreateFileW`; the later discovery guard
+checks the actual UTF-8 Soup path through the same algorithm. The Soup patch may
+not carry a duplicate hashing or substring-matching implementation.
+
+Under D-022, deterministic production-code properties, three compiler modes,
+sanitizers, ABI/build and available native Irok integration are sufficient to
+verify this code-level risk. This does not prove physical multi-UAP coexistence
+or mathematically rule out every collision in a finite 64-bit fingerprint.

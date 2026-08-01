@@ -64,8 +64,8 @@ struct NativeAnalogBackendDescriptor
     std::uint32_t flags = NativeAnalogBackendFlag_None;
 
     // prepareRouting must perform only the protocol's documented safe capability
-    // proof. It claims exact VID/PID ownership through NativeAnalogRouting_Claim
-    // only after the response semantics are validated.
+    // proof. It claims exact interface-path ownership through
+    // NativeAnalogRouting_Claim only after the response semantics are validated.
     bool (*prepareRouting)() = nullptr;
     bool (*start)() = nullptr;
     halljoy::lifecycle::StopResult (*stop)(halljoy::lifecycle::GenerationId generation) = nullptr;

@@ -1209,3 +1209,66 @@ Evidence:
   docs/stability/tests/V14-11C_UAP_SNAPSHOT_PINNING_2026-08-01.txt
 Rollback: parent commit of the V14-11C implementation commit
 ```
+
+## V14-11D evidence
+
+```text
+Package: V14-11D
+Scope: exact HID interface-path ownership across native routing and Soup/UAP
+Commands:
+  python src/HallJoyProject/tests/native_hid_interface_claim_static_audit.py
+  python tools/run_native_backend_checks.py --require-compiler
+  g++ -std=c++20 -O2 -Wall -Wextra -pedantic
+    src/HallJoyProject/tests/native_hid_interface_claim_test.cpp
+  cl.exe /std:c++20 /EHsc /W4 /WX
+    src/HallJoyProject/tests/native_hid_interface_claim_test.cpp
+  clang++ -std=c++20 -O1 -g -Wall -Wextra -pedantic
+    -fsanitize=address,undefined -fno-omit-frame-pointer
+    src/HallJoyProject/tests/native_hid_interface_claim_test.cpp
+  cmd /c BUILD.cmd
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -StartOverlay -RunSeconds 10
+  python tools/analyze_stability_trace.py
+    build/output/HallJoyStabilityTrace.log
+Results:
+  Exact-interface ownership static audit: PASS
+  Static audits: 38/38 PASS
+  Portable C++20 tests: 22/22 PASS
+  Same VID/PID sibling interfaces: independently claimed and routed PASS
+  Reorder/reconnect generations: 10,000/10,000 PASS, 32 claims each
+  Exact token prefix/suffix/garbage rejection: PASS
+  Unicode wide/UTF-8 equivalence and malformed UTF-8 replacement: PASS
+  Synthetic interface tokens: 300,000, zero observed collisions
+  GCC 15.2 warning-clean: PASS
+  MSVC 19.44 /W4 /WX: PASS
+  Clang 21 ASan+UBSan: PASS, zero reports
+  Soup generated patch and locked overlay: shared pre-open hook before CreateFileW
+  All five native families: foreign claim check before HID open PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  ABI1 load/init/name/null/bounded-unload: PASS, SafeHID v13 interface-path
+  Production overlay suite: PASS, maximum parallel state latency 2.1 ms
+  Production Irok route: 45,873/45,874 queries, one contained transient miss,
+    67 changed rows/notifications, 286 us average and 1,754 us maximum route
+    interval; balanced shutdown and exit 0
+  Trace analyzer: WARN only for unavailable protocol devices and unexercised
+    unplug/alternate-mode variants; zero ERROR events
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,215,424 bytes
+  SHA-256: CF1C3B93381744005B7B2D32FB54FF17A1F8D8244C2F12610070D89D77DE7EE3
+  ABI0 DLL: 387,072 bytes,
+    SHA-256 28F5E14AE3CCD30A74A3F73D3BDDE6757CC7CC2BB0F5B9E80AF500A353314B58
+  ABI1 DLL: 259,072 bytes,
+    SHA-256 F6EBC8A3A65F152AFF918BDC0DBFE1B811F2AEB8B4D9C985FCD618B05A254CD5
+  Production trace SHA-256:
+    18C2ABA260D85CD44CFC0DAE930BB4BA623D989B74FFB472B4EA232703E76242
+Limit: no physical UAP or multi-UAP device was available. D-022 code-level
+  substitution verifies routing/normalization/integration but cannot prove
+  device-firmware coexistence or mathematically exclude every 64-bit collision
+Remote CI: NOT RUN; optional, no push permitted
+Status: HJ-AUD-P2-021 Verified by D-022/D-024 automated production-code gates
+Next: V14-12 release qualification and hardware matrix
+Evidence:
+  docs/stability/tests/V14-11D_EXACT_HID_INTERFACE_OWNERSHIP_2026-08-01.txt
+Rollback: parent commit of the V14-11D implementation commit
+```

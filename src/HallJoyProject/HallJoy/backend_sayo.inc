@@ -18,6 +18,7 @@ static constexpr uint16_t kSayoRawFullScale = 4000;
 
 struct SayoReader
 {
+    std::wstring path;
     HANDLE handle = nullptr;
     HANDLE thread = nullptr;
     uint16_t inputLen = 0;
@@ -575,6 +576,14 @@ static bool SayoCollectMatchingDevices(std::vector<SayoReader>* outReaders)
         if (!SetupDiGetDeviceInterfaceDetailW(devInfo, &ifData, detail, detailBytes, nullptr, nullptr))
             continue;
 
+        const bool routedToSayo = NativeAnalogRouting_IsClaimedBy(
+            detail->DevicePath, NativeAnalogProtocol::SayoDepth);
+        if (NativeAnalogRouting_IsClaimed(detail->DevicePath) && !routedToSayo)
+            continue;
+        if (NativeAnalogRouting_ProtocolHasClaims(NativeAnalogProtocol::SayoDepth) &&
+            !routedToSayo)
+            continue;
+
         bool writeCapable = true;
         HANDLE h = CreateFileW(
             detail->DevicePath,
@@ -607,14 +616,6 @@ static bool SayoCollectMatchingDevices(std::vector<SayoReader>* outReaders)
             CloseHandle(h);
             continue;
         }
-        const bool routedToSayo = NativeAnalogRouting_IsClaimedBy(
-            attr.VendorID, attr.ProductID, NativeAnalogProtocol::SayoDepth);
-        if (NativeAnalogRouting_IsClaimed(attr.VendorID, attr.ProductID) && !routedToSayo)
-        {
-            CloseHandle(h);
-            continue;
-        }
-
         uint16_t inLen = 0, outLen = 0, usagePage = 0, usage = 0;
         if (!SparkReadCaps(h, &inLen, &outLen, &usagePage, &usage) || inLen < 8)
         {
@@ -624,6 +625,7 @@ static bool SayoCollectMatchingDevices(std::vector<SayoReader>* outReaders)
 
         HidD_SetNumInputBuffers(h, 64);
         SayoReader reader{};
+        reader.path = detail->DevicePath;
         reader.handle = h;
         reader.inputLen = inLen;
         reader.outputLen = outLen;
@@ -1001,9 +1003,12 @@ static bool SayoStart()
         (void)SayoStopLocked();
         return false;
     }
-    if (!NativeAnalogRouting_Claim(
-            readers.front().vendorId, readers.front().productId,
-            NativeAnalogProtocol::SayoDepth))
+    const bool claimedAllReaders = std::all_of(readers.begin(), readers.end(), [](const auto& reader) {
+        return NativeAnalogRouting_Claim(
+            reader.vendorId, reader.productId, reader.path.c_str(),
+            NativeAnalogProtocol::SayoDepth);
+    });
+    if (!claimedAllReaders)
     {
         (void)SayoStopLocked();
         return false;

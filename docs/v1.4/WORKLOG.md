@@ -1314,3 +1314,59 @@
   This does not claim a physical UAP device latency or USB throughput result.
 - V14-11 remains In progress. Next is V14-11D bounding the remaining UAP
   modularization/performance scope.
+
+## 2026-08-01 - V14-11D exact HID interface ownership
+
+### Implementation
+
+- Replaced coarse native VID/PID claims with first-proof-wins ownership of a
+  normalized full HID interface-path fingerprint. The shared header owns wide/
+  UTF-8 normalization, UTF-16 hashing, token formatting and exact delimited
+  membership; native routing publishes `HALLJOY_UAP_NATIVE_HID_PATHS`.
+- Added a generic exact-interface claim registry. VID/PID is retained only as
+  diagnostic metadata. Same-product sibling interfaces can be claimed by
+  different protocols or remain available to UAP.
+- Updated MAD68, Hex80, Addressed, SparkLink and Sayo to reject foreign claims
+  after SetupAPI returns the path and before any `CreateFileW`, and to claim the
+  exact path actually proved. SparkLink/Sayo reconnect is pinned to previously
+  claimed paths; Sayo retains and claims every opened reader path.
+- Replaced Soup's local VID/PID substring parser with one plugin-owned pre-open
+  hook. Both the generated patch and locked overlay call it before `CreateFileW`;
+  the post-open guard independently hashes `kbd.hid.path` through the same code.
+- Added a build-required static audit and portable test; updated historical
+  routing audits, ABI identity, dependency lock, build preflights and protocol
+  authoring documentation.
+
+### Validation
+
+- Same-VID/PID sibling golden vectors, case/slash and UTF-8/wide normalization,
+  exact prefix/suffix rejection, first-claim-wins and reset behavior PASS.
+- 10,000 shuffled reconnect generations with 32 claims each PASS; 300,000
+  synthetic interface tokens produced zero observed collisions.
+- GCC 15.2 warning-clean, MSVC 19.44 `/W4 /WX`, and Clang 21 ASan+UBSan PASS.
+- Complete gate: 38/38 static audits and 22/22 portable C++ tests PASS.
+- Official x64 production build: PASS, 0 errors, only allowlisted `LNK4099`.
+- ABI1 loaded exact SafeHID v13 interface-path generation and passed init/null/
+  state/bounded unload with zero UAP devices present.
+- Production overlay suite PASS; maximum parallel state latency 2.1 ms.
+- Irok MG75 Max native regression: 45,873/45,874 queries, one contained
+  transient miss, 67 changed rows/notifications, 286 us average and 1,754 us
+  maximum route interval; startup, worker/service stop, analog host and exit 0
+  balanced with zero trace ERROR events.
+- `HallJoy.exe`: 2,215,424 bytes,
+  SHA-256 `CF1C3B93381744005B7B2D32FB54FF17A1F8D8244C2F12610070D89D77DE7EE3`.
+- ABI0/ABI1 DLL hashes:
+  `28F5E14AE3CCD30A74A3F73D3BDDE6757CC7CC2BB0F5B9E80AF500A353314B58` /
+  `F6EBC8A3A65F152AFF918BDC0DBFE1B811F2AEB8B4D9C985FCD618B05A254CD5`.
+- Production trace SHA-256:
+  `18C2ABA260D85CD44CFC0DAE930BB4BA623D989B74FFB472B4EA232703E76242`.
+- Source backup: `C:\github\HallJoy_v1.4_BACKUPS\V14-11D-prechange-20260801-1406`,
+  37 files and 37 unique SHA-256 hashes verified at copy time.
+
+### Package result
+
+- By D-022 and D-024, `HJ-AUD-P2-021` is `Verified`: exact-path ownership,
+  pre-open exclusion and the complete available integration matrix pass. No
+  physical UAP/multi-UAP hardware behavior or mathematical no-collision claim
+  is inferred.
+- V14-11 is complete. Next is V14-12 release qualification and hardware matrix.

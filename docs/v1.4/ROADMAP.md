@@ -35,7 +35,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Verified | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
 | `V14-09` | Transactional persistence and writable state migration | Verified | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
 | `V14-10` | IPC and overlay security/correctness | Verified | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
-| `V14-11` | UAP pacing, identity, modularization and measured performance | In progress | CPU/USB/latency comparison with no unsupported sampling regression |
+| `V14-11` | UAP pacing, identity, modularization and measured performance | Verified | D-022 production-code gates for pacing, identity, snapshot lifetime and exact interface ownership; no unsupported hardware claim |
 | `V14-12` | Release qualification and hardware matrix | Planned | Clean package, 8-24h soak, reconnect cycles and required device-owner gates |
 
 ## Completed package: V14-00
@@ -392,7 +392,7 @@ Progress:
 V14-10 is complete. The next implementation package is V14-11 UAP pacing,
 identity, modularization and measured performance.
 
-## In-progress package: V14-11
+## Completed package: V14-11
 
 - `V14-11A` UAP poll pacing: Verified by automated gates. All six private
   plugin targets use a 1000 us start-to-start
@@ -421,8 +421,18 @@ identity, modularization and measured performance.
   100,000 lifetime cycles, 50,000 coherent copies, GCC/MSVC, ASan+UBSan, ABI,
   official build and native Irok regression pass. No physical UAP latency claim
   is inferred.
-- `V14-11D` is next: bound the remaining UAP modularization/performance work
-  without presenting automated evidence as a physical USB measurement.
+- `V14-11D` exact HID interface ownership: Verified by automated gates. Native
+  routing now claims a normalized full interface-path fingerprint after protocol
+  proof, not a VID/PID pair. Same-VID/PID sibling interfaces remain independent,
+  catalog priority is first-claim-wins per exact path, and every native enumerator
+  rejects foreign ownership before any HID open. Soup's pre-open hook and the
+  redundant plugin guard call the same shared implementation. Same-pair sibling,
+  exact-token, 10,000 reorder/reconnect and 300,000-path collision tests pass GCC,
+  MSVC `/W4 /WX`, Clang ASan+UBSan, ABI, official build and native Irok regression.
+  This proves code-level routing under D-022, not physical multi-UAP hardware.
+
+V14-11 is complete. The next implementation package is V14-12 release
+qualification and the hardware matrix.
 
 ## Release definition
 

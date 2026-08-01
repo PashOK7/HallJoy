@@ -48,11 +48,11 @@ checks = {
         and "result.owned" in registry
         and "cache.allowFallback && !native.owned" in backend
     ),
-    "shared native VID/PID registry is additive": (
+    "shared native interface registry is additive": (
         "NativeAnalogRouting_Claim" in hex_backend
         and "NativeAnalogProtocol::Hex80" in hex_backend
-        and "HALLJOY_UAP_NATIVE_HID_IDS" in routing
-        and "g_claims.push_back" in routing
+        and "HALLJOY_UAP_NATIVE_HID_PATHS" in routing
+        and "InterfaceClaimRegistry" in routing
     ),
     "routing is complete before UAP starts": (
         "NativeAnalogBackends_Reset()" in app
@@ -61,9 +61,10 @@ checks = {
         and "Hex80_GetNativeBackendDescriptor" in catalog
         and "prepareRouting" in registry
     ),
-    "UAP consumes native VID/PID registry before HID open": (
+    "UAP consumes native interface registry before HID open": (
         "halljoy_uap_native_hid_excluded" in uap
-        and "HALLJOY_UAP_NATIVE_HID_IDS" in patch
+        and "halljoy_should_exclude_hid_interface(device_interface)" in patch
+        and "HALLJOY_UAP_NATIVE_HID_IDS" not in patch
         and "HallJoy native analogue pre-open exclusion" in patch
         and "$hidSourceText.Insert($braceStart + 1, $preOpenBlock)" in patch
     ),

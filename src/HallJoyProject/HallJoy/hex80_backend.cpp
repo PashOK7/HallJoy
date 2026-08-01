@@ -183,13 +183,6 @@ void RecordMatrixCycle()
     g_matrixCycles.fetch_add(1, std::memory_order_relaxed);
 }
 
-bool IsRoutedPid(std::uint16_t productId)
-{
-    std::lock_guard<std::mutex> lock(g_routingMutex);
-    return std::find(g_routedProductIds.begin(), g_routedProductIds.end(), productId) !=
-        g_routedProductIds.end();
-}
-
 std::vector<Candidate> EnumerateCandidates(bool routedOnly)
 {
     GUID hidGuid{};
@@ -218,6 +211,13 @@ std::vector<Candidate> EnumerateCandidates(bool routedOnly)
         if (!SetupDiGetDeviceInterfaceDetailW(info, &iface, detail, detailBytes, nullptr, nullptr))
             continue;
 
+        const bool routedToHex80 = NativeAnalogRouting_IsClaimedBy(
+            detail->DevicePath, NativeAnalogProtocol::Hex80);
+        if (NativeAnalogRouting_IsClaimed(detail->DevicePath) && !routedToHex80)
+            continue;
+        if (routedOnly && !routedToHex80)
+            continue;
+
         ScopedHandle metadata(CreateFileW(
             detail->DevicePath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE,
             nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
@@ -227,8 +227,7 @@ std::vector<Candidate> EnumerateCandidates(bool routedOnly)
         candidate.path = detail->DevicePath;
         candidate.attributes.Size = sizeof(candidate.attributes);
         if (!HidD_GetAttributes(metadata.value, &candidate.attributes) ||
-            candidate.attributes.VendorID != hex80::kVendorId ||
-            (routedOnly && !IsRoutedPid(candidate.attributes.ProductID)))
+            candidate.attributes.VendorID != hex80::kVendorId)
             continue;
 
         PHIDP_PREPARSED_DATA preparsed = nullptr;
@@ -630,10 +629,9 @@ bool Hex80_PrepareProtocolRouting()
     for (const auto& candidate : candidates)
     {
         const auto pid = candidate.attributes.ProductID;
-        if (std::find(routed.begin(), routed.end(), pid) != routed.end()) continue;
-        if (NativeAnalogRouting_IsClaimed(candidate.attributes.VendorID, pid)) continue;
         if (ProbeCandidate(candidate) &&
-            NativeAnalogRouting_Claim(candidate.attributes.VendorID, pid, NativeAnalogProtocol::Hex80))
+            NativeAnalogRouting_Claim(candidate.attributes.VendorID, pid,
+                candidate.path.c_str(), NativeAnalogProtocol::Hex80))
         {
             routed.push_back(pid);
             DebugLog_Write(L"[backend.hex80.route] validated GET-only protocol vid=%04X pid=%04X usage=FF60:0061",
@@ -642,6 +640,7 @@ bool Hex80_PrepareProtocolRouting()
     }
 
     std::sort(routed.begin(), routed.end());
+    routed.erase(std::unique(routed.begin(), routed.end()), routed.end());
     {
         std::lock_guard<std::mutex> lock(g_routingMutex);
         g_routedProductIds = routed;

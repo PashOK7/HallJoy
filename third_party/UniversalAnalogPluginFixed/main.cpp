@@ -30,6 +30,7 @@
 
 #include "halljoy_plugin_telemetry.h"
 #include "halljoy_dense_snapshot.h"
+#include "halljoy_native_hid_claim.h"
 #include "halljoy_uap_cabi_guard.h"
 #include "halljoy_uap_device_identity.h"
 #include "halljoy_uap_pinned_owners.h"
@@ -170,23 +171,38 @@ static bool halljoy_contains_ascii_ci(const std::string& text, const char* needl
 	return false;
 }
 
-static bool halljoy_uap_native_hid_excluded(std::uint16_t vendor_id, std::uint16_t product_id)
+static bool halljoy_native_claim_token_excluded(const std::string& token)
 {
 #if defined(UAP_EXCLUDE_HALLJOY_NATIVE)
-    const char* configured = std::getenv("HALLJOY_UAP_NATIVE_HID_IDS");
+    const char* configured = std::getenv("HALLJOY_UAP_NATIVE_HID_PATHS");
     if (configured == nullptr || *configured == '\0')
+        return false;
+    return halljoy::native_hid::TokenListContains(configured, token);
+#else
+    (void)token;
+    return false;
+#endif
+}
+
+extern "C" bool halljoy_should_exclude_hid_interface(const wchar_t* interface_path) noexcept
+{
+    try
+    {
+        if (interface_path == nullptr || *interface_path == L'\0')
+            return false;
+        return halljoy_native_claim_token_excluded(
+            halljoy::native_hid::MakeInterfaceClaimToken(interface_path));
+    }
+    catch (...)
     {
         return false;
     }
-    char token[32]{};
-    std::snprintf(token, sizeof(token), "vid_%04x&pid_%04x",
-        static_cast<unsigned>(vendor_id), static_cast<unsigned>(product_id));
-    return halljoy_contains_ascii_ci(configured, token);
-#else
-    (void)vendor_id;
-    (void)product_id;
-    return false;
-#endif
+}
+
+static bool halljoy_uap_native_hid_excluded(const std::string& interface_path)
+{
+    return halljoy_native_claim_token_excluded(
+        halljoy::native_hid::MakeInterfaceClaimTokenUtf8(interface_path));
 }
 
 static void halljoy_copy_ascii(char* destination, size_t destination_size, const std::string& source)
@@ -285,7 +301,7 @@ SOUP_CEXPORT const uint32_t ANALOG_SDK_PLUGIN_ABI_VERSION = ABI_VERSION_TARGET;
 
 SOUP_CEXPORT const char* _name() noexcept
 {
-	return "Universal Analog Plugin (HallJoy SafeHID v12 pinned-snapshot stable-identity deadline-paced telemetry)";
+	return "Universal Analog Plugin (HallJoy SafeHID v13 interface-path pinned-snapshot stable-identity deadline-paced telemetry)";
 }
 
 SOUP_CEXPORT bool is_initialised() noexcept
@@ -862,13 +878,13 @@ static void discover_devices(bool initial)
 	{
 #if defined(UAP_EXCLUDE_HALLJOY_NATIVE)
 		// Redundant identity guard. In the dedicated native target Soup already
-		// skips this VID/PID before CreateFileW, so the UAP child never opens EP82.
+		// skips this exact interface before CreateFileW, so the UAP child never opens it.
 		// Keep this second check in case a future Soup enumeration path bypasses the
 		// pre-open hook. All other UAP/Wooting devices remain unchanged.
-		if (halljoy_uap_native_hid_excluded(kbd.hid.vendor_id, kbd.hid.product_id))
+		if (halljoy_uap_native_hid_excluded(kbd.hid.path))
 		{
 #if LOGGING
-			std::cout << "Skipping capability-validated HallJoy native analogue device in UAP" << std::endl;
+			std::cout << "Skipping capability-validated HallJoy native analogue interface in UAP" << std::endl;
 #endif
 			continue;
 		}

@@ -462,12 +462,11 @@ bool IsRoutedNativePid(std::uint16_t pid)
         g_routedNativePids.end();
 }
 
-void PublishRoutedPidEnvironment(const std::vector<std::uint16_t>& pids)
+bool ClaimNativeInterface(const HidPath& path)
 {
-    // Multiple validated VID 373B native protocols share the dedicated UAP
-    // pre-open exclusion registry. Do not overwrite another backend's tokens.
-    for (const std::uint16_t pid : pids)
-        NativeAnalogRouting_Claim(mad68pr::kVid, pid, NativeAnalogProtocol::Mad68A0);
+    return NativeAnalogRouting_Claim(
+        path.attrs.VendorID, path.attrs.ProductID, path.path.c_str(),
+        NativeAnalogProtocol::Mad68A0);
 }
 
 std::vector<HidPath> EnumerateBrandCandidates(bool logAll, bool routedOnly)
@@ -498,14 +497,15 @@ std::vector<HidPath> EnumerateBrandCandidates(bool logAll, bool routedOnly)
 
         HidPath item{};
         item.path = detail->DevicePath;
+        const bool routedToMad68 = NativeAnalogRouting_IsClaimedBy(
+            item.path.c_str(), NativeAnalogProtocol::Mad68A0);
+        if (NativeAnalogRouting_IsClaimed(item.path.c_str()) && !routedToMad68)
+            continue;
+        if (routedOnly && !routedToMad68) continue;
+
         auto metadata = OpenPath(item.path, 0, false);
         if (!metadata || !PopulateCaps(metadata.value, item)) continue;
         if (item.attrs.VendorID != mad68pr::kVid) continue;
-        const bool routedToMad68 = NativeAnalogRouting_IsClaimedBy(
-            item.attrs.VendorID, item.attrs.ProductID, NativeAnalogProtocol::Mad68A0);
-        if (NativeAnalogRouting_IsClaimed(item.attrs.VendorID, item.attrs.ProductID) && !routedToMad68)
-            continue;
-        if (routedOnly && !IsRoutedNativePid(item.attrs.ProductID)) continue;
 
         if (logAll)
         {
@@ -1811,7 +1811,8 @@ bool RunSession(const HidPath& path)
     g_firmwareVersion.store(path.attrs.VersionNumber, std::memory_order_release);
 
     const bool auditedFirmware = path.attrs.VersionNumber == mad68pr::kAuditedBcdDevice;
-    const bool protocolValidated = IsRoutedNativePid(path.attrs.ProductID);
+    const bool protocolValidated = NativeAnalogRouting_IsClaimedBy(
+        path.path.c_str(), NativeAnalogProtocol::Mad68A0);
     g_productId.store(path.attrs.ProductID, std::memory_order_release);
     Log(L"session start build=%s path=%s vid=%04X pid=%04X version=%04X audited=%d protocol_validated=%d usage=%04X:%04X in=%u out=%u feature=%u manufacturer=%s product=%s serial=%s",
         kBuildName, path.path.c_str(), path.attrs.VendorID, path.attrs.ProductID,
@@ -2151,15 +2152,10 @@ bool Mad68ProR_PrepareProtocolRouting()
 {
     const auto candidates = EnumerateBrandCandidates(false, false);
     std::vector<std::uint16_t> routed;
-    std::vector<std::uint16_t> attempted;
 
     for (const auto& candidate : candidates)
     {
         const std::uint16_t pid = candidate.attrs.ProductID;
-        if (std::find(attempted.begin(), attempted.end(), pid) != attempted.end())
-            continue;
-        attempted.push_back(pid);
-
         bool validated = false;
         if (pid == mad68pr::kPid &&
             candidate.attrs.VersionNumber == mad68pr::kAuditedBcdDevice)
@@ -2175,18 +2171,10 @@ bool Mad68ProR_PrepareProtocolRouting()
             if (!layoutCompatible)
                 continue;
 
-            for (const auto& path : candidates)
-            {
-                if (path.attrs.ProductID != pid) continue;
-                if (ProbeNativeControlProtocol(path))
-                {
-                    validated = true;
-                    break;
-                }
-            }
+            validated = ProbeNativeControlProtocol(candidate);
         }
 
-        if (validated)
+        if (validated && ClaimNativeInterface(candidate))
             routed.push_back(pid);
     }
 
@@ -2196,7 +2184,6 @@ bool Mad68ProR_PrepareProtocolRouting()
         std::lock_guard<std::mutex> lock(g_protocolRoutingMutex);
         g_routedNativePids = routed;
     }
-    PublishRoutedPidEnvironment(routed);
     g_protocolRoutingPrepared.store(true, std::memory_order_release);
     return !routed.empty();
 }

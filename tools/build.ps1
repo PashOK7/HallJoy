@@ -42,12 +42,14 @@ $required = @(
     (Join-Path $pluginRoot 'halljoy_uap_poll_pacing.h'),
     (Join-Path $pluginRoot 'halljoy_plugin_telemetry.h'),
     (Join-Path $pluginRoot 'halljoy_dense_snapshot.h'),
+    (Join-Path $pluginRoot 'halljoy_native_hid_claim.h'),
     $project,
     (Join-Path $hallJoyRoot 'HallJoy\mad68pr_backend.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\mad68pr_protocol.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\hex80_backend.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\hex80_protocol.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_routing.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\native_hid_interface_claim_registry.h'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_backend.h'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_backend_registry.h'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_backend_registry.cpp'),
@@ -67,6 +69,8 @@ $required = @(
     (Join-Path $hallJoyRoot 'tests\transactional_file_store_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\dependency_lock_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\native_analog_backend_contract_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\native_hid_interface_claim_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\native_hid_interface_claim_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\private_uap_runtime_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\uap_device_identity_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\uap_device_identity_test.cpp'),
@@ -152,7 +156,8 @@ if ($nativeSunText -notmatch 'UAP_DISABLE_HOTPLUG=1' -or $standardSunText -notma
 $soupPatchText = Get-Content -LiteralPath $soupPatch -Raw
 if ($soupPatchText -notmatch 'HallJoy native analogue pre-open exclusion' -or
     $soupPatchText -notmatch 'UAP_EXCLUDE_HALLJOY_NATIVE' -or
-        $soupPatchText -notmatch 'HALLJOY_UAP_NATIVE_HID_IDS' -or
+    $soupPatchText -notmatch 'halljoy_should_exclude_hid_interface' -or
+    $soupPatchText -match 'HALLJOY_UAP_NATIVE_HID_IDS' -or
     $soupPatchText -notmatch '\$hidSourceText\.Insert\(\$braceStart \+ 1, \$preOpenBlock\)') {
     throw 'Regression guard failed: the dedicated UAP does not apply dynamic native routing before Soup CreateFileW.'
 }
@@ -194,7 +199,9 @@ if ($madBackendText -notmatch 'Mad68ProR_PrepareProtocolRouting' -or
     $nativeCatalogText -notmatch 'Mad68ProR_GetNativeBackendDescriptor' -or
     $nativeCatalogText -notmatch 'Hex80_GetNativeBackendDescriptor' -or
     $nativeCatalogText -notmatch 'AddressedAnalog_GetNativeBackendDescriptor' -or
-    $nativeRoutingText -notmatch 'HALLJOY_UAP_NATIVE_HID_IDS' -or
+    $nativeRoutingText -notmatch 'HALLJOY_UAP_NATIVE_HID_PATHS' -or
+    $nativeRoutingText -notmatch 'InterfaceClaimRegistry' -or
+    $uapMainText -notmatch 'halljoy_should_exclude_hid_interface' -or
     $uapMainText -notmatch 'halljoy_uap_native_hid_excluded') {
     throw 'Native protocol-routing preflight failed: descriptor catalog or native/UAP arbitration is incomplete.'
 }
@@ -378,7 +385,7 @@ $createFileIndex = $patchedHidText.IndexOf('hid.handle = CreateFileW')
 if ($preOpenIndex -lt 0 -or $createFileIndex -lt 0 -or $preOpenIndex -gt $createFileIndex) {
     throw 'Regression guard failed: dynamic native routing is not located before Soup CreateFileW.'
 }
-Write-Host 'Verified: the isolated UAP skips only exact VID/PID pairs validated by a HallJoy native protocol before opening HID.' -ForegroundColor DarkGray
+Write-Host 'Verified: the isolated UAP skips only exact HID interface paths validated by a HallJoy native protocol before opening HID.' -ForegroundColor DarkGray
 
 $pluginOut = Join-Path $pluginRoot 'dist\universal-analog-plugin'
 $abi0 = Join-Path $pluginOut 'abiv0.dll'

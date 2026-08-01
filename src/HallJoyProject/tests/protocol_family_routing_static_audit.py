@@ -41,12 +41,14 @@ checks = {
         "LooksLikeMad68Family" in mad
         and "layoutCompatible" in mad
         and "Other MADLIONS products remain available to Soup/UAP" in mad),
-    "UAP receives dynamic exact VID/PID routing": (
-        "HALLJOY_UAP_NATIVE_HID_IDS" in routing
+    "UAP receives dynamic exact interface-path routing": (
+        "HALLJOY_UAP_NATIVE_HID_PATHS" in routing
         and "NativeAnalogRouting_Claim" in mad
         and "NativeAnalogRouting_Claim" in hex80
+        and "halljoy_should_exclude_hid_interface" in uap
         and "halljoy_uap_native_hid_excluded" in uap
-        and "HALLJOY_UAP_NATIVE_HID_IDS" in patch),
+        and "halljoy_should_exclude_hid_interface(device_interface)" in patch
+        and "HALLJOY_UAP_NATIVE_HID_IDS" not in patch),
     "UAP exclusion is before Soup open": (
         "HallJoy native analogue pre-open exclusion" in patch
         and "$hidSourceText.Insert($braceStart + 1, $preOpenBlock)" in patch),

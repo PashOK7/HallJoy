@@ -519,3 +519,17 @@ v1.4 can be tagged only when:
 6. the required device matrix and long-run qualification are complete;
 7. the release archive, executable, sources, notices, and evidence have recorded
    SHA-256 values.
+
+### V14-12H / S21 qualification automation
+
+- Added crash-persistent progress/evidence to the normal production cycle
+  runner, including before/after state manifests and SparkLink route counters.
+- Added an eight-hour-by-default production soak runner with periodic process,
+  HANDLE, GUI-object, memory and CPU samples; overlay responsiveness probes;
+  fixed post-warm-up leak gates; bounded graceful shutdown; and trace analysis.
+- Static contracts, 45 audits, 27 portable tests, the official Release x64 build
+  and a post-build 3/3 Irok regression pass. A one-minute overlay soak pilot
+  stabilized at 210 HANDLEs and completed 234,846/234,846 Spark routes.
+- This package makes the final S21 runs reproducible; it does not itself close
+  the pending 1000-cycle, 8-24-hour, manual reconnect/input or Aula hardware
+  gates.

@@ -1545,3 +1545,28 @@ Evidence:
   docs/stability/tests/V14-12G_S20_BUILD_DOCS_2026-08-01.txt
 Rollback: parent commit of the V14-12G implementation commit
 ```
+
+## V14-12H / S21 qualification-runner evidence
+
+Scope: persistent normal-cycle evidence and bounded long production soak.
+
+- `run_release_qualification.ps1` now writes a checkpoint after every completed
+  cycle, terminal pass/fail status, state manifests and per-cycle/aggregate
+  Spark route counters.
+- `run_long_soak.ps1` defaults to eight hours and records CSV resource samples,
+  overlay probes, state hashes, trace/analyzer evidence and fixed HANDLE/private
+  memory growth gates from a ten-second post-startup baseline.
+- One-minute overlay pilot: PASS, 53 samples, HANDLE 210 -> 210 (max 210),
+  private bytes -86,016, 234,846/234,846 successful Spark routes, no trace ERROR,
+  no process survivor and 11/11 user files unchanged. Analyzer WARN is limited
+  to manual-only input/reconnect/mode exercise.
+- Official Release x64 build: 0 errors, 0 compiler warnings, only allowlisted
+  external LNK4099. `HallJoy.exe` is 2,206,208 bytes, SHA-256
+  `6A2E82709F6FC6B652ECAEA657BA4FBD1544B0832934865779D9FF7F0306D97F`.
+- Post-build Irok regression: 3/3 PASS, shutdown 259-325 ms, max 209 HANDLEs,
+  16,229 successful routes plus two shutdown-window cancellations, zero trace
+  ERROR, zero process survivor and unchanged 11-file state.
+
+Status: automation Verified; final S21 executions remain in progress.
+Limits: 1000 cycles, 8-24 hours, manual input/reconnect, unavailable device
+matrix and external Aula hardware validation are not claimed by this package.

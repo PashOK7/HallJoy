@@ -435,3 +435,31 @@ EXE SHA-256:
 S20 завершён; общий risk count: 0 Open, 3 Implemented, 1 Partial, 41 Verified.
 Дальше S21 qualification. Aula может тестироваться асинхронно, но без её
 физического результата релиз не утверждается.
+
+## 2026-08-01 — V14-12H / S21 qualification automation
+
+Normal-cycle runner получил checkpoint после каждого завершённого цикла,
+terminal failure evidence, before/after manifests пользовательского состояния,
+редкий progress output и Spark route counters. Добавлен 8-часовой по умолчанию
+production soak: 10-секундный warm-up baseline, CSV HANDLE/thread/GDI/USER/
+memory/CPU, повторные overlay responsiveness probes, bounded `WM_CLOSE`, trace
+analyzer и фиксированные leak gates. Fault/simulator arguments не используются.
+
+Первый минутный pilot обнаружил ложный gate самого теста: startup allocation
+156 -> 211 HANDLE ошибочно считался leak; baseline перенесён после warm-up.
+Второй обнаружил PowerShell empty-array -> null при неизменном state; результат
+нормализован через `@(...)`. Третий pilot PASS: 53 samples, HANDLE 210 -> 210,
+private growth -86 016 bytes, 234 846/234 846 Spark routes, zero trace ERROR,
+zero remaining process, 11/11 files unchanged. Analyzer WARN относится только к
+ручным input/reconnect/mode сценариям.
+
+Current Addressed validator, 45 static audits и 27 portable tests PASS.
+`BUILD.cmd`: 0 errors, 0 compiler warnings, только allowlisted external LNK4099.
+`HallJoy.exe`: 2 206 208 bytes, SHA-256
+`6A2E82709F6FC6B652ECAEA657BA4FBD1544B0832934865779D9FF7F0306D97F`.
+Post-build Irok 3/3 PASS: shutdown 259–325 ms, max 209 HANDLE, 16 229 successful
+routes плюс две expected shutdown-window cancellations, zero ERROR, zero
+survivors, 11 files unchanged.
+
+Automation Verified; 1000 cycles, 8–24h soak, manual Irok reconnect/input и
+external Aula hardware result остаются release gates.

@@ -1653,3 +1653,34 @@
   3 Implemented, 1 Partial and 41 Verified.
 - S20 is complete. S21 qualification is next. The pending external Aula result
   does not block ongoing work, but remains mandatory before release approval.
+
+## 2026-08-01 - V14-12H / S21 qualification automation
+
+Extended `tools/run_release_qualification.ps1` with per-cycle checkpoints,
+terminal failure evidence, before/after LocalAppData manifests, bounded progress
+output and SparkLink route counters. Added `tools/run_long_soak.ps1`: an
+eight-hour-by-default production soak with a ten-second warm-up baseline,
+periodic HANDLE/thread/GDI/USER/memory/CPU CSV samples, overlay responsiveness
+probes, state invariants, graceful `WM_CLOSE`, trace analysis and fixed leak
+limits. Both runners enforce the exact `HallJoy.exe` name and prohibit test or
+fault-injection arguments.
+
+The first soak pilot exposed a harness-only false positive because its resource
+baseline preceded normal startup allocation; the gate was corrected to use an
+explicit post-warm-up baseline. The second pilot exposed PowerShell's empty
+pipeline-to-null behavior in the unchanged-state list; array normalization was
+added. The third one-minute overlay pilot passed with 53 samples, HANDLE
+210 -> 210, private-memory growth -86,016 bytes, 234,846/234,846 Spark routes,
+zero trace ERROR, zero surviving process and 11 unchanged user files.
+
+The unified gate passed the current Addressed validator, 45 static audits and 27
+portable tests. `BUILD.cmd` passed with zero compiler warnings and only the
+allowlisted external LNK4099. The resulting 2,206,208-byte `HallJoy.exe` has
+SHA-256 `6A2E82709F6FC6B652ECAEA657BA4FBD1544B0832934865779D9FF7F0306D97F`.
+Post-build Irok 3/3 passed: shutdown 259-325 ms, max 209 HANDLEs, 16,229
+successful routes plus two shutdown-window cancellations, zero trace ERROR,
+zero survivors and unchanged 11-file state.
+
+V14-12H verifies the automation, not the final duration/count/device claims.
+The 1000-cycle run, 8-24-hour soak, manual Irok input/reconnect and external Aula
+hardware result remain S21 release gates.

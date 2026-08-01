@@ -400,3 +400,12 @@ HallJoy_v3_9_0_STABILITY_SXX_<short-name>.zip
 - Windows gate обязателен, но не выполнен — в этом случае статус только `implemented, platform validation pending`.
 
 Откат выполняется заменой дерева предыдущим архивом этапа. Миграции данных обязаны иметь собственный reversible backup/rollback path.
+
+## Статус автоматизации S21 — V14-12H
+
+Normal-cycle runner сохраняет checkpoint после каждого цикла, state manifests
+и Spark route counters. Добавлен отдельный 8-часовой по умолчанию production
+soak с post-warm-up baseline, CSV ресурсов, overlay probes, bounded shutdown и
+trace analyzer. Короткие пилоты, unified gate и официальный build пройдены.
+Это готовность контура, а не выполнение финальных 1000 циклов, 8–24 часов или
+недоступной hardware matrix.

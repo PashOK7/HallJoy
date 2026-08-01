@@ -108,6 +108,7 @@ $required = @(
     (Join-Path $root 'tools\check_overlay_concurrency_origin.py'),
     (Join-Path $root 'tools\run_production_smoke.ps1'),
     (Join-Path $root 'tools\run_release_qualification.ps1'),
+    (Join-Path $root 'tools\run_long_soak.ps1'),
     (Join-Path $root 'tools\run_storage_migration_test.ps1'),
     (Join-Path $root 'tools\check_private_uap_abi.py'),
     (Join-Path $root 'tools\analyze_stability_trace.py'),

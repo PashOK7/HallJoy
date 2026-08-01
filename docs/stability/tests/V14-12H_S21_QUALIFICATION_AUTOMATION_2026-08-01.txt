@@ -1,0 +1,68 @@
+HallJoy V14-12H / S21 qualification automation evidence
+Date: 2026-08-01
+Scope: persistent normal-cycle evidence and long production soak automation
+Status: VERIFIED automation; final 1000-cycle/8-24h/manual/device gates pending
+
+Implemented
+-----------
+1. tools/run_release_qualification.ps1
+   - bounded 1..1000 production cycles;
+   - no simulator/fault-injection arguments;
+   - checkpoint.json after every completed cycle and terminal status;
+   - before/after LocalAppData file/SHA-256 manifests;
+   - complete error-free trace and exact WM_CLOSE/exit-zero assertions;
+   - per-cycle and aggregate Spark route counters.
+2. tools/run_long_soak.ps1
+   - bounded 1..1440 minutes, default 480 minutes;
+   - bounded 1..60 second sampling, default 5 seconds;
+   - ten-second post-startup leak baseline;
+   - CSV HANDLE/thread/GDI/USER/working/private/paged/CPU samples;
+   - optional repeated overlay responsiveness probes;
+   - checkpoint, state manifests, trace, analyzer output and summary;
+   - fixed HANDLE (+32 final/+64 peak) and private-memory (+256 MiB) gates;
+   - bounded WM_CLOSE, exit zero and no remaining HallJoy process.
+3. Static audits require both scripts and make run_long_soak.ps1 an official
+   build asset.
+
+Validation
+----------
+1. Python/PowerShell syntax and targeted static audits: PASS.
+2. Normal-cycle runner pilot: 5/5 PASS; state 11/11 unchanged.
+3. Long-soak pilot 1 intentionally retained as failed harness evidence:
+   startup HANDLE allocation was incorrectly used as a leak baseline.
+4. Long-soak pilot 2 retained as failed harness evidence: PowerShell returned a
+   null unchanged-state list instead of an empty array.
+5. Corrected long-soak pilot 3, one minute with overlay: PASS.
+   samples=53; handles=210 -> 210; max_handles=210;
+   private_growth_bytes=-86016; normalized_cpu_percent=0.541;
+   spark_route_queries=234846; spark_route_ok=234846; spark_route_fail=0;
+   shutdown_ms=116; remaining_processes=0; user_state_changed=0;
+   trace_analysis=WARN only for manual input/reconnect/mode coverage.
+6. Unified required gate: current Addressed validator, 45 static audits and 27
+   portable C++20 tests PASS.
+7. BUILD.cmd: PASS; Release x64, 0 errors, 0 compiler warnings, only allowlisted
+   external LNK4099.
+8. Exact official artifact:
+   build/output/HallJoy.exe
+   size=2206208
+   sha256=6A2E82709F6FC6B652ECAEA657BA4FBD1544B0832934865779D9FF7F0306D97F
+9. Post-build Irok normal regression: 3/3 PASS.
+   shutdown_ms=259..325; max_handles=209;
+   spark_route_queries=16231; spark_route_ok=16229; spark_route_fail=2;
+   the two non-ok transactions occurred in the shutdown window;
+   trace ERROR=0; remaining_processes=0; state 11/11 unchanged.
+
+Local machine evidence
+----------------------
+build/output/qualification-evidence/S21-release-runner-pilot
+build/output/qualification-evidence/S21-long-soak-pilot
+build/output/qualification-evidence/S21-long-soak-pilot-2
+build/output/qualification-evidence/S21-long-soak-pilot-3
+build/output/qualification-evidence/S21-post-build-3
+
+Limits
+------
+This package verifies the qualification tooling, not the final qualification
+duration/count. The 1000-cycle production run, 8-24-hour soak, manual Irok
+input/reconnect exercise, unavailable device-owner matrix and external Aula
+hardware result remain release gates.

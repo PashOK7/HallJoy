@@ -47,8 +47,26 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_release_qualific
 
 The release-cycle runner verifies exit code, shutdown deadline, remaining
 HallJoy processes, stability-trace errors, handle count, and preservation of the
-user-state snapshot. It exercises ordinary operation and does not inject a
-realtime failure.
+user-state snapshot. It checkpoints every completed cycle and records SparkLink
+route counters. It exercises ordinary operation and does not inject a realtime
+failure. The final S21 cycle gate is:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_release_qualification.ps1 -Cycles 1000 -RunSeconds 1 -ProgressEvery 25
+```
+
+Eight-hour production soak with overlay responsiveness probes:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_long_soak.ps1 -DurationMinutes 480 -SampleSeconds 5 -WarmupSeconds 10 -StartOverlay
+```
+
+The soak persists `samples.csv`, checkpoints, before/after user-state hashes,
+the bounded stability trace, analyzer output and `summary.json`. Leak gates use
+a post-startup warm-up baseline. Analyzer `WARN` is acceptable only for the
+documented manual-only input/reconnect/mode coverage; analyzer `FAIL`, trace
+`ERROR`, trace capping, resource-growth limits or an unresponsive overlay fail
+the run.
 
 The analogue simulator is the deterministic lifecycle/fault harness:
 
@@ -97,5 +115,6 @@ gates live in `docs/v1.4/VALIDATION_MATRIX.md` and
 describe older packages and are not current release evidence.
 
 Passing static/unit/simulator tests is necessary, not sufficient, for release.
-Physical-device compatibility, 8-24 hour soak, the full 1000-cycle target and
-the final hardware matrix remain qualification work.
+Physical-device compatibility, the 8-24 hour soak, the full 1000-cycle target
+and the final hardware matrix remain qualification work until their final runs
+are recorded against the release-candidate hash.

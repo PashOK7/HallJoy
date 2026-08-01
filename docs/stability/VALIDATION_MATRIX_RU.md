@@ -124,3 +124,14 @@ Addressed и Sayo также требуют реального hardware gate д�
   Current validator + 44 audits + 27 portable tests, официальный build с 0
   compiler warnings и Irok normal 3/3 PASS. S20 завершён; 1000 циклов, 8-24h,
   reconnect/input и недоступная hardware matrix остаются S21 qualification.
+- S21/V14-12H qualification automation: normal-cycle runner сохраняет
+  checkpoint после каждого цикла, terminal pass/fail, state manifests и Spark
+  route counters. Новый long-soak runner пишет CSV HANDLE/thread/GDI/USER/
+  memory/CPU, проверяет overlay, bounded `WM_CLOSE`, trace/analyzer и фиксированные
+  leak limits после 10-секундного warm-up.
+- Минутный overlay pilot: 53 samples, HANDLE 210 -> 210, private bytes -86 016,
+  Spark 234 846/234 846, trace ERROR 0, процессов 0, 11 файлов без изменений.
+  Post-build Irok 3/3: shutdown 259–325 ms, max 209 HANDLE, 16 229 успешных routes
+  плюс две cancellation в shutdown window.
+- Статус: automation Verified. Финальные 1000 циклов, 8–24 часа, ручные
+  input/reconnect и внешняя Aula hardware validation пока не закрыты.

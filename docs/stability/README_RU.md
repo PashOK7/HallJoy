@@ -35,7 +35,13 @@
 - `S06` реализован в V14-12B: cross-thread close активного Addressed HID I/O удалён, внешний stop ограничен тремя секундами, timeout сохраняет поколение и переводит registry в poisoned containment; реальный Addressed device gate отложен.
 - Hex80-часть `S07` реализована в V14-12C: waitable generation, cooperative cancellation, трёхсекундный truthful join и simulator containment прошли; Hex80 device gate отложен, MAD68 остаётся следующим отдельным пакетом.
 - MAD68-часть `S07` реализована в V14-12D: owner отменяет только persistent read, A8 после stop запрещён, финальный A9 сохранён, bounded containment прошёл. Кодовая часть S07 завершена; физические native gates отложены.
+- V14-12E добавил воспроизводимый normal-operation runner: post-build 25/25
+  запусков и штатных `WM_CLOSE` завершились exit 0, без оставшихся процессов,
+  trace ERROR и изменений 11 пользовательских файлов. Это pilot S21, не
+  замена 1000 циклам, 8-24-часовому soak и hardware matrix.
 - `S02V1` локально добавил временную bounded evidence trace, машинный анализатор и сборщик log bundle; Windows/SparkLink evidence gate ожидается.
 - Normal MAD68/Hex80/SparkLink hot paths, Addressed polling loop, reader I/O loop и packet constructors сохранены относительно предыдущих пакетов.
-- Риск `HJ-AUD-P1-004` остаётся `Partial`: Sayo и UAP подэтапы ещё не завершены, а MAD68/Hex80/Addressed device-specific gates отложены.
+- Риск `HJ-AUD-P1-004` остаётся `Partial` только из-за отложенных device-owner
+  и финальных soak gates; Sayo и UAP code-level gates уже закрыты V14-06F и
+  V14-07C.
 - GitHub и любые удалённые репозитории в процессе не используются.

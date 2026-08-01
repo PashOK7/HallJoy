@@ -336,6 +336,12 @@ V14-11 завершён code-level проверками; физические CP
 
 Только после S21 допустимо заявлять повышенную production stability.
 
+Статус v1.4: V14-12E добавил машинно-проверяемый normal-operation runner и
+прошёл post-build pilot 25/25 production start/stop cycles на доступном Irok.
+Каждый цикл завершился exit 0, без trace ERROR и оставшихся процессов; 11
+пользовательских файлов не изменились. Pilot не закрывает обязательные 1000
+циклов, 8-24 часа, ручной reconnect/input и недоступную hardware matrix.
+
 ## 5. Зависимости
 
 - S01 обязателен до S03 и всех lifecycle migrations.

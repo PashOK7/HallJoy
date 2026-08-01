@@ -478,6 +478,14 @@ qualification and the hardware matrix.
   build and Irok regression pass. Protocol, transports, A8/A9 strategy, restore
   and decoder remain unchanged. S07 is code-complete; physical MAD68, Hex80 and
   Addressed qualification remains open.
+- `V14-12E` adds a normal-operation release qualification runner. The post-build
+  gate completed 25/25 production start/WM_CLOSE cycles with exit code zero,
+  complete error-free shutdown traces, no remaining HallJoy process and 11/11
+  unchanged LocalAppData files. Per-cycle peak HANDLE count returned to 218
+  after one transient 225 sample; shutdown took 138-326 ms.
+- V14-12E is a verified harness/pilot, not the final S21 gate. The required
+  1000-cycle run, 8-24 hour soak, reconnect/input exercise and unavailable
+  device-owner matrix remain open.
 
 ## Release definition
 

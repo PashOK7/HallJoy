@@ -1533,3 +1533,37 @@
   `Verified`.
 - S07 is code-complete. MAD68 hardware A8/A9, full-matrix, reconnect and shutdown
   gates remain release qualification.
+
+## 2026-08-01 - V14-12E normal start/stop qualification runner
+
+### Implementation
+
+- Added `tools/run_release_qualification.ps1` for 1-1000 ordinary production
+  cycles. It passes no simulator or fault-injection arguments, refuses to run
+  over an existing HallJoy session, closes the exact parent with `WM_CLOSE` and
+  applies a bounded shutdown deadline.
+- Every cycle requires exit code zero, a committed-start/full-shutdown trace,
+  no trace ERROR, no remaining HallJoy process, and records process/trace
+  metrics. The complete LocalAppData file set is SHA-256 compared before/after.
+- Added a static audit and made the runner a required official build asset.
+
+### Validation
+
+- Pilot: 5/5 cycles PASS.
+- Official `BUILD.cmd`: PASS, zero errors and only allowlisted external LNK4099.
+- Post-build qualification: 25/25 PASS on `HallJoy.exe`; shutdown 138-326 ms,
+  average 245.1 ms. Peak HANDLE count was 218 in 24 cycles and transiently 225
+  once, returning to 218 afterward. Remaining process count: zero every cycle.
+- All 11 LocalAppData files remained hash-identical. Final trace had balanced
+  worker shutdown and 1,830 successful Irok routes plus one expected
+  shutdown-window cancellation; analyzer WARN is limited to intentionally
+  unexercised analog-key, polling-mode and unplug/reconnect hardware gates.
+- 42 static audits and 26 portable C++ tests PASS.
+- `HallJoy.exe`: 2,272,768 bytes, SHA-256
+  `D0CCF7EF1743EDB301EA00FB8615E7AC2F3055E1B9BF612EFF046530E7F814EB`.
+
+### Package result
+
+- The repeatable normal-cycle harness and 25-cycle pilot are Verified locally.
+- This does not close the required 1000-cycle run, 8-24 hour soak, key/input
+  exercise, reconnect or unavailable hardware-owner gates.

@@ -1437,3 +1437,38 @@ Evidence:
   docs/stability/tests/V14-12D_S07_MAD68_LIFECYCLE_2026-08-01.txt
 Rollback: parent commit of the V14-12D implementation commit
 ```
+
+## V14-12E normal-cycle qualification evidence
+
+```text
+Package: V14-12E
+Scope: repeatable production start/graceful-stop release qualification harness
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  cmd /c BUILD.cmd
+  powershell -NoProfile -ExecutionPolicy Bypass -File
+    tools/run_release_qualification.ps1 -Cycles 25 -RunSeconds 1
+Results:
+  Static audits: 42 PASS
+  Portable C++20 tests: 26 PASS
+  Official MSVC x64 Release build: PASS, 0 errors
+  Normal production cycles: 25/25 PASS, fault injection false
+  Shutdown: min 138 ms, max 326 ms, average 245.1 ms
+  Peak HANDLE samples: 218 normally, one transient 225, final 218
+  Remaining HallJoy processes: 0 after every cycle
+  User state: 11/11 files, 0 changed
+  Final trace: no ERROR; balanced shutdown; Irok route_ok=1830, route_fail=1
+    where the single cancellation occurs during final shutdown
+Artifact:
+  build/output/HallJoy.exe
+  Size: 2,272,768 bytes
+  SHA-256: D0CCF7EF1743EDB301EA00FB8615E7AC2F3055E1B9BF612EFF046530E7F814EB
+Evidence summary SHA-256:
+  AA6C0B43202A7C48CC3CADB3EA4CDD0AFAE2FEB48560FF931426EBC37329C1CA
+Limitations: 1000 cycles, 8-24h soak, physical key/input, reconnect and the
+  unavailable device-owner matrix remain open. Analyzer WARN is expected for
+  those unexercised hardware actions and is not promoted to PASS.
+Evidence:
+  docs/stability/tests/V14-12E_RELEASE_CYCLES_2026-08-01.txt
+Rollback: parent commit of the V14-12E implementation commit
+```

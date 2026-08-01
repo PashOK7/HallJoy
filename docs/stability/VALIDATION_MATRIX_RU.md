@@ -105,3 +105,10 @@ Addressed и Sayo также требуют реального hardware gate д�
   и Irok regression пройдены. Protocol, write transports, A8/A9 strategy,
   restore и decoder сохранены. Физического MAD68 нет: статус `Implemented /
   device gate deferred`; кодовая часть S07 завершена.
+- S21/V14-12E normal-cycle pilot: новый runner запускает production без
+  fault/simulator аргументов, закрывает точный процесс через bounded `WM_CLOSE`,
+  проверяет exit 0, полный trace, отсутствие ERROR/оставшихся процессов и
+  SHA-256 пользовательского состояния. После официальной сборки 25/25 циклов
+  PASS; shutdown 138-326 ms, 11/11 файлов неизменны. Один transient peak 225
+  HANDLE вернулся к обычным 218 и не накапливался. Финальные 1000 циклов,
+  8-24-часовой soak, reconnect/input и device-owner matrix остаются открыты.

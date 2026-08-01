@@ -60,3 +60,6 @@ Baseline-лог исходной версии хранится отдельно 
 - `V14-12D_S07_MAD68_LIFECYCLE_2026-08-01.txt` — persistent-read ownership,
   no-post-stop A8, mandatory final A9, bounded timeout containment, unchanged
   protocol/command core и реальный Irok regression.
+- `V14-12E_RELEASE_CYCLES_2026-08-01.txt` — normal-operation production runner,
+  официальный post-build 25-cycle gate, trace/process/HANDLE/state invariants и
+  явные границы оставшихся 1000-cycle/soak/hardware gates.

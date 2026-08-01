@@ -359,3 +359,21 @@ backup. Irok smoke: 57 247 successful / 1 shutdown cancellation, 250 us average
 изменений. `HallJoy.exe`: 2 272 768 bytes, SHA-256
 `79F9E2509D56A80E71C17701F8FAB3DD65A39530E2F7F42C3E40E731AB139020`.
 Physical MAD68 hardware отсутствует; кодовая часть S07 завершена.
+
+## 2026-08-01 — V14-12E / S21 normal start-stop pilot
+
+Добавлен `tools/run_release_qualification.ps1`: 1-1000 обычных production
+циклов без fault injection, pre-existing-process guard, bounded `WM_CLOSE`,
+exit/trace/process/state/hash assertions и JSON evidence. Статический контракт
+включён в repository gate, runner включён в обязательные build assets.
+
+Pilot 5/5 PASS. После `BUILD.cmd` (0 ошибок, только разрешённый LNK4099) основной
+gate 25/25 PASS на `HallJoy.exe`: shutdown min 138 ms, max 326 ms, avg 245.1 ms;
+обычный peak 218 HANDLE, один transient 225 с возвратом к 218; ноль оставшихся
+процессов после каждого цикла. 11/11 LocalAppData файлов hash-identical. Последний
+Irok trace: 1 830 successful routes, одна shutdown-window cancellation, balanced
+shutdown, zero ERROR. 42 static audit и 26 portable tests PASS. EXE SHA-256:
+`D0CCF7EF1743EDB301EA00FB8615E7AC2F3055E1B9BF612EFF046530E7F814EB`.
+
+Это Verified pilot контура, но не финальные 1000 циклов/8-24 часа и не замена
+ручному input/reconnect либо отсутствующим device-owner gates.

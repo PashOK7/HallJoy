@@ -1,0 +1,76 @@
+HallJoy v1.4 - V14-12E normal start/stop release-cycle evidence
+Date: 2026-08-01 (Europe/Moscow)
+
+Scope
+-----
+Repeatable normal-operation production start/graceful-stop qualification.
+This package does not inject faults, enable the analog simulator, or claim
+physical compatibility for unavailable keyboards.
+
+Implementation contract
+-----------------------
+- 1..1000 bounded cycles, default 25.
+- Refuse to collide with an already running HallJoy session.
+- Require the final artifact name HallJoy.exe.
+- Pass no simulator or --halljoy-test-* argument.
+- Close the exact parent process through WM_CLOSE with a bounded deadline.
+- Require exit code zero, committed startup, complete backend/session shutdown,
+  no trace ERROR and no remaining HallJoy process for every cycle.
+- SHA-256 compare the complete %LOCALAPPDATA%\HallJoy file set before/after.
+- Record per-cycle trace SHA-256, shutdown duration, peak HANDLE and working set
+  in a machine-readable JSON summary.
+
+Automated gates
+---------------
+1. python src/HallJoyProject/tests/release_qualification_runner_static_audit.py
+   Result: RELEASE_QUALIFICATION_RUNNER_STATIC_AUDIT=PASS
+
+2. python tools/run_native_backend_checks.py --require-compiler
+   Result: 42 static audits and 26 portable C++20 tests PASS.
+
+3. cmd /c BUILD.cmd
+   Result: PASS. MSVC x64 Release: 0 errors. Only allowlisted external ViGEm
+   LNK4099 diagnostic. Private UAP ABI/build gates PASS.
+
+4. powershell -NoProfile -ExecutionPolicy Bypass -File
+     tools/run_release_qualification.ps1 -Cycles 25 -RunSeconds 1
+   Result: 25/25 PASS after the official build.
+   Fault injection: false.
+   Exit code: zero for every cycle.
+   Shutdown: min 138 ms, max 326 ms, average 245.1 ms.
+   Peak HANDLE: 218 in normal samples; one transient 225; final cycle 218.
+   Remaining HallJoy processes: zero after every cycle.
+   User state: 11 files before, 11 after, zero changed.
+   Evidence directory:
+     build/output/release-qualification/20260801-170323
+   summary.json SHA-256:
+     AA6C0B43202A7C48CC3CADB3EA4CDD0AFAE2FEB48560FF931426EBC37329C1CA
+
+Available Irok observation
+--------------------------
+Final cycle trace SHA-256:
+  2775C3754A60C5E272E15F6BA97F3BCC393742CCE059586DE34B6859E50496A7
+SparkLink worker stats:
+  route_queries=1831 route_ok=1830 route_fail=1 changed_rows=0
+  input_notifies=0 avg_route_interval_us=251 max_route_interval_us=495
+The one failed query is the expected shutdown-window cancellation. The analyzer
+returns WARN because no analog key was pressed, no unplug/reconnect occurred,
+not every polling mode ran and absent optional native devices report unavailable.
+This WARN is recorded, not promoted to hardware PASS.
+
+Artifact
+--------
+build/output/HallJoy.exe
+  Size: 2,272,768 bytes
+  SHA-256: D0CCF7EF1743EDB301EA00FB8615E7AC2F3055E1B9BF612EFF046530E7F814EB
+
+Backup
+------
+C:\github\HallJoy_v1.4_BACKUPS\V14-12E-release-cycles-prechange-20260801-165632
+All ten prechange files were copied and SHA-256 verified.
+
+Result
+------
+V14-12E release-cycle runner and 25-cycle pilot: VERIFIED LOCALLY.
+V14-12 / S21 remains IN PROGRESS: 1000 cycles, 8-24 hour soak, manual
+input/reconnect and unavailable device-owner hardware matrix are still open.

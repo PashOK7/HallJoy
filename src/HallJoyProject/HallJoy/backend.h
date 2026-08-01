@@ -25,6 +25,9 @@ bool Backend_Init();
 // crosses its top-level exception boundary.
 void Backend_ResetPublishedStateAfterRealtimeFault() noexcept;
 void Backend_Tick();
+// UI-owner watchdog: reap an unexpectedly completed ViGEm output generation,
+// recreate its transport, and start a fresh worker. Healthy calls are cheap.
+bool Backend_EnsureOutputWorkerRunning();
 // Realtime-thread deadline for the newest coalesced ViGEm report, in QPC ticks.
 // Zero means no output is pending.
 LONGLONG Backend_GetNextOutputDeadlineQpc();

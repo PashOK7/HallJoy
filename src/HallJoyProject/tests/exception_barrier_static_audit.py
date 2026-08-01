@@ -83,8 +83,10 @@ def main() -> int:
             "overlay fault clears running publications")
     require("g_overlayWsaStarted.exchange(false" in overlay,
             "overlay WSA ownership has balanced exceptional cleanup")
-    require("Previous overlay worker has not been joined" in overlay,
-            "overlay restart remains blocked until old generation is reaped")
+    require("OverlayReapCompletedGenerationLocked" in overlay and
+            "WaitForSingleObject(g_overlayThread, 0)" in overlay and
+            "g_overlayLifecycle.ConfirmJoined(generation)" in overlay,
+            "overlay restart reaps only an observed completed generation")
 
     project = ET.parse(HALL / "HallJoy.vcxproj").getroot()
     includes = {node.attrib.get("Include") for node in project.findall(".//m:ClInclude", NS)}

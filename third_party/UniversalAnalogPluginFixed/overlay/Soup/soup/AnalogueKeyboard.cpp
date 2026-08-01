@@ -305,7 +305,7 @@ NAMESPACE_SOUP
 	AnalogueKeyboard::AnalogueKeyboard(std::string&& name, hwHid&& hid, bool has_ctx_key)
 		: name(std::move(name)), hid(std::move(hid)), has_ctx_key(has_ctx_key)
 	{
-		memset(&razer, 0, sizeof(madlions)); // HallJoy: zero the complete analogue-keyboard state union
+		memset(&madlions, 0, sizeof(madlions)); // HallJoy: zero the complete analogue-keyboard state union
 	}
 
 	std::vector<AnalogueKeyboard> AnalogueKeyboard::getAll(bool include_no_permission)
@@ -786,7 +786,7 @@ NAMESPACE_SOUP
 		else
 		{
 			Buffer combined;
-			buf.reserve((64 - 5) * 3);
+			combined.reserve((64 - 5) * 3);
 			combined.append(b0.data() + 5, b0.size() - 5);
 			combined.append(b1.data() + 5, b1.size() - 5);
 			combined.append(b2.data() + 5, b2.size() - 5);

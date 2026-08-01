@@ -151,6 +151,7 @@ NAMESPACE_SOUP
 			cr = CM_Get_Device_Interface_List_SizeW(&len, &HIDGuid, NULL, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
 			if (cr != CR_SUCCESS)
 			{
+				free(device_interface_list);
 				return {};
 			}
 
@@ -164,6 +165,7 @@ NAMESPACE_SOUP
 			cr = CM_Get_Device_Interface_ListW(&HIDGuid, NULL, device_interface_list, len, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
 			if (cr != CR_SUCCESS && cr != CR_BUFFER_SMALL)
 			{
+				free(device_interface_list);
 				return {};
 			}
 		} while (cr == CR_BUFFER_SMALL);

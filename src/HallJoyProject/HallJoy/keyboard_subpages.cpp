@@ -912,7 +912,11 @@ static void OverlayPage_SetClipboardText(HWND hWnd, const std::wstring& text)
 {
     if (!OpenClipboard(hWnd))
         return;
-    EmptyClipboard();
+    if (!EmptyClipboard())
+    {
+        CloseClipboard();
+        return;
+    }
     size_t bytes = (text.size() + 1u) * sizeof(wchar_t);
     HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, bytes);
     if (mem)
@@ -922,8 +926,8 @@ static void OverlayPage_SetClipboardText(HWND hWnd, const std::wstring& text)
         {
             memcpy(dst, text.c_str(), bytes);
             GlobalUnlock(mem);
-            SetClipboardData(CF_UNICODETEXT, mem);
-            mem = nullptr;
+            if (SetClipboardData(CF_UNICODETEXT, mem))
+                mem = nullptr; // ownership transfers only after a successful call
         }
     }
     if (mem)

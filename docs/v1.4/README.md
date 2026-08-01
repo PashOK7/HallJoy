@@ -40,6 +40,9 @@ version or release status.
 - Completed pre-qualification package: `V14-12G/S20` current build/test docs,
   catalog-driven Addressed audit, x64-only project configurations and MSVC
   Warning Level 4 with zero unexpected production warnings
+- Verified package: `V14-12L/S21` saturating runtime arithmetic, recoverable
+  overlay/ViGEm worker containment and rare clipboard/UAP ownership cleanup;
+  full compiler, sanitizer, locked-plugin build and Irok qualification pass
 - Next work: `V14-12/S21` release qualification and hardware matrix. The Aula
   physical result may arrive asynchronously but remains mandatory before release
 - GitHub publication: not started

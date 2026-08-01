@@ -1626,3 +1626,37 @@ bundle is `build/evidence/S21-spark-age-fix-2m`.
 
 Status: Spark freshness fix and proportional requalification Verified.
 Remaining: manual device-matrix coverage and external Aula hardware result.
+
+## V14-12L / S21 second-pass stability-audit validation
+
+Implemented checks:
+
+- portable C++20 arithmetic regression covers backward monotonic observations,
+  `UINT64_MAX`, expired/future deadlines and `INT_MIN`/`INT_MAX` mouse deltas;
+- static integration audits verify Sayo/Addressed/Raw Mouse adoption and every
+  clipboard/SetupAPI ownership exit;
+- simulator ViGEm-output exception injection proves generation 1 faults, is
+  confirmed stopped, recreates its transport, resubmits and shuts down a normal
+  generation 2;
+- simulator overlay exception injection proves the completed generation is
+  owner-reaped and the enabled service is restarted without resource overlap;
+- exception-barrier, ViGEm isolation, overlay cooperative-shutdown and unified
+  static-only gates pass after the recovery-policy change.
+
+Completed qualification:
+
+- unified gate: 48 static audits and 29 portable C++20 tests PASS;
+- Aula protocol/oracle/end-to-end/session suites: Clang ASan+UBSan 4/4 PASS;
+- locked fresh Soup/plugin generation: PASS after updating the two intentional
+  overlay hashes and the safe initialiser generator contract;
+- official Release x64: 0 errors, 0 compiler warnings, allowlisted external
+  ViGEm `LNK4099` only;
+- normal Irok production regression: 3/3 PASS, 18,103/18,105 Spark routes,
+  only two shutdown-window cancellations, 196-232 ms shutdown, maximum 215
+  HANDLEs, zero survivor and all 11 user-state files unchanged.
+
+Artifact: `build/output/HallJoy.exe`, 2,209,280 bytes, SHA-256
+`9C5C206E196753D25C83F2DE012607B6ED372AEB3B72593E410865FF4B0777D4`.
+
+Status: V14-12L Verified. External Aula hardware validation remains open and
+release-blocking; no physical Aula claim is added by this package.

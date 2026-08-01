@@ -165,6 +165,8 @@
     <ClInclude Include="backend.h" />
     <ClInclude Include="backend_sparklink.inc" />
     <ClInclude Include="sparklink_hotplug_age.h" />
+    <ClInclude Include="monotonic_time.h" />
+    <ClInclude Include="saturating_int.h" />
     <ClInclude Include="backend_sayo.inc" />
     <ClInclude Include="backend_curve.h" />
     <ClInclude Include="bindings.h" />

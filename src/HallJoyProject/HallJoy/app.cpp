@@ -1201,6 +1201,19 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                 else
                     DebugLog_Write(L"[app.rt.watchdog] realtime restart succeeded");
             }
+            if (g_backendReady && (tick % 30u) == 0u && !Backend_EnsureOutputWorkerRunning())
+            {
+                DebugLog_Write(L"[app.vigem.watchdog] output worker recovery failed; retrying on next watchdog tick");
+            }
+            if ((tick % 30u) == 0u &&
+                (g_cmdStartOverlay || OverlayServer_GetAutoStart()) &&
+                !OverlayServer_IsRunning())
+            {
+                if (!OverlayServer_Start(OverlayServer_GetConfiguredPort()))
+                    DebugLog_Write(L"[app.overlay.watchdog] recovery failed: %s", OverlayServer_GetLastError().c_str());
+                else
+                    DebugLog_Write(L"[app.overlay.watchdog] recovery succeeded");
+            }
             bool traceTick = (tick <= 20u) || ((tick % 120u) == 0u);
             if (traceTick) DebugLog_Write(L"[app.timer] step hooks begin");
             RefreshLowLevelHooks();
@@ -1252,8 +1265,11 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 
     case WM_DESTROY:
         DebugLog_Write(L"[app] WM_DESTROY");
-        if (!g_cmdStartOverlay)
-            OverlayServer_SetAutoStart(OverlayServer_IsRunning());
+        // Start/stop actions persist the preference at the time of the action.
+        // Do not erase an enabled autostart preference merely because the
+        // accept worker faulted before application shutdown.
+        if (!g_cmdStartOverlay && OverlayServer_IsRunning())
+            OverlayServer_SetAutoStart(true);
 
         WINDOWPLACEMENT wp{};
         wp.length = sizeof(wp);

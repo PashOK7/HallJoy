@@ -1756,3 +1756,43 @@ numeric results remain recorded here and in the validation matrix.
 
 Verified pre-change backup:
 `C:\github\HallJoy_v1.4_BACKUPS\V14-12K-S21-spark-age-prechange-20260801-204000`.
+
+## 2026-08-01 - V14-12L / S21 second-pass stability audit fixes
+
+A second complete code audit found the same future-timestamp underflow shape in
+Sayo, an expired-deadline conversion that could pass `DWORD_MAX` to Addressed
+HID waits, and signed overflow before Raw Mouse clamping. Shared header-only
+helpers now provide saturating monotonic age, remaining timeout and widened
+integer addition. Exact boundary and maximum-value cases have deterministic
+portable coverage.
+
+The audit also found that exception barriers contained overlay and ViGEm output
+faults but left both services disabled until process restart. Under D-030, the
+UI owner now supervises those workers, reaps only signaled and confirmed-joined
+generations, recreates ViGEm transport after the old owner is gone, requests a
+fresh report and preserves overlay autostart intent across a worker fault.
+Simulator-only one-shot C++ exception injections prove both recovery paths and
+balanced final shutdown without permitting overlapping generations.
+
+Rare ownership exits were tightened: failed clipboard transfer frees its global
+allocation, UAP SetupAPI interface lists are freed on both early returns, the
+Madlions state reset uses its actual object extent, and DrunkDeer reserves the
+destination buffer. Targeted arithmetic, static ownership, overlay and ViGEm
+fault-injection gates pass. The pre-change Git backup is
+`backup/pre-second-audit-fixes-20260801` at
+`aab14229976115ac1d9503fb8ae8647cfca4f94d`.
+
+Full qualification passed 48 static audits, 29 portable C++20 tests and all
+four Aula Clang ASan+UBSan suites. The first official build correctly rejected
+the intentionally changed Soup overlays against their old integrity hashes;
+the two normalized hashes and the fresh-patch safe initialiser contract were
+updated, after which locked plugin generation and the full Release x64 build
+passed with zero compiler warnings and only the allowlisted external ViGEm
+`LNK4099`. Both final simulator C++ fault scenarios recovered and shut down
+balanced. The production Irok regression passed 3/3 with 18,103 successful
+routes plus two shutdown-window cancellations, 196-232 ms shutdown, maximum
+215 HANDLEs, no process survivor and all 11 state files unchanged.
+
+Final `HallJoy.exe` is 2,209,280 bytes, SHA-256
+`9C5C206E196753D25C83F2DE012607B6ED372AEB3B72593E410865FF4B0777D4`.
+V14-12L is Verified. External Aula hardware remains release-blocking.

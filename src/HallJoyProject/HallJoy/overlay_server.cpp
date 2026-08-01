@@ -36,6 +36,9 @@ static std::atomic<halljoy::worker::WorkerExceptionKind> g_overlayFaultKind{
     halljoy::worker::WorkerExceptionKind::None };
 static halljoy::worker::WorkerExceptionRecord g_overlayFaultRecord{};
 static std::atomic<uint16_t> g_overlayPort{ 0 };
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+static std::atomic<bool> g_overlayTestFaultInjected{ false };
+#endif
 static std::atomic<uint16_t> g_overlayConfiguredPort{ 8765 };
 static std::atomic<int> g_overlayFillDirection{ (int)OverlayFillDirection::TopDown };
 static std::atomic<uint32_t> g_overlayEffectFlags{
@@ -1634,6 +1637,13 @@ static DWORD OverlayThreadBody(SOCKET listenSocket)
 {
 #if defined(HALLJOY_ANALOG_SIMULATOR)
     const wchar_t* commandLine = GetCommandLineW();
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-overlay-worker-cpp-fault") &&
+        !g_overlayTestFaultInjected.exchange(true, std::memory_order_acq_rel))
+    {
+        StabilityTrace_Write(L"WARN", L"overlay", L"test.cpp_fault.injected",
+            L"simulator_only=1");
+        throw std::runtime_error("simulated overlay worker C++ fault");
+    }
     if (commandLine && wcsstr(commandLine, L"--halljoy-test-overlay-stop-timeout"))
     {
         StabilityTrace_Write(L"WARN", L"overlay", L"test.stop_timeout.injected",
@@ -1752,6 +1762,85 @@ static DWORD WINAPI OverlayThreadProc(LPVOID param) noexcept
         0xE0514F45u));
 }
 
+// The lifecycle object is owner-thread only. A faulted accept worker therefore
+// leaves its generation in Running until the UI owner observes the signalled
+// thread handle and performs the same confirmed-join cleanup as Stop().
+// g_overlayLifecycleMutex must be held by the caller.
+static bool OverlayReapCompletedGenerationLocked()
+{
+    if (!g_overlayThread)
+        return true;
+
+    const DWORD waitResult = WaitForSingleObject(g_overlayThread, 0);
+    if (waitResult == WAIT_TIMEOUT)
+        return false;
+    if (waitResult != WAIT_OBJECT_0)
+    {
+        const DWORD error = waitResult == WAIT_FAILED ? GetLastError() : ERROR_GEN_FAILURE;
+        (void)g_overlayLifecycle.MarkPoisoned(
+            g_overlayLifecycle.Generation(),
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            halljoy::lifecycle::LifecycleErrorCode::PrimitiveFailed,
+            error);
+        OverlaySetLastError(L"Completed overlay worker could not be observed safely");
+        StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"reap.failed",
+            L"wait=%lu win32=%lu restart_blocked=1",
+            static_cast<unsigned long>(waitResult), static_cast<unsigned long>(error));
+        return false;
+    }
+
+    const auto generation = g_overlayLifecycle.Generation();
+    const auto requested = g_overlayLifecycle.RequestStop(generation);
+    if (requested.status != halljoy::lifecycle::StopStatus::StopRequested)
+        return false;
+
+    OverlayReapCompletedClientWorkers();
+    size_t retainedSockets = 0;
+    size_t retainedWorkers = 0;
+    OverlayClientOwnershipCounts(retainedSockets, retainedWorkers);
+    if (retainedSockets != 0 || retainedWorkers != 0)
+    {
+        (void)g_overlayLifecycle.MarkPoisoned(
+            generation,
+            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
+            halljoy::lifecycle::LifecycleErrorCode::BackendContractViolation);
+        OverlaySetLastError(L"Overlay client resources remained after worker exit");
+        StabilityTrace_WriteCritical(L"ERROR", L"overlay", L"reap.clients_retained",
+            L"sockets=%u workers=%u restart_blocked=1",
+            static_cast<unsigned>(retainedSockets), static_cast<unsigned>(retainedWorkers));
+        return false;
+    }
+
+    CloseHandle(g_overlayThread);
+    g_overlayThread = nullptr;
+    SOCKET listenSocket = INVALID_SOCKET;
+    {
+        std::lock_guard<std::mutex> lock(g_overlaySocketMutex);
+        listenSocket = g_overlayListenSocket;
+        g_overlayListenSocket = INVALID_SOCKET;
+    }
+    if (listenSocket != INVALID_SOCKET)
+    {
+        shutdown(listenSocket, SD_BOTH);
+        closesocket(listenSocket);
+    }
+    g_overlayRunning.store(false, std::memory_order_release);
+    g_overlayPort.store(0, std::memory_order_release);
+    OverlayPublishSessionToken(std::string{});
+    if (g_overlayWsaStarted.exchange(false, std::memory_order_acq_rel))
+        WSACleanup();
+
+    const auto joined = g_overlayLifecycle.ConfirmJoined(generation);
+    if (!joined.RestartSafe())
+        return false;
+
+    StabilityTrace_Write(L"INFO", L"overlay", L"reap.completed",
+        L"generation=%llu fault_kind=%u restart_safe=1",
+        static_cast<unsigned long long>(generation.Value()),
+        static_cast<unsigned>(g_overlayFaultKind.load(std::memory_order_acquire)));
+    return true;
+}
+
 bool OverlayServer_Start(uint16_t port)
 {
     const std::lock_guard<std::mutex> lifecycleGuard(g_overlayLifecycleMutex);
@@ -1760,8 +1849,12 @@ bool OverlayServer_Start(uint16_t port)
         return true;
     if (g_overlayThread)
     {
-        OverlaySetLastError(L"Previous overlay worker has not been joined");
-        return false;
+        if (!OverlayReapCompletedGenerationLocked())
+        {
+            if (WaitForSingleObject(g_overlayThread, 0) == WAIT_TIMEOUT)
+                OverlaySetLastError(L"Previous overlay worker is still stopping");
+            return false;
+        }
     }
     const auto start = g_overlayLifecycle.BeginStart();
     if (start.status != halljoy::lifecycle::StartStatus::Starting)
@@ -1894,6 +1987,13 @@ bool OverlayServer_Start(uint16_t port)
             static_cast<unsigned>(poisoned.state),
             static_cast<unsigned long long>(poisoned.generation.Value()),
             static_cast<unsigned>(poisoned.error.code));
+        return false;
+    }
+
+    if (WaitForSingleObject(g_overlayThread, 0) == WAIT_OBJECT_0)
+    {
+        OverlaySetLastError(L"Overlay worker exited during startup");
+        (void)OverlayReapCompletedGenerationLocked();
         return false;
     }
 

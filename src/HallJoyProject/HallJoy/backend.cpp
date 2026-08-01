@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -41,6 +42,7 @@
 #include "native_analog_routing.h"
 #include "native_analog_backend_registry.h"
 #include "latest_value_mailbox.h"
+#include "saturating_int.h"
 #include "vigem_output_scheduler.h"
 #include "worker_exception_barrier.h"
 #include "worker_join_policy.h"
@@ -85,6 +87,7 @@ static std::atomic<halljoy::worker::WorkerExceptionKind> g_vigemOutputFaultKind{
 static halljoy::worker::WorkerExceptionRecord g_vigemOutputFaultRecord{};
 #if defined(HALLJOY_ANALOG_SIMULATOR)
 static std::atomic<bool> g_vigemTestStallInjected{ false };
+static std::atomic<bool> g_vigemTestFaultInjected{ false };
 #endif
 
 // Thread-safe last-report snapshot (writer: realtime thread, reader: UI thread).
@@ -1313,6 +1316,17 @@ static bool VigemOutput_SendBatch(const VigemOutputBatch& batch)
 
 static DWORD VigemOutputThreadBody()
 {
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-vigem-output-cpp-fault") &&
+        !g_vigemTestFaultInjected.exchange(true, std::memory_order_acq_rel))
+    {
+        StabilityTrace_Write(L"WARN", L"vigem-output", L"test.cpp_fault.injected",
+            L"simulator_only=1");
+        throw std::runtime_error("simulated ViGEm output worker C++ fault");
+    }
+#endif
+
     uint64_t consumedGeneration = g_vigemOutputMailbox.PublishedGeneration();
     while (g_vigemOutputRun.load(std::memory_order_acquire))
     {
@@ -1519,6 +1533,67 @@ static halljoy::lifecycle::StopResult VigemOutput_Stop()
     StabilityTrace_Write(L"INFO", L"vigem-output", L"stop.end",
         L"generation=%llu", static_cast<unsigned long long>(requested.generation.Value()));
     return joined;
+}
+
+bool Backend_EnsureOutputWorkerRunning()
+{
+    const bool alive = g_vigemOutputThreadAlive.load(std::memory_order_acquire);
+    const auto faultKind = g_vigemOutputFaultKind.load(std::memory_order_acquire);
+    if (alive && faultKind == halljoy::worker::WorkerExceptionKind::None &&
+        g_vigemOutputThread && WaitForSingleObject(g_vigemOutputThread, 0) == WAIT_TIMEOUT)
+    {
+        return true;
+    }
+
+    StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"watchdog.recover.begin",
+        L"alive=%d fault_kind=%u has_thread=%d",
+        alive ? 1 : 0, static_cast<unsigned>(faultKind), g_vigemOutputThread ? 1 : 0);
+
+    const auto stopped = VigemOutput_Stop();
+    if (!stopped.RestartSafe())
+    {
+        StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"watchdog.recover.blocked",
+            L"state=%u error=%u restart_blocked=1",
+            static_cast<unsigned>(stopped.state), static_cast<unsigned>(stopped.error.code));
+        return false;
+    }
+
+    if (g_virtualPadsEnabled.load(std::memory_order_acquire))
+    {
+        g_ignoreDeviceChangeUntilMs.store(GetTickCount64() + 1500, std::memory_order_release);
+        VIGEM_ERROR error = VIGEM_ERROR_NONE;
+        if (!Vigem_Create(g_virtualPadCount.load(std::memory_order_acquire), &error))
+        {
+            g_vigemOk.store(false, std::memory_order_release);
+            g_vigemLastErr.store(error, std::memory_order_release);
+            StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"watchdog.transport_failed",
+                L"error=%d", static_cast<int>(error));
+            return false;
+        }
+    }
+    else
+    {
+        g_vigemOk.store(true, std::memory_order_release);
+        g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
+    }
+
+    if (!VigemOutput_Start())
+    {
+        Vigem_Destroy();
+        g_vigemOk.store(false, std::memory_order_release);
+        StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"watchdog.worker_start_failed");
+        return false;
+    }
+
+    g_vigemResubmitRequested.store(true, std::memory_order_release);
+    RealtimeLoop_NotifyInputChanged();
+    VigemOutput_Wake();
+    StabilityTrace_Write(L"INFO", L"vigem-output", L"watchdog.recover.end",
+        L"restart_safe=1 pads=%d",
+        g_virtualPadsEnabled.load(std::memory_order_relaxed)
+            ? g_virtualPadCount.load(std::memory_order_relaxed)
+            : 0);
+    return true;
 }
 
 // Cache: for HID <= 255 read once per tick
@@ -4044,7 +4119,7 @@ void Backend_AddMouseDelta(int dx, int dy)
         int old = g_mouseRawAccumDx.load(std::memory_order_relaxed);
         for (;;)
         {
-            int nxt = std::clamp(old + dx, -32768, 32767);
+            const int nxt = halljoy::arithmetic::SaturatingAddInt(old, dx, -32768, 32767);
             if (g_mouseRawAccumDx.compare_exchange_weak(old, nxt, std::memory_order_release, std::memory_order_relaxed))
                 break;
         }
@@ -4054,7 +4129,7 @@ void Backend_AddMouseDelta(int dx, int dy)
         int old = g_mouseRawAccumDy.load(std::memory_order_relaxed);
         for (;;)
         {
-            int nxt = std::clamp(old + dy, -32768, 32767);
+            const int nxt = halljoy::arithmetic::SaturatingAddInt(old, dy, -32768, 32767);
             if (g_mouseRawAccumDy.compare_exchange_weak(old, nxt, std::memory_order_release, std::memory_order_relaxed))
                 break;
         }

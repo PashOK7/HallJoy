@@ -36,6 +36,7 @@ def main() -> int:
     simulator_runner = (ROOT.parents[1] / "tools" / "run_analog_simulator.ps1").read_text(encoding="utf-8")
 
     start = function_body(overlay, "bool OverlayServer_Start(uint16_t port)")
+    reap = function_body(overlay, "static bool OverlayReapCompletedGenerationLocked()")
     stop = function_body(overlay, "halljoy::lifecycle::StopResult OverlayServer_Stop()")
     thread_body = function_body(overlay, "static DWORD OverlayThreadBody(SOCKET listenSocket)")
     handle_request = function_body(overlay, "static bool OverlayHandleClientRequest(")
@@ -49,6 +50,12 @@ def main() -> int:
             "start publishes one truthful lifecycle generation")
     require("g_overlayLifecycleMutex" in start and "g_overlayLifecycleMutex" in stop,
             "start and stop transitions are serialized")
+    require("WaitForSingleObject(g_overlayThread, 0)" in reap and
+            reap.index("RequestStop(generation)") < reap.index("CloseHandle(g_overlayThread)") <
+            reap.index("ConfirmJoined(generation)"),
+            "restart reaps only a signalled generation in lifecycle order")
+    require("OverlayClientOwnershipCounts" in reap and "MarkPoisoned" in reap,
+            "restart fails closed if client ownership survived worker completion")
     require("OverlayShutdownClientSockets" in stop and "closesocket(listenSocket)" in stop and
             stop.index("closesocket(listenSocket)") < stop.index("WaitForSingleObject"),
             "stop wakes accept and every client before joining")
@@ -70,6 +77,15 @@ def main() -> int:
     require("InjectOverlayStopTimeout" in simulator_runner and
             "--overlay-server" in simulator_runner and "expected 2" in simulator_runner,
             "simulator runner starts overlay and verifies process containment")
+    require("OverlayServer_GetAutoStart()" in app and
+            "OverlayServer_Start(OverlayServer_GetConfiguredPort())" in app,
+            "enabled overlay service is supervised by the UI owner")
+    require("--halljoy-test-overlay-worker-cpp-fault" in thread_body and
+            "g_overlayTestFaultInjected.exchange(true" in thread_body,
+            "one-shot overlay fault injection is simulator-only")
+    require("InjectOverlayWorkerCppFault" in simulator_runner and
+            "reap.completed" in simulator_runner and "expected 0" in simulator_runner,
+            "simulator verifies successful overlay-worker recovery")
     require('path == "/client_perf"' in handle_request and
             "closeAfterResponse = true" in handle_request and
             '"204 No Content"' in handle_request and

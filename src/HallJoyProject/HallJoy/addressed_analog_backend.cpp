@@ -27,6 +27,7 @@
 #include "hid_io_operation.h"
 #include "native_analog_routing.h"
 #include "realtime_loop.h"
+#include "monotonic_time.h"
 #include "worker_exception_barrier.h"
 #include "worker_join_policy.h"
 
@@ -520,10 +521,12 @@ bool ProbeAddressedResponse(
     if (!transport.Send(request)) return false;
 
     const ULONGLONG deadline = GetTickCount64() + kProbeResponseWindowMs;
-    while (GetTickCount64() < deadline)
+    while (true)
     {
+        const ULONGLONG nowMs = GetTickCount64();
+        const DWORD remaining = halljoy::monotonic_time::RemainingTimeoutMs(nowMs, deadline);
+        if (remaining == 0) break;
         std::array<std::uint8_t, kProtocolReportBytes> packet{};
-        const DWORD remaining = static_cast<DWORD>(std::max<ULONGLONG>(1, deadline - GetTickCount64()));
         if (!ReadNextPayload(readHandle, path, remaining, packet)) continue;
         if (packet[0] != 0x09 || packet[1] != 0x94 || packet[2] != 0x02) continue;
         const std::uint16_t length = static_cast<std::uint16_t>(packet[6]) |
@@ -599,10 +602,12 @@ bool ProbeCandidate(const HidPath& path, DeviceProfile& outProfile, std::uint32_
         if (!transport.Send(MakePacket(0x83, 0x00))) break;
         const ULONGLONG deadline = GetTickCount64() + kProbeMapWindowMs;
         std::size_t before = dynamicEntries;
-        while (GetTickCount64() < deadline)
+        while (true)
         {
+            const ULONGLONG nowMs = GetTickCount64();
+            const DWORD remaining = halljoy::monotonic_time::RemainingTimeoutMs(nowMs, deadline);
+            if (remaining == 0) break;
             std::array<std::uint8_t, kProtocolReportBytes> packet{};
-            const DWORD remaining = static_cast<DWORD>(std::max<ULONGLONG>(1, deadline - GetTickCount64()));
             if (!ReadNextPayload(read.value, path, remaining, packet)) continue;
             dynamicEntries += ParseMapPacket(packet, dynamicMap);
         }

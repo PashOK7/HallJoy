@@ -571,3 +571,22 @@ v1.4 can be tagged only when:
 - Raw evidence now defaults to `build/evidence`, outside destructive
   `build/output` cleanup. Earlier raw hour/1000 files were deleted by the next
   official rebuild; their independently verified committed summaries remain.
+
+### V14-12L / S21 second-pass stability audit
+
+- Shared monotonic arithmetic now saturates clock-age and remaining-deadline
+  calculations. Sayo cannot mistake a newer worker timestamp for centuries of
+  silence, and an expired Addressed deadline cannot become an infinite HID wait.
+- Raw Mouse accumulation widens before clamping, avoiding undefined signed
+  overflow at extreme injected deltas.
+- Overlay and ViGEm output services are supervised under D-030. A contained
+  worker exception is owner-reaped and restarted only after confirmed join;
+  poison or retained ownership still fails closed.
+- Clipboard and UAP early-error ownership is explicit: failed clipboard
+  transfer frees its allocation, SetupAPI lists are released on every return,
+  and vendor-state clearing uses the correct object extent.
+- Deterministic arithmetic, 48 static audits, 29 portable tests, four Aula
+  sanitizer suites, locked fresh-plugin build and both one-shot worker-fault
+  tests pass. Official Release x64 has zero compiler warnings, and the resulting
+  production artifact passes 3/3 Irok cycles with unchanged state. V14-12L is
+  Verified; external Aula hardware remains the release blocker.

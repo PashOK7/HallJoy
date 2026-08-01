@@ -22,6 +22,8 @@ param(
     [switch]$InjectRealtimeStartFailure,
     [switch]$InjectNativePhaseStartFailure,
     [switch]$InjectVigemUpdateStall,
+    [switch]$InjectVigemOutputCppFault,
+    [switch]$InjectOverlayWorkerCppFault,
     [ValidateSet('prepare', 'write', 'flush', 'validate', 'replace')]
     [string]$InjectPersistenceFailure,
     [string]$StorageDataRoot,
@@ -56,6 +58,8 @@ $injectionCount = @(
     $InjectRealtimeStartFailure.IsPresent,
     $InjectNativePhaseStartFailure.IsPresent,
     $InjectVigemUpdateStall.IsPresent,
+    $InjectVigemOutputCppFault.IsPresent,
+    $InjectOverlayWorkerCppFault.IsPresent,
     -not [string]::IsNullOrEmpty($InjectPersistenceFailure)
 ).Where({ $_ }).Count
 $isFaultInjection = $injectionCount -ne 0
@@ -254,6 +258,12 @@ if ($InjectNativePhaseStartFailure) {
 if ($InjectVigemUpdateStall) {
     $arguments += '--halljoy-test-vigem-update-stall'
 }
+if ($InjectVigemOutputCppFault) {
+    $arguments += '--halljoy-test-vigem-output-cpp-fault'
+}
+if ($InjectOverlayWorkerCppFault) {
+    $arguments += @('--halljoy-test-overlay-worker-cpp-fault', '--overlay-server', '--port', '18765')
+}
 if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
     $arguments += "--halljoy-test-persistence-failure-$InjectPersistenceFailure"
 }
@@ -432,6 +442,12 @@ if ($InjectNativePhaseStartFailure -and $process.ExitCode -ne 0) {
 if ($InjectVigemUpdateStall -and $process.ExitCode -ne 2) {
     throw "ViGEm-update-stall simulator exited with code $($process.ExitCode), expected 2."
 }
+if ($InjectVigemOutputCppFault -and $process.ExitCode -ne 0) {
+    throw "ViGEm-output-fault simulator exited with code $($process.ExitCode), expected 0."
+}
+if ($InjectOverlayWorkerCppFault -and $process.ExitCode -ne 0) {
+    throw "Overlay-worker-fault simulator exited with code $($process.ExitCode), expected 0."
+}
 if ($RequireStorageMigrationFailure -and $process.ExitCode -ne 1) {
     throw "Migration-failure simulator exited with code $($process.ExitCode), expected 1."
 }
@@ -582,6 +598,20 @@ $required = if ($RequireStorageMigrationFailure) { @(
     '[component=analog-host][event=child.start]',
     'restart=1',
     '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
+    '[component=main][event=session.end] exit_code=0'
+) } elseif ($InjectVigemOutputCppFault) { @(
+    '[component=vigem-output][event=test.cpp_fault.injected] simulator_only=1',
+    '[component=vigem-output][event=worker.fault] kind=1 restart_blocked=1',
+    '[component=vigem-output][event=watchdog.recover.begin]',
+    '[component=vigem-output][event=stop.end]',
+    '[component=vigem-output][event=watchdog.recover.end] restart_safe=1',
+    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
+    '[component=main][event=session.end] exit_code=0'
+) } elseif ($InjectOverlayWorkerCppFault) { @(
+    '[component=overlay][event=test.cpp_fault.injected] simulator_only=1',
+    '[component=overlay][event=worker.fault] kind=1 sockets_shutdown=1',
+    '[component=overlay][event=reap.completed]',
+    'fault_kind=1 restart_safe=1',
     '[component=main][event=session.end] exit_code=0'
 ) } elseif ($InjectVigemUpdateStall) { @(
     '[component=vigem-output][event=test.update_stall.injected] simulator_only=1',
@@ -775,6 +805,10 @@ if ($RequireStorageMigrationFailure) {
     Write-Host 'HallJoy native-phase reverse rollback scenario: PASS' -ForegroundColor Green
 } elseif ($InjectVigemUpdateStall) {
     Write-Host 'HallJoy ViGEm stalled-driver containment scenario: PASS' -ForegroundColor Green
+} elseif ($InjectVigemOutputCppFault) {
+    Write-Host 'HallJoy ViGEm output-worker recovery scenario: PASS' -ForegroundColor Green
+} elseif ($InjectOverlayWorkerCppFault) {
+    Write-Host 'HallJoy overlay worker recovery scenario: PASS' -ForegroundColor Green
 } elseif ($StartOverlay) {
     Write-Host 'HallJoy overlay HTTP and cooperative shutdown scenario: PASS' -ForegroundColor Green
 } else {

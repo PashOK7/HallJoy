@@ -24,7 +24,7 @@ $fixedMarker = 'HallJoy Madlions fix v7'
 # Soup's constructor used to clear only nuphy.buffer. That does not necessarily
 # cover the complete union when the Madlions member contains state, a pointer,
 # and a full key buffer. Match semantically, not by line endings or indentation.
-$fixedInitialiser = 'memset(&razer, 0, sizeof(madlions)); // HallJoy: zero the complete analogue-keyboard state union'
+$fixedInitialiser = 'memset(&madlions, 0, sizeof(madlions)); // HallJoy: zero the complete analogue-keyboard state union'
 if (-not $sourceText.Contains($fixedInitialiser)) {
     $initialiserPattern = 'memset\s*\(\s*nuphy\.buffer\s*,\s*0\s*,\s*sizeof\s*\(\s*nuphy\.buffer\s*\)\s*\)\s*;[^\r\n]*'
     $initialiserMatch = [System.Text.RegularExpressions.Regex]::Match($sourceText, $initialiserPattern)

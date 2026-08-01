@@ -9,6 +9,8 @@ PROJECT = (HALL / "HallJoy.vcxproj").read_text(encoding="utf-8")
 FILTERS = (HALL / "HallJoy.vcxproj.filters").read_text(encoding="utf-8")
 RUNNER = (ROOT.parents[1] / "tools" / "run_analog_simulator.ps1").read_text(encoding="utf-8")
 CHECKS = (ROOT.parents[1] / "tools" / "run_native_backend_checks.py").read_text(encoding="utf-8")
+APP = (HALL / "app.cpp").read_text(encoding="utf-8")
+HEADER = (HALL / "backend.h").read_text(encoding="utf-8")
 
 
 def body(signature: str) -> str:
@@ -38,6 +40,7 @@ fault_reset = body("void Backend_ResetPublishedStateAfterRealtimeFault() noexcep
 worker = body("static DWORD VigemOutputThreadBody()")
 stop = body("static halljoy::lifecycle::StopResult VigemOutput_Stop()")
 shutdown = body("bool Backend_Shutdown()")
+recover = body("bool Backend_EnsureOutputWorkerRunning()")
 
 require(BACKEND.count("vigem_target_x360_update(") == 1,
         "production has one ViGEm update call site")
@@ -68,6 +71,22 @@ require("#if defined(HALLJOY_ANALOG_SIMULATOR)" in send and
         "stalled-driver injection is simulator-only and exceeds the join bound")
 require("InjectVigemUpdateStall" in RUNNER,
         "scenario runner exposes the stalled-driver containment gate")
+require("Backend_EnsureOutputWorkerRunning" in HEADER and
+        "Backend_EnsureOutputWorkerRunning()" in APP,
+        "UI owner continuously supervises the isolated output worker")
+require(recover.find("VigemOutput_Stop()") < recover.find("Vigem_Create(") <
+        recover.find("VigemOutput_Start()") and
+        "stopped.RestartSafe()" in recover,
+        "recovery confirms the old generation before recreating transport")
+require("g_vigemResubmitRequested.store(true" in recover and
+        "RealtimeLoop_NotifyInputChanged()" in recover,
+        "recovered output requests a fresh complete realtime report")
+require("--halljoy-test-vigem-output-cpp-fault" in worker and
+        "g_vigemTestFaultInjected.exchange(true" in worker,
+        "one-shot output fault injection is simulator-only")
+require("InjectVigemOutputCppFault" in RUNNER and
+        "watchdog.recover.end" in RUNNER and "expected 0" in RUNNER,
+        "simulator verifies successful output-worker recovery")
 require("latest_value_mailbox" in CHECKS,
         "portable gate includes latest-value report equivalence")
 require('ClInclude Include="latest_value_mailbox.h"' in PROJECT and

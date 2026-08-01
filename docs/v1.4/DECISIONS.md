@@ -456,3 +456,27 @@ regression, the full automated/build gate passes, and a targeted production
 runtime verifies the affected path. The evidence must explicitly preserve the
 original finding, the exact old/new executable hashes and the proportional
 requalification decision. Device-owner and external Aula gates are unaffected.
+
+## D-030 - Fault-contained service workers are owner-reaped and supervised
+
+Date: 2026-08-01
+
+An exception barrier prevents a C++ exception from escaping a Windows thread,
+but containment alone is not service recovery. A completed overlay or ViGEm
+output generation must publish its stopped state and remain owned until the UI
+owner observes the signaled thread handle, requests stop, confirms the join and
+releases that generation's resources. Only then may a replacement generation
+start. A timeout, retained client owner or poisoned lifecycle fails closed and
+must never create overlapping generations.
+
+For ViGEm, recovery recreates the driver transport only after the old output
+worker is confirmed joined, then starts a new output owner and requests a fresh
+realtime report. Overlay command-line/autostart intent is supervised and is not
+erased merely because its worker faulted; an explicit user stop still clears
+that preference. Healthy supervision runs every 30 UI timer ticks and performs
+only atomic reads plus a zero-time handle query, outside the realtime path.
+
+Recovery must be proven by one-shot production C++ fault injections that show
+the failed generation reaped, a new generation started, normal work resumed and
+final shutdown balanced. Fault-injection arguments remain simulator-only and
+must not appear in release qualification commands.

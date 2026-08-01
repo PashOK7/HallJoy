@@ -1,5 +1,6 @@
 #include "worker_join_policy.h"
 #include "worker_exception_barrier.h"
+#include "monotonic_time.h"
 
 #include <chrono>
 #include <mutex>
@@ -175,7 +176,8 @@ static void SayoSetIndexState(uint8_t index, bool down, ULONGLONG nowMs)
 
     g_sayoIndexDown[index].store(down ? 1 : 0, std::memory_order_relaxed);
     ULONGLONG lastDepth = g_sayoLastDepthMs.load(std::memory_order_relaxed);
-    bool depthFresh = (lastDepth != 0 && nowMs - lastDepth <= kSayoDepthFreshMs);
+    bool depthFresh = lastDepth != 0 &&
+        halljoy::monotonic_time::SaturatingAgeMs(nowMs, lastDepth) <= kSayoDepthFreshMs;
     if (!down)
     {
         g_sayoAnalogMilli[mappedHid].store(0, std::memory_order_relaxed);
@@ -227,6 +229,7 @@ static void SayoParseKeyboardReport(const uint8_t* data, DWORD len, ULONGLONG no
     uint8_t pending = g_sayoPendingIndex.load(std::memory_order_relaxed);
     ULONGLONG pendingMs = g_sayoPendingIndexMs.load(std::memory_order_relaxed);
     if (pending < g_sayoIndexToHid.size() &&
+        pendingMs != 0 && nowMs >= pendingMs &&
         nowMs - pendingMs <= kSayoKeyboardMatchWindowMs &&
         addedCount == 1 &&
         addedHid != 0)
@@ -235,7 +238,8 @@ static void SayoParseKeyboardReport(const uint8_t* data, DWORD len, ULONGLONG no
         if (oldHid != 0 && oldHid != addedHid)
             g_sayoAnalogMilli[oldHid].store(0, std::memory_order_relaxed);
         ULONGLONG lastDepth = g_sayoLastDepthMs.load(std::memory_order_relaxed);
-        bool depthFresh = (lastDepth != 0 && nowMs - lastDepth <= kSayoDepthFreshMs);
+        bool depthFresh = lastDepth != 0 &&
+            halljoy::monotonic_time::SaturatingAgeMs(nowMs, lastDepth) <= kSayoDepthFreshMs;
         if (!depthFresh && g_sayoIndexDown[pending].load(std::memory_order_relaxed) != 0)
             g_sayoAnalogMilli[addedHid].store(1000, std::memory_order_relaxed);
         g_sayoPendingIndex.store(0xFF, std::memory_order_relaxed);
@@ -1060,11 +1064,12 @@ static void SayoTickHotplug(ULONGLONG nowMs)
     if (g_sayoConnected.load(std::memory_order_acquire))
     {
         ULONGLONG lastPacket = g_sayoLastPacketMs.load(std::memory_order_relaxed);
-        if (lastPacket != 0 && nowMs - lastPacket > kSayoNoPacketRestartMs)
+        const ULONGLONG silenceMs = halljoy::monotonic_time::SaturatingAgeMs(nowMs, lastPacket);
+        if (halljoy::monotonic_time::IsStale(nowMs, lastPacket, kSayoNoPacketRestartMs))
         {
             DebugLog_Write(
                 L"[backend.sayo] no packets for %llu ms; restarting",
-                (unsigned long long)(nowMs - lastPacket));
+                (unsigned long long)silenceMs);
             SayoStop();
         }
         return;

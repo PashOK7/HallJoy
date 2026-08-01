@@ -178,7 +178,11 @@ if (Test-Path -LiteralPath $trace) {
     Remove-Item -LiteralPath $trace -Force
 }
 
-$arguments = @('--halljoy-simulate-analog=script', '--halljoy-test-storage-policy')
+$arguments = @(
+    '--halljoy-simulate-analog=script',
+    '--halljoy-test-storage-policy',
+    '--halljoy-test-mouse-ipc-policy'
+)
 if (-not $UsePortableStorage) {
     $arguments += @('--halljoy-test-data-root', $effectiveDataRoot, '--halljoy-test-legacy-root', $StorageLegacyRoot)
 }
@@ -506,6 +510,10 @@ if ($RequireStorageMigrationFailure) {
     $storageRequired += '[component=storage][event=root.ready] mode=simulator'
 }
 $missing += @($storageRequired | Where-Object { -not $traceText.Contains($_) })
+if (-not $RequireStorageMigrationFailure -and
+    -not $traceText.Contains('[component=mouse-ipc][event=policy.self_test] passed=1')) {
+    $missing += '[component=mouse-ipc][event=policy.self_test] passed=1'
+}
 if ($StartOverlay) {
     $overlayRequired = @(
         '[component=overlay][event=start.ok] port=18765',

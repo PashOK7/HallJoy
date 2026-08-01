@@ -928,3 +928,54 @@
 
 - `HJ-AUD-P2-017`, `HJ-AUD-P2-018` and V14-09 are Verified.
 - Next is V14-10 IPC and overlay security/correctness.
+
+## 2026-08-01 - V14-10A Mouse IPC creation and atomic-read correctness
+
+### Implementation
+
+- Captured `GetLastError()` immediately after successful
+  `CreateFileMappingW`, before `MapViewOfFile` can overwrite the mapping
+  creation disposition.
+- Split initialization policy so only a genuinely new mapping is cleared.
+  Existing state is preserved and accepted only after magic, version and size
+  validation; invalid schemas are rejected without modifying their payload.
+- Reused the final v1 `reserved1` slot as `structSize`, retaining the public
+  name, 40-byte ABI and every field offset. Legacy zero is accepted once and
+  upgraded atomically; new mappings publish magic last.
+- Replaced ordinary reads of ASI-owned attach/heartbeat state with interlocked
+  reads and added creation/schema trace events.
+- Added a simulator runtime policy self-test and a build-required static audit.
+
+### Validation
+
+- Mouse IPC static audit and full static/portable C++20 backend gate: PASS.
+- Current simulator rebuild and normal common-pipeline scenario: PASS, exit 0;
+  the policy self-test preserved sentinel payload, upgraded a legacy zero size
+  and rejected an invalid mapping without overwrite.
+- Storage migration/replay/portable and all five migration fault stages: PASS.
+- Overlay lifecycle gate: PASS; next `/state` response measured 0.4 ms.
+- Official x64 Release build: PASS, 0 errors and only allowlisted `LNK4099`;
+  embedded ABI1 runtime gate passed.
+- Ten-second production smoke selected the LocalAppData root, skipped the
+  completed migration, created and validated the 40-byte Mouse IPC mapping,
+  connected Irok MG75 Max at `1CA6:0529/FFB0`, completed 37,937/37,937 route
+  queries with zero failures, joined all workers and exited 0.
+- No analog-row changes were produced during this smoke; it is startup/route/
+  shutdown evidence, not a new input proof. No external ASI binary attach was
+  exercised; compatibility is covered by unchanged ABI and the simulated
+  legacy-zero slot.
+- Runtime user state matched its pre-smoke backup with zero differences.
+- `HallJoy.exe`: 2,217,472 bytes,
+  SHA-256 `7AB4EF791179AF4271F5307A5B695436599D047D4F9AC0530250A43A42B50E86`.
+- Production trace SHA-256:
+  `C6B0B5D8C0938F1D8D78B203D94E646F7C14523F6E32AD41C33B6F56A889B6DC`.
+- Source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-10A-prechange-20260801-1103`.
+- Runtime backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-10A-runtime-20260801-1110`.
+
+### Package result
+
+- `HJ-AUD-P1-011` and `HJ-AUD-P2-005` are Verified.
+- V14-10 remains In progress. Next is V14-10B analog-host IPC
+  precreation/spoofing resistance; overlay protocol risks remain separate.

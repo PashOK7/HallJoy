@@ -1307,6 +1307,14 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
             L"passed=%d mode=%ls", passed ? 1 : 0, AppPaths_ModeName());
         if (!passed) return 1;
     }
+    if (wcsstr(GetCommandLineW(), L"--halljoy-test-mouse-ipc-policy"))
+    {
+        const bool passed = MouseIpc_RunPolicySelfTest();
+        StabilityTrace_Write(passed ? L"INFO" : L"ERROR", L"mouse-ipc", L"policy.self_test",
+            L"passed=%d existing_preserved=%d invalid_rejected=%d atomic_reads=1",
+            passed ? 1 : 0, passed ? 1 : 0, passed ? 1 : 0);
+        if (!passed) return 1;
+    }
 #endif
 
     // Load settings before window creation so we can restore last window size.

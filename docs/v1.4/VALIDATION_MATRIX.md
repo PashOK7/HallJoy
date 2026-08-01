@@ -831,3 +831,53 @@ Rollback: parent commit of the V14-09C implementation commit; runtime state can
   be restored from the recorded legacy backup, while legacy source files remain
   untouched beside the executable
 ```
+
+## V14-10A evidence
+
+```text
+Package: V14-10A
+Scope: Mouse IPC creation disposition, existing-schema preservation/validation
+  and atomic peer-field reads
+Commands:
+  python src/HallJoyProject/tests/mouse_ipc_static_audit.py
+  python tools/run_native_backend_checks.py
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_storage_migration_test.ps1 -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild -StartOverlay -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -RunSeconds 10
+Results:
+  Mouse IPC static audit: PASS
+  All static audits and portable C++20 tests: PASS
+  Simulator runtime policy self-test: PASS; existing sentinel payload retained,
+    legacy zero size upgraded to 40, invalid schema rejected without overwrite
+  Normal current simulator: PASS, graceful shutdown, exit 0
+  Storage migration/replay/portable and five migration fault stages: PASS
+  Overlay lifecycle: PASS; next /state response 0.4 ms
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Real ABI1 load/init/null/bounded-unload runtime gate: PASS
+  Production Mouse IPC init: created=1, schema_valid=1, size=40
+  Production Irok route: SparkLink VID 1CA6, PID 0529, usage page FFB0;
+    37,937 successful queries, zero failures, balanced shutdown, exit 0
+  Runtime user state: zero differences from pre-smoke backup
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,217,472 bytes
+  SHA-256: 7AB4EF791179AF4271F5307A5B695436599D047D4F9AC0530250A43A42B50E86
+  Production trace SHA-256:
+    C6B0B5D8C0938F1D8D78B203D94E646F7C14523F6E32AD41C33B6F56A889B6DC
+Hardware: Irok startup/route/balanced shutdown passed; no analog-row changes,
+  so this package makes no new hardware input claim
+External ASI: NOT RUN; binary ABI compatibility is covered by unchanged public
+  name/version/offsets/size and the simulator-emulated legacy zero size slot
+Remote CI: NOT RUN; optional, no push permitted
+Known limitation: analog-host IPC authentication/ACL/precreation remains
+  V14-10B; overlay protocol/concurrency risks remain later V14-10 packages
+Evidence:
+  docs/stability/tests/V14-10A_MOUSE_IPC_CORRECTNESS_2026-08-01.txt
+Rollback: parent commit of the V14-10A implementation commit
+```

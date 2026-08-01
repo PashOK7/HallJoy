@@ -71,7 +71,7 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P1-008` | P1 | Потеря device-change wakeup из-за manual-reset `ResetEvent` после ожидания | `S11` | Verified | durable monotonic wake sequence, notify/wait race tests and production Irok smoke passed in V14-08A |
 | `HJ-AUD-P1-009` | P1 | Initial startup игнорирует отказ realtime и зависимых native phases | `S11` | Verified | explicit commit, reverse rollback and realtime/native-phase fault injections passed in V14-08A |
 | `HJ-AUD-P1-010` | P1 | Синхронный ViGEm update находится внутри realtime worker | `S12` | Verified | dedicated output owner, latest-state/multi-pad equivalence and bounded 60-second driver-stall containment passed in V14-08B |
-| `HJ-AUD-P1-011` | P1 | Mouse IPC неверно определяет, создано ли новое mapping | `S15` | Open | IPC ACL/creation/memory-order tests |
+| `HJ-AUD-P1-011` | P1 | Mouse IPC неверно определяет, создано ли новое mapping | `S15` | Verified | immediate `CreateFileMappingW` disposition capture, preserve/validate-existing runtime self-test and production init trace passed in V14-10A |
 | `HJ-AUD-P1-012` | P1 | Named IPC analog host допускает precreation/spoofing в той же сессии пользователя | `S15` | Open | IPC ACL/creation/memory-order tests |
 | `HJ-AUD-P1-013` | P1 | Встроенный dependency installer имеет TOCTOU и неполную проверку цепочки поставки | `S18` | Open | installer hash/TOCTOU/UI-thread tests |
 | `HJ-AUD-P1-014` | P1 | Dependency installer может навсегда заморозить UI | `S18` | Open | installer hash/TOCTOU/UI-thread tests |
@@ -81,7 +81,7 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P2-002` | P2 | Overlay HTTP parser не реализует framing | `S16` | Open | fragmentation/concurrency/limit tests |
 | `HJ-AUD-P2-003` | P2 | Overlay telemetry parser допускает unsigned overflow | `S16` | Open | fragmentation/concurrency/limit tests |
 | `HJ-AUD-P2-004` | P2 | Overlay endpoint открыт любому origin | `S16` | Open | fragmentation/concurrency/limit tests |
-| `HJ-AUD-P2-005` | P2 | Mouse IPC читает interlocked-written поля обычными volatile reads | `S15` | Open | IPC ACL/creation/memory-order tests |
+| `HJ-AUD-P2-005` | P2 | Mouse IPC читает interlocked-written поля обычными volatile reads | `S15` | Verified | peer-owned attach/heartbeat and schema fields use interlocked reads; static audit and simulator policy self-test passed in V14-10A |
 | `HJ-AUD-P2-006` | P2 | UAP poll workers собраны без какого-либо pacing | `S17` | Open | CPU/USB/identity/contention measurements |
 | `HJ-AUD-P2-007` | P2 | UAP device identity нестабильна для двух одинаковых устройств | `S17` | Open | CPU/USB/identity/contention measurements |
 | `HJ-AUD-P2-008` | P2 | `is_initialised()` plugin всегда возвращает `true` | `S10` | Verified | runtime ABI gate proves false before init, true after init and false after bounded unload |

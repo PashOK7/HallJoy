@@ -190,3 +190,25 @@ invalid/control replacement, trailing-dot/space removal, DOS-device avoidance,
 an 80 UTF-16-code-unit stem limit and verified direct-child path construction.
 Existing Unicode/case aliases remain readable; new collisions receive a
 bounded suffix or are rejected where the UI requires a unique logical name.
+
+## D-017 - Existing Mouse IPC mappings are peer-owned state
+
+Date: 2026-08-01
+
+The creation disposition of a file mapping belongs to the immediately
+preceding `CreateFileMappingW` call and must be captured before mapping the view
+or making any other Win32 call. Only a newly created Mouse IPC mapping may be
+zero-initialized. A pre-existing mapping is external peer-owned state and must
+be validated, never reset by the publisher.
+
+The public v1 mapping remains `Local\HallJoy_MouseBridge_v1` and exactly 40
+bytes. Its final former `reserved1` field now carries `structSize` without
+moving any offset. Zero remains a compatible legacy value and is atomically
+upgraded to 40; every other size, magic or version mismatch is rejected. Magic
+is published last for a new mapping. Cross-process `LONG` fields that HallJoy
+reads are accessed through interlocked operations rather than ordinary
+volatile reads.
+
+This decision closes Mouse IPC creation/schema and memory-order correctness
+only. Analog-host authentication, ACL and precreation resistance remain the
+separate V14-10B scope.

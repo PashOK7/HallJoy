@@ -12,8 +12,10 @@ version or release status.
 - Completed package: `V14-09` transactional persistence, writable-state
   migration and filename hardening
 - Completed hotfix: `V14-06D.1` SparkLink shutdown/reconnect race, Verified
-- Current package: `V14-10` planned
-- Next work: begin `V14-10` IPC and overlay security/correctness
+- Completed subpackage: `V14-10A` Mouse IPC creation, schema and atomic-read
+  correctness, Verified locally
+- Current package: `V14-10` in progress
+- Next work: `V14-10B` analog-host IPC precreation/spoofing resistance
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -32,7 +34,11 @@ mutable state to `%LOCALAPPDATA%\HallJoy`, performs a source-preserving one-time
 transactional migration with a hash-verified backup, and uses one NFC,
 case-folded, reserved-name-safe filename policy for profiles and presets. The
 real first migration and replay launch passed with the Irok route connected and
-balanced shutdown.
+balanced shutdown. V14-10A now captures the mapping creation result before any
+later Win32 call can overwrite it, never clears a pre-existing Mouse IPC
+payload, validates the stable 40-byte v1 schema, and uses interlocked reads for
+peer-written connection fields. Simulator policy tests, the full build and an
+Irok startup/route/shutdown smoke pass; an external ASI attach was not exercised.
 
 ## Authoritative documents
 

@@ -34,7 +34,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Verified | Partial-start, crash, hang, C ABI, null/state, unload and bounded restart gates passed |
 | `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Verified | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
 | `V14-09` | Transactional persistence and writable state migration | Verified | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
-| `V14-10` | IPC and overlay security/correctness | Planned | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
+| `V14-10` | IPC and overlay security/correctness | In progress | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
 | `V14-11` | UAP pacing, identity, modularization and measured performance | Planned | CPU/USB/latency comparison with no unsupported sampling regression |
 | `V14-12` | Release qualification and hardware matrix | Planned | Clean package, 8-24h soak, reconnect cycles and required device-owner gates |
 
@@ -328,6 +328,35 @@ real production migration/replay and Irok balanced shutdown all pass.
 
 V14-09 is complete. The next implementation package is V14-10 IPC and overlay
 security/correctness.
+
+## Package in progress: V14-10
+
+Split IPC ownership/authentication work from overlay protocol work so every
+change has a narrow behavioral gate.
+
+Progress:
+
+- `V14-10A` Mouse IPC creation and atomic-read correctness: Verified locally.
+  The `CreateFileMappingW` result is captured before `MapViewOfFile`, a new
+  mapping publishes its schema marker last, and an existing mapping is never
+  cleared. Existing mappings must match the stable 40-byte v1 schema; the old
+  zero `reserved1` slot is accepted and upgraded in place without moving any
+  field or changing the public mapping name.
+- Peer-owned attach and heartbeat fields are acquire-like interlocked reads.
+  The simulator policy gate proves preservation of existing payload, legacy
+  size-slot upgrade, rejection without overwrite of an invalid schema, and
+  atomic reads. Static audit, storage/failure regression suites, overlay
+  lifecycle, production build and Irok route/balanced-shutdown smoke pass.
+- `HJ-AUD-P1-011` and `HJ-AUD-P2-005` are Verified. No external ASI binary was
+  available for an attach test, so the compatibility claim is limited to the
+  unchanged name, offsets, version and simulator-emulated legacy slot.
+
+Remaining:
+
+- `V14-10B`: prevent analog-host named IPC precreation/spoofing and verify its
+  ACL, identity and generation contract (`HJ-AUD-P1-012`).
+- Later V14-10 packages: overlay framing, bounded parsing/overflow, origin,
+  concurrency and shutdown gates (`HJ-AUD-P2-001` through `HJ-AUD-P2-004`).
 
 ## Release definition
 

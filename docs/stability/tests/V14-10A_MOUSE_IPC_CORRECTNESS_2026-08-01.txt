@@ -1,0 +1,80 @@
+HallJoy v1.4 - V14-10A Mouse IPC correctness evidence
+Date: 2026-08-01
+
+Scope
+-----
+- Capture the CreateFileMappingW creation disposition before another Win32
+  call can replace GetLastError.
+- Clear only newly created mappings; preserve and validate existing peer state.
+- Retain the public Local\HallJoy_MouseBridge_v1 40-byte ABI while assigning
+  the former reserved1 slot as structSize.
+- Use interlocked operations for cross-process schema and ASI-owned fields.
+
+Validation
+----------
+1. python src/HallJoyProject/tests/mouse_ipc_static_audit.py
+   PASS.
+
+2. python tools/run_native_backend_checks.py
+   PASS. All static audits and portable C++20 tests passed.
+
+3. powershell -NoProfile -ExecutionPolicy Bypass
+     -File .\tools\run_analog_simulator.ps1 -RunSeconds 7
+   PASS, exit 0. Runtime policy self-test retained sentinel payload in an
+   existing mapping, upgraded a legacy zero size slot to 40 and rejected an
+   invalid schema without overwriting its sentinel.
+
+4. powershell -NoProfile -ExecutionPolicy Bypass
+     -File .\tools\run_storage_migration_test.ps1 -RunSeconds 7
+   PASS. Migration, replay, portable mode and prepare/write/flush/validate/
+   replace migration faults all passed with the Mouse IPC policy gate enabled
+   on every run that progressed beyond intentional storage initialization
+   failure.
+
+5. powershell -NoProfile -ExecutionPolicy Bypass
+     -File .\tools\run_analog_simulator.ps1 -SkipBuild -StartOverlay
+     -RunSeconds 7
+   PASS. Overlay lifecycle passed and the next /state response was 0.4 ms.
+
+6. powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+   PASS. Official x64 Release produced zero errors and only the allowlisted
+   third-party ViGEm LNK4099 diagnostic. The real embedded ABI1 runtime gate
+   passed.
+
+7. powershell -NoProfile -ExecutionPolicy Bypass
+     -File .\tools\run_production_smoke.ps1 -RunSeconds 10
+   PASS. Trace recorded mouse-ipc init.ok created=1 schema_valid=1 size=40,
+   LocalAppData migration.skip reason=complete, Irok MG75 Max SparkLink route
+   1CA6:0529/FFB0, 37,937 successful queries, zero failures, balanced worker
+   shutdown and exit 0. No analog rows changed, so this is not new input proof.
+
+Artifact
+--------
+Path: build/output/HallJoy.exe
+Size: 2,217,472 bytes
+SHA-256: 7AB4EF791179AF4271F5307A5B695436599D047D4F9AC0530250A43A42B50E86
+Production trace SHA-256:
+C6B0B5D8C0938F1D8D78B203D94E646F7C14523F6E32AD41C33B6F56A889B6DC
+
+State safety
+------------
+Source backup:
+C:\github\HallJoy_v1.4_BACKUPS\V14-10A-prechange-20260801-1103
+Runtime backup:
+C:\github\HallJoy_v1.4_BACKUPS\V14-10A-runtime-20260801-1110
+Post-smoke LocalAppData state matched the runtime backup with zero differences.
+
+Limits and next work
+--------------------
+- No external ASI binary attach was exercised. Compatibility evidence is the
+  unchanged mapping name, version, 40-byte layout and field offsets plus the
+  simulator-emulated legacy zero reserved slot.
+- This package does not claim analog-host authentication or ACL hardening.
+  V14-10B owns named IPC precreation/spoofing resistance.
+- Overlay framing, parsing limits/overflow, origin, concurrency and shutdown
+  remain later V14-10 scopes.
+- Remote CI was not run; it is optional and no push is permitted.
+
+Rollback
+--------
+Use the parent of the local V14-10A implementation commit.

@@ -75,3 +75,6 @@ Baseline-лог исходной версии хранится отдельно 
   lifecycle gate, trace hashes, shutdown distribution, resources и state proof.
 - `V14-12J_S21_SOAK_SLEEP_PREVENTION_2026-08-01.txt` — Windows power request,
   guaranteed cleanup и corrected one-minute unattended-soak pilot.
+- `V14-12K_S21_SPARK_AGE_FIX_2026-08-01.txt` — результат часового soak,
+  диагностика ложного SparkLink stale, saturating timestamp fix, полные gates и
+  targeted production regression на исправленном EXE.

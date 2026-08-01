@@ -343,7 +343,7 @@ x64-only. Debug/Release x64 используют W4 с узким задокум
 После correctness:
 
 - ETW/WPA CPU, wakeups, USB, scheduler latency;
-- 8–24 часа streaming/polling;
+- 1 час streaming/polling с overlay probes и resource/trace evidence;
 - 1000 start/stop/reconnect cycles;
 - Application Verifier, PageHeap, handle tracing;
 - driver reinstall/disconnect during runtime;
@@ -355,7 +355,7 @@ x64-only. Debug/Release x64 используют W4 с узким задокум
 прошёл post-build pilot 25/25 production start/stop cycles на доступном Irok.
 Каждый цикл завершился exit 0, без trace ERROR и оставшихся процессов; 11
 пользовательских файлов не изменились. Pilot не закрывает обязательные 1000
-циклов, 8-24 часа, ручной reconnect/input и недоступную hardware matrix.
+циклов, часовой soak, ручной reconnect/input и недоступную hardware matrix.
 
 ## 5. Зависимости
 
@@ -404,11 +404,12 @@ HallJoy_v3_9_0_STABILITY_SXX_<short-name>.zip
 ## Статус автоматизации S21 — V14-12H
 
 Normal-cycle runner сохраняет checkpoint после каждого цикла, state manifests
-и Spark route counters. Добавлен отдельный 8-часовой по умолчанию production
+и Spark route counters. Добавлен отдельный часовой по умолчанию production
 soak с post-warm-up baseline, CSV ресурсов, overlay probes, bounded shutdown и
 trace analyzer. Короткие пилоты, unified gate и официальный build пройдены.
-Это готовность контура, а не выполнение финальных 1000 циклов, 8–24 часов или
-недоступной hardware matrix.
+Это готовность контура, а не выполнение финальных 1000 циклов, часового soak или
+недоступной hardware matrix. V14-12K заменил старое 8–24-часовое требование
+пропорциональным часовым gate по D-S21-001.
 
 ## Статус выполнения S21 — V14-12I
 

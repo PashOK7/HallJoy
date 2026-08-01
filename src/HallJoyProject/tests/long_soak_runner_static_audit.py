@@ -18,8 +18,8 @@ def require(condition: bool, message: str) -> None:
 runner = RUNNER.read_text(encoding="utf-8-sig")
 build = BUILD.read_text(encoding="utf-8-sig")
 
-require("[ValidateRange(1, 1440)]" in runner and "[int]$DurationMinutes = 480" in runner,
-        "soak duration is bounded to 1..1440 minutes and defaults to eight hours")
+require("[ValidateRange(1, 1440)]" in runner and "[int]$DurationMinutes = 60" in runner,
+        "soak duration is bounded to 1..1440 minutes and defaults to one hour")
 require("[ValidateRange(1, 60)]" in runner and "[int]$SampleSeconds" in runner,
         "resource sampling interval is bounded to at most sixty seconds")
 require("[int]$ProgressMinutes = 5" in runner and "Soak progress:" in runner,
@@ -45,6 +45,8 @@ require("HandleCount" in runner and "PrivateMemorySize64" in runner and
 require("checkpoint.json" in runner and "Write-SoakCheckpoint" in runner and
         "Status 'failed'" in runner and "Status 'passed'" in runner,
         "soak checkpoints preserve progress and terminal status")
+require('build\\evidence\\long-soak' in runner and '$output "long-soak' not in runner,
+        "default soak evidence survives official build/output cleanup")
 require("state-before.json" in runner and "state-after.json" in runner and
         "Get-ChangedStateFiles" in runner and "Get-FileHash" in runner,
         "user-state file names and SHA-256 values are persisted and invariant")
@@ -59,8 +61,13 @@ require("$handleGrowth -gt 32" in runner and "$privateGrowth -gt 268435456" in r
 require("check_overlay_responsiveness.py" in runner and "OverlayProbeMinutes" in runner,
         "optional overlay soak repeatedly proves HTTP responsiveness")
 require("spark_route_queries" in runner and "spark_route_ok" in runner and
-        "spark_route_fail" in runner and "summary.json" in runner,
-        "final summary retains SparkLink routing health and machine-readable evidence")
+        "spark_route_fail" in runner and "spark_worker_generations" in runner and
+        "spark_changed_rows" in runner and "spark_input_notifies" in runner and
+        "foreach ($sparkStat in $sparkStats)" in runner and "summary.json" in runner,
+        "final summary aggregates every SparkLink generation and input-health counter")
+require("spark_hotplug_stale" in runner and "spark_hotplug_reconnects" in runner and
+        "maxPlausibleSilenceMs" in runner and "possible timestamp underflow" in runner,
+        "soak rejects impossible SparkLink freshness ages and reports reconnect activity")
 require("run_long_soak.ps1" in build,
         "official build manifest requires the long-soak runner")
 

@@ -1,5 +1,6 @@
 #include "worker_exception_barrier.h"
 #include "worker_join_policy.h"
+#include "sparklink_hotplug_age.h"
 
 #include <chrono>
 #include <mutex>
@@ -1658,13 +1659,14 @@ static void SparkTickHotplug(ULONGLONG nowMs)
     if (g_sparkConnected.load(std::memory_order_acquire))
     {
         ULONGLONG lastPacket = g_sparkLastPacketMs.load(std::memory_order_relaxed);
-        if (lastPacket != 0 && nowMs - lastPacket > kSparkNoPacketRestartMs)
+        const ULONGLONG silenceMs = halljoy::sparklink::FreshnessAgeMs(nowMs, lastPacket);
+        if (lastPacket != 0 && silenceMs > kSparkNoPacketRestartMs)
         {
             DebugLog_Write(
                 L"[backend.spark] no packets for %llu ms; restarting",
-                (unsigned long long)(nowMs - lastPacket));
+                (unsigned long long)silenceMs);
             StabilityTrace_Write(L"WARN", L"spark", L"hotplug.stale",
-                L"silence_ms=%llu", (unsigned long long)(nowMs - lastPacket));
+                L"silence_ms=%llu", (unsigned long long)silenceMs);
             SparkStop();
         }
         return;

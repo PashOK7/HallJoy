@@ -115,6 +115,7 @@ def main() -> int:
             ("uap_poll_pacing", [tests / "uap_poll_pacing_test.cpp"]),
             ("uap_snapshot_pinning", [tests / "uap_snapshot_pinning_test.cpp"]),
             ("windows_command_line", [tests / "windows_command_line_test.cpp"]),
+            ("sparklink_hotplug_age", [tests / "sparklink_hotplug_age_test.cpp"]),
             ("aula_win60he_oracle", [
                 tests / "aula_win60he_oracle_test.cpp",
                 hall / "aula_win60he_protocol.cpp",

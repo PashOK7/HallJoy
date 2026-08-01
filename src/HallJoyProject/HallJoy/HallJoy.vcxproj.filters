@@ -245,6 +245,9 @@
     <ClInclude Include="backend_sparklink.inc">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="sparklink_hotplug_age.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="backend_sayo.inc">
       <Filter>Header Files</Filter>
     </ClInclude>

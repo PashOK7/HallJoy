@@ -36,7 +36,7 @@ $output = Split-Path -Parent $ExePath
 $trace = Join-Path $output 'HallJoyStabilityTrace.log'
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if ([string]::IsNullOrWhiteSpace($EvidenceRoot)) {
-    $EvidenceRoot = Join-Path $output "release-qualification\$stamp"
+    $EvidenceRoot = Join-Path $root "build\evidence\release-qualification\$stamp"
 }
 $EvidenceRoot = [IO.Path]::GetFullPath($EvidenceRoot)
 New-Item -ItemType Directory -Path $EvidenceRoot -Force | Out-Null

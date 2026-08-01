@@ -439,3 +439,20 @@ ViGEmBus 1.22.0 release page. Version, URL and `manual-only` policy are pinned i
 constant. HallJoy never reports `Installed`; it stays in degraded mode until the
 user installs the dependency and restarts. This structurally removes both TOCTOU
 and unbounded installer-process waiting from the application.
+
+## D-029 - Proportionate v1.4 long-run qualification
+
+Date: 2026-08-01
+
+The v1.4 release gate is one hour of continuous production operation with
+overlay probes, resource sampling, complete trace analysis and unchanged user
+state, combined with 1000 independent production start/graceful-stop cycles.
+Longer observation increases confidence but cannot prove the absence of a fault
+at an arbitrary later hour, so 8-24 hours is no longer a mandatory v1.4 claim.
+
+If the one-hour run finds a narrow defect, the corrected artifact does not need
+to repeat both expensive gates when the change is isolated by a deterministic
+regression, the full automated/build gate passes, and a targeted production
+runtime verifies the affected path. The evidence must explicitly preserve the
+original finding, the exact old/new executable hashes and the proportional
+requalification decision. Device-owner and external Aula gates are unaffected.

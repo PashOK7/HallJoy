@@ -209,3 +209,17 @@ ID, не меняя hardware/soak ограничения V14-12.
 перезапуска. URL, версия и `manual-only` закреплены в dependency lock и
 production constant. Никакой timeout не используется как маскировка живого
 installer process — самого process launch в HallJoy больше нет.
+
+## D-S21-001 — пропорциональная long-run qualification v1.4
+
+Для v1.4 обязательна связка: один час непрерывного production run с overlay,
+resource samples, полным trace и неизменным state плюс 1000 независимых
+production start/`WM_CLOSE` циклов. 8–24 часа больше не являются обязательным
+утверждением: более долгий run повышает уверенность, но не доказывает отсутствие
+сбоя на произвольном следующем часу.
+
+Если часовой run находит узкий дефект, исправленный artifact не повторяет оба
+дорогих gate при одновременном выполнении условий: причина изолирована
+deterministic regression, полный automated/build gate PASS, затронутый путь
+проверен targeted production runtime, а old/new EXE hashes и исходное finding
+явно сохранены. Device-owner и external Aula gates этим решением не закрываются.

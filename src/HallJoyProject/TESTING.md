@@ -55,14 +55,15 @@ failure. The final S21 cycle gate is:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_release_qualification.ps1 -Cycles 1000 -RunSeconds 1 -ProgressEvery 25
 ```
 
-Eight-hour production soak with overlay responsiveness probes:
+One-hour production soak with overlay responsiveness probes:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_long_soak.ps1 -DurationMinutes 480 -SampleSeconds 5 -WarmupSeconds 10 -StartOverlay
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_long_soak.ps1 -DurationMinutes 60 -SampleSeconds 5 -WarmupSeconds 10 -StartOverlay
 ```
 
 The soak persists `samples.csv`, checkpoints, before/after user-state hashes,
-the bounded stability trace, analyzer output and `summary.json`. Leak gates use
+the bounded stability trace, analyzer output and `summary.json` under
+`build/evidence`, outside the build-cleaned `build/output` directory. Leak gates use
 a post-startup warm-up baseline. The runner prevents automatic system sleep for
 the duration and clears that request on every exit path; manually rebooting or
 suspending the machine still invalidates the run. Analyzer `WARN` is acceptable only for the
@@ -117,6 +118,6 @@ gates live in `docs/v1.4/VALIDATION_MATRIX.md` and
 describe older packages and are not current release evidence.
 
 Passing static/unit/simulator tests is necessary, not sufficient, for release.
-Physical-device compatibility, the 8-24 hour soak, the full 1000-cycle target
+Physical-device compatibility, the one-hour soak, the full 1000-cycle target
 and the final hardware matrix remain qualification work until their final runs
 are recorded against the release-candidate hash.

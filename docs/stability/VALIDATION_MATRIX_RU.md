@@ -142,3 +142,21 @@ Addressed и Sayo также требуют реального hardware gate д�
   HANDLE. Все 1000 trace hashes совпали. Spark 1 598 879 = 1 598 454 ok + 425
   одиночных shutdown-window cancellation. 1000-cycle gate Verified; long soak,
   manual Irok input/reconnect и external Aula остаются.
+- S21/V14-12K: часовой production soak завершён: 3 604,553 s, 703 resource
+  samples, overlay 12/12, shutdown 92 ms, процессов 0, 11 state files unchanged.
+  Полная трасса выявила две ложные SparkLink stale/reconnect из-за unsigned
+  timestamp underflow; корректная агрегация трёх worker generations —
+  14 138 221 queries, 14 138 219 ok, 2 fail, stale/reconnect 2/2.
+- Spark freshness age исправлен saturating helper'ом и покрыт boundary/
+  backward-time/high-bit portable и static tests. Soak runner агрегирует все
+  поколения, отклоняет невозможный stale age, по умолчанию работает один час и
+  сохраняет evidence вне очищаемого `build/output`.
+- 46 static audits, 28 portable C++20 tests и официальный x64 Release build
+  PASS. Исправленный `HallJoy.exe` SHA-256:
+  `81609DC44D12F7DF44C2A7D801D8992CBFDCB45221F07AE041ED4711F4EB840C`.
+  Двухминутный targeted production regression: overlay 2/2, Spark
+  464 905/464 905, одно worker generation, stale/reconnect 0/0, процессов 0,
+  state unchanged. Raw evidence: `build/evidence/S21-spark-age-fix-2m`.
+- По D-029 часовой soak и 1000-cycle gate не повторяются для этого узкого
+  детерминированного исправления. Внешняя Aula hardware validation остаётся
+  обязательной до release approval.

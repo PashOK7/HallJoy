@@ -173,7 +173,7 @@ builds.
 
 ## Latest qualification status
 
-V14-12I completed the final 1000/1000 ordinary production start/graceful-stop
-gate on the current `HallJoy.exe` hash. All traces and state manifests verified;
-the long soak, manual Irok input/reconnect exercise and external Aula hardware
-result remain release gates.
+V14-12I completed 1000/1000 ordinary production start/graceful-stop cycles.
+The one-hour V14-12K soak then found and isolated a SparkLink timestamp-underflow
+restart; the corrected artifact passed its deterministic/full-build/targeted
+runtime gates. Manual device-matrix items and external Aula hardware remain.

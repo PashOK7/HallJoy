@@ -1715,3 +1715,44 @@ constant before HallJoy launch; unsigned constants were moved into the C#
 WinAPI wrapper. The corrected one-minute pilot passed with
 `system_sleep_prevented=true`, 29 samples, HANDLE 209 -> 209, 240,624 successful
 Spark routes, zero non-ok routes, zero survivor and unchanged 11-file state.
+
+## 2026-08-01 - V14-12K / S21 one-hour finding and Spark age fix
+
+The agreed one-hour production soak completed after 3,604.553 seconds with 703
+resource samples, 12/12 responsive overlay probes, HANDLE 210 -> 211, private
+memory growth 180,224 bytes, 92 ms shutdown, zero surviving process and all 11
+user-state files unchanged. A deeper review of its complete trace found two
+abnormal SparkLink reconnects. Each was preceded by an impossible
+`hotplug.stale` age near `UINT64_MAX`, proving unsigned subtraction underflow
+when the main-thread tick timestamp was captured just before the worker
+published a newer packet timestamp.
+
+SparkLink freshness age now saturates to zero when the observed clock is older
+than the published packet timestamp. Exact boundary, backward-time and
+high-bit/maximum-value cases are covered by a portable C++ test and a static
+integration audit. The soak runner now aggregates every `worker.stats`
+generation instead of reporting only the last reconnect generation, rejects
+impossible stale ages, defaults to the agreed 60 minutes and stores evidence
+under `build/evidence`, outside the directory cleared by `BUILD.cmd`.
+
+Correct aggregation for the original hour is 14,138,221 queries, 14,138,219
+successful, two failed, 139,473 changed rows and 139,474 input notifications
+across three worker generations, with two stale/reconnect events. The current
+gate passed 46 static audits, 28 portable C++20 tests and the official x64
+Release build with zero errors, zero compiler warnings and only the allowlisted
+external LNK4099. The corrected 2,206,208-byte `HallJoy.exe` has SHA-256
+`81609DC44D12F7DF44C2A7D801D8992CBFDCB45221F07AE041ED4711F4EB840C`.
+
+A focused two-minute production regression on that exact EXE passed: 56
+samples, overlay 2/2, HANDLE 210 -> 211, private-memory growth -12,288 bytes,
+464,905/464,905 Spark routes in one worker generation, zero stale/reconnect,
+zero survivor and unchanged state. Per D-029, the already completed one-hour
+and 1000-cycle qualifications were not repeated for this narrow deterministic
+timestamp correction. The corrected raw evidence is retained in
+`build/evidence/S21-spark-age-fix-2m`. Raw evidence from the earlier hour and
+1000-cycle run had been stored below `build/output` and was subsequently
+removed by the documented clean-build behavior; their independently verified
+numeric results remain recorded here and in the validation matrix.
+
+Verified pre-change backup:
+`C:\github\HallJoy_v1.4_BACKUPS\V14-12K-S21-spark-age-prechange-20260801-204000`.

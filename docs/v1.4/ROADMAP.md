@@ -549,3 +549,25 @@ v1.4 can be tagged only when:
   cancellations.
 - The 1000-cycle gate is closed. Remaining S21 work is the long soak, manual
   Irok input/reconnect check, unavailable device matrix and external Aula result.
+
+### V14-12K / S21 one-hour soak finding and correction
+
+- The user-approved proportional gate is one hour continuous production plus
+  the already verified 1000 lifecycle cycles; 8-24 hours is not required.
+- The hour run completed 703 samples, 12/12 overlay probes, stable resources,
+  exit zero and unchanged state, but trace review correctly rejected a clean
+  qualification claim: two `hotplug.stale` ages underflowed to near `UINT64_MAX`
+  and caused two false SparkLink reconnects.
+- Root cause: `Backend_Tick` could observe `nowMs` just before the worker
+  published a newer `lastPacketMs`; unsigned subtraction treated the future
+  packet as enormous silence. Production now saturates that age to zero.
+- A pure C++ regression covers the exact high-bit shape. Current unified gate is
+  46 static audits + 28 portable tests; official build has zero unexpected
+  warnings. New `HallJoy.exe` SHA-256 is
+  `81609DC44D12F7DF44C2A7D801D8992CBFDCB45221F07AE041ED4711F4EB840C`.
+- Two-minute targeted production regression: 464,905/464,905 routes, one worker
+  generation, zero stale/reconnect, 2/2 overlay probes, stable resources, exit
+  zero and unchanged state. Per D-029, the hour/1000-cycle gates are not repeated.
+- Raw evidence now defaults to `build/evidence`, outside destructive
+  `build/output` cleanup. Earlier raw hour/1000 files were deleted by the next
+  official rebuild; their independently verified committed summaries remain.

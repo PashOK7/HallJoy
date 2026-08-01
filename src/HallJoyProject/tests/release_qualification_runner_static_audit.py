@@ -50,6 +50,9 @@ require("spark_route_queries" in runner and "spark_route_ok" in runner and
 require("checkpoint.json" in runner and "Write-QualificationCheckpoint" in runner and
         "Status 'failed'" in runner and "Status 'passed'" in runner,
         "machine-readable checkpoints survive progress, success, and failure")
+require('build\\evidence\\release-qualification' in runner and
+        '$output "release-qualification' not in runner,
+        "default cycle evidence survives official build/output cleanup")
 require("fault_injection = $false" in runner and "summary.json" in runner and
         "status = 'passed'" in runner,
         "machine-readable final evidence labels a successful normal-operation run")

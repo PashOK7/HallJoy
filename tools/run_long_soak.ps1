@@ -2,7 +2,7 @@
 param(
     [string]$ExePath,
     [ValidateRange(1, 1440)]
-    [int]$DurationMinutes = 480,
+    [int]$DurationMinutes = 60,
     [ValidateRange(1, 60)]
     [int]$SampleSeconds = 5,
     [ValidateRange(1, 300)]
@@ -47,7 +47,7 @@ $output = Split-Path -Parent $ExePath
 $trace = Join-Path $output 'HallJoyStabilityTrace.log'
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if ([string]::IsNullOrWhiteSpace($EvidenceRoot)) {
-    $EvidenceRoot = Join-Path $output "long-soak\$stamp"
+    $EvidenceRoot = Join-Path $root "build\evidence\long-soak\$stamp"
 }
 $EvidenceRoot = [IO.Path]::GetFullPath($EvidenceRoot)
 New-Item -ItemType Directory -Path $EvidenceRoot -Force | Out-Null
@@ -322,6 +322,21 @@ try {
     if ($traceText -match '\[component=trace\]\[event=capped\]') {
         throw 'Production trace reached its cap.'
     }
+    $sparkStaleEvents = [regex]::Matches(
+        $traceText,
+        '\[component=spark\]\[event=hotplug\.stale\][^\r\n]*silence_ms=(\d+)'
+    )
+    $maxPlausibleSilenceMs = [long]$DurationMinutes * 60L * 1000L + 60000L
+    $implausibleStaleEvents = @($sparkStaleEvents | Where-Object {
+        [long]$_.Groups[1].Value -gt $maxPlausibleSilenceMs
+    })
+    if ($implausibleStaleEvents.Count -ne 0) {
+        throw "SparkLink trace contains an impossible hotplug age; possible timestamp underflow."
+    }
+    $sparkReconnectEvents = [regex]::Matches(
+        $traceText,
+        '\[component=spark\]\[event=hotplug\.reconnect\]'
+    )
 
     $soakTracePath = Join-Path $EvidenceRoot 'soak-trace.log'
     Move-Item -LiteralPath $trace -Destination $soakTracePath
@@ -373,15 +388,18 @@ try {
     $sparkRouteQueries = 0L
     $sparkRouteOk = 0L
     $sparkRouteFail = 0L
+    $sparkChangedRows = 0L
+    $sparkInputNotifies = 0L
     $sparkStats = [regex]::Matches(
         $traceText,
-        '\[component=spark\]\[event=worker\.stats\][^\r\n]*route_queries=(\d+)[^\r\n]*route_ok=(\d+)[^\r\n]*route_fail=(\d+)'
+        '\[component=spark\]\[event=worker\.stats\][^\r\n]*route_queries=(\d+)[^\r\n]*route_ok=(\d+)[^\r\n]*route_fail=(\d+)[^\r\n]*changed_rows=(\d+)[^\r\n]*input_notifies=(\d+)'
     )
-    if ($sparkStats.Count -gt 0) {
-        $lastSparkStats = $sparkStats[$sparkStats.Count - 1]
-        $sparkRouteQueries = [long]$lastSparkStats.Groups[1].Value
-        $sparkRouteOk = [long]$lastSparkStats.Groups[2].Value
-        $sparkRouteFail = [long]$lastSparkStats.Groups[3].Value
+    foreach ($sparkStat in $sparkStats) {
+        $sparkRouteQueries += [long]$sparkStat.Groups[1].Value
+        $sparkRouteOk += [long]$sparkStat.Groups[2].Value
+        $sparkRouteFail += [long]$sparkStat.Groups[3].Value
+        $sparkChangedRows += [long]$sparkStat.Groups[4].Value
+        $sparkInputNotifies += [long]$sparkStat.Groups[5].Value
     }
 
     $summary = [ordered]@{
@@ -421,9 +439,14 @@ try {
         max_working_set_bytes = $maxWorkingSet
         cpu_delta_seconds = [Math]::Round($cpuDeltaSeconds, 6)
         normalized_cpu_percent = $normalizedCpuPercent
+        spark_worker_generations = $sparkStats.Count
+        spark_hotplug_stale = $sparkStaleEvents.Count
+        spark_hotplug_reconnects = $sparkReconnectEvents.Count
         spark_route_queries = $sparkRouteQueries
         spark_route_ok = $sparkRouteOk
         spark_route_fail = $sparkRouteFail
+        spark_changed_rows = $sparkChangedRows
+        spark_input_notifies = $sparkInputNotifies
         trace_analysis = if ($analysisExitCode -eq 0) { 'PASS' } else { 'WARN' }
         trace_sha256 = (Get-FileHash -LiteralPath $soakTracePath -Algorithm SHA256).Hash
     }

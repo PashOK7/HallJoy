@@ -490,3 +490,38 @@ Long-soak runner устанавливает thread-scoped Windows
 unsigned constants перенесены в C# WinAPI wrapper. Исправленный минутный pilot
 PASS: `system_sleep_prevented=true`, 29 samples, HANDLE 209 -> 209, Spark
 240 624/240 624, процессов 0, 11 state files unchanged.
+
+## 2026-08-01 — V14-12K / S21: результат часа и исправление Spark age
+
+Согласованный часовой production soak завершился за 3 604,553 секунды: 703
+сэмпла ресурсов, overlay 12/12, HANDLE 210 -> 211, рост private memory 180 224
+байта, shutdown 92 ms, процессов 0 и все 11 state files неизменны. Углублённая
+проверка полной трассы обнаружила две нештатные перезагрузки SparkLink. Перед
+каждой был невозможный `hotplug.stale` age около `UINT64_MAX`: main-thread tick
+мог получить timestamp непосредственно перед публикацией чуть более нового
+packet timestamp worker'ом, а беззнаковое вычитание уходило в underflow.
+
+Расчёт freshness age теперь насыщается нулём, если наблюдаемый timestamp меньше
+опубликованного. Границы, обратный ход времени и high-bit/max случаи покрыты
+portable C++ test и static integration audit. Soak runner теперь суммирует все
+поколения `worker.stats`, отклоняет невозможный stale age, по умолчанию работает
+60 минут и хранит evidence в `build/evidence`, который не очищается `BUILD.cmd`.
+
+Правильная агрегация исходного часа: 14 138 221 queries, 14 138 219 ok, два
+fail, 139 473 changed rows и 139 474 input notifications в трёх поколениях;
+stale/reconnect — 2/2. Исправление прошло 46 static audits, 28 portable C++20
+tests и официальный x64 Release build: 0 errors, 0 compiler warnings, только
+разрешённый внешний LNK4099. Итоговый `HallJoy.exe` размером 2 206 208 байт:
+SHA-256 `81609DC44D12F7DF44C2A7D801D8992CBFDCB45221F07AE041ED4711F4EB840C`.
+
+На этом exact EXE двухминутный production regression PASS: 56 сэмплов, overlay
+2/2, HANDLE 210 -> 211, private memory -12 288 байт, Spark 464 905/464 905 в
+одном поколении, stale/reconnect 0/0, процессов 0, state неизменен. По D-029
+час и 1000 циклов повторно не запускались для узкого детерминированного
+исправления timestamp. Новое raw evidence сохранено в
+`build/evidence/S21-spark-age-fix-2m`. Raw evidence исходного часа и 1000 циклов
+ранее находилось в очищаемом `build/output` и было удалено последующей штатной
+сборкой; независимо проверенные численные результаты сохранены в документации.
+
+Проверенный pre-change backup:
+`C:\github\HallJoy_v1.4_BACKUPS\V14-12K-S21-spark-age-prechange-20260801-204000`.

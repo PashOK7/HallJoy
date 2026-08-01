@@ -1593,3 +1593,36 @@ Artifact: `build/output/HallJoy.exe`, 2,206,208 bytes, SHA-256
 Status: 1000-cycle gate Verified.
 Remaining: 8-24-hour soak, manual Irok input/reconnect, unavailable device-owner
 matrix and external Aula hardware validation.
+
+## V14-12K / S21 one-hour soak and Spark freshness correction
+
+Qualification policy: D-029 accepts one hour continuous production plus the
+verified 1000-cycle gate. The one-hour artifact was SHA-256
+`6A2E82709F6FC6B652ECAEA657BA4FBD1544B0832934865779D9FF7F0306D97F`.
+
+- Runtime envelope PASS: 3604.553 s, 703 samples, 12/12 overlay probes (max
+  observed HTTP latency 0.6 ms), HANDLE 210 -> 211, private growth 180,224 bytes,
+  shutdown 92 ms, processes 0, 11-file state identical.
+- Trace review FINDING: three Spark worker generations, two impossible
+  `silence_ms` values near `UINT64_MAX`, two false stale/reconnect cycles.
+  Correct aggregate was 14,138,221 queries, 14,138,219 ok, two restart-window
+  cancellations, 139,473 changed rows and 139,474 input notifications.
+- The original runner summary reported only the final worker generation; it now
+  aggregates all generations and rejects impossible freshness ages.
+- Fix: `FreshnessAgeMs(now,last)` returns zero when `now < last`; deterministic
+  test covers the exact observed arithmetic and the strict 1800 ms boundary.
+- Full gate: 46 static audits and 28 portable C++ tests PASS. Official Release
+  x64 build: 0 errors, 0 compiler warnings, allowlisted external LNK4099 only.
+- Corrected artifact: 2,206,208 bytes, SHA-256
+  `81609DC44D12F7DF44C2A7D801D8992CBFDCB45221F07AE041ED4711F4EB840C`.
+- Targeted runtime: 120.666 s, 56 samples, 2/2 overlay probes, HANDLE 210 -> 211,
+  private growth -12,288 bytes, 464,905/464,905 routes, one generation, zero
+  stale/reconnect, zero ERROR/survivor/state change.
+
+Evidence-retention note: the next official build removed earlier raw evidence
+stored under `build/output`. Their committed, independently verified summaries
+remain; current and future raw bundles use `build/evidence`. The corrected raw
+bundle is `build/evidence/S21-spark-age-fix-2m`.
+
+Status: Spark freshness fix and proportional requalification Verified.
+Remaining: manual device-matrix coverage and external Aula hardware result.

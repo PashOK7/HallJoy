@@ -56,3 +56,9 @@
 - V14-12I: финальный normal-operation gate 1000/1000 PASS на текущем
   `HallJoy.exe`; 1000 trace hashes и неизменность 11 user-state файлов
   перепроверены. Остались long soak, ручной Irok input/reconnect и внешняя Aula.
+- V14-12K: часовой soak завершён и выявил две ложные SparkLink stale/reconnect
+  из-за unsigned timestamp underflow. Причина исправлена saturating age helper'ом;
+  46 static audits, 28 portable tests, официальный build и targeted production
+  regression PASS. Новый EXE имеет SHA-256
+  `81609DC44D12F7DF44C2A7D801D8992CBFDCB45221F07AE041ED4711F4EB840C`;
+  до релиза остаётся внешняя проверка Aula и незакрытая ручная device matrix.

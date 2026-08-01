@@ -379,6 +379,13 @@ Identity состоит из VID/PID/usage/manufacturer/name, а различе�
 
 **Исправление:** immutable per-device snapshot через atomic shared pointer/seqlock; под global lock копировать только ref-counted список устройств.
 
+**Статус V14-11C:** `Verified`. Registry теперь хранит `shared_ptr<Device>`;
+общий mutex удерживается только при копировании не более восьми owner pins.
+Telemetry, ожидание `snapshot_mtx` и копирование 256 значений выполняются после
+освобождения registry. Детерминированный blocked-reader/removal test, 100 000
+lifetime cycles, coherent-copy stress, GCC/MSVC, ASan+UBSan, ABI и production
+build прошли. Физическая UAP latency этим не измерялась.
+
 ## HJ-AUD-P2-011. Сохранение `settings.ini` может заменить хороший файл неполным temp
 
 **Доказательства:**

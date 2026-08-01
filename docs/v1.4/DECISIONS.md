@@ -327,3 +327,23 @@ mathematically; high-volume collision smoke and versioned golden vectors are
 the practical regression gate. A serial-less device moved to another port is
 defined to follow the new HID interface path because no software-only test can
 recover unknowable physical identity.
+
+## D-023 - Snapshot readers pin owners before leaving the device registry
+
+Date: 2026-08-01
+
+The private UAP device registry owns each `Device` through `shared_ptr`. A
+snapshot or telemetry export may hold `devices_mtx` only while copying a
+bounded, fixed-capacity list of owner pins. It must release that mutex before
+waiting for `snapshot_mtx`, reading telemetry or copying the 256-value dense
+body. Export-time pin capture performs no device-object allocation.
+
+Removal keeps a pin while invoking the disconnected callback outside the
+registry mutex. Bounded unload similarly pins every worker before cancellation
+and join. Erasing a registry entry therefore cannot invalidate an export,
+callback or unload operation already using that device, and a slow snapshot
+reader cannot delay registry removal by retaining the global lock.
+
+Automated tests may prove lock ordering, coherent copies and object lifetime.
+Without a UAP-routed keyboard they do not establish a physical latency or USB
+throughput number; D-022's evidence boundary still applies.

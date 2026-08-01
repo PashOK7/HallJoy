@@ -86,7 +86,7 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P2-007` | P2 | UAP device identity нестабильна для двух одинаковых устройств | `S17` | Verified | path-based production identity passed 40,320 permutations, 100,000 reconnect generations, 250,000-path collision smoke, fallbacks, golden vectors and three toolchains |
 | `HJ-AUD-P2-008` | P2 | `is_initialised()` plugin всегда возвращает `true` | `S10` | Verified | runtime ABI gate proves false before init, true after init and false after bounded unload |
 | `HJ-AUD-P2-009` | P2 | `_device_info` не проверяет `buffer == nullptr` | `S10` | Verified | runtime ABI gate proves null device-info and full-buffer arguments return zero without a fault |
-| `HJ-AUD-P2-010` | P2 | Snapshot export удерживает глобальный devices mutex при копировании всех значений | `S17` | Open | CPU/USB/identity/contention measurements |
+| `HJ-AUD-P2-010` | P2 | Snapshot export удерживает глобальный devices mutex при копировании всех значений | `S17` | Verified | V14-11C bounded owner pins, blocked-reader removal, lifetime/coherence stress and sanitizer/build/ABI gates passed |
 | `HJ-AUD-P2-011` | P2 | Сохранение `settings.ini` может заменить хороший файл неполным temp | `S13` | Verified | unique same-directory temp, checked flush/readback/replace and five injected failure stages preserve the known-good hash |
 | `HJ-AUD-P2-012` | P2 | Overlay settings сохраняются напрямую и всегда сообщают успех | `S13` | Verified | overlay copies the base into a transaction, checks every write/readback and reports exact failure stage |
 | `HJ-AUD-P2-013` | P2 | Profile stream не проверяется после flush/close | `S13` | Verified | stream flush/good/close state, schema readback and all-stage bindings fault probe passed |
@@ -143,6 +143,25 @@ MSVC 19.44 and Clang 21 ASan+UBSan pass. A 64-bit ABI can never offer a
 mathematical no-collision proof; the test guards practical regressions. A
 serial-less keyboard moved to a different USB port intentionally follows the
 new interface path because software cannot infer physical sameness.
+
+### Evidence for HJ-AUD-P2-010
+
+V14-11C changes the device registry from exclusive pointers to ref-counted
+owners. The exact production helper locks `devices_mtx` only while copying at
+most eight `shared_ptr` values into a fixed array. Telemetry collection,
+per-device snapshot locking and all 256-value copies happen after the helper
+returns and the registry lock has been released. Hotplug removal pins the
+callback owner, and unload pins its worker set before cancel/join outside the
+registry lock.
+
+The portable test removes the sole registry entry while its pinned reader is
+deliberately blocked on the device snapshot mutex, proves destruction is
+deferred until the reader releases its pin, executes 100,000 exact-destruction
+cycles and validates at least 50,000 coherent 256-value reads during concurrent
+publication. GCC 15, MSVC 19.44 `/W4 /WX`, Clang 21 ASan+UBSan, 37 static
+audits, 21 portable tests, the official build, ABI1 v12 load/unload and native
+Irok regression pass. These are code-level contention/lifetime proofs under
+D-022; they do not measure physical UAP latency.
 
 ## Evidence package S01
 
@@ -304,9 +323,9 @@ production build и шестисекундный Irok MG75 Max smoke прошл�
 ## Сводка
 
 - P1: 4 open, 1 implemented, 1 partial, 10 verified.
-- P2: 4 open, 17 verified.
+- P2: 1 open, 20 verified.
 - P3: 6 open, 2 verified.
-- Всего: 14 open, 1 implemented, 1 partial, 29 verified.
+- Всего: 11 open, 1 implemented, 1 partial, 32 verified.
 
 ## Дополнительный риск, обнаруженный при Windows gate S02A
 

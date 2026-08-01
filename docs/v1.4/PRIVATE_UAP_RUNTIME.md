@@ -57,11 +57,18 @@ V14-07C protects the private plugin itself. Throwing C exports enter a common
 catch-all barrier, publish a fixed transport fault and poison restart. Soup
 mutexes use scope-bound guards, state queries reflect the active generation,
 and pointer/length exports reject invalid input before access. Plugin unload
-uses one deadline, snapshots device worker pointers under the devices mutex,
-then cancels and joins them after releasing that mutex. The child host prefers
+uses one deadline, snapshots ref-counted device worker owners under the devices
+mutex, then cancels and joins them after releasing that mutex. The child host prefers
 the optional `halljoy_unload_bounded` export; an incomplete join deliberately
 ends the disposable child without unloading its DLL or destroying CRT state
 beneath a live worker.
+
+V14-11C applies the same pinned-owner rule to dense snapshot and telemetry
+exports. A fixed-capacity helper copies at most eight `shared_ptr<Device>`
+owners under `devices_mtx`; per-device telemetry access, `snapshot_mtx` waits
+and 256-value copies occur only after the helper has released the registry.
+Hotplug callback/removal also retains a pin, so concurrent registry erasure
+cannot destroy an object still used by an export or callback.
 
 ## Verification
 

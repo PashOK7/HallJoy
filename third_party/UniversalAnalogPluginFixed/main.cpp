@@ -7,7 +7,6 @@
 #include <soup/os.hpp>
 #include <soup/RecursiveMutex.hpp>
 #include <soup/Thread.hpp>
-#include <soup/UniquePtr.hpp>
 
 #include <algorithm>
 #include <array>
@@ -21,6 +20,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cctype>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
@@ -32,6 +32,7 @@
 #include "halljoy_dense_snapshot.h"
 #include "halljoy_uap_cabi_guard.h"
 #include "halljoy_uap_device_identity.h"
+#include "halljoy_uap_pinned_owners.h"
 #include "halljoy_uap_poll_pacing.h"
 
 #define LOGGING false
@@ -284,7 +285,7 @@ SOUP_CEXPORT const uint32_t ANALOG_SDK_PLUGIN_ABI_VERSION = ABI_VERSION_TARGET;
 
 SOUP_CEXPORT const char* _name() noexcept
 {
-	return "Universal Analog Plugin (HallJoy SafeHID v11 stable-identity deadline-paced telemetry)";
+	return "Universal Analog Plugin (HallJoy SafeHID v12 pinned-snapshot stable-identity deadline-paced telemetry)";
 }
 
 SOUP_CEXPORT bool is_initialised() noexcept
@@ -632,7 +633,7 @@ struct Device
 
 static soup::RecursiveMutex devices_mtx{};
 static soup::RecursiveMutex full_buffer_mtx{};
-static std::vector<soup::UniquePtr<Device>> devices{};
+static std::vector<std::shared_ptr<Device>> devices{};
 
 SOUP_CEXPORT int _device_info(DeviceInfo* buffer[], uint32_t len) noexcept
 {
@@ -658,11 +659,11 @@ SOUP_CEXPORT uint32_t halljoy_get_device_telemetry(
 		return 0;
 	}
 	return halljoy::uap::CAbiInvoke<uint32_t>(0, [&]() {
-		halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
-		const uint32_t count = static_cast<uint32_t>(std::min<size_t>(
-			std::min<uint32_t>(len, HallJoyPluginTelemetry::kMaxDevices), devices.size()));
+		const auto pinned_devices = halljoy::uap::PinOwners<HallJoyPluginTelemetry::kMaxDevices>(
+			devices_mtx, devices, len);
+		const uint32_t count = static_cast<uint32_t>(pinned_devices.count);
 		for (uint32_t i = 0; i < count; ++i)
-			devices[i]->get_telemetry(buffer[i]);
+			pinned_devices.owners[i]->get_telemetry(buffer[i]);
 		return count;
 	}, []() noexcept { halljoy_mark_plugin_fault(0xE0470003u); });
 }
@@ -679,12 +680,12 @@ SOUP_CEXPORT uint32_t halljoy_get_dense_snapshots(
 		return 0;
 	}
 	return halljoy::uap::CAbiInvoke<uint32_t>(0, [&]() {
-		halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
-		const uint32_t count = static_cast<uint32_t>(std::min<size_t>(
-			std::min<uint32_t>(len, HallJoyDenseSnapshot::kMaxDevices), devices.size()));
+		const auto pinned_devices = halljoy::uap::PinOwners<HallJoyDenseSnapshot::kMaxDevices>(
+			devices_mtx, devices, len);
+		const uint32_t count = static_cast<uint32_t>(pinned_devices.count);
 		for (uint32_t i = 0; i < count; ++i)
 		{
-			const auto& dev = devices[i];
+			const auto& dev = pinned_devices.owners[i];
 			auto& out = buffer[i];
 			out = HallJoyDenseSnapshot::DeviceV1{};
 			out.structSize = sizeof(HallJoyDenseSnapshot::DeviceV1);
@@ -812,20 +813,20 @@ static void remove_stopped_devices()
 {
 	for (;;)
 	{
-		Device* stopped = nullptr;
+		std::shared_ptr<Device> stopped;
 		{
 			halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
 			for (const auto& dev : devices)
 			{
 				if (!dev->thrd.isRunning())
 				{
-					stopped = dev.get();
+					stopped = dev;
 					break;
 				}
 			}
 		}
 
-		if (stopped == nullptr)
+		if (!stopped)
 		{
 			break;
 		}
@@ -838,7 +839,7 @@ static void remove_stopped_devices()
 			halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
 			for (auto it = devices.begin(); it != devices.end(); ++it)
 			{
-				if (it->get() == stopped)
+				if (it->get() == stopped.get())
 				{
 					devices.erase(it);
 					break;
@@ -901,14 +902,14 @@ static void discover_devices(bool initial)
 #if LOGGING
 		std::cout << "New device: " << kbd.name << std::endl;
 #endif
-		auto upDev = soup::make_unique<Device>(
+		auto owner = std::make_shared<Device>(
 			std::move(kbd), identity, std::move(manufacturer_name));
-		Device* raw = upDev.get();
+		Device* raw = owner.get();
 
 		// Publish the object before starting its thread or announcing it to the SDK.
 		{
 			halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
-			devices.emplace_back(std::move(upDev));
+			devices.emplace_back(std::move(owner));
 		}
 
 		if (!raw->synchronous_poll)
@@ -1167,19 +1168,17 @@ static bool halljoy_unload_impl(uint32_t timeout_ms)
 	event_handler.store(nullptr, std::memory_order_release);
 	event_handler_data.store(nullptr, std::memory_order_release);
 
-	std::vector<Device*> workers;
+	std::vector<std::shared_ptr<Device>> workers;
 	{
 		halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
-		workers.reserve(devices.size());
-		for (const auto& dev : devices)
-			workers.emplace_back(dev.get());
+		workers.assign(devices.begin(), devices.end());
 	}
-	for (Device* dev : workers)
+	for (const auto& dev : workers)
 	{
 		if (!dev->synchronous_poll)
 			dev->kbd.hid.cancelReceiveReport();
 	}
-	for (Device* dev : workers)
+	for (const auto& dev : workers)
 	{
 		if (!dev->synchronous_poll && !halljoy_wait_thread_until(dev->thrd, deadline))
 		{

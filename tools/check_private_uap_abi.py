@@ -30,7 +30,7 @@ def main() -> int:
     plugin_name_export.argtypes = []
     plugin_name_export.restype = ctypes.c_char_p
     plugin_name = plugin_name_export().decode("utf-8", errors="strict")
-    if "stable-identity deadline-paced telemetry" not in plugin_name:
+    if "pinned-snapshot stable-identity deadline-paced telemetry" not in plugin_name:
         raise RuntimeError(f"unexpected private UAP build identity: {plugin_name!r}")
 
     api.is_initialised.argtypes = []

@@ -109,6 +109,7 @@ def main() -> int:
             ("uap_cabi_guard", [tests / "uap_cabi_guard_test.cpp"]),
             ("uap_device_identity", [tests / "uap_device_identity_test.cpp"]),
             ("uap_poll_pacing", [tests / "uap_poll_pacing_test.cpp"]),
+            ("uap_snapshot_pinning", [tests / "uap_snapshot_pinning_test.cpp"]),
             ("windows_command_line", [tests / "windows_command_line_test.cpp"]),
         ]
         for name, sources in fixed_tests:

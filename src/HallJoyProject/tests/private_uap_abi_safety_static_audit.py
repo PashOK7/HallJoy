@@ -39,12 +39,14 @@ require(uap.count("!is_initialised()") >= 5,
 require("SOUP_CEXPORT bool halljoy_unload_bounded" in uap and
         "WaitForSingleObject(thread.handle, wait_ms)" in uap,
         "private unload has a bounded worker join")
-workers_pos = uap.index("std::vector<Device*> workers")
+workers_pos = uap.index("std::vector<std::shared_ptr<Device>> workers")
+pin_pos = uap.index("workers.assign(devices.begin(), devices.end())", workers_pos)
 wait_pos = uap.index("halljoy_wait_thread_until(dev->thrd", workers_pos)
 final_lock_pos = uap.index(
     "LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);", wait_pos)
-require(workers_pos < wait_pos < final_lock_pos < uap.index("devices.clear()", final_lock_pos),
-        "device workers are cancelled and joined outside the global devices mutex")
+require(workers_pos < pin_pos < wait_pos < final_lock_pos <
+        uap.index("devices.clear()", final_lock_pos),
+        "pinned device workers are cancelled and joined outside the global devices mutex")
 require(uap.count("catch (...)") >= 2 and "halljoy_mark_plugin_fault" in uap,
         "UAP worker entries contain exceptions and publish poison")
 require("halljoy_unload_bounded" in host and "UnloadHostPlugin" in host,

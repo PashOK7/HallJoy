@@ -1258,3 +1258,59 @@
   physically swapped. Finite tests also cannot mathematically disprove every
   64-bit collision.
 - V14-11 remains In progress. Next is V14-11C snapshot export contention.
+
+## 2026-08-01 - V14-11C pinned UAP snapshot ownership
+
+### Implementation
+
+- Replaced the private UAP device registry's exclusive pointers with
+  `shared_ptr<Device>` owners. Device construction, stopped-device callbacks
+  and bounded unload now retain explicit lifetime pins whenever they operate
+  outside `devices_mtx`.
+- Added one fixed-capacity production helper that copies at most eight owner
+  pins under the registry mutex. Dense snapshot and telemetry exports release
+  that mutex before waiting for a device snapshot lock, collecting telemetry
+  or copying all 256 key values.
+- Updated the private plugin identity to `SafeHID v12 pinned-snapshot
+  stable-identity deadline-paced telemetry` and made the ABI runtime gate
+  require that exact generation.
+- Added a build-required static audit and portable concurrency/lifetime test.
+  Historical unload and identity audits were advanced to recognize and enforce
+  the stronger ref-counted ownership contract.
+
+### Validation
+
+- Deterministic blocked-reader case: a sole registry entry was erased while its
+  pinned reader waited on `snapshot_mtx`; registry removal completed, the object
+  remained alive, and destruction occurred exactly once after reader release.
+- 100,000 pin/erase lifetime cycles and at least 50,000 concurrent coherent
+  256-value reads PASS.
+- GCC 15.2 warning-clean, MSVC 19.44 `/W4 /WX`, and Clang 21.1.8
+  ASan+UBSan: PASS with zero sanitizer reports.
+- Complete gate: 37/37 static audits and 21/21 portable C++ tests PASS.
+- Official x64 production build: PASS, 0 errors, only allowlisted `LNK4099`.
+- ABI1 loaded exact SafeHID v12 and passed init/null/state/bounded unload with
+  zero UAP devices present.
+- Production overlay suite PASS; maximum parallel state latency 2.1 ms.
+- Irok MG75 Max native regression: 45,872/45,872 queries, zero failures, 1,552
+  changed rows and input notifications, 267 us average and 979 us maximum route
+  interval, balanced exit 0.
+- All 11 LocalAppData files were unchanged; no process or transaction temp
+  remained.
+- `HallJoy.exe`: 2,235,904 bytes,
+  SHA-256 `2C7D5F923D6C989C2B6354EF4114B3AB8F124D1FFA42AC50B10C87FB3DD552A6`.
+- ABI0/ABI1 DLL hashes:
+  `4870CBD4A2F49C7E16D29765CF480956555AD6C92126D8DF15D31F385E3A4047` /
+  `8CC08C5268F0EE7CB1B3DD78A48FA99E89E5C31D49B40B886B393BE51D7B4FA1`.
+- Production trace SHA-256:
+  `1BB4ED75AF624307C2FC36B078137EE802AA731FD8EDA25725EF756963840870`.
+- Source backup (18 files after adding the two historical audit guards):
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-11C-prechange-20260801-1408`.
+
+### Package result
+
+- By D-022 and D-023, `HJ-AUD-P2-010` is `Verified`: exact production lock
+  scope, owner lifetime, coherent snapshot and complete integration gates pass.
+  This does not claim a physical UAP device latency or USB throughput result.
+- V14-11 remains In progress. Next is V14-11D bounding the remaining UAP
+  modularization/performance scope.

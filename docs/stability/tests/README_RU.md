@@ -34,3 +34,10 @@ Baseline-лог исходной версии хранится отдельно 
 - `S02B3_SANITIZERS_2026-07-30.txt` — ASan/UBSan portable suite S02B.3.
 - `S02B3_HOT_PATH_COMPARISON_2026-07-30.txt` — token-level сравнение Addressed polling/reader/packet hot path.
 - `S02B3_PACKAGE_VERIFICATION_2026-07-30.txt` — manifest/clean-unpack/final gate архива.
+
+## V14-11
+
+- `V14-11A_UAP_POLL_PACING_2026-08-01.txt` — deadline pacing и failure backoff.
+- `V14-11B_UAP_DEVICE_IDENTITY_2026-08-01.txt` — стабильная identity одинаковых устройств.
+- `V14-11C_UAP_SNAPSHOT_PINNING_2026-08-01.txt` — bounded registry pins,
+  blocked-reader removal, lifetime/coherence stress, ABI/build/runtime evidence.

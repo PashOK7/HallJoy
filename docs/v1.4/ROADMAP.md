@@ -413,11 +413,16 @@ identity, modularization and measured performance.
   1,024 fallback occurrences, normalization cases and persisted-ID golden
   vectors pass GCC, MSVC and Clang ASan+UBSan. This proves enumeration stability,
   not physical identity after moving a serial-less keyboard to another port.
-- `V14-11C` is next: shorten global snapshot mutex ownership and measure export
-  contention.
-- Remaining V14-11 modularization/performance work will be bounded after the
-  snapshot changes, without presenting automated evidence as a physical USB
-  measurement.
+- `V14-11C` snapshot export contention: Verified by automated gates. The device
+  registry now owns `shared_ptr` objects, and both telemetry and dense exports
+  copy at most eight owner pins under the global mutex before any per-device
+  lock or 256-value copy. Hotplug removal and bounded unload retain matching
+  pins outside the registry lock. A deterministic blocked-reader/removal test,
+  100,000 lifetime cycles, 50,000 coherent copies, GCC/MSVC, ASan+UBSan, ABI,
+  official build and native Irok regression pass. No physical UAP latency claim
+  is inferred.
+- `V14-11D` is next: bound the remaining UAP modularization/performance work
+  without presenting automated evidence as a physical USB measurement.
 
 ## Release definition
 

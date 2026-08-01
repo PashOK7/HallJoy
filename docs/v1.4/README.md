@@ -25,9 +25,11 @@ version or release status.
   transports; no physical UAP performance claim is made
 - Verified by automated gates: `V14-11B` stable identity for identical UAP
   devices across enumeration reorder and reconnect generations
+- Verified by automated gates: `V14-11C` bounded device-owner capture; snapshot
+  and telemetry exports no longer wait on per-device locks under the registry
 - Current package: `V14-11` UAP pacing, identity, modularization and measured
   performance, In progress
-- Next work: `V14-11C` snapshot export contention
+- Next work: `V14-11D` bound the remaining UAP modularization/performance scope
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -85,6 +87,12 @@ their own IDs regardless of enumeration order. The exact production function
 passes all 40,320 permutations of eight devices, 100,000 reconnect generations,
 250,000 synthetic paths without a collision, 1,024 pathless fallbacks and
 persisted-ID golden vectors under the same three compiler/toolchain gates.
+V14-11C replaces exclusive registry ownership with pinned `shared_ptr` owners.
+Both snapshot exports copy at most eight owners under `devices_mtx`, release it,
+and only then lock each device and copy telemetry or 256 values. Deterministic
+blocked-reader removal, 100,000 lifetime cycles, 50,000 coherent snapshot
+reads, three toolchains, sanitizers, the ABI gate, full build and Irok
+regression pass. This proves lock/lifetime behavior, not physical UAP latency.
 
 ## Authoritative documents
 

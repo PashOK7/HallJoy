@@ -37,7 +37,7 @@
 | `HJ-AUD-P2-007` | P2 | UAP device identity нестабильна для двух одинаковых устройств | `S17` | Verified | V14-11B path identity passed exhaustive reorder/reconnect stress, golden vectors, GCC/MSVC and ASan+UBSan |
 | `HJ-AUD-P2-008` | P2 | `is_initialised()` plugin всегда возвращает `true` | `S10` | Open | C ABI exception/null/unload tests |
 | `HJ-AUD-P2-009` | P2 | `_device_info` не проверяет `buffer == nullptr` | `S10` | Open | C ABI exception/null/unload tests |
-| `HJ-AUD-P2-010` | P2 | Snapshot export удерживает глобальный devices mutex при копировании всех значений | `S17` | Open | CPU/USB/identity/contention measurements |
+| `HJ-AUD-P2-010` | P2 | Snapshot export удерживает глобальный devices mutex при копировании всех значений | `S17` | Verified | V14-11C bounded owner pins, blocked-reader removal, lifetime/coherence stress and sanitizer/build/ABI gates passed |
 | `HJ-AUD-P2-011` | P2 | Сохранение `settings.ini` может заменить хороший файл неполным temp | `S13` | Open | fault-injected transactional save tests |
 | `HJ-AUD-P2-012` | P2 | Overlay settings сохраняются напрямую и всегда сообщают успех | `S13` | Open | fault-injected transactional save tests |
 | `HJ-AUD-P2-013` | P2 | Profile stream не проверяется после flush/close | `S13` | Open | fault-injected transactional save tests |

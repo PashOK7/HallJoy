@@ -38,7 +38,7 @@ def main() -> int:
 
     require('#include "halljoy_uap_device_identity.h"' in main_cpp,
             "production plugin includes the tested identity implementation")
-    require("SafeHID v11 stable-identity deadline-paced telemetry" in main_cpp,
+    require("SafeHID v12 pinned-snapshot stable-identity deadline-paced telemetry" in main_cpp,
             "plugin build identity exposes the stable-ID generation")
     require("kbd.hid.path" in main_cpp and "MakeDeviceIdentity(identity_input, occurrence)" in main_cpp,
             "discovery assigns IDs from the actual Soup HID path")

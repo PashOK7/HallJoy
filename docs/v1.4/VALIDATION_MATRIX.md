@@ -1150,3 +1150,62 @@ Evidence:
   docs/stability/tests/V14-11B_UAP_DEVICE_IDENTITY_2026-08-01.txt
 Rollback: parent commit of the V14-11B implementation commit
 ```
+
+## V14-11C evidence
+
+```text
+Package: V14-11C
+Scope: bounded UAP registry ownership and snapshot/telemetry lock separation
+Commands:
+  python src/HallJoyProject/tests/uap_snapshot_pinning_static_audit.py
+  python tools/run_native_backend_checks.py --require-compiler
+  g++ -std=c++20 -O2 -Wall -Wextra -pedantic
+    src/HallJoyProject/tests/uap_snapshot_pinning_test.cpp
+  cl.exe /std:c++20 /EHsc /W4 /WX
+    src/HallJoyProject/tests/uap_snapshot_pinning_test.cpp
+  clang++ -std=c++20 -O1 -g -Wall -Wextra -Wpedantic -Werror
+    -fsanitize=address,undefined -fno-omit-frame-pointer
+    src/HallJoyProject/tests/uap_snapshot_pinning_test.cpp
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  python tools/check_private_uap_abi.py
+    third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -StartOverlay
+    -OverlayPort 18765 -RunSeconds 10
+Results:
+  UAP snapshot pinning static audit: PASS
+  Static audits: 37/37 PASS
+  Portable C++20 tests: 21/21 PASS
+  Blocked snapshot reader plus concurrent registry removal: PASS
+  Owner remained alive after erase and was destroyed exactly once: PASS
+  Lifetime pin/erase cycles: 100,000/100,000 PASS
+  Concurrent coherent 256-value reads: 50,000 minimum PASS
+  GCC 15.2 warning-clean: PASS
+  MSVC 19.44 /W4 /WX: PASS
+  Clang 21.1.8 ASan+UBSan: PASS, zero reports
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  ABI1 load/init/name/null/bounded-unload: PASS, SafeHID v12 pinned snapshot
+  Production overlay suite: PASS, maximum parallel latency 2.1 ms
+  Production Irok route: 45,872/45,872 queries, zero failures,
+    1,552 changed rows and realtime notifications, 267 us average and
+    979 us maximum route interval, balanced shutdown and exit 0
+  Runtime user state: 11 files, zero differences; no process or temp remained
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,235,904 bytes
+  SHA-256: 2C7D5F923D6C989C2B6354EF4114B3AB8F124D1FFA42AC50B10C87FB3DD552A6
+  ABI0 DLL: 414,208 bytes,
+    SHA-256 4870CBD4A2F49C7E16D29765CF480956555AD6C92126D8DF15D31F385E3A4047
+  ABI1 DLL: 286,720 bytes,
+    SHA-256 8CC08C5268F0EE7CB1B3DD78A48FA99E89E5C31D49B40B886B393BE51D7B4FA1
+  Production trace SHA-256:
+    1BB4ED75AF624307C2FC36B078137EE802AA731FD8EDA25725EF756963840870
+Limit: software proves registry lock scope, object lifetime and coherent copies;
+  no physical UAP device latency/USB throughput claim is made
+Remote CI: NOT RUN; optional, no push permitted
+Status: HJ-AUD-P2-010 Verified by D-022/D-023 automated production-code gates
+Next: V14-11D bound remaining UAP modularization/performance scope
+Evidence:
+  docs/stability/tests/V14-11C_UAP_SNAPSHOT_PINNING_2026-08-01.txt
+Rollback: parent commit of the V14-11C implementation commit
+```

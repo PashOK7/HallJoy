@@ -1,0 +1,91 @@
+HallJoy V14-11C UAP snapshot pinning evidence
+Date: 2026-08-01
+
+Scope
+-----
+Bound the private UAP global device-registry lock to owner capture. Dense
+snapshot and telemetry exports must not retain devices_mtx while waiting on a
+per-device snapshot mutex or copying 256 values. Concurrent erase/unload must
+not invalidate an in-flight reader.
+
+Implementation
+--------------
+- devices is vector<shared_ptr<Device>>.
+- The exact production PinOwners helper copies at most eight owners into a
+  fixed array under devices_mtx and releases the mutex on return.
+- halljoy_get_device_telemetry and halljoy_get_dense_snapshots perform all
+  per-device access after owner capture.
+- remove_stopped_devices pins the disconnected callback owner.
+- bounded unload pins its complete worker set before cancel/join outside the
+  registry lock.
+- Private plugin identity:
+  Universal Analog Plugin (HallJoy SafeHID v12 pinned-snapshot
+  stable-identity deadline-paced telemetry)
+
+Portable and static gates
+-------------------------
+UAP_SNAPSHOT_PINNING_STATIC_AUDIT=PASS
+UAP_SNAPSHOT_PINNING_TEST=PASS
+  blocked_removal=1
+  exact_destruction=1
+  lifetime_cycles=100000
+  coherent_reads=50000 minimum, each covering generation plus 256 values
+
+Complete repository gate: 37/37 static audits, 21/21 portable tests PASS
+
+Toolchains
+----------
+GCC 15.2, -O2 -Wall -Wextra -pedantic: PASS, no warnings
+MSVC 19.44, /std:c++20 /EHsc /W4 /WX: PASS, no warnings
+Clang 21.1.8, ASan+UBSan, -O1 -Wall -Wextra -Wpedantic -Werror: PASS,
+  zero reports
+
+Build and runtime
+-----------------
+Official MSVC x64 Release build: PASS, 0 errors
+Warning policy: PASS, only allowlisted LNK4099 ViGEm PDB diagnostic
+PRIVATE_UAP_ABI_RUNTIME=PASS abi=1 initial_devices=0
+  name='Universal Analog Plugin (HallJoy SafeHID v12 pinned-snapshot
+  stable-identity deadline-paced telemetry)'
+Production overlay responsiveness/framing/concurrency/origin: PASS
+  maximum parallel state latency=2.1 ms
+Irok native SparkLink regression:
+  route queries=45872, successful=45872, failures=0
+  changed rows=1552, realtime notifications=1552
+  average/maximum route interval=267/979 us
+  balanced shutdown, exit code 0
+User data: 11 files before/after, zero differences
+Remaining HallJoy processes: 0
+Persistence transaction temporary files: 0
+Trace ERROR events: 0
+
+Artifacts
+---------
+build/output/HallJoy.exe
+  size=2235904
+  sha256=2C7D5F923D6C989C2B6354EF4114B3AB8F124D1FFA42AC50B10C87FB3DD552A6
+third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv0.dll
+  size=414208
+  sha256=4870CBD4A2F49C7E16D29765CF480956555AD6C92126D8DF15D31F385E3A4047
+third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+  size=286720
+  sha256=8CC08C5268F0EE7CB1B3DD78A48FA99E89E5C31D49B40B886B393BE51D7B4FA1
+build/output/HallJoyStabilityTrace.log
+  size=9960
+  sha256=1BB4ED75AF624307C2FC36B078137EE802AA731FD8EDA25725EF756963840870
+
+Limits
+------
+The software-only gates prove registry lock scope, shared-owner lifetime and
+snapshot coherence. The available Irok uses native SparkLink and bypasses UAP,
+so this package makes no physical UAP latency, CPU or USB throughput claim.
+
+Backup
+------
+C:\github\HallJoy_v1.4_BACKUPS\V14-11C-prechange-20260801-1408
+18 files, SHA-256 verified at copy time.
+
+Status
+------
+HJ-AUD-P2-010: Verified by D-022/D-023 automated production-code gates.
+Next: V14-11D bound remaining UAP modularization/performance scope.

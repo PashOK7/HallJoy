@@ -256,7 +256,8 @@ Latest-wins/coalescing, bounded reconnect policy, telemetry driver fault. Пер
 - adaptive pacing/backoff вместо постоянного zero-sleep spin;
 - измерение CPU/USB rate до и после;
 - stable identity для одинаковых устройств;
-- snapshot export сокращает время удержания global mutex.
+- snapshot export сокращает время удержания global mutex — выполнено в
+  V14-11C через bounded `shared_ptr` pins до per-device lock/copy.
 
 Нельзя снижать effective sampling rate без измеренного latency budget.
 

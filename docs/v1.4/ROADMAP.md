@@ -616,3 +616,24 @@ v1.4 can be tagged only when:
   V14-12M code containment is Verified, but `HJ-V14-P1-008` remains Partial
   until the actual MAD68 HE tester repeats close on this EXE. Aula physical
   validation also remains release-blocking.
+
+### V14-12N / S21 all-keyboard shutdown containment matrix
+
+- The production catalog has six unique native routes: MAD68 Pro R, Hex80,
+  Addressed, Aula WIN60HE, SparkLink/Irok and Sayo. Every route now has a
+  simulator-only permanent worker-stop injection that must end in a bounded,
+  truthful poisoned exit instead of an indefinitely resident process.
+- The shared private UAP/Soup route has its separate permanent child-unload
+  stall, and the independent 12-second application watchdog is exercised as
+  the final containment layer. A normal common-pipeline scenario is the control.
+- `tools/run_keyboard_shutdown_matrix.ps1` ran all 9/9 scenarios, preserved and
+  hashed one trace per scenario, verified the expected exit/evidence and found
+  zero surviving HallJoy processes. The unified static/portable gate and clean
+  locked production build also pass.
+- The exact 2,210,304-byte production `HallJoy.exe` has SHA-256
+  `E12080E95DD394462FC36C842517F168F6CE4423CE9357B89D2320A20A962BB8`.
+  Physical Irok regression is 5/5, 140-234 ms shutdown, maximum 209 HANDLEs,
+  zero survivor and unchanged user state.
+- V14-12N closes the code-level shutdown-matrix gap only. It does not claim
+  physical protocol/input/hotplug proof for unavailable keyboards; physical
+  MAD68 HE and Aula acceptance remain release-blocking.

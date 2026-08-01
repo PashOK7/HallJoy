@@ -516,3 +516,21 @@ complete. If it fires, it uses no logger or CRT and terminates the process with
 exit code 4. This last resort prevents a faulty driver or arbitrary teardown
 lock from requiring Task Manager; it does not convert a forced exit into a
 clean hardware qualification result.
+
+## D-033 - Every production keyboard route requires deterministic containment
+
+Date: 2026-08-02
+
+Each unique native catalog route must have a simulator-only permanent-stop
+process scenario that exercises its real production stop implementation,
+requires the route-specific incomplete-stop trace, verifies the application's
+poisoned exit and rejects a surviving process. A shared plugin-backed family is
+tested once at its isolated UAP/Soup child boundary because all such keyboards
+use that same owner and shutdown path. The independent process watchdog is one
+additional route-agnostic proof, and a normal common-pipeline run is mandatory
+as the non-faulted control.
+
+The matrix preserves and hashes separate traces and labels its summary
+`hardware_verified=false`. Passing it proves bounded code-level containment;
+it must never be used to claim physical protocol, analogue input, hotplug,
+multi-device or firmware compatibility.

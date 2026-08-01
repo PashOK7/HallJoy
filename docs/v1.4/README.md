@@ -43,6 +43,8 @@ version or release status.
 - Verified package: `V14-12L/S21` saturating runtime arithmetic, recoverable
   overlay/ViGEm worker containment and rare clipboard/UAP ownership cleanup;
   full compiler, sanitizer, locked-plugin build and Irok qualification pass
+- Verified package: `V14-12N/S21` deterministic shutdown containment for every
+  production keyboard route; 9/9 process scenarios pass with zero survivors
 - Next work: `V14-12/S21` release qualification and hardware matrix. The Aula
   physical result may arrive asynchronously but remains mandatory before release
 - GitHub publication: not started
@@ -183,5 +185,9 @@ runtime gates. V14-12M additionally contains a reported MAD68 HE/UAP shutdown
 stall at both boundaries: permanent child unload stalls are disposed after the
 bounded child deadline, and a 12-second process watchdog covers every explicit
 shutdown stage through final logging. The exact production artifact passed 5/5
-Irok cycles with no survivor. Physical MAD68 HE retest, manual device-matrix
-items and external Aula hardware remain release-blocking.
+Irok cycles with no survivor. V14-12N adds an independently trace-verified
+permanent-stop scenario for each of the six native routes, the shared UAP/Soup
+child route, the global watchdog and a normal control; all 9/9 pass with zero
+survivors. This is code/simulator containment evidence, not physical protocol
+validation. Physical MAD68 HE retest, manual device-matrix items and external
+Aula hardware remain release-blocking.

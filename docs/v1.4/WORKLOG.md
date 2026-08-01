@@ -1844,3 +1844,34 @@ under `build/evidence/V14-12M-uap-shutdown-20260801` and
 V14-12M code containment is Verified. Physical MAD68 HE retest remains a P1
 release blocker, independently of the already open physical Aula gate. The old
 tester EXE is superseded and must not be used for release acceptance.
+
+## 2026-08-02 - V14-12N / S21 all-keyboard shutdown containment
+
+Audited every production keyboard route against the MAD68 HE class of failure:
+bounded owner stop, truthful incomplete result, retained lifetime on timeout,
+process containment and actionable stability trace. Five native routes already
+had permanent-stop injections; Aula had the correct three-second bounded join
+and resource-retention policy but no process-level permanent-stop proof. Added
+a simulator-only Aula injection without changing its protocol, HID commands or
+production selection behavior.
+
+Added `run_keyboard_shutdown_matrix.ps1` and a static coverage audit. One
+simulator build now runs a normal control, all six native permanent-stop paths,
+the shared private UAP/Soup child-unload stall and the global 12-second
+watchdog. The matrix is catalog-aware, retains and hashes a separate trace for
+each scenario, checks exact expected exit/evidence and rejects any surviving
+HallJoy process. All 9/9 scenarios passed with zero survivors; evidence is in
+`build/evidence/keyboard-shutdown-matrix/20260801-212947`.
+
+The full unified regression gate passed, including the Aula protocol/oracle/
+session suites and 250,000-frame parser fuzz smoke. The clean locked UAP build
+and official Release x64 build completed with zero errors and no unexpected
+warnings. Final `HallJoy.exe` is 2,210,304 bytes, SHA-256
+`E12080E95DD394462FC36C842517F168F6CE4423CE9357B89D2320A20A962BB8`.
+On the physically available Irok MG75 Max, 5/5 production cycles passed with
+140-234 ms shutdown, maximum 209 HANDLEs, 33,409 successful queries plus three
+shutdown-window cancellations, zero survivors and unchanged 11-file state.
+
+V14-12N is Verified for code-level containment. Per D-033, simulator evidence
+is not hardware evidence. Physical MAD68 HE retest and Aula acceptance remain
+release blockers and continue asynchronously.

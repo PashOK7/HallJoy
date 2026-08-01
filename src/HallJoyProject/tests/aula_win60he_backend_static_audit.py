@@ -31,6 +31,7 @@ def main() -> int:
     catalog = read(HALL / "native_analog_backends.def")
     project = read(HALL / "HallJoy.vcxproj")
     runner = read(REPO / "tools" / "run_native_backend_checks.py")
+    simulator_runner = read(REPO / "tools" / "run_analog_simulator.ps1")
 
     require(all(token in protocol_h for token in (
         "kAulaVendorId = 0x1CA2", "kAulaProductId = 0x1902",
@@ -112,6 +113,11 @@ def main() -> int:
         "kStopJoinTimeoutMs = 3000", "ObserveWorkerJoin",
         "resources_retained=1")) and "TerminateThread" not in backend,
         "worker stop is bounded, cancellation-aware and generation-safe")
+    require("--halljoy-test-aula-stop-timeout" in backend and
+            "InjectAulaStopTimeout" in simulator_runner and
+            "Aula-timeout simulator exited" in simulator_runner and
+            "[component=aula-win60he][event=stop.incomplete]" in simulator_runner,
+            "permanent Aula worker shutdown is process-contained and trace-verified")
     require("RealtimeLoop_NotifyInputChanged" in backend and
             "ClearPublishedValues(false)" in backend and
             "g_connected.load" in backend,

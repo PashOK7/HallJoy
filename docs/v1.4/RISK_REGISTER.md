@@ -42,6 +42,12 @@ The risk remains `Implemented`, not `Verified`, because no physical Aula device
 was available. Real analogue input, held-key unplug/reconnect, multiple Aula
 interfaces and alternate firmware coexistence remain V14-12 hardware gates.
 
+V14-12N adds the previously missing permanent Aula worker-stop process test.
+The worker exceeds its three-second join deadline, retains its generation
+resources, poisons native shutdown, exits with the expected code and leaves no
+process. This verifies shutdown containment in production code under simulation;
+it does not change the physical Aula compatibility status.
+
 ### Evidence for HJ-V14-P1-004
 
 The 2026-07-31 Irok MG75 Max hardware traces proved native SparkLink discovery,
@@ -91,6 +97,11 @@ state files. Evidence is
 `build/evidence/release-qualification/20260801-235837`. The risk remains
 `Partial` and release-blocking until the MAD68 HE tester closes this exact
 artifact successfully; simulator evidence is not hardware validation.
+
+The V14-12N matrix also reruns the shared UAP/Soup permanent child-unload stall
+beside all six native routes and the global watchdog. Its 9/9 result with zero
+survivors strengthens the code-level containment claim but cannot replace the
+reported device's physical retest.
 
 ## Статусы
 

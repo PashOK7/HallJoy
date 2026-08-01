@@ -165,6 +165,17 @@ std::atomic<halljoy::worker::WorkerExceptionKind> g_workerFaultKind{
     halljoy::worker::WorkerExceptionKind::None };
 halljoy::worker::WorkerExceptionRecord g_workerFaultRecord{};
 
+bool InjectStopTimeout() noexcept
+{
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    return commandLine &&
+        wcsstr(commandLine, L"--halljoy-test-aula-stop-timeout");
+#else
+    return false;
+#endif
+}
+
 std::array<std::atomic<std::uint16_t>, 256> g_milli{};
 std::array<std::atomic<std::uint8_t>, 256> g_owned{};
 std::atomic<std::uint16_t> g_vendorId{ 0 };
@@ -1016,6 +1027,20 @@ void SignalInitialAttempt()
 
 std::uint32_t WorkerMain()
 {
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    if (InjectStopTimeout())
+    {
+        StabilityTrace_Write(L"INFO", L"aula-win60he", L"test.start",
+            L"simulator_only=1");
+        SignalInitialAttempt();
+        while (!g_stop.load(std::memory_order_acquire))
+            WaitForSingleObject(g_wakeEvent, 100);
+        StabilityTrace_Write(L"WARN", L"aula-win60he",
+            L"test.stop_timeout.injected", L"simulator_only=1");
+        WaitForSingleObject(GetCurrentProcess(), INFINITE);
+    }
+#endif
+
     bool initialAttemptSignaled = false;
     const auto signalInitialAttempt = [&initialAttemptSignaled] {
         if (!initialAttemptSignaled)

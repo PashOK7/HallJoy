@@ -48,6 +48,26 @@ joins the worker, then explicitly probes the hotplug tick. PASS requires no
 reconnect after service stop and a normal process exit. This proves lifecycle
 ordering only; it does not prove SparkLink hardware behavior.
 
+## All-keyboard shutdown matrix
+
+To verify bounded containment for every production route with one simulator
+build:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\run_keyboard_shutdown_matrix.ps1 -RunSeconds 7
+```
+
+The runner executes a normal control, permanent-stop injections for all six
+native catalog routes, a permanent private UAP/Soup child-unload stall and the
+independent application watchdog. It requires exact trace/exit evidence,
+copies and hashes each trace, rejects surviving HallJoy processes and writes
+`summary.json` below `build/evidence/keyboard-shutdown-matrix`.
+
+Every injected hang is simulator-only. The summary deliberately records
+`hardware_verified=false`; this matrix proves containment behavior, not that an
+unavailable keyboard's protocol or physical input works.
+
 ## Isolation contract
 
 - Simulator sources are excluded from ordinary MSBuild targets.

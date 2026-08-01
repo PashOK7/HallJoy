@@ -10,6 +10,7 @@ param(
     [switch]$InjectAddressedStopTimeout,
     [switch]$InjectHex80StopTimeout,
     [switch]$InjectMad68StopTimeout,
+    [switch]$InjectAulaStopTimeout,
     [switch]$InjectMad68OwnerStopHang,
     [switch]$InjectSparkShutdownRace,
     [switch]$InjectSayoStopTimeout,
@@ -48,6 +49,7 @@ $injectionCount = @(
     $InjectAddressedStopTimeout.IsPresent,
     $InjectHex80StopTimeout.IsPresent,
     $InjectMad68StopTimeout.IsPresent,
+    $InjectAulaStopTimeout.IsPresent,
     $InjectMad68OwnerStopHang.IsPresent,
     $InjectSparkShutdownRace.IsPresent,
     $InjectSayoStopTimeout.IsPresent,
@@ -225,6 +227,9 @@ if ($InjectHex80StopTimeout) {
 }
 if ($InjectMad68StopTimeout) {
     $arguments += '--halljoy-test-mad68-stop-timeout'
+}
+if ($InjectAulaStopTimeout) {
+    $arguments += '--halljoy-test-aula-stop-timeout'
 }
 if ($InjectMad68OwnerStopHang) {
     $arguments += '--halljoy-test-mad68-owner-stop-hang'
@@ -420,6 +425,9 @@ if ($InjectHex80StopTimeout -and $process.ExitCode -ne 2) {
 if ($InjectMad68StopTimeout -and $process.ExitCode -ne 2) {
     throw "MAD68-timeout simulator exited with code $($process.ExitCode), expected 2."
 }
+if ($InjectAulaStopTimeout -and $process.ExitCode -ne 2) {
+    throw "Aula-timeout simulator exited with code $($process.ExitCode), expected 2."
+}
 if ($InjectMad68OwnerStopHang -and $process.ExitCode -ne 4) {
     throw "MAD68 owner-stop-hang simulator exited with code $($process.ExitCode), expected 4."
 }
@@ -544,6 +552,14 @@ $required = if ($RequireStorageMigrationFailure) { @(
     '[component=mad68][event=test.stop_timeout.injected] simulator_only=1',
     '[component=mad68][event=stop.incomplete]',
     'thread_handle_retained=1 wake_event_retained=1 active_session_read_retained=0 restart_blocked=1',
+    '[component=native-registry][event=stop.incomplete]',
+    '[component=app][event=shutdown.poisoned] component=native-analog dependent_cleanup_skipped=1',
+    '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
+) } elseif ($InjectAulaStopTimeout) { @(
+    '[component=aula-win60he][event=test.start] simulator_only=1',
+    '[component=aula-win60he][event=test.stop_timeout.injected] simulator_only=1',
+    '[component=aula-win60he][event=stop.incomplete]',
+    'resources_retained=1',
     '[component=native-registry][event=stop.incomplete]',
     '[component=app][event=shutdown.poisoned] component=native-analog dependent_cleanup_skipped=1',
     '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
@@ -810,6 +826,8 @@ if ($RequireStorageMigrationFailure) {
     Write-Host 'HallJoy Hex80 timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectMad68StopTimeout) {
     Write-Host 'HallJoy MAD68 timeout containment scenario: PASS' -ForegroundColor Green
+} elseif ($InjectAulaStopTimeout) {
+    Write-Host 'HallJoy Aula timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectMad68OwnerStopHang) {
     Write-Host 'HallJoy process-wide shutdown watchdog scenario: PASS' -ForegroundColor Green
 } elseif ($InjectSparkShutdownRace) {

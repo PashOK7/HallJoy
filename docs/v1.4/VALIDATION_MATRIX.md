@@ -1698,3 +1698,40 @@ Production artifact and runtime:
 Status: code-level containment Verified. `HJ-V14-P1-008` remains Partial and
 release-blocking until the physical MAD68 HE tester closes this exact artifact.
 The external Aula hardware gate remains independently release-blocking.
+
+## V14-12N / S21 all-keyboard shutdown-matrix validation
+
+Commands:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File `
+  .\tools\run_keyboard_shutdown_matrix.ps1 -RunSeconds 7
+python .\tools\run_native_backend_checks.py
+cmd /c BUILD.cmd
+powershell -NoProfile -ExecutionPolicy Bypass -File `
+  .\tools\run_release_qualification.ps1 -Cycles 5 -RunSeconds 2 -ProgressEvery 1
+```
+
+Deterministic process matrix: 9/9 PASS. The scenarios are normal common
+pipeline, permanent SparkLink stop, Sayo stop, Addressed stop, Hex80 stop,
+MAD68 Pro R stop, Aula stop, private UAP/Soup child unload and the independent
+process watchdog. Each scenario matched its exact trace and exit contract; all
+traces were copied and SHA-256 hashed, and every post-scenario survivor count
+was zero. Evidence:
+`build/evidence/keyboard-shutdown-matrix/20260801-212947/summary.json`.
+
+The full unified gate, locked private UAP build and official x64 Release build
+pass with zero errors and zero unexpected warnings. Production artifact:
+`build/output/HallJoy.exe`, 2,210,304 bytes, SHA-256
+`E12080E95DD394462FC36C842517F168F6CE4423CE9357B89D2320A20A962BB8`.
+
+Physical available-device regression: Irok MG75 Max 5/5 PASS, exit zero,
+140-234 ms shutdown, maximum 209 HANDLEs, 33,409 successful SparkLink queries
+plus three shutdown-window cancellations, zero survivor and unchanged 11-file
+state. Evidence:
+`build/evidence/release-qualification/20260802-003755/summary.json`.
+
+Status: code-level shutdown containment Verified for every production route.
+The matrix is explicitly simulator-only (`hardware_verified=false`) and does
+not close physical protocol/input/hotplug gates. MAD68 HE physical retest and
+Aula physical acceptance remain release-blocking.

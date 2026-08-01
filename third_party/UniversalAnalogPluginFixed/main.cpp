@@ -31,6 +31,7 @@
 #include "halljoy_plugin_telemetry.h"
 #include "halljoy_dense_snapshot.h"
 #include "halljoy_uap_cabi_guard.h"
+#include "halljoy_uap_device_identity.h"
 #include "halljoy_uap_poll_pacing.h"
 
 #define LOGGING false
@@ -283,7 +284,7 @@ SOUP_CEXPORT const uint32_t ANALOG_SDK_PLUGIN_ABI_VERSION = ABI_VERSION_TARGET;
 
 SOUP_CEXPORT const char* _name() noexcept
 {
-	return "Universal Analog Plugin (HallJoy SafeHID v10 deadline-paced telemetry)";
+	return "Universal Analog Plugin (HallJoy SafeHID v11 stable-identity deadline-paced telemetry)";
 }
 
 SOUP_CEXPORT bool is_initialised() noexcept
@@ -295,36 +296,6 @@ SOUP_CEXPORT bool is_initialised() noexcept
 // Devices
 
 [[nodiscard]] static uint16_t mapToWootingKey(soup::Key key);
-
-static void halljoy_hash_bytes(std::uint64_t& hash, const void* data, std::size_t size)
-{
-	const auto* bytes = static_cast<const unsigned char*>(data);
-	for (std::size_t i = 0; i < size; ++i)
-	{
-		hash ^= bytes[i];
-		hash *= 1099511628211ull;
-	}
-}
-
-[[nodiscard]] static DeviceID make_device_identity_base(const soup::AnalogueKeyboard& kbd)
-{
-	std::uint64_t hash = 1469598103934665603ull;
-	halljoy_hash_bytes(hash, &kbd.hid.vendor_id, sizeof(kbd.hid.vendor_id));
-	halljoy_hash_bytes(hash, &kbd.hid.product_id, sizeof(kbd.hid.product_id));
-	halljoy_hash_bytes(hash, &kbd.hid.usage_page, sizeof(kbd.hid.usage_page));
-	halljoy_hash_bytes(hash, &kbd.hid.usage, sizeof(kbd.hid.usage));
-	const std::string manufacturer = kbd.hid.getManufacturerName();
-	halljoy_hash_bytes(hash, manufacturer.data(), manufacturer.size());
-	halljoy_hash_bytes(hash, kbd.name.data(), kbd.name.size());
-	return hash != 0 ? hash : 1;
-}
-
-[[nodiscard]] static DeviceID make_device_id(DeviceID identity_base, std::uint32_t occurrence)
-{
-	std::uint64_t hash = identity_base;
-	halljoy_hash_bytes(hash, &occurrence, sizeof(occurrence));
-	return hash != 0 ? hash : static_cast<DeviceID>(occurrence) + 1;
-}
 
 // HallJoy V9: every device worker publishes independently. The isolated host
 // waits on this generation instead of imposing a fixed 8 ms polling cadence.
@@ -362,6 +333,7 @@ struct Device
 	soup::AnalogueKeyboard kbd;
 	soup::Thread thrd;
 	std::string manufacturer_name;
+	bool duplicate_safe_id = false;
 	bool synchronous_poll = false;
 	bool poll_transport = false;
 	uint32_t telemetry_rows = 0;
@@ -391,8 +363,11 @@ struct Device
 	std::array<std::bitset<TELEMETRY_LEVEL_BUCKETS>, 256> telemetry_key_seen_levels{};
 	std::array<uint16_t, 256> telemetry_key_observed_levels{};
 
-	Device(soup::AnalogueKeyboard&& _kbd, DeviceID assigned_id)
-		: id(assigned_id), kbd(std::move(_kbd)), manufacturer_name(kbd.hid.getManufacturerName()),
+	Device(soup::AnalogueKeyboard&& _kbd, halljoy::uap::DeviceIdentity assigned_identity,
+		std::string&& assigned_manufacturer_name)
+		: id(assigned_identity.id), kbd(std::move(_kbd)),
+		  manufacturer_name(std::move(assigned_manufacturer_name)),
+		  duplicate_safe_id(assigned_identity.duplicate_safe),
 		  synchronous_poll(UAP_SYNCHRONOUS_POLL != 0 && kbd.isPoll()), poll_transport(kbd.isPoll())
 	{
 		telemetry_seen_levels.set(0);
@@ -564,7 +539,11 @@ struct Device
 		out.productId = kbd.hid.product_id;
 		out.usagePage = kbd.hid.usage_page;
 		out.usage = kbd.hid.usage;
-		out.flags = HallJoyPluginTelemetry::DeviceFlag_Connected | HallJoyPluginTelemetry::DeviceFlag_DuplicateSafeId;
+		out.flags = HallJoyPluginTelemetry::DeviceFlag_Connected;
+		if (duplicate_safe_id)
+		{
+			out.flags |= HallJoyPluginTelemetry::DeviceFlag_DuplicateSafeId;
+		}
 		out.flags |= poll_transport
 			? HallJoyPluginTelemetry::DeviceFlag_PolledTransport
 			: HallJoyPluginTelemetry::DeviceFlag_StreamTransport;
@@ -715,7 +694,11 @@ SOUP_CEXPORT uint32_t halljoy_get_dense_snapshots(
 			out.productId = dev->kbd.hid.product_id;
 			out.usagePage = dev->kbd.hid.usage_page;
 			out.usage = dev->kbd.hid.usage;
-			out.flags = HallJoyDenseSnapshot::DeviceFlag_Connected | HallJoyDenseSnapshot::DeviceFlag_DuplicateSafeId;
+			out.flags = HallJoyDenseSnapshot::DeviceFlag_Connected;
+			if (dev->duplicate_safe_id)
+			{
+				out.flags |= HallJoyDenseSnapshot::DeviceFlag_DuplicateSafeId;
+			}
 			out.flags |= dev->poll_transport
 				? HallJoyDenseSnapshot::DeviceFlag_PolledTransport
 				: HallJoyDenseSnapshot::DeviceFlag_StreamTransport;
@@ -896,10 +879,21 @@ static void discover_devices(bool initial)
 		}
 #endif
 
-		const DeviceID identity_base = make_device_identity_base(kbd);
+		std::string manufacturer_name = kbd.hid.getManufacturerName();
+		const halljoy::uap::DeviceIdentityInput identity_input{
+			kbd.hid.vendor_id,
+			kbd.hid.product_id,
+			kbd.hid.usage_page,
+			kbd.hid.usage,
+			kbd.hid.path,
+			manufacturer_name,
+			kbd.name,
+		};
+		const DeviceID identity_base = halljoy::uap::MakeDeviceIdentityBase(identity_input);
 		const std::uint32_t occurrence = identity_occurrences[identity_base]++;
-		const DeviceID device_id = make_device_id(identity_base, occurrence);
-		if (contains_device_id(device_id))
+		const halljoy::uap::DeviceIdentity identity =
+			halljoy::uap::MakeDeviceIdentity(identity_input, occurrence);
+		if (contains_device_id(identity.id))
 		{
 			continue;
 		}
@@ -907,7 +901,8 @@ static void discover_devices(bool initial)
 #if LOGGING
 		std::cout << "New device: " << kbd.name << std::endl;
 #endif
-		auto upDev = soup::make_unique<Device>(std::move(kbd), device_id);
+		auto upDev = soup::make_unique<Device>(
+			std::move(kbd), identity, std::move(manufacturer_name));
 		Device* raw = upDev.get();
 
 		// Publish the object before starting its thread or announcing it to the SDK.

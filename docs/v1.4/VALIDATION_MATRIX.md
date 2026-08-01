@@ -1086,9 +1086,67 @@ Hardware: native Irok route regression passed, but this device bypasses UAP;
 Analyzer note: WARN only because no keys or unplug/reconnect were exercised;
   production smoke itself passed and trace contains no ERROR event
 Remote CI: NOT RUN; optional, no push permitted
-Status: HJ-AUD-P2-006 Implemented, not Verified
+Status: HJ-AUD-P2-006 Verified by D-022 automated production-code gates;
+  no physical USB/latency claim
 Next: V14-11B stable identity for identical UAP devices
 Evidence:
   docs/stability/tests/V14-11A_UAP_POLL_PACING_2026-08-01.txt
 Rollback: parent commit of the V14-11A implementation commit
+```
+
+## V14-11B evidence
+
+```text
+Package: V14-11B
+Scope: occurrence-independent identity for multiple identical private-UAP devices
+Commands:
+  python src/HallJoyProject/tests/uap_device_identity_static_audit.py
+  python tools/run_native_backend_checks.py --require-compiler
+  g++ -std=c++20 -O2 -Wall -Wextra -pedantic
+    src/HallJoyProject/tests/uap_device_identity_test.cpp
+  cl.exe /std:c++20 /EHsc /W4
+    src/HallJoyProject/tests/uap_device_identity_test.cpp
+  clang++ -std=c++20 -O1 -g -Wall -Wextra -pedantic
+    -fsanitize=address,undefined -fno-omit-frame-pointer
+    src/HallJoyProject/tests/uap_device_identity_test.cpp
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  python tools/check_private_uap_abi.py
+    third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -StartOverlay
+    -OverlayPort 18765 -RunSeconds 15
+Results:
+  UAP identity static audit: PASS
+  Static audits: 36/36 PASS
+  Portable C++20 tests: 20/20 PASS
+  Identical-device enumeration orders: 40,320/40,320 PASS
+  Reconnect/subset/shuffle generations: 100,000/100,000 PASS
+  Synthetic unique HID paths: 250,000, zero observed collisions
+  Pathless fallback occurrences: 1,024/1,024 unique and honestly unflagged
+  Case/slash, descriptor, length-framing and four persisted-ID golden vectors: PASS
+  GCC 15.2 warning-clean: PASS
+  MSVC 19.44 /W4: PASS
+  Clang 21 ASan+UBSan: PASS, zero reports
+  Pacing regression: 10,232 deadline properties and uint64 overflow edge PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  ABI1 load/init/name/null/bounded-unload: PASS, SafeHID v11 identity loaded
+  Production overlay suite: PASS, maximum parallel latency 1.9 ms
+  Production Irok route: 65,610/65,610 queries, zero failures,
+    4,224 changed rows, 4,225 realtime notifications, 313 us average interval,
+    balanced shutdown and exit 0
+  Runtime user state: 11 files, zero differences; no process or temp remained
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,233,856 bytes
+  SHA-256: C7D28AA23D882A1ED57FA2562DF7F6C8375DE6E3B02D09C33EE08B184123B116
+  Production trace SHA-256:
+    A6C33C41A99D2FB7BFF540D439956E0F295290D458E9BB690B3D6D0624016111
+Limit: finite tests cannot mathematically exclude every 64-bit collision;
+  physical port moves and driver path volatility are not claimed
+Remote CI: NOT RUN; optional, no push permitted
+Status: HJ-AUD-P2-007 Verified by D-022 automated production-code gates
+Next: V14-11C snapshot export contention
+Evidence:
+  docs/stability/tests/V14-11B_UAP_DEVICE_IDENTITY_2026-08-01.txt
+Rollback: parent commit of the V14-11B implementation commit
 ```

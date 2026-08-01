@@ -21,11 +21,13 @@ version or release status.
 - Completed subpackage: `V14-10D` bounded overlay concurrency, strict origin
   policy and cooperative client shutdown, Verified locally
 - Completed package: `V14-10` IPC and overlay security/correctness
-- Implemented subpackage: `V14-11A` deadline pacing for UAP poll transports;
-  real UAP polling-device performance qualification remains pending
+- Verified by automated gates: `V14-11A` deadline pacing for UAP poll
+  transports; no physical UAP performance claim is made
+- Verified by automated gates: `V14-11B` stable identity for identical UAP
+  devices across enumeration reorder and reconnect generations
 - Current package: `V14-11` UAP pacing, identity, modularization and measured
   performance, In progress
-- Next work: `V14-11B` stable identity for identical UAP devices
+- Next work: `V14-11C` snapshot export contention
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -75,8 +77,14 @@ transaction receives no extra delay, and transient Madlions failures back off
 from 2 to 64 ms. Report-stream devices remain on their blocking path. The
 portable rate model, static audit, rebuilt ABI identity/unload gate, full build
 and production Irok regression pass. The Irok is a native SparkLink device, so
-V14-11A remains `Implemented` until CPU/USB/latency are measured on an actual
-UAP poll keyboard.
+V14-11A is accepted by deterministic production-code tests, GCC/MSVC, and
+Clang ASan+UBSan because no UAP poll keyboard is available; this verifies the
+scheduler but makes no physical USB/latency claim. V14-11B now hashes the
+normalized Soup HID interface path and descriptor, so identical devices keep
+their own IDs regardless of enumeration order. The exact production function
+passes all 40,320 permutations of eight devices, 100,000 reconnect generations,
+250,000 synthetic paths without a collision, 1,024 pathless fallbacks and
+persisted-ID golden vectors under the same three compiler/toolchain gates.
 
 ## Authoritative documents
 

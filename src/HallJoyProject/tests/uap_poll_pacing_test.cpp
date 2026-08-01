@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 
 int main()
 {
@@ -64,9 +65,31 @@ int main()
     assert(paced_busy_us == 50000);
     assert(unpaced_busy_us == 1000000);
 
+    std::uint64_t deadline_property_cases = 0;
+    for (const std::uint32_t target_us : { 1u, 17u, 1000u, 4096u })
+    {
+        for (std::uint32_t work_us = 0; work_us <= target_us * 2u; ++work_us)
+        {
+            PollPacingPolicy property(target_us);
+            property.BeginCycle(1000000);
+            const auto wait_us = property.CompleteCycle(1000000 + work_us, true);
+            assert(wait_us <= target_us);
+            assert(static_cast<std::uint64_t>(work_us) + wait_us ==
+                (work_us < target_us ? target_us : work_us));
+            ++deadline_property_cases;
+        }
+    }
+
+    PollPacingPolicy overflow_safe(1000);
+    overflow_safe.BeginCycle(std::numeric_limits<std::uint64_t>::max() - 500);
+    assert(overflow_safe.CompleteCycle(
+        std::numeric_limits<std::uint64_t>::max() - 250, true) == 250);
+
     std::cout << "UAP_POLL_PACING_TEST=PASS paced_calls=" << paced_calls
               << " unpaced_calls=" << unpaced_calls
               << " paced_modeled_busy_us=" << paced_busy_us
-              << " unpaced_modeled_busy_us=" << unpaced_busy_us << '\n';
+              << " unpaced_modeled_busy_us=" << unpaced_busy_us
+              << " deadline_properties=" << deadline_property_cases
+              << " overflow_safe=1\n";
     return 0;
 }

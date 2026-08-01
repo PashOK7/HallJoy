@@ -305,3 +305,25 @@ prove the scheduler contract and modeled busy-time reduction, but only an
 actual UAP poll keyboard can verify CPU load, USB transaction rate and input
 latency. Therefore the implementation and its hardware qualification have
 separate statuses.
+
+## D-022 - Unavailable UAP hardware is replaced only by production-code proofs
+
+Date: 2026-08-01
+
+The current owner has no UAP-routed keyboard and no access to two identical UAP
+devices. V14-11 must therefore not remain permanently blocked on hardware that
+cannot reasonably be obtained. A UAP code-level risk may be marked `Verified`
+when the exact pure implementation included by production passes exhaustive or
+high-volume deterministic properties, persisted-output golden vectors, GCC and
+MSVC warning-clean builds, Clang ASan+UBSan, the complete official build, real
+ABI load/unload and a production regression through the available native Irok
+route.
+
+This substitution verifies scheduling arithmetic, identity mapping, ordering,
+fallback and integration behavior. It does not measure a physical USB bus,
+device firmware latency or driver-specific path volatility, and documentation
+must say so next to every result. A 64-bit ID collision cannot be disproved
+mathematically; high-volume collision smoke and versioned golden vectors are
+the practical regression gate. A serial-less device moved to another port is
+defined to follow the new HID interface path because no software-only test can
+recover unknowable physical identity.

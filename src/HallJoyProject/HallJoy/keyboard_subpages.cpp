@@ -8627,6 +8627,13 @@ static std::vector<std::wstring> Config_BuildAnalogTelemetryLines(
             }
             lines.emplace_back(line);
             _snwprintf_s(line, _countof(line), _TRUNCATE,
+                L"  Device ID %016llX | identity %ls",
+                (unsigned long long)d.deviceId,
+                (d.flags & BackendAnalogDeviceFlag_DuplicateSafeId) != 0
+                    ? L"stable HID interface path"
+                    : L"enumeration fallback (path unavailable)");
+            lines.emplace_back(line);
+            _snwprintf_s(line, _countof(line), _TRUNCATE,
                 L"  Measured %ls %.1f Hz | interval avg/max %u/%u us | age %u ms | updates %llu | active keys %u",
                 rateLabel, (double)d.updateHz10 / 10.0,
                 (unsigned)d.averageUpdateIntervalUs, (unsigned)d.maximumUpdateIntervalUs,

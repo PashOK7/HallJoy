@@ -82,8 +82,8 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P2-003` | P2 | Overlay telemetry parser допускает unsigned overflow | `S16` | Verified | exact-key `from_chars`, duplicate/junk/overflow rejection and one-billion bound passed simulator and production socket gates in V14-10C |
 | `HJ-AUD-P2-004` | P2 | Overlay endpoint открыт любому origin | `S16` | Verified | per-generation 128-bit session cookie, exact loopback origin echo and hostile/null-origin rejection passed simulator and production gates in V14-10D |
 | `HJ-AUD-P2-005` | P2 | Mouse IPC читает interlocked-written поля обычными volatile reads | `S15` | Verified | peer-owned attach/heartbeat and schema fields use interlocked reads; static audit and simulator policy self-test passed in V14-10A |
-| `HJ-AUD-P2-006` | P2 | UAP poll workers собраны без какого-либо pacing | `S17` | Implemented | 1 ms deadline and bounded error-backoff gates passed; real UAP poll-device CPU/USB/update-rate comparison remains |
-| `HJ-AUD-P2-007` | P2 | UAP device identity нестабильна для двух одинаковых устройств | `S17` | Open | CPU/USB/identity/contention measurements |
+| `HJ-AUD-P2-006` | P2 | UAP poll workers собраны без какого-либо pacing | `S17` | Verified | exact production policy, 10,232 deadline properties, error-backoff/model tests, GCC/MSVC, ASan+UBSan, build and regression pass; no physical USB claim |
+| `HJ-AUD-P2-007` | P2 | UAP device identity нестабильна для двух одинаковых устройств | `S17` | Verified | path-based production identity passed 40,320 permutations, 100,000 reconnect generations, 250,000-path collision smoke, fallbacks, golden vectors and three toolchains |
 | `HJ-AUD-P2-008` | P2 | `is_initialised()` plugin всегда возвращает `true` | `S10` | Verified | runtime ABI gate proves false before init, true after init and false after bounded unload |
 | `HJ-AUD-P2-009` | P2 | `_device_info` не проверяет `buffer == nullptr` | `S10` | Verified | runtime ABI gate proves null device-info and full-buffer arguments return zero without a fault |
 | `HJ-AUD-P2-010` | P2 | Snapshot export удерживает глобальный devices mutex при копировании всех значений | `S17` | Open | CPU/USB/identity/contention measurements |
@@ -122,7 +122,27 @@ The deterministic portable model reduced a 50 us transaction from 20,000 to
 time. The static audit, all 19 portable tests, rebuilt ABI1 load/name/null/
 bounded-unload gate, official MSVC build and production Irok regression pass.
 The Irok uses the native SparkLink route, not UAP, so no real UAP CPU, USB or
-sampling claim is made and the risk remains `Implemented` pending hardware.
+sampling claim is made. Because UAP hardware is unavailable, D-022 accepts the
+exact production-code property/sanitizer/build gates for this code-level risk;
+the risk is `Verified` without upgrading that evidence into a physical claim.
+
+### Evidence for HJ-AUD-P2-007
+
+V14-11B replaces metadata plus enumeration occurrence with a versioned hash of
+the normalized Soup HID interface path and the numeric HID descriptor. Case and
+slash variants normalize identically; length-framed fields prevent ambiguous
+concatenation. When a path exists, occurrence is ignored and both telemetry
+ABIs publish `DuplicateSafeId`. If path is absent, metadata plus occurrence is
+still unique but the flag is deliberately absent and the UI says fallback.
+
+The exact header used by production passed all 40,320 enumeration orders of
+eight identical fake devices, 100,000 shuffled reconnect/subset generations,
+250,000 unique fake paths without a collision, 1,024 fallback occurrences,
+descriptor/path/case boundaries and four persisted-ID golden vectors. GCC 15,
+MSVC 19.44 and Clang 21 ASan+UBSan pass. A 64-bit ABI can never offer a
+mathematical no-collision proof; the test guards practical regressions. A
+serial-less keyboard moved to a different USB port intentionally follows the
+new interface path because software cannot infer physical sameness.
 
 ## Evidence package S01
 

@@ -159,6 +159,16 @@ enter the pacing branch. Telemetry distinguishes deadline-paced production
 workers from an explicit unthrottled diagnostic build; it does not claim a
 measured device rate until hardware evidence exists.
 
+Private UAP device IDs use a versioned, deterministic 64-bit hash of the
+normalized Soup HID interface path plus VID, PID, usage page and usage. The
+path distinguishes otherwise identical devices and makes the ID independent
+of enumeration order and reconnect subset. String fields are length-framed;
+Windows path case and slash direction are normalized. If a valid path is not
+available, metadata plus occurrence remains a compatibility fallback, but
+telemetry does not mark that ID duplicate-safe. For a serial-less keyboard the
+identity follows its Windows interface/port path; software cannot prove that
+two indistinguishable devices were physically swapped between ports.
+
 ## Files a new protocol owns
 
 Generated default:

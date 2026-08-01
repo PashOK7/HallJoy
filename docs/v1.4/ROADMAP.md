@@ -394,23 +394,30 @@ identity, modularization and measured performance.
 
 ## In-progress package: V14-11
 
-- `V14-11A` UAP poll pacing: Implemented locally; hardware qualification
-  pending. All six private plugin targets use a 1000 us start-to-start
+- `V14-11A` UAP poll pacing: Verified by automated gates. All six private
+  plugin targets use a 1000 us start-to-start
   deadline for poll transports. Transactions that already consume the
   deadline receive no additive delay; transient Madlions failures use bounded
   2..64 ms exponential backoff. Wooting, Razer and NuPhy report-stream paths
   are unchanged. Static/portable gates, the rebuilt private ABI1 identity and
   unload gate, the official production build and a native Irok regression all
-  pass. An actual UAP poll keyboard is not present on this workstation, so the
-  required CPU/USB/update-rate comparison remains open and `HJ-AUD-P2-006` is
-  `Implemented`, not `Verified`.
-- `V14-11B` is next: replace enumeration-occurrence identity with a stable,
-  collision-safe identity contract for identical UAP devices.
-- `V14-11C` will shorten global snapshot mutex ownership and measure export
+  pass. An actual UAP poll keyboard is not available, so deterministic timing,
+  GCC/MSVC, Clang ASan+UBSan and production integration are the acceptance
+  gate; no physical CPU/USB/latency claim is inferred.
+- `V14-11B` UAP device identity: Verified by automated gates. The exact
+  production function derives a versioned 64-bit ID from the normalized Soup
+  HID interface path plus descriptor. IDs are occurrence-independent when a
+  path exists; the pathless metadata fallback remains unique but is explicitly
+  not marked duplicate-safe. All 40,320 permutations of eight identical
+  devices, 100,000 reconnect/subset generations, 250,000 synthetic paths,
+  1,024 fallback occurrences, normalization cases and persisted-ID golden
+  vectors pass GCC, MSVC and Clang ASan+UBSan. This proves enumeration stability,
+  not physical identity after moving a serial-less keyboard to another port.
+- `V14-11C` is next: shorten global snapshot mutex ownership and measure export
   contention.
 - Remaining V14-11 modularization/performance work will be bounded after the
-  identity and snapshot changes, without folding hardware qualification into
-  portable evidence.
+  snapshot changes, without presenting automated evidence as a physical USB
+  measurement.
 
 ## Release definition
 

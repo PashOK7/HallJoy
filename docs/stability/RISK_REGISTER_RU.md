@@ -33,8 +33,8 @@
 | `HJ-AUD-P2-003` | P2 | Overlay telemetry parser допускает unsigned overflow | `S16` | Open | fragmentation/concurrency/limit tests |
 | `HJ-AUD-P2-004` | P2 | Overlay endpoint открыт любому origin | `S16` | Verified | 128-bit session cookie, exact loopback origin and hostile/null-origin rejection passed in V14-10D |
 | `HJ-AUD-P2-005` | P2 | Mouse IPC читает interlocked-written поля обычными volatile reads | `S15` | Open | IPC ACL/creation/memory-order tests |
-| `HJ-AUD-P2-006` | P2 | UAP poll workers собраны без какого-либо pacing | `S17` | Implemented | V14-11A 1 ms deadline and bounded backoff gates passed; real UAP poll-device CPU/USB/update-rate comparison remains |
-| `HJ-AUD-P2-007` | P2 | UAP device identity нестабильна для двух одинаковых устройств | `S17` | Open | CPU/USB/identity/contention measurements |
+| `HJ-AUD-P2-006` | P2 | UAP poll workers собраны без какого-либо pacing | `S17` | Verified | V14-11A exact production policy/property/sanitizer/build gates passed; no physical USB claim |
+| `HJ-AUD-P2-007` | P2 | UAP device identity нестабильна для двух одинаковых устройств | `S17` | Verified | V14-11B path identity passed exhaustive reorder/reconnect stress, golden vectors, GCC/MSVC and ASan+UBSan |
 | `HJ-AUD-P2-008` | P2 | `is_initialised()` plugin всегда возвращает `true` | `S10` | Open | C ABI exception/null/unload tests |
 | `HJ-AUD-P2-009` | P2 | `_device_info` не проверяет `buffer == nullptr` | `S10` | Open | C ABI exception/null/unload tests |
 | `HJ-AUD-P2-010` | P2 | Snapshot export удерживает глобальный devices mutex при копировании всех значений | `S17` | Open | CPU/USB/identity/contention measurements |

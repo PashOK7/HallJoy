@@ -1205,3 +1205,56 @@
   cannot supply real UAP poll-device CPU/USB/update-rate/latency evidence.
 - V14-11 remains In progress. Next is V14-11B stable identity for identical
   UAP devices, followed by V14-11C snapshot contention.
+
+## 2026-08-01 - V14-11B deterministic UAP device identity
+
+### Implementation
+
+- Replaced VID/PID/usage/name plus enumeration occurrence IDs with a versioned
+  pure identity function shared verbatim by production and portable tests.
+- A valid Soup HID interface path is ASCII-case/slash normalized, length-framed
+  and hashed with VID, PID, usage page and usage. Occurrence cannot affect this
+  path-based ID, so two identical devices cannot exchange IDs merely because
+  enumeration order or the connected subset changes.
+- Kept a metadata/occurrence fallback only for a missing path. Telemetry and
+  dense snapshots now publish `DuplicateSafeId` conditionally instead of
+  claiming every fallback is safe. Configuration UI shows the 64-bit ID and
+  whether it is path-stable or an enumeration fallback.
+- Added v2 golden vectors to prevent accidental persisted-ID drift. Plugin
+  identity is now `SafeHID v11 stable-identity deadline-paced telemetry`.
+- Expanded pacing coverage to 10,232 deadline/work-duration properties and the
+  saturated `uint64_t` deadline edge.
+
+### Validation
+
+- Exact production identity function: all 40,320 orders of eight identical
+  devices, 100,000 reconnect/subset/shuffle generations, 250,000 unique paths
+  with zero observed collisions, 1,024 fallback occurrences, normalization,
+  field framing and four golden vectors PASS.
+- GCC 15.2 warning-clean, MSVC 19.44 `/W4`, and Clang 21 ASan+UBSan: PASS.
+- Complete gate: 36/36 static audits and 20/20 portable C++ tests PASS.
+- Official x64 production build: PASS, 0 errors, only allowlisted `LNK4099`.
+- ABI1 loaded exact SafeHID v11, passed init/null/state/bounded unload with zero
+  UAP devices present.
+- Production overlay suite PASS; maximum parallel state latency 1.9 ms.
+- Irok MG75 Max native regression: 65,610/65,610 queries, zero failures, 4,224
+  changed rows, 4,225 realtime notifications, 313 us average route interval,
+  balanced exit 0.
+- All 11 LocalAppData files were unchanged; no process or temp file remained.
+- `HallJoy.exe`: 2,233,856 bytes,
+  SHA-256 `C7D28AA23D882A1ED57FA2562DF7F6C8375DE6E3B02D09C33EE08B184123B116`.
+- Production trace SHA-256:
+  `A6C33C41A99D2FB7BFF540D439956E0F295290D458E9BB690B3D6D0624016111`.
+- Source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-11B-prechange-20260801-1317`.
+
+### Package result
+
+- By D-022, `HJ-AUD-P2-006` and `HJ-AUD-P2-007` are `Verified` through exact
+  production-code properties, three toolchains, sanitizers, ABI/build and real
+  regression evidence. This makes no physical UAP USB/latency claim.
+- A serial-less device moved to another port follows that port's HID path; no
+  software-only algorithm can infer that two indistinguishable devices were
+  physically swapped. Finite tests also cannot mathematically disprove every
+  64-bit collision.
+- V14-11 remains In progress. Next is V14-11C snapshot export contention.

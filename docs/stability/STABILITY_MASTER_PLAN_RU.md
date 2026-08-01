@@ -188,6 +188,16 @@ session polling core посимвольно сохранены; реальный
 - restart only after joined generation;
 - неизменные parser/command semantics.
 
+Статус v1.4: Hex80 реализован в V14-12C как отдельный пакет со статусом
+`Implemented / Hex80 hardware gate deferred`. Worker переведён на waitable
+`_beginthreadex`, stop сначала публикует cooperative stop, будит event и вызывает
+`CancelIoEx`, затем ждёт поколение не более трёх секунд. При timeout thread/event/
+active-HID ownership сохраняется, registry получает точный `StopResult`, блокирует
+restart и переводит приложение в process containment. Протокольные файлы,
+command builders, parser и GET-only routing не менялись. Simulator timeout gate,
+полный repository gate, MSVC `/W4 /WX`, официальный build и реальный Irok
+regression пройдены. MAD68 остаётся следующим отдельным пакетом S07.
+
 ### S08 — Spark and Sayo lifecycle migration
 
 Отдельно Spark и Sayo. SparkLink C++/SEH exception boundary и early-exit startup publication закрываются в S02B.2, но `TerminateThread` и Win32 HANDLE ownership остаются открытыми до S08. Удалить принудительное завершение, сохранить protocol discovery и claim policy. После стабилизации вынести `.inc` implementation в отдельные translation units без логических изменений.

@@ -76,7 +76,7 @@ exhibits the observed five-second freezes.
 | ID | Приоритет | Краткое описание | Пакет | Статус | Ключевая проверка |
 |---|---|---|---|---|---|
 | `HJ-AUD-P1-001` | P1 | `TerminateThread` используется как обычный механизм shutdown | `S04/S05/S08` | Implemented | all ordinary occurrences removed in V14-06A-F and deterministic timeout containment passed; final soak/device qualification remains |
-| `HJ-AUD-P1-002` | P1 | «Ограниченный shutdown» трёх native backend'ов всё равно может зависнуть навсегда | `S06/S07` | Partial | Addressed bounded join/retention fault gate passed in V14-12B; MAD68/Hex80 remain S07 |
+| `HJ-AUD-P1-002` | P1 | «Ограниченный shutdown» трёх native backend'ов всё равно может зависнуть навсегда | `S06/S07` | Partial | Addressed and Hex80 bounded join/retention fault gates passed in V14-12B/C; only MAD68 remains S07 |
 | `HJ-AUD-P1-003` | P1 | Контракт `stop()` недостоверен | `S03` | Verified | generation-scoped StopResult, poison-on-failure and registry fault tests passed |
 | `HJ-AUD-P1-004` | P1 | Нет верхней границы C++-исключений в ключевых worker-потоках | `S02` | Partial | UAP workers/C ABI verified in V14-07C; only deferred device-owner and final soak gates remain in release qualification |
 | `HJ-AUD-P1-005` | P1 | Addressed reader закрывает HID HANDLE из другого потока при активном stack `OVERLAPPED` | `S06` | Implemented | reader-only close, cancel-and-reap ownership audit and simulator containment passed; Addressed hardware gate deferred |

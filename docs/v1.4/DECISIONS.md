@@ -392,3 +392,19 @@ complete on the same exclusive handle, never reserves a VID/PID family, and
 destroys a session after any transaction uncertainty. Multiple candidates fail
 closed. Physical input, held-key reconnect, multi-device coexistence and other
 firmware versions remain separate release-matrix gates.
+
+## D-026 - Hex80 active HID ownership remains worker-local
+
+Date: 2026-08-01
+
+The Hex80 owner may publish stop, signal the wake event and request `CancelIoEx`,
+but it may never close the active HID handle. The worker's `Session` owns that
+handle through terminal reap. Its active-registration scope unwinds before the
+session destructor closes the handle, and completed requests re-check stop before
+decode or publication.
+
+The worker is represented by a waitable `_beginthreadex` generation. Stop has
+one 3000 ms deadline and releases thread/event ownership only after confirmed
+completion. Timeout retains every reachable generation resource, returns a
+truthful registry result, blocks restart and requires process containment. This
+package must not change the Hex80 protocol, command bytes or GET-only proof.

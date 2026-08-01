@@ -94,3 +94,8 @@ Addressed и Sayo также требуют реального hardware gate д�
   cancel-and-drain/lifecycle suites, MSVC `/W4 /WX`, simulator stop-timeout,
   официальный build и доступный Irok regression пройдены. Addressed hardware
   отсутствует, поэтому статус ограничен `Implemented / device gate deferred`.
+- S07/V14-12C Hex80 lifecycle: static ownership/publication/containment gate,
+  40 repository audits, 26 portable C++ tests, MSVC `/W4 /WX`, simulator
+  stop-timeout, официальный build и доступный Irok regression пройдены. Hex80
+  protocol `.cpp/.h` не менялись. Физического Hex80 нет, поэтому статус ограничен
+  `Implemented / device gate deferred`; MAD68 остаётся следующим S07-пакетом.

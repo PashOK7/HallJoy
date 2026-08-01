@@ -462,6 +462,15 @@ qualification and the hardware matrix.
   packet constructors and session polling core are token-identical. The 15-second
   Irok regression completed 57,161 successful routes, balanced shutdown and no
   trace ERROR. Physical Addressed qualification remains open.
+- `V14-12C/S07` migrates Hex80 to a waitable native generation with cooperative
+  HID cancellation and one truthful three-second join. Timeout retains the
+  thread, wake event and any active worker-owned HID session, blocks restart and
+  selects process containment.
+- Hex80 timeout containment passes its deterministic simulator gate; protocol
+  sources and GET-only routing remain unchanged. The 15-second Irok regression
+  completed 57,276/57,276 successful routes with zero trace ERROR and unchanged
+  user state. Physical Hex80 qualification remains open; MAD68 is the next and
+  last backend in S07.
 
 ## Release definition
 

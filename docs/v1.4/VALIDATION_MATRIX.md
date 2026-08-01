@@ -1359,3 +1359,42 @@ Evidence:
   docs/stability/tests/V14-12B_S06_ADDRESSED_IO_OWNERSHIP_2026-08-01.txt
 Rollback: parent commit of the V14-12B implementation commit
 ```
+
+## V14-12C / S07 Hex80 evidence
+
+```text
+Package: V14-12C / S07 Hex80
+Scope: bounded Hex80 worker generation, HID ownership and truthful containment
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  cl.exe /std:c++20 /EHsc /permissive- /W4 /WX /c
+    src/HallJoyProject/HallJoy/hex80_backend.cpp
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1
+    -InjectHex80StopTimeout -RunSeconds 7
+  cmd /c BUILD.cmd
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -RunSeconds 15
+Results:
+  Native waitable worker and serialized start/stop: PASS
+  Worker-owned active HID handle; owner cancellation without close: PASS
+  Post-request stop guard before decode/publication: PASS
+  Bounded 3000 ms join and retained-generation containment: PASS
+  Complete repository gate: 40/40 static audits, 26/26 portable tests PASS
+  MSVC 19.44 /W4 /WX: PASS
+  Simulator Hex80 stop-timeout containment: PASS, exit code 2
+  Hex80 protocol.cpp/.h: no Git diff
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: only allowlisted LNK4099 ViGEm PDB diagnostic
+  Production Irok route: 57,276/57,276 successful queries,
+    315 us average and 878 us maximum route interval
+  Shutdown: balanced, exit 0, zero trace ERROR; 11 user files unchanged
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,271,232 bytes
+  SHA-256: 540D4EB764FAD57E7431CA320F3E47420D7F0212C37A8D66EFFC1AAD3A6F6FAF
+Hardware: Irok regression PASS; Hex80 physical hardware NOT AVAILABLE
+Status: Implemented; Hex80 device gate deferred
+Evidence:
+  docs/stability/tests/V14-12C_S07_HEX80_LIFECYCLE_2026-08-01.txt
+Rollback: parent commit of the V14-12C implementation commit
+```

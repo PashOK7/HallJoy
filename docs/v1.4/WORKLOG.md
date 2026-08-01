@@ -1456,3 +1456,42 @@
   still required before `Verified`.
 - `HJ-AUD-P1-002` becomes `Partial`: Addressed is bounded and contained, while
   MAD68 and Hex80 remain assigned to S07.
+
+## 2026-08-01 - V14-12C / S07 Hex80 bounded lifecycle
+
+### Implementation
+
+- Replaced Hex80's `std::thread` owner with a waitable `_beginthreadex` handle
+  and serialized start/stop transitions.
+- Stop publishes the cooperative flag, wakes the worker and calls `CancelIoEx`
+  for the registered active session. Only the worker-owned `Session` closes its
+  HID handle after terminal I/O reap.
+- Added a post-request stop check before decode/publication so a completion
+  racing shutdown cannot republish non-neutral input.
+- Added one three-second generation join. Timeout retains thread/event/active-HID
+  ownership, reports the exact stop result through the native registry, blocks
+  restart and selects process containment.
+- Added a simulator-only timeout scenario and a dedicated static ownership/
+  shutdown audit.
+
+### Validation
+
+- Complete gate: 40/40 static audits and 26/26 portable C++ tests PASS.
+- Hex80 production translation unit: MSVC 19.44 `/W4 /WX` PASS.
+- Simulator rebuild and Hex80 timeout containment: PASS with expected exit 2.
+- `hex80_protocol.cpp` and `.h` are unchanged in Git.
+- Official `BUILD.cmd`: exit 0, 0 errors, only allowlisted `LNK4099`.
+- 15-second Irok MG75 Max regression: 57,276/57,276 successful route requests,
+  315 us average / 878 us maximum interval, balanced shutdown and zero trace
+  ERROR. All 11 user-state files remained hash-identical.
+- `HallJoy.exe`: 2,271,232 bytes,
+  SHA-256 `540D4EB764FAD57E7431CA320F3E47420D7F0212C37A8D66EFFC1AAD3A6F6FAF`.
+- Source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-12C-S07-Hex80-prechange-20260801`.
+
+### Package result
+
+- Hex80 code-level lifecycle is implemented; physical Hex80 input, full-matrix,
+  hotplug and shutdown qualification remain required before `Verified`.
+- `HJ-AUD-P1-002` remains `Partial`: Addressed and Hex80 are now bounded and
+  contained; MAD68 is the only remaining S07 backend.

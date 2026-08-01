@@ -113,24 +113,40 @@ def main() -> int:
             "for (auto& down : g_digitalDown)" in mad,
             "MAD68 fault clears target digital state")
 
-    audit_backend(
-        "hex80_backend.cpp",
-        "Hex80WorkerBody",
-        "Hex80WorkerEntry",
-        "Hex80WorkerOnFault",
-        "Hex80WorkerOnCompletion",
-        "bool Hex80_Start()",
-        "std::thread(Hex80WorkerEntry)",
-        (
-            "g_connected.store(false",
-            "g_present.store(false",
-            "g_detectedPid.store(0",
-            "g_activePid.store(0",
-            "g_activeVersion.store(0",
-            "ClearPublishedValues();",
-        ),
-    )
     hex80 = source("hex80_backend.cpp")
+    require('#include "worker_exception_barrier.h"' in hex80,
+            "hex80_backend.cpp includes the common exception barrier")
+    require(re.search(r"std::uint32_t\s+Hex80WorkerBody\s*\(\)", hex80) is not None,
+            "hex80_backend.cpp keeps the worker algorithm in a uint32 body")
+    require("unsigned __stdcall Hex80WorkerEntry(void*) noexcept" in hex80,
+            "hex80_backend.cpp native worker entry is noexcept")
+    hex_entry = function_body(hex80, "unsigned __stdcall Hex80WorkerEntry(void*) noexcept")
+    require("RunWorkerEntryBarrier" in hex_entry and
+            all(token in hex_entry for token in (
+                "Hex80WorkerBody", "Hex80WorkerOnFault", "Hex80WorkerOnCompletion")),
+            "hex80_backend.cpp native entry wires the common barrier")
+    hex_fault = function_body(hex80, "void Hex80WorkerOnFault(")
+    require("g_workerFaultRecord = record" in hex_fault and
+            "g_workerFaultKind.store(record.kind" in hex_fault,
+            "hex80_backend.cpp stores a fixed exception record")
+    for token in (
+        "g_stop.store(true", "g_connected.store(false", "g_present.store(false",
+        "g_detectedPid.store(0", "g_activePid.store(0",
+        "g_activeVersion.store(0", "ClearPublishedValues();",
+    ):
+        require(token in hex_fault,
+                f"hex80_backend.cpp fault path publishes safe state: {token}")
+    require("OutputDebugStringA(record.message" in hex_fault,
+            "hex80_backend.cpp fault path emits allocation-free diagnostics")
+    hex_completion = function_body(hex80, "void Hex80WorkerOnCompletion(")
+    require("g_running.store(false" in hex_completion,
+            "hex80_backend.cpp completion always clears running publication")
+    hex_start = function_body(hex80, "bool Hex80_Start()")
+    require("g_workerFaultRecord = {}" in hex_start and
+            "WorkerExceptionKind::None" in hex_start,
+            "hex80_backend.cpp resets fault state for a new generation")
+    require("_beginthreadex" in hex_start and "Hex80WorkerEntry" in hex_start,
+            "hex80_backend.cpp starts the noexcept entry through a waitable native handle")
     require("void ClearPublishedValues() noexcept" in hex80,
             "Hex80 exceptional publication reset is noexcept")
 

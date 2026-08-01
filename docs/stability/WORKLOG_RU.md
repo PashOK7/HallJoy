@@ -309,3 +309,29 @@ PASS; официальный `BUILD.cmd` PASS (0 ошибок, только ра
 packet constructors и session polling core token-identical; 15-секундный Irok
 smoke — 57 161 successful routes, balanced shutdown, zero trace ERROR, 11
 пользовательских файлов без изменений. Physical Addressed hardware отсутствует.
+
+## 2026-08-01 — S07 / V14-12C: Hex80 bounded lifecycle
+
+Статус: `Implemented / Hex80 hardware gate deferred`.
+
+- Hex80 worker переведён со `std::thread` на waitable `_beginthreadex` HANDLE;
+- start/stop сериализованы, повторный start не заменяет незавершённое поколение;
+- stop публикует cooperative flag, будит event и запрашивает `CancelIoEx` активной
+  session, но HID HANDLE закрывает только владеющий им worker после terminal reap;
+- после каждого завершившегося request stop повторно проверяется до decode и
+  публикации, поэтому late completion не возвращает ненулевой input;
+- внешний join ограничен 3000 ms; timeout сохраняет thread/event/active-HID
+  ownership, возвращает точный result, poison'ит registry и требует process
+  containment;
+- simulator-only зависание подтвердило exit code 2, retained resources,
+  restart block и skipped dependent cleanup.
+
+Проверки: 40/40 static audits и 26/26 portable C++ tests PASS; Hex80 MSVC 19.44
+`/W4 /WX` PASS; официальный `BUILD.cmd` PASS (0 ошибок, только разрешённый
+LNK4099); Hex80 protocol `.cpp/.h` без Git diff; 15-секундный Irok smoke —
+57 276/57 276 successful routes, 315 us average / 878 us maximum interval,
+balanced shutdown, zero trace ERROR, 11 пользовательских файлов без изменений.
+`HallJoy.exe`: 2 271 232 bytes, SHA-256
+`540D4EB764FAD57E7431CA320F3E47420D7F0212C37A8D66EFFC1AAD3A6F6FAF`.
+Physical Hex80 hardware отсутствует; MAD68 остаётся следующим отдельным S07
+пакетом.

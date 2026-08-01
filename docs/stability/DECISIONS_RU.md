@@ -158,3 +158,19 @@ worker запускается через `_beginthreadex` и имеет waitable
 возвращает `TimedOut`, poison'ит generation и требует немедленного process
 containment без зависимого teardown. Это сознательное сохранение памяти до
 завершения процесса, а не leak в продолжающей работу программе.
+
+## D-S07-HEX80 — Hex80 session handle закрывает только worker
+
+**Статус:** принято для V14-12C.
+
+Активный Hex80 HID HANDLE принадлежит `Session` внутри worker. Owner-side stop
+может только опубликовать stop, разбудить event и вызвать `CancelIoEx`; закрывать
+HANDLE из другого потока запрещено. Registration scope объявляется после
+`Session`, поэтому снимается до того, как RAII-деструктор session закрывает HANDLE.
+Завершившийся одновременно со stop request отбрасывается до decode/publication.
+
+Worker запускается через `_beginthreadex`. Owner ждёт его не более 3000 ms и
+закрывает thread/event только после подтверждённого completion. Timeout сохраняет
+все reachable generation resources, возвращает truthful `StopResult`, запрещает
+restart и требует process containment. Протокол, command bytes и routing proof в
+этом lifecycle-пакете не изменяются.

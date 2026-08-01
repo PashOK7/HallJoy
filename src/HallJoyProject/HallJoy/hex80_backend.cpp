@@ -13,6 +13,7 @@
 #include "debug_log.h"
 #include "stability_trace.h"
 #include "worker_exception_barrier.h"
+#include "worker_join_policy.h"
 
 #include <algorithm>
 #include <array>
@@ -22,8 +23,8 @@
 #include <cwchar>
 #include <cstring>
 #include <mutex>
+#include <process.h>
 #include <string>
-#include <thread>
 #include <vector>
 
 #pragma comment(lib, "setupapi.lib")
@@ -35,6 +36,7 @@ constexpr DWORD kIoWriteTimeoutMs = 40;
 constexpr DWORD kProbeReadTimeoutMs = 120;
 constexpr DWORD kPollReadTimeoutMs = 30;
 constexpr DWORD kReconnectWaitMs = 1500;
+constexpr DWORD kStopJoinTimeoutMs = 3000;
 constexpr unsigned kMaxConsecutiveFailures = 8;
 
 struct Candidate
@@ -76,11 +78,15 @@ std::atomic<bool> g_running{ false };
 std::atomic<bool> g_stop{ false };
 std::atomic<bool> g_present{ false };
 std::atomic<bool> g_connected{ false };
-std::thread g_thread;
+HANDLE g_threadHandle = nullptr;
 HANDLE g_wakeEvent = nullptr;
 std::atomic<halljoy::worker::WorkerExceptionKind> g_workerFaultKind{
     halljoy::worker::WorkerExceptionKind::None };
 halljoy::worker::WorkerExceptionRecord g_workerFaultRecord{};
+std::mutex g_serviceMutex;
+std::mutex g_signalMutex;
+std::mutex g_activeSessionMutex;
+HANDLE g_activeSessionHandle = INVALID_HANDLE_VALUE;
 
 std::array<std::atomic<std::uint16_t>, 256> g_milli{};
 std::array<std::atomic<std::uint16_t>, 256> g_travel{};
@@ -105,6 +111,53 @@ std::atomic<std::uint32_t> g_maxTransactionUs{ 0 };
 std::atomic<std::uint64_t> g_lastMatrixUs{ 0 };
 std::atomic<std::uint32_t> g_avgMatrixIntervalUs{ 0 };
 std::atomic<std::uint32_t> g_maxMatrixIntervalUs{ 0 };
+
+bool InjectStopTimeout() noexcept
+{
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    return commandLine &&
+        wcsstr(commandLine, L"--halljoy-test-hex80-stop-timeout");
+#else
+    return false;
+#endif
+}
+
+class ScopedActiveSessionHandle
+{
+public:
+    explicit ScopedActiveSessionHandle(HANDLE handle) noexcept : handle_(handle)
+    {
+        std::lock_guard<std::mutex> lock(g_activeSessionMutex);
+        g_activeSessionHandle = handle_;
+    }
+
+    ~ScopedActiveSessionHandle() noexcept
+    {
+        std::lock_guard<std::mutex> lock(g_activeSessionMutex);
+        if (g_activeSessionHandle == handle_)
+            g_activeSessionHandle = INVALID_HANDLE_VALUE;
+    }
+
+    ScopedActiveSessionHandle(const ScopedActiveSessionHandle&) = delete;
+    ScopedActiveSessionHandle& operator=(const ScopedActiveSessionHandle&) = delete;
+
+private:
+    HANDLE handle_ = INVALID_HANDLE_VALUE;
+};
+
+void CancelActiveSessionIo()
+{
+    std::lock_guard<std::mutex> lock(g_activeSessionMutex);
+    if (g_activeSessionHandle && g_activeSessionHandle != INVALID_HANDLE_VALUE)
+        (void)CancelIoEx(g_activeSessionHandle, nullptr);
+}
+
+bool ActiveSessionHandleIsRegistered()
+{
+    std::lock_guard<std::mutex> lock(g_activeSessionMutex);
+    return g_activeSessionHandle && g_activeSessionHandle != INVALID_HANDLE_VALUE;
+}
 
 constexpr std::array<std::uint8_t, 256> BuildOwnedHids()
 {
@@ -315,7 +368,7 @@ public:
 
     bool SendOnly(const std::array<std::uint8_t, hex80::kPayloadBytes>& payload)
     {
-        std::fill(writeBuffer_.begin(), writeBuffer_.end(), 0);
+        std::fill(writeBuffer_.begin(), writeBuffer_.end(), std::uint8_t{ 0 });
         if (writeBuffer_.size() < payload.size() + 1u) return false;
         std::copy(payload.begin(), payload.end(), writeBuffer_.begin() + 1u);
         DWORD sent = 0, error = ERROR_SUCCESS;
@@ -335,9 +388,10 @@ public:
         const ULONGLONG deadline = GetTickCount64() + timeoutMs;
         while (true)
         {
+            if (g_stop.load(std::memory_order_acquire)) return false;
             const ULONGLONG now = GetTickCount64();
             if (now >= deadline) break;
-            std::fill(readBuffer_.begin(), readBuffer_.end(), 0);
+            std::fill(readBuffer_.begin(), readBuffer_.end(), std::uint8_t{ 0 });
             const DWORD remaining = static_cast<DWORD>(std::max<ULONGLONG>(1, deadline - now));
             DWORD got = 0, error = ERROR_SUCCESS;
             if (!RunTimedIo(handle_.value, false, readBuffer_.data(),
@@ -359,6 +413,7 @@ public:
     }
 
     const Candidate& Device() const { return candidate_; }
+    HANDLE Handle() const { return handle_.value; }
 
 private:
     Candidate candidate_{};
@@ -431,6 +486,7 @@ bool RunSession(const Candidate& candidate)
 {
     Session session(candidate);
     if (!session.Open()) return false;
+    ScopedActiveSessionHandle activeSession(session.Handle());
 
     // Re-prove the exact path with GET-only operations after every reconnect.
     // The PID may have been routed earlier, but no SET is sent to a newly opened
@@ -489,6 +545,7 @@ bool RunSession(const Candidate& candidate)
                 hex80::kGetValue, hex80::kTravelBuffer,
                 kPollReadTimeoutMs, &data, &bytes);
             const std::uint64_t finishedUs = NowUs();
+            if (g_stop.load(std::memory_order_acquire)) return true;
 
             std::array<hex80::TravelEntry, hex80::kChunkSize> entries{};
             std::size_t count = 0;
@@ -530,6 +587,18 @@ bool RunSession(const Candidate& candidate)
 
 std::uint32_t Hex80WorkerBody()
 {
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    if (InjectStopTimeout())
+    {
+        StabilityTrace_Write(L"INFO", L"hex80", L"test.start", L"simulator_only=1");
+        while (!g_stop.load(std::memory_order_acquire))
+            WaitForSingleObject(g_wakeEvent, 100);
+        StabilityTrace_Write(L"WARN", L"hex80", L"test.stop_timeout.injected",
+            L"simulator_only=1");
+        WaitForSingleObject(GetCurrentProcess(), INFINITE);
+    }
+#endif
+
     while (!g_stop.load(std::memory_order_acquire))
     {
         const auto candidates = EnumerateCandidates(true);
@@ -602,14 +671,14 @@ void Hex80WorkerOnCompletion(
         L"hex80", L"worker.exit", L"fault_kind=%u", static_cast<unsigned>(record.kind));
 }
 
-void Hex80WorkerEntry() noexcept
+unsigned __stdcall Hex80WorkerEntry(void*) noexcept
 {
     StabilityTrace_Write(L"INFO", L"hex80", L"worker.start");
-    (void)halljoy::worker::RunWorkerEntryBarrier(
+    return static_cast<unsigned>(halljoy::worker::RunWorkerEntryBarrier(
         [] { return Hex80WorkerBody(); },
         Hex80WorkerOnFault,
         Hex80WorkerOnCompletion,
-        0xE0520002u);
+        0xE0520002u));
 }
 }
 
@@ -651,81 +720,123 @@ bool Hex80_PrepareProtocolRouting()
 
 bool Hex80_Start()
 {
-    if (!g_routingPrepared.load(std::memory_order_acquire))
+    std::lock_guard<std::mutex> serviceLock(g_serviceMutex);
+    const bool injectStopTimeout = InjectStopTimeout();
+    if (!injectStopTimeout && !g_routingPrepared.load(std::memory_order_acquire))
         Hex80_PrepareProtocolRouting();
+    if (!injectStopTimeout)
     {
         std::lock_guard<std::mutex> lock(g_routingMutex);
         if (g_routedProductIds.empty()) return false;
     }
+    if (g_threadHandle)
+        return g_running.load(std::memory_order_acquire);
 
     bool expected = false;
     if (!g_running.compare_exchange_strong(expected, true, std::memory_order_acq_rel))
         return true;
-
-    // Reap a completed/faulted generation before replacing std::thread.
-    if (g_thread.joinable())
-    {
-        try { g_thread.join(); }
-        catch (...)
-        {
-            g_running.store(false, std::memory_order_release);
-            return false;
-        }
-    }
-    if (g_wakeEvent)
-    {
-        CloseHandle(g_wakeEvent);
-        g_wakeEvent = nullptr;
-    }
 
     g_workerFaultRecord = {};
     g_workerFaultKind.store(halljoy::worker::WorkerExceptionKind::None,
         std::memory_order_release);
     g_stop.store(false, std::memory_order_release);
     ResetTelemetry();
-    g_wakeEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-    if (!g_wakeEvent)
     {
-        const DWORD error = GetLastError();
-        g_running.store(false, std::memory_order_release);
-        StabilityTrace_WriteCritical(L"ERROR", L"hex80", L"start.failed", L"stage=create_event win32=%lu", error);
-        return false;
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
+        g_wakeEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        if (!g_wakeEvent)
+        {
+            const DWORD error = GetLastError();
+            g_running.store(false, std::memory_order_release);
+            StabilityTrace_WriteCritical(L"ERROR", L"hex80", L"start.failed", L"stage=create_event win32=%lu", error);
+            return false;
+        }
     }
-    try
+
+    unsigned threadId = 0;
+    const uintptr_t thread = _beginthreadex(
+        nullptr, 0, Hex80WorkerEntry, nullptr, 0, &threadId);
+    if (thread == 0)
     {
-        g_thread = std::thread(Hex80WorkerEntry);
-    }
-    catch (...)
-    {
-        CloseHandle(g_wakeEvent);
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
+        if (g_wakeEvent) CloseHandle(g_wakeEvent);
         g_wakeEvent = nullptr;
         g_running.store(false, std::memory_order_release);
         StabilityTrace_WriteCritical(L"ERROR", L"hex80", L"start.failed", L"stage=create_thread");
         return false;
     }
-    StabilityTrace_Write(L"INFO", L"hex80", L"start.ok");
+    g_threadHandle = reinterpret_cast<HANDLE>(thread);
+    if (WaitForSingleObject(g_threadHandle, 0) == WAIT_OBJECT_0 &&
+        !g_running.load(std::memory_order_acquire))
+    {
+        CloseHandle(g_threadHandle);
+        g_threadHandle = nullptr;
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
+        if (g_wakeEvent) CloseHandle(g_wakeEvent);
+        g_wakeEvent = nullptr;
+        StabilityTrace_WriteCritical(L"ERROR", L"hex80", L"start.failed", L"stage=worker_early_exit");
+        return false;
+    }
+    StabilityTrace_Write(L"INFO", L"hex80", L"start.ok", L"thread_id=%u", threadId);
     return true;
+}
+
+halljoy::lifecycle::StopResult Hex80_StopGeneration(
+    halljoy::lifecycle::GenerationId generation)
+{
+    std::lock_guard<std::mutex> serviceLock(g_serviceMutex);
+    if (!g_threadHandle)
+        return NativeAnalogBackendStopJoined(generation);
+    StabilityTrace_Write(L"INFO", L"hex80", L"stop.begin", L"worker_handle=1");
+    g_stop.store(true, std::memory_order_release);
+    g_connected.store(false, std::memory_order_release);
+    ClearPublishedValues();
+    {
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
+        if (g_wakeEvent) SetEvent(g_wakeEvent);
+    }
+    CancelActiveSessionIo();
+
+    const DWORD wait = WaitForSingleObject(g_threadHandle, kStopJoinTimeoutMs);
+    if (wait != WAIT_OBJECT_0)
+    {
+        const DWORD error = wait == WAIT_TIMEOUT ? WAIT_TIMEOUT : GetLastError();
+        StabilityTrace_WriteCritical(L"ERROR", L"hex80", L"stop.incomplete",
+            L"wait=%lu native_error=%lu thread_handle_retained=1 wake_event_retained=1 active_hid_retained=%d restart_blocked=1",
+            static_cast<unsigned long>(wait), static_cast<unsigned long>(error),
+            ActiveSessionHandleIsRegistered() ? 1 : 0);
+        return halljoy::lifecycle::ObserveWorkerJoin(
+            generation,
+            wait == WAIT_TIMEOUT
+                ? halljoy::lifecycle::JoinWaitStatus::TimedOut
+                : halljoy::lifecycle::JoinWaitStatus::Failed,
+            error);
+    }
+
+    CloseHandle(g_threadHandle);
+    g_threadHandle = nullptr;
+    {
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
+        if (g_wakeEvent) CloseHandle(g_wakeEvent);
+        g_wakeEvent = nullptr;
+    }
+    g_running.store(false, std::memory_order_release);
+    ClearPublishedValues();
+    StabilityTrace_Write(L"INFO", L"hex80", L"neutralized", L"reason=stop");
+    StabilityTrace_Write(L"INFO", L"hex80", L"stop.joined");
+    return NativeAnalogBackendStopJoined(generation);
 }
 
 void Hex80_Stop()
 {
-    if (!g_running.load(std::memory_order_acquire) && !g_thread.joinable()) return;
-    StabilityTrace_Write(L"INFO", L"hex80", L"stop.begin", L"joinable=%d", g_thread.joinable() ? 1 : 0);
-    g_stop.store(true, std::memory_order_release);
-    if (g_wakeEvent) SetEvent(g_wakeEvent);
-    if (g_thread.joinable()) g_thread.join();
-    if (g_wakeEvent) CloseHandle(g_wakeEvent);
-    g_wakeEvent = nullptr;
-    g_running.store(false, std::memory_order_release);
-    g_connected.store(false, std::memory_order_release);
-    ClearPublishedValues();
-    StabilityTrace_Write(L"INFO", L"hex80", L"neutralized", L"reason=stop");
-    StabilityTrace_Write(L"INFO", L"hex80", L"stop.end");
+    (void)Hex80_StopGeneration(halljoy::lifecycle::GenerationId{});
 }
 
 void Hex80_NotifyDeviceChange()
 {
-    if (g_wakeEvent) SetEvent(g_wakeEvent);
+    std::unique_lock<std::mutex> signalLock(g_signalMutex, std::try_to_lock);
+    if (signalLock.owns_lock() && g_wakeEvent)
+        SetEvent(g_wakeEvent);
 }
 
 bool Hex80_IsRunning()
@@ -855,8 +966,7 @@ const NativeAnalogBackendDescriptor& Hex80_GetNativeBackendDescriptor()
         &Hex80_PrepareProtocolRouting,
         &Hex80_Start,
         [](halljoy::lifecycle::GenerationId generation) {
-            Hex80_Stop();
-            return NativeAnalogBackendStopJoined(generation);
+            return Hex80_StopGeneration(generation);
         },
         &Hex80_NotifyDeviceChange,
         &Hex80_IsProtocolDevicePresent,

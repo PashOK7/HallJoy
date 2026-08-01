@@ -71,6 +71,16 @@ public static class HallJoyLongSoakNative {
     public static extern bool PostMessage(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll")]
     public static extern uint GetGuiResources(IntPtr process, uint flags);
+    [DllImport("kernel32.dll")]
+    public static extern uint SetThreadExecutionState(uint executionState);
+
+    public static uint PreventSystemSleep() {
+        return SetThreadExecutionState(0x80000001u);
+    }
+
+    public static void ClearSystemSleepPrevention() {
+        SetThreadExecutionState(0x80000000u);
+    }
 
     public static int PostClose(uint targetProcessId) {
         int sent = 0;
@@ -165,6 +175,7 @@ $exeHash = (Get-FileHash -LiteralPath $ExePath -Algorithm SHA256).Hash
 $samples = [System.Collections.Generic.List[object]]::new()
 $overlayProbes = [System.Collections.Generic.List[object]]::new()
 $process = $null
+$powerRequestActive = $false
 $startedAt = [DateTime]::UtcNow
 $failureMessage = ''
 
@@ -186,6 +197,7 @@ function Write-SoakCheckpoint {
         last_sample = $lastSample
         overlay_enabled = [bool]$StartOverlay
         overlay_probes_completed = $overlayProbes.Count
+        system_sleep_prevented = $powerRequestActive
         fault_injection = $false
         error = $failureMessage
     }
@@ -198,6 +210,14 @@ if (Test-Path -LiteralPath $trace -PathType Leaf) {
 Write-SoakCheckpoint -Status 'starting'
 
 try {
+    # Keep an unattended qualification run valid even when the normal Windows
+    # idle timeout would otherwise suspend the machine. The request is scoped to
+    # this runner thread and is always cleared in finally.
+    if ([HallJoyLongSoakNative]::PreventSystemSleep() -eq 0) {
+        throw 'Windows rejected the long-soak system sleep prevention request.'
+    }
+    $powerRequestActive = $true
+
     $processArguments = @()
     if ($StartOverlay) {
         $processArguments += @('--overlay-server', '--port', [string]$OverlayPort)
@@ -381,6 +401,7 @@ try {
         overlay_port = if ($StartOverlay) { $OverlayPort } else { $null }
         overlay_probes = $overlayProbes.Count
         remaining_processes = 0
+        system_sleep_prevented = $powerRequestActive
         user_state_files_before = $stateBefore.Count
         user_state_files_after = $stateAfter.Count
         user_state_changed = 0
@@ -432,5 +453,9 @@ finally {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
             $process.WaitForExit(5000) | Out-Null
         }
+    }
+    if ($powerRequestActive) {
+        [HallJoyLongSoakNative]::ClearSystemSleepPrevention()
+        $powerRequestActive = $false
     }
 }

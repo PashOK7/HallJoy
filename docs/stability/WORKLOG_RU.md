@@ -480,3 +480,13 @@ accounting exact: 1 598 879 queries = 1 598 454 ok + 425 одиночных canc
 
 1000-cycle gate Verified. Остались long soak, manual Irok input/reconnect,
 недоступная device-owner matrix и external Aula hardware result.
+
+## 2026-08-01 — V14-12J / S21 защита unattended soak от сна
+
+Long-soak runner устанавливает thread-scoped Windows
+`ES_CONTINUOUS | ES_SYSTEM_REQUIRED` и обязательно снимает request в `finally`,
+поэтому idle timeout не приостанавливает ночную qualification. Первый pilot до
+запуска HallJoy корректно поймал signed-интерпретацию high-bit hex в PowerShell;
+unsigned constants перенесены в C# WinAPI wrapper. Исправленный минутный pilot
+PASS: `system_sleep_prevented=true`, 29 samples, HANDLE 209 -> 209, Spark
+240 624/240 624, процессов 0, 11 state files unchanged.

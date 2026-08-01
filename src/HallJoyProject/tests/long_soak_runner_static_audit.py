@@ -24,6 +24,10 @@ require("[ValidateRange(1, 60)]" in runner and "[int]$SampleSeconds" in runner,
         "resource sampling interval is bounded to at most sixty seconds")
 require("[int]$ProgressMinutes = 5" in runner and "Soak progress:" in runner,
         "long runs emit periodic human-readable progress")
+require("SetThreadExecutionState" in runner and "0x80000001u" in runner and
+        "0x80000000u" in runner and "PreventSystemSleep" in runner and
+        "ClearSystemSleepPrevention" in runner and "system_sleep_prevented" in runner,
+        "unattended soak prevents automatic system sleep and clears the request")
 require("[ValidateRange(1, 300)]" in runner and "[int]$WarmupSeconds = 10" in runner and
         "WarmupSeconds must be shorter" in runner and "baseline_elapsed_seconds" in runner,
         "leak gates use an explicit bounded post-startup warm-up baseline")

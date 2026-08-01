@@ -1704,3 +1704,14 @@ than one, and no corresponding ERROR or worker fault occurred.
 
 The 1000-cycle S21 gate is Verified. The long soak, manual Irok input/reconnect,
 unavailable device-owner matrix and external Aula hardware result remain.
+
+## 2026-08-01 - V14-12J / S21 unattended-soak power request
+
+The long-soak runner now holds a thread-scoped Windows
+`ES_CONTINUOUS | ES_SYSTEM_REQUIRED` request and clears it in `finally`, so the
+normal idle timeout cannot suspend an unattended qualification. A first pilot
+correctly rejected PowerShell's signed interpretation of the raw high-bit hex
+constant before HallJoy launch; unsigned constants were moved into the C#
+WinAPI wrapper. The corrected one-minute pilot passed with
+`system_sleep_prevented=true`, 29 samples, HANDLE 209 -> 209, 240,624 successful
+Spark routes, zero non-ok routes, zero survivor and unchanged 11-file state.

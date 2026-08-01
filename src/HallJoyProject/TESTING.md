@@ -63,7 +63,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_long_soak.ps1 -D
 
 The soak persists `samples.csv`, checkpoints, before/after user-state hashes,
 the bounded stability trace, analyzer output and `summary.json`. Leak gates use
-a post-startup warm-up baseline. Analyzer `WARN` is acceptable only for the
+a post-startup warm-up baseline. The runner prevents automatic system sleep for
+the duration and clears that request on every exit path; manually rebooting or
+suspending the machine still invalidates the run. Analyzer `WARN` is acceptable only for the
 documented manual-only input/reconnect/mode coverage; analyzer `FAIL`, trace
 `ERROR`, trace capping, resource-growth limits or an unresponsive overlay fail
 the run.

@@ -73,3 +73,5 @@ Baseline-лог исходной версии хранится отдельно 
   runner, long production soak, static/full/build gates и post-build Irok pilot.
 - `V14-12I_S21_1000_CYCLES_2026-08-01.txt` — финальный 1000/1000 production
   lifecycle gate, trace hashes, shutdown distribution, resources и state proof.
+- `V14-12J_S21_SOAK_SLEEP_PREVENTION_2026-08-01.txt` — Windows power request,
+  guaranteed cleanup и corrected one-minute unattended-soak pilot.

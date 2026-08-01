@@ -1,0 +1,89 @@
+HallJoy V14-11A UAP poll pacing evidence
+Date: 2026-08-01
+Workstation device: Irok MG75 Max, VID 1CA6, PID 0529, usage page FFB0
+
+Scope
+-----
+Replace zero-delay private-UAP vendor polling with transport-scoped deadline
+pacing. This evidence does not claim UAP hardware verification because the
+available Irok keyboard uses HallJoy's native SparkLink route.
+
+Implementation contract
+-----------------------
+- All six private UAP .sun targets define UAP_POLL_TARGET_US=1000.
+- Only AnalogueKeyboard::isPoll() workers enter the pacing branch.
+- Successful fast transactions wait only to the 1 ms start-to-start deadline.
+- Successful transactions at or beyond the deadline receive no extra delay.
+- Madlions transient report failures back off 2, 4, 8, 16, 32 and 64 ms,
+  remain capped at 64 ms and reset after success.
+- Wooting, Razer and NuPhy report-stream behavior is unchanged.
+- Telemetry identifies deadline-paced production workers separately from an
+  explicitly unthrottled diagnostic build.
+
+Commands and results
+--------------------
+python src/HallJoyProject/tests/uap_poll_pacing_static_audit.py
+  UAP_POLL_PACING_STATIC_AUDIT=PASS
+
+python tools/run_native_backend_checks.py --require-compiler
+  Static audits: 35/35 PASS
+  Portable C++20 tests: 19/19 PASS
+  UAP_POLL_PACING_TEST=PASS paced_calls=1000 unpaced_calls=20000
+  paced_modeled_busy_us=50000 unpaced_modeled_busy_us=1000000
+
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1
+  Production MSVC x64 Release: PASS
+  Compile/link errors: 0
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB warning
+
+python tools/check_private_uap_abi.py
+  third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+  PRIVATE_UAP_ABI_RUNTIME=PASS abi=1 initial_devices=0
+  name='Universal Analog Plugin (HallJoy SafeHID v10 deadline-paced telemetry)'
+
+powershell -NoProfile -ExecutionPolicy Bypass
+  -File tools/run_production_smoke.ps1 -StartOverlay
+  -OverlayPort 18765 -RunSeconds 15
+  Overlay responsiveness: PASS, 0.4 ms
+  HTTP framing: PASS, fragmented=1, pipelined=2, bounded_rejections=8
+  Concurrency/origin: PASS, slow_clients=8, parallel_state=8,
+    max_latency_ms=1.6, client_limit=16, hostile_origins=2, session_cookie=1
+  Production startup/shutdown: PASS, exit code 0
+  Irok native route: 65,138/65,138 queries, 0 failures,
+    average interval 252 us, maximum interval 1,627 us
+  User data: 11 files before, 11 after, 0 differences
+  Remaining HallJoy processes: 0
+  Persistence transaction temporary files: 0
+  Trace ERROR events: 0
+  Analyzer: WARN only for no key activity and no unplug/reconnect exercise
+
+Artifacts
+---------
+build/output/HallJoy.exe
+  size=2232832
+  sha256=B7959FB6807CE0B6966380E0D3F9F1ECBEE170693CBF8E453EA31CF7914992A2
+
+third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv0.dll
+  size=411136
+  sha256=25A70770928E0124306F582FCC5BBDFCDF2FD73B43A585EDE62322B3052F812F
+
+third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+  size=283648
+  sha256=5939EB59DF2278A76727A760B7C0B559D317BB3ADE8E212607F4C989637308F6
+
+build/output/HallJoyStabilityTrace.log
+  size=10013
+  sha256=7918E18FF9FCDD7C9CF619DDFA7224FE248CE0E404F04E106593BDE7B1C591AE
+
+Backup
+------
+C:\github\HallJoy_v1.4_BACKUPS\V14-11A-prechange-20260801-1305
+22 source/document files, SHA-256 verified at copy time.
+
+Status and remaining gate
+-------------------------
+HJ-AUD-P2-006: Implemented, not Verified.
+Required hardware gate: connect an actual UAP poll-only keyboard and compare
+CPU load, USB transaction/update rate and end-to-end input latency against the
+pre-V14-11A build without an unsupported sampling regression.
+Next implementation package: V14-11B stable identity for identical UAP devices.

@@ -82,7 +82,7 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P2-003` | P2 | Overlay telemetry parser допускает unsigned overflow | `S16` | Verified | exact-key `from_chars`, duplicate/junk/overflow rejection and one-billion bound passed simulator and production socket gates in V14-10C |
 | `HJ-AUD-P2-004` | P2 | Overlay endpoint открыт любому origin | `S16` | Verified | per-generation 128-bit session cookie, exact loopback origin echo and hostile/null-origin rejection passed simulator and production gates in V14-10D |
 | `HJ-AUD-P2-005` | P2 | Mouse IPC читает interlocked-written поля обычными volatile reads | `S15` | Verified | peer-owned attach/heartbeat and schema fields use interlocked reads; static audit and simulator policy self-test passed in V14-10A |
-| `HJ-AUD-P2-006` | P2 | UAP poll workers собраны без какого-либо pacing | `S17` | Open | CPU/USB/identity/contention measurements |
+| `HJ-AUD-P2-006` | P2 | UAP poll workers собраны без какого-либо pacing | `S17` | Implemented | 1 ms deadline and bounded error-backoff gates passed; real UAP poll-device CPU/USB/update-rate comparison remains |
 | `HJ-AUD-P2-007` | P2 | UAP device identity нестабильна для двух одинаковых устройств | `S17` | Open | CPU/USB/identity/contention measurements |
 | `HJ-AUD-P2-008` | P2 | `is_initialised()` plugin всегда возвращает `true` | `S10` | Verified | runtime ABI gate proves false before init, true after init and false after bounded unload |
 | `HJ-AUD-P2-009` | P2 | `_device_info` не проверяет `buffer == nullptr` | `S10` | Verified | runtime ABI gate proves null device-info and full-buffer arguments return zero without a fault |
@@ -106,6 +106,23 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P3-006` | P3 | Проект компилируется только с Warning Level 3 | `S20` | Open | build/docs/manifest validation |
 | `HJ-AUD-P3-007` | P3 | Корневой README не перечисляет реальные build dependencies | `S20` | Verified | README dependency list and independent clean-room build pass |
 | `HJ-AUD-P3-008` | P3 | Sun build tool берётся с moving branch | `S20` | Verified | exact locked commit, fresh fetch and independent build pass |
+
+### Evidence for HJ-AUD-P2-006
+
+V14-11A removes every production `UAP_POLL_SLEEP_MS=0` target and applies a
+1000 us start-to-start deadline only when Soup classifies the device as a poll
+transport. Fast successful cycles wait only for the unused deadline; cycles
+that already took at least 1 ms receive no additional delay. Madlions report
+failures back off 2, 4, 8, 16, 32 and 64 ms, remain capped at 64 ms and reset
+after success. Report-stream Wooting, Razer and NuPhy devices do not enter the
+pacing branch.
+
+The deterministic portable model reduced a 50 us transaction from 20,000 to
+1,000 calls per modeled second and from 1,000,000 to 50,000 us of modeled busy
+time. The static audit, all 19 portable tests, rebuilt ABI1 load/name/null/
+bounded-unload gate, official MSVC build and production Irok regression pass.
+The Irok uses the native SparkLink route, not UAP, so no real UAP CPU, USB or
+sampling claim is made and the risk remains `Implemented` pending hardware.
 
 ## Evidence package S01
 

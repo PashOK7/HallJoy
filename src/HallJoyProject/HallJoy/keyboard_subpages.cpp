@@ -8596,9 +8596,12 @@ static std::vector<std::wstring> Config_BuildAnalogTelemetryLines(
             }
             else if ((d.flags & BackendAnalogDeviceFlag_PolledTransport) != 0)
             {
-                transport = (d.flags & BackendAnalogDeviceFlag_UnthrottledWorker) != 0
-                    ? L"unthrottled background HID polling"
-                    : L"background HID polling";
+                if ((d.flags & BackendAnalogDeviceFlag_DeadlinePacedWorker) != 0)
+                    transport = L"deadline-paced background HID polling";
+                else if ((d.flags & BackendAnalogDeviceFlag_UnthrottledWorker) != 0)
+                    transport = L"unthrottled background HID polling (diagnostic)";
+                else
+                    transport = L"background HID polling";
                 rateLabel = L"completed polls";
             }
             else if ((d.flags & BackendAnalogDeviceFlag_StreamTransport) != 0)

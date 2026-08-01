@@ -25,6 +25,14 @@ def main() -> int:
     if abi != 1:
         raise RuntimeError(f"unexpected ABI version: {abi}")
 
+    # SOUP_CEXPORT strips the source-level leading underscore on Windows.
+    plugin_name_export = api["name"]
+    plugin_name_export.argtypes = []
+    plugin_name_export.restype = ctypes.c_char_p
+    plugin_name = plugin_name_export().decode("utf-8", errors="strict")
+    if "deadline-paced telemetry" not in plugin_name:
+        raise RuntimeError(f"unexpected private UAP build identity: {plugin_name!r}")
+
     api.is_initialised.argtypes = []
     api.is_initialised.restype = ctypes.c_bool
     api.device_info.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.c_uint32]
@@ -64,7 +72,10 @@ def main() -> int:
     if not api.halljoy_unload_bounded(3000):
         raise RuntimeError("idempotent bounded unload failed")
 
-    print(f"PRIVATE_UAP_ABI_RUNTIME=PASS abi={abi} initial_devices={initial_devices}")
+    print(
+        f"PRIVATE_UAP_ABI_RUNTIME=PASS abi={abi} initial_devices={initial_devices} "
+        f"name={plugin_name!r}"
+    )
     return 0
 
 

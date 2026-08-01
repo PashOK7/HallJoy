@@ -1153,3 +1153,55 @@
 - `HJ-AUD-P2-001` and `HJ-AUD-P2-004` are Verified.
 - V14-10 is complete. Next is V14-11 UAP pacing, device identity,
   modularization and measured performance.
+
+## 2026-08-01 - V14-11A UAP poll deadline pacing
+
+### Implementation
+
+- Replaced all six private UAP targets' zero-delay poll configuration with a
+  1000 us start-to-start deadline. The worker records the cycle start before a
+  poll and sleeps only for the remaining interval, so a slow USB transaction
+  receives no additive delay.
+- Added a pure, constexpr-testable pacing policy with bounded exponential
+  Madlions failure waits of 2, 4, 8, 16, 32 and 64 ms. A successful report
+  resets the streak. The 64 ms cap keeps stop observation well inside the
+  existing three-second unload boundary.
+- Applied the policy only to `AnalogueKeyboard::isPoll()` devices. Report-
+  stream Wooting, Razer and NuPhy workers retain their existing blocking path.
+- Added matching plugin/backend telemetry flags and UI text for deadline-paced
+  production workers. An explicitly disabled target is labeled unthrottled
+  diagnostic rather than being confused with the production policy.
+- Updated the private plugin identity to `SafeHID v10 deadline-paced telemetry`
+  and extended the runtime ABI gate to verify that exact rebuilt identity.
+- Added a build-required static audit and portable pacing/rate model; the
+  official runner now contains 35 static audits and 19 portable C++ tests.
+
+### Validation
+
+- Pacing static audit and complete static/portable gate: PASS. The deterministic
+  50 us transaction model produced 1,000 paced versus 20,000 unthrottled calls
+  per second and 50,000 versus 1,000,000 us of modeled busy time.
+- Official x64 production build: PASS, 0 errors and only allowlisted `LNK4099`.
+- Rebuilt private ABI1 load/init/name/null/bounded-unload: PASS, zero UAP
+  devices on this workstation, exact v10 deadline-paced identity loaded.
+- Production overlay smoke: responsiveness, framing, concurrency, origin and
+  graceful shutdown PASS. Maximum parallel state latency was 1.6 ms.
+- Native Irok MG75 Max route `1CA6:0529/FFB0` completed 65,138/65,138 queries,
+  zero failures, 252 us average route interval and balanced exit 0. No keys or
+  reconnect were exercised, so the analyzer WARN is not a product error.
+- All 11 LocalAppData files were unchanged; no HallJoy process or transaction
+  temp remained.
+- `HallJoy.exe`: 2,232,832 bytes,
+  SHA-256 `B7959FB6807CE0B6966380E0D3F9F1ECBEE170693CBF8E453EA31CF7914992A2`.
+- Production trace SHA-256:
+  `7918E18FF9FCDD7C9CF619DDFA7224FE248CE0E404F04E106593BDE7B1C591AE`.
+- Source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-11A-prechange-20260801-1305`.
+
+### Package result
+
+- `HJ-AUD-P2-006` is `Implemented`, not `Verified`: the pacing contract and
+  isolation regression pass, but the available Irok uses native SparkLink and
+  cannot supply real UAP poll-device CPU/USB/update-rate/latency evidence.
+- V14-11 remains In progress. Next is V14-11B stable identity for identical
+  UAP devices, followed by V14-11C snapshot contention.

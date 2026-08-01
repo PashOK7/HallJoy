@@ -285,3 +285,23 @@ receive the new HttpOnly cookie and resumes its normal polling loop.
 
 This is a loopback browser boundary, not authentication against another process
 already able to read HallJoy's memory, browser cookie store or local traffic.
+
+## D-021 - UAP vendor polling is deadline-paced by transport class
+
+Date: 2026-08-01
+
+Only devices for which Soup reports `isPoll()` may be paced by the private UAP
+worker. Their production target is a 1000 us start-to-start deadline, not a
+fixed sleep after every request and not a promise that every device samples at
+1 kHz. A successful transaction waits only for the unconsumed deadline; an
+already-slow transaction continues immediately. A tolerated Madlions report
+failure waits with bounded exponential backoff from 2 through 64 ms, and the
+next success resets the failure streak.
+
+Wooting, Razer and NuPhy report-stream devices retain their existing blocking
+read behavior. A separate telemetry flag identifies deadline-paced workers;
+the old unthrottled flag is diagnostic-only. Portable timing arithmetic may
+prove the scheduler contract and modeled busy-time reduction, but only an
+actual UAP poll keyboard can verify CPU load, USB transaction rate and input
+latency. Therefore the implementation and its hardware qualification have
+separate statuses.

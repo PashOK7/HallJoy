@@ -22,6 +22,7 @@
 #include <cstring>
 #include <cctype>
 #include <mutex>
+#include <thread>
 #include <unordered_map>
 #if SOUP_WINDOWS
 #include <windows.h>
@@ -30,6 +31,7 @@
 #include "halljoy_plugin_telemetry.h"
 #include "halljoy_dense_snapshot.h"
 #include "halljoy_uap_cabi_guard.h"
+#include "halljoy_uap_poll_pacing.h"
 
 #define LOGGING false
 
@@ -40,8 +42,8 @@
 #define UAP_DISABLE_HOTPLUG 0
 #endif
 
-#ifndef UAP_POLL_SLEEP_MS
-#define UAP_POLL_SLEEP_MS 2
+#ifndef UAP_POLL_TARGET_US
+#define UAP_POLL_TARGET_US 1000
 #endif
 
 // HallJoy Madlions diagnostic: poll poll-only keyboards synchronously from
@@ -281,7 +283,7 @@ SOUP_CEXPORT const uint32_t ANALOG_SDK_PLUGIN_ABI_VERSION = ABI_VERSION_TARGET;
 
 SOUP_CEXPORT const char* _name() noexcept
 {
-	return "Universal Analog Plugin (HallJoy SafeHID v9 unthrottled telemetry)";
+	return "Universal Analog Plugin (HallJoy SafeHID v10 deadline-paced telemetry)";
 }
 
 SOUP_CEXPORT bool is_initialised() noexcept
@@ -570,7 +572,11 @@ struct Device
 		{
 			out.flags |= HallJoyPluginTelemetry::DeviceFlag_SynchronousHallJoyPoll;
 		}
-		else if (poll_transport && UAP_POLL_SLEEP_MS == 0)
+		else if (poll_transport && UAP_POLL_TARGET_US != 0)
+		{
+			out.flags |= HallJoyPluginTelemetry::DeviceFlag_DeadlinePacedWorker;
+		}
+		else if (poll_transport)
 		{
 			out.flags |= HallJoyPluginTelemetry::DeviceFlag_UnthrottledWorker;
 		}
@@ -771,12 +777,26 @@ static void start_device_worker(Device& dev)
 			Device& dev = *cap.get<Device*>();
 			soup::AnalogueKeyboard& kbd = dev.kbd;
 			const bool is_poll_device = kbd.isPoll();
+			halljoy::uap::PollPacingPolicy poll_pacing(UAP_POLL_TARGET_US);
 
 			while (running.load(std::memory_order_acquire) && !kbd.disconnected)
 			{
+				if (is_poll_device)
+				{
+					poll_pacing.BeginCycle(halljoy_telemetry_now_us());
+				}
 				dev.update_from_keyboard();
-				if (is_poll_device && UAP_POLL_SLEEP_MS != 0)
-					soup::os::sleep(UAP_POLL_SLEEP_MS);
+				if (is_poll_device)
+				{
+					const bool transaction_succeeded = !kbd.disconnected &&
+						(kbd.hid.vendor_id != 0x373b || kbd.madlions.consecutive_failed_reports == 0);
+					const std::uint32_t wait_us = poll_pacing.CompleteCycle(
+						halljoy_telemetry_now_us(), transaction_succeeded);
+					if (wait_us != 0)
+					{
+						std::this_thread::sleep_for(std::chrono::microseconds(wait_us));
+					}
+				}
 			}
 			dev.clear_snapshot();
 		}

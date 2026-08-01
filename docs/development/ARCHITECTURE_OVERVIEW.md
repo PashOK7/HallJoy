@@ -150,6 +150,15 @@ timeout retains plugin ownership and poisons restart; the child host then exits
 the disposable process without calling `FreeLibrary`, leaving parent/job
 containment to confirm process completion before any replacement child starts.
 
+UAP worker pacing follows the transport classification. Poll-only vendor
+request devices use a 1000 us start-to-start deadline: a fast transaction waits
+only for the remainder, while a transaction that already crossed the deadline
+does not incur additive sleep. Transient Madlions failures back off from 2 ms
+to a 64 ms cap and reset after success. Blocking report-stream devices do not
+enter the pacing branch. Telemetry distinguishes deadline-paced production
+workers from an explicit unthrottled diagnostic build; it does not claim a
+measured device rate until hardware evidence exists.
+
 ## Files a new protocol owns
 
 Generated default:

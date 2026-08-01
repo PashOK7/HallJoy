@@ -107,6 +107,7 @@ def main() -> int:
             ("publication_generation", [tests / "publication_generation_test.cpp"]),
             ("transactional_file_store", [tests / "transactional_file_store_test.cpp"]),
             ("uap_cabi_guard", [tests / "uap_cabi_guard_test.cpp"]),
+            ("uap_poll_pacing", [tests / "uap_poll_pacing_test.cpp"]),
             ("windows_command_line", [tests / "windows_command_line_test.cpp"]),
         ]
         for name, sources in fixed_tests:

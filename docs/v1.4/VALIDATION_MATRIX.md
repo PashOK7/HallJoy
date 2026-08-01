@@ -1043,3 +1043,52 @@ Evidence:
   docs/stability/tests/V14-10D_OVERLAY_CONCURRENCY_ORIGIN_2026-08-01.txt
 Rollback: parent commit of the V14-10D implementation commit
 ```
+
+## V14-11A evidence
+
+```text
+Package: V14-11A
+Scope: deadline pacing and transient-error backoff for private UAP poll workers
+Commands:
+  python src/HallJoyProject/tests/uap_poll_pacing_static_audit.py
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  python tools/check_private_uap_abi.py
+    third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -StartOverlay
+    -OverlayPort 18765 -RunSeconds 15
+Results:
+  UAP pacing static audit: PASS
+  Static audits: 35/35 PASS
+  Portable C++20 tests: 19/19 PASS
+  Deterministic 50 us transaction model: paced calls=1,000/s versus
+    unthrottled calls=20,000/s; modeled busy=50,000 versus 1,000,000 us/s
+  Production policy: six/six private UAP targets use 1000 us deadlines;
+    failure waits=2,4,8,16,32,64 ms capped; stream transports unchanged
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Rebuilt ABI1 load/init/name/null/bounded-unload gate: PASS;
+    name=Universal Analog Plugin (HallJoy SafeHID v10 deadline-paced telemetry)
+  Production overlay responsiveness/framing/concurrency/origin: PASS;
+    maximum parallel state latency 1.6 ms, fixed client limit 16
+  Production Irok route: SparkLink VID 1CA6, PID 0529, usage page FFB0;
+    65,138/65,138 successful queries, zero failures, average route interval
+    252 us, balanced shutdown and exit 0
+  Runtime user state: 11 files, zero differences; no process or temp remained
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,232,832 bytes
+  SHA-256: B7959FB6807CE0B6966380E0D3F9F1ECBEE170693CBF8E453EA31CF7914992A2
+  Production trace SHA-256:
+    7918E18FF9FCDD7C9CF619DDFA7224FE248CE0E404F04E106593BDE7B1C591AE
+Hardware: native Irok route regression passed, but this device bypasses UAP;
+  no actual UAP poll keyboard CPU/USB/latency measurement is claimed
+Analyzer note: WARN only because no keys or unplug/reconnect were exercised;
+  production smoke itself passed and trace contains no ERROR event
+Remote CI: NOT RUN; optional, no push permitted
+Status: HJ-AUD-P2-006 Implemented, not Verified
+Next: V14-11B stable identity for identical UAP devices
+Evidence:
+  docs/stability/tests/V14-11A_UAP_POLL_PACING_2026-08-01.txt
+Rollback: parent commit of the V14-11A implementation commit
+```

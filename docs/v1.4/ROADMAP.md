@@ -35,7 +35,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Verified | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
 | `V14-09` | Transactional persistence and writable state migration | Verified | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
 | `V14-10` | IPC and overlay security/correctness | Verified | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
-| `V14-11` | UAP pacing, identity, modularization and measured performance | Planned | CPU/USB/latency comparison with no unsupported sampling regression |
+| `V14-11` | UAP pacing, identity, modularization and measured performance | In progress | CPU/USB/latency comparison with no unsupported sampling regression |
 | `V14-12` | Release qualification and hardware matrix | Planned | Clean package, 8-24h soak, reconnect cycles and required device-owner gates |
 
 ## Completed package: V14-00
@@ -391,6 +391,26 @@ Progress:
 
 V14-10 is complete. The next implementation package is V14-11 UAP pacing,
 identity, modularization and measured performance.
+
+## In-progress package: V14-11
+
+- `V14-11A` UAP poll pacing: Implemented locally; hardware qualification
+  pending. All six private plugin targets use a 1000 us start-to-start
+  deadline for poll transports. Transactions that already consume the
+  deadline receive no additive delay; transient Madlions failures use bounded
+  2..64 ms exponential backoff. Wooting, Razer and NuPhy report-stream paths
+  are unchanged. Static/portable gates, the rebuilt private ABI1 identity and
+  unload gate, the official production build and a native Irok regression all
+  pass. An actual UAP poll keyboard is not present on this workstation, so the
+  required CPU/USB/update-rate comparison remains open and `HJ-AUD-P2-006` is
+  `Implemented`, not `Verified`.
+- `V14-11B` is next: replace enumeration-occurrence identity with a stable,
+  collision-safe identity contract for identical UAP devices.
+- `V14-11C` will shorten global snapshot mutex ownership and measure export
+  contention.
+- Remaining V14-11 modularization/performance work will be bounded after the
+  identity and snapshot changes, without folding hardware qualification into
+  portable evidence.
 
 ## Release definition
 

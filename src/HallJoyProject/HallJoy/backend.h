@@ -112,6 +112,7 @@ enum BackendAnalogDeviceFlags : uint32_t
     BackendAnalogDeviceFlag_StreamTransport = 1u << 3,
     BackendAnalogDeviceFlag_UnthrottledWorker = 1u << 4,
     BackendAnalogDeviceFlag_DuplicateSafeId = 1u << 5,
+    BackendAnalogDeviceFlag_DeadlinePacedWorker = 1u << 6,
 };
 
 struct BackendAnalogDeviceTelemetry

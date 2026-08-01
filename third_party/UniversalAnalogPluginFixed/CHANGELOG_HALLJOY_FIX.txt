@@ -1,4 +1,4 @@
-HallJoy Madlions SafeHID root-cause fix v6 + V9 unthrottled pipeline
+HallJoy Madlions SafeHID root-cause fix v6 + V10 deadline-paced pipeline
 
 Confirmed by the V5 field logs:
 - Eight isolated-host crashes occurred in roughly 33 minutes.
@@ -36,6 +36,10 @@ Retained safety fixes:
 - Disables hotplug for the isolated HallJoy path.
 - V9 restores one independent worker per analog device; poll workers have no artificial sleep.
 - V9 makes the isolated host publish on fresh-device notifications instead of a fixed 8 ms cadence.
+- V10 caps fast poll-only vendor-request loops at a 1 ms start-to-start deadline.
+- V10 adds bounded 2..64 ms exponential backoff for transient Madlions report failures.
+- V10 adds no delay after a transaction that already consumed its deadline and leaves
+  report-stream devices (Wooting, Razer and NuPhy) on their existing blocking path.
 - Bypasses the Wooting SDK dynamic layer and calls private ABI1 directly.
 - Keeps process isolation as a final fault-containment boundary.
 - Pins Soup to b02796b0b20276277c8a4b4d3759643eeab43ff7.

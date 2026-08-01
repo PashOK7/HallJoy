@@ -21,8 +21,11 @@ version or release status.
 - Completed subpackage: `V14-10D` bounded overlay concurrency, strict origin
   policy and cooperative client shutdown, Verified locally
 - Completed package: `V14-10` IPC and overlay security/correctness
-- Next work: `V14-11` UAP pacing, identity, modularization and measured
-  performance
+- Implemented subpackage: `V14-11A` deadline pacing for UAP poll transports;
+  real UAP polling-device performance qualification remains pending
+- Current package: `V14-11` UAP pacing, identity, modularization and measured
+  performance, In progress
+- Next work: `V14-11B` stable identity for identical UAP devices
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -66,6 +69,14 @@ wildcard CORS policy. An already open overlay page automatically refreshes a
 cookie from the new generation after an overlay restart. Simulator and
 production socket gates, timeout
 containment, the full build and the Irok route/balanced-shutdown smoke pass.
+V14-11A replaces the zero-delay UAP vendor-request loop with a 1 ms
+start-to-start deadline. Fast poll transports are capped at 1 kHz, a slow USB
+transaction receives no extra delay, and transient Madlions failures back off
+from 2 to 64 ms. Report-stream devices remain on their blocking path. The
+portable rate model, static audit, rebuilt ABI identity/unload gate, full build
+and production Irok regression pass. The Irok is a native SparkLink device, so
+V14-11A remains `Implemented` until CPU/USB/latency are measured on an actual
+UAP poll keyboard.
 
 ## Authoritative documents
 

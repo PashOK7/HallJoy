@@ -933,3 +933,53 @@ Evidence:
   docs/stability/tests/V14-10B_ANALOG_HOST_IPC_CAPABILITIES_2026-08-01.txt
 Rollback: parent commit of the V14-10B implementation commit
 ```
+
+## V14-10C evidence
+
+```text
+Package: V14-10C
+Scope: incremental overlay HTTP framing, strict request limits and overflow-safe
+  telemetry query parsing
+Commands:
+  python -m py_compile tools/check_overlay_http_framing.py
+    src/HallJoyProject/tests/overlay_http_framing_static_audit.py
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -StartOverlay -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectOverlayStopTimeout -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -StartOverlay
+    -OverlayPort 18765 -RunSeconds 7
+Results:
+  Overlay framing static audit: PASS
+  Static audits: 33/33 PASS
+  Portable C++20 tests: 18/18 PASS
+  Simulator overlay responsiveness: PASS; next /state 0.3 ms
+  Simulator socket framing: PASS; fragmented=1, pipelined=2,
+    bounded_rejections=8 plus method and valid-telemetry cases
+  Overlay timeout containment regression: PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Real ABI1 load/init/null/bounded-unload runtime gate: PASS
+  Production overlay responsiveness: PASS; next /state 0.4 ms
+  Production socket framing and graceful shutdown: PASS
+  Production Irok route: SparkLink VID 1CA6, PID 0529, usage page FFB0;
+    28,607 successful queries, zero failures, balanced shutdown, exit 0
+  Runtime user state: 11 files, zero differences from pre-smoke backup
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,223,104 bytes
+  SHA-256: 554693964189E4B2B4C256D992F271A1BD81082DC40CF057EC4F45E023C5C817
+  Production trace SHA-256:
+    A38C0ED1F9C64A304D71BF291E3D1417021706929BF7A44BEF6AC0AA8EC48AF3
+Hardware: Irok startup/route/balanced shutdown passed; no analog-row changes,
+  so this package makes no new hardware input claim
+Remote CI: NOT RUN; optional, no push permitted
+Known limitation: single-client scheduling and wildcard browser origin remain
+  V14-10D (`HJ-AUD-P2-001`, `HJ-AUD-P2-004`)
+Evidence:
+  docs/stability/tests/V14-10C_OVERLAY_HTTP_FRAMING_2026-08-01.txt
+Rollback: parent commit of the V14-10C implementation commit
+```

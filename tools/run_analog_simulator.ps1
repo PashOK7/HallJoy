@@ -256,6 +256,11 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw "Overlay responsiveness regression gate failed with exit code $LASTEXITCODE."
         }
+        & python (Join-Path $root 'tools\check_overlay_http_framing.py') `
+            --port 18765 --connect-deadline-ms 5000
+        if ($LASTEXITCODE -ne 0) {
+            throw "Overlay HTTP framing regression gate failed with exit code $LASTEXITCODE."
+        }
     }
     Start-Sleep -Seconds $RunSeconds
     $processExitTimeoutMs = if ($InjectAnalogHostBridgeStopTimeout) { 15000 } else { 10000 }

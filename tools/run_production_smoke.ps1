@@ -1,6 +1,9 @@
 [CmdletBinding()]
 param(
     [string]$ExePath,
+    [switch]$StartOverlay,
+    [ValidateRange(1, 65535)]
+    [int]$OverlayPort = 18765,
     [ValidateRange(3, 60)]
     [int]$RunSeconds = 10
 )
@@ -51,8 +54,33 @@ public static class HallJoyProductionSmokeWindow {
 '@
 }
 
-$process = Start-Process -FilePath $ExePath -PassThru -WindowStyle Hidden
+$processArguments = @()
+if ($StartOverlay) {
+    $processArguments += @('--overlay-server', '--port', [string]$OverlayPort)
+}
+$startParameters = @{
+    FilePath = $ExePath
+    PassThru = $true
+    WindowStyle = 'Hidden'
+    WorkingDirectory = $output
+}
+if ($processArguments.Count -ne 0) {
+    $startParameters.ArgumentList = $processArguments
+}
+$process = Start-Process @startParameters
 try {
+    if ($StartOverlay) {
+        & python (Join-Path $root 'tools\check_overlay_responsiveness.py') `
+            --port $OverlayPort --deadline-ms 1000 --connect-deadline-ms 5000
+        if ($LASTEXITCODE -ne 0) {
+            throw "Production overlay responsiveness gate failed with exit code $LASTEXITCODE."
+        }
+        & python (Join-Path $root 'tools\check_overlay_http_framing.py') `
+            --port $OverlayPort --connect-deadline-ms 5000
+        if ($LASTEXITCODE -ne 0) {
+            throw "Production overlay framing gate failed with exit code $LASTEXITCODE."
+        }
+    }
     Start-Sleep -Seconds $RunSeconds
     $deadline = [DateTime]::UtcNow.AddSeconds(15)
     $closeAccepted = $false
@@ -96,6 +124,13 @@ $required = @(
     '[component=backend][event=shutdown.end]',
     '[component=main][event=session.end] exit_code=0'
 )
+if ($StartOverlay) {
+    $required += @(
+        "[component=overlay][event=start.ok] port=$OverlayPort",
+        '[component=overlay][event=worker.exit] fault_kind=0',
+        '[component=overlay][event=stop.end]'
+    )
+}
 $missing = @($required | Where-Object { -not $traceText.Contains($_) })
 if ($missing.Count -ne 0) {
     throw "Production trace is incomplete. Missing: $($missing -join ', ')"
@@ -104,10 +139,19 @@ if ($traceText -match '\[level=ERROR\]') {
     throw 'Production trace contains an ERROR event.'
 }
 
-$remaining = @(Get-Process -Name 'HallJoy' -ErrorAction SilentlyContinue)
+$processCleanupDeadline = [DateTime]::UtcNow.AddSeconds(2)
+do {
+    $remaining = @(Get-Process -Name 'HallJoy' -ErrorAction SilentlyContinue)
+    if ($remaining.Count -eq 0) { break }
+    Start-Sleep -Milliseconds 100
+} while ([DateTime]::UtcNow -lt $processCleanupDeadline)
 if ($remaining.Count -ne 0) {
     throw 'A HallJoy process remained after production shutdown.'
 }
 
-Write-Host 'HallJoy production startup/shutdown smoke: PASS' -ForegroundColor Green
+if ($StartOverlay) {
+    Write-Host 'HallJoy production overlay framing/startup/shutdown smoke: PASS' -ForegroundColor Green
+} else {
+    Write-Host 'HallJoy production startup/shutdown smoke: PASS' -ForegroundColor Green
+}
 Write-Host "Trace: $trace"

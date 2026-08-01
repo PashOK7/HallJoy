@@ -74,7 +74,7 @@ def main() -> int:
             '"204 No Content"' in handle_request and
             '"", false' in handle_request,
             "periodic client telemetry explicitly closes its response connection")
-    require("!ok || closeRequested || closeAfterResponse" in handle_client,
+    require("!ok || !request.keepAlive || closeAfterResponse" in handle_client,
             "server honors response-directed close without a five-second idle wait")
     require("StartOverlay" in simulator_runner and "check_overlay_responsiveness.py" in simulator_runner and
             "[component=overlay][event=stop.end]" in simulator_runner,

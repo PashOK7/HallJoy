@@ -235,3 +235,22 @@ This is a capability and accidental/spoofed named-object boundary, not an OS
 sandbox. A process already permitted to modify HallJoy memory or duplicate its
 private handles is outside this threat model. Child job containment and the
 existing bounded generation lifecycle remain unchanged.
+
+## D-019 - Overlay HTTP input is an explicitly bounded byte stream
+
+Date: 2026-08-01
+
+The loopback overlay server must never equate one `recv` result with one HTTP
+request. Each connection owns an accumulator and an incremental HTTP/1.0/1.1
+parser that waits for a complete header and exact `Content-Length` body,
+consumes exactly one frame, and retains remaining pipelined bytes. Header,
+body and request-target limits are 8 KiB, 4 KiB and 2 KiB respectively;
+unsupported transfer coding, duplicate length fields and malformed framing are
+rejected with a closing response.
+
+Numeric query fields use complete `from_chars` conversion rather than a
+wrapping decimal accumulator. Telemetry keys must match exactly, duplicates
+and trailing junk are invalid, every metric is limited to one billion, and all
+fields are validated before any aggregate counter changes. This decision owns
+framing and numeric correctness only. Multi-client scheduling and browser
+origin policy remain the separate V14-10D boundary.

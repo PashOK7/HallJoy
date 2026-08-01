@@ -16,8 +16,10 @@ version or release status.
   correctness, Verified locally
 - Completed subpackage: `V14-10B` analog-host inherited-handle IPC,
   Verified locally
+- Completed subpackage: `V14-10C` bounded overlay HTTP framing and telemetry
+  parsing, Verified locally
 - Current package: `V14-10` in progress
-- Next work: `V14-10C` overlay HTTP framing and bounded parsing
+- Next work: `V14-10D` overlay concurrency, origin policy and shutdown gates
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -45,6 +47,12 @@ V14-10B removes the analog-host named-object attack surface: its mapping,
 events and owner-process capability are unnamed handles inherited only by the
 created child through an explicit handle list. The v10 shared schema binds the
 owner PID and CSPRNG launch token, and both sides validate child identity.
+V14-10C replaces recv-bound request handling with an incremental HTTP/1.0/1.1
+frame parser. It consumes exact `Content-Length` bodies, supports fragmented
+and pipelined requests, rejects transfer coding, and enforces 8 KiB header,
+4 KiB body and 2 KiB target limits. Client metrics use exact-key
+`from_chars` conversion with a one-billion upper bound, so malformed,
+duplicate and overflowing telemetry is rejected before counters change.
 
 ## Authoritative documents
 

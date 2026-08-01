@@ -10,8 +10,10 @@
 #include <charconv>
 #include <cstdint>
 #include <cwchar>
+#include <limits>
 #include <mutex>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "overlay_server.h"
@@ -919,52 +921,288 @@ static bool OverlaySend(SOCKET s, const std::string& status, const std::string& 
     return ok;
 }
 
-static unsigned OverlayQueryUInt(const std::string& query, const char* key)
+static constexpr size_t kOverlayMaxHeaderBytes = 8u * 1024u;
+static constexpr size_t kOverlayMaxBodyBytes = 4u * 1024u;
+static constexpr size_t kOverlayMaxTargetBytes = 2u * 1024u;
+static constexpr size_t kOverlayMaxBufferedBytes = kOverlayMaxHeaderBytes + kOverlayMaxBodyBytes;
+static constexpr uint64_t kOverlayMaxClientMetric = 1000000000ull;
+
+enum class OverlayHttpParseResult
 {
-    std::string needle = std::string(key) + "=";
-    size_t p = query.find(needle);
-    if (p == std::string::npos)
-        return 0;
-    p += needle.size();
-    unsigned value = 0;
-    while (p < query.size() && query[p] >= '0' && query[p] <= '9')
+    NeedMore,
+    Ready,
+    BadRequest,
+    MethodNotAllowed,
+    TargetTooLong,
+    HeaderTooLarge,
+    PayloadTooLarge,
+};
+
+struct OverlayHttpRequest
+{
+    std::string target;
+    size_t frameBytes = 0;
+    bool keepAlive = false;
+};
+
+static char OverlayAsciiLower(char value)
+{
+    return value >= 'A' && value <= 'Z' ? static_cast<char>(value + ('a' - 'A')) : value;
+}
+
+static bool OverlayAsciiEquals(std::string_view left, std::string_view right)
+{
+    if (left.size() != right.size())
+        return false;
+    for (size_t i = 0; i < left.size(); ++i)
     {
-        value = value * 10u + (unsigned)(query[p] - '0');
-        ++p;
+        if (OverlayAsciiLower(left[i]) != OverlayAsciiLower(right[i]))
+            return false;
     }
+    return true;
+}
+
+static std::string_view OverlayTrimOws(std::string_view value)
+{
+    while (!value.empty() && (value.front() == ' ' || value.front() == '\t'))
+        value.remove_prefix(1);
+    while (!value.empty() && (value.back() == ' ' || value.back() == '\t'))
+        value.remove_suffix(1);
     return value;
 }
 
-static void OverlayRecordClientPerf(const std::string& query)
+static bool OverlayHeaderNameValid(std::string_view name)
 {
-    unsigned frames = OverlayQueryUInt(query, "frames");
-    if (frames == 0)
-        return;
-    g_perfClientReports.fetch_add(1, std::memory_order_relaxed);
-    g_perfClientFrames.fetch_add(frames, std::memory_order_relaxed);
-    g_perfClientFetches.fetch_add(OverlayQueryUInt(query, "fetches"), std::memory_order_relaxed);
-    g_perfClientFetchUs.fetch_add(OverlayQueryUInt(query, "fetch_us"), std::memory_order_relaxed);
-    g_perfClientRenderUs.fetch_add(OverlayQueryUInt(query, "render_us"), std::memory_order_relaxed);
-    g_perfClientLayoutUs.fetch_add(OverlayQueryUInt(query, "layout_us"), std::memory_order_relaxed);
-    g_perfClientSpriteHits.fetch_add(OverlayQueryUInt(query, "sprite_hits"), std::memory_order_relaxed);
-    g_perfClientSpriteMisses.fetch_add(OverlayQueryUInt(query, "sprite_misses"), std::memory_order_relaxed);
-    g_perfClientLabelMisses.fetch_add(OverlayQueryUInt(query, "label_misses"), std::memory_order_relaxed);
-    g_perfClientSpriteBuildUs.fetch_add(OverlayQueryUInt(query, "sprite_build_us"), std::memory_order_relaxed);
-    g_perfClientLabelBuildUs.fetch_add(OverlayQueryUInt(query, "label_build_us"), std::memory_order_relaxed);
+    if (name.empty())
+        return false;
+    for (unsigned char value : name)
+    {
+        const bool alphaNumeric = (value >= 'a' && value <= 'z') ||
+            (value >= 'A' && value <= 'Z') || (value >= '0' && value <= '9');
+        const bool punctuation = value == '!' || value == '#' || value == '$' ||
+            value == '%' || value == '&' || value == '\'' || value == '*' ||
+            value == '+' || value == '-' || value == '.' || value == '^' ||
+            value == '_' || value == '`' || value == '|' || value == '~';
+        if (!alphaNumeric && !punctuation)
+            return false;
+    }
+    return true;
 }
 
-static bool OverlayHandleClientRequest(SOCKET client, const std::string& r,
+static bool OverlayHeaderValueValid(std::string_view value)
+{
+    for (unsigned char ch : value)
+    {
+        if ((ch < 0x20 && ch != '\t') || ch == 0x7f)
+            return false;
+    }
+    return true;
+}
+
+static bool OverlayHeaderHasToken(std::string_view value, std::string_view wanted)
+{
+    while (!value.empty())
+    {
+        const size_t comma = value.find(',');
+        const std::string_view token = OverlayTrimOws(value.substr(0, comma));
+        if (OverlayAsciiEquals(token, wanted))
+            return true;
+        if (comma == std::string_view::npos)
+            break;
+        value.remove_prefix(comma + 1);
+    }
+    return false;
+}
+
+static OverlayHttpParseResult OverlayParseHttpRequest(
+    const std::string& buffered, OverlayHttpRequest& request)
+{
+    request = OverlayHttpRequest{};
+    const size_t headerEnd = buffered.find("\r\n\r\n");
+    if (headerEnd == std::string::npos)
+        return buffered.size() > kOverlayMaxHeaderBytes
+            ? OverlayHttpParseResult::HeaderTooLarge
+            : OverlayHttpParseResult::NeedMore;
+    const size_t headerBytes = headerEnd + 4;
+    if (headerBytes > kOverlayMaxHeaderBytes)
+        return OverlayHttpParseResult::HeaderTooLarge;
+
+    const size_t requestLineEnd = buffered.find("\r\n");
+    if (requestLineEnd == std::string::npos || requestLineEnd == 0 || requestLineEnd > headerEnd)
+        return OverlayHttpParseResult::BadRequest;
+    const std::string_view requestLine(buffered.data(), requestLineEnd);
+    const size_t firstSpace = requestLine.find(' ');
+    const size_t secondSpace = firstSpace == std::string_view::npos
+        ? std::string_view::npos
+        : requestLine.find(' ', firstSpace + 1);
+    if (firstSpace == std::string_view::npos || secondSpace == std::string_view::npos ||
+        requestLine.find(' ', secondSpace + 1) != std::string_view::npos)
+        return OverlayHttpParseResult::BadRequest;
+    const std::string_view method = requestLine.substr(0, firstSpace);
+    const std::string_view target = requestLine.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+    const std::string_view version = requestLine.substr(secondSpace + 1);
+    if (method != "GET")
+        return OverlayHttpParseResult::MethodNotAllowed;
+    if (target.empty() || target.front() != '/')
+        return OverlayHttpParseResult::BadRequest;
+    if (target.size() > kOverlayMaxTargetBytes)
+        return OverlayHttpParseResult::TargetTooLong;
+    for (unsigned char ch : target)
+    {
+        if (ch <= 0x20 || ch == 0x7f)
+            return OverlayHttpParseResult::BadRequest;
+    }
+    const bool http11 = version == "HTTP/1.1";
+    if (!http11 && version != "HTTP/1.0")
+        return OverlayHttpParseResult::BadRequest;
+
+    bool contentLengthSeen = false;
+    uint64_t contentLength = 0;
+    bool connectionClose = false;
+    bool connectionKeepAlive = false;
+    size_t headerCount = 0;
+    size_t lineStart = requestLineEnd + 2;
+    while (lineStart < headerEnd)
+    {
+        const size_t lineEnd = buffered.find("\r\n", lineStart);
+        if (lineEnd == std::string::npos || lineEnd > headerEnd || ++headerCount > 64)
+            return OverlayHttpParseResult::BadRequest;
+        const std::string_view line(buffered.data() + lineStart, lineEnd - lineStart);
+        if (line.empty() || line.front() == ' ' || line.front() == '\t')
+            return OverlayHttpParseResult::BadRequest;
+        const size_t colon = line.find(':');
+        if (colon == std::string_view::npos || !OverlayHeaderNameValid(line.substr(0, colon)))
+            return OverlayHttpParseResult::BadRequest;
+        const std::string_view name = line.substr(0, colon);
+        const std::string_view value = OverlayTrimOws(line.substr(colon + 1));
+        if (!OverlayHeaderValueValid(value))
+            return OverlayHttpParseResult::BadRequest;
+        if (OverlayAsciiEquals(name, "content-length"))
+        {
+            if (contentLengthSeen || value.empty())
+                return OverlayHttpParseResult::BadRequest;
+            contentLengthSeen = true;
+            const char* begin = value.data();
+            const char* end = begin + value.size();
+            const auto parsed = std::from_chars(begin, end, contentLength);
+            if (parsed.ec != std::errc{} || parsed.ptr != end)
+                return OverlayHttpParseResult::BadRequest;
+            if (contentLength > kOverlayMaxBodyBytes)
+                return OverlayHttpParseResult::PayloadTooLarge;
+        }
+        else if (OverlayAsciiEquals(name, "transfer-encoding"))
+        {
+            // This loopback server implements only fixed-length framing.
+            return OverlayHttpParseResult::BadRequest;
+        }
+        else if (OverlayAsciiEquals(name, "connection"))
+        {
+            connectionClose = connectionClose || OverlayHeaderHasToken(value, "close");
+            connectionKeepAlive = connectionKeepAlive || OverlayHeaderHasToken(value, "keep-alive");
+        }
+        lineStart = lineEnd + 2;
+    }
+
+    if (contentLength > std::numeric_limits<size_t>::max() - headerBytes)
+        return OverlayHttpParseResult::PayloadTooLarge;
+    const size_t frameBytes = headerBytes + static_cast<size_t>(contentLength);
+    if (buffered.size() < frameBytes)
+        return OverlayHttpParseResult::NeedMore;
+    request.target.assign(target.data(), target.size());
+    request.frameBytes = frameBytes;
+    request.keepAlive = http11 ? !connectionClose : connectionKeepAlive && !connectionClose;
+    return OverlayHttpParseResult::Ready;
+}
+
+enum class OverlayQueryResult
+{
+    Missing,
+    Valid,
+    Invalid,
+};
+
+static OverlayQueryResult OverlayQueryUInt(
+    std::string_view query, std::string_view key, uint64_t& value)
+{
+    bool found = false;
+    value = 0;
+    while (!query.empty())
+    {
+        const size_t ampersand = query.find('&');
+        const std::string_view field = query.substr(0, ampersand);
+        const size_t equals = field.find('=');
+        if (equals != std::string_view::npos && field.substr(0, equals) == key)
+        {
+            if (found)
+                return OverlayQueryResult::Invalid;
+            found = true;
+            const std::string_view encoded = field.substr(equals + 1);
+            if (encoded.empty())
+                return OverlayQueryResult::Invalid;
+            uint64_t parsedValue = 0;
+            const char* begin = encoded.data();
+            const char* end = begin + encoded.size();
+            const auto parsed = std::from_chars(begin, end, parsedValue);
+            if (parsed.ec != std::errc{} || parsed.ptr != end ||
+                parsedValue > kOverlayMaxClientMetric)
+                return OverlayQueryResult::Invalid;
+            value = parsedValue;
+        }
+        if (ampersand == std::string_view::npos)
+            break;
+        query.remove_prefix(ampersand + 1);
+    }
+    return found ? OverlayQueryResult::Valid : OverlayQueryResult::Missing;
+}
+
+static bool OverlayRecordClientPerf(const std::string& query)
+{
+    struct Metric
+    {
+        const char* name;
+        uint64_t value;
+        OverlayQueryResult result;
+    };
+    Metric metrics[] = {
+        { "frames", 0, OverlayQueryResult::Missing },
+        { "fetches", 0, OverlayQueryResult::Missing },
+        { "fetch_us", 0, OverlayQueryResult::Missing },
+        { "render_us", 0, OverlayQueryResult::Missing },
+        { "layout_us", 0, OverlayQueryResult::Missing },
+        { "sprite_hits", 0, OverlayQueryResult::Missing },
+        { "sprite_misses", 0, OverlayQueryResult::Missing },
+        { "label_misses", 0, OverlayQueryResult::Missing },
+        { "sprite_build_us", 0, OverlayQueryResult::Missing },
+        { "label_build_us", 0, OverlayQueryResult::Missing },
+    };
+    for (Metric& metric : metrics)
+    {
+        metric.result = OverlayQueryUInt(query, metric.name, metric.value);
+        if (metric.result == OverlayQueryResult::Invalid)
+            return false;
+    }
+    if (metrics[0].result != OverlayQueryResult::Valid || metrics[0].value == 0)
+        return false;
+
+    g_perfClientReports.fetch_add(1, std::memory_order_relaxed);
+    g_perfClientFrames.fetch_add(metrics[0].value, std::memory_order_relaxed);
+    g_perfClientFetches.fetch_add(metrics[1].value, std::memory_order_relaxed);
+    g_perfClientFetchUs.fetch_add(metrics[2].value, std::memory_order_relaxed);
+    g_perfClientRenderUs.fetch_add(metrics[3].value, std::memory_order_relaxed);
+    g_perfClientLayoutUs.fetch_add(metrics[4].value, std::memory_order_relaxed);
+    g_perfClientSpriteHits.fetch_add(metrics[5].value, std::memory_order_relaxed);
+    g_perfClientSpriteMisses.fetch_add(metrics[6].value, std::memory_order_relaxed);
+    g_perfClientLabelMisses.fetch_add(metrics[7].value, std::memory_order_relaxed);
+    g_perfClientSpriteBuildUs.fetch_add(metrics[8].value, std::memory_order_relaxed);
+    g_perfClientLabelBuildUs.fetch_add(metrics[9].value, std::memory_order_relaxed);
+    return true;
+}
+
+static bool OverlayHandleClientRequest(SOCKET client, const std::string& target,
     bool keepAlive, bool& closeAfterResponse)
 {
     closeAfterResponse = false;
-    std::string path = "/";
-    size_t sp1 = r.find(' ');
-    if (sp1 != std::string::npos)
-    {
-        size_t sp2 = r.find(' ', sp1 + 1);
-        if (sp2 != std::string::npos)
-            path = r.substr(sp1 + 1, sp2 - sp1 - 1);
-    }
+    std::string path = target;
 
     std::string query;
     size_t q = path.find('?');
@@ -981,7 +1219,12 @@ static bool OverlayHandleClientRequest(SOCKET client, const std::string& r,
         return OverlaySend(client, "200 OK", "application/json; charset=utf-8", OverlayBuildStateJson(), keepAlive);
     else if (path == "/client_perf")
     {
-        OverlayRecordClientPerf(query);
+        if (!OverlayRecordClientPerf(query))
+        {
+            closeAfterResponse = true;
+            return OverlaySend(client, "400 Bad Request", "text/plain; charset=utf-8",
+                "invalid telemetry", false);
+        }
         // This endpoint is issued as an independent fetch every five seconds.
         // The overlay server is intentionally single-threaded, so retaining
         // this otherwise idle connection would block /state until the five-
@@ -1002,20 +1245,63 @@ static void OverlayHandleClient(SOCKET client)
     DWORD timeoutMs = 5000;
     setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
 
-    for (int requestCount = 0; requestCount < 256 && g_overlayRunning.load(std::memory_order_acquire); ++requestCount)
+    std::string buffered;
+    buffered.reserve(2048);
+    int requestCount = 0;
+    while (requestCount < 256 && g_overlayRunning.load(std::memory_order_acquire))
     {
-        char req[2048]{};
-        int got = recv(client, req, (int)sizeof(req) - 1, 0);
-        if (got <= 0)
+        OverlayHttpRequest request;
+        const OverlayHttpParseResult parseResult = OverlayParseHttpRequest(buffered, request);
+        if (parseResult == OverlayHttpParseResult::NeedMore)
+        {
+            if (buffered.size() > kOverlayMaxBufferedBytes)
+            {
+                OverlaySend(client, "413 Payload Too Large", "text/plain; charset=utf-8",
+                    "request too large", false);
+                break;
+            }
+            char chunk[2048]{};
+            const int got = recv(client, chunk, static_cast<int>(sizeof(chunk)), 0);
+            if (got <= 0)
+                break;
+            buffered.append(chunk, static_cast<size_t>(got));
+            continue;
+        }
+        if (parseResult != OverlayHttpParseResult::Ready)
+        {
+            const char* status = "400 Bad Request";
+            const char* body = "bad request";
+            if (parseResult == OverlayHttpParseResult::MethodNotAllowed)
+            {
+                status = "405 Method Not Allowed";
+                body = "method not allowed";
+            }
+            else if (parseResult == OverlayHttpParseResult::TargetTooLong)
+            {
+                status = "414 URI Too Long";
+                body = "target too long";
+            }
+            else if (parseResult == OverlayHttpParseResult::HeaderTooLarge)
+            {
+                status = "431 Request Header Fields Too Large";
+                body = "headers too large";
+            }
+            else if (parseResult == OverlayHttpParseResult::PayloadTooLarge)
+            {
+                status = "413 Payload Too Large";
+                body = "payload too large";
+            }
+            OverlaySend(client, status, "text/plain; charset=utf-8", body, false);
             break;
+        }
 
-        std::string r(req, req + got);
-        bool closeRequested = r.find("Connection: close") != std::string::npos ||
-            r.find("connection: close") != std::string::npos;
+        buffered.erase(0, request.frameBytes);
+        ++requestCount;
         bool closeAfterResponse = false;
-        bool ok = OverlayHandleClientRequest(client, r, !closeRequested, closeAfterResponse);
+        const bool ok = OverlayHandleClientRequest(
+            client, request.target, request.keepAlive, closeAfterResponse);
         OverlayPerfMaybeLog();
-        if (!ok || closeRequested || closeAfterResponse)
+        if (!ok || !request.keepAlive || closeAfterResponse)
             break;
     }
 }

@@ -363,11 +363,20 @@ Progress:
 - `HJ-AUD-P1-012` is Verified. This removes named precreation/spoofing; it is
   not a sandbox against a process already authorized to tamper with HallJoy's
   process handles or memory.
+- `V14-10C` overlay HTTP framing and bounded parsing: Verified locally. The
+  loopback server now accumulates fragmented input, consumes one exact request
+  frame at a time and serves pipelined frames without treating a `recv` chunk
+  as a message. Strict `Content-Length` parsing, transfer-coding rejection and
+  8 KiB header, 4 KiB body and 2 KiB target limits produce closing
+  `400`/`413`/`414`/`431` responses.
+- Telemetry fields are exact query keys converted with `from_chars`, reject
+  duplicates, junk and overflow, and are capped at one billion before any
+  counter update. Simulator and production socket regressions, the complete
+  static/portable gate, timeout containment, official build and Irok route/
+  balanced shutdown pass. `HJ-AUD-P2-002` and `HJ-AUD-P2-003` are Verified.
 
 Remaining:
 
-- `V14-10C`: overlay HTTP framing plus bounded parsing/overflow
-  (`HJ-AUD-P2-002` and `HJ-AUD-P2-003`).
 - `V14-10D`: overlay origin, concurrency and shutdown gates
   (`HJ-AUD-P2-001` and `HJ-AUD-P2-004`).
 

@@ -1033,3 +1033,59 @@
 - `HJ-AUD-P1-012` is Verified.
 - V14-10 remains In progress. Next is V14-10C overlay HTTP framing and
   bounded parser/overflow correctness.
+
+## 2026-08-01 - V14-10C overlay HTTP framing and bounded parsing
+
+### Implementation
+
+- Replaced one-`recv`/one-request handling with a per-connection accumulator
+  and incremental HTTP/1.0/1.1 parser. Fragmented headers and bodies wait for
+  completion; exact frame bytes are removed while pipelined bytes remain.
+- Added strict single `Content-Length` handling, rejected transfer coding and
+  malformed headers, and bounded headers to 8 KiB, bodies to 4 KiB and request
+  targets to 2 KiB. Rejections send explicit closing
+  `400`/`405`/`413`/`414`/`431` responses.
+- Replaced wrapping telemetry decimal accumulation and substring key lookup
+  with exact-key `from_chars` conversion. Duplicate, missing-required, junk,
+  overflowing or above-one-billion metrics are rejected before any counter is
+  updated.
+- Added build-required static and TCP regression gates. Both simulator and
+  production smoke runners exercise fragmentation, pipelining, exact body
+  consumption, strict framing rejections, telemetry bounds and final `/state`
+  responsiveness.
+- The production runner now supports an explicit `-StartOverlay` mode. Its
+  process-clean check uses a bounded two-second reap observation to avoid a
+  transient Windows process-table false positive after the already confirmed
+  analog-host child exit.
+
+### Validation
+
+- Framing audit, all 33 static audits and all 18 portable C++20 tests: PASS.
+- Fresh simulator overlay scenario: PASS; telemetry-to-state latency 0.3 ms,
+  fragmented request, two pipelined requests, exact four-byte body consumption
+  and eight bounded rejection cases all passed.
+- Existing forced overlay stop-timeout containment regression: PASS.
+- Official x64 production build: PASS, 0 errors and only allowlisted
+  `LNK4099`; embedded ABI1 runtime gate passed.
+- Production overlay smoke repeated the socket suite, joined the overlay,
+  SparkLink, realtime, ViGEm output and analog-host owners, and exited 0.
+- Irok MG75 Max route `1CA6:0529/FFB0` completed 28,607/28,607 queries with
+  zero failures. No analog rows changed, so this is route/lifecycle evidence,
+  not a new hardware input proof.
+- All 11 LocalAppData files and preserved package settings, bindings, layouts
+  and curve presets matched the pre-production backup; zero HallJoy processes
+  and zero persistence temp files remained.
+- `HallJoy.exe`: 2,223,104 bytes,
+  SHA-256 `554693964189E4B2B4C256D992F271A1BD81082DC40CF057EC4F45E023C5C817`.
+- Production trace SHA-256:
+  `A38C0ED1F9C64A304D71BF291E3D1417021706929BF7A44BEF6AC0AA8EC48AF3`.
+- Source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-10C-prechange-20260801-1146`.
+- Runtime/package backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-10C-preproduction-20260801-1157`.
+
+### Package result
+
+- `HJ-AUD-P2-002` and `HJ-AUD-P2-003` are Verified.
+- V14-10 remains In progress. Next is V14-10D overlay concurrency, origin
+  policy and shutdown gates (`HJ-AUD-P2-001`, `HJ-AUD-P2-004`).

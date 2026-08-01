@@ -1,0 +1,75 @@
+HallJoy v1.4 - V14-10C overlay HTTP framing evidence
+Date: 2026-08-01
+Classification: local simulator, socket, production build and Irok route/lifecycle evidence
+
+SCOPE
+- Incremental HTTP/1.0 and HTTP/1.1 request framing on the loopback overlay.
+- Exact Content-Length body consumption and pipelined-request preservation.
+- 8 KiB header, 4 KiB body and 2 KiB request-target limits.
+- Transfer-Encoding and duplicate/malformed Content-Length rejection.
+- Overflow-safe, exact-key, bounded client telemetry parsing.
+- This package does not close multi-client scheduling or browser-origin policy.
+
+BACKUPS
+- Source/docs: C:\github\HallJoy_v1.4_BACKUPS\V14-10C-prechange-20260801-1146
+- User/package: C:\github\HallJoy_v1.4_BACKUPS\V14-10C-preproduction-20260801-1157
+- Pre-production backup verification: 24 files, 0 SHA-256 mismatches.
+
+STATIC AND PORTABLE GATES
+- python -m py_compile tools/check_overlay_http_framing.py
+  src/HallJoyProject/tests/overlay_http_framing_static_audit.py
+  Result: PASS.
+- python tools/run_native_backend_checks.py --require-compiler
+  Result: 33/33 static audits PASS; 18/18 portable C++20 tests PASS.
+
+SIMULATOR SOCKET GATE
+- powershell -NoProfile -ExecutionPolicy Bypass
+  -File .\tools\run_analog_simulator.ps1 -StartOverlay -RunSeconds 7
+- Result: PASS, graceful exit 0.
+- OVERLAY_HTTP_RESPONSIVENESS=PASS elapsed_ms=0.3
+- OVERLAY_HTTP_FRAMING=PASS fragmented=1 pipelined=2 bounded_rejections=8
+- Covered exact four-byte body consumption, strict Content-Length,
+  Transfer-Encoding rejection, 413/414/431 limits, telemetry overflow and
+  duplicate-key rejection, valid 204 telemetry, method 405 and final JSON state.
+
+OVERLAY LIFECYCLE REGRESSION
+- powershell -NoProfile -ExecutionPolicy Bypass
+  -File .\tools\run_analog_simulator.ps1 -SkipBuild
+  -InjectOverlayStopTimeout -RunSeconds 7
+- Result: PASS; poisoned-generation process containment remained bounded.
+
+OFFICIAL BUILD
+- powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+- Result: PASS, MSVC x64 Release, 0 errors.
+- Warning policy: PASS; only allowlisted ViGEm LNK4099 PDB diagnostic.
+- Embedded ABI1 load/init/null/bounded-unload gate: PASS.
+
+PRODUCTION OVERLAY SMOKE
+- powershell -NoProfile -ExecutionPolicy Bypass
+  -File .\tools\run_production_smoke.ps1 -StartOverlay
+  -OverlayPort 18765 -RunSeconds 7
+- Result: PASS, graceful exit 0, no ERROR events, no residual HallJoy process.
+- OVERLAY_HTTP_RESPONSIVENESS=PASS elapsed_ms=0.4
+- OVERLAY_HTTP_FRAMING=PASS fragmented=1 pipelined=2 bounded_rejections=8
+- Irok MG75 Max SparkLink route: VID 1CA6, PID 0529, usage page FFB0.
+- Spark stats: route_queries=28607, route_ok=28607, route_fail=0,
+  changed_rows=0, input_notifies=0.
+- Hardware claim limit: route/lifecycle/balanced shutdown only; no new analog
+  input proof because no key was pressed during this smoke.
+- LocalAppData HallJoy state: 11 files before/after, 0 SHA-256 differences.
+- Preserved package settings, bindings, layouts and curve presets: 0 differences.
+- Persistence temp files: 0. Remaining HallJoy processes: 0.
+
+ARTIFACT
+- Path: build\output\HallJoy.exe
+- Size: 2,223,104 bytes
+- SHA-256: 554693964189E4B2B4C256D992F271A1BD81082DC40CF057EC4F45E023C5C817
+- Production trace SHA-256:
+  A38C0ED1F9C64A304D71BF291E3D1417021706929BF7A44BEF6AC0AA8EC48AF3
+
+RESULT
+- HJ-AUD-P2-002: Verified.
+- HJ-AUD-P2-003: Verified.
+- Remaining V14-10D: HJ-AUD-P2-001 synchronous single-client scheduling and
+  HJ-AUD-P2-004 wildcard browser origin policy.
+- Remote CI: not run; no push permitted.

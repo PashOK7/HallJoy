@@ -171,15 +171,74 @@ static void LoadStateOnce()
     g_dirty = false;
 }
 
-static void SaveState()
+namespace
+{
+    struct CurveStateSaveContext
+    {
+        const wchar_t* destinationPath = nullptr;
+        const wchar_t* activeName = nullptr;
+    };
+
+    bool CurveStateTransactionWrite(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
+    {
+        auto* context = static_cast<CurveStateSaveContext*>(rawContext);
+        if (!IniUtil_CopyExistingForUpdate(context->destinationPath, temporaryPath, errorOut))
+            return false;
+
+        bool ok = WritePrivateProfileStringW(L"HallJoyPersistence", L"SchemaVersion", L"1", temporaryPath) != FALSE;
+        ok &= WritePrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"CurveState", temporaryPath) != FALSE;
+        ok &= WritePrivateProfileStringW(L"UI", L"ActiveName", context->activeName, temporaryPath) != FALSE;
+        if (!ok && errorOut)
+        {
+            const DWORD error = GetLastError();
+            *errorOut = error != ERROR_SUCCESS ? error : ERROR_WRITE_FAULT;
+        }
+        return ok;
+    }
+
+    bool CurveStateTransactionValidate(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
+    {
+        auto* context = static_cast<CurveStateSaveContext*>(rawContext);
+        wchar_t schema[32]{};
+        wchar_t kind[32]{};
+        wchar_t active[260]{};
+        GetPrivateProfileStringW(L"HallJoyPersistence", L"SchemaVersion", L"{missing}", schema, (DWORD)_countof(schema), temporaryPath);
+        GetPrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"{missing}", kind, (DWORD)_countof(kind), temporaryPath);
+        GetPrivateProfileStringW(L"UI", L"ActiveName", L"{missing}", active, (DWORD)_countof(active), temporaryPath);
+        const bool ok = wcscmp(schema, L"1") == 0 &&
+            wcscmp(kind, L"CurveState") == 0 &&
+            wcscmp(active, context->activeName) == 0;
+        if (!ok && errorOut) *errorOut = ERROR_INVALID_DATA;
+        return ok;
+    }
+
+    bool SaveStateToPath(const std::wstring& path, const std::wstring& activeName)
+    {
+        if (path.empty()) return false;
+        CurveStateSaveContext context{ path.c_str(), activeName.c_str() };
+        const auto result = IniUtil_SaveAtomic(
+            path.c_str(),
+            CurveStateTransactionWrite,
+            CurveStateTransactionValidate,
+            &context);
+        if (!result.Succeeded())
+        {
+            IniUtil_ReportSaveFailure(L"curve state", path.c_str(), result);
+            return false;
+        }
+        return true;
+    }
+}
+
+static bool SaveState()
 {
     const std::wstring& stPath = GetStateIniPath();
 
     // Ensure dir exists (should already, but safe)
-    EnsureDirExists(GetPresetsDir());
+    if (!EnsureDirExists(GetPresetsDir()))
+        return false;
 
-    WritePrivateProfileStringW(L"UI", L"ActiveName", g_activeName.c_str(), stPath.c_str());
-    IniUtil_Flush(stPath.c_str());
+    return SaveStateToPath(stPath, g_activeName);
 }
 
 static float ClampF(float v, float lo, float hi)
@@ -204,17 +263,17 @@ static int ReadI(const wchar_t* sec, const wchar_t* key, int defV, const wchar_t
     return GetPrivateProfileIntW(sec, key, defV, path);
 }
 
-static void WriteI(const wchar_t* sec, const wchar_t* key, int v, const wchar_t* path)
+static bool WriteI(const wchar_t* sec, const wchar_t* key, int v, const wchar_t* path)
 {
     wchar_t buf[64]{};
     swprintf_s(buf, L"%d", v);
-    WritePrivateProfileStringW(sec, key, buf, path);
+    return WritePrivateProfileStringW(sec, key, buf, path) != FALSE;
 }
 
-static void WriteM01(const wchar_t* sec, const wchar_t* key, float v01, const wchar_t* path)
+static bool WriteM01(const wchar_t* sec, const wchar_t* key, float v01, const wchar_t* path)
 {
     int m = (int)lroundf(ClampF(v01, 0.0f, 1.0f) * 1000.0f);
-    WriteI(sec, key, m, path);
+    return WriteI(sec, key, m, path);
 }
 
 static KeyDeadzone NormalizePreset(KeyDeadzone ks)
@@ -278,6 +337,75 @@ static bool LoadPresetFile_NoState(const std::wstring& path, KeyDeadzone& outKs)
     ks = NormalizePreset(ks);
     outKs = ks;
     return true;
+}
+
+namespace
+{
+    struct CurvePresetSaveContext
+    {
+        KeyDeadzone curve{};
+    };
+
+    bool CurvePresetTransactionWrite(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
+    {
+        auto* context = static_cast<CurvePresetSaveContext*>(rawContext);
+        const KeyDeadzone& ks = context->curve;
+        bool ok = WritePrivateProfileStringW(L"HallJoyPersistence", L"SchemaVersion", L"1", temporaryPath) != FALSE;
+        ok &= WritePrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"CurvePreset", temporaryPath) != FALSE;
+        ok &= WritePrivateProfileStringW(L"Curve", nullptr, nullptr, temporaryPath) != FALSE;
+        ok &= WriteM01(L"Curve", L"Low", ks.low, temporaryPath);
+        ok &= WriteM01(L"Curve", L"High", ks.high, temporaryPath);
+        ok &= WriteM01(L"Curve", L"AntiDeadzone", ks.antiDeadzone, temporaryPath);
+        ok &= WriteM01(L"Curve", L"OutputCap", ks.outputCap, temporaryPath);
+        ok &= WriteM01(L"Curve", L"Cp1X", ks.cp1_x, temporaryPath);
+        ok &= WriteM01(L"Curve", L"Cp1Y", ks.cp1_y, temporaryPath);
+        ok &= WriteM01(L"Curve", L"Cp2X", ks.cp2_x, temporaryPath);
+        ok &= WriteM01(L"Curve", L"Cp2Y", ks.cp2_y, temporaryPath);
+        ok &= WriteM01(L"Curve", L"Cp1W", ks.cp1_w, temporaryPath);
+        ok &= WriteM01(L"Curve", L"Cp2W", ks.cp2_w, temporaryPath);
+        ok &= WriteI(L"Curve", L"Mode", ks.curveMode == 0 ? 0 : 1, temporaryPath);
+        ok &= WriteI(L"Curve", L"Invert", ks.invert ? 1 : 0, temporaryPath);
+        if (!ok && errorOut)
+        {
+            const DWORD error = GetLastError();
+            *errorOut = error != ERROR_SUCCESS ? error : ERROR_WRITE_FAULT;
+        }
+        return ok;
+    }
+
+    bool ReadIniValueEquals(const wchar_t* path, const wchar_t* section, const wchar_t* key, const std::wstring& expected)
+    {
+        wchar_t value[128]{};
+        GetPrivateProfileStringW(section, key, L"{missing}", value, (DWORD)_countof(value), path);
+        return expected == value;
+    }
+
+    bool CurvePresetTransactionValidate(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
+    {
+        auto* context = static_cast<CurvePresetSaveContext*>(rawContext);
+        const KeyDeadzone& ks = context->curve;
+        auto milli = [](float value)
+        {
+            return std::to_wstring((int)lroundf(ClampF(value, 0.0f, 1.0f) * 1000.0f));
+        };
+
+        bool ok = ReadIniValueEquals(temporaryPath, L"HallJoyPersistence", L"SchemaVersion", L"1") &&
+            ReadIniValueEquals(temporaryPath, L"HallJoyPersistence", L"Kind", L"CurvePreset");
+        ok &= ReadIniValueEquals(temporaryPath, L"Curve", L"Low", milli(ks.low));
+        ok &= ReadIniValueEquals(temporaryPath, L"Curve", L"High", milli(ks.high));
+        ok &= ReadIniValueEquals(temporaryPath, L"Curve", L"AntiDeadzone", milli(ks.antiDeadzone));
+        ok &= ReadIniValueEquals(temporaryPath, L"Curve", L"OutputCap", milli(ks.outputCap));
+        ok &= ReadIniValueEquals(temporaryPath, L"Curve", L"Cp1X", milli(ks.cp1_x));
+        ok &= ReadIniValueEquals(temporaryPath, L"Curve", L"Cp1Y", milli(ks.cp1_y));
+        ok &= ReadIniValueEquals(temporaryPath, L"Curve", L"Cp2X", milli(ks.cp2_x));
+        ok &= ReadIniValueEquals(temporaryPath, L"Curve", L"Cp2Y", milli(ks.cp2_y));
+        ok &= ReadIniValueEquals(temporaryPath, L"Curve", L"Cp1W", milli(ks.cp1_w));
+        ok &= ReadIniValueEquals(temporaryPath, L"Curve", L"Cp2W", milli(ks.cp2_w));
+        ok &= ReadIniValueEquals(temporaryPath, L"Curve", L"Mode", std::to_wstring(ks.curveMode == 0 ? 0 : 1));
+        ok &= ReadIniValueEquals(temporaryPath, L"Curve", L"Invert", std::to_wstring(ks.invert ? 1 : 0));
+        if (!ok && errorOut) *errorOut = ERROR_INVALID_DATA;
+        return ok;
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -367,43 +495,33 @@ namespace KeyboardProfiles
 
         if (path.empty()) return false;
 
-        // Write to tmp, then atomic replace
-        std::wstring tmp = path + L".tmp";
-        DeleteFileW(tmp.c_str());
-
-        KeyDeadzone ks = NormalizePreset(inKs);
-
-        // clear section (no compatibility needed, keep file clean)
-        WritePrivateProfileStringW(L"Curve", nullptr, nullptr, tmp.c_str());
-
-        WriteM01(L"Curve", L"Low", ks.low, tmp.c_str());
-        WriteM01(L"Curve", L"High", ks.high, tmp.c_str());
-        WriteM01(L"Curve", L"AntiDeadzone", ks.antiDeadzone, tmp.c_str());
-        WriteM01(L"Curve", L"OutputCap", ks.outputCap, tmp.c_str());
-
-        WriteM01(L"Curve", L"Cp1X", ks.cp1_x, tmp.c_str());
-        WriteM01(L"Curve", L"Cp1Y", ks.cp1_y, tmp.c_str());
-        WriteM01(L"Curve", L"Cp2X", ks.cp2_x, tmp.c_str());
-        WriteM01(L"Curve", L"Cp2Y", ks.cp2_y, tmp.c_str());
-
-        WriteM01(L"Curve", L"Cp1W", ks.cp1_w, tmp.c_str());
-        WriteM01(L"Curve", L"Cp2W", ks.cp2_w, tmp.c_str());
-
-        WriteI(L"Curve", L"Mode", (int)(ks.curveMode == 0 ? 0 : 1), tmp.c_str());
-        WriteI(L"Curve", L"Invert", ks.invert ? 1 : 0, tmp.c_str());
-
-        if (!IniUtil_AtomicReplace(tmp.c_str(), path.c_str()))
+        CurvePresetSaveContext context{ NormalizePreset(inKs) };
+        const auto result = IniUtil_SaveAtomic(
+            path.c_str(),
+            CurvePresetTransactionWrite,
+            CurvePresetTransactionValidate,
+            &context);
+        if (!result.Succeeded())
         {
-            DeleteFileW(tmp.c_str());
+            IniUtil_ReportSaveFailure(L"curve preset", path.c_str(), result);
             return false;
         }
 
         // Update "active preset" state (saving means "this preset is now current")
+        const std::wstring previousName = g_activeName;
+        const std::wstring previousPath = g_activePath;
+        const bool previousDirty = g_dirty;
         fs::path pp(path);
         g_activeName = pp.stem().wstring();
         g_activePath = path;
         g_dirty = false;
-        SaveState();
+        if (!SaveState())
+        {
+            g_activeName = previousName;
+            g_activePath = previousPath;
+            g_dirty = previousDirty;
+            return false;
+        }
 
         return true;
     }
@@ -425,7 +543,10 @@ namespace KeyboardProfiles
             path = dir + L"\\" + safeName + L" (" + std::to_wstring(counter++) + L").ini";
         }
 
-        return SavePreset(path, ks);
+        if (SavePreset(path, ks))
+            return true;
+        DeleteFileW(path.c_str());
+        return false;
     }
 
     bool DeletePreset(const std::wstring& path)
@@ -472,17 +593,35 @@ namespace KeyboardProfiles
         return g_activeName;
     }
 
-    void SetActiveProfileName(const std::wstring& name)
+    bool SetActiveProfileName(const std::wstring& name)
     {
         LoadStateOnce();
 
+        if (_wcsicmp(g_activeName.c_str(), name.c_str()) == 0)
+            return true;
+
+        const std::wstring previousName = g_activeName;
+        const std::wstring previousPath = g_activePath;
         g_activeName = name;
 
         // IMPORTANT: path is not persisted; force re-resolve on next RefreshList()
         g_activePath.clear();
 
-        SaveState();
+        if (!SaveState())
+        {
+            g_activeName = previousName;
+            g_activePath = previousPath;
+            return false;
+        }
+        return true;
     }
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    bool TestSaveStateToPath(const std::wstring& path, const std::wstring& activeName)
+    {
+        return SaveStateToPath(path, activeName);
+    }
+#endif
 
     void SetDirty(bool dirty)
     {

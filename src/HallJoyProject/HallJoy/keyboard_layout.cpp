@@ -14,6 +14,7 @@
 #include <mutex>
 
 #include "win_util.h"
+#include "ini_util.h"
 
 namespace fs = std::filesystem;
 
@@ -461,21 +462,25 @@ namespace
         return true;
     }
 
-    static bool SavePresetFile(const PresetStore& p)
+    struct LayoutPresetSaveContext
     {
-        if (p.filePath.empty()) return false;
-        fs::path dir = fs::path(p.filePath).parent_path();
-        std::error_code ec;
-        fs::create_directories(dir, ec);
+        const PresetStore* preset = nullptr;
+    };
 
-        WritePrivateProfileStringW(L"LayoutPreset", nullptr, nullptr, p.filePath.c_str());
+    static bool LayoutPresetTransactionWrite(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
+    {
+        auto* context = static_cast<LayoutPresetSaveContext*>(rawContext);
+        const PresetStore& p = *context->preset;
+        bool ok = WritePrivateProfileStringW(L"HallJoyPersistence", L"SchemaVersion", L"1", temporaryPath) != FALSE;
+        ok &= WritePrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"LayoutPreset", temporaryPath) != FALSE;
+        ok &= WritePrivateProfileStringW(L"LayoutPreset", nullptr, nullptr, temporaryPath) != FALSE;
 
         wchar_t v[64]{};
         swprintf_s(v, L"%d", (int)p.keys.size());
-        WritePrivateProfileStringW(L"LayoutPreset", L"Count", v, p.filePath.c_str());
-        WritePrivateProfileStringW(L"LayoutPreset", L"UniformSpacing", p.uniformSpacing ? L"1" : L"0", p.filePath.c_str());
+        ok &= WritePrivateProfileStringW(L"LayoutPreset", L"Count", v, temporaryPath) != FALSE;
+        ok &= WritePrivateProfileStringW(L"LayoutPreset", L"UniformSpacing", p.uniformSpacing ? L"1" : L"0", temporaryPath) != FALSE;
         swprintf_s(v, L"%d", ClampUniformGap(p.uniformGap));
-        WritePrivateProfileStringW(L"LayoutPreset", L"UniformGap", v, p.filePath.c_str());
+        ok &= WritePrivateProfileStringW(L"LayoutPreset", L"UniformGap", v, temporaryPath) != FALSE;
 
         for (int i = 0; i < (int)p.keys.size(); ++i)
         {
@@ -483,7 +488,58 @@ namespace
             wchar_t key[64]{};
             swprintf_s(key, L"K%d", i);
             std::wstring packed = BuildPackedKeyEntry(k);
-            WritePrivateProfileStringW(L"LayoutPreset", key, packed.c_str(), p.filePath.c_str());
+            ok &= WritePrivateProfileStringW(L"LayoutPreset", key, packed.c_str(), temporaryPath) != FALSE;
+        }
+        if (!ok && errorOut)
+        {
+            const DWORD error = GetLastError();
+            *errorOut = error != ERROR_SUCCESS ? error : ERROR_WRITE_FAULT;
+        }
+        return ok;
+    }
+
+    static bool LayoutPresetTransactionValidate(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
+    {
+        auto* context = static_cast<LayoutPresetSaveContext*>(rawContext);
+        const PresetStore& p = *context->preset;
+        wchar_t schema[32]{};
+        wchar_t kind[32]{};
+        GetPrivateProfileStringW(L"HallJoyPersistence", L"SchemaVersion", L"{missing}", schema, (DWORD)_countof(schema), temporaryPath);
+        GetPrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"{missing}", kind, (DWORD)_countof(kind), temporaryPath);
+        bool ok = wcscmp(schema, L"1") == 0 && wcscmp(kind, L"LayoutPreset") == 0;
+        ok &= GetPrivateProfileIntW(L"LayoutPreset", L"Count", -1, temporaryPath) == (int)p.keys.size();
+        ok &= GetPrivateProfileIntW(L"LayoutPreset", L"UniformSpacing", -1, temporaryPath) == (p.uniformSpacing ? 1 : 0);
+        ok &= GetPrivateProfileIntW(L"LayoutPreset", L"UniformGap", -1, temporaryPath) == ClampUniformGap(p.uniformGap);
+
+        for (int i = 0; ok && i < (int)p.keys.size(); ++i)
+        {
+            wchar_t key[64]{};
+            swprintf_s(key, L"K%d", i);
+            wchar_t packed[4096]{};
+            GetPrivateProfileStringW(L"LayoutPreset", key, L"{missing}", packed, (DWORD)_countof(packed), temporaryPath);
+            ok &= BuildPackedKeyEntry(p.keys[(size_t)i]) == packed;
+        }
+        if (!ok && errorOut) *errorOut = ERROR_INVALID_DATA;
+        return ok;
+    }
+
+    static bool SavePresetFile(const PresetStore& p)
+    {
+        if (p.filePath.empty()) return false;
+        fs::path dir = fs::path(p.filePath).parent_path();
+        std::error_code ec;
+        fs::create_directories(dir, ec);
+
+        LayoutPresetSaveContext context{ &p };
+        const auto result = IniUtil_SaveAtomic(
+            p.filePath.c_str(),
+            LayoutPresetTransactionWrite,
+            LayoutPresetTransactionValidate,
+            &context);
+        if (!result.Succeeded())
+        {
+            IniUtil_ReportSaveFailure(L"layout preset", p.filePath.c_str(), result);
+            return false;
         }
         return true;
     }
@@ -811,18 +867,20 @@ bool KeyboardLayout_SaveActivePreset()
     int idx = ClampPreset(g_currentPresetIdx);
     if (idx < 0 || idx >= (int)g_presets.size()) return false;
 
-    PresetStore& p = g_presets[idx];
-    p.keys = g_activeKeys;
-    p.labels = g_ownedLabels;
-    p.uniformSpacing = g_activeUniformSpacing;
-    p.uniformGap = ClampUniformGap(g_activeUniformGap);
-    EnsureActiveLabelsBound(p.keys, p.labels);
-    if (p.filePath.empty())
-        p.filePath = BuildPresetPath(p.name);
+    PresetStore candidate = g_presets[idx];
+    candidate.keys = g_activeKeys;
+    candidate.labels = g_ownedLabels;
+    candidate.uniformSpacing = g_activeUniformSpacing;
+    candidate.uniformGap = ClampUniformGap(g_activeUniformGap);
+    EnsureActiveLabelsBound(candidate.keys, candidate.labels);
+    if (candidate.filePath.empty())
+        candidate.filePath = BuildPresetPath(candidate.name);
 
-    if (!SavePresetFile(p))
+    if (!SavePresetFile(candidate))
         return false;
 
+    g_presets[idx] = std::move(candidate);
+    BindPresetLabels(g_presets[idx]);
     g_customEdited = false;
     return true;
 }
@@ -925,36 +983,39 @@ bool KeyboardLayout_StorePresetSnapshot(int presetIdx, const std::vector<KeyDef>
     if (keys.empty())
         return false;
 
-    PresetStore& p = g_presets[presetIdx];
-    p.keys = keys;
-    p.labels.resize(keys.size());
-    p.uniformSpacing = uniformSpacing;
-    p.uniformGap = ClampUniformGap(uniformGap);
+    PresetStore candidate = g_presets[presetIdx];
+    candidate.keys = keys;
+    candidate.labels.resize(keys.size());
+    candidate.uniformSpacing = uniformSpacing;
+    candidate.uniformGap = ClampUniformGap(uniformGap);
 
-    for (size_t i = 0; i < p.keys.size(); ++i)
+    for (size_t i = 0; i < candidate.keys.size(); ++i)
     {
         const KeyDef& in = keys[i];
-        p.keys[i].hid = (uint16_t)std::clamp((int)in.hid, 0, 65535);
-        p.keys[i].row = std::clamp(in.row, 0, 20);
-        p.keys[i].x = std::clamp(in.x, 0, 4000);
-        p.keys[i].w = ClampKeyDim(in.w);
-        p.keys[i].h = ClampKeyDim(in.h);
+        candidate.keys[i].hid = (uint16_t)std::clamp((int)in.hid, 0, 65535);
+        candidate.keys[i].row = std::clamp(in.row, 0, 20);
+        candidate.keys[i].x = std::clamp(in.x, 0, 4000);
+        candidate.keys[i].w = ClampKeyDim(in.w);
+        candidate.keys[i].h = ClampKeyDim(in.h);
 
         if (i < labels.size() && !labels[i].empty())
-            p.labels[i] = labels[i];
+            candidate.labels[i] = labels[i];
         else if (in.label && in.label[0])
-            p.labels[i] = in.label;
+            candidate.labels[i] = in.label;
         else
-            p.labels[i] = L"Key";
+            candidate.labels[i] = L"Key";
     }
 
-    EnsureActiveLabelsBound(p.keys, p.labels);
-    if (p.filePath.empty())
-        p.filePath = BuildPresetPath(p.name);
+    EnsureActiveLabelsBound(candidate.keys, candidate.labels);
+    if (candidate.filePath.empty())
+        candidate.filePath = BuildPresetPath(candidate.name);
 
-    if (!SavePresetFile(p))
+    if (!SavePresetFile(candidate))
         return false;
 
+    g_presets[presetIdx] = std::move(candidate);
+    BindPresetLabels(g_presets[presetIdx]);
+    const PresetStore& p = g_presets[presetIdx];
     if (applyIfActive && presetIdx == g_currentPresetIdx)
     {
         g_activeKeys = p.keys;
@@ -968,6 +1029,26 @@ bool KeyboardLayout_StorePresetSnapshot(int presetIdx, const std::vector<KeyDef>
 
     return true;
 }
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool KeyboardLayout_TestSaveActivePresetToPath(const wchar_t* path)
+{
+    if (!path || !path[0]) return false;
+    EnsureInit();
+
+    const int idx = ClampPreset(g_currentPresetIdx);
+    if (idx < 0 || idx >= (int)g_presets.size()) return false;
+
+    PresetStore candidate = g_presets[idx];
+    candidate.filePath = path;
+    candidate.keys = g_activeKeys;
+    candidate.labels = g_ownedLabels;
+    candidate.uniformSpacing = g_activeUniformSpacing;
+    candidate.uniformGap = ClampUniformGap(g_activeUniformGap);
+    EnsureActiveLabelsBound(candidate.keys, candidate.labels);
+    return SavePresetFile(candidate);
+}
+#endif
 
 bool KeyboardLayout_LoadFromIni(const wchar_t* path)
 {

@@ -727,3 +727,53 @@ Known limitations: layout/curve writers remain V14-09B; LocalAppData migration
 Evidence: docs/stability/tests/V14-09A_TRANSACTIONAL_PERSISTENCE_2026-08-01.txt
 Rollback: parent commit of the V14-09A implementation commit
 ```
+
+## V14-09B evidence
+
+```text
+Package: V14-09B
+Scope: Transactional layout preset, curve preset and curve-state persistence;
+  completion of save failure propagation
+Commands:
+  python src/HallJoyProject/tests/persistence_transaction_static_audit.py
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectPersistenceFailure <prepare|write|flush|validate|replace> -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -RunSeconds 8
+Results:
+  Persistence transaction static audit: PASS
+  Portable prepare/write/flush/validate/replace state-machine test: PASS
+  All static audits and portable C++20 tests: PASS
+  Windows stage injections: 5/5 PASS; settings, bindings, overlay, layout,
+    curve-preset and curve-state probe hashes stayed unchanged at every stage;
+    zero *.halljoy-new-* files remained
+  Normal common-pipeline simulator: PASS, graceful shutdown, exit 0
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Real ABI1 load/init/null/bounded-unload runtime gate: PASS
+  Legacy user layout/state formats loaded without a persistence error
+  Production Irok route: SparkLink VID 1CA6, PID 0529, usage page FFB0
+  Final old-config smoke: 30,095 successful route queries, one transient query
+    failure, no analog-row changes observed; prior V14-09A input proof remains
+    the hardware input evidence because V14-09B changes persistence only
+  Graceful shutdown: overlay, realtime, ViGEm output, backend and main joined,
+    exit 0, zero remaining HallJoy processes
+  User mutable state: 5 restored files, 0 SHA-256 mismatches
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,163,712 bytes
+  SHA-256: 443DFBCE08E232A159C115BE391995D28CBD11186B45F9966C23766725B269FB
+  Production trace SHA-256:
+    EB4AE295A9E1C5ADE8B3AC595C6A788E2E527E302244F6FB636968D6E52EECF4
+Hardware: Irok startup/route/balanced shutdown passed; no new input claim;
+  persistence failure stages are simulator-only
+Remote CI: NOT RUN; optional, no push permitted
+Known limitations: LocalAppData migration and profile-name normalization remain
+  V14-09C
+Evidence:
+  docs/stability/tests/V14-09B_LAYOUT_CURVE_TRANSACTIONAL_PERSISTENCE_2026-08-01.txt
+Rollback: parent commit of the V14-09B implementation commit
+```

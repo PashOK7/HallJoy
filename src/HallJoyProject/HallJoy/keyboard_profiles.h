@@ -47,7 +47,11 @@ namespace KeyboardProfiles
     // UI state: currently active preset name (for highlighting in combo).
     // Empty => none/modified.
     std::wstring GetActiveProfileName();
-    void SetActiveProfileName(const std::wstring& name);
+    bool SetActiveProfileName(const std::wstring& name);
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    bool TestSaveStateToPath(const std::wstring& path, const std::wstring& activeName);
+#endif
 
     // Mark current curve as "modified" (unsaved changes vs active preset).
     void SetDirty(bool dirty);

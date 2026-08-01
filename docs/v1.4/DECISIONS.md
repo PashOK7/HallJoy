@@ -161,6 +161,7 @@ earlier stage may modify it, and every failed stage removes its temporary file.
 Save APIs return a truthful result and also publish the data kind, failed stage,
 native error and destination path. Production surfaces the first failure in the
 UI so ignored autosave returns are not silent. Simulator-only stage injection is
-excluded from production. This contract is established by V14-09A for settings,
-overlay metadata, active-profile metadata and bindings; layout/curve adoption
-is V14-09B and writable-state migration must wait for it in V14-09C.
+excluded from production. V14-09A established this contract for settings,
+overlay metadata, active-profile metadata and bindings; V14-09B extends it to
+layout presets, curve presets and curve active-state metadata. Writable-state
+migration must use the same contract in V14-09C.

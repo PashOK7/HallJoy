@@ -823,3 +823,53 @@
 - `HJ-AUD-P2-016` is Partial until layout/curve save callers are migrated.
 - V14-09 remains In progress. Next is V14-09B transactional layout and curve
   preset/state persistence; `%LOCALAPPDATA%` migration follows in V14-09C.
+
+## 2026-08-01 - V14-09B transactional layout and curve persistence
+
+### Implementation
+
+- Moved layout presets, curve presets and `_preset_state.ini` onto the common
+  unique-temp, checked-write, physical-flush, readback and atomic-replace
+  transaction contract.
+- Added format kind/schema markers and exact value validation for every layout
+  key entry and every curve field while retaining read compatibility with old
+  schema-less files.
+- Layout editor and active-layout saves stage a complete candidate and update
+  the in-memory preset only after the file commit succeeds. Curve active-name
+  changes roll memory back if their state transaction fails.
+- Curve create cleans a newly-created file after a failed compound save. Active
+  curve rename now cleans a failed new file and reports an incomplete old-file
+  deletion instead of claiming success.
+- Extended simulator persistence probes and the static audit to layout preset,
+  curve preset and curve-state files.
+
+### Validation
+
+- Persistence static audit and full static/portable C++20 gate: PASS.
+- Normal simulator: PASS, exit 0.
+- Prepare, write, flush, validation and replace injections: 5/5 PASS across six
+  known-good files. All hashes remained unchanged and no transaction temporary
+  file remained.
+- Official x64 Release build: PASS, 0 errors and only allowlisted `LNK4099`;
+  private UAP ABI1 runtime gate also passed.
+- Production smoke with the user's pre-transaction settings/layout/state files
+  loaded the legacy formats, started overlay and the Irok SparkLink route at
+  `1CA6:0529/FFB0`, joined all workers and exited 0 without persistence ERROR.
+  The final run recorded 30,095 successful route queries and one transient
+  query failure; no key presses were observed, so input proof remains the prior
+  V14-09A hardware trace.
+- `HallJoy.exe`: 2,163,712 bytes,
+  SHA-256 `443DFBCE08E232A159C115BE391995D28CBD11186B45F9966C23766725B269FB`.
+- Production trace SHA-256:
+  `EB4AE295A9E1C5ADE8B3AC595C6A788E2E527E302244F6FB636968D6E52EECF4`.
+- Source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-09B-prechange-20260801-0956`.
+- Runtime backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-09B-runtime-20260801-0956`; five mutable
+  user files were restored with zero hash mismatches after production testing.
+
+### Package result
+
+- `HJ-AUD-P2-014`, `HJ-AUD-P2-015` and `HJ-AUD-P2-016` are Verified.
+- V14-09 remains In progress. Next is V14-09C writable-state migration to
+  `%LOCALAPPDATA%` plus profile-name/path hardening.

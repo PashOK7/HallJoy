@@ -48,5 +48,9 @@ bool KeyboardLayout_DeletePreset(int idx);
 bool KeyboardLayout_GetPresetSnapshot(int presetIdx, std::vector<KeyDef>& outKeys, std::vector<std::wstring>& outLabels, bool* outUniformSpacing, int* outUniformGap);
 bool KeyboardLayout_StorePresetSnapshot(int presetIdx, const std::vector<KeyDef>& keys, const std::vector<std::wstring>& labels, bool applyIfActive, bool uniformSpacing, int uniformGap);
 
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool KeyboardLayout_TestSaveActivePresetToPath(const wchar_t* path);
+#endif
+
 bool KeyboardLayout_LoadFromIni(const wchar_t* path);
 bool KeyboardLayout_SaveToIni(const wchar_t* path);

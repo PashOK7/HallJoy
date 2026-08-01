@@ -1,0 +1,85 @@
+HallJoy V14-09B layout/curve transactional persistence evidence
+Date: 2026-08-01 (Europe/Moscow)
+
+Scope
+-----
+Transactional layout preset, curve preset and curve active-state saves. This
+package completes save-failure propagation. Writable-state migration and name
+normalization remain V14-09C.
+
+Implementation proof
+--------------------
+- Layout, curve preset and curve state use the common
+  prepare/write/flush/validate/replace transaction.
+- Every field write is checked and every format is read back before replace.
+- Layout in-memory candidates commit only after disk commit.
+- Curve active metadata rolls back in memory when state persistence fails.
+- The central trace/UI reporter covers autosave failures; explicit layout and
+  curve operations preserve state or report truthful partial outcomes.
+
+Automated gates
+---------------
+python src/HallJoyProject/tests/persistence_transaction_static_audit.py
+  PASS
+
+powershell -NoProfile -ExecutionPolicy Bypass
+  -File .\tools\run_analog_simulator.ps1 -RunSeconds 7
+  PASS; common-pipeline simulator, graceful exit 0
+
+powershell -NoProfile -ExecutionPolicy Bypass
+  -File .\tools\run_analog_simulator.ps1 -SkipBuild
+  -InjectPersistenceFailure <prepare|write|flush|validate|replace> -RunSeconds 7
+  PASS 5/5
+  Known-good settings, bindings, overlay, layout, curve-preset and curve-state
+  hashes were unchanged after every injected stage.
+  Remaining *.halljoy-new-* files: 0
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  PASS
+  All static audits and portable C++20 tests: PASS
+  Production x64 Release: 0 errors
+  Warning policy: only allowlisted LNK4099 ViGEm PDB diagnostic
+  Real ABI1 runtime gate: PASS
+
+Production and Irok MG75 Max
+----------------------------
+powershell -NoProfile -ExecutionPolicy Bypass
+  -File .\tools\run_production_smoke.ps1 -RunSeconds 8
+  PASS using restored pre-transaction user settings/layout/state files
+
+Route: SparkLink VID 1CA6, PID 0529, usage page FFB0
+Route queries: 30,095 successful, 1 transient failure
+Analog changes: none observed; no new input-coverage claim is made. The V14-09A
+Irok trace remains the input evidence because V14-09B changes persistence only.
+Overlay, realtime, ViGEm output, backend and main shutdown: balanced
+Process exit: 0
+Remaining HallJoy processes: 0
+Persistence ERROR events: 0
+
+Artifacts
+---------
+Canonical executable: build/output/HallJoy.exe
+Size: 2,163,712 bytes
+SHA-256:
+443DFBCE08E232A159C115BE391995D28CBD11186B45F9966C23766725B269FB
+
+Production trace SHA-256:
+EB4AE295A9E1C5ADE8B3AC595C6A788E2E527E302244F6FB636968D6E52EECF4
+
+State safety
+------------
+Source backup:
+C:\github\HallJoy_v1.4_BACKUPS\V14-09B-prechange-20260801-0956
+
+Runtime backup:
+C:\github\HallJoy_v1.4_BACKUPS\V14-09B-runtime-20260801-0956
+
+Five mutable user files restored; SHA-256 mismatches: 0
+
+Result
+------
+HJ-AUD-P2-014: Verified
+HJ-AUD-P2-015: Verified
+HJ-AUD-P2-016: Verified
+V14-09B: Verified locally
+Next: V14-09C LocalAppData migration and profile-name/path hardening

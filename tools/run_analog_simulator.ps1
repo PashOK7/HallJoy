@@ -126,9 +126,22 @@ if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
     }
     $bindingsProbe = (Join-Path $output 'bindings.ini.transaction-probe')
     $overlayProbe = (Join-Path $output 'settings.ini.overlay-transaction-probe')
+    $layoutProbe = (Join-Path $output 'settings.ini.layout-transaction-probe')
+    $curveProbe = (Join-Path $output 'settings.ini.curve-transaction-probe')
+    $curveStateProbe = (Join-Path $output 'settings.ini.curve-state-transaction-probe')
     [IO.File]::WriteAllText($bindingsProbe, "KNOWN_GOOD_BINDINGS_PROBE`r`n", [Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllText($overlayProbe, "KNOWN_GOOD_OVERLAY_PROBE`r`n", [Text.UTF8Encoding]::new($false))
-    $persistenceProbePaths = @($persistenceSettings, $bindingsProbe, $overlayProbe)
+    [IO.File]::WriteAllText($layoutProbe, "KNOWN_GOOD_LAYOUT_PROBE`r`n", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($curveProbe, "KNOWN_GOOD_CURVE_PROBE`r`n", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($curveStateProbe, "KNOWN_GOOD_CURVE_STATE_PROBE`r`n", [Text.UTF8Encoding]::new($false))
+    $persistenceProbePaths = @(
+        $persistenceSettings,
+        $bindingsProbe,
+        $overlayProbe,
+        $layoutProbe,
+        $curveProbe,
+        $curveStateProbe
+    )
     foreach ($probePath in $persistenceProbePaths) {
         $persistenceHashesBefore[$probePath] = (Get-FileHash -LiteralPath $probePath -Algorithm SHA256).Hash
     }
@@ -290,6 +303,9 @@ $required = if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) { @(
     "[component=persistence][event=save.failure] kind=settings stage=$InjectPersistenceFailure",
     "[component=persistence][event=save.failure] kind=bindings stage=$InjectPersistenceFailure",
     "[component=persistence][event=save.failure] kind=overlay settings stage=$InjectPersistenceFailure",
+    "[component=persistence][event=save.failure] kind=layout preset stage=$InjectPersistenceFailure",
+    "[component=persistence][event=save.failure] kind=curve preset stage=$InjectPersistenceFailure",
+    "[component=persistence][event=save.failure] kind=curve state stage=$InjectPersistenceFailure",
     '[component=main][event=session.end] exit_code=0'
 ) } elseif ($InjectRealtimeStopTimeout) { @(
     '[component=realtime][event=test.stop_timeout.injected] simulator_only=1',
@@ -500,6 +516,12 @@ do {
 } while ([DateTime]::UtcNow -lt $childDeadline)
 if ($remaining.Count -ne 0) {
     throw 'A HallJoyV14Simulator process remained after shutdown.'
+}
+
+if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
+    foreach ($probePath in $persistenceProbePaths | Where-Object { $_ -ne $persistenceSettings }) {
+        Remove-Item -LiteralPath $probePath -Force -ErrorAction SilentlyContinue
+    }
 }
 
 if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {

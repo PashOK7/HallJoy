@@ -90,9 +90,9 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P2-011` | P2 | Сохранение `settings.ini` может заменить хороший файл неполным temp | `S13` | Verified | unique same-directory temp, checked flush/readback/replace and five injected failure stages preserve the known-good hash |
 | `HJ-AUD-P2-012` | P2 | Overlay settings сохраняются напрямую и всегда сообщают успех | `S13` | Verified | overlay copies the base into a transaction, checks every write/readback and reports exact failure stage |
 | `HJ-AUD-P2-013` | P2 | Profile stream не проверяется после flush/close | `S13` | Verified | stream flush/good/close state, schema readback and all-stage bindings fault probe passed |
-| `HJ-AUD-P2-014` | P2 | Layout preset очищается и пишется неатомарно без проверки ошибок | `S13` | Open | fault-injected transactional save tests |
-| `HJ-AUD-P2-015` | P2 | Curve preset writer также игнорирует результаты записей | `S13` | Open | fault-injected transactional save tests |
-| `HJ-AUD-P2-016` | P2 | Большинство вызовов сохранения игнорируют возвращаемую ошибку | `S13` | Partial | central trace/UI reporting plus profile switch/create/manual-save propagation complete; layout/curve callers remain V14-09B |
+| `HJ-AUD-P2-014` | P2 | Layout preset очищается и пишется неатомарно без проверки ошибок | `S13` | Verified | checked transaction, schema/exact-entry readback and five injected stages preserve the layout probe hash |
+| `HJ-AUD-P2-015` | P2 | Curve preset writer также игнорирует результаты записей | `S13` | Verified | curve preset/state checked writes, exact readback and five injected stages preserve both probe hashes |
+| `HJ-AUD-P2-016` | P2 | Большинство вызовов сохранения игнорируют возвращаемую ошибку | `S13` | Verified | central trace/UI reporting covers autosave; profile/layout/curve manual paths retain or roll back state and report partial rename |
 | `HJ-AUD-P2-017` | P2 | Writable state хранится рядом с executable | `S14` | Open | migration/name/path tests |
 | `HJ-AUD-P2-018` | P2 | Имена профилей недостаточно нормализованы | `S14` | Open | migration/name/path tests |
 | `HJ-AUD-P2-019` | P2 | Публикация curve settings имеет слабый memory-order contract | `S11` | Verified | release generation publication, acquire cache observation and concurrency test passed in V14-08A |

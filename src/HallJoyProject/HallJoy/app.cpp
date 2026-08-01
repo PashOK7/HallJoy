@@ -28,6 +28,8 @@
 #include "Resource.h"
 #include "backend.h"
 #include "bindings.h"
+#include "keyboard_layout.h"
+#include "keyboard_profiles.h"
 #include "keyboard_ui.h"
 #include "settings.h"
 #include "settings_ini.h"
@@ -216,8 +218,14 @@ static void SaveSettingsByActiveGlobalProfile()
         {
             const std::wstring bindingsProbe = AppPaths_BindingsIni() + L".transaction-probe";
             const std::wstring overlayProbe = AppPaths_SettingsIni() + L".overlay-transaction-probe";
+            const std::wstring layoutProbe = AppPaths_SettingsIni() + L".layout-transaction-probe";
+            const std::wstring curveProbe = AppPaths_SettingsIni() + L".curve-transaction-probe";
+            const std::wstring curveStateProbe = AppPaths_SettingsIni() + L".curve-state-transaction-probe";
             Profile_SaveIni(bindingsProbe.c_str());
             SettingsIni_SaveOverlay(overlayProbe.c_str());
+            KeyboardLayout_TestSaveActivePresetToPath(layoutProbe.c_str());
+            KeyboardProfiles::SavePreset(curveProbe, KeyDeadzone{});
+            KeyboardProfiles::TestSaveStateToPath(curveStateProbe, L"PersistenceProbe");
         }
 #endif
         DebugLog_Write(L"[settings] save default profile done");

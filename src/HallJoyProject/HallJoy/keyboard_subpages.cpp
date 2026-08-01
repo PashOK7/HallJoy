@@ -9707,12 +9707,20 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         {
             if (!KeyboardProfiles::SavePreset(newPath.wstring(), curCurve))
             {
+                // newPath was verified absent above. SavePreset can commit the
+                // curve and then fail while committing the active-name state.
+                DeleteFileW(newPath.wstring().c_str());
                 SetProfileStatus(st, L"Rename failed: could not save new preset.");
                 KeySettingsPanel_HandleCommand(hWnd, 9999, 0);
                 return 0;
             }
 
-            DeleteFileW(oldPath.wstring().c_str());
+            if (!DeleteFileW(oldPath.wstring().c_str()))
+            {
+                SetProfileStatus(st, L"Rename incomplete: new preset saved, but old preset could not be deleted.");
+                KeySettingsPanel_HandleCommand(hWnd, 9999, 0);
+                return 0;
+            }
 
             SetProfileStatus(st, L"Preset renamed.");
             KeySettingsPanel_HandleCommand(hWnd, 9999, 0);

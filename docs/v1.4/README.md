@@ -9,11 +9,11 @@ version or release status.
 
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
-- Completed package: `V14-09A` transactional settings, overlay and bindings
-  persistence
+- Completed package: `V14-09B` transactional layout, curve preset and curve
+  state persistence
 - Completed hotfix: `V14-06D.1` SparkLink shutdown/reconnect race, Verified
 - Current package: `V14-09` in progress
-- Next package: `V14-09B` transactional layout and curve preset persistence
+- Next package: `V14-09C` writable-state migration and profile-name hardening
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -24,7 +24,10 @@ balanced worker generations, two successful reconnects, input before and after
 reconnect, and no reconnect after final service stop. Simulator evidence remains
 separate. The V14-09A production smoke additionally proves that the Irok route,
 realtime loop and dedicated ViGEm output worker start and stop cleanly while the
-new transactional settings path commits without a persistence error.
+new transactional settings path commits without a persistence error. V14-09B
+extends that contract to layout and curve files; all five injected failure
+stages preserve the six known-good file hashes, and the production build reads
+the user's legacy presets without migration or persistence errors.
 
 ## Authoritative documents
 

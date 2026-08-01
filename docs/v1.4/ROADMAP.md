@@ -305,11 +305,17 @@ Progress:
   transaction temp file.
 - The official production build and Irok MG75 Max startup/shutdown smoke pass;
   user settings, bindings and presets were restored hash-identically.
+- `V14-09B` layout, curve preset and curve-state persistence: Verified locally.
+  These formats now use the same checked transaction and schema readback.
+  Layout candidates and curve active-state metadata do not commit in memory
+  after a failed save, and partial active-preset rename outcomes are reported.
+- All five Windows failure stages preserve known-good hashes for settings,
+  bindings, overlay, layout, curve preset and curve state, with zero temporary
+  files left behind. The production build also reads the user's pre-transaction
+  layout/state files and shuts down without a persistence error.
 
 Remaining V14-09 scope:
 
-- `V14-09B`: apply the verified transaction to layout and curve preset/state
-  writers and finish save-caller propagation.
 - `V14-09C`: migrate mutable state safely to `%LOCALAPPDATA%`, with one-time
   backup and Unicode/case/reserved-name/path-alias tests.
 

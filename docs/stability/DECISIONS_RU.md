@@ -190,3 +190,12 @@ Worker имеет waitable `_beginthreadex` generation и единый 3000 ms d
 poison'ит restart и требует process containment. Нельзя закрывать HID из owner
 thread или объявлять timeout успехом. Protocol builders, transports, A8/A9
 strategy, restore и decoder в этом пакете не меняются.
+
+## D-SYNC-001 — release risk register является источником статусов
+
+`docs/v1.4/RISK_REGISTER.md` хранит принятый статус текущего release, а
+`docs/stability/RISK_REGISTER_RU.md` сохраняет исходные audit ID и расширенные
+evidence notes. При расхождении статус переносится только вместе с уже
+зафиксированным package evidence; наличие кода без обязательного gate не даёт
+права повысить статус. Reconciliation 2026-08-01 синхронизировал все 45 общих
+ID, не меняя hardware/soak ограничения V14-12.

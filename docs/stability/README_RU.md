@@ -39,6 +39,8 @@
   запусков и штатных `WM_CLOSE` завершились exit 0, без оставшихся процессов,
   trace ERROR и изменений 11 пользовательских файлов. Это pilot S21, не
   замена 1000 циклам, 8-24-часовому soak и hardware matrix.
+- Статусы всех 45 общих `HJ-AUD-*` синхронизированы с release-регистром по уже
+  существующим evidence; остаются 8 Open, 3 Implemented, 1 Partial и 33 Verified.
 - `S02V1` локально добавил временную bounded evidence trace, машинный анализатор и сборщик log bundle; Windows/SparkLink evidence gate ожидается.
 - Normal MAD68/Hex80/SparkLink hot paths, Addressed polling loop, reader I/O loop и packet constructors сохранены относительно предыдущих пакетов.
 - Риск `HJ-AUD-P1-004` остаётся `Partial` только из-за отложенных device-owner

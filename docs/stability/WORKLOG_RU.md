@@ -377,3 +377,12 @@ shutdown, zero ERROR. 42 static audit и 26 portable tests PASS. EXE SHA-256:
 
 Это Verified pilot контура, но не финальные 1000 циклов/8-24 часа и не замена
 ручному input/reconnect либо отсутствующим device-owner gates.
+
+## 2026-08-01 — reconciliation статусов risk register
+
+Сопоставлены все 45 общих `HJ-AUD-*` ID в `docs/stability/RISK_REGISTER_RU.md`
+и авторитетном release-регистре `docs/v1.4/RISK_REGISTER.md`. Исправлены 23
+устаревших `Open`, для которых уже существовали принятые evidence V14-07C,
+V14-08A/B, V14-09A-C, V14-10A-C и V14-04. Production-код и статус hardware/
+soak gates не менялись. Итог машинного пересчёта: 8 Open, 3 Implemented,
+1 Partial, 33 Verified; расхождений между двумя таблицами по 45 ID нет.

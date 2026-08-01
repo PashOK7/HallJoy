@@ -33,7 +33,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-06` | Cooperative lifecycle migration for realtime, logging and native protocol workers | Verified locally | Per-worker tests, no ordinary `TerminateThread`, plus unchanged protocol and mapping characterization |
 | `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Verified | Partial-start, crash, hang, C ABI, null/state, unload and bounded restart gates passed |
 | `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Verified | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
-| `V14-09` | Transactional persistence and writable state migration | Planned | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
+| `V14-09` | Transactional persistence and writable state migration | In progress | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
 | `V14-10` | IPC and overlay security/correctness | Planned | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
 | `V14-11` | UAP pacing, identity, modularization and measured performance | Planned | CPU/USB/latency comparison with no unsupported sampling regression |
 | `V14-12` | Release qualification and hardware matrix | Planned | Clean package, 8-24h soak, reconnect cycles and required device-owner gates |
@@ -283,6 +283,35 @@ Progress:
 
 V14-08 is complete. The next implementation package is V14-09 transactional
 persistence and writable state migration.
+
+## Current package: V14-09
+
+The package is split so the transactional write primitive is verified before
+it is used for migration or every remaining data format.
+
+Progress:
+
+- `V14-09A` settings, overlay and bindings persistence: Verified locally.
+  Every save uses a collision-resistant temporary file in the destination
+  directory, checks writes and stream state, physically flushes, parses schema
+  markers back, and commits only through a write-through atomic replace.
+- Save failures now publish a stage/error/path trace and reach a production UI
+  error even when an autosave caller cannot consume the return value. Profile
+  switch/create/manual-save paths additionally retain the old active/dirty
+  state when persistence fails.
+- Portable stage-failure tests and Windows simulator injections cover prepare,
+  write, flush, validation and replace. For settings, bindings and overlay
+  probes, every injected failure preserved the known-good SHA-256 and left no
+  transaction temp file.
+- The official production build and Irok MG75 Max startup/shutdown smoke pass;
+  user settings, bindings and presets were restored hash-identically.
+
+Remaining V14-09 scope:
+
+- `V14-09B`: apply the verified transaction to layout and curve preset/state
+  writers and finish save-caller propagation.
+- `V14-09C`: migrate mutable state safely to `%LOCALAPPDATA%`, with one-time
+  backup and Unicode/case/reserved-name/path-alias tests.
 
 ## Release definition
 

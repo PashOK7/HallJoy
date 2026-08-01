@@ -49,4 +49,4 @@ bool KeyboardLayout_GetPresetSnapshot(int presetIdx, std::vector<KeyDef>& outKey
 bool KeyboardLayout_StorePresetSnapshot(int presetIdx, const std::vector<KeyDef>& keys, const std::vector<std::wstring>& labels, bool applyIfActive, bool uniformSpacing, int uniformGap);
 
 bool KeyboardLayout_LoadFromIni(const wchar_t* path);
-void KeyboardLayout_SaveToIni(const wchar_t* path);
+bool KeyboardLayout_SaveToIni(const wchar_t* path);

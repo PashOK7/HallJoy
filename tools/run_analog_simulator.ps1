@@ -18,6 +18,8 @@ param(
     [switch]$InjectRealtimeStartFailure,
     [switch]$InjectNativePhaseStartFailure,
     [switch]$InjectVigemUpdateStall,
+    [ValidateSet('prepare', 'write', 'flush', 'validate', 'replace')]
+    [string]$InjectPersistenceFailure,
     [ValidateRange(7, 120)]
     [int]$RunSeconds = 8
 )
@@ -40,7 +42,8 @@ $injectionCount = @(
     $InjectAnalogHostChildReapTimeout.IsPresent,
     $InjectRealtimeStartFailure.IsPresent,
     $InjectNativePhaseStartFailure.IsPresent,
-    $InjectVigemUpdateStall.IsPresent
+    $InjectVigemUpdateStall.IsPresent,
+    -not [string]::IsNullOrEmpty($InjectPersistenceFailure)
 ).Where({ $_ }).Count
 $isFaultInjection = $injectionCount -ne 0
 if ($injectionCount -gt 1) {
@@ -114,6 +117,22 @@ if (-not $SkipBuild) {
 if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
     throw "Simulator executable was not produced: $exe"
 }
+$persistenceSettings = Join-Path $output 'settings.ini'
+$persistenceProbePaths = @()
+$persistenceHashesBefore = @{}
+if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
+    if (-not (Test-Path -LiteralPath $persistenceSettings -PathType Leaf)) {
+        throw 'Persistence fault injection requires one normal simulator run to create a known-good settings.ini baseline.'
+    }
+    $bindingsProbe = (Join-Path $output 'bindings.ini.transaction-probe')
+    $overlayProbe = (Join-Path $output 'settings.ini.overlay-transaction-probe')
+    [IO.File]::WriteAllText($bindingsProbe, "KNOWN_GOOD_BINDINGS_PROBE`r`n", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($overlayProbe, "KNOWN_GOOD_OVERLAY_PROBE`r`n", [Text.UTF8Encoding]::new($false))
+    $persistenceProbePaths = @($persistenceSettings, $bindingsProbe, $overlayProbe)
+    foreach ($probePath in $persistenceProbePaths) {
+        $persistenceHashesBefore[$probePath] = (Get-FileHash -LiteralPath $probePath -Algorithm SHA256).Hash
+    }
+}
 if (Test-Path -LiteralPath $trace) {
     Remove-Item -LiteralPath $trace -Force
 }
@@ -166,6 +185,9 @@ if ($InjectNativePhaseStartFailure) {
 }
 if ($InjectVigemUpdateStall) {
     $arguments += '--halljoy-test-vigem-update-stall'
+}
+if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
+    $arguments += "--halljoy-test-persistence-failure-$InjectPersistenceFailure"
 }
 if ($StartOverlay) {
     $arguments += @('--overlay-server', '--port', '18765')
@@ -253,6 +275,9 @@ if ($InjectNativePhaseStartFailure -and $process.ExitCode -ne 0) {
 if ($InjectVigemUpdateStall -and $process.ExitCode -ne 2) {
     throw "ViGEm-update-stall simulator exited with code $($process.ExitCode), expected 2."
 }
+if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure) -and $process.ExitCode -ne 0) {
+    throw "Persistence-failure simulator exited with code $($process.ExitCode), expected 0."
+}
 if (-not $isFaultInjection -and $process.ExitCode -ne 0) {
     throw "Simulator exited with code $($process.ExitCode)."
 }
@@ -261,7 +286,12 @@ if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
 }
 
 $traceText = Get-Content -LiteralPath $trace -Raw -Encoding UTF8
-$required = if ($InjectRealtimeStopTimeout) { @(
+$required = if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) { @(
+    "[component=persistence][event=save.failure] kind=settings stage=$InjectPersistenceFailure",
+    "[component=persistence][event=save.failure] kind=bindings stage=$InjectPersistenceFailure",
+    "[component=persistence][event=save.failure] kind=overlay settings stage=$InjectPersistenceFailure",
+    '[component=main][event=session.end] exit_code=0'
+) } elseif ($InjectRealtimeStopTimeout) { @(
     '[component=realtime][event=test.stop_timeout.injected] simulator_only=1',
     '[component=realtime][event=stop.timeout]',
     'handle_retained=1 restart_blocked=1',
@@ -417,6 +447,18 @@ if ($ForceUserUapRuntime -and -not $traceText.Contains('[component=embedded-uap]
 if ($missing.Count -ne 0) {
     throw "Simulator trace is incomplete. Missing: $($missing -join ', ')"
 }
+if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
+    foreach ($probePath in $persistenceProbePaths) {
+        $persistenceHashAfter = (Get-FileHash -LiteralPath $probePath -Algorithm SHA256).Hash
+        if ($persistenceHashAfter -ne $persistenceHashesBefore[$probePath]) {
+            throw "Persistence $InjectPersistenceFailure injection changed known-good file $probePath."
+        }
+    }
+    $temporaryFiles = @(Get-ChildItem -LiteralPath $output -Recurse -File -Filter '*.halljoy-new-*')
+    if ($temporaryFiles.Count -ne 0) {
+        throw "Persistence $InjectPersistenceFailure injection left transaction temp files: $($temporaryFiles.FullName -join ', ')"
+    }
+}
 if ($InjectSparkShutdownRace) {
     $serviceStopIndex = $traceText.IndexOf('[component=spark][event=service.stop.begin]')
     $reconnectAfterStop = if ($serviceStopIndex -ge 0) {
@@ -460,7 +502,9 @@ if ($remaining.Count -ne 0) {
     throw 'A HallJoyV14Simulator process remained after shutdown.'
 }
 
-if ($InjectRealtimeStopTimeout) {
+if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
+    Write-Host "HallJoy persistence $InjectPersistenceFailure failure atomicity scenario: PASS" -ForegroundColor Green
+} elseif ($InjectRealtimeStopTimeout) {
     Write-Host 'HallJoy realtime timeout containment scenario: PASS' -ForegroundColor Green
 } elseif ($InjectDebugLogStopTimeout) {
     Write-Host 'HallJoy debug-log timeout containment scenario: PASS' -ForegroundColor Green

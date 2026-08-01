@@ -87,12 +87,12 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P2-008` | P2 | `is_initialised()` plugin всегда возвращает `true` | `S10` | Verified | runtime ABI gate proves false before init, true after init and false after bounded unload |
 | `HJ-AUD-P2-009` | P2 | `_device_info` не проверяет `buffer == nullptr` | `S10` | Verified | runtime ABI gate proves null device-info and full-buffer arguments return zero without a fault |
 | `HJ-AUD-P2-010` | P2 | Snapshot export удерживает глобальный devices mutex при копировании всех значений | `S17` | Open | CPU/USB/identity/contention measurements |
-| `HJ-AUD-P2-011` | P2 | Сохранение `settings.ini` может заменить хороший файл неполным temp | `S13` | Open | fault-injected transactional save tests |
-| `HJ-AUD-P2-012` | P2 | Overlay settings сохраняются напрямую и всегда сообщают успех | `S13` | Open | fault-injected transactional save tests |
-| `HJ-AUD-P2-013` | P2 | Profile stream не проверяется после flush/close | `S13` | Open | fault-injected transactional save tests |
+| `HJ-AUD-P2-011` | P2 | Сохранение `settings.ini` может заменить хороший файл неполным temp | `S13` | Verified | unique same-directory temp, checked flush/readback/replace and five injected failure stages preserve the known-good hash |
+| `HJ-AUD-P2-012` | P2 | Overlay settings сохраняются напрямую и всегда сообщают успех | `S13` | Verified | overlay copies the base into a transaction, checks every write/readback and reports exact failure stage |
+| `HJ-AUD-P2-013` | P2 | Profile stream не проверяется после flush/close | `S13` | Verified | stream flush/good/close state, schema readback and all-stage bindings fault probe passed |
 | `HJ-AUD-P2-014` | P2 | Layout preset очищается и пишется неатомарно без проверки ошибок | `S13` | Open | fault-injected transactional save tests |
 | `HJ-AUD-P2-015` | P2 | Curve preset writer также игнорирует результаты записей | `S13` | Open | fault-injected transactional save tests |
-| `HJ-AUD-P2-016` | P2 | Большинство вызовов сохранения игнорируют возвращаемую ошибку | `S13` | Open | fault-injected transactional save tests |
+| `HJ-AUD-P2-016` | P2 | Большинство вызовов сохранения игнорируют возвращаемую ошибку | `S13` | Partial | central trace/UI reporting plus profile switch/create/manual-save propagation complete; layout/curve callers remain V14-09B |
 | `HJ-AUD-P2-017` | P2 | Writable state хранится рядом с executable | `S14` | Open | migration/name/path tests |
 | `HJ-AUD-P2-018` | P2 | Имена профилей недостаточно нормализованы | `S14` | Open | migration/name/path tests |
 | `HJ-AUD-P2-019` | P2 | Публикация curve settings имеет слабый memory-order contract | `S11` | Verified | release generation publication, acquire cache observation and concurrency test passed in V14-08A |
@@ -267,9 +267,9 @@ production build и шестисекундный Irok MG75 Max smoke прошл�
 ## Сводка
 
 - P1: 6 open, 1 implemented, 1 partial, 8 verified.
-- P2: 17 open, 4 verified.
+- P2: 13 open, 1 partial, 7 verified.
 - P3: 6 open, 2 verified.
-- Всего: 29 open, 1 implemented, 1 partial, 14 verified.
+- Всего: 25 open, 1 implemented, 2 partial, 17 verified.
 
 ## Дополнительный риск, обнаруженный при Windows gate S02A
 

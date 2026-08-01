@@ -27,12 +27,12 @@ static float ClampF(float v, float lo, float hi)
     return v;
 }
 
-static void IniWriteFloat1000(const wchar_t* section, const wchar_t* key, float v, const wchar_t* path)
+static bool IniWriteFloat1000(const wchar_t* section, const wchar_t* key, float v, const wchar_t* path)
 {
     int iv = (int)lroundf(v * 1000.0f);
     wchar_t buf[32]{};
     swprintf_s(buf, L"%d", iv);
-    WritePrivateProfileStringW(section, key, buf, path);
+    return WritePrivateProfileStringW(section, key, buf, path) != FALSE;
 }
 
 static float IniReadFloat1000(const wchar_t* section, const wchar_t* key, float def, const wchar_t* path)
@@ -42,11 +42,11 @@ static float IniReadFloat1000(const wchar_t* section, const wchar_t* key, float 
     return (float)iv / 1000.0f;
 }
 
-static void IniWriteU32(const wchar_t* section, const wchar_t* key, UINT v, const wchar_t* path)
+static bool IniWriteU32(const wchar_t* section, const wchar_t* key, UINT v, const wchar_t* path)
 {
     wchar_t buf[32]{};
     swprintf_s(buf, L"%u", (unsigned)v);
-    WritePrivateProfileStringW(section, key, buf, path);
+    return WritePrivateProfileStringW(section, key, buf, path) != FALSE;
 }
 
 static UINT IniReadU32(const wchar_t* section, const wchar_t* key, UINT def, const wchar_t* path)
@@ -54,11 +54,11 @@ static UINT IniReadU32(const wchar_t* section, const wchar_t* key, UINT def, con
     return (UINT)GetPrivateProfileIntW(section, key, (int)def, path);
 }
 
-static void IniWriteI32(const wchar_t* section, const wchar_t* key, int v, const wchar_t* path)
+static bool IniWriteI32(const wchar_t* section, const wchar_t* key, int v, const wchar_t* path)
 {
     wchar_t buf[32]{};
     swprintf_s(buf, L"%d", v);
-    WritePrivateProfileStringW(section, key, buf, path);
+    return WritePrivateProfileStringW(section, key, buf, path) != FALSE;
 }
 
 static int IniReadI32(const wchar_t* section, const wchar_t* key, int def, const wchar_t* path)
@@ -94,27 +94,29 @@ static int OverlayLegacyGlassToMaterialScale(int value)
     return OverlayClampStrengthPercent(50 + (value / 2));
 }
 
-static void OverlaySettingsIni_SaveToSettingsIni(const wchar_t* path)
+static bool OverlaySettingsIni_SaveToSettingsIni(const wchar_t* path)
 {
-    IniWriteI32(L"InputOverlay", L"StrengthScaleVersion", 5, path);
-    IniWriteI32(L"InputOverlay", L"AutoStart", OverlayServer_GetAutoStart() ? 1 : 0, path);
-    IniWriteI32(L"InputOverlay", L"UseRawDepth", OverlayServer_GetUseRawDepth() ? 1 : 0, path);
-    IniWriteU32(L"InputOverlay", L"Port", OverlayServer_GetConfiguredPort(), path);
-    IniWriteU32(L"InputOverlay", L"FillDirection", (UINT)OverlayServer_GetFillDirection(), path);
-    IniWriteU32(L"InputOverlay", L"EffectFlags", OverlayServer_GetEffectFlags(), path);
-    IniWriteU32(L"InputOverlay", L"AccentColor", OverlayServer_GetAccentColor(), path);
-    IniWriteI32(L"InputOverlay", L"RefreshMs", OverlayServer_GetRefreshIntervalMs(), path);
-    IniWriteI32(L"InputOverlay", L"StrengthSmoothing", OverlayServer_GetEffectStrengthPercent(OverlayEffect_Smoothing), path);
-    IniWriteI32(L"InputOverlay", L"StrengthGlass", OverlayServer_GetEffectStrengthPercent(OverlayEffect_Glass), path);
-    IniWriteI32(L"InputOverlay", L"StrengthBloom", OverlayServer_GetEffectStrengthPercent(OverlayEffect_Bloom), path);
-    IniWriteI32(L"InputOverlay", L"StrengthEdgeSweep", OverlayServer_GetEffectStrengthPercent(OverlayEffect_EdgeSweep), path);
-    IniWriteI32(L"InputOverlay", L"StrengthMicroScale", OverlayServer_GetEffectStrengthPercent(OverlayEffect_MicroScale), path);
-    IniWriteI32(L"InputOverlay", L"StrengthLabelContrast", OverlayServer_GetEffectStrengthPercent(OverlayEffect_LabelContrast), path);
-    IniWriteI32(L"InputOverlay", L"StrengthGlassRimLight", OverlayServer_GetEffectStrengthPercent(OverlayEffect_GlassRimLight), path);
-    IniWriteI32(L"InputOverlay", L"LabelFont", OverlayServer_GetLabelFontIndex(), path);
-    IniWriteI32(L"InputOverlay", L"LabelSizePx", OverlayServer_GetLabelSizePx(), path);
-    IniWriteI32(L"InputOverlay", L"LabelShadow", OverlayServer_GetLabelShadowPercent(), path);
-    IniWriteU32(L"InputOverlay", L"LabelColor", OverlayServer_GetLabelColor(), path);
+    bool ok = true;
+    ok &= IniWriteI32(L"InputOverlay", L"StrengthScaleVersion", 5, path);
+    ok &= IniWriteI32(L"InputOverlay", L"AutoStart", OverlayServer_GetAutoStart() ? 1 : 0, path);
+    ok &= IniWriteI32(L"InputOverlay", L"UseRawDepth", OverlayServer_GetUseRawDepth() ? 1 : 0, path);
+    ok &= IniWriteU32(L"InputOverlay", L"Port", OverlayServer_GetConfiguredPort(), path);
+    ok &= IniWriteU32(L"InputOverlay", L"FillDirection", (UINT)OverlayServer_GetFillDirection(), path);
+    ok &= IniWriteU32(L"InputOverlay", L"EffectFlags", OverlayServer_GetEffectFlags(), path);
+    ok &= IniWriteU32(L"InputOverlay", L"AccentColor", OverlayServer_GetAccentColor(), path);
+    ok &= IniWriteI32(L"InputOverlay", L"RefreshMs", OverlayServer_GetRefreshIntervalMs(), path);
+    ok &= IniWriteI32(L"InputOverlay", L"StrengthSmoothing", OverlayServer_GetEffectStrengthPercent(OverlayEffect_Smoothing), path);
+    ok &= IniWriteI32(L"InputOverlay", L"StrengthGlass", OverlayServer_GetEffectStrengthPercent(OverlayEffect_Glass), path);
+    ok &= IniWriteI32(L"InputOverlay", L"StrengthBloom", OverlayServer_GetEffectStrengthPercent(OverlayEffect_Bloom), path);
+    ok &= IniWriteI32(L"InputOverlay", L"StrengthEdgeSweep", OverlayServer_GetEffectStrengthPercent(OverlayEffect_EdgeSweep), path);
+    ok &= IniWriteI32(L"InputOverlay", L"StrengthMicroScale", OverlayServer_GetEffectStrengthPercent(OverlayEffect_MicroScale), path);
+    ok &= IniWriteI32(L"InputOverlay", L"StrengthLabelContrast", OverlayServer_GetEffectStrengthPercent(OverlayEffect_LabelContrast), path);
+    ok &= IniWriteI32(L"InputOverlay", L"StrengthGlassRimLight", OverlayServer_GetEffectStrengthPercent(OverlayEffect_GlassRimLight), path);
+    ok &= IniWriteI32(L"InputOverlay", L"LabelFont", OverlayServer_GetLabelFontIndex(), path);
+    ok &= IniWriteI32(L"InputOverlay", L"LabelSizePx", OverlayServer_GetLabelSizePx(), path);
+    ok &= IniWriteI32(L"InputOverlay", L"LabelShadow", OverlayServer_GetLabelShadowPercent(), path);
+    ok &= IniWriteU32(L"InputOverlay", L"LabelColor", OverlayServer_GetLabelColor(), path);
+    return ok;
 }
 
 static bool ReadSectionKeys(const wchar_t* section, const wchar_t* path, std::vector<std::wstring>& keysOut)
@@ -171,10 +173,11 @@ static bool ReadSectionKeys(const wchar_t* section, const wchar_t* path, std::ve
     }
 }
 
-static void KeySettingsIni_SaveToSettingsIni(const wchar_t* path)
+static bool KeySettingsIni_SaveToSettingsIni(const wchar_t* path)
 {
+    bool ok = true;
     // rewrite the whole section
-    WritePrivateProfileStringW(L"KeyDeadzone", nullptr, nullptr, path);
+    ok &= WritePrivateProfileStringW(L"KeyDeadzone", nullptr, nullptr, path) != FALSE;
 
     std::vector<std::pair<uint16_t, KeyDeadzone>> all;
     KeySettings_Enumerate(all);
@@ -206,30 +209,31 @@ static void KeySettingsIni_SaveToSettingsIni(const wchar_t* path)
         swprintf_s(kC1W, L"%u_C1W", (unsigned)hid);
         swprintf_s(kC2W, L"%u_C2W", (unsigned)hid);
 
-        IniWriteI32(L"KeyDeadzone", kUse, ks.useUnique ? 1 : 0, path);
+        ok &= IniWriteI32(L"KeyDeadzone", kUse, ks.useUnique ? 1 : 0, path);
 
-        if (ks.invert) IniWriteI32(L"KeyDeadzone", kInv, 1, path);
-        if (ks.curveMode != 0) IniWriteI32(L"KeyDeadzone", kMode, (int)ks.curveMode, path);
+        if (ks.invert) ok &= IniWriteI32(L"KeyDeadzone", kInv, 1, path);
+        if (ks.curveMode != 0) ok &= IniWriteI32(L"KeyDeadzone", kMode, (int)ks.curveMode, path);
 
-        IniWriteI32(L"KeyDeadzone", kLow, (int)lroundf(ks.low * 1000.0f), path);
-        IniWriteI32(L"KeyDeadzone", kHigh, (int)lroundf(ks.high * 1000.0f), path);
+        ok &= IniWriteI32(L"KeyDeadzone", kLow, (int)lroundf(ks.low * 1000.0f), path);
+        ok &= IniWriteI32(L"KeyDeadzone", kHigh, (int)lroundf(ks.high * 1000.0f), path);
 
         if (ks.antiDeadzone > 0.001f)
-            IniWriteI32(L"KeyDeadzone", kADZ, (int)lroundf(ks.antiDeadzone * 1000.0f), path);
+            ok &= IniWriteI32(L"KeyDeadzone", kADZ, (int)lroundf(ks.antiDeadzone * 1000.0f), path);
 
         if (ks.outputCap < 0.999f)
-            IniWriteI32(L"KeyDeadzone", kCap, (int)lroundf(ks.outputCap * 1000.0f), path);
+            ok &= IniWriteI32(L"KeyDeadzone", kCap, (int)lroundf(ks.outputCap * 1000.0f), path);
 
-        IniWriteI32(L"KeyDeadzone", kC1X, (int)lroundf(ks.cp1_x * 1000.0f), path);
-        IniWriteI32(L"KeyDeadzone", kC1Y, (int)lroundf(ks.cp1_y * 1000.0f), path);
-        IniWriteI32(L"KeyDeadzone", kC2X, (int)lroundf(ks.cp2_x * 1000.0f), path);
-        IniWriteI32(L"KeyDeadzone", kC2Y, (int)lroundf(ks.cp2_y * 1000.0f), path);
+        ok &= IniWriteI32(L"KeyDeadzone", kC1X, (int)lroundf(ks.cp1_x * 1000.0f), path);
+        ok &= IniWriteI32(L"KeyDeadzone", kC1Y, (int)lroundf(ks.cp1_y * 1000.0f), path);
+        ok &= IniWriteI32(L"KeyDeadzone", kC2X, (int)lroundf(ks.cp2_x * 1000.0f), path);
+        ok &= IniWriteI32(L"KeyDeadzone", kC2Y, (int)lroundf(ks.cp2_y * 1000.0f), path);
 
         float w1 = ClampF(ks.cp1_w, 0.0f, 1.0f);
         float w2 = ClampF(ks.cp2_w, 0.0f, 1.0f);
-        IniWriteI32(L"KeyDeadzone", kC1W, (int)lroundf(w1 * 1000.0f), path);
-        IniWriteI32(L"KeyDeadzone", kC2W, (int)lroundf(w2 * 1000.0f), path);
+        ok &= IniWriteI32(L"KeyDeadzone", kC1W, (int)lroundf(w1 * 1000.0f), path);
+        ok &= IniWriteI32(L"KeyDeadzone", kC2W, (int)lroundf(w2 * 1000.0f), path);
     }
+    return ok;
 }
 
 static void KeySettingsIni_LoadFromSettingsIni(const wchar_t* path)
@@ -573,111 +577,202 @@ bool SettingsIni_LoadProfile(const wchar_t* path)
 
 // Writes ONLY application settings (settings.ini).
 // Curve presets are stored separately by KeyboardProfiles (CurvePresets folder).
-static bool SettingsIni_Save_Internal(const wchar_t* tmpPath, bool saveWindow, bool saveLayout, bool saveActiveProfileKey)
+static bool SettingsIni_Save_Internal(
+    const wchar_t* tmpPath,
+    bool saveWindow,
+    bool saveLayout,
+    bool saveActiveProfileKey,
+    const wchar_t* persistenceKind)
 {
     if (!tmpPath) return false;
+    bool ok = true;
 
-    IniWriteFloat1000(L"Input", L"DeadzoneLow", Settings_GetInputDeadzoneLow(), tmpPath);
-    IniWriteFloat1000(L"Input", L"DeadzoneHigh", Settings_GetInputDeadzoneHigh(), tmpPath);
+    ok &= IniWriteI32(L"HallJoyPersistence", L"SchemaVersion", 1, tmpPath);
+    ok &= WritePrivateProfileStringW(L"HallJoyPersistence", L"Kind", persistenceKind, tmpPath) != FALSE;
 
-    IniWriteFloat1000(L"Input", L"AntiDeadzone", Settings_GetInputAntiDeadzone(), tmpPath);
-    IniWriteFloat1000(L"Input", L"OutputCap", Settings_GetInputOutputCap(), tmpPath);
+    ok &= IniWriteFloat1000(L"Input", L"DeadzoneLow", Settings_GetInputDeadzoneLow(), tmpPath);
+    ok &= IniWriteFloat1000(L"Input", L"DeadzoneHigh", Settings_GetInputDeadzoneHigh(), tmpPath);
 
-    IniWriteFloat1000(L"Input", L"Cp1X", Settings_GetInputBezierCp1X(), tmpPath);
-    IniWriteFloat1000(L"Input", L"Cp1Y", Settings_GetInputBezierCp1Y(), tmpPath);
-    IniWriteFloat1000(L"Input", L"Cp2X", Settings_GetInputBezierCp2X(), tmpPath);
-    IniWriteFloat1000(L"Input", L"Cp2Y", Settings_GetInputBezierCp2Y(), tmpPath);
+    ok &= IniWriteFloat1000(L"Input", L"AntiDeadzone", Settings_GetInputAntiDeadzone(), tmpPath);
+    ok &= IniWriteFloat1000(L"Input", L"OutputCap", Settings_GetInputOutputCap(), tmpPath);
 
-    IniWriteFloat1000(L"Input", L"Cp1W", Settings_GetInputBezierCp1W(), tmpPath);
-    IniWriteFloat1000(L"Input", L"Cp2W", Settings_GetInputBezierCp2W(), tmpPath);
+    ok &= IniWriteFloat1000(L"Input", L"Cp1X", Settings_GetInputBezierCp1X(), tmpPath);
+    ok &= IniWriteFloat1000(L"Input", L"Cp1Y", Settings_GetInputBezierCp1Y(), tmpPath);
+    ok &= IniWriteFloat1000(L"Input", L"Cp2X", Settings_GetInputBezierCp2X(), tmpPath);
+    ok &= IniWriteFloat1000(L"Input", L"Cp2Y", Settings_GetInputBezierCp2Y(), tmpPath);
 
-    IniWriteU32(L"Input", L"CurveMode", Settings_GetInputCurveMode(), tmpPath);
-    IniWriteI32(L"Input", L"Invert", Settings_GetInputInvert() ? 1 : 0, tmpPath);
-    IniWriteI32(L"Input", L"SnappyJoystick", Settings_GetSnappyJoystick() ? 1 : 0, tmpPath);
-    IniWriteI32(L"Input", L"LastKeyPriority", Settings_GetLastKeyPriority() ? 1 : 0, tmpPath);
-    IniWriteFloat1000(L"Input", L"LastKeyPrioritySensitivity", Settings_GetLastKeyPrioritySensitivity(), tmpPath);
-    IniWriteI32(L"Input", L"BlockBoundKeys", Settings_GetBlockBoundKeys() ? 1 : 0, tmpPath);
-    IniWriteI32(L"Input", L"BlockMouseInput", Settings_GetBlockMouseInput() ? 1 : 0, tmpPath);
+    ok &= IniWriteFloat1000(L"Input", L"Cp1W", Settings_GetInputBezierCp1W(), tmpPath);
+    ok &= IniWriteFloat1000(L"Input", L"Cp2W", Settings_GetInputBezierCp2W(), tmpPath);
 
-    IniWriteU32(L"Main", L"PollingMs", Settings_GetPollingMs(), tmpPath);
-    IniWriteU32(L"Main", L"UIRefreshMs", Settings_GetUIRefreshMs(), tmpPath);
-    IniWriteI32(L"Main", L"VirtualGamepads", std::clamp(Settings_GetVirtualGamepadCount(), 1, 4), tmpPath);
-    IniWriteI32(L"Main", L"VirtualGamepadsEnabled", Settings_GetVirtualGamepadsEnabled() ? 1 : 0, tmpPath);
-    IniWriteI32(L"Main", L"DigitalFallbackInput", Settings_GetDigitalFallbackInput() ? 1 : 0, tmpPath);
-    IniWriteU32(L"Main", L"SparkPollMode", Settings_GetSparkPollMode(), tmpPath);
-    IniWriteU32(L"Main", L"SparkRowLimit", Settings_GetSparkRowLimit(), tmpPath);
-    WritePrivateProfileStringW(L"Main", L"SparkMissedHidDebug", nullptr, tmpPath);
-    WritePrivateProfileStringW(L"Main", L"SparkTelemetryDebug", nullptr, tmpPath);
-    WritePrivateProfileStringW(L"Main", L"SparkExperimentFlags", nullptr, tmpPath);
-    WritePrivateProfileStringW(L"Main", L"VendorProtocolMode", nullptr, tmpPath);
-    IniWriteI32(L"Main", L"MouseToStickEnabled", Settings_GetMouseToStickEnabled() ? 1 : 0, tmpPath);
-    IniWriteI32(L"Main", L"MouseToStickTarget", Settings_GetMouseToStickTarget(), tmpPath);
-    IniWriteFloat1000(L"Main", L"MouseToStickSensitivity", Settings_GetMouseToStickSensitivity(), tmpPath);
-    IniWriteFloat1000(L"Main", L"MouseToStickAggressiveness", Settings_GetMouseToStickAggressiveness(), tmpPath);
-    IniWriteFloat1000(L"Main", L"MouseToStickMaxOffset", Settings_GetMouseToStickMaxOffset(), tmpPath);
-    IniWriteFloat1000(L"Main", L"MouseToStickFollowSpeed", Settings_GetMouseToStickFollowSpeed(), tmpPath);
+    ok &= IniWriteU32(L"Input", L"CurveMode", Settings_GetInputCurveMode(), tmpPath);
+    ok &= IniWriteI32(L"Input", L"Invert", Settings_GetInputInvert() ? 1 : 0, tmpPath);
+    ok &= IniWriteI32(L"Input", L"SnappyJoystick", Settings_GetSnappyJoystick() ? 1 : 0, tmpPath);
+    ok &= IniWriteI32(L"Input", L"LastKeyPriority", Settings_GetLastKeyPriority() ? 1 : 0, tmpPath);
+    ok &= IniWriteFloat1000(L"Input", L"LastKeyPrioritySensitivity", Settings_GetLastKeyPrioritySensitivity(), tmpPath);
+    ok &= IniWriteI32(L"Input", L"BlockBoundKeys", Settings_GetBlockBoundKeys() ? 1 : 0, tmpPath);
+    ok &= IniWriteI32(L"Input", L"BlockMouseInput", Settings_GetBlockMouseInput() ? 1 : 0, tmpPath);
+
+    ok &= IniWriteU32(L"Main", L"PollingMs", Settings_GetPollingMs(), tmpPath);
+    ok &= IniWriteU32(L"Main", L"UIRefreshMs", Settings_GetUIRefreshMs(), tmpPath);
+    ok &= IniWriteI32(L"Main", L"VirtualGamepads", std::clamp(Settings_GetVirtualGamepadCount(), 1, 4), tmpPath);
+    ok &= IniWriteI32(L"Main", L"VirtualGamepadsEnabled", Settings_GetVirtualGamepadsEnabled() ? 1 : 0, tmpPath);
+    ok &= IniWriteI32(L"Main", L"DigitalFallbackInput", Settings_GetDigitalFallbackInput() ? 1 : 0, tmpPath);
+    ok &= IniWriteU32(L"Main", L"SparkPollMode", Settings_GetSparkPollMode(), tmpPath);
+    ok &= IniWriteU32(L"Main", L"SparkRowLimit", Settings_GetSparkRowLimit(), tmpPath);
+    ok &= WritePrivateProfileStringW(L"Main", L"SparkMissedHidDebug", nullptr, tmpPath) != FALSE;
+    ok &= WritePrivateProfileStringW(L"Main", L"SparkTelemetryDebug", nullptr, tmpPath) != FALSE;
+    ok &= WritePrivateProfileStringW(L"Main", L"SparkExperimentFlags", nullptr, tmpPath) != FALSE;
+    ok &= WritePrivateProfileStringW(L"Main", L"VendorProtocolMode", nullptr, tmpPath) != FALSE;
+    ok &= IniWriteI32(L"Main", L"MouseToStickEnabled", Settings_GetMouseToStickEnabled() ? 1 : 0, tmpPath);
+    ok &= IniWriteI32(L"Main", L"MouseToStickTarget", Settings_GetMouseToStickTarget(), tmpPath);
+    ok &= IniWriteFloat1000(L"Main", L"MouseToStickSensitivity", Settings_GetMouseToStickSensitivity(), tmpPath);
+    ok &= IniWriteFloat1000(L"Main", L"MouseToStickAggressiveness", Settings_GetMouseToStickAggressiveness(), tmpPath);
+    ok &= IniWriteFloat1000(L"Main", L"MouseToStickMaxOffset", Settings_GetMouseToStickMaxOffset(), tmpPath);
+    ok &= IniWriteFloat1000(L"Main", L"MouseToStickFollowSpeed", Settings_GetMouseToStickFollowSpeed(), tmpPath);
     if (saveWindow)
-        OverlaySettingsIni_SaveToSettingsIni(tmpPath);
+        ok &= OverlaySettingsIni_SaveToSettingsIni(tmpPath);
     if (saveActiveProfileKey)
-        WritePrivateProfileStringW(L"Main", L"ActiveGlobalProfile", GlobalProfiles_GetActiveName().c_str(), tmpPath);
+        ok &= WritePrivateProfileStringW(L"Main", L"ActiveGlobalProfile", GlobalProfiles_GetActiveName().c_str(), tmpPath) != FALSE;
 
     if (saveWindow)
     {
-        IniWriteI32(L"Window", L"Width", std::max(0, Settings_GetMainWindowWidthPx()), tmpPath);
-        IniWriteI32(L"Window", L"Height", std::max(0, Settings_GetMainWindowHeightPx()), tmpPath);
+        ok &= IniWriteI32(L"Window", L"Width", std::max(0, Settings_GetMainWindowWidthPx()), tmpPath);
+        ok &= IniWriteI32(L"Window", L"Height", std::max(0, Settings_GetMainWindowHeightPx()), tmpPath);
         const int winX = Settings_GetMainWindowPosXPx();
         const int winY = Settings_GetMainWindowPosYPx();
         if (winX == std::numeric_limits<int>::min())
-            WritePrivateProfileStringW(L"Window", L"PosX", nullptr, tmpPath);
+            ok &= WritePrivateProfileStringW(L"Window", L"PosX", nullptr, tmpPath) != FALSE;
         else
-            IniWriteI32(L"Window", L"PosX", winX, tmpPath);
+            ok &= IniWriteI32(L"Window", L"PosX", winX, tmpPath);
         if (winY == std::numeric_limits<int>::min())
-            WritePrivateProfileStringW(L"Window", L"PosY", nullptr, tmpPath);
+            ok &= WritePrivateProfileStringW(L"Window", L"PosY", nullptr, tmpPath) != FALSE;
         else
-            IniWriteI32(L"Window", L"PosY", winY, tmpPath);
+            ok &= IniWriteI32(L"Window", L"PosY", winY, tmpPath);
     }
 
-    KeySettingsIni_SaveToSettingsIni(tmpPath);
+    ok &= KeySettingsIni_SaveToSettingsIni(tmpPath);
     if (saveLayout)
-        KeyboardLayout_SaveToIni(tmpPath);
-    return true;
+        ok &= KeyboardLayout_SaveToIni(tmpPath);
+    return ok;
+}
+
+namespace
+{
+    enum class SettingsTransactionKind
+    {
+        FullSettings,
+        ProfileSettings,
+        OverlayUpdate,
+    };
+
+    struct SettingsTransactionContext
+    {
+        const wchar_t* destinationPath = nullptr;
+        SettingsTransactionKind kind = SettingsTransactionKind::FullSettings;
+    };
+
+    const wchar_t* PersistenceKindName(SettingsTransactionKind kind)
+    {
+        return kind == SettingsTransactionKind::ProfileSettings ? L"ProfileSettings" : L"Settings";
+    }
+
+    bool SettingsTransactionWrite(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
+    {
+        auto* context = static_cast<SettingsTransactionContext*>(rawContext);
+        bool ok = false;
+        if (context->kind == SettingsTransactionKind::OverlayUpdate)
+        {
+            if (!IniUtil_CopyExistingForUpdate(context->destinationPath, temporaryPath, errorOut))
+                return false;
+            ok = IniWriteI32(L"HallJoyPersistence", L"SchemaVersion", 1, temporaryPath);
+            ok &= WritePrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"Settings", temporaryPath) != FALSE;
+            ok &= OverlaySettingsIni_SaveToSettingsIni(temporaryPath);
+        }
+        else
+        {
+            const bool full = context->kind == SettingsTransactionKind::FullSettings;
+            ok = SettingsIni_Save_Internal(
+                temporaryPath,
+                full,
+                full,
+                full,
+                PersistenceKindName(context->kind));
+        }
+
+        if (!ok && errorOut)
+        {
+            const DWORD error = GetLastError();
+            *errorOut = error != ERROR_SUCCESS ? error : ERROR_WRITE_FAULT;
+        }
+        return ok;
+    }
+
+    bool ReadExpectedIniValue(
+        const wchar_t* path,
+        const wchar_t* section,
+        const wchar_t* key,
+        const wchar_t* expected)
+    {
+        wchar_t value[128]{};
+        GetPrivateProfileStringW(section, key, L"{missing}", value, (DWORD)_countof(value), path);
+        return wcscmp(value, expected) == 0;
+    }
+
+    bool SettingsTransactionValidate(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
+    {
+        auto* context = static_cast<SettingsTransactionContext*>(rawContext);
+        bool ok = ReadExpectedIniValue(temporaryPath, L"HallJoyPersistence", L"SchemaVersion", L"1") &&
+            ReadExpectedIniValue(
+                temporaryPath,
+                L"HallJoyPersistence",
+                L"Kind",
+                PersistenceKindName(context->kind));
+
+        if (context->kind == SettingsTransactionKind::OverlayUpdate)
+        {
+            ok &= ReadExpectedIniValue(temporaryPath, L"InputOverlay", L"StrengthScaleVersion", L"5");
+            wchar_t refresh[64]{};
+            GetPrivateProfileStringW(L"InputOverlay", L"RefreshMs", L"{missing}", refresh, (DWORD)_countof(refresh), temporaryPath);
+            ok &= wcscmp(refresh, L"{missing}") != 0;
+        }
+        else
+        {
+            wchar_t polling[64]{};
+            wchar_t deadzone[64]{};
+            GetPrivateProfileStringW(L"Main", L"PollingMs", L"{missing}", polling, (DWORD)_countof(polling), temporaryPath);
+            GetPrivateProfileStringW(L"Input", L"DeadzoneLow", L"{missing}", deadzone, (DWORD)_countof(deadzone), temporaryPath);
+            ok &= wcscmp(polling, L"{missing}") != 0 && wcscmp(deadzone, L"{missing}") != 0;
+        }
+
+        if (!ok && errorOut) *errorOut = ERROR_INVALID_DATA;
+        return ok;
+    }
+
+    bool SaveSettingsTransaction(const wchar_t* path, SettingsTransactionKind kind, const wchar_t* displayKind)
+    {
+        if (!path || !*path) return false;
+        SettingsTransactionContext context{ path, kind };
+        const auto result = IniUtil_SaveAtomic(path, SettingsTransactionWrite, SettingsTransactionValidate, &context);
+        if (!result.Succeeded())
+        {
+            IniUtil_ReportSaveFailure(displayKind, path, result);
+            return false;
+        }
+        return true;
+    }
 }
 
 bool SettingsIni_Save(const wchar_t* path)
 {
-    if (!path) return false;
-
-    std::wstring tmp = std::wstring(path) + L".tmp";
-    DeleteFileW(tmp.c_str());
-
-    if (!SettingsIni_Save_Internal(tmp.c_str(), true, true, true))
-    {
-        DeleteFileW(tmp.c_str());
-        return false;
-    }
-
-    return IniUtil_AtomicReplace(tmp.c_str(), path);
+    return SaveSettingsTransaction(path, SettingsTransactionKind::FullSettings, L"settings");
 }
 
 bool SettingsIni_SaveProfile(const wchar_t* path)
 {
-    if (!path) return false;
-
-    std::wstring tmp = std::wstring(path) + L".tmp";
-    DeleteFileW(tmp.c_str());
-
-    if (!SettingsIni_Save_Internal(tmp.c_str(), false, false, false))
-    {
-        DeleteFileW(tmp.c_str());
-        return false;
-    }
-
-    return IniUtil_AtomicReplace(tmp.c_str(), path);
+    return SaveSettingsTransaction(path, SettingsTransactionKind::ProfileSettings, L"profile settings");
 }
 
 bool SettingsIni_SaveOverlay(const wchar_t* path)
 {
-    if (!path) return false;
-    OverlaySettingsIni_SaveToSettingsIni(path);
-    return true;
+    return SaveSettingsTransaction(path, SettingsTransactionKind::OverlayUpdate, L"overlay settings");
 }

@@ -31,6 +31,7 @@
 #include "keyboard_ui.h"
 #include "settings.h"
 #include "settings_ini.h"
+#include "profile_ini.h"
 #include "global_profiles.h"
 #include "realtime_loop.h"
 #include "stability_trace.h"
@@ -209,6 +210,16 @@ static void SaveSettingsByActiveGlobalProfile()
     if (GlobalProfiles_IsDefault(active))
     {
         SettingsIni_Save(AppPaths_SettingsIni().c_str());
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        const wchar_t* commandLine = GetCommandLineW();
+        if (commandLine && wcsstr(commandLine, L"--halljoy-test-persistence-failure-"))
+        {
+            const std::wstring bindingsProbe = AppPaths_BindingsIni() + L".transaction-probe";
+            const std::wstring overlayProbe = AppPaths_SettingsIni() + L".overlay-transaction-probe";
+            Profile_SaveIni(bindingsProbe.c_str());
+            SettingsIni_SaveOverlay(overlayProbe.c_str());
+        }
+#endif
         DebugLog_Write(L"[settings] save default profile done");
         DebugLog_SetCheckpoint(L"ui: save settings done");
         return;

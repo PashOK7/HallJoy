@@ -684,3 +684,46 @@ Known limitation: initial ViGEm client/target creation remains a startup-thread
 Evidence: docs/stability/tests/V14-08B_VIGEM_OUTPUT_ISOLATION_2026-07-31.txt
 Rollback: parent commit of the V14-08B implementation commit
 ```
+
+## V14-09A evidence
+
+```text
+Package: V14-09A
+Scope: Transactional settings, overlay, active-profile and bindings persistence
+Commands:
+  python src/HallJoyProject/tests/persistence_transaction_static_audit.py
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectPersistenceFailure <prepare|write|flush|validate|replace> -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -RunSeconds 8
+Results:
+  Persistence transaction static audit: PASS
+  Portable prepare/write/flush/validate/replace state-machine test: PASS
+  All static audits and portable C++20 tests: PASS
+  Windows stage injections: 5/5 PASS; settings, bindings and overlay probe
+    hashes unchanged at every failure; zero *.halljoy-new-* files remained
+  Normal common-pipeline simulator after implementation: PASS, exit 0
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Real ABI1 load/init/null/bounded-unload runtime gate: PASS
+  Production Irok route: SparkLink VID 1CA6, PID 0529, usage page FFB0
+  Irok smoke: 30,125 successful route queries, 127 changed rows, 0 failures
+  Graceful shutdown: persistence emitted no ERROR, all workers joined, exit 0,
+    zero remaining HallJoy processes
+  User mutable state: 5 restored files, 0 SHA-256 mismatches
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,157,568 bytes
+  SHA-256: 989E1ADA3C0AAC9D973D2C28A5201AEAC130DCB7693029C6C797146CF53BB500
+  Production trace SHA-256:
+    1A294BF1AA03E572F90E8B0532E26012593F153F7D428B1E4AB02E7F2DA3D151
+Hardware: Irok startup/input/balanced shutdown passed; persistence failure
+  stages are simulator injections and do not claim hardware fault coverage
+Remote CI: NOT RUN; optional, no push permitted
+Known limitations: layout/curve writers remain V14-09B; LocalAppData migration
+  and profile-name normalization remain V14-09C
+Evidence: docs/stability/tests/V14-09A_TRANSACTIONAL_PERSISTENCE_2026-08-01.txt
+Rollback: parent commit of the V14-09A implementation commit
+```

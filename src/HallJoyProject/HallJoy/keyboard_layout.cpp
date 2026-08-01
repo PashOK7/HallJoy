@@ -990,11 +990,16 @@ bool KeyboardLayout_LoadFromIni(const wchar_t* path)
     return true;
 }
 
-void KeyboardLayout_SaveToIni(const wchar_t* path)
+bool KeyboardLayout_SaveToIni(const wchar_t* path)
 {
-    if (!path) return;
+    if (!path) return false;
     EnsureInit();
 
-    WritePrivateProfileStringW(L"KeyboardLayout", nullptr, nullptr, path);
-    WritePrivateProfileStringW(L"KeyboardLayout", L"PresetName", g_presets[ClampPreset(g_currentPresetIdx)].name.c_str(), path);
+    bool ok = WritePrivateProfileStringW(L"KeyboardLayout", nullptr, nullptr, path) != FALSE;
+    ok &= WritePrivateProfileStringW(
+        L"KeyboardLayout",
+        L"PresetName",
+        g_presets[ClampPreset(g_currentPresetIdx)].name.c_str(),
+        path) != FALSE;
+    return ok;
 }

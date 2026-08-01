@@ -5660,11 +5660,21 @@ static void Global_ApplyActiveGlobalProfile(GlobalSettingsPageState* st, HWND hW
 
     // Persist previous profile state before switching away.
     const std::wstring prevName = GlobalProfiles_GetActiveName();
-    SettingsIni_SaveProfile(GlobalProfiles_GetSettingsPath(prevName).c_str());
-    Profile_SaveIni(GlobalProfiles_GetBindingsPath(prevName).c_str());
+    const bool previousSettingsSaved = SettingsIni_SaveProfile(GlobalProfiles_GetSettingsPath(prevName).c_str());
+    const bool previousBindingsSaved = Profile_SaveIni(GlobalProfiles_GetBindingsPath(prevName).c_str());
+    if (!previousSettingsSaved || !previousBindingsSaved)
+    {
+        Global_UpdateUi(st);
+        return;
+    }
 
     GlobalProfiles_SetActiveName(newName);
-    GlobalProfiles_SaveActiveToSettingsIni(AppPaths_SettingsIni().c_str());
+    if (!GlobalProfiles_SaveActiveToSettingsIni(AppPaths_SettingsIni().c_str()))
+    {
+        GlobalProfiles_SetActiveName(prevName);
+        Global_UpdateUi(st);
+        return;
+    }
 
     SettingsIni_LoadProfile(GlobalProfiles_GetSettingsPath(newName).c_str());
     Profile_LoadIni(GlobalProfiles_GetBindingsPath(newName).c_str());
@@ -5918,15 +5928,32 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             }
 
             const std::wstring prevName = GlobalProfiles_GetActiveName();
-            SettingsIni_SaveProfile(GlobalProfiles_GetSettingsPath(prevName).c_str());
-            Profile_SaveIni(GlobalProfiles_GetBindingsPath(prevName).c_str());
+            const bool previousSettingsSaved = SettingsIni_SaveProfile(GlobalProfiles_GetSettingsPath(prevName).c_str());
+            const bool previousBindingsSaved = Profile_SaveIni(GlobalProfiles_GetBindingsPath(prevName).c_str());
+            if (!previousSettingsSaved || !previousBindingsSaved)
+            {
+                Global_UpdateUi(st);
+                return 0;
+            }
 
             // New profile starts as a full copy of current runtime state.
-            SettingsIni_SaveProfile(GlobalProfiles_GetSettingsPath(newName).c_str());
-            Profile_SaveIni(GlobalProfiles_GetBindingsPath(newName).c_str());
+            const bool newSettingsSaved = SettingsIni_SaveProfile(GlobalProfiles_GetSettingsPath(newName).c_str());
+            const bool newBindingsSaved = Profile_SaveIni(GlobalProfiles_GetBindingsPath(newName).c_str());
+            if (!newSettingsSaved || !newBindingsSaved)
+            {
+                GlobalProfiles_Delete(newName);
+                Global_UpdateUi(st);
+                return 0;
+            }
 
             GlobalProfiles_SetActiveName(newName);
-            GlobalProfiles_SaveActiveToSettingsIni(AppPaths_SettingsIni().c_str());
+            if (!GlobalProfiles_SaveActiveToSettingsIni(AppPaths_SettingsIni().c_str()))
+            {
+                GlobalProfiles_SetActiveName(prevName);
+                GlobalProfiles_Delete(newName);
+                Global_UpdateUi(st);
+                return 0;
+            }
             GlobalProfiles_SetDirty(false);
             Global_RefreshGlobalProfileCombo(st);
             PremiumCombo::ShowDropDown(st->cmbGlobalProfile, false);
@@ -6044,8 +6071,10 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
 
         std::wstring settingsPath = AppPaths_ActiveSettingsIni();
         std::wstring bindingsPath = AppPaths_ActiveBindingsIni();
-        SettingsIni_SaveProfile(settingsPath.c_str());
-        Profile_SaveIni(bindingsPath.c_str());
+        const bool settingsSaved = SettingsIni_SaveProfile(settingsPath.c_str());
+        const bool bindingsSaved = Profile_SaveIni(bindingsPath.c_str());
+        if (!settingsSaved || !bindingsSaved)
+            return 0;
 
         GlobalProfiles_SetDirty(false);
         Global_UpdateProfileSaveIcon(st);

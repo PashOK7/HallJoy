@@ -147,3 +147,20 @@ If completion is not confirmed, thread/event and driver ownership are retained,
 dependent teardown is forbidden, restart is poisoned and the disposable process
 exits without normal CRT destruction. A simulator-only driver stall may verify
 this containment path but can never be activated in a production build.
+
+## D-015 - Durable file saves share one transaction contract
+
+Date: 2026-08-01
+
+A mutable HallJoy file is not considered saved until a unique temporary file in
+the destination directory has passed checked writes, explicit physical flush
+and format-specific parse/readback, then replaced the destination atomically
+with write-through semantics. The destination is the commit boundary; no
+earlier stage may modify it, and every failed stage removes its temporary file.
+
+Save APIs return a truthful result and also publish the data kind, failed stage,
+native error and destination path. Production surfaces the first failure in the
+UI so ignored autosave returns are not silent. Simulator-only stage injection is
+excluded from production. This contract is established by V14-09A for settings,
+overlay metadata, active-profile metadata and bindings; layout/curve adoption
+is V14-09B and writable-state migration must wait for it in V14-09C.

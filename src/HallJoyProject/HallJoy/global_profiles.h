@@ -5,7 +5,7 @@
 // Active profile name is persisted in settings.ini [Main] ActiveGlobalProfile.
 // "Default" means using base settings.ini + bindings.ini files.
 void GlobalProfiles_InitFromSettingsIni(const wchar_t* settingsIniPath);
-void GlobalProfiles_SaveActiveToSettingsIni(const wchar_t* settingsIniPath);
+bool GlobalProfiles_SaveActiveToSettingsIni(const wchar_t* settingsIniPath);
 
 const std::wstring& GlobalProfiles_GetActiveName();
 void GlobalProfiles_SetActiveName(const std::wstring& name);

@@ -775,3 +775,51 @@
 
 - `HJ-AUD-P1-010` and V14-08 are Verified.
 - Next is V14-09: transactional persistence and writable state migration.
+
+## 2026-08-01 - V14-09A transactional settings and profile persistence
+
+### Implementation
+
+- Added one reusable prepare/write/flush/validate/replace transaction state
+  machine and a Win32 adapter with unique same-directory temp files.
+- Settings, profile settings, overlay metadata, active-profile metadata and
+  bindings now check every write, physically flush, parse schema markers back
+  and use one write-through atomic replacement as their commit boundary.
+- Bindings streams explicitly check `flush`, `good`, `close` and final fail
+  state. Overlay and active-profile updates copy and preserve unrelated base
+  settings before making transactional changes.
+- Failures publish data kind, stage, native error and path to the critical
+  trace; production displays one actionable error dialog per process.
+- Profile switching, creation and manual save no longer clear/switch state after
+  a failed settings or bindings save.
+- Added simulator-only failure injection for all five stages, a portable fake
+  adapter test, a static audit and reusable production smoke runner.
+
+### Validation
+
+- Persistence static audit and the full static/portable C++20 gate: PASS.
+- Normal simulator: PASS, exit 0.
+- Prepare, write, flush, validation and replace injections: 5/5 PASS for real
+  settings, bindings and overlay transactions. Known-good SHA-256 values stayed
+  unchanged and no transaction temp file remained.
+- Official x64 Release build: PASS, 0 errors and only allowlisted `LNK4099`;
+  private UAP ABI1 runtime gate also passed.
+- Eight-second production smoke connected Irok MG75 Max at `1CA6:0529/FFB0`,
+  recorded 30,125 successful queries, 127 changed rows and zero route failures,
+  then joined all workers and exited 0 with no process left.
+- `HallJoy.exe`: 2,157,568 bytes,
+  SHA-256 `989E1ADA3C0AAC9D973D2C28A5201AEAC130DCB7693029C6C797146CF53BB500`.
+- Production trace SHA-256:
+  `1A294BF1AA03E572F90E8B0532E26012593F153F7D428B1E4AB02E7F2DA3D151`.
+- Source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-09A-prechange-20260801-0920`.
+- Pre-production runtime backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-09A-preproduction-20260801-0946`;
+  all five mutable files were restored with zero hash mismatches.
+
+### Package result
+
+- `HJ-AUD-P2-011`, `HJ-AUD-P2-012` and `HJ-AUD-P2-013` are Verified.
+- `HJ-AUD-P2-016` is Partial until layout/curve save callers are migrated.
+- V14-09 remains In progress. Next is V14-09B transactional layout and curve
+  preset/state persistence; `%LOCALAPPDATA%` migration follows in V14-09C.

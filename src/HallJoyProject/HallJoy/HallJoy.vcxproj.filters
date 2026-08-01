@@ -380,6 +380,9 @@
     <ClInclude Include="stability_trace.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="transactional_file_store.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="settings.h">
       <Filter>Header Files</Filter>
     </ClInclude>

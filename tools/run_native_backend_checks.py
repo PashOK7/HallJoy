@@ -105,6 +105,7 @@ def main() -> int:
             ("worker_exception_barrier", [tests / "worker_exception_barrier_test.cpp"]),
             ("input_wake_sequence", [tests / "input_wake_sequence_test.cpp"]),
             ("publication_generation", [tests / "publication_generation_test.cpp"]),
+            ("transactional_file_store", [tests / "transactional_file_store_test.cpp"]),
             ("uap_cabi_guard", [tests / "uap_cabi_guard_test.cpp"]),
             ("windows_command_line", [tests / "windows_command_line_test.cpp"]),
         ]

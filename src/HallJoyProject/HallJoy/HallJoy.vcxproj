@@ -276,6 +276,7 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="settings.h" />
     <ClInclude Include="stability_trace.h" />
+    <ClInclude Include="transactional_file_store.h" />
     <ClInclude Include="settings_ini.h" />
     <ClInclude Include="tab_dark.h" />
     <ClInclude Include="targetver.h" />

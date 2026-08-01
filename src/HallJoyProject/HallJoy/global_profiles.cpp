@@ -8,6 +8,7 @@
 
 #include "global_profiles.h"
 #include "app_paths.h"
+#include "ini_util.h"
 
 namespace fs = std::filesystem;
 
@@ -56,10 +57,63 @@ void GlobalProfiles_InitFromSettingsIni(const wchar_t* settingsIniPath)
     g_activeProfile = n;
 }
 
-void GlobalProfiles_SaveActiveToSettingsIni(const wchar_t* settingsIniPath)
+namespace
 {
-    if (!settingsIniPath) return;
-    WritePrivateProfileStringW(kMainSection, kActiveProfileKey, g_activeProfile.c_str(), settingsIniPath);
+    struct ActiveProfileSaveContext
+    {
+        const wchar_t* destinationPath = nullptr;
+        const wchar_t* activeName = nullptr;
+    };
+
+    bool ActiveProfileTransactionWrite(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
+    {
+        auto* context = static_cast<ActiveProfileSaveContext*>(rawContext);
+        if (!IniUtil_CopyExistingForUpdate(context->destinationPath, temporaryPath, errorOut))
+            return false;
+
+        bool ok = WritePrivateProfileStringW(L"HallJoyPersistence", L"SchemaVersion", L"1", temporaryPath) != FALSE;
+        ok &= WritePrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"Settings", temporaryPath) != FALSE;
+        ok &= WritePrivateProfileStringW(kMainSection, kActiveProfileKey, context->activeName, temporaryPath) != FALSE;
+        if (!ok && errorOut)
+        {
+            const DWORD error = GetLastError();
+            *errorOut = error != ERROR_SUCCESS ? error : ERROR_WRITE_FAULT;
+        }
+        return ok;
+    }
+
+    bool ActiveProfileTransactionValidate(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
+    {
+        auto* context = static_cast<ActiveProfileSaveContext*>(rawContext);
+        wchar_t schema[32]{};
+        wchar_t kind[32]{};
+        wchar_t active[260]{};
+        GetPrivateProfileStringW(L"HallJoyPersistence", L"SchemaVersion", L"{missing}", schema, (DWORD)_countof(schema), temporaryPath);
+        GetPrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"{missing}", kind, (DWORD)_countof(kind), temporaryPath);
+        GetPrivateProfileStringW(kMainSection, kActiveProfileKey, L"{missing}", active, (DWORD)_countof(active), temporaryPath);
+        const bool ok = wcscmp(schema, L"1") == 0 &&
+            wcscmp(kind, L"Settings") == 0 &&
+            wcscmp(active, context->activeName) == 0;
+        if (!ok && errorOut) *errorOut = ERROR_INVALID_DATA;
+        return ok;
+    }
+}
+
+bool GlobalProfiles_SaveActiveToSettingsIni(const wchar_t* settingsIniPath)
+{
+    if (!settingsIniPath || !*settingsIniPath) return false;
+    ActiveProfileSaveContext context{ settingsIniPath, g_activeProfile.c_str() };
+    const auto result = IniUtil_SaveAtomic(
+        settingsIniPath,
+        ActiveProfileTransactionWrite,
+        ActiveProfileTransactionValidate,
+        &context);
+    if (!result.Succeeded())
+    {
+        IniUtil_ReportSaveFailure(L"active profile", settingsIniPath, result);
+        return false;
+    }
+    return true;
 }
 
 const std::wstring& GlobalProfiles_GetActiveName()

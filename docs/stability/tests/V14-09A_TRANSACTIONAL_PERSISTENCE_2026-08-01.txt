@@ -1,0 +1,56 @@
+HallJoy v1.4 - V14-09A transactional persistence evidence
+Date: 2026-08-01 (Europe/Moscow)
+
+Scope
+-----
+Transactional settings.ini, profile settings, overlay/active-profile metadata
+and bindings saves. Layout and curve preset writers remain V14-09B; writable
+state migration and name normalization remain V14-09C.
+
+Automated gates
+---------------
+PASS  persistence_transaction_static_audit.py
+PASS  all static audits and portable C++20 tests
+PASS  portable prepare/write/flush/validate/replace transaction test
+PASS  normal deterministic common-pipeline simulator, exit 0
+PASS  simulator prepare failure: settings/bindings/overlay hashes unchanged
+PASS  simulator write failure: settings/bindings/overlay hashes unchanged
+PASS  simulator flush failure: settings/bindings/overlay hashes unchanged
+PASS  simulator validate failure: settings/bindings/overlay hashes unchanged
+PASS  simulator replace failure: settings/bindings/overlay hashes unchanged
+PASS  every injected run left zero *.halljoy-new-* transaction files
+PASS  official MSVC x64 Release, 0 errors, allowlisted LNK4099 only
+PASS  private UAP ABI1 runtime gate
+PASS  production startup/shutdown smoke, exit 0, zero remaining processes
+
+Production Irok MG75 Max evidence
+---------------------------------
+Route: VID 1CA6, PID 0529, usage page FFB0
+Queries: 30,125 successful, 0 failed
+Changed analog rows / input notifications: 127 / 127
+Final service stop: joined=1, reconnect_blocked=1
+Persistence ERROR events: 0
+
+Artifacts
+---------
+HallJoy.exe size: 2,157,568 bytes
+HallJoy.exe SHA-256:
+989E1ADA3C0AAC9D973D2C28A5201AEAC130DCB7693029C6C797146CF53BB500
+Production trace SHA-256:
+1A294BF1AA03E572F90E8B0532E26012593F153F7D428B1E4AB02E7F2DA3D151
+
+State safety
+------------
+Source backup:
+C:\github\HallJoy_v1.4_BACKUPS\V14-09A-prechange-20260801-0920
+Pre-production runtime backup:
+C:\github\HallJoy_v1.4_BACKUPS\V14-09A-preproduction-20260801-0946
+Five mutable user files restored with 0 SHA-256 mismatches.
+
+Result
+------
+HJ-AUD-P2-011: Verified
+HJ-AUD-P2-012: Verified
+HJ-AUD-P2-013: Verified
+HJ-AUD-P2-016: Partial (layout/curve callers remain V14-09B)
+V14-09A: Verified locally

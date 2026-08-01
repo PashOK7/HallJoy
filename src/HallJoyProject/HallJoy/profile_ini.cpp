@@ -103,6 +103,10 @@ static bool Profile_SaveIni_Internal(const wchar_t* path)
     std::wofstream f(path, std::ios::out | std::ios::trunc);
     if (!f.is_open()) return false;
 
+    f << L"[HallJoyPersistence]\n";
+    f << L"SchemaVersion=1\n";
+    f << L"Kind=Bindings\n\n";
+
     f << L"[General]\n";
     f << L"Pads=" << BINDINGS_MAX_GAMEPADS << L"\n\n";
 
@@ -157,24 +161,60 @@ static bool Profile_SaveIni_Internal(const wchar_t* path)
         f << L"\n";
     }
 
-    return true;
+    f.flush();
+    if (!f.good())
+    {
+        f.close();
+        return false;
+    }
+    f.close();
+    return !f.fail();
+}
+
+namespace
+{
+    bool ProfileTransactionWrite(const wchar_t* temporaryPath, void*, DWORD* errorOut)
+    {
+        if (Profile_SaveIni_Internal(temporaryPath))
+            return true;
+        if (errorOut)
+        {
+            const DWORD error = GetLastError();
+            *errorOut = error != ERROR_SUCCESS ? error : ERROR_WRITE_FAULT;
+        }
+        return false;
+    }
+
+    bool ProfileTransactionValidate(const wchar_t* temporaryPath, void*, DWORD* errorOut)
+    {
+        wchar_t schema[32]{};
+        wchar_t kind[32]{};
+        wchar_t pads[32]{};
+        wchar_t firstAxis[32]{};
+        GetPrivateProfileStringW(L"HallJoyPersistence", L"SchemaVersion", L"{missing}", schema, (DWORD)_countof(schema), temporaryPath);
+        GetPrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"{missing}", kind, (DWORD)_countof(kind), temporaryPath);
+        GetPrivateProfileStringW(L"General", L"Pads", L"{missing}", pads, (DWORD)_countof(pads), temporaryPath);
+        GetPrivateProfileStringW(L"Pad1_Axes", L"LX_Minus", L"{missing}", firstAxis, (DWORD)_countof(firstAxis), temporaryPath);
+
+        const bool ok = wcscmp(schema, L"1") == 0 &&
+            wcscmp(kind, L"Bindings") == 0 &&
+            _wtoi(pads) == BINDINGS_MAX_GAMEPADS &&
+            wcscmp(firstAxis, L"{missing}") != 0;
+        if (!ok && errorOut) *errorOut = ERROR_INVALID_DATA;
+        return ok;
+    }
 }
 
 bool Profile_SaveIni(const wchar_t* path)
 {
-    if (!path) return false;
-
-    std::wstring tmp = std::wstring(path) + L".tmp";
-
-    // Save to tmp file first
-    if (!Profile_SaveIni_Internal(tmp.c_str()))
+    if (!path || !*path) return false;
+    const auto result = IniUtil_SaveAtomic(path, ProfileTransactionWrite, ProfileTransactionValidate, nullptr);
+    if (!result.Succeeded())
     {
-        DeleteFileW(tmp.c_str());
+        IniUtil_ReportSaveFailure(L"bindings", path, result);
         return false;
     }
-
-    // Atomic replace
-    return IniUtil_AtomicReplace(tmp.c_str(), path);
+    return true;
 }
 
 static void LoadButtonCsvForPad(int padIndex, const wchar_t* section, GameButton b, const wchar_t* keyName, const wchar_t* path)

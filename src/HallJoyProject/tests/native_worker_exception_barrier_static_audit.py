@@ -90,23 +90,41 @@ def audit_backend(
 
 
 def main() -> int:
-    audit_backend(
-        "mad68pr_backend.cpp",
-        "Mad68WorkerBody",
-        "Mad68WorkerEntry",
-        "Mad68WorkerOnFault",
-        "Mad68WorkerOnCompletion",
-        "bool Mad68ProR_Start()",
-        "std::thread(Mad68WorkerEntry)",
-        (
-            "ResetSessionPublished();",
-            "g_devicePresent.store(false",
-            "g_firmwareVersion.store(0",
-            "g_productId.store(0",
-            "g_uiState.store(static_cast<int>(UiState::Stopped)",
-        ),
-    )
     mad = source("mad68pr_backend.cpp")
+    require('#include "worker_exception_barrier.h"' in mad,
+            "mad68pr_backend.cpp includes the common exception barrier")
+    require(re.search(r"std::uint32_t\s+Mad68WorkerBody\s*\(\)", mad) is not None,
+            "mad68pr_backend.cpp keeps the worker algorithm in a uint32 body")
+    require("unsigned __stdcall Mad68WorkerEntry(void*) noexcept" in mad,
+            "mad68pr_backend.cpp native worker entry is noexcept")
+    mad_entry = function_body(mad, "unsigned __stdcall Mad68WorkerEntry(void*) noexcept")
+    require("RunWorkerEntryBarrier" in mad_entry and
+            all(token in mad_entry for token in (
+                "Mad68WorkerBody", "Mad68WorkerOnFault", "Mad68WorkerOnCompletion")),
+            "mad68pr_backend.cpp native entry wires the common barrier")
+    mad_fault = function_body(mad, "void Mad68WorkerOnFault(")
+    require("g_workerFaultRecord = record" in mad_fault and
+            "g_workerFaultKind.store(record.kind" in mad_fault,
+            "mad68pr_backend.cpp stores a fixed exception record")
+    for token in (
+        "g_stop.store(true", "ResetSessionPublished();",
+        "g_devicePresent.store(false", "g_firmwareVersion.store(0",
+        "g_productId.store(0",
+        "g_uiState.store(static_cast<int>(UiState::Stopped)",
+    ):
+        require(token in mad_fault,
+                f"mad68pr_backend.cpp fault path publishes safe state: {token}")
+    require("OutputDebugStringA(record.message" in mad_fault,
+            "mad68pr_backend.cpp fault path emits allocation-free diagnostics")
+    mad_completion = function_body(mad, "void Mad68WorkerOnCompletion(")
+    require("g_running.store(false" in mad_completion,
+            "mad68pr_backend.cpp completion always clears running publication")
+    mad_start = function_body(mad, "bool Mad68ProR_Start()")
+    require("g_workerFaultRecord = {}" in mad_start and
+            "WorkerExceptionKind::None" in mad_start,
+            "mad68pr_backend.cpp resets fault state for a new generation")
+    require("_beginthreadex" in mad_start and "Mad68WorkerEntry" in mad_start,
+            "mad68pr_backend.cpp starts the noexcept entry through a waitable native handle")
     require("void ResetSessionPublished() noexcept" in mad,
             "MAD68 exceptional reset is noexcept")
     require("for (auto& down : g_physicalDown)" in mad and

@@ -174,3 +174,19 @@ Worker запускается через `_beginthreadex`. Owner ждёт его
 все reachable generation resources, возвращает truthful `StopResult`, запрещает
 restart и требует process containment. Протокол, command bytes и routing proof в
 этом lifecycle-пакете не изменяются.
+
+## D-S07-MAD68 — cancellation не должна отменять финальный A9
+
+**Статус:** принято для V14-12D.
+
+MAD68 может временно перевести клавиатуру в A8 service mode, поэтому shutdown
+обязан оставить worker возможность отправить idempotent A9. Owner-side stop
+отменяет только persistent overlapped read; write/control операции и финальный A9
+остаются worker-owned. После stop новый A8 запрещён. Session снимает active-read
+registration до собственного cancel-and-reap и закрытия трёх HANDLE.
+
+Worker имеет waitable `_beginthreadex` generation и единый 3000 ms deadline.
+Неподтверждённое завершение сохраняет весь session stack и HANDLE ownership,
+poison'ит restart и требует process containment. Нельзя закрывать HID из owner
+thread или объявлять timeout успехом. Protocol builders, transports, A8/A9
+strategy, restore и decoder в этом пакете не меняются.

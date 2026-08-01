@@ -196,7 +196,17 @@ active-HID ownership сохраняется, registry получает точн�
 restart и переводит приложение в process containment. Протокольные файлы,
 command builders, parser и GET-only routing не менялись. Simulator timeout gate,
 полный repository gate, MSVC `/W4 /WX`, официальный build и реальный Irok
-regression пройдены. MAD68 остаётся следующим отдельным пакетом S07.
+regression пройдены.
+
+MAD68 реализован отдельным V14-12D со статусом `Implemented / MAD68 hardware
+gate deferred`. Persistent overlapped read отменяет owner, но reap и закрытие
+всех session HANDLE остаются в worker. После stop A8 запрещён, а финальный
+worker-owned A9 сохранён. Внешний join ограничен тремя секундами, timeout
+сохраняет поколение и выбирает process containment. Protocol `.cpp/.h`, command
+send transports, A8/A9 strategy, restore path и decoder не менялись. Simulator,
+41 repository audit, 26 portable tests, MSVC `/W4 /WX`, официальный build и Irok
+regression пройдены. Кодовая часть S07 завершена; device-owner gates остаются
+release qualification.
 
 ### S08 — Spark and Sayo lifecycle migration
 

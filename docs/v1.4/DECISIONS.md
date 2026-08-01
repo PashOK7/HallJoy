@@ -408,3 +408,20 @@ one 3000 ms deadline and releases thread/event ownership only after confirmed
 completion. Timeout retains every reachable generation resource, returns a
 truthful registry result, blocks restart and requires process containment. This
 package must not change the Hex80 protocol, command bytes or GET-only proof.
+
+## D-027 - MAD68 owner cancellation must preserve final A9
+
+Date: 2026-08-01
+
+Because A8 may place the keyboard in a temporary service mode, shutdown must
+leave the worker able to send its idempotent final A9. The owner cancels only the
+persistent overlapped read and never closes session handles. The worker withdraws
+active-read registration before its own cancellation reap and read/write/control
+handle close. New A8 commands are rejected once stop is published; late reads
+cannot reach decode or publication.
+
+MAD68 uses one waitable `_beginthreadex` generation and a 3000 ms join deadline.
+Unconfirmed completion retains the full session stack and kernel ownership,
+poisons restart and requires process containment. Protocol builders, write
+transports, A8/A9 strategy, restore and decoder must remain unchanged in this
+lifecycle package.

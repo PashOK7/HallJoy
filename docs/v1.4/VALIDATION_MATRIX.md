@@ -1398,3 +1398,42 @@ Evidence:
   docs/stability/tests/V14-12C_S07_HEX80_LIFECYCLE_2026-08-01.txt
 Rollback: parent commit of the V14-12C implementation commit
 ```
+
+## V14-12D / S07 MAD68 evidence
+
+```text
+Package: V14-12D / S07 MAD68
+Scope: bounded MAD68 generation with persistent-read ownership and final A9
+Commands:
+  python tools/run_native_backend_checks.py --require-compiler
+  cl.exe /std:c++20 /EHsc /permissive- /W4 /WX /c
+    src/HallJoyProject/HallJoy/mad68pr_backend.cpp
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1
+    -InjectMad68StopTimeout -RunSeconds 7
+  cmd /c BUILD.cmd
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -RunSeconds 15
+Results:
+  Waitable worker and serialized start/stop: PASS
+  Owner cancellation without cross-thread HID close: PASS
+  Post-stop read publication blocked; new A8 blocked; final A9 retained: PASS
+  Bounded 3000 ms join and retained-generation containment: PASS
+  Complete repository gate: 41/41 static audits, 26/26 portable tests PASS
+  MSVC 19.44 /W4 /WX: PASS
+  Simulator MAD68 stop-timeout containment: PASS, exit code 2
+  Protocol, command transports, A8/A9 strategy, restore and decoder: unchanged
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: only allowlisted LNK4099 ViGEm PDB diagnostic
+  Production Irok route: 57,247 successful queries, one shutdown cancellation,
+    250 us average and 498 us maximum route interval
+  Shutdown: balanced, exit 0, zero trace ERROR; 11 user files unchanged
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,272,768 bytes
+  SHA-256: 79F9E2509D56A80E71C17701F8FAB3DD65A39530E2F7F42C3E40E731AB139020
+Hardware: Irok regression PASS; MAD68 physical hardware NOT AVAILABLE
+Status: Implemented; MAD68 device gate deferred; S07 code complete
+Evidence:
+  docs/stability/tests/V14-12D_S07_MAD68_LIFECYCLE_2026-08-01.txt
+Rollback: parent commit of the V14-12D implementation commit
+```

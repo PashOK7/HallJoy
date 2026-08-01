@@ -99,3 +99,9 @@ Addressed и Sayo также требуют реального hardware gate д�
   stop-timeout, официальный build и доступный Irok regression пройдены. Hex80
   protocol `.cpp/.h` не менялись. Физического Hex80 нет, поэтому статус ограничен
   `Implemented / device gate deferred`; MAD68 остаётся следующим S07-пакетом.
+- S07/V14-12D MAD68 lifecycle: persistent-read ownership, no-post-stop A8,
+  mandatory final A9, bounded retention/containment, 41 repository audit, 26
+  portable C++ tests, MSVC `/W4 /WX`, simulator stop-timeout, официальный build
+  и Irok regression пройдены. Protocol, write transports, A8/A9 strategy,
+  restore и decoder сохранены. Физического MAD68 нет: статус `Implemented /
+  device gate deferred`; кодовая часть S07 завершена.

@@ -13,7 +13,7 @@
 | ID | Приоритет | Краткое описание | Пакет | Статус | Ключевая проверка |
 |---|---|---|---|---|---|
 | `HJ-AUD-P1-001` | P1 | `TerminateThread` используется как обычный механизм shutdown | `S04/S05/S08` | Implemented | all ordinary occurrences removed in V14-06A-F; final soak/device qualification remains |
-| `HJ-AUD-P1-002` | P1 | «Ограниченный shutdown» трёх native backend'ов всё равно может зависнуть навсегда | `S06/S07` | Partial | Addressed and Hex80 bounded join/retention fault gates passed in V14-12B/C; only MAD68 remains S07 |
+| `HJ-AUD-P1-002` | P1 | «Ограниченный shutdown» трёх native backend'ов всё равно может зависнуть навсегда | `S06/S07` | Implemented | Addressed, Hex80 and MAD68 bounded join/retention/containment gates passed in V14-12B-D; physical device qualification remains |
 | `HJ-AUD-P1-003` | P1 | Контракт `stop()` недостоверен | `S03` | Verified | generation-scoped StopResult, poison-on-failure and registry tests passed in V14-05 |
 | `HJ-AUD-P1-004` | P1 | Нет верхней границы C++-исключений в ключевых worker-потоках | `S02` | Partial | Sayo reader boundary verified locally in V14-06F; UAP workers and C ABI exports remain, while deferred native device gates stay in release qualification |
 | `HJ-AUD-P1-005` | P1 | Addressed reader закрывает HID HANDLE из другого потока при активном stack `OVERLAPPED` | `S06` | Implemented | reader-only close, cancel-and-reap ownership audit and simulator containment passed; Addressed hardware gate deferred |
@@ -142,10 +142,10 @@ unload остаются открытыми в S10/V14-07B/C.
 
 ## Сводка
 
-- P1: 11 open, 1 implemented, 1 partial, 3 verified.
-- P2: 20 open, 1 verified.
+- P1: 9 open, 3 implemented, 1 partial, 3 verified.
+- P2: 14 open, 7 verified.
 - P3: 8 open.
-- Всего: 39 open, 1 implemented, 1 partial, 4 verified.
+- Всего: 31 open, 3 implemented, 1 partial, 10 verified.
 
 ## Дополнительный риск, обнаруженный при Windows gate S02A
 

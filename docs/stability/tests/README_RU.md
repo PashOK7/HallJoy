@@ -57,3 +57,6 @@ Baseline-лог исходной версии хранится отдельно 
 - `V14-12C_S07_HEX80_LIFECYCLE_2026-08-01.txt` — worker-owned HID lifetime,
   bounded generation join, late-publication guard, retained-generation timeout
   containment, unchanged Hex80 protocol files и реальный Irok regression.
+- `V14-12D_S07_MAD68_LIFECYCLE_2026-08-01.txt` — persistent-read ownership,
+  no-post-stop A8, mandatory final A9, bounded timeout containment, unchanged
+  protocol/command core и реальный Irok regression.

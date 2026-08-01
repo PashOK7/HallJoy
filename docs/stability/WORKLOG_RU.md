@@ -335,3 +335,27 @@ balanced shutdown, zero trace ERROR, 11 пользовательских фай�
 `540D4EB764FAD57E7431CA320F3E47420D7F0212C37A8D66EFFC1AAD3A6F6FAF`.
 Physical Hex80 hardware отсутствует; MAD68 остаётся следующим отдельным S07
 пакетом.
+
+## 2026-08-01 — S07 / V14-12D: MAD68 bounded lifecycle
+
+Статус: `Implemented / MAD68 hardware gate deferred`.
+
+- MAD68 worker переведён на waitable `_beginthreadex`; start/stop сериализованы;
+- live `Session` регистрирует только persistent overlapped read. Owner вызывает
+  `CancelIoEx`, но unregister, terminal reap и закрытие read/write/control HANDLE
+  выполняет worker;
+- после stop завершившиеся reads отбрасываются до decode/publication, A8 больше
+  не может начаться, а прямой финальный A9 после выхода из loop сохранён;
+- join ограничен 3000 ms; timeout удерживает поколение, сообщает точный result,
+  poison'ит registry и требует process containment;
+- simulator-only зависание прошло с ожидаемым exit code 2.
+
+Проверки: 41/41 static audits, 26/26 portable C++ tests и MAD68 MSVC 19.44
+`/W4 /WX` PASS; `BUILD.cmd` PASS (0 ошибок, только разрешённый LNK4099).
+Protocol `.cpp/.h`, `Session::Send`, interrupt/control transports,
+`BestEffortRestore`, `RunStrategy` и `ProcessPayload` сохранены относительно
+backup. Irok smoke: 57 247 successful / 1 shutdown cancellation, 250 us average
+и 498 us max interval, balanced shutdown, zero trace ERROR, 11 user files без
+изменений. `HallJoy.exe`: 2 272 768 bytes, SHA-256
+`79F9E2509D56A80E71C17701F8FAB3DD65A39530E2F7F42C3E40E731AB139020`.
+Physical MAD68 hardware отсутствует; кодовая часть S07 завершена.

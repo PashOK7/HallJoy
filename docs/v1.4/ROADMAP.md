@@ -471,6 +471,13 @@ qualification and the hardware matrix.
   completed 57,276/57,276 successful routes with zero trace ERROR and unchanged
   user state. Physical Hex80 qualification remains open; MAD68 is the next and
   last backend in S07.
+- `V14-12D/S07` migrates MAD68 to a waitable native generation. Owner stop
+  cancels only the persistent overlapped read; the worker retains session HANDLE
+  ownership, rejects any new A8 after stop and still performs final A9 recovery.
+- MAD68 timeout containment, 41 audits, 26 portable tests, `/W4 /WX`, official
+  build and Irok regression pass. Protocol, transports, A8/A9 strategy, restore
+  and decoder remain unchanged. S07 is code-complete; physical MAD68, Hex80 and
+  Addressed qualification remains open.
 
 ## Release definition
 

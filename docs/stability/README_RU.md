@@ -19,7 +19,8 @@
 13. `TRACE_PROTOCOL_S02V1_RU.md` — формат, privacy/performance contract и правила удаления логирования.
 14. `STAGE_S06_RESULT_RU.md` — ownership-safe Addressed overlapped cancellation и bounded outer stop.
 15. `STAGE_S07_HEX80_RESULT_RU.md` — bounded Hex80 lifecycle, ownership и timeout containment.
-16. `baseline/` — машинно проверяемые артефакты исходного состояния.
+16. `STAGE_S07_MAD68_RESULT_RU.md` — bounded MAD68 lifecycle с сохранением A9 recovery.
+17. `baseline/` — машинно проверяемые артефакты исходного состояния.
 
 ## Текущее состояние
 
@@ -33,6 +34,7 @@
 - `S02B.3` локально завершён для Addressed main/reader exception containment; общий ручной Windows/SparkLink smoke пройден, Addressed device gate отложен.
 - `S06` реализован в V14-12B: cross-thread close активного Addressed HID I/O удалён, внешний stop ограничен тремя секундами, timeout сохраняет поколение и переводит registry в poisoned containment; реальный Addressed device gate отложен.
 - Hex80-часть `S07` реализована в V14-12C: waitable generation, cooperative cancellation, трёхсекундный truthful join и simulator containment прошли; Hex80 device gate отложен, MAD68 остаётся следующим отдельным пакетом.
+- MAD68-часть `S07` реализована в V14-12D: owner отменяет только persistent read, A8 после stop запрещён, финальный A9 сохранён, bounded containment прошёл. Кодовая часть S07 завершена; физические native gates отложены.
 - `S02V1` локально добавил временную bounded evidence trace, машинный анализатор и сборщик log bundle; Windows/SparkLink evidence gate ожидается.
 - Normal MAD68/Hex80/SparkLink hot paths, Addressed polling loop, reader I/O loop и packet constructors сохранены относительно предыдущих пакетов.
 - Риск `HJ-AUD-P1-004` остаётся `Partial`: Sayo и UAP подэтапы ещё не завершены, а MAD68/Hex80/Addressed device-specific gates отложены.

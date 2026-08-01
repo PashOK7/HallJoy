@@ -16,8 +16,8 @@
 #include <cwctype>
 #include <mutex>
 #include <memory>
+#include <process.h>
 #include <string>
-#include <thread>
 #include <vector>
 
 #include "mad68pr_backend.h"
@@ -28,6 +28,7 @@
 #include "realtime_loop.h"
 #include "native_analog_routing.h"
 #include "worker_exception_barrier.h"
+#include "worker_join_policy.h"
 #include "version.h"
 
 #pragma comment(lib, "setupapi.lib")
@@ -54,6 +55,7 @@ constexpr DWORD kDigitalLeadToleranceMs = 250;
 constexpr DWORD kReleaseWaitLogMs = 2000;
 constexpr DWORD kAllReleasedStableMs = 500;
 constexpr DWORD kReconnectWaitMs = 1000;
+constexpr DWORD kStopJoinTimeoutMs = 3000;
 constexpr DWORD kSummaryMs = 5000;
 constexpr DWORD kStreamSalvageAgeMs = 2500;
 constexpr DWORD kRecoveryWindowMs = 60000;
@@ -310,14 +312,66 @@ void CaptureAnalogSnapshot(std::uint16_t hid, std::uint32_t& seq, std::uint16_t&
 }
 
 HANDLE g_wakeEvent = nullptr;
-std::thread g_thread;
+HANDLE g_threadHandle = nullptr;
 std::atomic<halljoy::worker::WorkerExceptionKind> g_workerFaultKind{
     halljoy::worker::WorkerExceptionKind::None };
 halljoy::worker::WorkerExceptionRecord g_workerFaultRecord{};
+std::mutex g_serviceMutex;
+std::mutex g_signalMutex;
+std::mutex g_activeSessionMutex;
+const void* g_activeSessionOwner = nullptr;
+HANDLE g_activeSessionReadHandle = INVALID_HANDLE_VALUE;
 std::mutex g_logMutex;
 bool g_logStarted = false;
 std::atomic<std::uint64_t> g_rawLogCount{0};
 std::atomic<std::uint64_t> g_malformedWireLogCount{0};
+
+bool InjectStopTimeout() noexcept
+{
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    const wchar_t* commandLine = GetCommandLineW();
+    return commandLine &&
+        wcsstr(commandLine, L"--halljoy-test-mad68-stop-timeout");
+#else
+    return false;
+#endif
+}
+
+void RegisterActiveSessionRead(const void* owner, HANDLE handle)
+{
+    std::lock_guard<std::mutex> lock(g_activeSessionMutex);
+    g_activeSessionOwner = owner;
+    g_activeSessionReadHandle = handle;
+}
+
+void UnregisterActiveSessionRead(const void* owner)
+{
+    std::lock_guard<std::mutex> lock(g_activeSessionMutex);
+    if (g_activeSessionOwner != owner) return;
+    g_activeSessionOwner = nullptr;
+    g_activeSessionReadHandle = INVALID_HANDLE_VALUE;
+}
+
+void CancelActiveSessionRead()
+{
+    std::lock_guard<std::mutex> lock(g_activeSessionMutex);
+    if (g_activeSessionReadHandle &&
+        g_activeSessionReadHandle != INVALID_HANDLE_VALUE)
+        (void)CancelIoEx(g_activeSessionReadHandle, nullptr);
+}
+
+bool ActiveSessionReadIsRegistered()
+{
+    std::lock_guard<std::mutex> lock(g_activeSessionMutex);
+    return g_activeSessionOwner && g_activeSessionReadHandle &&
+        g_activeSessionReadHandle != INVALID_HANDLE_VALUE;
+}
+
+void SignalWakeEvent()
+{
+    std::lock_guard<std::mutex> lock(g_signalMutex);
+    if (g_wakeEvent) SetEvent(g_wakeEvent);
+}
 
 std::wstring PathNearExe(const wchar_t* name)
 {
@@ -631,7 +685,8 @@ const wchar_t* UiStateName(UiState state)
 class Session
 {
 public:
-    explicit Session(const HidPath& path) : path_(path) {}
+    explicit Session(const HidPath& path, bool trackActiveRead = false)
+        : path_(path), trackActiveRead_(trackActiveRead) {}
     ~Session() { Close(); }
 
     bool Open()
@@ -651,11 +706,15 @@ public:
         Log(L"handles open read=%d write=%d control=%d input_buffers=256 ok=%d wire_bytes=%u",
             read_ ? 1 : 0, write_ ? 1 : 0, control_ ? 1 : 0, buffersOk ? 1 : 0,
             static_cast<unsigned>(readWire_.size()));
+        if (trackActiveRead_ && read_)
+            RegisterActiveSessionRead(this, read_.value);
         return static_cast<bool>(read_);
     }
 
     void Close()
     {
+        if (trackActiveRead_)
+            UnregisterActiveSessionRead(this);
         CancelPendingRead();
         read_.reset();
         write_.reset();
@@ -679,7 +738,7 @@ public:
             if (readWire_.empty())
                 readWire_.assign(std::max<std::size_t>(
                     mad68pr::kPayloadBytes + 1u, path_.caps.InputReportByteLength), 0);
-            std::fill(readWire_.begin(), readWire_.end(), 0);
+            std::fill(readWire_.begin(), readWire_.end(), std::uint8_t{ 0 });
             pendingRead_ = std::make_unique<HidIoOperation>(read_.value);
             DWORD startError = ERROR_SUCCESS;
             const auto start = pendingRead_->StartRead(
@@ -881,6 +940,7 @@ private:
     std::unique_ptr<HidIoOperation> pendingRead_;
     SessionStats stats_{};
     unsigned consecutiveReadErrors_ = 0;
+    bool trackActiveRead_ = false;
 };
 
 bool ProbeNativeControlProtocol(const HidPath& path)
@@ -1270,7 +1330,10 @@ void PumpFor(Session& session, DWORD durationMs, DigitalWatch& digital)
     {
         std::array<std::uint8_t, mad68pr::kPayloadBytes> packet{};
         const DWORD remaining = static_cast<DWORD>(std::max<ULONGLONG>(1, deadline - GetTickCount64()));
-        if (session.ReadPayload(std::min<DWORD>(kReadSliceMs, remaining), packet))
+        const bool received = session.ReadPayload(
+            std::min<DWORD>(kReadSliceMs, remaining), packet);
+        if (g_stop.load(std::memory_order_acquire)) return;
+        if (received)
             ProcessPayload(packet, session.Stats(), digital, false);
     }
 }
@@ -1288,6 +1351,7 @@ bool WaitForAck(
         std::array<std::uint8_t, mad68pr::kPayloadBytes> packet{};
         const DWORD remaining = static_cast<DWORD>(std::max<ULONGLONG>(1, deadline - GetTickCount64()));
         if (!session.ReadPayload(std::min<DWORD>(kReadSliceMs, remaining), packet)) continue;
+        if (g_stop.load(std::memory_order_acquire)) return false;
 
         const auto response = mad68pr::DecodeControlResponse(
             packet.data(), packet.size(), strategy.framing, opcode);
@@ -1318,6 +1382,9 @@ bool SendCommand(
     std::uint8_t opcode,
     DigitalWatch& digital)
 {
+    if (opcode == mad68pr::kArmOpcode &&
+        g_stop.load(std::memory_order_acquire))
+        return false;
     if (!session.Send(strategy, opcode)) return false;
     if (strategy.requireAck)
         return WaitForAck(session, strategy, opcode, digital, kCommandAckMs);
@@ -1354,7 +1421,9 @@ bool WaitForAllReleased(Session& session, DigitalWatch& digital)
         }
 
         std::array<std::uint8_t, mad68pr::kPayloadBytes> packet{};
-        if (session.ReadPayload(50, packet))
+        const bool received = session.ReadPayload(50, packet);
+        if (g_stop.load(std::memory_order_acquire)) return false;
+        if (received)
             ProcessPayload(packet, session.Stats(), digital, false);
     }
     return false;
@@ -1401,7 +1470,9 @@ bool ValidateStreamAfterActivation(
     while (!g_stop.load(std::memory_order_acquire) && GetTickCount64() < deadline)
     {
         std::array<std::uint8_t, mad68pr::kPayloadBytes> packet{};
-        if (session.ReadPayload(kReadSliceMs, packet))
+        const bool received = session.ReadPayload(kReadSliceMs, packet);
+        if (g_stop.load(std::memory_order_acquire)) return false;
+        if (received)
             ProcessPayload(packet, session.Stats(), digital, false);
 
         const std::uint32_t fresh = FreshCoverage(beforeA8);
@@ -1747,7 +1818,7 @@ void ObserveDigitalEvents(DigitalWatch& digital, SessionStats& stats)
                     g_uiState.store(static_cast<int>(UiState::Recovering), std::memory_order_release);
                     g_recoveryHid.store(hid, std::memory_order_release);
                     g_recoveryRequested.store(true, std::memory_order_release);
-                    if (g_wakeEvent) SetEvent(g_wakeEvent);
+                    SignalWakeEvent();
                 }
                 else
                 {
@@ -1821,12 +1892,13 @@ bool RunSession(const HidPath& path)
         path.caps.FeatureReportByteLength,
         path.manufacturer.c_str(), path.product.c_str(), path.serial.c_str());
 
-    Session session(path);
+    Session session(path, true);
     if (!session.Open())
     {
         Log(L"session cannot open readable vendor HID handle");
         return false;
     }
+    if (g_stop.load(std::memory_order_acquire)) return true;
 
     DigitalWatch digital{};
     digital.seenResetSeq = g_digitalResetSeq.load(std::memory_order_acquire);
@@ -1846,7 +1918,9 @@ bool RunSession(const HidPath& path)
     while (!g_stop.load(std::memory_order_acquire))
     {
         std::array<std::uint8_t, mad68pr::kPayloadBytes> packet{};
-        if (session.ReadPayload(kReadSliceMs, packet))
+        const bool received = session.ReadPayload(kReadSliceMs, packet);
+        if (g_stop.load(std::memory_order_acquire)) break;
+        if (received)
             ProcessPayload(packet, session.Stats(), digital, false);
         ObserveDigitalEvents(digital, session.Stats());
 
@@ -2055,6 +2129,18 @@ bool RunSession(const HidPath& path)
 
 std::uint32_t Mad68WorkerBody()
 {
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    if (InjectStopTimeout())
+    {
+        StabilityTrace_Write(L"INFO", L"mad68", L"test.start", L"simulator_only=1");
+        while (!g_stop.load(std::memory_order_acquire))
+            WaitForSingleObject(g_wakeEvent, 100);
+        StabilityTrace_Write(L"WARN", L"mad68", L"test.stop_timeout.injected",
+            L"simulator_only=1");
+        WaitForSingleObject(GetCurrentProcess(), INFINITE);
+    }
+#endif
+
     Log(L"backend worker start build=%s protocol=VID373B routed by A9 ACK + IF1 65-byte fingerprint; A0[4..5]/1600 keys=68 published=67",
         kBuildName);
     while (!g_stop.load(std::memory_order_acquire))
@@ -2137,14 +2223,14 @@ void Mad68WorkerOnCompletion(
         L"mad68", L"worker.exit", L"fault_kind=%u", static_cast<unsigned>(record.kind));
 }
 
-void Mad68WorkerEntry() noexcept
+unsigned __stdcall Mad68WorkerEntry(void*) noexcept
 {
     StabilityTrace_Write(L"INFO", L"mad68", L"worker.start");
-    (void)halljoy::worker::RunWorkerEntryBarrier(
+    return static_cast<unsigned>(halljoy::worker::RunWorkerEntryBarrier(
         [] { return Mad68WorkerBody(); },
         Mad68WorkerOnFault,
         Mad68WorkerOnCompletion,
-        0xE0520001u);
+        0xE0520001u));
 }
 } // namespace
 
@@ -2190,26 +2276,12 @@ bool Mad68ProR_PrepareProtocolRouting()
 
 bool Mad68ProR_Start()
 {
+    std::lock_guard<std::mutex> serviceLock(g_serviceMutex);
+    if (g_threadHandle)
+        return g_running.load(std::memory_order_acquire);
+
     bool expected = false;
     if (!g_running.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) return true;
-
-    // A faulted or otherwise completed std::thread remains joinable until the
-    // owner reaps it. Reap that generation before assigning a new thread;
-    // assigning over a joinable std::thread would call std::terminate.
-    if (g_thread.joinable())
-    {
-        try { g_thread.join(); }
-        catch (...)
-        {
-            g_running.store(false, std::memory_order_release);
-            return false;
-        }
-    }
-    if (g_wakeEvent)
-    {
-        CloseHandle(g_wakeEvent);
-        g_wakeEvent = nullptr;
-    }
 
     g_workerFaultRecord = {};
     g_workerFaultKind.store(halljoy::worker::WorkerExceptionKind::None,
@@ -2218,30 +2290,34 @@ bool Mad68ProR_Start()
     g_rescanRequested.store(false, std::memory_order_release);
     g_recoveryRequested.store(false, std::memory_order_release);
     g_uiState.store(static_cast<int>(UiState::Starting), std::memory_order_release);
-    g_wakeEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-    if (!g_wakeEvent)
     {
-        const DWORD error = GetLastError();
-        g_devicePresent.store(false, std::memory_order_release);
-        g_streamConnected.store(false, std::memory_order_release);
-        g_publishMode.store(static_cast<int>(PublishMode::None), std::memory_order_release);
-        g_running.store(false, std::memory_order_release);
-        StabilityTrace_WriteCritical(L"ERROR", L"mad68", L"start.failed", L"stage=create_event win32=%lu", error);
-        return false;
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
+        g_wakeEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        if (!g_wakeEvent)
+        {
+            const DWORD error = GetLastError();
+            g_devicePresent.store(false, std::memory_order_release);
+            g_streamConnected.store(false, std::memory_order_release);
+            g_publishMode.store(static_cast<int>(PublishMode::None), std::memory_order_release);
+            g_running.store(false, std::memory_order_release);
+            StabilityTrace_WriteCritical(L"ERROR", L"mad68", L"start.failed", L"stage=create_event win32=%lu", error);
+            return false;
+        }
     }
 
-    g_devicePresent.store(ProbePresence(), std::memory_order_release);
+    g_devicePresent.store(InjectStopTimeout() ? false : ProbePresence(),
+        std::memory_order_release);
     Log(L"start requested build=%s synchronous_presence=%d", kBuildName,
         g_devicePresent.load(std::memory_order_relaxed) ? 1 : 0);
     DebugLog_Write(L"[mad68pr] full 68-key backend start presence=%d log=HallJoyMAD68ProR.log",
         g_devicePresent.load(std::memory_order_relaxed) ? 1 : 0);
-    try
+    unsigned threadId = 0;
+    const uintptr_t thread = _beginthreadex(
+        nullptr, 0, Mad68WorkerEntry, nullptr, 0, &threadId);
+    if (thread == 0)
     {
-        g_thread = std::thread(Mad68WorkerEntry);
-    }
-    catch (...)
-    {
-        CloseHandle(g_wakeEvent);
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
+        if (g_wakeEvent) CloseHandle(g_wakeEvent);
         g_wakeEvent = nullptr;
         g_devicePresent.store(false, std::memory_order_release);
         g_streamConnected.store(false, std::memory_order_release);
@@ -2250,30 +2326,79 @@ bool Mad68ProR_Start()
         StabilityTrace_WriteCritical(L"ERROR", L"mad68", L"start.failed", L"stage=create_thread");
         return false;
     }
-    StabilityTrace_Write(L"INFO", L"mad68", L"start.ok", L"presence=%d",
-        g_devicePresent.load(std::memory_order_relaxed) ? 1 : 0);
+    g_threadHandle = reinterpret_cast<HANDLE>(thread);
+    if (WaitForSingleObject(g_threadHandle, 0) == WAIT_OBJECT_0 &&
+        !g_running.load(std::memory_order_acquire))
+    {
+        CloseHandle(g_threadHandle);
+        g_threadHandle = nullptr;
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
+        if (g_wakeEvent) CloseHandle(g_wakeEvent);
+        g_wakeEvent = nullptr;
+        StabilityTrace_WriteCritical(L"ERROR", L"mad68", L"start.failed", L"stage=worker_early_exit");
+        return false;
+    }
+    StabilityTrace_Write(L"INFO", L"mad68", L"start.ok", L"presence=%d thread_id=%u",
+        g_devicePresent.load(std::memory_order_relaxed) ? 1 : 0, threadId);
     return true;
+}
+
+halljoy::lifecycle::StopResult Mad68ProR_StopGeneration(
+    halljoy::lifecycle::GenerationId generation)
+{
+    std::lock_guard<std::mutex> serviceLock(g_serviceMutex);
+    if (!g_threadHandle)
+        return NativeAnalogBackendStopJoined(generation);
+    StabilityTrace_Write(L"INFO", L"mad68", L"stop.begin", L"worker_handle=1");
+    g_stop.store(true, std::memory_order_release);
+    for (auto& down : g_physicalDown) down.store(false, std::memory_order_relaxed);
+    for (auto& down : g_digitalDown) down.store(false, std::memory_order_relaxed);
+    ResetSessionPublished();
+    g_devicePresent.store(false, std::memory_order_release);
+    g_firmwareVersion.store(0, std::memory_order_release);
+    g_productId.store(0, std::memory_order_release);
+    g_uiState.store(static_cast<int>(UiState::Stopped), std::memory_order_release);
+    SignalWakeEvent();
+    CancelActiveSessionRead();
+
+    const DWORD wait = WaitForSingleObject(g_threadHandle, kStopJoinTimeoutMs);
+    if (wait != WAIT_OBJECT_0)
+    {
+        const DWORD error = wait == WAIT_TIMEOUT ? WAIT_TIMEOUT : GetLastError();
+        StabilityTrace_WriteCritical(L"ERROR", L"mad68", L"stop.incomplete",
+            L"wait=%lu native_error=%lu thread_handle_retained=1 wake_event_retained=1 active_session_read_retained=%d restart_blocked=1",
+            static_cast<unsigned long>(wait), static_cast<unsigned long>(error),
+            ActiveSessionReadIsRegistered() ? 1 : 0);
+        return halljoy::lifecycle::ObserveWorkerJoin(
+            generation,
+            wait == WAIT_TIMEOUT
+                ? halljoy::lifecycle::JoinWaitStatus::TimedOut
+                : halljoy::lifecycle::JoinWaitStatus::Failed,
+            error);
+    }
+
+    CloseHandle(g_threadHandle);
+    g_threadHandle = nullptr;
+    {
+        std::lock_guard<std::mutex> signalLock(g_signalMutex);
+        if (g_wakeEvent) CloseHandle(g_wakeEvent);
+        g_wakeEvent = nullptr;
+    }
+    g_running.store(false, std::memory_order_release);
+    StabilityTrace_Write(L"INFO", L"mad68", L"neutralized", L"reason=stop");
+    StabilityTrace_Write(L"INFO", L"mad68", L"stop.joined");
+    return NativeAnalogBackendStopJoined(generation);
 }
 
 void Mad68ProR_Stop()
 {
-    if (!g_running.load(std::memory_order_acquire) && !g_thread.joinable()) return;
-    StabilityTrace_Write(L"INFO", L"mad68", L"stop.begin", L"joinable=%d", g_thread.joinable() ? 1 : 0);
-    g_stop.store(true, std::memory_order_release);
-    if (g_wakeEvent) SetEvent(g_wakeEvent);
-    if (g_thread.joinable()) g_thread.join();
-    if (g_wakeEvent) CloseHandle(g_wakeEvent);
-    g_wakeEvent = nullptr;
-    g_running.store(false, std::memory_order_release);
-    g_uiState.store(static_cast<int>(UiState::Stopped), std::memory_order_release);
-    StabilityTrace_Write(L"INFO", L"mad68", L"neutralized", L"reason=stop");
-    StabilityTrace_Write(L"INFO", L"mad68", L"stop.end");
+    (void)Mad68ProR_StopGeneration(halljoy::lifecycle::GenerationId{});
 }
 
 void Mad68ProR_NotifyDeviceChange()
 {
     g_rescanRequested.store(true, std::memory_order_release);
-    if (g_wakeEvent) SetEvent(g_wakeEvent);
+    SignalWakeEvent();
 }
 
 void Mad68ProR_NotifyKeyboardDeviceReset()
@@ -2282,7 +2407,7 @@ void Mad68ProR_NotifyKeyboardDeviceReset()
     // A device reset is not a physical key edge. Signal the worker separately so
     // it drops pending correlations without manufacturing 67 release events.
     g_digitalResetSeq.fetch_add(1u, std::memory_order_acq_rel);
-    if (g_wakeEvent) SetEvent(g_wakeEvent);
+    SignalWakeEvent();
 }
 
 void Mad68ProR_NotifyKeyboardEvent(std::uint16_t hidUsage, bool isKeyDown, bool isInjected)
@@ -2307,7 +2432,7 @@ void Mad68ProR_NotifyKeyboardEvent(std::uint16_t hidUsage, bool isKeyDown, bool 
     g_rawAtDigitalEvent[hidUsage].store(rawAtEdge, std::memory_order_relaxed);
     // Release-publish the digital sequence only after all edge snapshot fields.
     g_digitalSeq[hidUsage].fetch_add(1u, std::memory_order_release);
-    if (g_wakeEvent) SetEvent(g_wakeEvent);
+    SignalWakeEvent();
 }
 
 bool Mad68ProR_EmergencyRestoreInputOnce()
@@ -2577,8 +2702,7 @@ const NativeAnalogBackendDescriptor& Mad68ProR_GetNativeBackendDescriptor()
         &Mad68ProR_PrepareProtocolRouting,
         &Mad68ProR_Start,
         [](halljoy::lifecycle::GenerationId generation) {
-            Mad68ProR_Stop();
-            return NativeAnalogBackendStopJoined(generation);
+            return Mad68ProR_StopGeneration(generation);
         },
         &Mad68ProR_NotifyDeviceChange,
         &Mad68ProR_IsProtocolDevicePresent,

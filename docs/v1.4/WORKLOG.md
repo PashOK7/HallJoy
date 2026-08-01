@@ -1495,3 +1495,41 @@
   hotplug and shutdown qualification remain required before `Verified`.
 - `HJ-AUD-P1-002` remains `Partial`: Addressed and Hex80 are now bounded and
   contained; MAD68 is the only remaining S07 backend.
+
+## 2026-08-01 - V14-12D / S07 MAD68 bounded lifecycle
+
+### Implementation
+
+- Replaced MAD68's `std::thread` owner with a serialized waitable
+  `_beginthreadex` generation and one three-second stop deadline.
+- The live worker session registers its persistent overlapped read. Owner stop
+  signals and cancels that read but never closes HID; worker withdraws the
+  registration, reaps I/O and closes read/write/control handles.
+- Every processing loop rejects a read that completes after stop. `SendCommand`
+  rejects A8 after stop while the direct final A9 cleanup remains worker-owned.
+- Timeout retains all reachable generation resources, reports the exact result,
+  blocks restart and selects process containment.
+
+### Validation
+
+- Complete gate: 41/41 static audits and 26/26 portable C++ tests PASS.
+- MAD68 translation unit: MSVC 19.44 `/W4 /WX` PASS.
+- Simulator timeout containment: PASS with expected exit 2.
+- Protocol files, Session command send, both write transports,
+  `BestEffortRestore`, `RunStrategy` and `ProcessPayload` are unchanged.
+- Official `BUILD.cmd`: exit 0, 0 errors, only allowlisted `LNK4099`.
+- 15-second Irok regression: 57,247 successful route requests, one shutdown
+  cancellation, 250 us average / 498 us maximum interval, balanced shutdown,
+  zero trace ERROR and 11 hash-identical user-state files.
+- `HallJoy.exe`: 2,272,768 bytes,
+  SHA-256 `79F9E2509D56A80E71C17701F8FAB3DD65A39530E2F7F42C3E40E731AB139020`.
+- Source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-12D-S07-MAD68-prechange-20260801`.
+
+### Package result
+
+- `HJ-AUD-P1-002` is `Implemented`: all three affected native backends now have
+  bounded truthful containment. Physical qualification is still required before
+  `Verified`.
+- S07 is code-complete. MAD68 hardware A8/A9, full-matrix, reconnect and shutdown
+  gates remain release qualification.

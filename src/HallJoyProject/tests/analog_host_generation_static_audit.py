@@ -47,7 +47,7 @@ def main() -> int:
     bridge_entry = function_body(host, "DWORD WINAPI SnapshotBridgeThreadProc(LPVOID) noexcept")
     child_impl = function_body(host, "int RunHostImpl(")
     child_cpp = function_body(host, "int RunHostCpp(")
-    child_entry = function_body(host, "int RunHost(DWORD ownerPid")
+    child_entry = function_body(host, "int RunHost(const HostLaunchContext& launch)")
     backend_stop = function_body(backend, "bool Backend_Shutdown()")
 
     require('#include "worker_lifecycle.h"' in host and

@@ -31,8 +31,8 @@ checks = {
         "--halljoy-test-uap-exe-write-denied" in embedded,
     "verified absolute path is passed to child host":
         "EmbeddedAnalogStack_PrivatePluginPath()" in host and
-        "privatePluginPath = argv[i + 3]" in host and
-        "LoadHostApi(api, privatePluginPath)" in host,
+        "launch.privatePluginPath = argv[i + 7]" in host and
+        "LoadHostApi(api, launch.privatePluginPath)" in host,
     "child path uses tested Windows argument quoting":
         "windows_command_line::QuoteArgument" in host and "windows_command_line.h" in project,
     "backend issues describe private runtime rather than system SDK":

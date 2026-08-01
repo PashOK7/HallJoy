@@ -15,6 +15,7 @@ param(
     [switch]$InjectAnalogHostSupervisorCppFault,
     [switch]$InjectAnalogHostChildCppFault,
     [switch]$InjectAnalogHostChildReapTimeout,
+    [switch]$InjectAnalogHostIpcHandleRejection,
     [switch]$InjectRealtimeStartFailure,
     [switch]$InjectNativePhaseStartFailure,
     [switch]$InjectVigemUpdateStall,
@@ -45,6 +46,7 @@ $injectionCount = @(
     $InjectAnalogHostSupervisorCppFault.IsPresent,
     $InjectAnalogHostChildCppFault.IsPresent,
     $InjectAnalogHostChildReapTimeout.IsPresent,
+    $InjectAnalogHostIpcHandleRejection.IsPresent,
     $InjectRealtimeStartFailure.IsPresent,
     $InjectNativePhaseStartFailure.IsPresent,
     $InjectVigemUpdateStall.IsPresent,
@@ -224,6 +226,9 @@ if ($InjectAnalogHostChildCppFault) {
 }
 if ($InjectAnalogHostChildReapTimeout) {
     $arguments += '--halljoy-test-analog-host-child-reap-timeout'
+}
+if ($InjectAnalogHostIpcHandleRejection) {
+    $arguments += '--halljoy-test-analog-host-ipc-handle-rejection'
 }
 if ($InjectRealtimeStartFailure) {
     $arguments += '--halljoy-test-realtime-start-failure'
@@ -442,6 +447,14 @@ $required = if ($RequireStorageMigrationFailure) { @(
     '[component=analog-host][event=child.reaped_after_timeout]',
     '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
     '[component=main][event=session.end] exit_code=0'
+) } elseif ($InjectAnalogHostIpcHandleRejection) { @(
+    '[component=analog-host][event=ipc.policy] transport=inherited_handles named_objects=0 handle_list=1 owner_handle=1 generation_bound=1',
+    '[component=analog-host][event=test.ipc_handle_rejection.injected] simulator_only=1 invalid_mapping_handle=1',
+    '[component=analog-host][event=ipc.handle_rejected] invalid_mapping_handle=1 child_exit=31 restart_allowed=1',
+    '[component=analog-host][event=child.start]',
+    'restart=1',
+    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
+    '[component=main][event=session.end] exit_code=0'
 ) } elseif ($InjectVigemUpdateStall) { @(
     '[component=vigem-output][event=test.update_stall.injected] simulator_only=1',
     '[component=analog-simulator][event=stop]',
@@ -513,6 +526,10 @@ $missing += @($storageRequired | Where-Object { -not $traceText.Contains($_) })
 if (-not $RequireStorageMigrationFailure -and
     -not $traceText.Contains('[component=mouse-ipc][event=policy.self_test] passed=1')) {
     $missing += '[component=mouse-ipc][event=policy.self_test] passed=1'
+}
+if (-not $RequireStorageMigrationFailure -and
+    -not $traceText.Contains('[component=analog-host][event=ipc.policy] transport=inherited_handles named_objects=0 handle_list=1 owner_handle=1 generation_bound=1')) {
+    $missing += '[component=analog-host][event=ipc.policy] transport=inherited_handles named_objects=0 handle_list=1 owner_handle=1 generation_bound=1'
 }
 if ($StartOverlay) {
     $overlayRequired = @(

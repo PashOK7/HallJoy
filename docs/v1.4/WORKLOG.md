@@ -979,3 +979,57 @@
 - `HJ-AUD-P1-011` and `HJ-AUD-P2-005` are Verified.
 - V14-10 remains In progress. Next is V14-10B analog-host IPC
   precreation/spoofing resistance; overlay protocol risks remain separate.
+
+## 2026-08-01 - V14-10B analog-host inherited-handle IPC
+
+### Implementation
+
+- Removed all named mapping/event construction and child-side
+  `OpenFileMappingW`/`OpenEventW` calls from the analog-host transport.
+- Parent now creates an unnamed mapping, unnamed stop/snapshot events and a
+  synchronizable/queryable handle to itself. `STARTUPINFOEXW` limits child
+  inheritance to exactly these four handles with
+  `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`.
+- Replaced the timing-derived nonce with `BCryptGenRandom`. Shared schema v10
+  carries owner PID and launch token; the child validates handle existence,
+  schema, token and owner-handle PID before writing shared state.
+- Parent tracks the exact PID returned by `CreateProcessW` and refuses Ready
+  from any different published host PID.
+- Added simulator-only invalid mapping-handle injection, a required runtime
+  policy trace and an official-build static audit. Updated the prior UAP path
+  and generation audits for the new launch context without weakening them.
+
+### Validation
+
+- Analog-host IPC audit and full static/portable C++20 backend gate: PASS.
+- Fresh simulator x64 Release rebuild and normal common pipeline: PASS, exit 0.
+- Invalid-handle scenario: first child rejected the non-inherited mapping
+  handle with exit 31; supervisor performed one bounded restart, the second
+  child completed normal processing, and all owners joined.
+- Prior analog-host regressions: 5/5 PASS for supervisor partial-start failure,
+  supervisor C++ fault, child C++ fault/restart, child reap timeout and bridge
+  stop timeout containment.
+- Official x64 production build: PASS, 0 errors and only allowlisted `LNK4099`;
+  all static/portable gates and the embedded ABI1 runtime gate passed.
+- Ten-second production smoke published `transport=inherited_handles`,
+  `named_objects=0`, connected Irok MG75 Max at `1CA6:0529/FFB0`, completed
+  37,953/37,953 route queries with zero failures, joined the child and both
+  parent workers, and exited 0.
+- No analog rows changed during the smoke, so it is route/lifecycle evidence
+  rather than a new hardware input proof.
+- All 11 LocalAppData files matched the runtime backup after smoke; zero
+  transaction temp files and zero HallJoy processes remained.
+- `HallJoy.exe`: 2,218,496 bytes,
+  SHA-256 `8FD6609DFF589DF76515EF62C6B1365C83C47BFB0452AC5D5BCB20B8DDE78223`.
+- Production trace SHA-256:
+  `A098F363C4D52D7852D07BE0432B0A4B3AB6CD4F43ACE31AC8DD573C86B9A7EB`.
+- Source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-10B-prechange-20260801-1128`.
+- Runtime backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-10B-runtime-20260801-1138`.
+
+### Package result
+
+- `HJ-AUD-P1-012` is Verified.
+- V14-10 remains In progress. Next is V14-10C overlay HTTP framing and
+  bounded parser/overflow correctness.

@@ -881,3 +881,55 @@ Evidence:
   docs/stability/tests/V14-10A_MOUSE_IPC_CORRECTNESS_2026-08-01.txt
 Rollback: parent commit of the V14-10A implementation commit
 ```
+
+## V14-10B evidence
+
+```text
+Package: V14-10B
+Scope: analog-host named IPC removal, explicit inherited handle capabilities,
+  v10 owner/generation identity and invalid-handle rejection
+Commands:
+  python src/HallJoyProject/tests/analog_host_ipc_static_audit.py
+  python tools/run_native_backend_checks.py
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectAnalogHostIpcHandleRejection -RunSeconds 9
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -<each of five existing AnalogHost fault switches> -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -RunSeconds 10
+Results:
+  Analog-host IPC static audit: PASS
+  All static audits and portable C++20 tests: PASS
+  Normal current simulator: PASS, graceful shutdown, exit 0
+  Runtime policy: inherited_handles, named_objects=0, handle_list=1,
+    owner_handle=1, generation_bound=1
+  Invalid mapping handle: child exit 31 before shared-state use; one bounded
+    restart; second child and common pipeline completed; balanced exit 0
+  Existing analog-host lifecycle/fault regressions: 5/5 PASS
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Real ABI1 load/init/null/bounded-unload runtime gate: PASS
+  Production Irok route: SparkLink VID 1CA6, PID 0529, usage page FFB0;
+    37,953 successful queries, zero failures, balanced child/worker shutdown
+  Runtime user state: 11 files, zero differences from pre-smoke backup
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,218,496 bytes
+  SHA-256: 8FD6609DFF589DF76515EF62C6B1365C83C47BFB0452AC5D5BCB20B8DDE78223
+  Production trace SHA-256:
+    A098F363C4D52D7852D07BE0432B0A4B3AB6CD4F43ACE31AC8DD573C86B9A7EB
+Hardware: Irok startup/route/balanced shutdown passed; no analog-row changes,
+  so this package makes no new hardware input claim
+Threat limit: removes named-object precreation/substitution; not a sandbox
+  against a process already authorized to tamper with HallJoy itself
+Remote CI: NOT RUN; optional, no push permitted
+Known limitation: overlay framing, overflow, origin and concurrency remain
+  V14-10C/V14-10D
+Evidence:
+  docs/stability/tests/V14-10B_ANALOG_HOST_IPC_CAPABILITIES_2026-08-01.txt
+Rollback: parent commit of the V14-10B implementation commit
+```

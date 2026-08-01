@@ -1,6 +1,7 @@
 ﻿#define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include <bcrypt.h>
 #include <shellapi.h>
 #include <tlhelp32.h>
 #include <dbghelp.h>
@@ -29,6 +30,7 @@
 
 #pragma comment(lib, "dbghelp.lib")
 #pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "bcrypt.lib")
 
 namespace
 {
@@ -55,20 +57,20 @@ namespace
         SharedState* shared = nullptr;
         HANDLE stopEvent = nullptr;
         HANDLE snapshotEvent = nullptr;
+        HANDLE ownerProcess = nullptr;
         HANDLE snapshotBridgeThread = nullptr;
         HANDLE supervisorThread = nullptr;
         HANDLE supervisorReadyEvent = nullptr;
         HANDLE job = nullptr;
         DWORD ownerPid = 0;
         unsigned long long nonce = 0;
-        std::wstring mappingName;
-        std::wstring stopEventName;
-        std::wstring snapshotEventName;
         std::wstring privatePluginPath;
         std::atomic<bool> stopping{ false };
         std::atomic<bool> restartBlocked{ false };
+        std::atomic<DWORD> expectedHostPid{ 0 };
         bool injectSupervisorCppFault = false;
         bool injectChildReapTimeout = false;
+        bool injectInvalidIpcHandle = false;
         halljoy::lifecycle::WorkerLifecycle lifecycle;
     };
 
@@ -137,13 +139,15 @@ namespace
         FindClose(find);
     }
 
-    std::wstring BuildIpcName(const wchar_t* kind, DWORD ownerPid, unsigned long long nonce)
+    bool GenerateLaunchNonce(unsigned long long& nonce) noexcept
     {
-        wchar_t text[192]{};
-        _snwprintf_s(text, _countof(text), _TRUNCATE,
-            L"Local\\HallJoyAnalog%s_%lu_%016llX",
-            kind ? kind : L"Ipc", ownerPid, nonce);
-        return text;
+        nonce = 0;
+        const NTSTATUS status = BCryptGenRandom(
+            nullptr,
+            reinterpret_cast<PUCHAR>(&nonce),
+            static_cast<ULONG>(sizeof(nonce)),
+            BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+        return BCRYPT_SUCCESS(status) && nonce != 0;
     }
 
     const wchar_t* CheckpointName(LONG checkpoint)
@@ -456,15 +460,37 @@ namespace
             SetEvent(snapshotEvent);
     }
 
-    bool ParseHostCommand(DWORD& ownerPid, unsigned long long& nonce,
-        std::wstring& privatePluginPath)
+    struct HostLaunchContext
+    {
+        DWORD ownerPid = 0;
+        unsigned long long nonce = 0;
+        HANDLE mapping = nullptr;
+        HANDLE stopEvent = nullptr;
+        HANDLE snapshotEvent = nullptr;
+        HANDLE ownerProcess = nullptr;
+        std::wstring privatePluginPath;
+    };
+
+    bool ParseHandleArgument(const wchar_t* text, HANDLE& handle) noexcept
+    {
+        if (!text || !*text)
+            return false;
+        wchar_t* end = nullptr;
+        const unsigned long long value = _wcstoui64(text, &end, 16);
+        if (end == text || *end != L'\0' || value == 0 || value > UINTPTR_MAX)
+            return false;
+        handle = reinterpret_cast<HANDLE>(static_cast<std::uintptr_t>(value));
+        return true;
+    }
+
+    bool ParseHostCommand(HostLaunchContext& launch)
     {
         int argc = 0;
         LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
         if (!argv)
             return false;
         bool found = false;
-        for (int i = 1; i + 3 < argc; ++i)
+        for (int i = 1; i + 6 < argc; ++i)
         {
             if (_wcsicmp(argv[i], kHostArg) == 0)
             {
@@ -472,13 +498,26 @@ namespace
                 wchar_t* endNonce = nullptr;
                 const unsigned long pidValue = wcstoul(argv[i + 1], &endPid, 10);
                 const unsigned long long nonceValue = _wcstoui64(argv[i + 2], &endNonce, 16);
+                HANDLE mapping = nullptr;
+                HANDLE stopEvent = nullptr;
+                HANDLE snapshotEvent = nullptr;
+                HANDLE ownerProcess = nullptr;
                 if (endPid != argv[i + 1] && *endPid == L'\0' &&
                     endNonce != argv[i + 2] && *endNonce == L'\0' &&
-                    pidValue != 0 && nonceValue != 0 && argv[i + 3][0] != L'\0')
+                    pidValue != 0 && nonceValue != 0 &&
+                    ParseHandleArgument(argv[i + 3], mapping) &&
+                    ParseHandleArgument(argv[i + 4], stopEvent) &&
+                    ParseHandleArgument(argv[i + 5], snapshotEvent) &&
+                    ParseHandleArgument(argv[i + 6], ownerProcess) &&
+                    i + 7 < argc && argv[i + 7][0] != L'\0')
                 {
-                    ownerPid = static_cast<DWORD>(pidValue);
-                    nonce = nonceValue;
-                    privatePluginPath = argv[i + 3];
+                    launch.ownerPid = static_cast<DWORD>(pidValue);
+                    launch.nonce = nonceValue;
+                    launch.mapping = mapping;
+                    launch.stopEvent = stopEvent;
+                    launch.snapshotEvent = snapshotEvent;
+                    launch.ownerProcess = ownerProcess;
+                    launch.privatePluginPath = argv[i + 7];
                     found = true;
                 }
                 break;
@@ -488,60 +527,53 @@ namespace
         return found;
     }
 
-    int RunHostImpl(DWORD ownerPid, unsigned long long nonce, const std::wstring& privatePluginPath)
+    int RunHostImpl(const HostLaunchContext& launch)
     {
-        const std::wstring mappingName = BuildIpcName(L"Map", ownerPid, nonce);
-        const std::wstring stopName = BuildIpcName(L"Stop", ownerPid, nonce);
-        const std::wstring snapshotName = BuildIpcName(L"Snapshot", ownerPid, nonce);
-        HANDLE mapping = OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, mappingName.c_str());
-        if (!mapping)
+        HANDLE mapping = launch.mapping;
+        HANDLE stopEvent = launch.stopEvent;
+        HANDLE snapshotEvent = launch.snapshotEvent;
+        HANDLE ownerProcess = launch.ownerProcess;
+        DWORD flags = 0;
+        if (!GetHandleInformation(mapping, &flags) ||
+            !GetHandleInformation(stopEvent, &flags) ||
+            !GetHandleInformation(snapshotEvent, &flags) ||
+            !GetHandleInformation(ownerProcess, &flags))
             return 31;
         auto* shared = static_cast<SharedState*>(MapViewOfFile(mapping, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(SharedState)));
         if (!shared)
         {
+            CloseHandle(ownerProcess);
+            CloseHandle(snapshotEvent);
+            CloseHandle(stopEvent);
             CloseHandle(mapping);
             return 32;
         }
-        g_hostFaultShared.store(shared, std::memory_order_release);
-        HANDLE stopEvent = OpenEventW(SYNCHRONIZE, FALSE, stopName.c_str());
-        if (!stopEvent)
+        if (shared->magic != kMagic || shared->version != kVersion ||
+            shared->structSize != sizeof(SharedState) ||
+            InterlockedCompareExchange(&shared->ownerPid, 0, 0) != static_cast<LONG>(launch.ownerPid) ||
+            InterlockedCompareExchange64(&shared->launchNonce, 0, 0) != static_cast<LONG64>(launch.nonce) ||
+            GetProcessId(ownerProcess) != launch.ownerPid)
         {
-            g_hostFaultShared.store(nullptr, std::memory_order_release);
-            UnmapViewOfFile(shared);
-            CloseHandle(mapping);
-            return 33;
-        }
-        HANDLE snapshotEvent = OpenEventW(EVENT_MODIFY_STATE, FALSE, snapshotName.c_str());
-        if (!snapshotEvent)
-        {
-            g_hostFaultShared.store(nullptr, std::memory_order_release);
-            CloseHandle(stopEvent);
-            UnmapViewOfFile(shared);
-            CloseHandle(mapping);
-            return 37;
-        }
-        g_hostFaultSnapshotEvent.store(snapshotEvent, std::memory_order_release);
-        HANDLE ownerProcess = OpenProcess(SYNCHRONIZE, FALSE, ownerPid);
-        if (!ownerProcess)
-        {
-            g_hostFaultSnapshotEvent.store(nullptr, std::memory_order_release);
-            g_hostFaultShared.store(nullptr, std::memory_order_release);
+            CloseHandle(ownerProcess);
             CloseHandle(snapshotEvent);
             CloseHandle(stopEvent);
             UnmapViewOfFile(shared);
             CloseHandle(mapping);
-            return 36;
+            return 39;
         }
+        g_hostFaultShared.store(shared, std::memory_order_release);
+        g_hostFaultSnapshotEvent.store(snapshotEvent, std::memory_order_release);
 
         HostSetCheckpoint(shared, Checkpoint_ProcessStart);
         InterlockedExchange(&shared->hostPid, static_cast<LONG>(GetCurrentProcessId()));
         InterlockedExchange(&shared->status, Status_Starting);
         InterlockedExchange64(&shared->heartbeatTickMs, static_cast<LONG64>(GetTickCount64()));
-        HostLog(L"session start owner_pid=%lu nonce=%016llX shared=%p", ownerPid, nonce, shared);
+        HostLog(L"session start owner_pid=%lu nonce=%016llX transport=inherited_handles shared=%p",
+            launch.ownerPid, launch.nonce, shared);
 
         HostApi api;
         HostSetCheckpoint(shared, Checkpoint_LoadSdk);
-        if (!LoadHostApi(api, privatePluginPath))
+        if (!LoadHostApi(api, launch.privatePluginPath))
         {
             PublishHostError(shared, static_cast<LONG>(GetLastError()), WootingAnalogResult_DLLNotFound);
             g_hostFaultSnapshotEvent.store(nullptr, std::memory_order_release);
@@ -854,11 +886,10 @@ namespace
     {
     }
 
-    int RunHostCpp(DWORD ownerPid, unsigned long long nonce,
-        const std::wstring& privatePluginPath) noexcept
+    int RunHostCpp(const HostLaunchContext& launch) noexcept
     {
         return static_cast<int>(halljoy::worker::RunWorkerEntryBarrier(
-            [&] { return static_cast<std::uint32_t>(RunHostImpl(ownerPid, nonce, privatePluginPath)); },
+            [&] { return static_cast<std::uint32_t>(RunHostImpl(launch)); },
             ChildHostOnCppFault,
             ChildHostOnCppCompletion,
             0xE0484303u));
@@ -876,12 +907,11 @@ namespace
         }
     }
 
-    int RunHost(DWORD ownerPid, unsigned long long nonce,
-        const std::wstring& privatePluginPath) noexcept
+    int RunHost(const HostLaunchContext& launch) noexcept
     {
         __try
         {
-            return RunHostCpp(ownerPid, nonce, privatePluginPath);
+            return RunHostCpp(launch);
         }
         __except (EXCEPTION_EXECUTE_HANDLER)
         {
@@ -1198,19 +1228,69 @@ namespace
         const DWORD len = GetModuleFileNameW(nullptr, exePath, static_cast<DWORD>(_countof(exePath)));
         if (len == 0 || len >= _countof(exePath))
             return false;
-        wchar_t identity[128]{};
+        std::uintptr_t mappingArgument = reinterpret_cast<std::uintptr_t>(g_client.mapping);
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        if (g_client.injectInvalidIpcHandle)
+        {
+            g_client.injectInvalidIpcHandle = false;
+            mappingArgument += static_cast<std::uintptr_t>(0x100000000ull);
+            StabilityTrace_Write(L"WARN", L"analog-host", L"test.ipc_handle_rejection.injected",
+                L"simulator_only=1 invalid_mapping_handle=1");
+        }
+#endif
+        wchar_t identity[384]{};
         _snwprintf_s(identity, _countof(identity), _TRUNCATE,
-            L" %s %lu %016llX ", kHostArg, g_client.ownerPid, g_client.nonce);
+            L" %s %lu %016llX %016llX %016llX %016llX %016llX ",
+            kHostArg,
+            g_client.ownerPid,
+            g_client.nonce,
+            static_cast<unsigned long long>(mappingArgument),
+            static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(g_client.stopEvent)),
+            static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(g_client.snapshotEvent)),
+            static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(g_client.ownerProcess)));
         std::wstring command = halljoy::windows_command_line::QuoteArgument(exePath);
         command += identity;
         command += halljoy::windows_command_line::QuoteArgument(g_client.privatePluginPath);
-        STARTUPINFOW si{};
-        si.cb = sizeof(si);
+
+        HANDLE inheritedHandles[] = {
+            g_client.mapping,
+            g_client.stopEvent,
+            g_client.snapshotEvent,
+            g_client.ownerProcess,
+        };
+        SIZE_T attributeBytes = 0;
+        InitializeProcThreadAttributeList(nullptr, 1, 0, &attributeBytes);
+        if (attributeBytes == 0)
+            return false;
+        std::vector<unsigned char> attributeStorage(attributeBytes);
+        STARTUPINFOEXW si{};
+        si.StartupInfo.cb = sizeof(si);
+        si.lpAttributeList = reinterpret_cast<PPROC_THREAD_ATTRIBUTE_LIST>(attributeStorage.data());
+        if (!InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &attributeBytes))
+            return false;
+        if (!UpdateProcThreadAttribute(
+            si.lpAttributeList,
+            0,
+            PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+            inheritedHandles,
+            sizeof(inheritedHandles),
+            nullptr,
+            nullptr))
+        {
+            const DWORD error = GetLastError();
+            DeleteProcThreadAttributeList(si.lpAttributeList);
+            SetLastError(error);
+            return false;
+        }
         ZeroMemory(&pi, sizeof(pi));
-        const DWORD creationFlags = CREATE_NO_WINDOW |
+        const DWORD creationFlags = CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT |
             (kUseChildDebugger ? DEBUG_ONLY_THIS_PROCESS : 0u);
-        const BOOL ok = CreateProcessW(exePath, command.data(), nullptr, nullptr, FALSE,
-            creationFlags, nullptr, nullptr, &si, &pi);
+        const BOOL ok = CreateProcessW(exePath, command.data(), nullptr, nullptr, TRUE,
+            creationFlags, nullptr, nullptr, &si.StartupInfo, &pi);
+        const DWORD error = ok ? ERROR_SUCCESS : GetLastError();
+        DeleteProcThreadAttributeList(si.lpAttributeList);
+        if (!ok)
+            SetLastError(error);
         return ok != FALSE;
     }
 
@@ -1239,6 +1319,7 @@ namespace
             }
 
             PROCESS_INFORMATION pi{};
+            g_client.expectedHostPid.store(0, std::memory_order_release);
             if (!CreateHostProcess(pi))
             {
                 const DWORD error = GetLastError();
@@ -1250,6 +1331,7 @@ namespace
                 ++restartCount;
                 continue;
             }
+            g_client.expectedHostPid.store(pi.dwProcessId, std::memory_order_release);
 
             bool restartAllowed = true;
             if (!AssignProcessToJobObject(g_client.job, pi.hProcess))
@@ -1444,6 +1526,7 @@ namespace
                     g_client.stopping.load(std::memory_order_acquire) ? Status_Stopped : Status_Restarting,
                     static_cast<LONG>(processExitCode), g_client.snapshotEvent);
             }
+            g_client.expectedHostPid.store(0, std::memory_order_release);
             DebugLog_Write(L"[analog.host] exited code=0x%08lX captured=%d restart=%d",
                 processExitCode, crashCaptured ? 1 : 0,
                 g_client.stopping.load(std::memory_order_acquire) ? 0 : 1);
@@ -1454,6 +1537,14 @@ namespace
                 L"pid=%lu code=0x%08lX captured=%d restart=%d",
                 pi.dwProcessId, processExitCode, crashCaptured ? 1 : 0,
                 g_client.stopping.load(std::memory_order_acquire) ? 0 : 1);
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+            if (restartCount == 0 && processExitCode == 31 &&
+                wcsstr(GetCommandLineW(), L"--halljoy-test-analog-host-ipc-handle-rejection"))
+            {
+                StabilityTrace_Write(L"INFO", L"analog-host", L"ipc.handle_rejected",
+                    L"invalid_mapping_handle=1 child_exit=31 restart_allowed=1");
+            }
+#endif
 
             if (g_client.stopping.load(std::memory_order_acquire) || !restartAllowed ||
                 g_client.restartBlocked.load(std::memory_order_acquire))
@@ -1677,7 +1768,7 @@ namespace
     bool ClientOwnsResourcesLocked() noexcept
     {
         return g_client.mapping || g_client.shared || g_client.stopEvent ||
-            g_client.snapshotEvent || g_client.snapshotBridgeThread ||
+            g_client.snapshotEvent || g_client.ownerProcess || g_client.snapshotBridgeThread ||
             g_client.supervisorThread || g_client.supervisorReadyEvent || g_client.job;
     }
 
@@ -1689,6 +1780,7 @@ namespace
         if (g_client.mapping) CloseHandle(g_client.mapping);
         if (g_client.stopEvent) CloseHandle(g_client.stopEvent);
         if (g_client.snapshotEvent) CloseHandle(g_client.snapshotEvent);
+        if (g_client.ownerProcess) CloseHandle(g_client.ownerProcess);
         if (g_client.supervisorReadyEvent) CloseHandle(g_client.supervisorReadyEvent);
         if (g_client.job) CloseHandle(g_client.job);
         g_client.snapshotBridgeThread = nullptr;
@@ -1698,7 +1790,9 @@ namespace
         g_client.mapping = nullptr;
         g_client.stopEvent = nullptr;
         g_client.snapshotEvent = nullptr;
+        g_client.ownerProcess = nullptr;
         g_client.supervisorReadyEvent = nullptr;
+        g_client.expectedHostPid.store(0, std::memory_order_release);
     }
 
     bool WaitForClientWorkers(HANDLE bridge, HANDLE supervisor, DWORD timeoutMs, DWORD* waitResult) noexcept
@@ -1729,7 +1823,7 @@ namespace
         }
         if (g_client.lifecycle.State() == halljoy::lifecycle::WorkerState::Running &&
             g_client.mapping && g_client.shared && g_client.stopEvent && g_client.snapshotEvent &&
-            g_client.snapshotBridgeThread && g_client.supervisorThread)
+            g_client.ownerProcess && g_client.snapshotBridgeThread && g_client.supervisorThread)
         {
             ReleaseSRWLockExclusive(&g_client.lock);
             return true;
@@ -1762,42 +1856,84 @@ namespace
         }
 
         g_client.ownerPid = GetCurrentProcessId();
-        LARGE_INTEGER qpc{};
-        QueryPerformanceCounter(&qpc);
-        g_client.nonce = (static_cast<unsigned long long>(qpc.QuadPart) << 17) ^
-            (static_cast<unsigned long long>(GetTickCount64()) << 7) ^ g_client.ownerPid;
-        if (g_client.nonce == 0) g_client.nonce = 1;
-        g_client.mappingName = BuildIpcName(L"Map", g_client.ownerPid, g_client.nonce);
-        g_client.stopEventName = BuildIpcName(L"Stop", g_client.ownerPid, g_client.nonce);
-        g_client.snapshotEventName = BuildIpcName(L"Snapshot", g_client.ownerPid, g_client.nonce);
+        if (!GenerateLaunchNonce(g_client.nonce))
+        {
+            const DWORD error = ERROR_GEN_FAILURE;
+            (void)g_client.lifecycle.FailStartBeforeWorker(start.generation, error);
+            ReleaseSRWLockExclusive(&g_client.lock);
+            DebugLog_Write(L"[analog.host] secure launch nonce generation failed");
+            return false;
+        }
 
+        DWORD resourceError = ERROR_SUCCESS;
         g_client.job = CreateJobObjectW(nullptr, nullptr);
-        if (g_client.job)
+        if (!g_client.job)
+        {
+            resourceError = GetLastError();
+        }
+        else
         {
             JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
             limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
             if (!SetInformationJobObject(g_client.job, JobObjectExtendedLimitInformation, &limits, sizeof(limits)))
             {
+                resourceError = GetLastError();
                 CloseHandle(g_client.job);
                 g_client.job = nullptr;
             }
         }
 
-        g_client.mapping = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0,
-            static_cast<DWORD>(sizeof(SharedState)), g_client.mappingName.c_str());
-        if (g_client.mapping)
-            g_client.shared = static_cast<SharedState*>(MapViewOfFile(g_client.mapping, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(SharedState)));
-        g_client.stopEvent = CreateEventW(nullptr, TRUE, FALSE, g_client.stopEventName.c_str());
-        g_client.snapshotEvent = CreateEventW(nullptr, FALSE, FALSE, g_client.snapshotEventName.c_str());
-        g_client.supervisorReadyEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-        if (!g_client.job || !g_client.mapping || !g_client.shared || !g_client.stopEvent ||
-            !g_client.snapshotEvent || !g_client.supervisorReadyEvent)
+        SECURITY_ATTRIBUTES inheritedSecurity{};
+        inheritedSecurity.nLength = sizeof(inheritedSecurity);
+        inheritedSecurity.bInheritHandle = TRUE;
+        if (resourceError == ERROR_SUCCESS)
         {
-            const DWORD error = GetLastError();
+            g_client.mapping = CreateFileMappingW(INVALID_HANDLE_VALUE, &inheritedSecurity, PAGE_READWRITE, 0,
+                static_cast<DWORD>(sizeof(SharedState)), nullptr);
+            if (!g_client.mapping)
+                resourceError = GetLastError();
+        }
+        if (resourceError == ERROR_SUCCESS)
+        {
+            g_client.shared = static_cast<SharedState*>(MapViewOfFile(g_client.mapping, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(SharedState)));
+            if (!g_client.shared)
+                resourceError = GetLastError();
+        }
+        if (resourceError == ERROR_SUCCESS)
+        {
+            g_client.stopEvent = CreateEventW(&inheritedSecurity, TRUE, FALSE, nullptr);
+            if (!g_client.stopEvent)
+                resourceError = GetLastError();
+        }
+        if (resourceError == ERROR_SUCCESS)
+        {
+            g_client.snapshotEvent = CreateEventW(&inheritedSecurity, FALSE, FALSE, nullptr);
+            if (!g_client.snapshotEvent)
+                resourceError = GetLastError();
+        }
+        if (resourceError == ERROR_SUCCESS && !DuplicateHandle(
+            GetCurrentProcess(),
+            GetCurrentProcess(),
+            GetCurrentProcess(),
+            &g_client.ownerProcess,
+            SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION,
+            TRUE,
+            0))
+        {
+            resourceError = GetLastError();
+        }
+        if (resourceError == ERROR_SUCCESS)
+        {
+            g_client.supervisorReadyEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+            if (!g_client.supervisorReadyEvent)
+                resourceError = GetLastError();
+        }
+        if (resourceError != ERROR_SUCCESS)
+        {
             CloseClientResourcesLocked();
-            (void)g_client.lifecycle.FailStartBeforeWorker(start.generation, error);
+            (void)g_client.lifecycle.FailStartBeforeWorker(start.generation, resourceError);
             ReleaseSRWLockExclusive(&g_client.lock);
-            DebugLog_Write(L"[analog.host] IPC creation failed err=%lu", error);
+            DebugLog_Write(L"[analog.host] inherited IPC creation failed err=%lu", resourceError);
             return false;
         }
 
@@ -1805,6 +1941,8 @@ namespace
         g_client.shared->magic = kMagic;
         g_client.shared->version = kVersion;
         g_client.shared->structSize = sizeof(SharedState);
+        InterlockedExchange(&g_client.shared->ownerPid, static_cast<LONG>(g_client.ownerPid));
+        InterlockedExchange64(&g_client.shared->launchNonce, static_cast<LONG64>(g_client.nonce));
         g_client.shared->status = Status_Stopped;
         g_client.shared->requestedKeycodeMode = WootingAnalog_KeycodeType_HID;
         g_client.shared->appliedKeycodeMode = -1;
@@ -1814,6 +1952,8 @@ namespace
             wcsstr(commandLine, L"--halljoy-test-analog-host-supervisor-cpp-fault") != nullptr;
         g_client.injectChildReapTimeout = commandLine &&
             wcsstr(commandLine, L"--halljoy-test-analog-host-child-reap-timeout") != nullptr;
+        g_client.injectInvalidIpcHandle = commandLine &&
+            wcsstr(commandLine, L"--halljoy-test-analog-host-ipc-handle-rejection") != nullptr;
         if (commandLine &&
             wcsstr(commandLine, L"--halljoy-test-analog-host-child-cpp-fault") != nullptr)
         {
@@ -1822,7 +1962,10 @@ namespace
 #else
         g_client.injectSupervisorCppFault = false;
         g_client.injectChildReapTimeout = false;
+        g_client.injectInvalidIpcHandle = false;
 #endif
+        StabilityTrace_Write(L"INFO", L"analog-host", L"ipc.policy",
+            L"transport=inherited_handles named_objects=0 handle_list=1 owner_handle=1 generation_bound=1");
 #if defined(HALLJOY_DIAGNOSTIC)
         if (wcsstr(GetCommandLineW(), L"--diagnostic-analog-host-crash-test"))
             g_client.shared->diagnosticCrashAfterPolls = 250;
@@ -1907,7 +2050,8 @@ namespace
         ReleaseSRWLockExclusive(&g_client.lock);
 
         WaitForSingleObject(supervisorReadyEvent, 2000);
-        DebugLog_Write(L"[analog.host] isolation client started map=%s snapshot_event=%s", g_client.mappingName.c_str(), g_client.snapshotEventName.c_str());
+        DebugLog_Write(L"[analog.host] isolation client started transport=inherited_handles generation=%016llX",
+            g_client.nonce);
         return true;
     }
 }
@@ -1925,12 +2069,10 @@ void AnalogHostClient_ResetDiagnosticFiles()
 
 bool AnalogHost_TryRunCommand(int& exitCode)
 {
-    DWORD ownerPid = 0;
-    unsigned long long nonce = 0;
-    std::wstring privatePluginPath;
-    if (!ParseHostCommand(ownerPid, nonce, privatePluginPath))
+    HostLaunchContext launch;
+    if (!ParseHostCommand(launch))
         return false;
-    exitCode = RunHost(ownerPid, nonce, privatePluginPath);
+    exitCode = RunHost(launch);
     return true;
 }
 
@@ -1945,6 +2087,23 @@ int AnalogHostClient_Initialise()
         const LONG status = InterlockedCompareExchange(&g_client.shared->status, 0, 0);
         if (status == Status_Ready)
         {
+            const DWORD expectedHostPid = g_client.expectedHostPid.load(std::memory_order_acquire);
+            const DWORD publishedHostPid = static_cast<DWORD>(
+                InterlockedCompareExchange(&g_client.shared->hostPid, 0, 0));
+            if (expectedHostPid == 0)
+            {
+                Sleep(1);
+                continue;
+            }
+            if (publishedHostPid != expectedHostPid)
+            {
+                g_client.restartBlocked.store(true, std::memory_order_release);
+                SetEvent(g_client.stopEvent);
+                StabilityTrace_WriteCritical(L"ERROR", L"analog-host", L"child.identity_rejected",
+                    L"expected_pid=%lu published_pid=%lu restart_blocked=1",
+                    expectedHostPid, publishedHostPid);
+                return WootingAnalogResult_Failure;
+            }
             const int result = InterlockedCompareExchange(&g_client.shared->initResult, 0, 0);
             DebugLog_Write(L"[analog.host] ready init_result=%d pid=%ld restarts=%ld",
                 result,
@@ -1967,8 +2126,12 @@ int AnalogHostClient_Initialise()
 
 bool AnalogHostClient_IsInitialised()
 {
-    return g_client.shared &&
-        InterlockedCompareExchange(&g_client.shared->status, 0, 0) == Status_Ready;
+    if (!g_client.shared ||
+        InterlockedCompareExchange(&g_client.shared->status, 0, 0) != Status_Ready)
+        return false;
+    const DWORD expectedHostPid = g_client.expectedHostPid.load(std::memory_order_acquire);
+    return expectedHostPid != 0 &&
+        static_cast<DWORD>(InterlockedCompareExchange(&g_client.shared->hostPid, 0, 0)) == expectedHostPid;
 }
 
 bool AnalogHostClient_GetTelemetry(AnalogHostTelemetry* out)

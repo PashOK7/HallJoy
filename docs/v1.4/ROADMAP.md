@@ -350,13 +350,26 @@ Progress:
 - `HJ-AUD-P1-011` and `HJ-AUD-P2-005` are Verified. No external ASI binary was
   available for an attach test, so the compatibility claim is limited to the
   unchanged name, offsets, version and simulator-emulated legacy slot.
+- `V14-10B` analog-host IPC capability transport: Verified locally. Mapping,
+  stop/snapshot events and the owner-process reference are unnamed kernel
+  objects passed only through `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`; the child no
+  longer discovers any transport object by name. A CSPRNG token and owner PID
+  bind shared schema v10, the child verifies every inherited handle/schema/
+  owner tuple, and the parent accepts Ready only from the PID it created.
+- The invalid-handle simulator gate proved exit 31 before shared-state use,
+  followed by one bounded restart and normal pipeline completion. All five
+  prior analog-host generation/fault scenarios, static/portable gates, the
+  production build and Irok route/balanced shutdown also pass.
+- `HJ-AUD-P1-012` is Verified. This removes named precreation/spoofing; it is
+  not a sandbox against a process already authorized to tamper with HallJoy's
+  process handles or memory.
 
 Remaining:
 
-- `V14-10B`: prevent analog-host named IPC precreation/spoofing and verify its
-  ACL, identity and generation contract (`HJ-AUD-P1-012`).
-- Later V14-10 packages: overlay framing, bounded parsing/overflow, origin,
-  concurrency and shutdown gates (`HJ-AUD-P2-001` through `HJ-AUD-P2-004`).
+- `V14-10C`: overlay HTTP framing plus bounded parsing/overflow
+  (`HJ-AUD-P2-002` and `HJ-AUD-P2-003`).
+- `V14-10D`: overlay origin, concurrency and shutdown gates
+  (`HJ-AUD-P2-001` and `HJ-AUD-P2-004`).
 
 ## Release definition
 

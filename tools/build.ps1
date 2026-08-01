@@ -58,6 +58,7 @@ $required = @(
     (Join-Path $hallJoyRoot 'tests\persistence_transaction_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\storage_migration_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\mouse_ipc_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\analog_host_ipc_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\transactional_file_store_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\dependency_lock_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\native_analog_backend_contract_test.cpp'),

@@ -212,3 +212,26 @@ volatile reads.
 This decision closes Mouse IPC creation/schema and memory-order correctness
 only. Analog-host authentication, ACL and precreation resistance remain the
 separate V14-10B scope.
+
+## D-018 - Analog-host IPC is an inherited kernel capability
+
+Date: 2026-08-01
+
+The isolated analog host must not discover transport objects through names.
+The parent creates an unnamed shared mapping, unnamed stop/snapshot events and
+a real handle to the parent process. `CreateProcessW` inherits only these four
+capabilities through `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`; the child consumes
+the inherited handle values directly. No analog-host mapping or event exists
+in the named-object namespace, so another same-session process cannot win a
+name-creation race or substitute an object under the expected name.
+
+The internal shared schema is v10 and binds an owner PID plus a CSPRNG launch
+token. Before publishing anything, the child validates all four handles, the
+full schema tuple, token and `GetProcessId` result of the owner handle. The
+parent separately compares the shared `hostPid` with the PID returned by its
+own `CreateProcessW` before accepting Ready. A mismatch blocks restart.
+
+This is a capability and accidental/spoofed named-object boundary, not an OS
+sandbox. A process already permitted to modify HallJoy memory or duplicate its
+private handles is outside this threat model. Child job containment and the
+existing bounded generation lifecycle remain unchanged.

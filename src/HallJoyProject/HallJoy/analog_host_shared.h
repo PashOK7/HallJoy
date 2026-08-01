@@ -13,7 +13,7 @@
 namespace HallJoyAnalogHost
 {
     constexpr std::uint32_t kMagic = 0x39414A48u; // "HJA9"
-    constexpr std::uint32_t kVersion = 9;
+    constexpr std::uint32_t kVersion = 10;
     constexpr std::uint32_t kMaxKeys = HallJoyDenseSnapshot::kKeyCount;
     constexpr std::uint32_t kMaxDevices = HallJoyPluginTelemetry::kMaxDevices;
 
@@ -74,7 +74,8 @@ namespace HallJoyAnalogHost
         std::uint32_t magic;
         std::uint32_t version;
         std::uint32_t structSize;
-        std::uint32_t reserved0;
+        volatile LONG ownerPid;
+        alignas(8) volatile LONG64 launchNonce;
 
         // Snapshot seqlock: odd while the host writes, even while stable.
         volatile LONG snapshotSequence;

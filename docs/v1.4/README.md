@@ -14,8 +14,10 @@ version or release status.
 - Completed hotfix: `V14-06D.1` SparkLink shutdown/reconnect race, Verified
 - Completed subpackage: `V14-10A` Mouse IPC creation, schema and atomic-read
   correctness, Verified locally
+- Completed subpackage: `V14-10B` analog-host inherited-handle IPC,
+  Verified locally
 - Current package: `V14-10` in progress
-- Next work: `V14-10B` analog-host IPC precreation/spoofing resistance
+- Next work: `V14-10C` overlay HTTP framing and bounded parsing
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -39,6 +41,10 @@ later Win32 call can overwrite it, never clears a pre-existing Mouse IPC
 payload, validates the stable 40-byte v1 schema, and uses interlocked reads for
 peer-written connection fields. Simulator policy tests, the full build and an
 Irok startup/route/shutdown smoke pass; an external ASI attach was not exercised.
+V14-10B removes the analog-host named-object attack surface: its mapping,
+events and owner-process capability are unnamed handles inherited only by the
+created child through an explicit handle list. The v10 shared schema binds the
+owner PID and CSPRNG launch token, and both sides validate child identity.
 
 ## Authoritative documents
 

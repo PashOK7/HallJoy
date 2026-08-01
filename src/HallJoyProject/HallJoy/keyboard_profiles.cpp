@@ -2,17 +2,15 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#include <shlobj.h>     // SHGetKnownFolderPath
-#pragma comment(lib, "ole32.lib")
-
 #include <string>
 #include <vector>
 #include <algorithm>
 #include <filesystem>
 
 #include "keyboard_profiles.h"
+#include "app_paths.h"
+#include "file_name_policy.h"
 #include "ini_util.h"
-#include "win_util.h"
 
 namespace fs = std::filesystem;
 
@@ -29,28 +27,6 @@ static bool g_stateLoaded = false;
 // ----------------------------------------------------------------------------
 // Small helpers
 // ----------------------------------------------------------------------------
-static std::wstring SanitizeFileName(const std::wstring& name)
-{
-    std::wstring s = name;
-
-    // trim spaces
-    while (!s.empty() && s.front() == L' ') s.erase(s.begin());
-    while (!s.empty() && s.back() == L' ') s.pop_back();
-
-    const wchar_t* bad = L"<>:\"/\\|?*";
-    for (size_t i = 0; i < s.size(); ++i)
-    {
-        if (wcschr(bad, s[i]) || s[i] < 32)
-            s[i] = L'_';
-    }
-
-    // no trailing dot/space
-    while (!s.empty() && (s.back() == L'.' || s.back() == L' ')) s.pop_back();
-
-    if (s.empty()) s = L"New Preset";
-    return s;
-}
-
 static bool EnsureDirExists(const std::wstring& dir)
 {
     std::error_code ec;
@@ -59,85 +35,9 @@ static bool EnsureDirExists(const std::wstring& dir)
     return fs::create_directories(dir, ec);
 }
 
-static bool TestDirWritable(const std::wstring& dir)
-{
-    if (dir.empty()) return false;
-
-    std::wstring tmp = dir;
-    if (!tmp.empty() && tmp.back() != L'\\' && tmp.back() != L'/')
-        tmp += L'\\';
-    tmp += L"~dd_curvepreset_write_test.tmp";
-
-    HANDLE h = CreateFileW(tmp.c_str(),
-        GENERIC_WRITE,
-        FILE_SHARE_READ,
-        nullptr,
-        CREATE_ALWAYS,
-        FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_HIDDEN,
-        nullptr);
-
-    if (h == INVALID_HANDLE_VALUE)
-        return false;
-
-    const char data[4] = { 'T','E','S','T' };
-    DWORD written = 0;
-    BOOL ok = WriteFile(h, data, (DWORD)sizeof(data), &written, nullptr);
-    CloseHandle(h);
-
-    DeleteFileW(tmp.c_str());
-    return ok && (written == sizeof(data));
-}
-
-static std::wstring TryGetLocalAppDataPresetsDir()
-{
-    PWSTR p = nullptr;
-    if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_DEFAULT, nullptr, &p)) || !p)
-        return L"";
-
-    std::wstring base = p;
-    CoTaskMemFree(p);
-
-    // New folder (no backward compatibility required)
-    return base + L"\\HallJoy\\CurvePresets";
-}
-
-// FIX: cache presets dir to avoid repeated write-test file creation on every call
 static const std::wstring& GetPresetsDir()
 {
-    static std::wstring cached;
-    static bool inited = false;
-    if (inited) return cached;
-
-    // 1) Prefer near exe if writable
-    {
-        std::wstring dirExe = WinUtil_BuildPathNearExe(L"CurvePresets");
-        if (EnsureDirExists(dirExe) && TestDirWritable(dirExe))
-        {
-            cached = dirExe;
-            inited = true;
-            return cached;
-        }
-    }
-
-    // 2) Fallback to LocalAppData
-    {
-        std::wstring dirApp = TryGetLocalAppDataPresetsDir();
-        if (!dirApp.empty())
-        {
-            if (EnsureDirExists(dirApp) && TestDirWritable(dirApp))
-            {
-                cached = dirApp;
-                inited = true;
-                return cached;
-            }
-        }
-    }
-
-    // Last resort (may be read-only, but predictable)
-    cached = WinUtil_BuildPathNearExe(L"CurvePresets");
-    EnsureDirExists(cached);
-    inited = true;
-    return cached;
+    return AppPaths_CurvePresetsDir();
 }
 
 // Persist UI state in a tiny INI inside presets dir
@@ -165,7 +65,7 @@ static void LoadStateOnce()
 
     wchar_t buf[260]{};
     GetPrivateProfileStringW(L"UI", L"ActiveName", L"", buf, 260, stPath.c_str());
-    g_activeName = buf;
+    g_activeName = FileNamePolicy_NormalizeStem(buf);
 
     // We don't persist dirty; always start clean (UI will compute it anyway)
     g_dirty = false;
@@ -448,15 +348,21 @@ namespace KeyboardProfiles
         }
 
         std::sort(outList.begin(), outList.end(), [](const ProfileInfo& a, const ProfileInfo& b) {
-            return _wcsicmp(a.name.c_str(), b.name.c_str()) < 0;
+            const std::wstring leftKey = FileNamePolicy_CanonicalKey(a.name);
+            const std::wstring rightKey = FileNamePolicy_CanonicalKey(b.name);
+            if (leftKey != rightKey) return leftKey < rightKey;
+            return _wcsicmp(a.path.c_str(), b.path.c_str()) < 0;
             });
+        outList.erase(std::unique(outList.begin(), outList.end(), [](const ProfileInfo& a, const ProfileInfo& b) {
+            return FileNamePolicy_Equivalent(a.name, b.name);
+            }), outList.end());
 
         int activeIdx = -1;
         if (!g_activeName.empty())
         {
             for (int i = 0; i < (int)outList.size(); ++i)
             {
-                if (_wcsicmp(outList[i].name.c_str(), g_activeName.c_str()) == 0)
+                if (FileNamePolicy_Equivalent(outList[i].name, g_activeName))
                 {
                     activeIdx = i;
                     break;
@@ -512,7 +418,7 @@ namespace KeyboardProfiles
         const std::wstring previousPath = g_activePath;
         const bool previousDirty = g_dirty;
         fs::path pp(path);
-        g_activeName = pp.stem().wstring();
+        g_activeName = FileNamePolicy_NormalizeStem(pp.stem().wstring());
         g_activePath = path;
         g_dirty = false;
         if (!SaveState())
@@ -530,18 +436,15 @@ namespace KeyboardProfiles
     {
         LoadStateOnce();
 
-        std::wstring safeName = SanitizeFileName(name);
+        std::wstring safeName = FileNamePolicy_NormalizeStem(name);
+        if (safeName.empty()) return false;
 
         std::wstring dir = GetPresetsDir();
-        EnsureDirExists(dir);
+        if (!EnsureDirExists(dir)) return false;
 
-        std::wstring path = dir + L"\\" + safeName + L".ini";
-
-        int counter = 1;
-        while (GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES)
-        {
-            path = dir + L"\\" + safeName + L" (" + std::to_wstring(counter++) + L").ini";
-        }
+        std::wstring path;
+        if (!FileNamePolicy_MakeUniqueChildPath(dir, safeName, L".ini", safeName, path))
+            return false;
 
         if (SavePreset(path, ks))
             return true;
@@ -572,7 +475,7 @@ namespace KeyboardProfiles
         {
             fs::path pp(path);
             std::wstring name = pp.stem().wstring();
-            if (_wcsicmp(name.c_str(), g_activeName.c_str()) == 0)
+            if (FileNamePolicy_Equivalent(name, g_activeName))
                 isActive = true;
         }
 
@@ -597,12 +500,15 @@ namespace KeyboardProfiles
     {
         LoadStateOnce();
 
-        if (_wcsicmp(g_activeName.c_str(), name.c_str()) == 0)
+        const std::wstring normalizedName = name.empty() ? L"" : FileNamePolicy_NormalizeStem(name);
+        if (!name.empty() && normalizedName.empty()) return false;
+
+        if ((g_activeName.empty() && normalizedName.empty()) || FileNamePolicy_Equivalent(g_activeName, normalizedName))
             return true;
 
         const std::wstring previousName = g_activeName;
         const std::wstring previousPath = g_activePath;
-        g_activeName = name;
+        g_activeName = normalizedName;
 
         // IMPORTANT: path is not persisted; force re-resolve on next RefreshList()
         g_activePath.clear();

@@ -221,6 +221,7 @@
     <ClInclude Include="analog_simulator_model.h" />
     <ClInclude Include="app_deps.h" />
     <ClInclude Include="app_paths.h" />
+    <ClInclude Include="file_name_policy.h" />
     <ClInclude Include="backend.h" />
     <ClInclude Include="backend_sparklink.inc" />
     <ClInclude Include="backend_sayo.inc" />
@@ -308,6 +309,7 @@
     </ClCompile>
     <ClCompile Include="app_deps.cpp" />
     <ClCompile Include="app_paths.cpp" />
+    <ClCompile Include="file_name_policy.cpp" />
     <ClCompile Include="backend.cpp" />
     <ClCompile Include="backend_curve.cpp" />
     <ClCompile Include="bindings.cpp" />

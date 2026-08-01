@@ -33,6 +33,9 @@
     <ClCompile Include="app_paths.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="file_name_policy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="backend.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -216,6 +219,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="app_paths.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="file_name_policy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="backend.h">

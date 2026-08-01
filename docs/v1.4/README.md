@@ -9,11 +9,11 @@ version or release status.
 
 - Product version: `v1.4` (in development)
 - Working branch: `v1.4-integration`
-- Completed package: `V14-09B` transactional layout, curve preset and curve
-  state persistence
+- Completed package: `V14-09` transactional persistence, writable-state
+  migration and filename hardening
 - Completed hotfix: `V14-06D.1` SparkLink shutdown/reconnect race, Verified
-- Current package: `V14-09` in progress
-- Next package: `V14-09C` writable-state migration and profile-name hardening
+- Current package: `V14-10` planned
+- Next work: begin `V14-10` IPC and overlay security/correctness
 - GitHub publication: not started
 - Release status: not release-ready
 
@@ -27,7 +27,12 @@ realtime loop and dedicated ViGEm output worker start and stop cleanly while the
 new transactional settings path commits without a persistence error. V14-09B
 extends that contract to layout and curve files; all five injected failure
 stages preserve the six known-good file hashes, and the production build reads
-the user's legacy presets without migration or persistence errors.
+the user's legacy presets without persistence errors. V14-09C now defaults all
+mutable state to `%LOCALAPPDATA%\HallJoy`, performs a source-preserving one-time
+transactional migration with a hash-verified backup, and uses one NFC,
+case-folded, reserved-name-safe filename policy for profiles and presets. The
+real first migration and replay launch passed with the Irok route connected and
+balanced shutdown.
 
 ## Authoritative documents
 

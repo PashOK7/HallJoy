@@ -20,6 +20,11 @@ param(
     [switch]$InjectVigemUpdateStall,
     [ValidateSet('prepare', 'write', 'flush', 'validate', 'replace')]
     [string]$InjectPersistenceFailure,
+    [string]$StorageDataRoot,
+    [string]$StorageLegacyRoot,
+    [switch]$RequireStorageMigration,
+    [switch]$RequireStorageMigrationFailure,
+    [switch]$UsePortableStorage,
     [ValidateRange(7, 120)]
     [int]$RunSeconds = 8
 )
@@ -51,6 +56,16 @@ if ($injectionCount -gt 1) {
 }
 if ($StartOverlay -and $injectionCount -ne 0) {
     throw 'StartOverlay cannot be combined with a fault-injection scenario.'
+}
+if ($UsePortableStorage -and (-not [string]::IsNullOrWhiteSpace($StorageDataRoot) -or
+    -not [string]::IsNullOrWhiteSpace($StorageLegacyRoot))) {
+    throw 'Portable storage cannot be combined with simulator root overrides.'
+}
+if ($RequireStorageMigrationFailure -and [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
+    throw 'RequireStorageMigrationFailure requires InjectPersistenceFailure.'
+}
+if ($RequireStorageMigrationFailure -and ($RequireStorageMigration -or $UsePortableStorage)) {
+    throw 'Migration failure verification cannot be combined with successful or portable migration verification.'
 }
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -117,18 +132,31 @@ if (-not $SkipBuild) {
 if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
     throw "Simulator executable was not produced: $exe"
 }
-$persistenceSettings = Join-Path $output 'settings.ini'
+if ($UsePortableStorage) {
+    $effectiveDataRoot = $output
+} else {
+    if ([string]::IsNullOrWhiteSpace($StorageDataRoot)) {
+        $StorageDataRoot = Join-Path $output 'SimulatorData'
+    }
+    if ([string]::IsNullOrWhiteSpace($StorageLegacyRoot)) {
+        $StorageLegacyRoot = $StorageDataRoot
+    }
+    $effectiveDataRoot = [IO.Path]::GetFullPath($StorageDataRoot)
+    $StorageLegacyRoot = [IO.Path]::GetFullPath($StorageLegacyRoot)
+    New-Item -ItemType Directory -Path $effectiveDataRoot,$StorageLegacyRoot -Force | Out-Null
+}
+$persistenceSettings = Join-Path $effectiveDataRoot 'settings.ini'
 $persistenceProbePaths = @()
 $persistenceHashesBefore = @{}
-if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
+if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure) -and -not $RequireStorageMigrationFailure) {
     if (-not (Test-Path -LiteralPath $persistenceSettings -PathType Leaf)) {
         throw 'Persistence fault injection requires one normal simulator run to create a known-good settings.ini baseline.'
     }
-    $bindingsProbe = (Join-Path $output 'bindings.ini.transaction-probe')
-    $overlayProbe = (Join-Path $output 'settings.ini.overlay-transaction-probe')
-    $layoutProbe = (Join-Path $output 'settings.ini.layout-transaction-probe')
-    $curveProbe = (Join-Path $output 'settings.ini.curve-transaction-probe')
-    $curveStateProbe = (Join-Path $output 'settings.ini.curve-state-transaction-probe')
+    $bindingsProbe = (Join-Path $effectiveDataRoot 'bindings.ini.transaction-probe')
+    $overlayProbe = (Join-Path $effectiveDataRoot 'settings.ini.overlay-transaction-probe')
+    $layoutProbe = (Join-Path $effectiveDataRoot 'settings.ini.layout-transaction-probe')
+    $curveProbe = (Join-Path $effectiveDataRoot 'settings.ini.curve-transaction-probe')
+    $curveStateProbe = (Join-Path $effectiveDataRoot 'settings.ini.curve-state-transaction-probe')
     [IO.File]::WriteAllText($bindingsProbe, "KNOWN_GOOD_BINDINGS_PROBE`r`n", [Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllText($overlayProbe, "KNOWN_GOOD_OVERLAY_PROBE`r`n", [Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllText($layoutProbe, "KNOWN_GOOD_LAYOUT_PROBE`r`n", [Text.UTF8Encoding]::new($false))
@@ -150,7 +178,10 @@ if (Test-Path -LiteralPath $trace) {
     Remove-Item -LiteralPath $trace -Force
 }
 
-$arguments = @('--halljoy-simulate-analog=script')
+$arguments = @('--halljoy-simulate-analog=script', '--halljoy-test-storage-policy')
+if (-not $UsePortableStorage) {
+    $arguments += @('--halljoy-test-data-root', $effectiveDataRoot, '--halljoy-test-legacy-root', $StorageLegacyRoot)
+}
 if ($ForceUserUapRuntime) {
     $arguments += '--halljoy-test-uap-exe-write-denied'
 }
@@ -288,7 +319,11 @@ if ($InjectNativePhaseStartFailure -and $process.ExitCode -ne 0) {
 if ($InjectVigemUpdateStall -and $process.ExitCode -ne 2) {
     throw "ViGEm-update-stall simulator exited with code $($process.ExitCode), expected 2."
 }
-if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure) -and $process.ExitCode -ne 0) {
+if ($RequireStorageMigrationFailure -and $process.ExitCode -ne 1) {
+    throw "Migration-failure simulator exited with code $($process.ExitCode), expected 1."
+}
+if (-not $RequireStorageMigrationFailure -and
+    -not [string]::IsNullOrEmpty($InjectPersistenceFailure) -and $process.ExitCode -ne 0) {
     throw "Persistence-failure simulator exited with code $($process.ExitCode), expected 0."
 }
 if (-not $isFaultInjection -and $process.ExitCode -ne 0) {
@@ -299,7 +334,11 @@ if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
 }
 
 $traceText = Get-Content -LiteralPath $trace -Raw -Encoding UTF8
-$required = if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) { @(
+$required = if ($RequireStorageMigrationFailure) { @(
+    "[component=persistence][event=save.failure] kind=migration backup stage=$InjectPersistenceFailure",
+    '[component=storage][event=root.failed]',
+    '[component=main][event=session.end] exit_code=1'
+) } elseif (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) { @(
     "[component=persistence][event=save.failure] kind=settings stage=$InjectPersistenceFailure",
     "[component=persistence][event=save.failure] kind=bindings stage=$InjectPersistenceFailure",
     "[component=persistence][event=save.failure] kind=overlay settings stage=$InjectPersistenceFailure",
@@ -448,6 +487,25 @@ $required = if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) { @(
     '[component=backend][event=shutdown.end]'
 ) }
 $missing = @($required | Where-Object { -not $traceText.Contains($_) })
+$storageRequired = @()
+if (-not $RequireStorageMigrationFailure) {
+    $storageRequired += '[component=storage][event=policy.self_test] passed=1'
+}
+if ($RequireStorageMigrationFailure) {
+    # Storage initialization intentionally stops before root.ready and policy.self_test.
+} elseif ($RequireStorageMigration) {
+    $storageRequired += @(
+        '[component=storage][event=migration.begin]',
+        '[component=storage][event=migration.complete]',
+        'source_preserved=1',
+        '[component=storage][event=root.ready] mode=simulator'
+    )
+} elseif ($UsePortableStorage) {
+    $storageRequired += '[component=storage][event=root.ready] mode=portable'
+} else {
+    $storageRequired += '[component=storage][event=root.ready] mode=simulator'
+}
+$missing += @($storageRequired | Where-Object { -not $traceText.Contains($_) })
 if ($StartOverlay) {
     $overlayRequired = @(
         '[component=overlay][event=start.ok] port=18765',
@@ -463,14 +521,14 @@ if ($ForceUserUapRuntime -and -not $traceText.Contains('[component=embedded-uap]
 if ($missing.Count -ne 0) {
     throw "Simulator trace is incomplete. Missing: $($missing -join ', ')"
 }
-if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
+if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure) -and -not $RequireStorageMigrationFailure) {
     foreach ($probePath in $persistenceProbePaths) {
         $persistenceHashAfter = (Get-FileHash -LiteralPath $probePath -Algorithm SHA256).Hash
         if ($persistenceHashAfter -ne $persistenceHashesBefore[$probePath]) {
             throw "Persistence $InjectPersistenceFailure injection changed known-good file $probePath."
         }
     }
-    $temporaryFiles = @(Get-ChildItem -LiteralPath $output -Recurse -File -Filter '*.halljoy-new-*')
+    $temporaryFiles = @(Get-ChildItem -LiteralPath $effectiveDataRoot -Recurse -File -Filter '*.halljoy-new-*')
     if ($temporaryFiles.Count -ne 0) {
         throw "Persistence $InjectPersistenceFailure injection left transaction temp files: $($temporaryFiles.FullName -join ', ')"
     }
@@ -518,13 +576,15 @@ if ($remaining.Count -ne 0) {
     throw 'A HallJoyV14Simulator process remained after shutdown.'
 }
 
-if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
+if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure) -and -not $RequireStorageMigrationFailure) {
     foreach ($probePath in $persistenceProbePaths | Where-Object { $_ -ne $persistenceSettings }) {
         Remove-Item -LiteralPath $probePath -Force -ErrorAction SilentlyContinue
     }
 }
 
-if (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
+if ($RequireStorageMigrationFailure) {
+    Write-Host "HallJoy migration $InjectPersistenceFailure failure atomicity scenario: PASS" -ForegroundColor Green
+} elseif (-not [string]::IsNullOrEmpty($InjectPersistenceFailure)) {
     Write-Host "HallJoy persistence $InjectPersistenceFailure failure atomicity scenario: PASS" -ForegroundColor Green
 } elseif ($InjectRealtimeStopTimeout) {
     Write-Host 'HallJoy realtime timeout containment scenario: PASS' -ForegroundColor Green

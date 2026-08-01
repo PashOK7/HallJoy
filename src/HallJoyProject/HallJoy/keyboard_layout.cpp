@@ -13,7 +13,8 @@
 #include <memory>
 #include <mutex>
 
-#include "win_util.h"
+#include "app_paths.h"
+#include "file_name_policy.h"
 #include "ini_util.h"
 
 namespace fs = std::filesystem;
@@ -263,25 +264,9 @@ namespace
         return std::clamp(v, KEYBOARD_KEY_MIN_DIM, KEYBOARD_KEY_MAX_DIM);
     }
 
-    static std::wstring SanitizeFileName(const std::wstring& in)
-    {
-        std::wstring s = in;
-        while (!s.empty() && s.front() == L' ') s.erase(s.begin());
-        while (!s.empty() && s.back() == L' ') s.pop_back();
-        const wchar_t* bad = L"<>:\"/\\|?*";
-        for (size_t i = 0; i < s.size(); ++i)
-        {
-            if (wcschr(bad, s[i]) || s[i] < 32)
-                s[i] = L'_';
-        }
-        while (!s.empty() && (s.back() == L'.' || s.back() == L' ')) s.pop_back();
-        if (s.empty()) s = L"Layout";
-        return s;
-    }
-
     static std::wstring GetLayoutsDir()
     {
-        static std::wstring dir = WinUtil_BuildPathNearExe(L"Layouts");
+        const std::wstring& dir = AppPaths_LayoutsDir();
         std::error_code ec;
         fs::create_directories(dir, ec);
         return dir;
@@ -289,8 +274,10 @@ namespace
 
     static std::wstring BuildPresetPath(const std::wstring& name)
     {
-        fs::path p = fs::path(GetLayoutsDir()) / (SanitizeFileName(name) + L".ini");
-        return p.wstring();
+        std::wstring path;
+        if (!FileNamePolicy_BuildChildPath(GetLayoutsDir(), name, L".ini", path))
+            return {};
+        return path;
     }
 
     static int ClampPreset(int idx)
@@ -644,7 +631,7 @@ namespace
     {
         for (int i = 0; i < (int)g_presets.size(); ++i)
         {
-            if (_wcsicmp(g_presets[i].name.c_str(), name.c_str()) == 0)
+            if (FileNamePolicy_Equivalent(g_presets[i].name, name))
                 return i;
         }
         return -1;
@@ -895,7 +882,7 @@ bool KeyboardLayout_CreatePreset(const wchar_t* name, int* outIndex)
     while (!n.empty() && iswspace(n.back())) n.pop_back();
     if (n.empty()) return false;
 
-    n = SanitizeFileName(n);
+    n = FileNamePolicy_NormalizeStem(n);
     if (n.empty()) return false;
     if (FindPresetByName(n) >= 0) return false;
 

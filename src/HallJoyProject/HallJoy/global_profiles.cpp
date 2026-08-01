@@ -3,11 +3,13 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "global_profiles.h"
 #include "app_paths.h"
+#include "file_name_policy.h"
 #include "ini_util.h"
 
 namespace fs = std::filesystem;
@@ -21,22 +23,12 @@ static bool g_dirty = false;
 
 static bool IEquals(const std::wstring& a, const std::wstring& b)
 {
-    return _wcsicmp(a.c_str(), b.c_str()) == 0;
+    return FileNamePolicy_Equivalent(a, b);
 }
 
 std::wstring GlobalProfiles_SanitizeName(const std::wstring& in)
 {
-    std::wstring s = in;
-    while (!s.empty() && (s.front() == L' ' || s.front() == L'\t')) s.erase(s.begin());
-    while (!s.empty() && (s.back() == L' ' || s.back() == L'\t' || s.back() == L'.')) s.pop_back();
-
-    const wchar_t* bad = L"<>:\"/\\|?*";
-    for (wchar_t& ch : s)
-    {
-        if (ch < 32 || wcschr(bad, ch))
-            ch = L'_';
-    }
-    return s;
+    return FileNamePolicy_NormalizeStem(in);
 }
 
 bool GlobalProfiles_IsDefault(const std::wstring& name)
@@ -146,13 +138,48 @@ static fs::path EnsureProfilesDir()
     return dir;
 }
 
+static std::wstring FindExistingProfilePath(const std::wstring& name, const wchar_t* suffix)
+{
+    const std::wstring wanted = GlobalProfiles_SanitizeName(name);
+    if (wanted.empty()) return {};
+    const std::size_t suffixLength = wcslen(suffix);
+    std::vector<fs::path> matches;
+    std::error_code ec;
+    for (const auto& entry : fs::directory_iterator(EnsureProfilesDir(), ec))
+    {
+        if (ec) return {};
+        if (!entry.is_regular_file(ec) || ec) continue;
+        const std::wstring fileName = entry.path().filename().wstring();
+        if (fileName.size() <= suffixLength ||
+            _wcsicmp(fileName.c_str() + fileName.size() - suffixLength, suffix) != 0)
+            continue;
+        const std::wstring base = fileName.substr(0, fileName.size() - suffixLength);
+        if (FileNamePolicy_Equivalent(base, wanted))
+            matches.push_back(entry.path());
+    }
+    if (matches.empty()) return {};
+    std::sort(matches.begin(), matches.end(), [](const fs::path& left, const fs::path& right) {
+        return _wcsicmp(left.c_str(), right.c_str()) < 0;
+    });
+    return matches.front().wstring();
+}
+
+static std::wstring BuildProfilePath(const std::wstring& name, const wchar_t* suffix)
+{
+    const std::wstring existing = FindExistingProfilePath(name, suffix);
+    if (!existing.empty()) return existing;
+    std::wstring path;
+    if (!FileNamePolicy_BuildChildPath(EnsureProfilesDir().wstring(), name, suffix, path))
+        return {};
+    return path;
+}
+
 std::wstring GlobalProfiles_GetSettingsPath(const std::wstring& name)
 {
     if (GlobalProfiles_IsDefault(name))
         return AppPaths_SettingsIni();
 
-    fs::path p = EnsureProfilesDir() / (GlobalProfiles_SanitizeName(name) + L".settings.ini");
-    return p.wstring();
+    return BuildProfilePath(name, L".settings.ini");
 }
 
 std::wstring GlobalProfiles_GetBindingsPath(const std::wstring& name)
@@ -160,8 +187,7 @@ std::wstring GlobalProfiles_GetBindingsPath(const std::wstring& name)
     if (GlobalProfiles_IsDefault(name))
         return AppPaths_BindingsIni();
 
-    fs::path p = EnsureProfilesDir() / (GlobalProfiles_SanitizeName(name) + L".bindings.ini");
-    return p.wstring();
+    return BuildProfilePath(name, L".bindings.ini");
 }
 
 void GlobalProfiles_List(std::vector<std::wstring>& outNames)
@@ -170,6 +196,7 @@ void GlobalProfiles_List(std::vector<std::wstring>& outNames)
     outNames.push_back(kDefaultProfileName);
 
     fs::path dir = EnsureProfilesDir();
+    std::set<std::wstring> seenKeys;
     std::error_code ec;
     for (const auto& e : fs::directory_iterator(dir, ec))
     {
@@ -179,13 +206,14 @@ void GlobalProfiles_List(std::vector<std::wstring>& outNames)
         const wchar_t* suffix = L".settings.ini";
         if (name.size() <= wcslen(suffix)) continue;
         if (_wcsicmp(name.c_str() + (name.size() - wcslen(suffix)), suffix) != 0) continue;
-        std::wstring base = name.substr(0, name.size() - wcslen(suffix));
-        if (!base.empty() && !GlobalProfiles_IsDefault(base))
-            outNames.push_back(base);
+        std::wstring base = GlobalProfiles_SanitizeName(name.substr(0, name.size() - wcslen(suffix)));
+        const std::wstring key = FileNamePolicy_CanonicalKey(base);
+        if (!base.empty() && !GlobalProfiles_IsDefault(base) && seenKeys.insert(key).second)
+            outNames.push_back(std::move(base));
     }
 
     std::sort(outNames.begin() + 1, outNames.end(), [](const std::wstring& a, const std::wstring& b) {
-        return _wcsicmp(a.c_str(), b.c_str()) < 0;
+        return FileNamePolicy_CanonicalKey(a) < FileNamePolicy_CanonicalKey(b);
     });
 }
 

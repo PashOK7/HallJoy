@@ -93,8 +93,8 @@ exhibits the observed five-second freezes.
 | `HJ-AUD-P2-014` | P2 | Layout preset очищается и пишется неатомарно без проверки ошибок | `S13` | Verified | checked transaction, schema/exact-entry readback and five injected stages preserve the layout probe hash |
 | `HJ-AUD-P2-015` | P2 | Curve preset writer также игнорирует результаты записей | `S13` | Verified | curve preset/state checked writes, exact readback and five injected stages preserve both probe hashes |
 | `HJ-AUD-P2-016` | P2 | Большинство вызовов сохранения игнорируют возвращаемую ошибку | `S13` | Verified | central trace/UI reporting covers autosave; profile/layout/curve manual paths retain or roll back state and report partial rename |
-| `HJ-AUD-P2-017` | P2 | Writable state хранится рядом с executable | `S14` | Open | migration/name/path tests |
-| `HJ-AUD-P2-018` | P2 | Имена профилей недостаточно нормализованы | `S14` | Open | migration/name/path tests |
+| `HJ-AUD-P2-017` | P2 | Writable state хранится рядом с executable | `S14` | Verified | LocalAppData default, explicit writable portable marker, source-preserving transactional migration/replay and five-stage failure gate passed |
+| `HJ-AUD-P2-018` | P2 | Имена профилей недостаточно нормализованы | `S14` | Verified | shared NFC/case/reserved-name/length/direct-child policy and Unicode collision tests passed |
 | `HJ-AUD-P2-019` | P2 | Публикация curve settings имеет слабый memory-order contract | `S11` | Verified | release generation publication, acquire cache observation and concurrency test passed in V14-08A |
 | `HJ-AUD-P2-020` | P2 | Глобальный lifecycle registry не защищён и не кодирует thread affinity | `S03` | Verified | mutex serialization, owner token and wrong-thread fault test passed |
 | `HJ-AUD-P2-021` | P2 | VID:PID ownership слишком крупнозернистый | `S17` | Open | CPU/USB/identity/contention measurements |

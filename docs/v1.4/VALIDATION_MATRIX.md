@@ -777,3 +777,57 @@ Evidence:
   docs/stability/tests/V14-09B_LAYOUT_CURVE_TRANSACTIONAL_PERSISTENCE_2026-08-01.txt
 Rollback: parent commit of the V14-09B implementation commit
 ```
+
+## V14-09C evidence
+
+```text
+Package: V14-09C
+Scope: LocalAppData/portable state root, source-preserving one-time migration,
+  Unicode/case/reserved-name/path hardening
+Commands:
+  python src/HallJoyProject/tests/storage_migration_static_audit.py
+  python src/HallJoyProject/tests/persistence_transaction_static_audit.py
+  python tools/run_native_backend_checks.py
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_storage_migration_test.ps1 -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_analog_simulator.ps1 -SkipBuild
+    -InjectPersistenceFailure <prepare|write|flush|validate|replace> -RunSeconds 7
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File .\tools\run_production_smoke.ps1 -RunSeconds 10
+Results:
+  Storage and persistence static audits: PASS
+  All static audits and portable C++20 tests: PASS
+  Normal current simulator: PASS, graceful shutdown, exit 0
+  Migration/replay/portable runtime gate: PASS
+  Migration failure stages: 5/5 PASS; each exited 1 before startup, preserved
+    source, committed no target and left zero *.halljoy-new-* files
+  Existing persistence failure stages: 5/5 PASS across all six probes
+  Unicode policy: composed/decomposed NFC and case aliases collide; reserved
+    DOS basename, length and direct-child traversal cases pass
+  Production MSVC x64 Release: PASS, 0 errors
+  Warning policy: PASS; only allowlisted LNK4099 ViGEm PDB diagnostic
+  Real ABI1 load/init/null/bounded-unload runtime gate: PASS
+  Official package retained five legacy mutable files with zero hash changes
+  First LocalAppData migration: 5 sources preserved, 5 backup hashes exact,
+    one completed marker, zero temporary files
+  Replay launch: migration.skip reason=complete; LocalAppData root selected
+  Production Irok route: SparkLink VID 1CA6, PID 0529, usage page FFB0;
+    37,980 successful queries, zero failures, balanced shutdown, exit 0
+  Canonical artifact: build/output/HallJoy.exe
+  Artifact size: 2,216,960 bytes
+  SHA-256: 7E84054C944698CBCD2ABF76EAF70B1500DD0A007FEBC3CCC9E23BF2AF0944C6
+  Replay production trace SHA-256:
+    F6CB87D888E45DFCDC013E917BE014C6330B638D3CD9B69D86A1E20A6546A4E0
+Hardware: Irok startup/route/balanced shutdown passed; migration fault stages
+  and filename policy cases are simulator evidence
+Remote CI: NOT RUN; optional, no push permitted
+Evidence:
+  docs/stability/tests/V14-09C_STORAGE_MIGRATION_NAME_POLICY_2026-08-01.txt
+Rollback: parent commit of the V14-09C implementation commit; runtime state can
+  be restored from the recorded legacy backup, while legacy source files remain
+  untouched beside the executable
+```

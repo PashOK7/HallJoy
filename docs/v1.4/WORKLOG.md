@@ -873,3 +873,58 @@
 - `HJ-AUD-P2-014`, `HJ-AUD-P2-015` and `HJ-AUD-P2-016` are Verified.
 - V14-09 remains In progress. Next is V14-09C writable-state migration to
   `%LOCALAPPDATA%` plus profile-name/path hardening.
+
+## 2026-08-01 - V14-09C writable-state migration and filename hardening
+
+### Implementation
+
+- Centralized production settings, bindings, global profiles, layouts and
+  curve presets under `%LOCALAPPDATA%\HallJoy`.
+- Added explicit `HallJoy.portable` selection guarded by ordinary-file,
+  non-reparse and physical write/flush checks. Simulator storage is isolated by
+  explicit root overrides.
+- Added source-specific one-time migration from the EXE directory. It preserves
+  legacy files, transactionally creates byte-identical backups, copies only
+  missing targets, rejects reparse traversal and commits a validated marker
+  only after every file succeeds.
+- Build packaging now preserves legacy mutable state instead of deleting it
+  before the first migration.
+- Added one shared filename policy for global profiles, layouts and curves:
+  Unicode NFC, invariant case collision keys, invalid/control cleanup, trailing
+  dot/space cleanup, DOS-device avoidance, 80-code-unit stems, direct-child
+  validation and bounded collision suffixes.
+- Added a storage static audit and a Windows runtime migration/replay/portable
+  test, including migration failure injection at all five transaction stages.
+
+### Validation
+
+- Storage and persistence static audits: PASS.
+- Full static and portable C++20 backend gate: PASS.
+- Current simulator rebuild: PASS, 0 compile errors, only allowlisted
+  third-party `LNK4099`; normal common-pipeline scenario exited 0.
+- Migration/replay/portable runtime gate: PASS. Prepare, write, flush,
+  validation and replace faults each blocked initialization with exit 1,
+  preserved the legacy hash, committed no target and left no temp file.
+- Existing settings/bindings/overlay/layout/curve fault suite: 5/5 PASS with
+  every known-good hash unchanged and zero temp files.
+- Official x64 Release build: PASS, 0 errors and only allowlisted `LNK4099`;
+  embedded ABI1 runtime gate passed.
+- Real first production migration copied five legacy files, created five
+  byte-identical backup files and one completed marker, preserved all five
+  legacy SHA-256 values and left zero transaction temps.
+- Second production launch logged `migration.skip reason=complete`, connected
+  Irok MG75 Max at `1CA6:0529/FFB0`, completed 37,980/37,980 route queries with
+  zero failures, joined SparkLink/realtime/ViGEm/host ownership and exited 0.
+- `HallJoy.exe`: 2,216,960 bytes,
+  SHA-256 `7E84054C944698CBCD2ABF76EAF70B1500DD0A007FEBC3CCC9E23BF2AF0944C6`.
+- Replay production trace SHA-256:
+  `F6CB87D888E45DFCDC013E917BE014C6330B638D3CD9B69D86A1E20A6546A4E0`.
+- Source backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-09C-prechange-20260801-1021`.
+- Legacy runtime backup:
+  `C:\github\HallJoy_v1.4_BACKUPS\V14-09C-runtime-20260801-1021`.
+
+### Package result
+
+- `HJ-AUD-P2-017`, `HJ-AUD-P2-018` and V14-09 are Verified.
+- Next is V14-10 IPC and overlay security/correctness.

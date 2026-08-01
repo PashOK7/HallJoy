@@ -56,6 +56,7 @@ $required = @(
     (Join-Path $hallJoyRoot 'tests\startup_wake_transaction_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\vigem_output_isolation_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\persistence_transaction_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\storage_migration_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\transactional_file_store_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\dependency_lock_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\native_analog_backend_contract_test.cpp'),
@@ -63,8 +64,11 @@ $required = @(
     (Join-Path $hallJoyRoot 'tests\windows_command_line_test.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\windows_command_line.h'),
     (Join-Path $hallJoyRoot 'HallJoy\transactional_file_store.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\file_name_policy.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\file_name_policy.cpp'),
     (Join-Path $root 'tools\new_native_backend.py'),
     (Join-Path $root 'tools\run_native_backend_checks.py'),
+    (Join-Path $root 'tools\run_storage_migration_test.ps1'),
     (Join-Path $root 'tools\check_private_uap_abi.py'),
     (Join-Path $root 'tools\analyze_stability_trace.py'),
     (Join-Path $root 'tools\collect_stability_trace.ps1'),
@@ -416,8 +420,28 @@ $warningSummary = if ($productionWarningCodes.Count) { $productionWarningCodes -
 Write-Host "Production warning baseline: allowed codes=$warningSummary; 0 unexpected." -ForegroundColor DarkGray
 if (-not (Test-Path -LiteralPath $exe)) { throw "Executable not produced: $exe" }
 
-if (Test-Path -LiteralPath $sendDir) { Remove-Item -LiteralPath $sendDir -Recurse -Force }
-New-Item -ItemType Directory -Path $sendDir -Force | Out-Null
+$preservedRuntimeNames = @(
+    'settings.ini',
+    'bindings.ini',
+    'GlobalProfiles',
+    'Layouts',
+    'CurvePresets',
+    'HallJoy.portable'
+)
+if (Test-Path -LiteralPath $sendDir) {
+    $resolvedSendDir = [IO.Path]::GetFullPath($sendDir).TrimEnd('\')
+    $expectedSendDir = [IO.Path]::GetFullPath((Join-Path $root 'build\output')).TrimEnd('\')
+    if (-not $resolvedSendDir.Equals($expectedSendDir, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Unsafe package cleanup target: $resolvedSendDir"
+    }
+    Get-ChildItem -LiteralPath $resolvedSendDir -Force | Where-Object {
+        $preservedRuntimeNames -notcontains $_.Name
+    } | ForEach-Object {
+        Remove-Item -LiteralPath $_.FullName -Recurse -Force
+    }
+} else {
+    New-Item -ItemType Directory -Path $sendDir -Force | Out-Null
+}
 Copy-Item -LiteralPath $exe -Destination $sendDir -Force
 Copy-Item -LiteralPath (Join-Path $root 'tools\analyze_stability_trace.py') -Destination $sendDir -Force
 Copy-Item -LiteralPath (Join-Path $root 'tools\collect_stability_trace.ps1') -Destination $sendDir -Force
@@ -435,6 +459,10 @@ HallJoy v1.4 integration build
 Запускайте HallJoy.exe обычным способом.
 
 В финальной сборке:
+- изменяемые настройки и профили по умолчанию хранятся в `%LOCALAPPDATA%\HallJoy`;
+- прежние настройки рядом с EXE при первом запуске копируются с резервной копией в
+  `MigrationBackups`, а исходные файлы не удаляются;
+- для явного переносного режима создайте рядом с HallJoy.exe обычный файл `HallJoy.portable`;
 - для управления используются только реальные аналоговые значения;
 - зелёные цифровые индикаторы превью сохранены только как функция интерфейса;
 - живая информация в Configuration и Gamepad Tester работает для MAD68 Pro R,

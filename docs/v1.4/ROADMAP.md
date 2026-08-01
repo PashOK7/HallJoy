@@ -33,7 +33,7 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-06` | Cooperative lifecycle migration for realtime, logging and native protocol workers | Verified locally | Per-worker tests, no ordinary `TerminateThread`, plus unchanged protocol and mapping characterization |
 | `V14-07` | Analog host and UAP ABI generation, exception, unload and restart safety | Verified | Partial-start, crash, hang, C ABI, null/state, unload and bounded restart gates passed |
 | `V14-08` | Startup transaction, wake correctness and ViGEm output isolation | Verified | Reverse-order rollback, no lost wake, stalled-driver and report-equivalence tests |
-| `V14-09` | Transactional persistence and writable state migration | In progress | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
+| `V14-09` | Transactional persistence and writable state migration | Verified | Fault-injected atomic-save tests and safe `%LOCALAPPDATA%` migration |
 | `V14-10` | IPC and overlay security/correctness | Planned | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
 | `V14-11` | UAP pacing, identity, modularization and measured performance | Planned | CPU/USB/latency comparison with no unsupported sampling regression |
 | `V14-12` | Release qualification and hardware matrix | Planned | Clean package, 8-24h soak, reconnect cycles and required device-owner gates |
@@ -284,7 +284,7 @@ Progress:
 V14-08 is complete. The next implementation package is V14-09 transactional
 persistence and writable state migration.
 
-## Current package: V14-09
+## Completed package: V14-09
 
 The package is split so the transactional write primitive is verified before
 it is used for migration or every remaining data format.
@@ -314,10 +314,20 @@ Progress:
   files left behind. The production build also reads the user's pre-transaction
   layout/state files and shuts down without a persistence error.
 
-Remaining V14-09 scope:
+`V14-09C` writable-state migration and filename hardening: Verified locally.
+Production now defaults to `%LOCALAPPDATA%\HallJoy`; an explicit
+`HallJoy.portable` marker selects EXE-local state only after a physical write
+probe succeeds. The one-time source-specific migration retains the legacy
+files, creates a byte-validated transactional backup, preserves existing target
+files and commits a validated replay marker last. All five injected transaction
+failures block startup without changing the source or leaving a destination or
+temporary file. Profile, layout and curve names share NFC normalization,
+invariant case keys, DOS-device avoidance, trailing-dot/space cleanup, an
+80-code-unit bound and direct-child path validation. Simulator policy tests,
+real production migration/replay and Irok balanced shutdown all pass.
 
-- `V14-09C`: migrate mutable state safely to `%LOCALAPPDATA%`, with one-time
-  backup and Unicode/case/reserved-name/path-alias tests.
+V14-09 is complete. The next implementation package is V14-10 IPC and overlay
+security/correctness.
 
 ## Release definition
 

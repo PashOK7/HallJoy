@@ -42,6 +42,7 @@
 #include "settings_ini.h"
 #include "profile_ini.h"
 #include "app_paths.h"
+#include "file_name_policy.h"
 #include "global_profiles.h"
 #include "mouse_ipc.h"
 #include "overlay_server.h"
@@ -5410,7 +5411,7 @@ static void Global_NotifyMainPage(HWND hWnd)
 
 static void Global_OpenLayoutsFolder(HWND hWnd)
 {
-    std::wstring dir = WinUtil_BuildPathNearExe(L"Layouts");
+    std::wstring dir = AppPaths_LayoutsDir();
     std::error_code ec;
     fs::create_directories(fs::path(dir), ec);
     ShellExecuteW(hWnd, L"open", dir.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
@@ -5639,7 +5640,7 @@ static void Global_RefreshGlobalProfileCombo(GlobalSettingsPageState* st)
     int activeIdx = 0;
     for (size_t i = 0; i < names.size(); ++i)
     {
-        if (_wcsicmp(names[i].c_str(), active.c_str()) == 0)
+        if (FileNamePolicy_Equivalent(names[i], active))
         {
             activeIdx = (int)i;
             break;
@@ -5655,7 +5656,7 @@ static void Global_ApplyActiveGlobalProfile(GlobalSettingsPageState* st, HWND hW
 
     std::wstring newName = GlobalProfiles_SanitizeName(name);
     if (newName.empty()) newName = L"Default";
-    if (_wcsicmp(newName.c_str(), GlobalProfiles_GetActiveName().c_str()) == 0)
+    if (FileNamePolicy_Equivalent(newName, GlobalProfiles_GetActiveName()))
         return;
 
     // Persist previous profile state before switching away.
@@ -5718,7 +5719,7 @@ static void Global_UpdateUi(GlobalSettingsPageState* st)
             {
                 wchar_t item[260]{};
                 PremiumCombo::GetLBText(st->cmbGlobalProfile, i, item, (int)_countof(item));
-                if (_wcsicmp(item, active.c_str()) == 0)
+                if (FileNamePolicy_Equivalent(item, active))
                 {
                     activeIdx = i;
                     break;
@@ -5920,7 +5921,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             GlobalProfiles_List(names);
             for (const auto& n : names)
             {
-                if (_wcsicmp(n.c_str(), newName.c_str()) == 0)
+                if (FileNamePolicy_Equivalent(n, newName))
                 {
                     MessageBoxW(hWnd, L"Profile with this name already exists.", L"Profiles", MB_ICONWARNING);
                     return 0;
@@ -6042,7 +6043,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
                 GlobalDeleteConfirm_Clear(hWnd, st);
 
                 // If deleting active profile, switch to default first.
-                if (_wcsicmp(GlobalProfiles_GetActiveName().c_str(), name.c_str()) == 0)
+                if (FileNamePolicy_Equivalent(GlobalProfiles_GetActiveName(), name))
                     Global_ApplyActiveGlobalProfile(st, hWnd, L"Default");
 
                 if (GlobalProfiles_Delete(name))
@@ -9172,28 +9173,14 @@ static void DrawConfigScrollbar(HWND hWnd, HDC hdc, ConfigPageState* st)
 
 static std::wstring SanitizePresetNameForFile(const std::wstring& in)
 {
-    std::wstring s = in;
-
-    while (!s.empty() && s.back() == L' ') s.pop_back();
-    while (!s.empty() && s.front() == L' ') s.erase(s.begin());
-
+    std::wstring s = FileNamePolicy_NormalizeStem(in);
     if (s.size() >= 4)
     {
         const wchar_t* tail = s.c_str() + (s.size() - 4);
         if (_wcsicmp(tail, L".ini") == 0)
             s.resize(s.size() - 4);
     }
-
-    const wchar_t* bad = L"<>:\"/\\|?*";
-    for (size_t i = 0; i < s.size(); ++i)
-    {
-        if (wcschr(bad, s[i]) || s[i] < 32)
-            s[i] = L'_';
-    }
-
-    while (!s.empty() && (s.back() == L' ' || s.back() == L'.')) s.pop_back();
-
-    return s;
+    return FileNamePolicy_NormalizeStem(s);
 }
 
 // ============================================================================
@@ -9680,7 +9667,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             return 0;
         }
 
-        if (_wcsicmp(safe.c_str(), p.name.c_str()) == 0)
+        if (FileNamePolicy_Equivalent(safe, p.name))
         {
             SetProfileStatus(st, L"");
             KeySettingsPanel_HandleCommand(hWnd, 9999, 0);
@@ -9689,7 +9676,24 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
         fs::path oldPath = fs::path(p.path);
         fs::path dir = oldPath.parent_path();
-        fs::path newPath = dir / (safe + L".ini");
+        std::wstring newPathText;
+        if (!FileNamePolicy_BuildChildPath(dir.wstring(), safe, L".ini", newPathText))
+        {
+            SetProfileStatus(st, L"Rename failed: invalid name.");
+            KeySettingsPanel_HandleCommand(hWnd, 9999, 0);
+            return 0;
+        }
+        fs::path newPath = newPathText;
+
+        for (int listIndex = 0; listIndex < (int)list.size(); ++listIndex)
+        {
+            if (listIndex != idx && FileNamePolicy_Equivalent(list[listIndex].name, safe))
+            {
+                SetProfileStatus(st, L"Rename failed: name already exists.");
+                KeySettingsPanel_HandleCommand(hWnd, 9999, 0);
+                return 0;
+            }
+        }
 
         if (GetFileAttributesW(newPath.wstring().c_str()) != INVALID_FILE_ATTRIBUTES)
         {
@@ -9703,7 +9707,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         // If renaming active preset:
         // Save current curve into new file (this also updates "active" state inside module),
         // then delete the old file.
-        if (!active.empty() && _wcsicmp(active.c_str(), p.name.c_str()) == 0)
+        if (!active.empty() && FileNamePolicy_Equivalent(active, p.name))
         {
             if (!KeyboardProfiles::SavePreset(newPath.wstring(), curCurve))
             {

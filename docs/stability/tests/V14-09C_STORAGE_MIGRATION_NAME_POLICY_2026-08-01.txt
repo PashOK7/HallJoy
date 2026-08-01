@@ -1,0 +1,75 @@
+HallJoy V14-09C storage migration and filename policy evidence
+Date: 2026-08-01 Europe/Moscow
+
+Scope
+-----
+- Default production mutable root: %LOCALAPPDATA%\HallJoy
+- Explicit writable HallJoy.portable mode
+- Source-preserving, source-specific, one-time migration from the EXE directory
+- Transactional migration backup/data/marker writes
+- Shared Windows-safe names for global profiles, layouts and curve presets
+
+Automated gates
+---------------
+PASS  storage_migration_static_audit.py
+PASS  persistence_transaction_static_audit.py
+PASS  tools/run_native_backend_checks.py (all static and portable C++20 tests)
+PASS  current MSVC AnalogSimulator rebuild, 0 errors, allowlisted LNK4099 only
+PASS  normal common-pipeline simulator, exit 0
+PASS  run_storage_migration_test.ps1:
+      migration + byte-identical backup + existing-target-wins + replay skip
+      + explicit portable marker + real filename-policy self-test
+PASS  migration fault injection at prepare/write/flush/validate/replace:
+      5/5 blocked initialization with exit 1; source hash unchanged;
+      destination absent; zero *.halljoy-new-* files
+PASS  existing persistence fault injection at all five stages across settings,
+      bindings, overlay, layout, curve preset and curve state
+
+Filename policy evidence
+------------------------
+PASS  Unicode NFC equivalence: composed Cafe-with-acute equals decomposed form
+PASS  invariant case equivalence
+PASS  DOS reserved basename protection (CON plus static coverage for PRN, AUX,
+      NUL, CLOCK$, COM1-9 and LPT1-9)
+PASS  80 UTF-16-code-unit maximum without a split high surrogate
+PASS  invalid/trailing dot-space cleanup and direct-child traversal rejection
+PASS  deterministic checked collision suffix for new curve files
+
+Production migration and Irok evidence
+--------------------------------------
+PASS  official x64 Release build, 0 errors; only allowlisted ViGEm LNK4099
+PASS  ABI1 private runtime load/init/null/bounded-unload gate
+PASS  build/output retained all five legacy mutable files byte-identically
+PASS  first production launch selected localappdata and completed migration
+PASS  five legacy source SHA-256 values remained identical to runtime backup
+PASS  five files in MigrationBackups\legacy-C97AC1222B2EE4FD matched source
+PASS  one completed source marker; zero transaction temps
+PASS  second launch logged migration.skip reason=complete
+PASS  Irok MG75 Max SparkLink route 1CA6:0529/FFB0 connected
+PASS  37,980 route queries, 37,980 successful, 0 failures
+PASS  SparkLink joined with reconnect_blocked=1; realtime, ViGEm output,
+      analog host, backend and main shut down cleanly; exit 0
+
+Artifacts
+---------
+HallJoy.exe size: 2,216,960 bytes
+HallJoy.exe SHA-256:
+7E84054C944698CBCD2ABF76EAF70B1500DD0A007FEBC3CCC9E23BF2AF0944C6
+
+Replay production trace SHA-256:
+F6CB87D888E45DFCDC013E917BE014C6330B638D3CD9B69D86A1E20A6546A4E0
+
+Backups
+-------
+Source:
+C:\github\HallJoy_v1.4_BACKUPS\V14-09C-prechange-20260801-1021
+
+Legacy runtime:
+C:\github\HallJoy_v1.4_BACKUPS\V14-09C-runtime-20260801-1021
+
+Result
+------
+HJ-AUD-P2-017: Verified
+HJ-AUD-P2-018: Verified
+V14-09: Verified locally
+Next: V14-10 IPC and overlay security/correctness

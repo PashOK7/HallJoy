@@ -165,3 +165,28 @@ excluded from production. V14-09A established this contract for settings,
 overlay metadata, active-profile metadata and bindings; V14-09B extends it to
 layout presets, curve presets and curve active-state metadata. Writable-state
 migration must use the same contract in V14-09C.
+
+## D-016 - Writable state has one explicit root and one filename policy
+
+Date: 2026-08-01
+
+Production mutable state belongs under `%LOCALAPPDATA%\HallJoy`. EXE-local
+portable state is opt-in through an ordinary, non-reparse `HallJoy.portable`
+marker and is accepted only after a unique physical write/flush probe succeeds.
+Simulator roots are explicit test-only overrides and never touch the user's
+LocalAppData.
+
+The first non-portable launch migrates supported legacy state from the EXE
+directory without deleting or modifying the source. It transactionally creates
+and byte-validates a source-specific backup, copies only missing destination
+files, and commits a schema-validated source-specific marker last. A failed
+stage blocks application startup; a completed marker makes replay idempotent.
+The official package builder must preserve legacy mutable files so it cannot
+erase migration input before the first launch.
+
+Global profiles, layout presets and curve presets share one Windows filename
+policy: NFC display normalization, invariant case-folded collision keys,
+invalid/control replacement, trailing-dot/space removal, DOS-device avoidance,
+an 80 UTF-16-code-unit stem limit and verified direct-child path construction.
+Existing Unicode/case aliases remain readable; new collisions receive a
+bounded suffix or are rejected where the UI requires a unique logical name.

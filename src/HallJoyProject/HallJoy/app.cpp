@@ -1286,6 +1286,29 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
 {
     App_ParseCommandLine();
 
+    if (!AppPaths_Initialize())
+    {
+        StabilityTrace_WriteCritical(L"ERROR", L"storage", L"root.failed",
+            L"mode=%ls root=%ls legacy=%ls",
+            AppPaths_ModeName(), AppPaths_DataRoot().c_str(), AppPaths_LegacyDataRoot().c_str());
+        MessageBoxW(nullptr,
+            L"HallJoy could not prepare its writable data folder or safely migrate existing settings.\n\n"
+            L"No legacy files were deleted. Check folder permissions and try again.",
+            L"HallJoy storage error",
+            MB_ICONERROR | MB_OK);
+        return 1;
+    }
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    if (wcsstr(GetCommandLineW(), L"--halljoy-test-storage-policy"))
+    {
+        const bool passed = AppPaths_RunStoragePolicySelfTest();
+        StabilityTrace_Write(passed ? L"INFO" : L"ERROR", L"storage", L"policy.self_test",
+            L"passed=%d mode=%ls", passed ? 1 : 0, AppPaths_ModeName());
+        if (!passed) return 1;
+    }
+#endif
+
     // Load settings before window creation so we can restore last window size.
     if (!SettingsIni_Load(AppPaths_SettingsIni().c_str()))
     {

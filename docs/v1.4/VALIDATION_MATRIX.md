@@ -1756,7 +1756,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File `
 
 Static contracts and the complete official build gate PASS. Release x64 has
 zero errors and only the allowlisted external ViGEm `LNK4099`. Production
-artifact: `build/output/HallJoy.exe`, 2,210,816 bytes, SHA-256
+artifact: `build/output/HallJoy.exe`, 2,212,352 bytes, SHA-256
 `06CF73B59827E957DDF9644AC2557C601F5602FD454AC7B025FB6533C041A462`.
 
 Final 15-second-per-phase evidence:

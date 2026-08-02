@@ -205,7 +205,7 @@ caches are bounded at 512/256 entries with constant-time LRU eviction, and new
 profiles default to 8 ms while the existing 1 ms opt-in remains supported.
 Physical route accounting reached 217,628/217,628 in the 8 ms comparison and
 277,055/277,055 in the final full-stage run; both preserved user state and left
-zero HallJoy processes. The exact 2,210,816-byte `HallJoy.exe` SHA-256 is
+zero HallJoy processes. The exact 2,212,352-byte `HallJoy.exe` SHA-256 is
 `06CF73B59827E957DDF9644AC2557C601F5602FD454AC7B025FB6533C041A462`.
 This is physical Irok and shared-downstream evidence, not physical proof for
 unavailable Aula, MAD68 HE/UAP or other keyboard protocols.

@@ -1897,7 +1897,7 @@ are bounded at 512/256 entries and use constant-time insertion-order LRU.
 Fresh profiles default to 8 ms; the supported 1 ms option and all existing user
 settings remain untouched.
 
-The final 2,210,816-byte `HallJoy.exe` SHA-256 is
+The final 2,212,352-byte `HallJoy.exe` SHA-256 is
 `06CF73B59827E957DDF9644AC2557C601F5602FD454AC7B025FB6533C041A462`.
 The official build passed with zero errors and only the allowlisted external
 ViGEm `LNK4099`. Two final 1 ms profiles place the complete HallJoy tree at

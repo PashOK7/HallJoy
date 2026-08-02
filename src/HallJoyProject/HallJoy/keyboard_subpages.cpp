@@ -5340,6 +5340,14 @@ struct GlobalSettingsPageState
     HWND btnFactoryReset = nullptr;
     HWND lblFactoryResetHint = nullptr;
 
+    CustomPageSurface surface;
+    int scrollY = 0;
+    int contentHeight = 0;
+    bool scrollDrag = false;
+    int scrollDragGrabOffsetY = 0;
+    int scrollDragThumbHeight = 0;
+    int scrollDragMax = 0;
+
     int   pendingDeleteIdx = -1;
     DWORD pendingDeleteTick = 0;
     bool  pendingDeleteIsGlobalProfile = false;
@@ -5367,17 +5375,17 @@ static void Global_DrawActionButton(const DRAWITEMSTRUCT* dis, bool danger = fal
     bool pressed = (dis->itemState & ODS_SELECTED) != 0;
     bool hot = (dis->itemState & ODS_HOTLIGHT) != 0;
 
-    COLORREF bg = UiTheme::Color_ControlBg();
+    COLORREF bg = danger ? RGB(108, 35, 43) : UiTheme::Color_ControlBg();
     if (pressed)
-        bg = danger ? RGB(64, 31, 34) : RGB(42, 42, 44);
+        bg = danger ? RGB(82, 28, 34) : RGB(42, 42, 44);
     else if (hot)
-        bg = danger ? RGB(54, 31, 34) : RGB(40, 40, 42);
+        bg = danger ? RGB(128, 41, 50) : RGB(40, 40, 42);
 
     HBRUSH br = CreateSolidBrush(bg);
     FillRect(hdc, &rc, br);
     DeleteObject(br);
 
-    const COLORREF border = danger ? RGB(184, 72, 82) : UiTheme::Color_Border();
+    const COLORREF border = danger ? RGB(222, 78, 91) : UiTheme::Color_Border();
     HPEN pen = CreatePen(PS_SOLID, 1, border);
     HGDIOBJ oldPen = SelectObject(hdc, pen);
     HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
@@ -5399,7 +5407,7 @@ static void Global_DrawActionButton(const DRAWITEMSTRUCT* dis, bool danger = fal
 
     SetBkMode(hdc, TRANSPARENT);
     SetTextColor(hdc, disabled ? UiTheme::Color_TextMuted() :
-        (danger ? RGB(255, 218, 221) : UiTheme::Color_Text()));
+        (danger ? RGB(255, 238, 240) : UiTheme::Color_Text()));
     DrawTextW(hdc, text, -1, &rc,
         DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
 
@@ -5800,6 +5808,36 @@ static bool Layout_NudgeSelectedKey(HWND hWnd, LayoutPageState* st, int dRow, in
     return true;
 }
 
+static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st);
+
+static int Global_GetMaxScroll(HWND hWnd, GlobalSettingsPageState* st)
+{
+    if (!st) return 0;
+    CustomPageSurface_SetState(&st->surface, st->scrollY, st->contentHeight);
+    return CustomPageSurface_GetMaxScroll(hWnd, &st->surface);
+}
+
+static void Global_SetScrollY(HWND hWnd, GlobalSettingsPageState* st, int scrollY)
+{
+    if (!st) return;
+    CustomPageSurface_SetState(&st->surface, st->scrollY, st->contentHeight);
+    CustomPageSurface_SetScrollY(hWnd, &st->surface, scrollY);
+    if (st->scrollY == st->surface.scrollY)
+        return;
+
+    st->scrollY = st->surface.scrollY;
+    Global_Layout(hWnd, st);
+    RedrawWindow(hWnd, nullptr, nullptr,
+        RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+}
+
+static void Global_DrawScrollbar(HWND hWnd, HDC hdc, GlobalSettingsPageState* st)
+{
+    if (!st) return;
+    CustomPageSurface_SetState(&st->surface, st->scrollY, st->contentHeight);
+    CustomPageSurface_DrawScrollbar(hWnd, hdc, &st->surface, st->scrollDrag);
+}
+
 static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
 {
     if (!st) return;
@@ -5808,6 +5846,7 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
     GetClientRect(hWnd, &rc);
 
     int margin = S(hWnd, 16);
+    int scrollbarReserve = S(hWnd, 8) + S(hWnd, 7) * 2;
     int x = margin;
     int y = margin;
 
@@ -5819,30 +5858,32 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
     int labelH = S(hWnd, 18);
     int rowGap = S(hWnd, 18);
 
-    int sliderW = (rc.right - rc.left) - margin * 2 - chipW - gap;
+    int sliderW = (rc.right - rc.left) - margin * 2 - scrollbarReserve - chipW - gap;
     sliderW = std::max(S(hWnd, 180), sliderW);
+    auto pos = [&](HWND child, int px, int py, int pw, int ph)
+    {
+        if (child)
+            SetWindowPos(child, nullptr, px, py - st->scrollY, pw, ph,
+                SWP_NOZORDER | SWP_NOACTIVATE);
+    };
 
-    if (st->lblGlobalProfile)
-        SetWindowPos(st->lblGlobalProfile, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
+    pos(st->lblGlobalProfile, x, y, sliderW + gap + chipW, labelH);
     y += labelH + S(hWnd, 6);
 
-    if (st->cmbGlobalProfile)
-        SetWindowPos(st->cmbGlobalProfile, nullptr, x, y, sliderW + gap + chipW, comboVisibleH, SWP_NOZORDER);
+    pos(st->cmbGlobalProfile, x, y, sliderW + gap + chipW, comboVisibleH);
     y += comboVisibleH + rowGap;
 
-    if (st->lblLayout)
-        SetWindowPos(st->lblLayout, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
+    pos(st->lblLayout, x, y, sliderW + gap + chipW, labelH);
     y += labelH + S(hWnd, 6);
 
-    if (st->cmbLayout)
-        SetWindowPos(st->cmbLayout, nullptr, x, y, sliderW + gap + chipW, comboVisibleH, SWP_NOZORDER);
+    pos(st->cmbLayout, x, y, sliderW + gap + chipW, comboVisibleH);
     y += comboVisibleH + rowGap;
 
     if (st->btnLayoutEditor)
     {
         int bw = S(hWnd, 210);
         int bh = S(hWnd, 28);
-        SetWindowPos(st->btnLayoutEditor, nullptr, x, y, bw, bh, SWP_NOZORDER);
+        pos(st->btnLayoutEditor, x, y, bw, bh);
         y += bh + S(hWnd, 14);
     }
 
@@ -5850,45 +5891,45 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
     {
         int bw = S(hWnd, 210);
         int bh = S(hWnd, 28);
-        SetWindowPos(st->btnOpenLayoutsFolder, nullptr, x, y, bw, bh, SWP_NOZORDER);
+        pos(st->btnOpenLayoutsFolder, x, y, bw, bh);
         y += bh + S(hWnd, 14);
     }
 
-    if (st->lblPoll)
-        SetWindowPos(st->lblPoll, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
+    pos(st->lblPoll, x, y, sliderW + gap + chipW, labelH);
     y += labelH + S(hWnd, 6);
 
-    if (st->sldPoll)
-        SetWindowPos(st->sldPoll, nullptr, x, y, sliderW, sliderH, SWP_NOZORDER);
-    if (st->chipPoll)
-        SetWindowPos(st->chipPoll, nullptr, x + sliderW + gap, y, chipW, chipH, SWP_NOZORDER);
+    pos(st->sldPoll, x, y, sliderW, sliderH);
+    pos(st->chipPoll, x + sliderW + gap, y, chipW, chipH);
     y += sliderH + rowGap;
 
-    if (st->lblUiRefresh)
-        SetWindowPos(st->lblUiRefresh, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
+    pos(st->lblUiRefresh, x, y, sliderW + gap + chipW, labelH);
     y += labelH + S(hWnd, 6);
 
-    if (st->sldUiRefresh)
-        SetWindowPos(st->sldUiRefresh, nullptr, x, y, sliderW, sliderH, SWP_NOZORDER);
-    if (st->chipUiRefresh)
-        SetWindowPos(st->chipUiRefresh, nullptr, x + sliderW + gap, y, chipW, chipH, SWP_NOZORDER);
+    pos(st->sldUiRefresh, x, y, sliderW, sliderH);
+    pos(st->chipUiRefresh, x + sliderW + gap, y, chipW, chipH);
     y += sliderH + S(hWnd, 14);
 
-    if (st->lblHint)
-        SetWindowPos(st->lblHint, nullptr, x, y, std::max(S(hWnd, 120), sliderW + gap + chipW), S(hWnd, 20), SWP_NOZORDER);
+    pos(st->lblHint, x, y,
+        std::max(S(hWnd, 120), sliderW + gap + chipW), S(hWnd, 20));
     y += S(hWnd, 20) + S(hWnd, 18);
 
-    if (st->lblFactoryReset)
-        SetWindowPos(st->lblFactoryReset, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
+    pos(st->lblFactoryReset, x, y, sliderW + gap + chipW, labelH);
     y += labelH + S(hWnd, 7);
 
-    if (st->btnFactoryReset)
-        SetWindowPos(st->btnFactoryReset, nullptr, x, y, S(hWnd, 210), S(hWnd, 30), SWP_NOZORDER);
+    pos(st->btnFactoryReset, x, y, S(hWnd, 210), S(hWnd, 30));
     y += S(hWnd, 30) + S(hWnd, 7);
 
-    if (st->lblFactoryResetHint)
-        SetWindowPos(st->lblFactoryResetHint, nullptr, x, y,
-            std::max(S(hWnd, 120), sliderW + gap + chipW), S(hWnd, 34), SWP_NOZORDER);
+    pos(st->lblFactoryResetHint, x, y,
+        std::max(S(hWnd, 120), sliderW + gap + chipW), S(hWnd, 34));
+    y += S(hWnd, 34) + margin;
+
+    const int previousScroll = st->scrollY;
+    st->contentHeight = y;
+    CustomPageSurface_SetState(&st->surface, st->scrollY, st->contentHeight);
+    CustomPageSurface_SetContentHeight(hWnd, &st->surface, st->contentHeight);
+    st->scrollY = st->surface.scrollY;
+    if (st->scrollY != previousScroll)
+        Global_Layout(hWnd, st);
 }
 
 LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -6132,11 +6173,12 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
     case WM_PAINT:
     {
         PAINTSTRUCT ps{};
-        HDC hdc = BeginPaint(hWnd, &ps);
-        RECT rc{};
-        GetClientRect(hWnd, &rc);
-        FillRect(hdc, &rc, UiTheme::Brush_PanelBg());
-        EndPaint(hWnd, &ps);
+        HDC memDC = nullptr;
+        HBITMAP bmp = nullptr;
+        HGDIOBJ oldBmp = nullptr;
+        BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        Global_DrawScrollbar(hWnd, memDC, st);
+        EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
         return 0;
     }
 
@@ -6243,6 +6285,116 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
     case WM_SIZE:
         Global_Layout(hWnd, st);
         return 0;
+
+    case WM_LBUTTONDOWN:
+        if (st)
+        {
+            CustomPageSurface_SetState(&st->surface, st->scrollY, st->contentHeight);
+            POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            RECT thumb = CustomPageSurface_GetScrollThumbRect(hWnd, &st->surface);
+            RECT track = CustomPageSurface_GetScrollTrackRect(hWnd);
+            int maxScroll = Global_GetMaxScroll(hWnd, st);
+
+            if (maxScroll > 0 && PtInRect(&thumb, pt))
+            {
+                st->scrollDrag = true;
+                st->scrollDragGrabOffsetY = pt.y - thumb.top;
+                st->scrollDragThumbHeight = std::max(1, (int)thumb.bottom - (int)thumb.top);
+                st->scrollDragMax = maxScroll;
+                SetCapture(hWnd);
+                InvalidateRect(hWnd, nullptr, FALSE);
+                return 0;
+            }
+
+            if (maxScroll > 0 && PtInRect(&track, pt))
+            {
+                RECT rc{};
+                GetClientRect(hWnd, &rc);
+                int page = std::max(1, (int)(rc.bottom - rc.top) - S(hWnd, 48));
+                Global_SetScrollY(hWnd, st,
+                    pt.y < thumb.top ? st->scrollY - page : st->scrollY + page);
+                return 0;
+            }
+        }
+        break;
+
+    case WM_MOUSEMOVE:
+        if (st && st->scrollDrag)
+        {
+            POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            RECT track = CustomPageSurface_GetScrollTrackRect(hWnd);
+            int trackH = std::max(1, (int)track.bottom - (int)track.top);
+            int thumbH = std::max(1, st->scrollDragThumbHeight);
+            int travel = std::max(1, trackH - thumbH);
+            int maxScroll = std::max(1, st->scrollDragMax);
+            int topMin = track.top;
+            int topMax = std::max(topMin, (int)track.bottom - thumbH);
+            int top = std::clamp((int)pt.y - st->scrollDragGrabOffsetY, topMin, topMax);
+            double position = (double)(top - topMin) / (double)travel;
+            Global_SetScrollY(hWnd, st, (int)std::lround(position * (double)maxScroll));
+            return 0;
+        }
+        break;
+
+    case WM_LBUTTONUP:
+        if (st && st->scrollDrag)
+        {
+            st->scrollDrag = false;
+            if (GetCapture() == hWnd)
+                ReleaseCapture();
+            InvalidateRect(hWnd, nullptr, FALSE);
+            return 0;
+        }
+        break;
+
+    case WM_CAPTURECHANGED:
+    case WM_CANCELMODE:
+        if (st && st->scrollDrag)
+        {
+            st->scrollDrag = false;
+            InvalidateRect(hWnd, nullptr, FALSE);
+        }
+        return 0;
+
+    case WM_MOUSEWHEEL:
+        if (st)
+        {
+            int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+            if (delta != 0)
+            {
+                UINT lines = 3;
+                SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &lines, 0);
+                int lineCount = lines == WHEEL_PAGESCROLL ? 3 : (int)std::clamp<UINT>(lines, 1, 12);
+                int step = S(hWnd, 18) * lineCount;
+                Global_SetScrollY(hWnd, st,
+                    st->scrollY - (delta / WHEEL_DELTA) * step);
+            }
+            return 0;
+        }
+        break;
+
+    case WM_VSCROLL:
+        if (st)
+        {
+            RECT rc{};
+            GetClientRect(hWnd, &rc);
+            int page = std::max(1, (int)(rc.bottom - rc.top) - S(hWnd, 48));
+            int line = std::max(1, S(hWnd, 40));
+            int next = st->scrollY;
+            switch (LOWORD(wParam))
+            {
+            case SB_TOP:        next = 0; break;
+            case SB_BOTTOM:     next = Global_GetMaxScroll(hWnd, st); break;
+            case SB_LINEUP:     next -= line; break;
+            case SB_LINEDOWN:   next += line; break;
+            case SB_PAGEUP:     next -= page; break;
+            case SB_PAGEDOWN:   next += page; break;
+            default: break;
+            }
+            Global_SetScrollY(hWnd, st, next);
+            return 0;
+        }
+        break;
 
     case WM_TIMER:
         if (st && wParam == TOAST_TIMER_ID)
@@ -6404,10 +6556,13 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
     case WM_NCDESTROY:
         if (st)
         {
+            if (st->scrollDrag && GetCapture() == hWnd)
+                ReleaseCapture();
             GlobalDeleteConfirm_Clear(hWnd, st);
             if (st->hToast && IsWindow(st->hToast))
                 DestroyWindow(st->hToast);
             st->hToast = nullptr;
+            CustomPageSurface_Destroy(&st->surface);
             delete st;
             SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);
         }

@@ -676,3 +676,19 @@ v1.4 can be tagged only when:
 - Static contracts, a simulator failure after three real moves, byte-exact
   rollback, successful retry/backup verification, the official build and an
   unchanged-state Irok production cycle pass. V14-12P is Verified.
+
+### V14-12Q / Global settings scroll and danger-action consistency
+
+- Global settings now owns the shared `CustomPageSurface` scroll state used by
+  the other long settings pages. Its themed track/thumb appears only when the
+  complete page content exceeds the viewport and supports wheel, track, thumb
+  drag and vertical-scroll commands.
+- Remap, Configuration, Global settings, Input Overlay and Mouse settings all
+  have an overflow-scroll contract. Gamepad Tester intentionally remains the
+  exception because its card grid scales to the available viewport height.
+- The factory-reset action now has a solid dark-red resting fill, brighter red
+  hover state and matching danger text/border; it no longer inherits the
+  neutral control background while idle.
+- The static tab/scroll contract, reset transaction regression, unified static
+  checks, official x64 build and one physical Irok lifecycle cycle pass.
+  V14-12Q is Verified and does not alter external hardware gates.

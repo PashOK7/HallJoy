@@ -1831,3 +1831,45 @@ evidence is
 Status: V14-12P Verified. The backup is intentionally retained until the user
 chooses to remove it; reset does not broaden any physical keyboard-support
 claim or close the MAD68 HE/Aula release blockers.
+
+## V14-12Q Global-settings scroll and danger-fill validation
+
+Commands:
+
+```powershell
+python .\src\HallJoyProject\tests\factory_reset_static_audit.py
+powershell -NoProfile -ExecutionPolicy Bypass -File `
+  .\tools\run_factory_reset_test.ps1 -SkipBuild
+python .\tools\run_native_backend_checks.py --static-only
+cmd /c BUILD.cmd
+powershell -NoProfile -ExecutionPolicy Bypass -File `
+  .\tools\run_release_qualification.ps1 `
+  -ExePath .\build\output\HallJoy.exe -Cycles 1 -RunSeconds 2 `
+  -ProgressEvery 1
+```
+
+Results:
+
+- six-tab inventory and page-overflow contract: PASS; Remap, Configuration,
+  Global settings, Input Overlay and Mouse settings own themed scrolling;
+  Gamepad Tester uses adaptive card height instead of overflowing;
+- Global settings interaction contract: PASS; common track/thumb drawing,
+  bounded wheel and vertical-command scrolling, track paging, thumb capture/
+  drag and teardown are present;
+- danger action contract: PASS; idle fill is `RGB(108, 35, 43)`, with distinct
+  hover/press colors and danger-specific border/text;
+- reset runtime regression: PASS, including injected partial-move rollback and
+  successful retry; evidence is
+  `build/evidence/factory-reset/20260802-124758-494/summary.json`;
+- unified static audits and official x64 Release build: PASS, zero errors and
+  only the allowlisted external ViGEm `LNK4099`;
+- final `HallJoy.exe`: 2,228,224 bytes, SHA-256
+  `6DFC616422D89783A846F7EE8CAEA64AD7D951591092576DEFB717320543DF96`;
+- physical available-device regression: 1/1 PASS, 6,660 successful SparkLink
+  queries, 193 ms shutdown, maximum 209 HANDLEs, unchanged 12-file user state
+  and zero survivors. Evidence is
+  `build/evidence/release-qualification/20260802-125134/summary.json`.
+
+Status: V14-12Q Verified. Scrollbar visibility remains conditional on actual
+overflow; a large window correctly shows no thumb. Physical MAD68 HE/UAP and
+Aula acceptance remain independent release blockers.

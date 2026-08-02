@@ -24,6 +24,8 @@ header = read(HALL / "factory_reset.h")
 app = read(HALL / "app.cpp")
 main = read(HALL / "main.cpp")
 subpages = read(HALL / "keyboard_subpages.cpp")
+keyboard_page = read(HALL / "keyboard_page_main.cpp")
+remap = read(HALL / "remap_panel.cpp")
 project = read(HALL / "HallJoy.vcxproj")
 filters = read(HALL / "HallJoy.vcxproj.filters")
 
@@ -89,8 +91,24 @@ for marker, description in (
     ("MB_DEFBUTTON2", "destructive confirmation defaults to No"),
     ("FactoryReset_Request", "confirmed action persists the reset request"),
     ("WM_APP_FACTORY_RESET_RESTART", "confirmed action requests graceful restart"),
+    ("CustomPageSurface surface", "Global settings uses the shared scrollbar surface"),
+    ("CustomPageSurface_DrawScrollbar", "Global settings draws the common themed scrollbar"),
+    ("Global_SetScrollY", "Global settings owns bounded scroll state"),
+    ("WM_MOUSEWHEEL", "Global settings supports wheel scrolling"),
+    ("scrollDrag", "Global settings supports scrollbar thumb dragging"),
+    ("danger ? RGB(108, 35, 43)", "danger action has a red resting fill"),
 ):
     require(global_page, marker, description)
+
+for tab in ("Remap", "Configuration", "Gamepad Tester", "Global settings", "Input Overlay", "Mouse settings"):
+    require(keyboard_page, f'L"{tab}"', f"tab inventory includes {tab}")
+
+require(remap, "Remap_SetScrollY", "Remap owns themed scrolling")
+require(global_page, "Global_SetScrollY", "Global settings owns themed scrolling")
+require(subpages, "OverlayPage_SetScrollY", "Input Overlay owns themed scrolling")
+require(subpages, "Config_SetScrollY", "Configuration owns themed scrolling")
+require(subpages, "MouseCustom_PageProc", "Mouse settings owns themed scrolling")
+require(subpages, "int cardH = std::max(1, availH / rows);", "Gamepad Tester adapts cards instead of overflowing")
 
 if subpages.count("FactoryReset_Request(&error)") != 1:
     raise SystemExit("FAIL: factory reset UI action exists outside the intended Global page")

@@ -1952,3 +1952,33 @@ maximum 209 HANDLEs, unchanged 12-file state and zero survivor; evidence is
 
 V14-12P is Verified. Reset backups are deliberately retained for recovery.
 Physical MAD68 HE and Aula acceptance remain independent release blockers.
+
+## 2026-08-02 - V14-12Q Global-settings scroll and danger-fill correction
+
+User review exposed two presentation defects in the new factory-reset section.
+Global settings was still a fixed-position page, so compact windows could clip
+its lower content instead of exposing the themed scrollbar used elsewhere. The
+danger renderer also changed only the border/accent at rest and inherited the
+ordinary gray control background.
+
+Global settings now uses the shared `CustomPageSurface` geometry and owns
+bounded scroll state, conditional track/thumb drawing, wheel and vertical
+commands, track paging, captured thumb dragging and capture-safe teardown. All
+children are laid out in content coordinates minus the current scroll offset.
+The reset action now uses a solid dark-red idle fill with separate hover and
+pressed colors. The page inventory audit records the deliberate exception:
+Gamepad Tester scales its card grid to the viewport and does not overflow.
+
+The expanded static audit, reset rollback/retry runtime gate, unified static
+checks and official x64 Release build pass. Final `HallJoy.exe` is 2,228,224
+bytes, SHA-256
+`6DFC616422D89783A846F7EE8CAEA64AD7D951591092576DEFB717320543DF96`.
+One physical Irok cycle passed with 6,660 successful SparkLink queries, 193 ms
+shutdown, maximum 209 HANDLEs, unchanged 12-file state and zero survivor;
+evidence is
+`build/evidence/release-qualification/20260802-125134/summary.json`. Reset
+transaction evidence is
+`build/evidence/factory-reset/20260802-124758-494/summary.json`.
+
+V14-12Q is Verified. The correction changes no keyboard protocol and does not
+close the pending physical MAD68 HE/UAP or Aula release gates.

@@ -51,6 +51,9 @@ version or release status.
 - Verified package: `V14-12P` recoverable factory reset; styled Global-settings
   action, atomic request, exact-target backup, reverse rollback injection,
   official build and physical Irok lifecycle regression pass
+- Verified correction: `V14-12Q` Global settings now uses the same conditional
+  themed scrollbar contract as the other settings pages, and the destructive
+  reset action has a solid dark-red resting fill instead of a neutral fill
 - Next work: `V14-12/S21` release qualification and hardware matrix. The Aula
   physical result may arrive asynchronously but remains mandatory before release
 - GitHub publication: not started
@@ -212,3 +215,10 @@ zero HallJoy processes. The exact 2,212,352-byte `HallJoy.exe` SHA-256 is
 `06CF73B59827E957DDF9644AC2557C601F5602FD454AC7B025FB6533C041A462`.
 This is physical Irok and shared-downstream evidence, not physical proof for
 unavailable Aula, MAD68 HE/UAP or other keyboard protocols.
+
+The latest post-V14-12Q production artifact is the 2,228,224-byte
+`HallJoy.exe`, SHA-256
+`6DFC616422D89783A846F7EE8CAEA64AD7D951591092576DEFB717320543DF96`.
+Its one-cycle physical Irok regression passed with unchanged user state and a
+193 ms graceful shutdown. This UI correction does not change the outstanding
+physical MAD68 HE/UAP or Aula release gates.

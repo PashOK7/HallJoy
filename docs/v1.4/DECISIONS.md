@@ -582,3 +582,22 @@ earlier failure removes newly created directories and restores moved targets in
 reverse order. A complete rollback permits a normal retry; an incomplete
 rollback stops startup and reports the recovery directory truthfully. No code
 path may describe an unverified rollback as successful.
+
+## D-036 - Long settings pages share conditional themed scrolling
+
+Date: 2026-08-02
+
+Every settings page whose content can exceed its viewport must use the common
+`CustomPageSurface` track/thumb geometry and interaction contract. The
+scrollbar is conditional: no track or thumb is drawn when the entire content
+fits. Remap, Configuration, Global settings, Input Overlay and Mouse settings
+are overflow-capable and follow this rule.
+
+Gamepad Tester remains intentionally scrollbar-free because its card grid is
+computed from the available viewport height rather than from an unbounded
+content height. If it later gains fixed-height content that can overflow, it
+must adopt the common scrolling contract instead of clipping controls.
+
+Destructive actions must communicate danger through their resting fill as well
+as border and text. Hover-only or border-only danger styling is insufficient
+because the idle state is the primary state users see.

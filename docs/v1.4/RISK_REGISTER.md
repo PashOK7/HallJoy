@@ -28,7 +28,7 @@ maintained in `ROADMAP.md`.
 | `HJ-V14-P2-006` | P2 | Firmware-derived Aula support could be mistaken for physical hardware validation or could claim a sibling interface too broadly | `V14-12A` | Implemented | exact firmware/oracle reproduction, 17-read proof, exact-path ownership, ambiguity/session tests and Irok regression pass; physical Aula input/hotplug/multi-device gate remains open |
 | `HJ-V14-P2-007` | P2 | A contained overlay or ViGEm output worker exception permanently disables that service until HallJoy is restarted | `V14-12L` | Verified | owner-side reap/restart supervision and one-shot C++ fault injections pass without overlapping worker generations |
 | `HJ-V14-P2-008` | P2 | The browser overlay can consume excessive CPU by redrawing an unchanged canvas, retaining oversized bitmap caches and polling at a fresh-install 1 ms default | `V14-12O` | Verified | retained dirty-frame rendering, exact smoothing convergence, bounded 512/256 constant-time LRU caches, 8 ms fresh default and production Irok/Chrome before-after profiling |
-| `HJ-V14-P2-009` | P2 | A factory-reset action can be inaccessible in a compact viewport, partially delete state, re-import legacy files, or relaunch before the old process finishes saving | `V14-12P/Q` | Verified | common overflow scrollbar and solid danger affordance, atomic request, exact-target backup moves, preserved migration markers, reverse rollback fault injection, post-teardown relaunch ordering and production Irok regression pass |
+| `HJ-V14-P2-009` | P2 | A factory-reset action can be inaccessible or visually inconsistent, partially delete state, re-import legacy files, or relaunch before the old process finishes saving | `V14-12P/Q` | Open | transaction gates pass, but manual UI review rejected the accent/focus states; visual acceptance plus the existing rollback/relaunch gates are required |
 | `HJ-V14-P3-001` | P3 | Raw Mouse accumulation can overflow signed `int`, and uncommon clipboard/UAP failure exits can leak process or SetupAPI resources | `V14-12L` | Verified | widened saturating addition, clipboard ownership transfer checks, HID-list cleanup, locked fresh-plugin build and resource audit pass |
 
 ### Evidence boundary for HJ-V14-P2-006
@@ -448,9 +448,9 @@ production build и шестисекундный Irok MG75 Max smoke прошл�
 ## Сводка
 
 - P1: 3 implemented, 1 partial, 12 verified.
-- P2: 0 open, 21 verified.
+- P2: 1 open, 20 verified.
 - P3: 6 open, 2 verified.
-- Всего: 6 open, 3 implemented, 1 partial, 35 verified.
+- Всего: 7 open, 3 implemented, 1 partial, 34 verified.
 
 ## Дополнительный риск, обнаруженный при Windows gate S02A
 

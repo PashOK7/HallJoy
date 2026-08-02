@@ -51,13 +51,15 @@ version or release status.
 - Verified package: `V14-12P` recoverable factory reset; styled Global-settings
   action, atomic request, exact-target backup, reverse rollback injection,
   official build and physical Irok lifecycle regression pass
-- Verified correction: `V14-12Q` Global settings now uses the same conditional
-  themed scrollbar contract as the other settings pages, and the destructive
-  reset action has a solid dark-red resting fill instead of a neutral fill
+- Reopened after manual review: `V14-12Q` automated gates passed, but physical
+  Irok review found input-driven UI flicker, stale Configuration telemetry,
+  fake poll comboboxes, duplicated diagnostics and rejected reset-button states;
+  see `RELEASE_UI_AUDIT_HANDOFF_2026-08-02_RU.md`
 - Next work: `V14-12/S21` release qualification and hardware matrix. The Aula
   physical result may arrive asynchronously but remains mandatory before release
 - GitHub publication: not started
 - Release status: not release-ready
+- Current UI gate: rejected; a clean paint/control/diagnostics audit is required
 
 The current workstation has an Irok MG75 Max (`VID 1CA6`, `PID 0529`) that
 passes SparkLink capability, analog-row, held-key unplug/reconnect and balanced

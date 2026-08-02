@@ -690,5 +690,7 @@ v1.4 can be tagged only when:
   hover state and matching danger text/border; it no longer inherits the
   neutral control background while idle.
 - The static tab/scroll contract, reset transaction regression, unified static
-  checks, official x64 build and one physical Irok lifecycle cycle pass.
-  V14-12Q is Verified and does not alter external hardware gates.
+  checks, official x64 build and one physical Irok lifecycle cycle passed, but
+  subsequent manual Irok review rejected the UI. V14-12Q is In progress; the
+  blocking inventory and clean-audit scope are in
+  `RELEASE_UI_AUDIT_HANDOFF_2026-08-02_RU.md`.

@@ -1870,6 +1870,11 @@ Results:
   and zero survivors. Evidence is
   `build/evidence/release-qualification/20260802-125134/summary.json`.
 
-Status: V14-12Q Verified. Scrollbar visibility remains conditional on actual
-overflow; a large window correctly shows no thumb. Physical MAD68 HE/UAP and
-Aula acceptance remain independent release blockers.
+Automated status: PASS. Manual physical-Irok UI review after this gate: REJECTED.
+V14-12Q is reopened because analog input visibly flickers static UI/tab areas,
+Configuration telemetry refresh depends on hover, the two poll selectors are
+painted click-cyclers rather than real comboboxes, diagnostics are duplicated,
+and the reset accent/focus states were rejected. See
+`RELEASE_UI_AUDIT_HANDOFF_2026-08-02_RU.md`. Scrollbar visibility remains
+conditional on actual overflow. Physical MAD68 HE/UAP and Aula acceptance
+remain independent release blockers.

@@ -1982,3 +1982,25 @@ transaction evidence is
 
 V14-12Q is Verified. The correction changes no keyboard protocol and does not
 close the pending physical MAD68 HE/UAP or Aula release gates.
+
+## 2026-08-02 - V14-12Q manual UI rejection and clean-audit handoff
+
+The owner performed a physical Irok visual review after the automated V14-12Q
+gate and rejected the UI. Analog key input visibly flickers the interface,
+especially the tab row. Configuration telemetry remains stale until hover over
+the custom-painted `HE poll mode` or `Rows` selectors. Those selectors are not
+real comboboxes: each click cycles the value. Backend diagnostics are duplicated
+between Configuration and Gamepad Tester. The reset button's separate left red
+accent and standard dotted GDI focus rectangle were also rejected.
+
+Code inspection confirms the reset accent/focus implementation, fake-combo
+implementation and cache-dirty cause of hover-dependent telemetry refresh. The
+precise invalidation chain behind the global flicker is not yet proven and must
+be instrumented rather than guessed. V14-12Q is reopened and the current EXE is
+not a release candidate.
+
+The complete defect inventory, confirmed facts, open hypotheses, audit plan and
+acceptance criteria are recorded in
+`RELEASE_UI_AUDIT_HANDOFF_2026-08-02_RU.md`. Backup branch
+`backup/pre-release-ui-audit-20260802` preserves commit `3b3e9a3` before the
+new audit. Physical MAD68 HE/UAP and Aula acceptance remain separate blockers.

@@ -27,6 +27,7 @@ maintained in `ROADMAP.md`.
 | `HJ-V14-P2-005` | P2 | Local build can omit portable tests or accept warnings rejected by CI | `V14-04` | Verified | independent clone ran required portable tests and enforced the production warning allowlist |
 | `HJ-V14-P2-006` | P2 | Firmware-derived Aula support could be mistaken for physical hardware validation or could claim a sibling interface too broadly | `V14-12A` | Implemented | exact firmware/oracle reproduction, 17-read proof, exact-path ownership, ambiguity/session tests and Irok regression pass; physical Aula input/hotplug/multi-device gate remains open |
 | `HJ-V14-P2-007` | P2 | A contained overlay or ViGEm output worker exception permanently disables that service until HallJoy is restarted | `V14-12L` | Verified | owner-side reap/restart supervision and one-shot C++ fault injections pass without overlapping worker generations |
+| `HJ-V14-P2-008` | P2 | The browser overlay can consume excessive CPU by redrawing an unchanged canvas, retaining oversized bitmap caches and polling at a fresh-install 1 ms default | `V14-12O` | Verified | retained dirty-frame rendering, exact smoothing convergence, bounded 512/256 constant-time LRU caches, 8 ms fresh default and production Irok/Chrome before-after profiling |
 | `HJ-V14-P3-001` | P3 | Raw Mouse accumulation can overflow signed `int`, and uncommon clipboard/UAP failure exits can leak process or SetupAPI resources | `V14-12L` | Verified | widened saturating addition, clipboard ownership transfer checks, HID-list cleanup, locked fresh-plugin build and resource audit pass |
 
 ### Evidence boundary for HJ-V14-P2-006
@@ -102,6 +103,31 @@ The V14-12N matrix also reruns the shared UAP/Soup permanent child-unload stall
 beside all six native routes and the global watchdog. Its 9/9 result with zero
 survivors strengthens the code-level containment claim but cannot replace the
 reported device's physical retest.
+
+### Evidence for HJ-V14-P2-008
+
+The pre-change production profile at
+`build/evidence/input-pipeline-profile/20260802-105954` found that HallJoy used
+0.835% of the 12-logical-processor machine while the real headless Chrome tree
+used 14.407% and drew about 174.7 frames per second at the existing 1 ms poll
+setting. The hot spot was therefore the browser renderer, not HID/realtime.
+
+The final artifact retains the last canvas frame and redraws only after visual
+invalidation. Smoothing snaps exactly to its target below the visual epsilon;
+layout and every visual-style field still invalidate correctly. Bitmap caches
+are bounded and their eviction no longer scans the entire Map. Two repeated
+final 1 ms runs record HallJoy at 0.809-0.929% and Chrome at 5.451-6.120%.
+The exact 8 ms fresh-default comparison records 0.721% and 3.747%, one settled
+draw in ten seconds, 217,628/217,628 Spark routes, unchanged state and zero
+survivors. Evidence is under
+`build/evidence/input-pipeline-profile/20260802-113109` and
+`build/evidence/input-pipeline-profile/20260802-113432`.
+
+Headless Chrome is deliberately run without background throttling, so these
+are repeatable upper-pressure comparisons, not an exact OBS CPU prediction.
+System-busy CPU is recorded only as workstation context. The physical device is
+Irok MG75 Max; other protocols inherit only the measured shared downstream path
+and retain their own hardware qualification requirements.
 
 ## Статусы
 

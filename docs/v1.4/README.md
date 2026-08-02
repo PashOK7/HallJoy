@@ -45,6 +45,9 @@ version or release status.
   full compiler, sanitizer, locked-plugin build and Irok qualification pass
 - Verified package: `V14-12N/S21` deterministic shutdown containment for every
   production keyboard route; 9/9 process scenarios pass with zero survivors
+- Verified package: `V14-12O/S21` production input-to-overlay load profiling
+  and retained browser rendering; physical Irok, full HallJoy/browser process
+  trees and the 1 ms/8 ms refresh comparison pass without state mutation
 - Next work: `V14-12/S21` release qualification and hardware matrix. The Aula
   physical result may arrive asynchronously but remains mandatory before release
 - GitHub publication: not started
@@ -191,3 +194,18 @@ child route, the global watchdog and a normal control; all 9/9 pass with zero
 survivors. This is code/simulator containment evidence, not physical protocol
 validation. Physical MAD68 HE retest, manual device-matrix items and external
 Aula hardware remain release-blocking.
+
+V14-12O profiles the production chain from physical Irok/SparkLink HID through
+realtime, ViGEm publication, overlay JSON/send and a real headless Chrome page.
+On the final artifact, repeated 1 ms real-overlay runs used 0.809-0.929% of the
+12-logical-processor machine for the complete HallJoy tree and 5.451-6.120% for
+Chrome. A final exact 8 ms comparison used 0.721% and 3.747% respectively.
+The retained canvas now stops redrawing after visual convergence, sprite/label
+caches are bounded at 512/256 entries with constant-time LRU eviction, and new
+profiles default to 8 ms while the existing 1 ms opt-in remains supported.
+Physical route accounting reached 217,628/217,628 in the 8 ms comparison and
+277,055/277,055 in the final full-stage run; both preserved user state and left
+zero HallJoy processes. The exact 2,210,816-byte `HallJoy.exe` SHA-256 is
+`06CF73B59827E957DDF9644AC2557C601F5602FD454AC7B025FB6533C041A462`.
+This is physical Irok and shared-downstream evidence, not physical proof for
+unavailable Aula, MAD68 HE/UAP or other keyboard protocols.

@@ -637,3 +637,24 @@ v1.4 can be tagged only when:
 - V14-12N closes the code-level shutdown-matrix gap only. It does not claim
   physical protocol/input/hotplug proof for unavailable keyboards; physical
   MAD68 HE and Aula acceptance remain release-blocking.
+
+### V14-12O / S21 input-to-overlay load qualification
+
+- Added a production-only profiler that measures the complete HallJoy process
+  tree, persistent worker TIDs, residual UI/short-lived workers, physical
+  SparkLink HID transaction time, overlay build/send telemetry and a complete
+  real Chrome process tree across idle, real-overlay and animated 32-key phases.
+- Found the browser renderer redrawing the full canvas on every animation frame
+  even after analogue values settled. Retained rendering now invalidates only
+  on resize, layout/style or visible-depth change and converges smoothing to an
+  exact idle value.
+- Sprite/label caches are bounded at 512/256 entries and use constant-time
+  insertion-order LRU. Fresh profiles default to an 8 ms polling interval;
+  1 ms remains an explicit high-load option and existing settings are preserved.
+- On the final production artifact, 1 ms real-overlay runs use 0.809-0.929% of
+  the 12-thread machine for HallJoy and 5.451-6.120% for Chrome. An exact 8 ms
+  run uses 0.721% and 3.747%. Physical SparkLink accounting is exact, user state
+  is unchanged and no HallJoy process survives.
+- The official build and five post-profile Irok cycles pass. V14-12O is
+  Verified for the physically available Irok and shared downstream path;
+  unavailable keyboard protocols retain their separate hardware gates.

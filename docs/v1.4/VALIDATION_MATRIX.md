@@ -1735,3 +1735,58 @@ Status: code-level shutdown containment Verified for every production route.
 The matrix is explicitly simulator-only (`hardware_verified=false`) and does
 not close physical protocol/input/hotplug gates. MAD68 HE physical retest and
 Aula physical acceptance remain release-blocking.
+
+## V14-12O / S21 input-to-overlay load validation
+
+Commands:
+
+```powershell
+python .\src\HallJoyProject\tests\overlay_render_efficiency_static_audit.py
+python .\src\HallJoyProject\tests\input_pipeline_profile_static_audit.py
+cmd /c BUILD.cmd
+powershell -NoProfile -ExecutionPolicy Bypass -File `
+  .\tools\run_input_pipeline_profile.ps1 `
+  -ExePath .\build\output\HallJoy.exe -PhaseSeconds 15 `
+  -BrowserWarmupSeconds 5
+powershell -NoProfile -ExecutionPolicy Bypass -File `
+  .\tools\run_release_qualification.ps1 `
+  -ExePath .\build\output\HallJoy.exe -Cycles 5 -RunSeconds 2 `
+  -ProgressEvery 1
+```
+
+Static contracts and the complete official build gate PASS. Release x64 has
+zero errors and only the allowlisted external ViGEm `LNK4099`. Production
+artifact: `build/output/HallJoy.exe`, 2,210,816 bytes, SHA-256
+`06CF73B59827E957DDF9644AC2557C601F5602FD454AC7B025FB6533C041A462`.
+
+Final 15-second-per-phase evidence:
+`build/evidence/input-pipeline-profile/20260802-113109/summary.json`.
+
+- physical Irok/SparkLink: 277,055/277,055 successful route transactions,
+  average 281 us, maximum 1,737 us;
+- server idle: complete HallJoy tree 0.880% machine CPU;
+- real overlay at the user's existing 1 ms setting: HallJoy 0.809%, Chrome
+  5.451%; Spark 0.656%, realtime 0.017%, UI/short-lived HTTP 0.119%; 465.2
+  state requests/s, JSON build 26.7 us average/409 us maximum, response send
+  28.3 us average/227 us maximum;
+- animated 32-key browser stress: HallJoy 0.766%, Chrome 14.110%; this is an
+  intentionally continuous-redraw upper-pressure phase, not normal idle use;
+- maximum HallJoy tree footprint 29.3 MiB working set, 9.6 MiB private, 515
+  HANDLEs and 25 threads; unchanged user state and zero surviving processes.
+
+The exact final-artifact 8 ms comparison is
+`build/evidence/input-pipeline-profile/20260802-113432/summary.json`: HallJoy
+0.721%, Chrome 3.747%, 143.2 state requests/s, one settled draw, 217,628/217,628
+Spark routes, unchanged state and zero survivors. The user file was restored
+byte-for-byte to its original 1 ms setting and SHA-256
+`E1ED9B550CA111414D7558D7784CE6524C8C0A41CDB1CA81C89E3CD46B813BAE`.
+
+Post-profile lifecycle qualification is 5/5 PASS, exit zero, 128-219 ms
+shutdown, maximum 209 HANDLEs, unchanged 11-file state and zero survivors;
+evidence is
+`build/evidence/release-qualification/20260802-112901/summary.json`.
+
+Status: V14-12O Verified for physical Irok and the shared realtime/ViGEm/
+overlay/browser path. Headless Chrome uses disabled background throttling for a
+repeatable comparison and is not an exact OBS claim. Physical MAD68 HE/UAP and
+Aula validation remain release-blocking.

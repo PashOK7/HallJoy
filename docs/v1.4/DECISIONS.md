@@ -534,3 +534,28 @@ The matrix preserves and hashes separate traces and labels its summary
 `hardware_verified=false`. Passing it proves bounded code-level containment;
 it must never be used to claim physical protocol, analogue input, hotplug,
 multi-device or firmware compatibility.
+
+## D-034 - Production load claims include every process and stop idle drawing
+
+Date: 2026-08-02
+
+Input-to-overlay qualification must measure the complete HallJoy process tree
+and the complete browser tree separately. Main-process worker TIDs provide
+named persistent stages; the difference between main-process CPU and those TIDs
+is reported as UI/short-lived-worker CPU so ephemeral HTTP threads cannot vanish
+from the accounting. Physical route counts and transaction time, server JSON/
+send timing, browser fetch/render timing, resources, state preservation and
+survivor checks are all mandatory. System-busy CPU is context, not HallJoy cost.
+
+The browser canvas is retained. It may redraw only after resize, layout/style or
+visible-depth invalidation; smoothing must converge to an exact idle value.
+Sprite and label caches remain bounded at 512 and 256 entries and use
+constant-time insertion-order LRU. A fresh profile defaults to 8 ms polling to
+avoid spending browser CPU on imperceptible duplicate fetches. The 1 ms setting
+remains an explicit maximum-load option, and upgrades never rewrite an existing
+choice.
+
+Headless Chrome qualification disables background throttling for repeatability.
+Its CPU is an upper-pressure comparison, not a claim about exact OBS usage on
+another PC. Physical Irok proves SparkLink plus the shared downstream path;
+other keyboard transports retain their independent physical gates.

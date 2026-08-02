@@ -1875,3 +1875,46 @@ shutdown-window cancellations, zero survivors and unchanged 11-file state.
 V14-12N is Verified for code-level containment. Per D-033, simulator evidence
 is not hardware evidence. Physical MAD68 HE retest and Aula acceptance remain
 release blockers and continue asynchronously.
+
+## 2026-08-02 - V14-12O / S21 input-to-overlay production profiling
+
+Built a production-only load profiler around the exact released architecture,
+not the simulator. It records the complete HallJoy process tree (main, private
+UAP host and diagnostic watcher), persistent worker TIDs from the stability
+trace, residual UI/short-lived worker CPU, the full headless Chrome tree,
+system context, memory, HANDLEs, threads, physical Spark route timing and both
+server/browser overlay telemetry. Three separate phases cover server idle, the
+real overlay page and a continuously animated 32-key stress page. The runner
+hashes raw evidence, rejects user-state mutation and rejects surviving HallJoy
+processes.
+
+The baseline production artifact showed HallJoy at 0.835% machine CPU and
+Chrome at 14.407% during real 1 ms polling, with roughly 174.7 complete canvas
+draws per second. The browser was the dominant cost. The page now keeps the
+last canvas frame, converges smoothing to an exact target and redraws only for
+resize, layout, visual style or visible-depth changes. Sprite and label caches
+are bounded at 512/256 entries and use constant-time insertion-order LRU.
+Fresh profiles default to 8 ms; the supported 1 ms option and all existing user
+settings remain untouched.
+
+The final 2,210,816-byte `HallJoy.exe` SHA-256 is
+`06CF73B59827E957DDF9644AC2557C601F5602FD454AC7B025FB6533C041A462`.
+The official build passed with zero errors and only the allowlisted external
+ViGEm `LNK4099`. Two final 1 ms profiles place the complete HallJoy tree at
+0.809-0.929% and Chrome at 5.451-6.120%. The fully attributed run records Spark
+0.656%, realtime 0.017% and UI/short-lived HTTP 0.119%; JSON/send averages are
+26.7/28.3 us. The exact final 8 ms comparison is HallJoy 0.721%, Chrome 3.747%
+and one settled draw in ten seconds.
+
+Physical Irok accounting passed 277,055/277,055 in the full-stage run and
+217,628/217,628 in the 8 ms comparison. Both preserved user state and left zero
+processes. Five final production lifecycle cycles also pass with exit zero,
+128-219 ms shutdown, maximum 209 HANDLEs and unchanged 11-file state. Evidence
+is under `build/evidence/input-pipeline-profile/20260802-113109`,
+`build/evidence/input-pipeline-profile/20260802-113432` and
+`build/evidence/release-qualification/20260802-112901`.
+
+V14-12O is Verified within the physical evidence boundary: Irok/SparkLink and
+the downstream realtime/ViGEm/overlay/browser chain. It does not claim physical
+USB cost or protocol correctness for unavailable keyboards. MAD68 HE/UAP retest
+and Aula acceptance remain asynchronous release blockers.

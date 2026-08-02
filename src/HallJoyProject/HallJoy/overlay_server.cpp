@@ -58,7 +58,7 @@ static std::atomic<int> g_overlayEdgeStrengthPercent{ 50 };
 static std::atomic<int> g_overlayScaleStrengthPercent{ 50 };
 static std::atomic<int> g_overlayLabelStrengthPercent{ 0 };
 static std::atomic<int> g_overlayGlassRimStrengthPercent{ 50 };
-static std::atomic<int> g_overlayRefreshIntervalMs{ 1 };
+static std::atomic<int> g_overlayRefreshIntervalMs{ 8 };
 static std::atomic<bool> g_overlayAutoStart{ false };
 static std::atomic<bool> g_overlayUseRawDepth{ true };
 static std::atomic<int> g_overlayLabelFontIndex{ 0 };
@@ -77,6 +77,7 @@ static std::array<OverlayClientSlot, kOverlayMaxConcurrentClients> g_overlayClie
 static std::mutex g_overlaySocketMutex;
 static std::mutex g_overlayStateMutex;
 static std::mutex g_overlayLifecycleMutex;
+static std::mutex g_overlayPerfServerMutex;
 static halljoy::lifecycle::WorkerLifecycle g_overlayLifecycle;
 static std::wstring g_overlayLastError;
 static std::string g_overlaySessionToken;
@@ -87,6 +88,7 @@ static std::atomic<uint64_t> g_perfBuildUsTotal{ 0 };
 static std::atomic<uint64_t> g_perfBuildUsMax{ 0 };
 static std::atomic<uint64_t> g_perfSendUsTotal{ 0 };
 static std::atomic<uint64_t> g_perfSendUsMax{ 0 };
+static std::atomic<uint64_t> g_perfSendSamples{ 0 };
 static std::atomic<uint64_t> g_perfHttpRequests{ 0 };
 static std::atomic<uint64_t> g_perfHttpConnections{ 0 };
 static std::atomic<uint64_t> g_perfClientFrames{ 0 };
@@ -129,12 +131,23 @@ static void OverlayPerfMaybeLog()
     if (!g_perfLastLogMs.compare_exchange_strong(last, now, std::memory_order_relaxed))
         return;
 
-    uint64_t stateReq = g_perfStateRequests.exchange(0, std::memory_order_relaxed);
-    uint64_t stateBytes = g_perfStateBytes.exchange(0, std::memory_order_relaxed);
-    uint64_t buildUs = g_perfBuildUsTotal.exchange(0, std::memory_order_relaxed);
-    uint64_t buildMax = g_perfBuildUsMax.exchange(0, std::memory_order_relaxed);
-    uint64_t sendUs = g_perfSendUsTotal.exchange(0, std::memory_order_relaxed);
-    uint64_t sendMax = g_perfSendUsMax.exchange(0, std::memory_order_relaxed);
+    uint64_t stateReq = 0;
+    uint64_t stateBytes = 0;
+    uint64_t buildUs = 0;
+    uint64_t buildMax = 0;
+    uint64_t sendUs = 0;
+    uint64_t sendMax = 0;
+    uint64_t sendSamples = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_overlayPerfServerMutex);
+        stateReq = g_perfStateRequests.exchange(0, std::memory_order_relaxed);
+        stateBytes = g_perfStateBytes.exchange(0, std::memory_order_relaxed);
+        buildUs = g_perfBuildUsTotal.exchange(0, std::memory_order_relaxed);
+        buildMax = g_perfBuildUsMax.exchange(0, std::memory_order_relaxed);
+        sendUs = g_perfSendUsTotal.exchange(0, std::memory_order_relaxed);
+        sendMax = g_perfSendUsMax.exchange(0, std::memory_order_relaxed);
+        sendSamples = g_perfSendSamples.exchange(0, std::memory_order_relaxed);
+    }
     uint64_t httpReq = g_perfHttpRequests.exchange(0, std::memory_order_relaxed);
     uint64_t httpConn = g_perfHttpConnections.exchange(0, std::memory_order_relaxed);
     uint64_t clientFrames = g_perfClientFrames.exchange(0, std::memory_order_relaxed);
@@ -150,7 +163,7 @@ static void OverlayPerfMaybeLog()
     uint64_t clientReports = g_perfClientReports.exchange(0, std::memory_order_relaxed);
 
     double avgBuild = stateReq ? (double)buildUs / (double)stateReq : 0.0;
-    double avgSend = stateReq ? (double)sendUs / (double)stateReq : 0.0;
+    double avgSend = sendSamples ? (double)sendUs / (double)sendSamples : 0.0;
     double avgBytes = stateReq ? (double)stateBytes / (double)stateReq : 0.0;
     double avgFetch = clientFetches ? (double)clientFetch / (double)clientFetches : 0.0;
     double avgRender = clientFrames ? (double)clientRender / (double)clientFrames : 0.0;
@@ -161,13 +174,14 @@ static void OverlayPerfMaybeLog()
     wchar_t line[768]{};
     swprintf_s(
         line,
-        L"[overlay.perf] http_req=%llu conn=%llu state=%llu avg_bytes=%.0f build_us_avg=%.1f build_us_max=%llu send_us_avg=%.1f send_us_max=%llu client_reports=%llu client_frames=%llu client_fetches=%llu client_fetch_us_avg=%.1f client_render_us_avg=%.1f client_layout_us_avg=%.1f sprite_hits=%llu sprite_misses=%llu label_misses=%llu sprite_build_us_avg=%.1f label_build_us_avg=%.1f sprite_build_us_total=%llu label_build_us_total=%llu",
+        L"[overlay.perf] http_req=%llu conn=%llu state=%llu avg_bytes=%.0f build_us_avg=%.1f build_us_max=%llu send_samples=%llu send_us_avg=%.1f send_us_max=%llu client_reports=%llu client_frames=%llu client_fetches=%llu client_fetch_us_avg=%.1f client_render_us_avg=%.1f client_layout_us_avg=%.1f sprite_hits=%llu sprite_misses=%llu label_misses=%llu sprite_build_us_avg=%.1f label_build_us_avg=%.1f sprite_build_us_total=%llu label_build_us_total=%llu",
         (unsigned long long)httpReq,
         (unsigned long long)httpConn,
         (unsigned long long)stateReq,
         avgBytes,
         avgBuild,
         (unsigned long long)buildMax,
+        (unsigned long long)sendSamples,
         avgSend,
         (unsigned long long)sendMax,
         (unsigned long long)clientReports,
@@ -467,10 +481,13 @@ static std::string OverlayBuildStateJson()
     ss += "]}";
 
     uint64_t durUs = OverlayNowUs() - beginUs;
-    g_perfStateRequests.fetch_add(1, std::memory_order_relaxed);
-    g_perfStateBytes.fetch_add((uint64_t)ss.size(), std::memory_order_relaxed);
-    g_perfBuildUsTotal.fetch_add(durUs, std::memory_order_relaxed);
-    OverlayAtomicMax(g_perfBuildUsMax, durUs);
+    {
+        std::lock_guard<std::mutex> lock(g_overlayPerfServerMutex);
+        g_perfStateRequests.fetch_add(1, std::memory_order_relaxed);
+        g_perfStateBytes.fetch_add((uint64_t)ss.size(), std::memory_order_relaxed);
+        g_perfBuildUsTotal.fetch_add(durUs, std::memory_order_relaxed);
+        OverlayAtomicMax(g_perfBuildUsMax, durUs);
+    }
     return ss;
 }
 
@@ -493,7 +510,7 @@ html,body{margin:0;background:transparent;overflow:hidden}
 const canvas=document.getElementById('c');
 const ctx=canvas.getContext('2d',{alpha:true,desynchronized:true});
 const displayed=new Map();
-let latest=null,layoutKey='',lastRefreshMs=1;
+let latest=null,layoutKey='',visualStyleKey='',lastRefreshMs=1;
 let dpr=1,cw=0,ch=0,boardW=1,boardH=1,scale=1,ox=0,oy=0;
 let polling=false;
 let perfFrames=0,perfFetches=0,perfFetch=0,perfRender=0,perfLayout=0,lastPerfReport=performance.now();
@@ -501,9 +518,8 @@ let perfSpriteHits=0,perfSpriteMisses=0,perfLabelMisses=0,lastRenderTime=perform
 let perfSpriteBuild=0,perfLabelBuild=0;
 const spriteCache=new Map();
 const labelCache=new Map();
-let spriteSerial=0;
-const SPRITE_CACHE_MAX=4096;
-const LABEL_CACHE_MAX=1024;
+const SPRITE_CACHE_MAX=512;
+const LABEL_CACHE_MAX=256;
 const SPRITE_PAD=128;
 const query=new URLSearchParams(location.search);
 const syntheticMode=query.get('synthetic')==='1'||query.get('synthetic')==='true';
@@ -690,7 +706,7 @@ function getSprite(w,h,v,s,c,fx,stg){
   const glassStrength=stGlass(stg);
   const key=[w,h,rv,s.fillDirection,fx.glass?1:0,fx.bloom?1:0,fx.edgeSweep?1:0,c.r,c.g,c.b,bloomStrength.toFixed(2),edgeStrength.toFixed(2),glassStrength.toFixed(2)].join('|');
   const hit=spriteCache.get(key);
-  if(hit){hit.used=++spriteSerial;perfSpriteHits++;return hit.canvas;}
+  if(hit){spriteCache.delete(key);spriteCache.set(key,hit);perfSpriteHits++;return hit.canvas;}
   perfSpriteMisses++;
   const buildStart=performance.now();
   const vq=rv/96,pad=SPRITE_PAD,r=7,sw=Math.ceil(w+pad*2),sh=Math.ceil(h+pad*2);
@@ -718,8 +734,8 @@ function getSprite(w,h,v,s,c,fx,stg){
   if(fx.glass)drawGlassMaterial(g,w,h,r,c,vq,glassStrength,eased);
   rr2(g,.5,.5,w-1,h-1,r);g.lineWidth=1+2.2*edgePower;g.strokeStyle=vq>0&&fx.edgeSweep?rgba(c,0.30+0.70*edgePower):'rgba(255,255,255,.22)';g.shadowColor=rgba(c,0.10+0.78*edgePower);g.shadowBlur=vq>0&&fx.edgeSweep?10+70*edgePower:0;g.stroke();
   if(vq>0&&fx.edgeSweep){rr2(g,2,2,w-4,h-4,Math.max(1,r-2));g.shadowBlur=0;g.lineWidth=.8+4.8*edgePower;g.strokeStyle=rgba(c,0.10+0.70*edgePower);g.stroke();}
-  spriteCache.set(key,{canvas:cn,used:++spriteSerial});
-  if(spriteCache.size>SPRITE_CACHE_MAX){let oldestK=null,oldest=Infinity;for(const [k,e] of spriteCache){if(e.used<oldest){oldest=e.used;oldestK=k;}}if(oldestK!==null)spriteCache.delete(oldestK);}
+  spriteCache.set(key,{canvas:cn});
+  if(spriteCache.size>SPRITE_CACHE_MAX)spriteCache.delete(spriteCache.keys().next().value);
   perfSpriteBuild+=(performance.now()-buildStart)*1000;
   return cn;
 }
@@ -729,7 +745,7 @@ function getLabelSprite(w,h,label,labelPower,enabled,style){
   const lc=labelColor(style),font=labelFont(style),shadow=Math.max(0,Math.min(100,(style&&style.shadow)===undefined?50:style.shadow));
   const key=[w,h,label,lp,enabled?1:0,font,shadow,lc.r,lc.g,lc.b].join('|');
   const hit=labelCache.get(key);
-  if(hit){hit.used=++spriteSerial;return hit.canvas;}
+  if(hit){labelCache.delete(key);labelCache.set(key,hit);return hit.canvas;}
   perfLabelMisses++;
   const buildStart=performance.now();
   const pad=10+Math.ceil(18*(enabled?Math.min(1,labelPower):0))+Math.ceil(shadow*.12);
@@ -740,8 +756,8 @@ function getLabelSprite(w,h,label,labelPower,enabled,style){
   if(enabled){g.lineWidth=1.2+5.8*(lp/96);g.strokeStyle='rgba(0,0,0,'+(0.38+0.42*shadow01)+')';g.strokeText(label||'',pad+w*.5,pad+h*.5,Math.max(4,w-8));}
   g.shadowColor='rgba(0,0,0,'+(0.48+0.47*shadow01)+')';g.shadowBlur=(1+15*shadow01)+(enabled?18*(lp/96)*shadow01:0);g.shadowOffsetY=.5+1.8*shadow01;
   g.fillText(label||'',pad+w*.5,pad+h*.5,Math.max(4,w-8));
-  labelCache.set(key,{canvas:cn,used:++spriteSerial});
-  if(labelCache.size>LABEL_CACHE_MAX){let oldestK=null,oldest=Infinity;for(const [k,e] of labelCache){if(e.used<oldest){oldest=e.used;oldestK=k;}}if(oldestK!==null)labelCache.delete(oldestK);}
+  labelCache.set(key,{canvas:cn});
+  if(labelCache.size>LABEL_CACHE_MAX)labelCache.delete(labelCache.keys().next().value);
   perfLabelBuild+=(performance.now()-buildStart)*1000;
   return cn;
 }
@@ -886,28 +902,44 @@ function drawBloomAura(k,v,c,stg){
   ctx.restore();
 }
 function render(){
-  const start=performance.now();resize();
+  const start=performance.now();let redraw=resize();
   const dt=Math.max(1,Math.min(100,start-lastRenderTime));lastRenderTime=start;
-  ctx.clearRect(0,0,cw,ch);
   if(syntheticMode&&latest)syntheticApply(latest,start);
   const s=latest;
+  let live=[],lit=[],fx={},stg={},settings={},c={r:73,g:196,b:255};
   if(s&&s.keys){
-    const lk=s.keys.map(k=>k.hid+','+k.row+','+k.x+','+k.w+','+(k.h||40)).join('|');
-    let layoutMs=0;if(lk!==layoutKey){const ls=performance.now();layoutKey=lk;recalcLayout(s.keys);layoutMs=performance.now()-ls;perfLayout+=layoutMs*1000;}
-    const fx=s.effects||{},stg=s.strengths||{},settings=s.settings||{},c=accent(s);
+    const lk=s.keys.map(k=>k.hid+','+k.row+','+k.x+','+k.w+','+(k.h||40)+','+(k.label||'')).join('|');
+    let layoutMs=0;if(lk!==layoutKey){const ls=performance.now();layoutKey=lk;recalcLayout(s.keys);layoutMs=performance.now()-ls;perfLayout+=layoutMs*1000;redraw=true;}
+    fx=s.effects||{};stg=s.strengths||{};settings=s.settings||{};c=accent(s);
+    const label=s.labelStyle||{},lc=labelColor(label);
+    const sk=[s.fillDirection,settings.useRawDepth?1:0,c.r,c.g,c.b,
+      fx.smoothing?1:0,fx.glass?1:0,fx.bloom?1:0,fx.edgeSweep?1:0,fx.microScale?1:0,fx.labelContrast?1:0,fx.glassRimLight?1:0,
+      stg.smoothing,stg.glass,stg.bloom,stg.edgeSweep,stg.microScale,stg.labelContrast,stg.glassRimLight,
+      label.font,label.size,label.shadow,lc.r,lc.g,lc.b].join('|');
+    if(sk!==visualStyleKey){visualStyleKey=sk;redraw=true;}
     const baseResponse=1-(clamp01((stg.smoothing===undefined?35:stg.smoothing)/100)*.82);
     const response=fx.smoothing?1-Math.pow(1-baseResponse,dt/16.6667):1;
-    ctx.save();ctx.translate(ox,oy);ctx.scale(scale,scale);
-    const live=[],lit=[];
     for(const k of s.keys){
       const id=k.hid+':'+k.row+':'+k.x;const target=clamp01(((settings.useRawDepth?k.raw:k.out)||0)/1000);
-      const last=displayed.has(id)?displayed.get(id):target;const v=fx.smoothing?last+(target-last)*response:target;displayed.set(id,Math.abs(v)<0.001?0:v);live.push([k,v]);if(v>.002)lit.push([k,v]);
+      const existed=displayed.has(id),last=existed?displayed.get(id):target;
+      let v=fx.smoothing?last+(target-last)*response:target;
+      if(Math.abs(target-v)<.0005)v=target;
+      if(!existed||Math.abs(v-last)>=.0005)redraw=true;
+      if(Math.abs(v)<.001)v=0;
+      displayed.set(id,v);live.push([k,v]);if(v>.002)lit.push([k,v]);
     }
-    if(fx.bloom){for(const item of lit)drawBloomAura(item[0],item[1],c,stg);}
-    for(const item of live)drawKey(item[0],item[1],s,c,fx,stg,lit);
-    ctx.restore();
   }
-  perfFrames++;perfRender+=(performance.now()-start)*1000;const now=performance.now();
+  if(redraw){
+    ctx.clearRect(0,0,cw,ch);
+    if(s&&s.keys){
+      ctx.save();ctx.translate(ox,oy);ctx.scale(scale,scale);
+      if(fx.bloom){for(const item of lit)drawBloomAura(item[0],item[1],c,stg);}
+      for(const item of live)drawKey(item[0],item[1],s,c,fx,stg,lit);
+      ctx.restore();
+    }
+    perfFrames++;perfRender+=(performance.now()-start)*1000;
+  }
+  const now=performance.now();
   if(now-lastPerfReport>5000){fetch('/client_perf?frames='+perfFrames+'&fetches='+perfFetches+'&fetch_us='+Math.round(perfFetch)+'&render_us='+Math.round(perfRender)+'&layout_us='+Math.round(perfLayout)+'&sprite_hits='+perfSpriteHits+'&sprite_misses='+perfSpriteMisses+'&label_misses='+perfLabelMisses+'&sprite_build_us='+Math.round(perfSpriteBuild)+'&label_build_us='+Math.round(perfLabelBuild),{cache:'no-store'}).catch(()=>{});perfFrames=0;perfFetches=0;perfFetch=0;perfRender=0;perfLayout=0;perfSpriteHits=0;perfSpriteMisses=0;perfLabelMisses=0;perfSpriteBuild=0;perfLabelBuild=0;lastPerfReport=now;}
   requestAnimationFrame(render);
 }
@@ -980,8 +1012,12 @@ static bool OverlaySend(SOCKET s, const std::string& status, const std::string& 
         ok = OverlaySendAll(s, body.data(), (int)body.size());
 
     uint64_t durUs = OverlayNowUs() - beginUs;
-    g_perfSendUsTotal.fetch_add(durUs, std::memory_order_relaxed);
-    OverlayAtomicMax(g_perfSendUsMax, durUs);
+    {
+        std::lock_guard<std::mutex> lock(g_overlayPerfServerMutex);
+        g_perfSendUsTotal.fetch_add(durUs, std::memory_order_relaxed);
+        OverlayAtomicMax(g_perfSendUsMax, durUs);
+        g_perfSendSamples.fetch_add(1, std::memory_order_relaxed);
+    }
     return ok;
 }
 

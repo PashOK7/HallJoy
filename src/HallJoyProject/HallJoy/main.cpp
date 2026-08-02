@@ -159,6 +159,7 @@ int WINAPI wWinMain(
     StabilityTrace_Write(L"INFO", L"main", L"final_shutdown.begin");
     App_ForceFinalShutdown();
     StabilityTrace_Write(L"INFO", L"main", L"final_shutdown.end");
+    const bool relaunchRequested = App_TakeRelaunchRequest();
 
     if (App_RequiresImmediateProcessExit())
     {
@@ -179,6 +180,15 @@ int WINAPI wWinMain(
     // Keep the watchdog armed through logger and stability-trace teardown. It
     // is safe to release only after every explicit shutdown stage completed.
     App_DisarmShutdownWatchdog();
+
+    if (relaunchRequested && !App_RelaunchSelf())
+    {
+        MessageBoxW(nullptr,
+            L"HallJoy closed safely, but Windows could not restart it automatically.\n\n"
+            L"Start HallJoy again to finish the factory reset.",
+            L"HallJoy factory reset",
+            MB_ICONWARNING | MB_OK);
+    }
 
     return result;
 }

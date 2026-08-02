@@ -40,6 +40,7 @@
 #include "premium_combo.h"
 #include "keyboard_layout.h"
 #include "settings_ini.h"
+#include "factory_reset.h"
 #include "profile_ini.h"
 #include "app_paths.h"
 #include "file_name_policy.h"
@@ -55,6 +56,7 @@ namespace fs = std::filesystem;
 
 static constexpr UINT WM_APP_REQUEST_SAVE = WM_APP + 1;
 static constexpr UINT WM_APP_APPLY_TIMING = WM_APP + 2;
+static constexpr UINT WM_APP_FACTORY_RESET_RESTART = WM_APP + 3;
 static constexpr UINT WM_APP_PROFILE_BEGIN_CREATE = WM_APP + 120;
 static constexpr UINT WM_APP_CONFIG_PROFILE_APPLIED = WM_APP + 121;
 static constexpr UINT WM_APP_GLOBAL_PROFILE_DIRTY = WM_APP + 122;
@@ -5334,6 +5336,9 @@ struct GlobalSettingsPageState
     HWND chipUiRefresh = nullptr;
 
     HWND lblHint = nullptr;
+    HWND lblFactoryReset = nullptr;
+    HWND btnFactoryReset = nullptr;
+    HWND lblFactoryResetHint = nullptr;
 
     int   pendingDeleteIdx = -1;
     DWORD pendingDeleteTick = 0;
@@ -5349,8 +5354,9 @@ static constexpr int GLOB_ID_LAYOUT_COMBO = 7603;
 static constexpr int GLOB_ID_LAYOUT_EDITOR = 7604;
 static constexpr int GLOB_ID_LAYOUTS_FOLDER = 7605;
 static constexpr int GLOB_ID_GLOBAL_PROFILE_COMBO = 7606;
+static constexpr int GLOB_ID_FACTORY_RESET = 7607;
 
-static void Global_DrawLayoutEditorButton(const DRAWITEMSTRUCT* dis)
+static void Global_DrawActionButton(const DRAWITEMSTRUCT* dis, bool danger = false)
 {
     if (!dis) return;
 
@@ -5363,15 +5369,16 @@ static void Global_DrawLayoutEditorButton(const DRAWITEMSTRUCT* dis)
 
     COLORREF bg = UiTheme::Color_ControlBg();
     if (pressed)
-        bg = RGB(42, 42, 44);
+        bg = danger ? RGB(64, 31, 34) : RGB(42, 42, 44);
     else if (hot)
-        bg = RGB(40, 40, 42);
+        bg = danger ? RGB(54, 31, 34) : RGB(40, 40, 42);
 
     HBRUSH br = CreateSolidBrush(bg);
     FillRect(hdc, &rc, br);
     DeleteObject(br);
 
-    HPEN pen = CreatePen(PS_SOLID, 1, UiTheme::Color_Border());
+    const COLORREF border = danger ? RGB(184, 72, 82) : UiTheme::Color_Border();
+    HPEN pen = CreatePen(PS_SOLID, 1, border);
     HGDIOBJ oldPen = SelectObject(hdc, pen);
     HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
     Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
@@ -5379,11 +5386,20 @@ static void Global_DrawLayoutEditorButton(const DRAWITEMSTRUCT* dis)
     SelectObject(hdc, oldPen);
     DeleteObject(pen);
 
+    if (danger)
+    {
+        RECT accent{ rc.left + 1, rc.top + 1, rc.left + S(dis->hwndItem, 4), rc.bottom - 1 };
+        HBRUSH accentBrush = CreateSolidBrush(RGB(222, 78, 91));
+        FillRect(hdc, &accent, accentBrush);
+        DeleteObject(accentBrush);
+    }
+
     wchar_t text[128]{};
     GetWindowTextW(dis->hwndItem, text, (int)(sizeof(text) / sizeof(text[0])));
 
     SetBkMode(hdc, TRANSPARENT);
-    SetTextColor(hdc, disabled ? UiTheme::Color_TextMuted() : UiTheme::Color_Text());
+    SetTextColor(hdc, disabled ? UiTheme::Color_TextMuted() :
+        (danger ? RGB(255, 218, 221) : UiTheme::Color_Text()));
     DrawTextW(hdc, text, -1, &rc,
         DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
 
@@ -5860,6 +5876,19 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
 
     if (st->lblHint)
         SetWindowPos(st->lblHint, nullptr, x, y, std::max(S(hWnd, 120), sliderW + gap + chipW), S(hWnd, 20), SWP_NOZORDER);
+    y += S(hWnd, 20) + S(hWnd, 18);
+
+    if (st->lblFactoryReset)
+        SetWindowPos(st->lblFactoryReset, nullptr, x, y, sliderW + gap + chipW, labelH, SWP_NOZORDER);
+    y += labelH + S(hWnd, 7);
+
+    if (st->btnFactoryReset)
+        SetWindowPos(st->btnFactoryReset, nullptr, x, y, S(hWnd, 210), S(hWnd, 30), SWP_NOZORDER);
+    y += S(hWnd, 30) + S(hWnd, 7);
+
+    if (st->lblFactoryResetHint)
+        SetWindowPos(st->lblFactoryResetHint, nullptr, x, y,
+            std::max(S(hWnd, 120), sliderW + gap + chipW), S(hWnd, 34), SWP_NOZORDER);
 }
 
 LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -6117,7 +6146,9 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         SetBkMode(hdc, TRANSPARENT);
 
         HWND hCtl = (HWND)lParam;
-        if (st && hCtl && st->lblHint && hCtl == st->lblHint)
+        if (st && hCtl &&
+            ((st->lblHint && hCtl == st->lblHint) ||
+             (st->lblFactoryResetHint && hCtl == st->lblFactoryResetHint)))
             SetTextColor(hdc, UiTheme::Color_TextMuted());
         else
             SetTextColor(hdc, UiTheme::Color_Text());
@@ -6190,6 +6221,20 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblHint, WM_SETFONT, (WPARAM)hFont, TRUE);
 
+        st->lblFactoryReset = CreateWindowW(L"STATIC", L"Factory reset",
+            WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblFactoryReset, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->btnFactoryReset = CreateWindowW(L"BUTTON", L"Reset All Settings",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+            0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)GLOB_ID_FACTORY_RESET, hInst, nullptr);
+        SendMessageW(st->btnFactoryReset, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->lblFactoryResetHint = CreateWindowW(L"STATIC",
+            L"Backs up and resets settings, bindings, profiles, layouts and curve presets.",
+            WS_CHILD | WS_VISIBLE | SS_LEFT, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblFactoryResetHint, WM_SETFONT, (WPARAM)hFont, TRUE);
+
         Global_UpdateUi(st);
         Global_Layout(hWnd, st);
         return 0;
@@ -6248,9 +6293,10 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         const DRAWITEMSTRUCT* dis = (const DRAWITEMSTRUCT*)lParam;
         if (st && dis && dis->CtlType == ODT_BUTTON &&
             ((dis->CtlID == GLOB_ID_LAYOUT_EDITOR && st->btnLayoutEditor == dis->hwndItem) ||
-             (dis->CtlID == GLOB_ID_LAYOUTS_FOLDER && st->btnOpenLayoutsFolder == dis->hwndItem)))
+             (dis->CtlID == GLOB_ID_LAYOUTS_FOLDER && st->btnOpenLayoutsFolder == dis->hwndItem) ||
+             (dis->CtlID == GLOB_ID_FACTORY_RESET && st->btnFactoryReset == dis->hwndItem)))
         {
-            Global_DrawLayoutEditorButton(dis);
+            Global_DrawActionButton(dis, dis->CtlID == GLOB_ID_FACTORY_RESET);
             return TRUE;
         }
         break;
@@ -6316,6 +6362,40 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         {
             GlobalDeleteConfirm_Clear(hWnd, st);
             Global_OpenLayoutsFolder(hWnd);
+            return 0;
+        }
+
+        if (LOWORD(wParam) == (UINT)GLOB_ID_FACTORY_RESET && HIWORD(wParam) == BN_CLICKED)
+        {
+            GlobalDeleteConfirm_Clear(hWnd, st);
+            const int answer = MessageBoxW(
+                hWnd,
+                L"Reset all HallJoy settings to defaults?\n\n"
+                L"HallJoy will safely back up and reset:\n"
+                L"  - application and Input Overlay settings\n"
+                L"  - all keyboard and gamepad bindings\n"
+                L"  - global profiles and custom layouts\n"
+                L"  - curve presets\n\n"
+                L"HallJoy will then restart automatically. Your backup will be kept in the HallJoy data folder.",
+                L"Reset all HallJoy settings",
+                MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2);
+            if (answer != IDYES)
+                return 0;
+
+            DWORD error = ERROR_SUCCESS;
+            if (!FactoryReset_Request(&error))
+            {
+                wchar_t message[256]{};
+                swprintf_s(message,
+                    L"HallJoy could not prepare the factory reset. No settings were changed.\n\nWindows error: %lu",
+                    static_cast<unsigned long>(error));
+                MessageBoxW(hWnd, message, L"HallJoy factory reset", MB_ICONERROR | MB_OK);
+                return 0;
+            }
+
+            HWND root = ResolveAppMainWindow(hWnd);
+            if (root)
+                PostMessageW(root, WM_APP_FACTORY_RESET_RESTART, 0, 0);
             return 0;
         }
 
@@ -7645,7 +7725,7 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
             ((dis->CtlID == MOUSE_ID_ENABLE_BUTTON && st->btnEnable == dis->hwndItem) ||
              (dis->CtlID == MOUSE_ID_BLOCK_MOUSE_INPUT && st->btnBlockMouse == dis->hwndItem)))
         {
-            Global_DrawLayoutEditorButton(dis);
+            Global_DrawActionButton(dis);
             return TRUE;
         }
         break;
@@ -9698,6 +9778,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             KeySettingsPanel_HandleCommand(hWnd, 9999, 0);
             return 0;
         }
+
         fs::path newPath = newPathText;
 
         for (int listIndex = 0; listIndex < (int)list.size(); ++listIndex)

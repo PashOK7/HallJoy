@@ -559,3 +559,26 @@ Headless Chrome qualification disables background throttling for repeatability.
 Its CPU is an upper-pressure comparison, not a claim about exact OBS usage on
 another PC. Physical Irok proves SparkLink plus the shared downstream path;
 other keyboard transports retain their independent physical gates.
+
+## D-035 - Factory reset is a recoverable restart-time transaction
+
+Date: 2026-08-02
+
+A UI reset request must never delete mutable state in the live process. HallJoy
+first persists a validated atomic request, then uses its ordinary graceful
+shutdown path. A replacement process may start only after worker, GDI+, logger,
+stability-trace and watchdog teardown is complete, and it applies the request
+before loading any settings.
+
+Reset scope is the exact set `settings.ini`, `bindings.ini`, `GlobalProfiles`,
+`Layouts` and `CurvePresets`. Each existing ordinary target is moved with
+write-through semantics into a unique `FactoryResetBackups/reset-*` directory;
+it is not deleted. Migration-completion markers, logs, runtime dependencies and
+unrelated files remain in place. This prevents a reset from replaying one-time
+legacy migration or turning diagnostics into user-state loss.
+
+The request marker is removed only after fresh state directories exist. Any
+earlier failure removes newly created directories and restores moved targets in
+reverse order. A complete rollback permits a normal retry; an incomplete
+rollback stops startup and reports the recovery directory truthfully. No code
+path may describe an unverified rollback as successful.

@@ -658,3 +658,21 @@ v1.4 can be tagged only when:
 - The official build and five post-profile Irok cycles pass. V14-12O is
   Verified for the physically available Irok and shared downstream path;
   unavailable keyboard protocols retain their separate hardware gates.
+
+### V14-12P / recoverable factory reset
+
+- Global settings now exposes a styled owner-draw `Reset All Settings` action
+  with a complete scope warning and `No` as the default confirmation choice.
+- A confirmed reset writes a validated atomic request, performs the ordinary
+  graceful shutdown, and relaunches only after all workers, logs, trace and the
+  shutdown watchdog have completed teardown.
+- Before any settings load, the new process moves `settings.ini`,
+  `bindings.ini`, `GlobalProfiles`, `Layouts` and `CurvePresets` into a unique
+  `FactoryResetBackups/reset-*` directory. Migration markers, logs and unrelated
+  files are deliberately preserved.
+- A partial move or fresh-directory failure rolls the exact targets back in
+  reverse order. Incomplete rollback is reported truthfully with its recovery
+  path instead of claiming that files were restored.
+- Static contracts, a simulator failure after three real moves, byte-exact
+  rollback, successful retry/backup verification, the official build and an
+  unchanged-state Irok production cycle pass. V14-12P is Verified.

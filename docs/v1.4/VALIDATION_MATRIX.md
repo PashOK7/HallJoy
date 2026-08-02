@@ -1790,3 +1790,44 @@ Status: V14-12O Verified for physical Irok and the shared realtime/ViGEm/
 overlay/browser path. Headless Chrome uses disabled background throttling for a
 repeatable comparison and is not an exact OBS claim. Physical MAD68 HE/UAP and
 Aula validation remain release-blocking.
+
+## V14-12P recoverable factory-reset validation
+
+Commands:
+
+```powershell
+python .\src\HallJoyProject\tests\factory_reset_static_audit.py
+powershell -NoProfile -ExecutionPolicy Bypass -File `
+  .\tools\run_factory_reset_test.ps1
+python .\tools\run_native_backend_checks.py --static-only
+cmd /c BUILD.cmd
+powershell -NoProfile -ExecutionPolicy Bypass -File `
+  .\tools\run_release_qualification.ps1 `
+  -ExePath .\build\output\HallJoy.exe -Cycles 1 -RunSeconds 2 `
+  -ProgressEvery 1
+```
+
+Results:
+
+- reset UI/static contract: PASS; one owner-draw action on Global settings,
+  complete warning, explicit confirmation and `No` default;
+- runtime transaction: PASS; atomic request, injected failure after three
+  moves, byte-exact reverse rollback, successful retry, five exact backup
+  hashes, preserved unrelated/migration files and zero survivors;
+- unified static audit set: PASS;
+- official x64 Release build: PASS, zero errors and only the allowlisted
+  external ViGEm `LNK4099`;
+- final `HallJoy.exe`: 2,225,664 bytes, SHA-256
+  `33BEB1DE0DA8B896FA82E61A52F29ED4A8796B09A7134325346971C70CFEC597`;
+- physical available-device regression: 1/1 PASS, 6,542/6,542 SparkLink
+  queries, 164 ms shutdown, maximum 209 HANDLEs, unchanged 12-file user state
+  and zero survivors.
+
+Runtime reset evidence is
+`build/evidence/factory-reset/20260802-121843-951/summary.json`; production
+evidence is
+`build/evidence/release-qualification/20260802-122413/summary.json`.
+
+Status: V14-12P Verified. The backup is intentionally retained until the user
+chooses to remove it; reset does not broaden any physical keyboard-support
+claim or close the MAD68 HE/Aula release blockers.

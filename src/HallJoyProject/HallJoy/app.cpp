@@ -33,6 +33,7 @@
 #include "keyboard_ui.h"
 #include "settings.h"
 #include "settings_ini.h"
+#include "factory_reset.h"
 #include "profile_ini.h"
 #include "global_profiles.h"
 #include "realtime_loop.h"
@@ -53,6 +54,7 @@
 #pragma comment(lib, "Comctl32.lib")
 static constexpr UINT WM_APP_REQUEST_SAVE = WM_APP + 1;
 static constexpr UINT WM_APP_APPLY_TIMING = WM_APP + 2;
+static constexpr UINT WM_APP_FACTORY_RESET_RESTART = WM_APP + 3;
 static constexpr UINT WM_APP_KEYBOARD_LAYOUT_CHANGED = WM_APP + 260;
 
 // UI refresh timer
@@ -69,6 +71,7 @@ static HHOOK g_hMouseHook = nullptr;
 static bool g_backendReady = false;
 static bool g_digitalFallbackWarnShown = false;
 static std::atomic<bool> g_shutdownStarted{ false };
+static std::atomic<bool> g_relaunchAfterExit{ false };
 static std::atomic<bool> g_immediateProcessExitRequired{ false };
 static HANDLE g_shutdownWatchdogCancelEvent = nullptr;
 static HANDLE g_shutdownWatchdogThread = nullptr;
@@ -315,15 +318,12 @@ static bool IsWindowRectVisibleOnAnyScreen(int x, int y, int w, int h)
 }
 
 
-static bool RelaunchSelf()
+static bool RelaunchSelfImpl()
 {
     wchar_t exePath[MAX_PATH]{};
     DWORD n = GetModuleFileNameW(nullptr, exePath, (DWORD)_countof(exePath));
     if (n == 0 || n >= _countof(exePath))
-    {
-        DebugLog_Write(L"[relaunch] GetModuleFileName failed err=%lu", GetLastError());
         return false;
-    }
 
     std::wstring workDir(exePath);
     size_t slash = workDir.find_last_of(L"\\/");
@@ -353,13 +353,10 @@ static bool RelaunchSelf()
     {
         CloseHandle(pi.hThread);
         CloseHandle(pi.hProcess);
-        DebugLog_Write(L"[relaunch] CreateProcess success exe=%s", exePath);
         return true;
     }
-    DebugLog_Write(L"[relaunch] CreateProcess failed err=%lu", GetLastError());
 
     HINSTANCE h = ShellExecuteW(nullptr, L"open", exePath, nullptr, workDir.empty() ? nullptr : workDir.c_str(), SW_SHOWNORMAL);
-    DebugLog_Write(L"[relaunch] ShellExecute result=%p", h);
     return ((INT_PTR)h > 32);
 }
 
@@ -1326,6 +1323,11 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         ApplyTimingSettings(hwnd);
         return 0;
 
+    case WM_APP_FACTORY_RESET_RESTART:
+        g_relaunchAfterExit.store(true, std::memory_order_release);
+        PostMessageW(hwnd, WM_CLOSE, 0, 0);
+        return 0;
+
     case WM_APP_KEYBOARD_LAYOUT_CHANGED:
         if (g_hPageMain && IsWindow(g_hPageMain))
             PostMessageW(g_hPageMain, WM_APP_KEYBOARD_LAYOUT_CHANGED, 0, 0);
@@ -1382,6 +1384,56 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
             MB_ICONERROR | MB_OK);
         return 1;
     }
+
+    const FactoryResetApplyResult factoryReset = FactoryReset_ApplyPending();
+    if (factoryReset.status == FactoryResetApplyStatus::Failed)
+    {
+        StabilityTrace_WriteCritical(L"ERROR", L"factory-reset", L"startup.failed",
+            L"native_error=%lu rollback_complete=%d backup=%ls",
+            static_cast<unsigned long>(factoryReset.nativeError),
+            factoryReset.rollbackComplete ? 1 : 0, factoryReset.backupRoot.c_str());
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        if (wcsstr(GetCommandLineW(), L"--halljoy-test-factory-reset-apply"))
+            return 1;
+#endif
+        if (factoryReset.rollbackComplete)
+        {
+            MessageBoxW(nullptr,
+                L"HallJoy could not safely reset its settings. No partial reset was accepted.\n\n"
+                L"Your original files were restored. Check folder permissions and try again.",
+                L"HallJoy factory reset",
+                MB_ICONERROR | MB_OK);
+        }
+        else
+        {
+            std::wstring message =
+                L"HallJoy stopped the reset, but Windows also prevented a complete automatic rollback.\n\n"
+                L"Do not remove any files. Check this recovery folder and the HallJoy logs:\n";
+            message += factoryReset.backupRoot.empty() ? AppPaths_DataRoot() : factoryReset.backupRoot;
+            MessageBoxW(nullptr, message.c_str(), L"HallJoy factory reset recovery required",
+                MB_ICONERROR | MB_OK);
+        }
+        return 1;
+    }
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    if (wcsstr(GetCommandLineW(), L"--halljoy-test-factory-reset-request"))
+    {
+        DWORD error = ERROR_SUCCESS;
+        const bool passed = factoryReset.status == FactoryResetApplyStatus::None &&
+            FactoryReset_Request(&error);
+        StabilityTrace_Write(passed ? L"INFO" : L"ERROR", L"factory-reset", L"test.request",
+            L"passed=%d error=%lu", passed ? 1 : 0, static_cast<unsigned long>(error));
+        return passed ? 0 : 1;
+    }
+    if (wcsstr(GetCommandLineW(), L"--halljoy-test-factory-reset-apply"))
+    {
+        const bool passed = factoryReset.status == FactoryResetApplyStatus::Applied;
+        StabilityTrace_Write(passed ? L"INFO" : L"ERROR", L"factory-reset", L"test.apply",
+            L"passed=%d backup=%ls", passed ? 1 : 0, factoryReset.backupRoot.c_str());
+        return passed ? 0 : 1;
+    }
+#endif
 
 #if defined(HALLJOY_ANALOG_SIMULATOR)
     if (wcsstr(GetCommandLineW(), L"--halljoy-test-storage-policy"))
@@ -1516,6 +1568,14 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     ShowWindow(hwnd, showCmd);
     DebugLog_Write(L"[app] ShowWindow done");
 
+    if (factoryReset.status == FactoryResetApplyStatus::Applied)
+    {
+        std::wstring message =
+            L"All HallJoy settings were reset to defaults.\n\nYour previous settings were backed up to:\n";
+        message += factoryReset.backupRoot;
+        MessageBoxW(hwnd, message.c_str(), L"HallJoy factory reset", MB_ICONINFORMATION | MB_OK);
+    }
+
     DebugLog_Write(L"[app] RefreshLowLevelHooks begin");
     RefreshLowLevelHooks();
     DebugLog_Write(L"[app] RefreshLowLevelHooks done");
@@ -1575,4 +1635,21 @@ void App_DisarmShutdownWatchdog() noexcept
 bool App_RequiresImmediateProcessExit() noexcept
 {
     return g_immediateProcessExitRequired.load(std::memory_order_acquire);
+}
+
+bool App_TakeRelaunchRequest() noexcept
+{
+    return g_relaunchAfterExit.exchange(false, std::memory_order_acq_rel);
+}
+
+bool App_RelaunchSelf() noexcept
+{
+    try
+    {
+        return RelaunchSelfImpl();
+    }
+    catch (...)
+    {
+        return false;
+    }
 }

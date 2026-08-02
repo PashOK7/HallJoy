@@ -1918,3 +1918,37 @@ V14-12O is Verified within the physical evidence boundary: Irok/SparkLink and
 the downstream realtime/ViGEm/overlay/browser chain. It does not claim physical
 USB cost or protocol correctness for unavailable keyboards. MAD68 HE/UAP retest
 and Aula acceptance remain asynchronous release blockers.
+
+## 2026-08-02 - V14-12P recoverable factory reset
+
+Added a visually consistent owner-draw `Reset All Settings` button to Global
+settings. It uses the existing dark action-button renderer with a restrained
+red border/accent, keyboard focus, muted explanatory copy and a full destructive
+scope confirmation whose default action is `No`.
+
+The reset itself is a restart-time transaction. The live process atomically
+writes and validates a request, performs normal settings persistence and the
+complete bounded shutdown, tears down logging/trace/watchdog state, and only
+then relaunches. Before loading settings, the new process moves the two root INI
+files and three preset/profile directories into a unique recoverable backup.
+Migration markers and unrelated data remain untouched. The request is committed
+only after fresh directories exist; every earlier failure performs reverse
+rollback and distinguishes complete from incomplete recovery in both trace and
+UI text.
+
+Added `factory_reset_static_audit.py` and `run_factory_reset_test.ps1`. The
+runtime gate created isolated state, committed the atomic request, injected a
+failure after three actual moves, proved byte-exact restoration, retried, then
+verified all five backup hashes, clean defaults, preserved unrelated/migration
+files and zero process survivors. Evidence:
+`build/evidence/factory-reset/20260802-121843-951/summary.json`.
+
+The complete static gate and official build pass with no unexpected warning.
+Final `HallJoy.exe` is 2,225,664 bytes, SHA-256
+`33BEB1DE0DA8B896FA82E61A52F29ED4A8796B09A7134325346971C70CFEC597`.
+One physical Irok cycle passed with 6,542/6,542 routes, 164 ms shutdown,
+maximum 209 HANDLEs, unchanged 12-file state and zero survivor; evidence is
+`build/evidence/release-qualification/20260802-122413/summary.json`.
+
+V14-12P is Verified. Reset backups are deliberately retained for recovery.
+Physical MAD68 HE and Aula acceptance remain independent release blockers.

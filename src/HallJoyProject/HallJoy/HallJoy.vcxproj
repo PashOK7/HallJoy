@@ -161,6 +161,7 @@
     <ClInclude Include="app_deps.h" />
     <ClInclude Include="dependency_guidance_policy.h" />
     <ClInclude Include="app_paths.h" />
+    <ClInclude Include="factory_reset.h" />
     <ClInclude Include="file_name_policy.h" />
     <ClInclude Include="backend.h" />
     <ClInclude Include="backend_sparklink.inc" />
@@ -256,6 +257,7 @@
     </ClCompile>
     <ClCompile Include="app_deps.cpp" />
     <ClCompile Include="app_paths.cpp" />
+    <ClCompile Include="factory_reset.cpp" />
     <ClCompile Include="file_name_policy.cpp" />
     <ClCompile Include="backend.cpp" />
     <ClCompile Include="backend_curve.cpp" />

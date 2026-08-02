@@ -28,6 +28,7 @@ maintained in `ROADMAP.md`.
 | `HJ-V14-P2-006` | P2 | Firmware-derived Aula support could be mistaken for physical hardware validation or could claim a sibling interface too broadly | `V14-12A` | Implemented | exact firmware/oracle reproduction, 17-read proof, exact-path ownership, ambiguity/session tests and Irok regression pass; physical Aula input/hotplug/multi-device gate remains open |
 | `HJ-V14-P2-007` | P2 | A contained overlay or ViGEm output worker exception permanently disables that service until HallJoy is restarted | `V14-12L` | Verified | owner-side reap/restart supervision and one-shot C++ fault injections pass without overlapping worker generations |
 | `HJ-V14-P2-008` | P2 | The browser overlay can consume excessive CPU by redrawing an unchanged canvas, retaining oversized bitmap caches and polling at a fresh-install 1 ms default | `V14-12O` | Verified | retained dirty-frame rendering, exact smoothing convergence, bounded 512/256 constant-time LRU caches, 8 ms fresh default and production Irok/Chrome before-after profiling |
+| `HJ-V14-P2-009` | P2 | A factory-reset action can partially delete state, re-import legacy files, or relaunch before the old process finishes saving | `V14-12P` | Verified | atomic request, exact-target backup moves, preserved migration markers, reverse rollback fault injection, post-teardown relaunch ordering and production Irok regression pass |
 | `HJ-V14-P3-001` | P3 | Raw Mouse accumulation can overflow signed `int`, and uncommon clipboard/UAP failure exits can leak process or SetupAPI resources | `V14-12L` | Verified | widened saturating addition, clipboard ownership transfer checks, HID-list cleanup, locked fresh-plugin build and resource audit pass |
 
 ### Evidence boundary for HJ-V14-P2-006
@@ -128,6 +129,29 @@ are repeatable upper-pressure comparisons, not an exact OBS CPU prediction.
 System-busy CPU is recorded only as workstation context. The physical device is
 Irok MG75 Max; other protocols inherit only the measured shared downstream path
 and retain their own hardware qualification requirements.
+
+### Evidence for HJ-V14-P2-009
+
+The reset request uses the existing atomic INI transaction and is parsed back
+before commit. No state is moved while the live UI is running. The old process
+performs its normal settings save and complete bounded shutdown first; only
+after GDI+, diagnostic logging, stability trace and watchdog teardown does it
+start a clean process.
+
+That process applies the request before `SettingsIni_Load`. Only five exact,
+non-reparse targets are moved to a unique backup. Completed migration markers
+remain outside the transaction, preventing legacy settings beside the EXE from
+being imported again. A simulator-only failure after the third move proved
+byte-exact reverse rollback and retained the request for retry; the next pass
+committed all five backup hashes, fresh defaults, unchanged unrelated files and
+zero surviving processes. Evidence is
+`build/evidence/factory-reset/20260802-121843-951/summary.json`.
+
+The official artifact then passed a physical Irok production cycle with
+6,542/6,542 successful SparkLink queries, 164 ms shutdown, unchanged 12-file
+user state and no survivor. This verifies the reset transaction and shared
+application lifecycle; it does not change the pending MAD68 HE or Aula hardware
+release gates.
 
 ## Статусы
 

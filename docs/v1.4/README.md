@@ -48,6 +48,9 @@ version or release status.
 - Verified package: `V14-12O/S21` production input-to-overlay load profiling
   and retained browser rendering; physical Irok, full HallJoy/browser process
   trees and the 1 ms/8 ms refresh comparison pass without state mutation
+- Verified package: `V14-12P` recoverable factory reset; styled Global-settings
+  action, atomic request, exact-target backup, reverse rollback injection,
+  official build and physical Irok lifecycle regression pass
 - Next work: `V14-12/S21` release qualification and hardware matrix. The Aula
   physical result may arrive asynchronously but remains mandatory before release
 - GitHub publication: not started

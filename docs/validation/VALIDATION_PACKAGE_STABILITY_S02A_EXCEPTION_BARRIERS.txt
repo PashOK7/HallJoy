@@ -1,0 +1,34 @@
+HallJoy Universal Analog v3.9.0
+Stability package S02A: realtime/debug/overlay exception barriers
+Date: 2026-07-30
+
+STATUS
+- Portable acceptance: PASS
+- GCC common gate: PASS
+- Clang common gate: PASS
+- New barrier Werror/ASan/UBSan: PASS
+- Windows/MSVC executable build: REQUIRED, NOT RUN in this environment
+- Hardware/ViGEm smoke: REQUIRED before S02B
+
+CHANGES
+- Added allocation-free worker_exception_barrier.h
+- Added worker_exception_barrier_test.cpp
+- Added exception_barrier_static_audit.py
+- Wrapped realtime, diagnostic writer and overlay thread entries in noexcept barriers
+- Added realtime fail-safe neutral UI/ViGEm publication
+- Added fault-safe logger and overlay owner/reap behavior
+- Preserved normal worker processing algorithms byte-for-byte
+
+REGRESSION
+- Realtime normal scheduling/tick loop: byte-equal to S01
+- Diagnostic writer normal queue/drain/flush loop: byte-equal to S01
+- Overlay normal accept/client loop: byte-equal to S01
+- ClCompile items: 58 before, 58 after
+- Added production object files: 0
+- MSVC project XML parse: PASS
+
+CLAIMS BOUNDARY
+S02A contains C++ exceptions in the three core worker clusters. It does not
+remove TerminateThread, does not catch SEH/process-corruption failures, and does
+not yet cover native backend workers or UAP C ABI exports. HJ-AUD-P1-004 remains
+Partial until the remaining S02 substeps and required Windows gates pass.

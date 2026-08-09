@@ -1,0 +1,15 @@
+ADDED    docs/stability/CHANGED_FILES_S02A1.txt
+ADDED    docs/stability/STAGE_S02A1_RESULT.md
+ADDED    docs/stability/tests/S02A1_FINAL_CLANG_CHECKS_2026-07-30.txt
+ADDED    docs/stability/tests/S02A1_FINAL_GCC_CHECKS_2026-07-30.txt
+ADDED    docs/stability/tests/S02A1_PACKAGE_VERIFICATION_2026-07-30.txt
+ADDED    docs/stability/tests/S02A1_ROOT_CAUSE_REGRESSION_2026-07-30.txt
+ADDED    docs/validation/VALIDATION_PACKAGE_STABILITY_S02A1_SOUP_PATCH_HOTFIX.txt
+ADDED    src/HallJoyProject/tests/plugin_preopen_patch_contract_audit.py
+MODIFIED docs/stability/DECISIONS.md
+MODIFIED docs/stability/README.md
+MODIFIED docs/stability/RISK_REGISTER.md
+MODIFIED docs/stability/STABILITY_MASTER_PLAN.md
+MODIFIED docs/stability/WORKLOG.md
+MODIFIED docs/validation/CLEAN_PACKAGE_MANIFEST.json
+MODIFIED third_party/UniversalAnalogPluginFixed/tools/Apply-Soup-Madlions-Fix.ps1

@@ -1,0 +1,13 @@
+// Single built-in native protocol catalog.
+// Add one HALLJOY_NATIVE_BACKEND(...) line after implementing the descriptor
+// getter declared by the protocol module. Order is classification priority.
+HALLJOY_NATIVE_BACKEND(Mad68ProR_GetNativeBackendDescriptor)
+HALLJOY_NATIVE_BACKEND(Hex80_GetNativeBackendDescriptor)
+HALLJOY_NATIVE_BACKEND(AddressedAnalog_GetNativeBackendDescriptor)
+HALLJOY_NATIVE_BACKEND(AulaWin60He_GetNativeBackendDescriptor)
+HALLJOY_NATIVE_BACKEND(AulaW669_GetNativeBackendDescriptor)
+HALLJOY_NATIVE_BACKEND(BackendNative_GetSparkDescriptor)
+HALLJOY_NATIVE_BACKEND(BackendNative_GetSayoDescriptor)
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+HALLJOY_NATIVE_BACKEND(AnalogSimulator_GetNativeBackendDescriptor)
+#endif

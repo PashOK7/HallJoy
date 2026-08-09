@@ -1,0 +1,16 @@
+HallJoy S01 final package verification
+Date: 2026-07-30
+
+Performed after all source, test and documentation changes were frozen:
+
+- final CLEAN_PACKAGE_MANIFEST.json generated with SHA-256, excluding itself;
+- every manifest path exists and matches size/SHA-256 in the working tree;
+- archive created from the complete project tree under one root directory;
+- archive extracted into a fresh verification directory;
+- every extracted manifest path matches size/SHA-256;
+- no unexpected file is absent from the manifest except the manifest itself;
+- portable/static gate rerun from extracted archive: PASS;
+- all 45 audit risk IDs remain present in RISK_REGISTER.md;
+- no __pycache__, .pyc, object or test binary is packaged.
+
+The project tree was not modified after final manifest generation.

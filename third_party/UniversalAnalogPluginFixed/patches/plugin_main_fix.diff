@@ -1,0 +1,492 @@
+--- orig_plugin/universal-analog-plugin-senpai/main.cpp	2026-02-27 08:30:51.000000000 +0000
++++ universal-analog-plugin-senpai/main.cpp	2026-07-20 23:03:32.516618564 +0000
+@@ -5,11 +5,22 @@
+ #include <soup/Thread.hpp>
+ #include <soup/UniquePtr.hpp>
+ 
++#include <atomic>
++#include <cstring>
++
+ #define LOGGING false
+ 
+ // Some Analog SDK apps rely on read_full_buffer sending a 0 value for released keys instead of stopping to report the key.
+ #define REPORT_RELEASED_KEYS true
+ 
++#ifndef UAP_DISABLE_HOTPLUG
++#define UAP_DISABLE_HOTPLUG 0
++#endif
++
++#ifndef UAP_POLL_SLEEP_MS
++#define UAP_POLL_SLEEP_MS 2
++#endif
++
+ #if LOGGING
+ #include <iostream>
+ #endif
+@@ -113,10 +124,14 @@
+ 	soup::AnalogueKeyboard kbd;
+ 	soup::Thread thrd;
+ 	std::string manufacturer_name;
+-	static constexpr auto MAX_ACTIVES = 16;
++	static constexpr uint8_t MAX_ACTIVES = 16;
++
++	// The keyboard worker publishes a complete snapshot under this lock. The SDK
++	// read functions never observe actives from one update and arrays from another.
++	soup::RecursiveMutex snapshot_mtx{};
+ 	uint8_t actives = 0;
+-	uint16_t active_codes[MAX_ACTIVES];
+-	float active_analogues[MAX_ACTIVES];
++	uint16_t active_codes[MAX_ACTIVES]{};
++	float active_analogues[MAX_ACTIVES]{};
+ 
+ 	Device(soup::AnalogueKeyboard&& _kbd)
+ 		: id(make_device_id(_kbd)), kbd(std::move(_kbd)), manufacturer_name(kbd.hid.getManufacturerName())
+@@ -128,9 +143,26 @@
+ 	{
+ 		drop_device_info(info);
+ 	}
++
++	void publish(const uint16_t* codes, const float* analogues, uint8_t count)
++	{
++		if (count > MAX_ACTIVES)
++		{
++			count = MAX_ACTIVES;
++		}
++		snapshot_mtx.lock();
++		if (count != 0)
++		{
++			memcpy(active_codes, codes, sizeof(active_codes[0]) * count);
++			memcpy(active_analogues, analogues, sizeof(active_analogues[0]) * count);
++		}
++		actives = count;
++		snapshot_mtx.unlock();
++	}
+ };
+ 
+ static soup::RecursiveMutex devices_mtx{};
++static soup::RecursiveMutex full_buffer_mtx{};
+ static std::vector<soup::UniquePtr<Device>> devices{};
+ 
+ SOUP_CEXPORT int _device_info(DeviceInfo* buffer[], uint32_t len)
+@@ -150,7 +182,7 @@
+ 
+ // Actual important stuff
+ 
+-static bool running = true;
++static std::atomic_bool running{ false };
+ static soup::Thread discover_thread;
+ 
+ [[nodiscard]] static uint16_t mapToWootingKey(soup::Key key)
+@@ -175,28 +207,128 @@
+ 
+ using event_handler_t = void(*)(void* data, DeviceEventType eventType, DeviceInfo* deviceInfo);
+ 
+-static void* event_handler_data;
+-static event_handler_t event_handler;
++static std::atomic<void*> event_handler_data{ nullptr };
++static std::atomic<event_handler_t> event_handler{ nullptr };
+ 
+-static void discover_devices(bool initial)
++static void send_device_event(DeviceEventType type, DeviceInfo* info)
+ {
+-	if (!initial)
++	auto callback = event_handler.load(std::memory_order_acquire);
++	if (callback != nullptr && running.load(std::memory_order_acquire))
+ 	{
+-		devices_mtx.lock();
+-		for (auto it = devices.begin(); it != devices.end(); )
++		callback(event_handler_data.load(std::memory_order_acquire), type, info);
++	}
++}
++
++static void start_device_worker(Device& dev)
++{
++	dev.thrd.start([](soup::Capture&& cap)
++	{
++		Device& dev = *cap.get<Device*>();
++		soup::AnalogueKeyboard& kbd = dev.kbd;
++		const bool is_poll_device = kbd.isPoll();
++
++		while (running.load(std::memory_order_acquire) && !kbd.disconnected)
+ 		{
+-			if (!(*it)->thrd.isRunning())
++			auto keys = kbd.getActiveKeys();
++			uint16_t codes[Device::MAX_ACTIVES]{};
++			float analogues[Device::MAX_ACTIVES]{};
++			uint8_t count = 0;
++			for (const auto& key : keys)
+ 			{
++				if (count == Device::MAX_ACTIVES)
++				{
++					break;
++				}
++				float value = key.getFValue();
++				if (!(value > 0.0f))
++				{
++					value = 0.0f;
++				}
++				else if (value > 1.0f)
++				{
++					value = 1.0f;
++				}
++				codes[count] = mapToWootingKey(key.getSoupKey());
++				analogues[count] = value;
++				++count;
++			}
++			dev.publish(codes, analogues, count);
++
++			// Poll-only firmware does not provide a blocking stream. Do not spin at
++			// full CPU speed or hammer the vendor HID interface continuously.
++			if (is_poll_device && UAP_POLL_SLEEP_MS != 0)
++			{
++				soup::os::sleep(UAP_POLL_SLEEP_MS);
++			}
++		}
++
++		dev.publish(nullptr, nullptr, 0);
+ #if LOGGING
+-				std::cout << "Removing " << kbd.name << " from devices array" << std::endl;
++		std::cout << "Thread for " << kbd.name << " is stopping" << std::endl;
+ #endif
+-				it = devices.erase(it);
+-				continue;
++	}, &dev);
++}
++
++static bool contains_device_id(DeviceID id)
++{
++	bool known = false;
++	devices_mtx.lock();
++	for (const auto& dev : devices)
++	{
++		if (dev->id == id)
++		{
++			known = true;
++			break;
++		}
++	}
++	devices_mtx.unlock();
++	return known;
++}
++
++static void remove_stopped_devices()
++{
++	for (;;)
++	{
++		Device* stopped = nullptr;
++		devices_mtx.lock();
++		for (const auto& dev : devices)
++		{
++			if (!dev->thrd.isRunning())
++			{
++				stopped = dev.get();
++				break;
++			}
++		}
++		devices_mtx.unlock();
++
++		if (stopped == nullptr)
++		{
++			break;
++		}
++
++		// Notify while DeviceInfo is still valid. The callback is deliberately
++		// outside devices_mtx because the SDK may synchronously call back into us.
++		send_device_event(DeviceEventType::Disconnected, stopped->info);
++
++		devices_mtx.lock();
++		for (auto it = devices.begin(); it != devices.end(); ++it)
++		{
++			if (it->get() == stopped)
++			{
++				devices.erase(it);
++				break;
+ 			}
+-			++it;
+ 		}
+ 		devices_mtx.unlock();
+ 	}
++}
++
++static void discover_devices(bool initial)
++{
++	if (!initial)
++	{
++		remove_stopped_devices();
++	}
+ 
+ 	auto kbds = soup::AnalogueKeyboard::getAll();
+ 	for (auto& kbd : kbds)
+@@ -209,55 +341,26 @@
+ #endif
+ 
+ 		const auto device_id = make_device_id(kbd);
+-		bool known = false;
+-		devices_mtx.lock();
+-		for (const auto& dev : devices)
++		if (contains_device_id(device_id))
+ 		{
+-			if (dev->id == device_id)
+-			{
+-				known = true;
+-				break;
+-			}
++			continue;
+ 		}
+-		devices_mtx.unlock();
+-		if (!known)
+-		{
+-#if LOGGING
+-			std::cout << "New device: " << kbd.name << std::endl;
+-#endif
+-			auto upDev = soup::make_unique<Device>(std::move(kbd));
+-			if (!initial)
+-			{
+-				event_handler(event_handler_data, DeviceEventType::Connected, upDev->info);
+-			}
+ 
+-			upDev->thrd.start([](soup::Capture&& cap)
+-			{
+-				Device& dev = *cap.get<Device*>();
+-				soup::AnalogueKeyboard& kbd = dev.kbd;
+-				while (running && !kbd.disconnected)
+-				{
+-					auto keys = kbd.getActiveKeys();
+-					uint8_t i = 0;
+-					for (const auto& key : keys)
+-					{
+-						dev.active_codes[i] = mapToWootingKey(key.getSoupKey());
+-						dev.active_analogues[i] = key.getFValue();
+-						if (++i == Device::MAX_ACTIVES)
+-						{
+-							break;
+-						}
+-					}
+-					dev.actives = i;
+-				}
+ #if LOGGING
+-				std::cout << "Thread for " << kbd.name << " is stopping" << std::endl;
++		std::cout << "New device: " << kbd.name << std::endl;
+ #endif
+-			}, upDev.get());
++		auto upDev = soup::make_unique<Device>(std::move(kbd));
++		Device* raw = upDev.get();
++
++		// Publish the object before starting its thread or announcing it to the SDK.
++		devices_mtx.lock();
++		devices.emplace_back(std::move(upDev));
++		devices_mtx.unlock();
+ 
+-			devices_mtx.lock();
+-			devices.emplace_back(std::move(upDev));
+-			devices_mtx.unlock();
++		start_device_worker(*raw);
++		if (!initial)
++		{
++			send_device_event(DeviceEventType::Connected, raw->info);
+ 		}
+ 	}
+ }
+@@ -274,30 +377,42 @@
+ 	}
+ #endif
+ 
+-	event_handler_data = data;
+-	event_handler = callback;
++	if (running.exchange(true, std::memory_order_acq_rel))
++	{
++		devices_mtx.lock();
++		const auto count = static_cast<int>(devices.size());
++		devices_mtx.unlock();
++		return count;
++	}
++
++	event_handler_data.store(data, std::memory_order_release);
++	event_handler.store(callback, std::memory_order_release);
+ 	discover_devices(true);
++
+ #if LOGGING
+ 	std::cout << "Discovered " << devices.size() << " initial devices" << std::endl;
+-	for (const auto& dev : devices)
+-	{
+-		std::cout << "- " << dev->kbd.name << std::endl;
+-	}
+ #endif
++
++	devices_mtx.lock();
+ 	const auto num_initial_devices = static_cast<int>(devices.size());
++	devices_mtx.unlock();
++
++#if !UAP_DISABLE_HOTPLUG
+ 	discover_thread.start([](soup::Capture&&)
+ 	{
+-		uint8_t i = 0;
+-		while (running)
++		while (running.load(std::memory_order_acquire))
+ 		{
+-			if (++i == 100)
++			for (uint16_t i = 0; i != 100 && running.load(std::memory_order_acquire); ++i)
++			{
++				soup::os::sleep(10);
++			}
++			if (running.load(std::memory_order_acquire))
+ 			{
+-				i = 0;
+ 				discover_devices(false);
+ 			}
+-			soup::os::sleep(10);
+ 		}
+ 	});
++#endif
+ 	return num_initial_devices;
+ }
+ 
+@@ -314,17 +429,23 @@
+ 	{
+ 		if (device_id == 0 || dev->id == device_id)
+ 		{
+-			for (uint8_t i = 0; i != dev->actives; ++i)
++			dev->snapshot_mtx.lock();
++			const uint8_t count = dev->actives <= Device::MAX_ACTIVES ? dev->actives : Device::MAX_ACTIVES;
++			for (uint8_t i = 0; i < count; ++i)
+ 			{
+ 				if (dev->active_codes[i] == code)
+ 				{
+ 					ret = dev->active_analogues[i];
+-					goto _break_2;
++					break;
+ 				}
+ 			}
++			dev->snapshot_mtx.unlock();
++			if (ret != 0.0f)
++			{
++				break;
++			}
+ 		}
+ 	}
+-_break_2:
+ 	devices_mtx.unlock();
+ 
+ 	return ret;
+@@ -336,6 +457,14 @@
+ 	{
+ 		return 0;
+ 	}
++	SOUP_IF_UNLIKELY (code_buffer == nullptr || analog_buffer == nullptr)
++	{
++		return 0;
++	}
++
++	// pending_release is process-global plugin state, so serialize the complete
++	// full-buffer operation even if an SDK application calls it from two threads.
++	full_buffer_mtx.lock();
+ 
+ 	uint32_t actives = 0;
+ 	devices_mtx.lock();
+@@ -343,44 +472,45 @@
+ 	{
+ 		if (device_id == 0 || dev->id == device_id)
+ 		{
+-			for (uint8_t i = 0; i != dev->actives; ++i)
++			dev->snapshot_mtx.lock();
++			const uint8_t count = dev->actives <= Device::MAX_ACTIVES ? dev->actives : Device::MAX_ACTIVES;
++			for (uint8_t i = 0; i < count && actives < len; ++i)
+ 			{
+ 				code_buffer[actives] = dev->active_codes[i];
+ 				analog_buffer[actives] = dev->active_analogues[i];
+-				if (++actives == len)
+-				{
+-					goto _break_2;
+-				}
++				++actives;
++			}
++			dev->snapshot_mtx.unlock();
++			if (actives == len)
++			{
++				break;
+ 			}
+ 		}
+ 	}
+-_break_2:
+ 	devices_mtx.unlock();
+ 
+ #if REPORT_RELEASED_KEYS
+ 	if (!pending_release.empty())
+ 	{
+-		// Keys that are still being pressed don't need a release this update
+-		for (uint8_t i = 0; i != actives; ++i)
++		for (uint32_t i = 0; i < actives; ++i)
+ 		{
+ 			pending_release.erase(code_buffer[i]);
+ 		}
+ 
+-		// Discharge released keys
+ 		for (const auto& code : pending_release)
+ 		{
+-			if (actives != len)
++			if (actives == len)
+ 			{
+-				code_buffer[actives] = code;
+-				analog_buffer[actives] = 0.0f;
+-				++actives;
++				break;
+ 			}
++			code_buffer[actives] = code;
++			analog_buffer[actives] = 0.0f;
++			++actives;
+ 		}
+ 		pending_release.clear();
+ 	}
+ 
+-	// Remember active keys for next update
+-	for (uint8_t i = 0; i != actives; ++i)
++	for (uint32_t i = 0; i < actives; ++i)
+ 	{
+ 		if (analog_buffer[i] != 0.0f)
+ 		{
+@@ -389,22 +519,43 @@
+ 	}
+ #endif
+ 
+-	return actives;
++	full_buffer_mtx.unlock();
++	return static_cast<int>(actives);
+ }
+ 
+ SOUP_CEXPORT void unload()
+ {
+-	running = false;
++	if (!running.exchange(false, std::memory_order_acq_rel))
++	{
++		return;
++	}
++
++#if !UAP_DISABLE_HOTPLUG
+ 	discover_thread.awaitCompletion();
++#endif
++
++	// Stop callbacks before destroying DeviceInfo objects.
++	event_handler.store(nullptr, std::memory_order_release);
++	event_handler_data.store(nullptr, std::memory_order_release);
+ 
+ 	devices_mtx.lock();
+ 	for (const auto& dev : devices)
+ 	{
+ 		dev->kbd.hid.cancelReceiveReport();
++	}
++	for (const auto& dev : devices)
++	{
+ 		dev->thrd.awaitCompletion();
+ 	}
++	devices.clear();
+ 	devices_mtx.unlock();
+ 
++#if REPORT_RELEASED_KEYS
++	full_buffer_mtx.lock();
++	pending_release.clear();
++	full_buffer_mtx.unlock();
++#endif
++
+ #if LOGGING
+ 	FreeConsole();
+ #endif

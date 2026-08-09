@@ -1,0 +1,25 @@
+S02V1 HOT PATH COMPARISON AGAINST S02B.3
+
+PASS: realtime_loop.cpp: static DWORD RealtimeThreadBody()
+  S02B.3 sha256=32dd3dc8c14553ddf90ee2551c6c52afcc483cf763ffea7540462c18c969eaab
+  S02V1 sha256=32dd3dc8c14553ddf90ee2551c6c52afcc483cf763ffea7540462c18c969eaab
+PASS: overlay_server.cpp: static DWORD OverlayThreadBody(SOCKET listenSocket)
+  S02B.3 sha256=4569d7ee652f928bb2b92b7768ea6983fd0a623a2d71a9fff0d9d23fc9326b8f
+  S02V1 sha256=4569d7ee652f928bb2b92b7768ea6983fd0a623a2d71a9fff0d9d23fc9326b8f
+PASS: mad68pr_backend.cpp: std::uint32_t Mad68WorkerBody()
+  S02B.3 sha256=f1c22c040b55ff0ccf619163c6d3e8bed3a0051e81159316d5335ef68a5add8b
+  S02V1 sha256=f1c22c040b55ff0ccf619163c6d3e8bed3a0051e81159316d5335ef68a5add8b
+PASS: hex80_backend.cpp: std::uint32_t Hex80WorkerBody()
+  S02B.3 sha256=803805f15800c232c442d1f3ebf41b58ffedfd64b44e61be9ff6b53e24db660c
+  S02V1 sha256=803805f15800c232c442d1f3ebf41b58ffedfd64b44e61be9ff6b53e24db660c
+PASS: addressed_analog_backend.cpp: std::uint32_t ReaderLoopBody(const HidPath* path)
+  S02B.3 sha256=29d86c73d5877a30b13181b66b4eeefb14d1f33aa1b99443496df46f95215131
+  S02V1 sha256=29d86c73d5877a30b13181b66b4eeefb14d1f33aa1b99443496df46f95215131
+PASS: addressed_analog_backend.cpp: std::uint32_t AddressedWorkerBody()
+  S02B.3 sha256=d7d458667adc657783bdcf3191e1ced2ac043e83e31d9bd36fd340a99f0d17de
+  S02V1 sha256=d7d458667adc657783bdcf3191e1ced2ac043e83e31d9bd36fd340a99f0d17de
+PASS: backend_sparklink.inc: static DWORD SparkPollThreadProcImpl() / polling while
+  S02B.3 sha256=4a93758f28b7107d2e2397e69474b4e24d417c55dc9f191d8956b4df78ba2640
+  S02V1 sha256=4a93758f28b7107d2e2397e69474b4e24d417c55dc9f191d8956b4df78ba2640
+
+Result: PASS — worker algorithms and Spark polling loop are byte-identical; trace calls remain at lifecycle/state boundaries.

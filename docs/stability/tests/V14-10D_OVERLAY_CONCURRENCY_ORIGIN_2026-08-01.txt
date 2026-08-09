@@ -1,0 +1,93 @@
+HallJoy v1.4 - V14-10D overlay concurrency/origin evidence
+Date: 2026-08-01
+Status: PASS
+
+Scope
+- Replace synchronous accept-thread request handling with a fixed bounded
+  multi-client ownership model.
+- Prove slow-client isolation, prompt saturation rejection, recovery and
+  cooperative shutdown with active incomplete requests.
+- Remove wildcard CORS and require a per-generation session cookie plus exact
+  loopback browser origin.
+
+Backups
+- Source/docs: C:\github\HallJoy_v1.4_BACKUPS\V14-10D-prechange-20260801-1217
+- User/package: C:\github\HallJoy_v1.4_BACKUPS\V14-10D-preproduction-20260801-1235
+- Pre-production verification: LocalAppData 11 files, package 14 files,
+  zero SHA-256 mismatches.
+
+Implementation contract
+- Fixed 16-slot socket/thread ownership table; accept delegates but never
+  blocks on client-controlled reads.
+- Every client worker uses the common C++ exception barrier.
+- Stop shuts down all client sockets and waits for every client worker before
+  WSA cleanup. Join timeout retains reachable ownership and poisons restart.
+- Saturation attempts best-effort HTTP 503 and always closes promptly. Winsock
+  may expose a reset when the rejected request remains unread; the accept owner
+  intentionally does not drain attacker-controlled input.
+- Every server generation creates a 128-bit token via BCryptGenRandom.
+- Root bootstrap sends HallJoySession with HttpOnly and SameSite=Strict.
+- /state and /client_perf require the exact cookie.
+- An open page handles a stale-generation 401 by fetching root once for the
+  new HttpOnly cookie, then resumes polling without a manual refresh.
+- Browser Origin must exactly equal http://127.0.0.1:<bound-port>; only that
+  origin is echoed with Vary: Origin. Wildcard CORS is absent.
+
+Commands and results
+1. Python syntax and focused static audits: PASS.
+   overlay_concurrency_origin_static_audit.py: PASS
+   overlay_cooperative_shutdown_static_audit.py: PASS
+2. Full native check gate: PASS.
+   Static audits: 34/34.
+   Portable C++20 tests: 18/18.
+3. Simulator overlay runtime: PASS.
+   Responsiveness: 0.4 ms.
+   Framing: fragmented=1, pipelined=2, bounded_rejections=8.
+   Concurrency: 8 slow clients plus 8 parallel /state requests; maximum 2.3 ms.
+   Capacity: 16 clients; 17th rejected promptly by reset; recovery PASS.
+   Origin/session: missing-session 401, hostile/null origin 403, exact origin
+   echo PASS, stale cookie 401/browser rebootstrap PASS, 128-bit cookie PASS.
+   Active shutdown: 8/8 heartbeat-held partial clients closed; trace records
+   stop.end active_clients=8.
+4. Existing injected overlay stop-timeout containment: PASS.
+5. Official production build: PASS.
+   MSVC x64 Release: 0 errors.
+   Warnings: only allowlisted LNK4099 for the third-party ViGEm PDB.
+   Embedded ABI1 runtime gate: PASS.
+6. Production HallJoy.exe overlay smoke: PASS.
+   Responsiveness: 0.4 ms.
+   Framing suite: PASS.
+   Concurrency/origin: 8 slow plus 8 parallel, maximum 1.6 ms; capacity 16;
+   hostile origins=2; session cookie PASS.
+   Overlay and process shutdown: PASS, exit code 0.
+
+Hardware/runtime observation
+- Irok MG75 Max through SparkLink: VID 1CA6, PID 0529, usage page FFB0.
+- Route queries: 45,867 successful, 0 failed.
+- Average/max route interval: 249/502 us.
+- Average/max route transaction: 247/501 us.
+- SparkLink worker, service, realtime, ViGEm output and process shutdown were
+  balanced. No analog rows changed, so this is route/lifecycle evidence and
+  not a new analog-input claim.
+- LocalAppData after smoke: 11 files, zero differences from backup.
+- Remaining HallJoy processes: 0.
+- Remaining persistence transaction temp files: 0.
+
+Canonical artifact
+- Path: C:\github\HallJoy_v1.4\build\output\HallJoy.exe
+- Size: 2,231,296 bytes
+- SHA-256: BF44786B93C34C2E310949C69EBDF641753A8729339736F7D1F2278A6A1D9BE2
+- Production trace SHA-256:
+  7ED922357B9E1F4EF8FBC95C86614F361CF6712C1B3D76BC49B87DA3C3694294
+
+Risk result
+- HJ-AUD-P2-001: Verified.
+- HJ-AUD-P2-004: Verified.
+- V14-10: complete.
+- Next: V14-11 UAP pacing, identity, modularization and measured performance.
+
+Threat/qualification limits
+- This is a loopback browser boundary, not a sandbox against another process
+  already authorized to inspect HallJoy, browser state or local traffic.
+- Remote CI was not run; no push was authorized.
+- Rollback is the parent of the local V14-10D implementation commit.

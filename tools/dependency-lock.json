@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "toolchains": {
+    "python": "3.12",
+    "linuxRunner": "ubuntu-24.04",
+    "windowsRunner": "windows-2022",
+    "visualStudio": "2022",
+    "cppStandard": "c++20"
+  },
+  "githubActions": {
+    "checkout": {
+      "name": "actions/checkout",
+      "version": "v4",
+      "commit": "11d5960a326750d5838078e36cf38b85af677262"
+    },
+    "setupPython": {
+      "name": "actions/setup-python",
+      "version": "v5",
+      "commit": "a26af69be951a213d495a4c3e4e4022e16d87065"
+    },
+    "uploadArtifact": {
+      "name": "actions/upload-artifact",
+      "version": "v4",
+      "commit": "ea165f8d65b6e75b540449e92b4886f43607fa02"
+    }
+  },
+  "sources": {
+    "sun": {
+      "repository": "https://github.com/calamity-inc/Sun.git",
+      "commit": "83c195bd61314bdbfdccc161653dbb652e3b6678"
+    },
+    "soup": {
+      "repository": "https://github.com/calamity-inc/Soup.git",
+      "commit": "b02796b0b20276277c8a4b4d3759643eeab43ff7",
+      "patchedOverlayFiles": {
+        "AnalogueKeyboard.cpp": "B454800F09C12CBEC480B5FCB9D0F8C1523CB0E63118AF9B97D5AA41C0EBADA7",
+        "AnalogueKeyboard.hpp": "A1F897F3A5683C964F000A9D3FC0D0C1FD9B07DFB3CA95CC3FA3643F353E4CF0",
+        "HandleRaii.hpp": "AE5CEB7D8E20CE0211F435962FD1C202A077E4F5983D57C1C8F19C98D2058C19",
+        "hwHid.cpp": "CC01D673C138A57BB1F4AFD947C7C05233B211F5E780C1823C46BF41E376DEA4",
+        "hwHid.hpp": "EB5635DDC0601CB02EEC5F81FEF93F095C9F41B09137DC4B4AB0D3D53ECFF3A6"
+      }
+    }
+  },
+  "runtimeDependencies": {
+    "vigemBus": {
+      "version": "1.22.0",
+      "releasePage": "https://github.com/nefarius/ViGEmBus/releases/tag/v1.22.0",
+      "installationPolicy": "manual-only"
+    }
+  },
+  "binaryInputs": {
+    "vigemClient": {
+      "path": "src/HallJoyProject/third_party/ViGEmClient/lib/release/x64/ViGEmClient.lib",
+      "size": 1245970,
+      "sha256": "800239E478698154F544AD81C4580A3E6A2A48358D1FF67D970C996B382640B4"
+    }
+  }
+}

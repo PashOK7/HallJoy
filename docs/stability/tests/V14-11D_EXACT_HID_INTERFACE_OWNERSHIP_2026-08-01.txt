@@ -1,0 +1,93 @@
+HallJoy V14-11D exact HID interface ownership evidence
+Date: 2026-08-01
+
+Scope
+-----
+Replace coarse VID/PID native ownership with exact normalized HID interface
+path claims. A claimed interface must not hide an unclaimed same-VID/PID
+sibling, and no native backend or Soup may open a foreign exact claim.
+
+Implementation
+--------------
+- halljoy_native_hid_claim.h is the shared wide/UTF-8 normalization, UTF-16
+  fingerprint, token formatting and exact semicolon-list implementation.
+- Native InterfaceClaimRegistry is first-claim-wins per exact path token.
+- Native routing publishes HALLJOY_UAP_NATIVE_HID_PATHS before UAP startup.
+- MAD68, Hex80, Addressed, SparkLink and Sayo perform foreign-claim checks
+  after SetupAPI path discovery and before any HID open.
+- Each backend claims the exact path it proved; Sayo claims every reader path.
+- Soup generated patch and locked overlay call the plugin-owned shared hook
+  before CreateFileW. No duplicate substring/hash implementation remains.
+- Private plugin identity:
+  Universal Analog Plugin (HallJoy SafeHID v13 interface-path pinned-snapshot
+  stable-identity deadline-paced telemetry)
+
+Portable and static gates
+-------------------------
+NATIVE_HID_INTERFACE_CLAIM_STATIC_AUDIT=PASS
+NATIVE_HID_INTERFACE_CLAIM_TEST=PASS
+  composite_interfaces=256
+  reorder_generations=10000
+  claims_per_generation=32
+  synthetic_paths=300000
+  exact_token_matching=1
+  Unicode wide/UTF-8 equivalence and malformed UTF-8 replacement=PASS
+
+Complete repository gate: 38/38 static audits, 22/22 portable tests PASS
+
+Toolchains
+----------
+GCC 15.2, -O2 -Wall -Wextra -pedantic: PASS, no warnings
+MSVC 19.44, /std:c++20 /EHsc /W4 /WX: PASS, no warnings
+Clang 21, ASan+UBSan, -O1 -Wall -Wextra -pedantic: PASS, zero reports
+
+Build and runtime
+-----------------
+Official MSVC x64 Release build: PASS, 0 errors
+Warning policy: PASS, only allowlisted LNK4099 ViGEm PDB diagnostic
+PRIVATE_UAP_ABI_RUNTIME=PASS abi=1 initial_devices=0
+  name='Universal Analog Plugin (HallJoy SafeHID v13 interface-path
+  pinned-snapshot stable-identity deadline-paced telemetry)'
+Production overlay responsiveness/framing/concurrency/origin: PASS
+  maximum parallel state latency=2.1 ms
+Irok native SparkLink regression:
+  route queries=45874, successful=45873, contained transient failures=1
+  changed rows=67, realtime notifications=67
+  average/maximum route interval=286/1754 us
+  balanced shutdown, exit code 0
+Trace ERROR events: 0
+Analyzer WARN scope: unavailable protocol devices, no pressed-key sample,
+  unplug/reconnect and alternate Spark poll modes not exercised in this run
+
+Artifacts
+---------
+build/output/HallJoy.exe
+  size=2215424
+  sha256=CF1C3B93381744005B7B2D32FB54FF17A1F8D8244C2F12610070D89D77DE7EE3
+third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv0.dll
+  size=387072
+  sha256=28F5E14AE3CCD30A74A3F73D3BDDE6757CC7CC2BB0F5B9E80AF500A353314B58
+third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+  size=259072
+  sha256=F6EBC8A3A65F152AFF918BDC0DBFE1B811F2AEB8B4D9C985FCD618B05A254CD5
+build/output/HallJoyStabilityTrace.log
+  size=10054
+  sha256=18C2ABA260D85CD44CFC0DAE930BB4BA623D989B74FFB472B4EA232703E76242
+
+Limits
+------
+No UAP-routed or multi-UAP hardware is available. D-022/D-024 accept exact
+production-code properties, three toolchains, ABI/build and available native
+Irok integration for this code-level risk. This does not prove physical UAP
+coexistence, firmware behavior or mathematically exclude every 64-bit collision.
+
+Backup
+------
+C:\github\HallJoy_v1.4_BACKUPS\V14-11D-prechange-20260801-1406
+37 files, 37 unique SHA-256 hashes verified at copy time.
+
+Status
+------
+HJ-AUD-P2-021: Verified by D-022/D-024 automated production-code gates.
+V14-11: complete.
+Next: V14-12 release qualification and hardware matrix.

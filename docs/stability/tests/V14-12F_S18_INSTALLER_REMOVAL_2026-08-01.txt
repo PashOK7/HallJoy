@@ -1,0 +1,80 @@
+HallJoy v1.4 - V14-12F / S18 dependency installer removal evidence
+Date: 2026-08-01 (Europe/Moscow)
+
+Scope
+-----
+Remove automatic privileged dependency installation from HallJoy. Missing
+ViGEmBus receives exact manual guidance; no downloaded content is executed.
+
+Security contract
+-----------------
+- No GitHub latest/API asset resolution.
+- No WinHTTP/URLMon download or predictable installer temp path.
+- No verify-then-execute TOCTOU window.
+- No ShellExecute/runas/msiexec dependency execution.
+- No installer process wait on the UI/startup thread.
+- No result can claim Installed.
+- Exact official ViGEmBus 1.22.0 page and manual-only policy are identical in
+  production and tools/dependency-lock.json.
+- Backend stays degraded until the user installs manually and restarts.
+
+Automated gates
+---------------
+1. dependency_installer_removal_static_audit.py: PASS
+   Every forbidden primitive is absent and build assets are mandatory.
+
+2. dependency_lock_static_audit.py: PASS
+   Runtime dependency version/page/manual-only policy exactly match production.
+
+3. dependency_guidance_policy_test.cpp: GCC and MSVC /W4 /WX PASS
+   All four ViGEm/private-runtime issue combinations and exact URL pass.
+
+4. app_deps.cpp standalone MSVC /W4 /WX: PASS
+
+5. python tools/run_native_backend_checks.py --require-compiler
+   43 static audits and 27 portable C++20 tests: PASS.
+
+6. cmd /c BUILD.cmd
+   Final result: PASS, 0 errors, only allowlisted external LNK4099.
+
+7. tools/run_release_qualification.ps1 -Cycles 3 -RunSeconds 2
+   Result: 3/3 PASS, fault injection false.
+   Shutdown: min 112 ms, max 241 ms, average 180.7 ms.
+   Peak HANDLE: 209 every cycle.
+   Remaining HallJoy processes: 0.
+   User state: 11 files before/after, 0 changed.
+   Final Irok trace: route_queries=6309 route_ok=6309 route_fail=0 ERROR=0.
+   summary SHA-256:
+     59907C9963F4B1535C1CF9F1C2AD4724C2C7E156CE96223F339D85EAD2BF9C38
+   final trace SHA-256:
+     DD0793B8BF2223B3BD241A7DCD58617C741A21A15343346512289EB4C2E7D917
+
+Artifacts
+---------
+build/output/HallJoy.exe
+  Size: 2,206,208 bytes
+  SHA-256: 6B5A3FB1009C1DB0C1916A3843A411EADA90DFAABFF5AE1D4EE08D2CC90E6C83
+
+src/HallJoyProject/HallJoy/app_deps.cpp
+  SHA-256: C10C54D02ED300552DF2219303E37E9C8B9994FA4C5886B15398F2FB87FCB11C
+
+tools/dependency-lock.json
+  SHA-256: 9E0537300F76A4282EDF551DE9E0982BB440B56E33D0E3A9649515A3A73BF077
+
+Backup
+------
+C:\github\HallJoy_v1.4_BACKUPS\V14-12F-S18-installer-prechange-20260801-171951
+All source, project, runner and documentation files were SHA-256 verified before
+change; dependency-lock assets were added and verified before their change.
+
+Limit
+-----
+ViGEmBus was already installed, so the missing-dependency modal was not manually
+displayed. Message/policy correctness and inability to execute are proven by
+pure/static gates. The normal installed-driver/Irok path is runtime verified.
+
+Result
+------
+V14-12F / S18: VERIFIED LOCALLY.
+HJ-AUD-P1-013: VERIFIED.
+HJ-AUD-P1-014: VERIFIED.

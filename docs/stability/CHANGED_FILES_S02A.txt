@@ -1,0 +1,36 @@
+HallJoy stability S02A changed files versus S01 lifecycle contracts archive
+Date: 2026-07-30
+
+MODIFIED README.md
+MODIFIED docs/stability/DECISIONS.md
+MODIFIED docs/stability/README.md
+MODIFIED docs/stability/RISK_REGISTER.md
+MODIFIED docs/stability/STABILITY_MASTER_PLAN.md
+MODIFIED docs/stability/WORKLOG.md
+MODIFIED docs/stability/tests/README.md
+MODIFIED docs/validation/CLEAN_PACKAGE_MANIFEST.json
+MODIFIED src/HallJoyProject/HallJoy/HallJoy.vcxproj
+MODIFIED src/HallJoyProject/HallJoy/HallJoy.vcxproj.filters
+MODIFIED src/HallJoyProject/HallJoy/backend.cpp
+MODIFIED src/HallJoyProject/HallJoy/backend.h
+MODIFIED src/HallJoyProject/HallJoy/debug_log.cpp
+MODIFIED src/HallJoyProject/HallJoy/overlay_server.cpp
+MODIFIED src/HallJoyProject/HallJoy/realtime_loop.cpp
+MODIFIED src/HallJoyProject/tests/diagnostic_logger_static_audit.py
+MODIFIED tools/run_native_backend_checks.py
+ADDED    docs/stability/CHANGED_FILES_S02A.txt
+ADDED    docs/stability/STAGE_S02A_RESULT.md
+ADDED    docs/stability/tests/S02A_FINAL_CLANG_CHECKS_2026-07-30.txt
+ADDED    docs/stability/tests/S02A_FINAL_GCC_CHECKS_2026-07-30.txt
+ADDED    docs/stability/tests/S02A_HOT_PATH_COMPARISON_2026-07-30.txt
+ADDED    docs/stability/tests/S02A_PACKAGE_VERIFICATION_2026-07-30.txt
+ADDED    docs/stability/tests/S02_BARRIER_SANITIZERS_2026-07-30.txt
+ADDED    docs/stability/tests/S02_PRECHANGE_GCC_CHECKS_2026-07-30.txt
+ADDED    docs/validation/VALIDATION_PACKAGE_STABILITY_S02A_EXCEPTION_BARRIERS.txt
+ADDED    src/HallJoyProject/HallJoy/worker_exception_barrier.h
+ADDED    src/HallJoyProject/tests/exception_barrier_static_audit.py
+ADDED    src/HallJoyProject/tests/worker_exception_barrier_test.cpp
+
+Modified: 17
+Added: 12
+Deleted: 0

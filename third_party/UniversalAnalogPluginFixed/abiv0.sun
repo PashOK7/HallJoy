@@ -1,0 +1,13 @@
++*.cpp
+dynamic
+require Soup/soup include_dir=Soup
+
+arg -O2
+arg -fno-omit-frame-pointer
+arg -DUAP_DISABLE_HOTPLUG=1
+arg -DUAP_POLL_TARGET_US=1000
+arg -DUAP_MADLIONS_DISABLE_DIGITAL_ASSIST=1
+arg -DUAP_SYNCHRONOUS_POLL=0
+
+name abiv0
+arg -DABI_VERSION_TARGET=0

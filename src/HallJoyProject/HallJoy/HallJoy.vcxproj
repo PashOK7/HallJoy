@@ -1,0 +1,356 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{2c32dca8-7c8e-4a7c-ac2e-46b7ea604942}</ProjectGuid>
+    <RootNamespace>HallJoy</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <!-- The bundled ViGEm client is an x64 /MT release library. Keep debug
+         symbols/checks but use the compatible static release CRT. -->
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(HallJoyDiagnostic)'=='true'">
+    <TargetName>HallJoyDiagnostic</TargetName>
+    <OutDir>$(ProjectDir)..\x64\Diagnostic\</OutDir>
+    <IntDir>$(ProjectDir)..\x64\Diagnostic\obj\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyMadlionsDiagnostic)'=='true'">
+    <TargetName>HallJoyMadlionsSafeHID</TargetName>
+    <OutDir>$(ProjectDir)..\x64\MadlionsDiagnostic\</OutDir>
+    <IntDir>$(ProjectDir)..\x64\MadlionsDiagnostic\obj\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyMad68ProRNative)'=='true'">
+    <TargetName>HallJoy</TargetName>
+    <OutDir>$(ProjectDir)..\x64\MAD68ProRNative\</OutDir>
+    <IntDir>$(ProjectDir)..\x64\MAD68ProRNative\obj\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyAnalogSimulator)'=='true'">
+    <TargetName>HallJoyV14Simulator</TargetName>
+    <OutDir>$(ProjectDir)..\x64\AnalogSimulator\</OutDir>
+    <IntDir>$(ProjectDir)..\x64\AnalogSimulator\obj\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyUiAudit)'=='true'">
+    <TargetName>HallJoyUiAudit</TargetName>
+    <OutDir>$(ProjectDir)..\x64\UiAudit\</OutDir>
+    <IntDir>$(ProjectDir)..\x64\UiAudit\obj\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyAulaAggressiveTrace)'=='true'">
+    <TargetName>HallJoy</TargetName>
+    <OutDir>$(ProjectDir)..\x64\AulaAggressiveTrace\</OutDir>
+    <IntDir>$(ProjectDir)..\x64\AulaAggressiveTrace\obj\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <!-- Legacy baseline: conditional target variants intentionally leave some
+           parameters/helpers unused; compile-time policy branches are constant;
+           shared-memory ABI structs intentionally carry alignment padding. -->
+      <DisableSpecificWarnings>4100;4127;4324;4505;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>HALLJOY_DEBUG_BUILD;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\third_party\WootingAnalogSDK091\include;$(ProjectDir)..\third_party\ViGEmClient\include;$(ProjectDir)..\..\..\third_party\UniversalAnalogPluginFixed;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\ViGEmClient\lib\release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;ws2_32.lib;dbghelp.lib;Synchronization.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreBuildEvent>
+      <Command />
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <!-- Keep this list identical to Debug|x64. Official builds reject every
+           unexpected production warning; this is not a blanket /WX policy. -->
+      <DisableSpecificWarnings>4100;4127;4324;4505;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\third_party\WootingAnalogSDK091\include;$(ProjectDir)..\third_party\ViGEmClient\include;$(ProjectDir)..\..\..\third_party\UniversalAnalogPluginFixed;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\ViGEmClient\lib\release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;ws2_32.lib;dbghelp.lib;Synchronization.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyDiagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_DIAGNOSTIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyStabilityTrace)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyMadlionsDiagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_MADLIONS_DIAGNOSTIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyMad68ProRNative)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_MAD68PR_NATIVE;HALLJOY_PRODUCTION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyAnalogSimulator)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_MAD68PR_NATIVE;HALLJOY_ANALOG_SIMULATOR;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoySingleLogDiagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_SINGLE_LOG_DIAGNOSTIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyAulaAggressiveTrace)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_AULA_AGGRESSIVE_TRACE;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyUiAudit)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_UI_AUDIT_TRACE;HALLJOY_DIAGNOSTIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="app.h" />
+    <ClInclude Include="analog_host_client.h" />
+    <ClInclude Include="analog_host_shared.h" />
+    <ClInclude Include="analog_simulator_backend.h" />
+    <ClInclude Include="analog_simulator_model.h" />
+    <ClInclude Include="app_deps.h" />
+    <ClInclude Include="dependency_guidance_policy.h" />
+    <ClInclude Include="app_paths.h" />
+    <ClInclude Include="factory_reset.h" />
+    <ClInclude Include="file_name_policy.h" />
+    <ClInclude Include="backend.h" />
+    <ClInclude Include="backend_sparklink.inc" />
+    <ClInclude Include="sparklink_hotplug_age.h" />
+    <ClInclude Include="monotonic_time.h" />
+    <ClInclude Include="saturating_int.h" />
+    <ClInclude Include="backend_sayo.inc" />
+    <ClInclude Include="backend_curve.h" />
+    <ClInclude Include="bindings.h" />
+    <ClInclude Include="binding_actions.h" />
+    <ClInclude Include="curve_clipboard.h" />
+    <ClInclude Include="curve_math.h" />
+    <ClInclude Include="custom_page_controls.h" />
+    <ClInclude Include="custom_page_surface.h" />
+    <ClInclude Include="debug_log.h" />
+    <ClInclude Include="embedded_analog_stack.h" />
+    <ClInclude Include="HallJoy.h" />
+    <ClInclude Include="framework.h" />
+    <ClInclude Include="gamepad_render.h" />
+    <ClInclude Include="hid_io_operation.h" />
+    <ClInclude Include="global_profiles.h" />
+    <ClInclude Include="ini_util.h" />
+    <ClInclude Include="keyboard_bind_panel.h" />
+    <ClInclude Include="keyboard_keysettings_panel.h" />
+    <ClInclude Include="keyboard_keysettings_panel_internal.h" />
+    <ClInclude Include="keyboard_layout.h" />
+    <ClInclude Include="keyboard_profiles.h" />
+    <ClInclude Include="keyboard_render.h" />
+    <ClInclude Include="keyboard_ui.h" />
+    <ClInclude Include="keyboard_ui_internal.h" />
+    <ClInclude Include="keyboard_ui_state.h" />
+    <ClInclude Include="key_settings.h" />
+    <ClInclude Include="mouse_ipc.h" />
+    <ClInclude Include="overlay_server.h" />
+    <ClInclude Include="premium_combo.h" />
+    <ClInclude Include="premium_combo_internal.h" />
+    <ClInclude Include="profile_ini.h" />
+    <ClInclude Include="addressed_analog_backend.h" />
+    <ClInclude Include="mad68pr_backend.h" />
+    <ClInclude Include="mad68pr_protocol.h" />
+    <ClInclude Include="hex80_backend.h" />
+    <ClInclude Include="hex80_protocol.h" />
+    <ClInclude Include="aula_win60he_backend.h" />
+    <ClInclude Include="aula_win60he_client.h" />
+    <ClInclude Include="aula_win60he_diagnostic_metrics.h" />
+    <ClInclude Include="aula_win60he_protocol.h" />
+    <ClInclude Include="aula_win60he_session_policy.h" />
+    <ClInclude Include="aula_w669_backend.h" />
+    <ClInclude Include="aula_w669_protocol.h" />
+    <ClInclude Include="native_analog_routing.h" />
+    <ClInclude Include="addressed_poll_scheduler.h" />
+    <ClInclude Include="realtime_loop.h" />
+    <ClInclude Include="latest_value_mailbox.h" />
+    <ClInclude Include="vigem_output_scheduler.h" />
+    <ClInclude Include="remap_abxy.h" />
+    <ClInclude Include="remap_bumpers.h" />
+    <ClInclude Include="remap_dpad.h" />
+    <ClInclude Include="remap_guide.h" />
+    <ClInclude Include="remap_icons.h" />
+    <ClInclude Include="remap_panel.h" />
+    <ClInclude Include="remap_startselect.h" />
+    <ClInclude Include="remap_sticks.h" />
+    <ClInclude Include="remap_triggers.h" />
+    <ClInclude Include="Resource.h" />
+    <ClInclude Include="settings.h" />
+    <ClInclude Include="stability_trace.h" />
+    <ClInclude Include="transactional_file_store.h" />
+    <ClInclude Include="settings_ini.h" />
+    <ClInclude Include="tab_dark.h" />
+    <ClInclude Include="targetver.h" />
+    <ClInclude Include="ui_theme.h" />
+    <ClInclude Include="ui_paint_audit.h" />
+    <ClInclude Include="version.h" />
+    <ClInclude Include="win_util.h" />
+    <ClInclude Include="worker_lifecycle.h" />
+    <ClInclude Include="worker_join_policy.h" />
+    <ClInclude Include="native_backend_lifecycle_registry.h" />
+    <ClInclude Include="worker_primitives.h" />
+    <ClInclude Include="worker_exception_barrier.h" />
+    <ClInclude Include="windows_command_line.h" />
+  <ClInclude Include="native_analog_backend.h" /><ClInclude Include="native_analog_backend_registry.h" /><ClInclude Include="native_analog_backends.def" /></ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="HallJoy.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="HallJoy.ico" />
+    <Image Include="small.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="app.cpp" />
+    <ClCompile Include="analog_host_client.cpp" />
+    <ClCompile Include="analog_simulator_backend.cpp">
+      <ExcludedFromBuild Condition="'$(HallJoyAnalogSimulator)'!='true'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="analog_simulator_model.cpp">
+      <ExcludedFromBuild Condition="'$(HallJoyAnalogSimulator)'!='true'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="app_deps.cpp" />
+    <ClCompile Include="app_paths.cpp" />
+    <ClCompile Include="factory_reset.cpp" />
+    <ClCompile Include="file_name_policy.cpp" />
+    <ClCompile Include="backend.cpp" />
+    <ClCompile Include="backend_curve.cpp" />
+    <ClCompile Include="bindings.cpp" />
+    <ClCompile Include="binding_actions.cpp" />
+    <ClCompile Include="curve_math.cpp" />
+    <ClCompile Include="custom_page_controls.cpp" />
+    <ClCompile Include="custom_page_surface.cpp" />
+    <ClCompile Include="debug_log.cpp" />
+    <ClCompile Include="embedded_analog_stack.cpp" />
+    <ClCompile Include="gamepad_render.cpp" />
+    <ClCompile Include="global_profiles.cpp" />
+    <ClCompile Include="ini_util.cpp" />
+    <ClCompile Include="keyboard_bind_panel.cpp" />
+    <ClCompile Include="keyboard_keysettings_panel.cpp" />
+    <ClCompile Include="keyboard_keysettings_panel_graph.cpp" />
+    <ClCompile Include="keyboard_keysettings_panel_logic.cpp" />
+    <ClCompile Include="keyboard_keysettings_panel_style.cpp" />
+    <ClCompile Include="keyboard_layout.cpp" />
+    <ClCompile Include="keyboard_page_main.cpp" />
+    <ClCompile Include="keyboard_profiles.cpp" />
+    <ClCompile Include="keyboard_render.cpp" />
+    <ClCompile Include="keyboard_subpages.cpp" />
+    <ClCompile Include="keyboard_ui.cpp" />
+    <ClCompile Include="key_settings.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="mouse_ipc.cpp" />
+    <ClCompile Include="overlay_server.cpp" />
+    <ClCompile Include="premium_combo_anim.cpp" />
+    <ClCompile Include="premium_combo_core.cpp" />
+    <ClCompile Include="premium_combo_logic.cpp" />
+    <ClCompile Include="premium_combo_paint.cpp" />
+    <ClCompile Include="profile_ini.cpp" />
+    <ClCompile Include="addressed_analog_backend.cpp" />
+    <ClCompile Include="mad68pr_backend.cpp" />
+    <ClCompile Include="mad68pr_protocol.cpp" />
+    <ClCompile Include="hex80_backend.cpp" />
+    <ClCompile Include="hex80_protocol.cpp" />
+    <ClCompile Include="aula_win60he_backend.cpp" />
+    <ClCompile Include="aula_win60he_client.cpp" />
+    <ClCompile Include="aula_win60he_diagnostic_metrics.cpp" />
+    <ClCompile Include="aula_win60he_protocol.cpp" />
+    <ClCompile Include="aula_win60he_session_policy.cpp" />
+    <ClCompile Include="aula_w669_backend.cpp" />
+    <ClCompile Include="aula_w669_protocol.cpp" />
+    <ClCompile Include="native_analog_routing.cpp" />
+    <ClCompile Include="addressed_poll_scheduler.cpp" />
+    <ClCompile Include="realtime_loop.cpp" />
+    <ClCompile Include="remap_abxy.cpp" />
+    <ClCompile Include="remap_bumpers.cpp" />
+    <ClCompile Include="remap_dpad.cpp" />
+    <ClCompile Include="remap_guide.cpp" />
+    <ClCompile Include="remap_icons.cpp" />
+    <ClCompile Include="remap_panel.cpp" />
+    <ClCompile Include="remap_startselect.cpp" />
+    <ClCompile Include="remap_sticks.cpp" />
+    <ClCompile Include="remap_triggers.cpp" />
+    <ClCompile Include="settings.cpp" />
+    <ClCompile Include="stability_trace.cpp" />
+    <ClCompile Include="settings_ini.cpp" />
+    <ClCompile Include="ui_theme.cpp" />
+    <ClCompile Include="win_util.cpp" />
+  <ClCompile Include="native_analog_backend_registry.cpp" /></ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

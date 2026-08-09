@@ -1,0 +1,72 @@
+HallJoy V14-12G / S20 build and documentation evidence
+=======================================================
+
+Date: 2026-08-01
+Scope: complete the pre-qualification build, local-gate and documentation work
+Status: VERIFIED; this is not S21 long-run or hardware qualification
+
+Implementation
+--------------
+- Replaced stale V6/V11 project README, build and testing instructions with the
+  shipped v1.4 commands, x64 output, LocalAppData storage and truthful hardware
+  limits.
+- Rewrote validate_addressed_protocol_backend.py for the current central native
+  catalog, exact-path routing and bounded retained-generation shutdown; the
+  unified runner now executes it explicitly.
+- Marked VALIDATION_PACKAGE_V3_9_0.txt as historical and non-authoritative for
+  current lifecycle/release claims.
+- Removed unsupported Win32/x86 project and solution configurations. Only x64
+  ViGEm/UAP artifacts are supplied.
+- Set Debug|x64 and Release|x64 to Warning Level 4. Documented legacy baseline:
+  C4100, C4127, C4324, C4505. The official build still rejects every unexpected
+  compiler/linker warning.
+- A direct Debug|x64 gate exposed its pre-existing debug-CRT/release-ViGEm
+  mismatch. Debug now keeps symbols, checks, /Od and HALLJOY_DEBUG_BUILD but
+  intentionally uses the /MT release CRT required by bundled ViGEmClient.lib.
+- Fixed actionable W4 findings: one unused Addressed telemetry local, signed
+  profile-value comparisons and an explicit bounded BYTE alpha conversion.
+- Added s20_build_docs_static_audit.py and made legacy link-library checks count
+  the actual supported configurations instead of assuming four configurations.
+
+Validation
+----------
+1. python tools/run_native_backend_checks.py --static-only
+   PASS: current Addressed validator plus 44 repository static audits.
+2. python tools/run_native_backend_checks.py --require-compiler
+   PASS: all static gates and 27 portable C++20 tests.
+3. BUILD.cmd
+   PASS: dependency/UAP gates and clean MSVC Release x64 rebuild.
+   Compiler command: /W4 with the four documented /wd codes.
+   Compiler warnings: 0. Errors: 0.
+   Linker warning: only allowlisted external LNK4099 for ViGEmClient.pdb.
+4. MSBuild HallJoy.sln /t:Rebuild /p:Configuration=Debug /p:Platform=x64
+   PASS: 0 errors, 0 compiler warnings, only external ViGEm LNK4099.
+5. tools/run_release_qualification.ps1 -Cycles 3 -RunSeconds 2
+   PASS: 3/3 ordinary production cycles, fault_injection=false.
+   Exit: 0 every cycle; shutdown 139-254 ms; max handles 209.
+   Remaining processes: 0; user state: 11 files, 0 changed.
+   Stability traces: no [level=ERROR]. SparkLink route totals 17,674 successful
+   plus one expected cancellation after service.stop.begin.
+
+Artifact
+--------
+Path: build/output/HallJoy.exe
+Size: 2,206,208 bytes
+SHA-256: 01A046A667DA012237E12C597ED84BE531AF20BC6338F55881C1C5197272559A
+Cycle evidence: build/output/release-qualification/20260801-180901
+
+Backup
+------
+C:\github\HallJoy_v1.4_BACKUPS\V14-12G-S20-prechange-20260801-173804
+Twenty-five source/document files were copied as needed and hash-verified
+before modification.
+
+Result and limits
+-----------------
+HJ-AUD-P3-001 through HJ-AUD-P3-006 are Verified. All 45 audit risks now count
+0 Open, 3 Implemented, 1 Partial and 41 Verified.
+
+S20 is complete. Remaining work is S21 qualification: 1000 normal cycles,
+8-24 hour soak, input/reconnect and the required physical-device matrix. Aula
+WIN 60 HE MAX remains firmware-proven/hardware-unvalidated; its tester may
+report asynchronously, but release approval remains blocked until it passes.

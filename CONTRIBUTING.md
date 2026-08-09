@@ -22,3 +22,11 @@ If you do not agree with these terms, do not submit contributions.
 You may include a sign-off line in commits:
 
 `Signed-off-by: Your Name <you@example.com>`
+
+## Native analogue protocols
+
+Do not add protocol-specific lifecycle, raw-read, UI, curve or ViGEm branches.
+Start with `docs/development/ARCHITECTURE_OVERVIEW.md`, generate a standalone
+module with `tools/new_native_backend.py`, and complete the new-protocol pull request
+checklist. Run `python tools/run_native_backend_checks.py --require-compiler` and a
+Windows Release x64 `BUILD.cmd` before submitting.

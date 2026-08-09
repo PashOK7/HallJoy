@@ -1,0 +1,23 @@
+S02B3_PACKAGE_VERIFICATION=PASS
+DATE=2026-07-30
+
+PREVERIFY_CLEAN_UNPACK=PASS
+CLEAN_PACKAGE_MANIFEST=PASS
+MANIFEST_FILE_COUNT=327
+MANIFEST_TOTAL_BYTES_BEFORE_FINAL_LOG=40015111
+MSVC_PROJECT_XML=PASS
+GCC_COMMON_GATE=PASS
+CLANG_COMMON_GATE=PASS
+TARGETED_ADDRESSED_EXCEPTION_AUDIT=PASS
+PORTABLE_TESTS=9_PASS
+STATIC_AUDITS=14_PASS
+ASAN_UBSAN=PASS
+HOT_PATH_TOKEN_COMPARISON=PASS
+
+Production scope relative to S02B.2:
+- modified production files: 1
+- file: src/HallJoyProject/HallJoy/addressed_analog_backend.cpp
+- packet/scheduler/reader-loop hot-path token changes: 0
+- build/project file changes: 0
+
+The final archive is regenerated after this log and a new self-excluding manifest.

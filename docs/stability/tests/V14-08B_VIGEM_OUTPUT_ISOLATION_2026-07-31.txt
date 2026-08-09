@@ -1,0 +1,100 @@
+HallJoy v1.4 - V14-08B ViGEm output isolation evidence
+Date: 2026-07-31
+Workspace: C:\github\HallJoy_v1.4
+Evidence classification: local structural/behavioral validation plus Irok MG75
+Max production startup/shutdown smoke. The driver-stall result is simulator-only
+fault injection and is not hardware-driver failure evidence.
+
+Scope
+-----
+- Remove synchronous ViGEm update/reconnect/destruction from Backend_Tick.
+- Preserve newest complete report state and pending multi-pad submissions.
+- Bound output-worker stop without destroying state beneath a blocked driver call.
+- Prove that a stalled output driver cannot stall the realtime worker.
+
+Implementation contract
+-----------------------
+- Initial ViGEm client/target creation remains on the startup thread.
+- After output-worker start, it exclusively owns update, reconnect and destroy.
+- Realtime performs only a try-publish to LatestValueMailbox and an event wake.
+- Pending valid-pad masks merge; payloads come from the newest complete snapshot.
+- Emergency neutralization drops older queued reports and submits neutral last.
+- Stop waits at most 3000 ms. Timeout retains handles and driver ownership,
+  blocks dependent backend teardown and selects process exit code 2.
+- --halljoy-test-vigem-update-stall exists only under
+  HALLJOY_ANALOG_SIMULATOR and sleeps 60000 ms before the first simulated update.
+
+Commands and results
+--------------------
+1. python src/HallJoyProject/tests/vigem_output_isolation_static_audit.py
+   Result: PASS (14 ownership, neutral-ordering, timeout, project and gate checks).
+
+2. python tools/run_native_backend_checks.py --require-compiler
+   Result: PASS. Every static audit and portable C++20 test passed, including
+   latest_value_mailbox_test.cpp complete-copy, newest-payload and multi-pad
+   pending-mask equivalence cases.
+
+3. powershell -NoProfile -ExecutionPolicy Bypass
+     -File .\tools\run_analog_simulator.ps1 -RunSeconds 7
+   Result: PASS, graceful output-worker join and exit 0.
+   Trace SHA-256:
+   AEF9EB00E29E1963602EA1E1C0DFDD73750639C5C5FD3FB76D1C0B6A7C232DBA
+
+4. powershell -NoProfile -ExecutionPolicy Bypass
+     -File .\tools\run_analog_simulator.ps1 -SkipBuild
+     -InjectVigemUpdateStall -RunSeconds 7
+   Result: PASS, expected containment exit 2.
+   Trace SHA-256:
+   BD7C5ED4CBB3FF4CC3BE5DDC75F4F700C1057D46590893B4C6CDCC5E1B5F19DE
+   Relevant ordered evidence:
+   - vigem-output:test.update_stall.injected sleep_ms=60000
+   - analog-simulator:stop updates=634 at elapsed 7032 ms
+   - realtime:worker.exit and realtime:stop.end at elapsed 7063 ms
+   - vigem-output:stop.timeout at elapsed 10063 ms, handles_retained=1
+   - backend:shutdown.blocked dependent_cleanup_skipped=1
+   - main:session.end exit_code=2
+   Therefore the complete realtime scenario and realtime join finished while
+   the output owner was still blocked in its injected driver call.
+
+5. powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+   Result: PASS.
+   - All required native/static/portable gates: PASS
+   - Private ABI1 runtime gate: PASS
+   - Production MSVC x64 Release: 0 errors
+   - Warning policy: only allowlisted ViGEmClient LNK4099 PDB warning
+
+6. build/output/HallJoy.exe
+   Hidden 10-second production smoke, PID-targeted WM_CLOSE.
+   Hardware route: SparkLink VID 1CA6, PID 0529, usage page FFB0.
+   Result: startup transaction committed; realtime and ViGEm output worker
+   started; output worker joined before dependent teardown; analog-host child
+   exited; backend/main shutdown completed; exit 0; zero processes after child
+   completion. Settings and bindings remained SHA-identical.
+   Production trace SHA-256:
+   700E580F65862C2E4EC5FD8F8AFB406CC72306D3FE30B4B55F6C21438C87FE6C
+
+Canonical artifact
+------------------
+Path: build/output/HallJoy.exe
+Name: HallJoy.exe
+Size: 2147840 bytes
+SHA-256: 73F425BFED6B090015842A987C79CBCA99E07CEA38FD6DB6C227084E4A719CA3
+
+Backups
+-------
+Source pre-change:
+C:\github\HallJoy_v1.4_BACKUPS\V14-08B-prechange-20260731-2255
+
+Pre-production build/output (13 files, all SHA-256 verified):
+C:\github\HallJoy_v1.4_BACKUPS\V14-08B-preproduction-20260731-2313
+
+User state restoration
+----------------------
+settings.ini, bindings.ini, CurvePresets, GlobalProfiles and Layouts were
+restored from the verified pre-production backup. Every restored file matched
+its backup SHA-256.
+
+Conclusion
+----------
+V14-08B is Verified locally. HJ-AUD-P1-010 is Verified. V14-08 is complete;
+V14-09 transactional persistence and writable state migration is next.

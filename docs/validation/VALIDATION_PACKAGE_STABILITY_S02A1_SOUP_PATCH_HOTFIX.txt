@@ -1,0 +1,29 @@
+HallJoy Universal Analog v3.9.0
+Stability package S02A.1: deterministic Soup pre-open patch hotfix
+Date: 2026-07-30
+
+STATUS
+- Root cause reproduced from S02A source: PASS
+- Generated-block marker contract audit: PASS
+- GCC common gate: PASS
+- Clang common gate: PASS
+- MSVC project XML parse: PASS
+- Windows clean BUILD.cmd: REQUIRED, NOT YET RE-RUN
+- HallJoy/ViGEm/overlay smoke: REQUIRED after successful build
+
+ROOT CAUSE
+Apply-Soup-Madlions-Fix.ps1 validated that the text
+"HallJoy native analogue pre-open exclusion" existed in generated hwHid.cpp,
+but the generated $preOpenBlock did not contain that marker. On a clean pinned
+Soup checkout the post-patch validation therefore failed deterministically.
+
+CHANGES
+- Emit the exact marker inside $preOpenBlock before CreateFileW
+- Reuse $preOpenMarker in post-patch validation
+- Add plugin_preopen_patch_contract_audit.py
+
+REGRESSION BOUNDARY
+- HallJoy runtime source changes: 0
+- MSVC project changes: 0
+- Soup revision changes: 0
+- Plugin ABI/flags changes: 0

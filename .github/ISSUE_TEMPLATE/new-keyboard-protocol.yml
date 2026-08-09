@@ -1,0 +1,41 @@
+name: New analogue keyboard protocol
+description: Provide evidence needed to add a safe native protocol backend
+title: "[Protocol] "
+labels: ["device-support", "protocol-research"]
+body:
+  - type: input
+    id: model
+    attributes:
+      label: Manufacturer and exact model
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware version
+  - type: textarea
+    id: hid
+    attributes:
+      label: HID identity
+      description: VID/PID, interface, usage page/usage, input/output/feature report sizes.
+    validations:
+      required: true
+  - type: textarea
+    id: protocol
+    attributes:
+      label: Protocol evidence
+      description: Request/response bytes, captures, checksum, key mapping, raw scale and source attribution.
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety and recovery
+      description: Which commands are read-only, reversible, destructive, flash-related or calibration-related.
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware testing availability
+      description: Who can test builds and how the device can be recovered.

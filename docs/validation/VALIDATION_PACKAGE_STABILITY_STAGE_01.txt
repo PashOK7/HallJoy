@@ -1,0 +1,24 @@
+HallJoy v3.9.0 Stability Stage 01 validation
+============================================
+
+Scope
+-----
+Documentation-only stage. Production source code, project files and build scripts
+are intentionally unchanged. The stage adds an immutable baseline, master plan,
+risk register, decision log, worklog, audit copy and package integrity evidence.
+
+Validation
+----------
+PASS: python tools/run_native_backend_checks.py --require-compiler
+PASS: all eight existing Python static audits
+PASS: all six existing portable C++ tests
+PASS: original archive SHA-256 recorded
+PASS: original source SHA-256 list recorded before documentation changes
+PASS: all 45 audit findings are present in the risk register
+PASS: production code/build/project file hashes are unchanged
+PASS: current package manifest generated after documentation updates
+
+Limitations
+-----------
+No MSVC/Windows build or physical hardware test is claimed by this stage.
+No runtime defect is marked fixed. All 45 findings remain Open.

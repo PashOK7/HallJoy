@@ -1,0 +1,46 @@
+HallJoy V14-12J / S21 unattended-soak sleep prevention
+Date: 2026-08-01
+Status: VERIFIED
+
+Contract
+--------
+- The runner calls SetThreadExecutionState with unsigned
+  ES_CONTINUOUS | ES_SYSTEM_REQUIRED before HallJoy starts.
+- A rejected power request fails the qualification before HallJoy launch.
+- finally always clears the thread-scoped request with ES_CONTINUOUS.
+- checkpoint and summary record system_sleep_prevented.
+- Manual suspend, reboot or power loss still invalidates a run.
+
+Pilot 1
+-------
+Status: expected harness failure before HallJoy launch.
+Cause: PowerShell interpreted raw 0x80000001 as a negative Int32 before the
+UInt32 P/Invoke conversion. The checkpoint retained zero samples and false
+system_sleep_prevented. No production process was started.
+
+Correction
+----------
+The high-bit constants are now unsigned C# constants (0x80000001u and
+0x80000000u) behind PreventSystemSleep/ClearSystemSleepPrevention wrappers.
+
+Pilot 2
+-------
+duration_minutes=1
+sample_seconds=2
+status=passed
+system_sleep_prevented=true
+samples=29
+first_handles=209
+last_handles=209
+max_handles=213
+handle_growth=0
+private_growth_bytes=-53248
+spark_route_ok=240624
+spark_route_fail=0
+remaining_processes=0
+user_state_changed=0
+
+Evidence
+--------
+build/output/qualification-evidence/S21-sleep-request-pilot
+build/output/qualification-evidence/S21-sleep-request-pilot-2

@@ -1,0 +1,112 @@
+HallJoy V14-12A Aula WIN 60 HE MAX firmware-proven integration evidence
+Date: 2026-08-01
+
+Status
+------
+IMPLEMENTED: firmware-proven, implementation-tested, hardware-unvalidated.
+No physical Aula keyboard was available. This evidence does not claim real Aula
+USB timing, hotplug, multi-device coexistence or compatibility with firmware
+other than the exact identity below.
+
+Input archive and independent reproduction
+------------------------------------------
+Archive:
+  C:\Users\PC\Downloads\HallJoy_Aula_STAGE10_REPRODUCIBLE_PROTOCOL_PROOF_2026-08-01.zip
+  size=37209220
+  sha256=E695AFDCF8C41982101B4C10BFA0C9C0DB52F9661AC2AEA723871554D0C632D4
+ZIP audit: 44 entries, 0 rooted/traversal entries, 0 escaped outputs.
+Manifest: 37/37 listed files matched, 0 unlisted payload files.
+Git bundle: complete; source commit c7a89feaac137abed32e4ac609312990bfc9d21d,
+  tree a73514788b7953884f5bde11d4bb2a78d49e51a8.
+Firmware SHA-256:
+  B6E87B28E9249EDA27FF251D3F793AC1D80F75180547E6C9166331F741F33381
+Firmware verifier: 57/57 PASS.
+
+Independently fetched exact packages:
+  @sparklinkplayjoy/protocol-keyboard@1.0.6
+    npm shasum=6401f527985dc0fadee21c5710eefc028a2643d8
+  @sparklinkplayjoy/sdk-keyboard@1.0.14
+    npm shasum=9fd8dc987d26a6f61e5c765a6267b8e6d830d464
+  @sparklinkplayjoy/hid@1.0.9
+    npm shasum=c0a52de17670127147e5396d9b69844ec46cdc4e
+Ten oracle source files: 10/10 SHA-256 matches.
+Official oracle rerun: all PASS.
+Archived and reproduced oracle JSON SHA-256:
+  85C70BFAABE599F65A7EECBB5E6566D1B95679DB41520AAAEA8AF0566E7EFDC4
+
+Accepted protocol boundary
+--------------------------
+USB/HID: 1CA2:1902, usage FFA0:0001, 64 protocol / 65 Win32 bytes.
+Firmware: App V1.1.6, build Feb  4 2026.
+Precision/min/max: 10/10/3400 micrometres.
+Layout: 6x21, 61 physical positions, 60 default publishable usages.
+Proof: 17 read-only transactions; sync, precision, three default-map reads,
+  two matching five-packet Fn0 generations, two travel halves.
+Session: exclusive one-outstanding request, queue flush before every command,
+  poison and close after any uncertain transaction.
+Ownership: full proof before exact interface-path claim; no coarse VID/PID
+  reservation. Multiple matching candidates fail closed.
+
+Automated gates
+---------------
+AULA_WIN60HE_BACKEND_STATIC_AUDIT=PASS
+AULA_WIN60HE_PROTOCOL_TEST=PASS
+AULA_WIN60HE_ORACLE_TEST=PASS
+AULA_WIN60HE_END_TO_END_TEST=PASS
+AULA_WIN60HE_SESSION_POLICY_TEST=PASS
+AULA_WIN60HE_SANITIZERS=PASS
+AULA_WIN60HE_MSVC_W4_WX=PASS
+Complete repository gate: 39/39 static audits, 26/26 portable C++ tests PASS.
+GCC 15.2 warning-clean: PASS.
+MSVC 19.44.35211, /W4 /WX for all eight new source/test TUs: PASS.
+Clang 21.1.8 ASan+UBSan for four behavioral suites: PASS, zero reports.
+
+Build and available-hardware regression
+---------------------------------------
+Official BUILD.cmd: exit 0.
+Production MSVC x64 Release: 0 errors.
+Warning policy: only allowlisted LNK4099 ViGEm PDB diagnostic.
+Private UAP ABI runtime: PASS, SafeHID v13 interface-path generation.
+Overlay responsiveness/framing/concurrency/origin: PASS;
+  maximum parallel state latency=2.1 ms.
+Irok MG75 Max SparkLink regression:
+  route queries=65379, successful=65379, failures=0
+  average/maximum route interval=250/1003 us
+  Aula worker start/exit=1/1, fault_kind=0, stop.joined=1
+  balanced application shutdown, exit code 0
+Trace ERROR events: 0.
+User state: 16 files checked, 0 hash differences; no HallJoy process remained.
+
+Artifacts
+---------
+build/output/HallJoy.exe
+  size=2268672
+  sha256=C3F1F954619059C900A2F47DF861C2A7B0D02C1E7F7646D800101CFF5183F833
+third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv0.dll
+  size=387072
+  sha256=123CC81511B6EFE0BBDBE5C6C4C432EB0D5CC4FACFD69D1B65DBF6C1287B3564
+third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+  size=259072
+  sha256=173CD66364C4F1CCCDD5B4AFC8371E3095D3E57B5D858D9CB2EA2BDC696C708C
+build/output/HallJoyStabilityTrace.log
+  size=10482
+  sha256=137915EA746C344FFF0C38E4C23E92ED88BEBD53B7E6AFBFA7FBEA2BC1616418
+
+Known limitations / open hardware gate
+--------------------------------------
+- exact firmware V1.1.6 / Feb 4 2026 only;
+- Fn0/base layer only;
+- travel halves and map batches have no transaction/generation identifier;
+- absent-at-start hotplug can race an already-started UAP and may require an
+  application restart; coarse VID/PID pre-reservation is deliberately forbidden;
+- two or more matching Aula command interfaces fail closed;
+- physical input, held-key unplug/reconnect, multi-Aula and firmware coexistence
+  remain open until a real owner supplies hardware evidence.
+
+Backup
+------
+C:\github\HallJoy_v1.4_BACKUPS\V14-12A-Aula-prechange-20260801-1454
+30 files copied and hash-verified.
+Manifest SHA-256:
+  163F531C02FB35F6D649C9529EA3B55561D5CD74049110A51707DBE208C41E73
+Checkpoint: c4b6d36810581d716af322386040745ffca2042d

@@ -1,0 +1,1727 @@
+{
+  "schema": 1,
+  "package": "HallJoy Universal Analog Stability S02V1 Verification Trace",
+  "version": "3.9.0+stability.s02v1.verification-trace",
+  "generated_date": "2026-07-30",
+  "hash_algorithm": "SHA-256",
+  "manifest_excludes_self": true,
+  "file_count": 343,
+  "total_bytes": 40140099,
+  "files": [
+    {
+      "path": ".github/ISSUE_TEMPLATE/new-keyboard-protocol.yml",
+      "size": 1230,
+      "sha256": "454e85626237a6a8afa825c59bbdd3e930d126cd592bddd1650b366f4ad14a97"
+    },
+    {
+      "path": ".github/PULL_REQUEST_TEMPLATE/new-protocol.md",
+      "size": 1149,
+      "sha256": "32046051d00ded41ed3c663d4672939e19de3a513141133c2a82f869ba0169c3"
+    },
+    {
+      "path": ".github/workflows/native-backend-checks.yml",
+      "size": 753,
+      "sha256": "1511dee66a29ddcb7459e5a02a257ee343cfbdf5720e9e9761bf5b48ee72516e"
+    },
+    {
+      "path": ".gitignore",
+      "size": 1041,
+      "sha256": "29b4a34b61323fe0fd01816aa22091022f0426e474d2e249130fd051a913d322"
+    },
+    {
+      "path": "BUILD.cmd",
+      "size": 373,
+      "sha256": "b0447f9654742e19a8336685f84e54c94d1a989808ee513a4c55b5f465a317f3"
+    },
+    {
+      "path": "COMMERCIAL_LICENSE.md",
+      "size": 750,
+      "sha256": "4b71e4464a4f5768b94440bc5177624e1f2fa347cd7bfeb956f79631f42621fb"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "size": 1172,
+      "sha256": "ff9d55f9b325c158eda028230d5fcb9dee86d391cd69839c582c493df427829e"
+    },
+    {
+      "path": "LICENSE",
+      "size": 34523,
+      "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+    },
+    {
+      "path": "README.md",
+      "size": 12766,
+      "sha256": "80ed7f70503eec5c8b9da11b818c74826b5f5a0a76885e9321e9ef60b8a4a1a3"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "size": 1782,
+      "sha256": "6b00c704764694cac26e6a880ed146cc15c49ee560d19b2497df010fd05b6f30"
+    },
+    {
+      "path": "docs/archive/historical-notes/ANALYSIS_LOGS_FIRMWARE_PID1109.txt",
+      "size": 3292,
+      "sha256": "8ffb99cefd98853b0f233e09b45b072cbbb187415ad7294d2b23b013e924815c"
+    },
+    {
+      "path": "docs/archive/historical-notes/BUILD_FIX_V5_0_1.md",
+      "size": 937,
+      "sha256": "39133c7e7b341932e6f78fc7e92a0ce1e1fe8d45dfb64475ba3fad888ac52bbc"
+    },
+    {
+      "path": "docs/archive/historical-notes/MAD68PRO_R_NATIVE_V3_5_CRITIQUE_RESOLUTION.md",
+      "size": 12116,
+      "sha256": "d46260eb663c65ef020b9829d19f9350cc89a97f614df1a8cc14f5852d705c58"
+    },
+    {
+      "path": "docs/archive/historical-notes/README_ADDRESSED_ANALOG_V4.md",
+      "size": 7309,
+      "sha256": "4205cd506a1221e21b40071bd4bfcb8be43c19b85b1c4311e7b29ac019b9ca57"
+    },
+    {
+      "path": "docs/archive/legacy-addressed-analog-v5.zip",
+      "size": 8250,
+      "sha256": "52b3ee72064b2249e3202b597adcd759bd87f9581059d287fab95109609991af"
+    },
+    {
+      "path": "docs/archive/validation-before-v3.6/CLEAN_PACKAGE_VALIDATION.txt",
+      "size": 555,
+      "sha256": "ded35107959b9b60ccfff2e3507ec36d7ed08919f5a13579c302be74e9e7f449"
+    },
+    {
+      "path": "docs/archive/validation-before-v3.6/STAGED_PACKAGE_VALIDATION.txt",
+      "size": 3886,
+      "sha256": "d6955d8272d71a393e17c6fc406c2e52e441520750f8e5640641292b03f9bbec"
+    },
+    {
+      "path": "docs/archive/validation-before-v3.6/VALIDATION_ADDRESSED_ANALOG_V5_0_1_BUILD_FIX.txt",
+      "size": 959,
+      "sha256": "5e60426b0aae1016098ae6bde9355d1ec5011492a9fb63ccae0eda10414ac589"
+    },
+    {
+      "path": "docs/archive/validation-before-v3.6/VALIDATION_ADDRESSED_ANALOG_V5_STABLE.txt",
+      "size": 4451,
+      "sha256": "b7da323888ee667322bafa91581633e5fd85c2899ac6bfa0a013928cff175b4f"
+    },
+    {
+      "path": "docs/archive/validation-before-v3.6/VALIDATION_MAD68PRO_R_NATIVE_STABLE_V3_5.txt",
+      "size": 2179,
+      "sha256": "fff4600bd6cee0f39e9edd9d9ee303ea55efc1761de1fb5f12b1e3911f0521ae"
+    },
+    {
+      "path": "docs/current/AV_FALSE_POSITIVE_NOTES.md",
+      "size": 1570,
+      "sha256": "023d069e28811cf8d1566d7736c13a5e37eb8f14209feded68b948bfe5896b20"
+    },
+    {
+      "path": "docs/current/BUILD_PIPELINE_AUDIT.md",
+      "size": 9838,
+      "sha256": "b2cdc65492dc05e7f05561265c634bba5ec3586b500e9817ab2bdf903d5f3bb7"
+    },
+    {
+      "path": "docs/current/HARDWARE_LOG_SUMMARY.md",
+      "size": 3264,
+      "sha256": "ecd52b02eb505159d732ce6b5791167cbac9b2e15879b57ac7342529e4981c94"
+    },
+    {
+      "path": "docs/current/MAD68_PRO_R_FIRMWARE_FINAL_AUDIT.md",
+      "size": 24207,
+      "sha256": "a0d65fbe4a7e655942d64b2fac0834500cb5eaf2c52cfb4c7e9027f1d9a1b983"
+    },
+    {
+      "path": "docs/current/MAD68_PRO_R_HALL_PROTOCOL_SPEC.md",
+      "size": 1719,
+      "sha256": "59fa70f099b32eceac56ab477cbdccaa73e4059de666a34e0d1f8590d2a8aa14"
+    },
+    {
+      "path": "docs/current/V3_6_LOG_ANALYSIS_AND_FIX.md",
+      "size": 2273,
+      "sha256": "deb4680de827ac343055b3a4e9d520375fdd330d57b4f0717818dd0447ddca06"
+    },
+    {
+      "path": "docs/development/ADDING_NATIVE_ANALOG_PROTOCOL.md",
+      "size": 4534,
+      "sha256": "ab34a6f3efaf82be6f33907008b2a4ec9c82380edc88aaab8c57caffdb755493"
+    },
+    {
+      "path": "docs/development/ARCHITECTURE_OVERVIEW.md",
+      "size": 3200,
+      "sha256": "986fc9d3f1bd3820a351cae8213e3ec7ca7b9e38edd13d08ac1c18c0336d8773"
+    },
+    {
+      "path": "docs/development/NATIVE_BACKEND_CONTRACT.md",
+      "size": 2309,
+      "sha256": "fbcb3592f3c7acf9460edf32e3ac8901a1ca34c78c17bf187fc2c8a9f6699567"
+    },
+    {
+      "path": "docs/development/NEW_PROTOCOL_WORKSHEET.md",
+      "size": 1242,
+      "sha256": "3343139cddaf12b2466ac457efe5c28fbeaa71ee21c0fa203d4044542c6cff48"
+    },
+    {
+      "path": "docs/development/PROTOCOL_REVIEW_CHECKLIST.md",
+      "size": 1722,
+      "sha256": "ee28f40557e0842a2f80979fbaa7ac7ac0aaf24c35e9b12ae65a997ad5635091"
+    },
+    {
+      "path": "docs/development/README.md",
+      "size": 1255,
+      "sha256": "003bb7cd5c09fe24ba6008195f686ff9576761b533637336012dc647b37c7d75"
+    },
+    {
+      "path": "docs/development/TESTING_NEW_PROTOCOL.md",
+      "size": 1487,
+      "sha256": "43cf547a365a5ae34d58fe0fbecd4cbebb7a82b6a0df065705e7459aa8a0e469"
+    },
+    {
+      "path": "docs/firmware/MAD68_Pro_R_Firmware_Knowledge_Base_2026-07-29.zip",
+      "size": 381722,
+      "sha256": "b4b504d9e3cf4297f0263b05f12038257f2ace4c38e2f548e9c7b0d45fbc419d"
+    },
+    {
+      "path": "docs/firmware/README.md",
+      "size": 908,
+      "sha256": "768ed251e46784adefde391306874ed2e68fc5ddfbdb0af5a830974c0a35a14a"
+    },
+    {
+      "path": "docs/hex80-reference/MATRIX.md",
+      "size": 3794,
+      "sha256": "236bc3a5635dd06d46c4ad4128f1216365210f9a93af0d5200e679e08f0f2b4f"
+    },
+    {
+      "path": "docs/hex80-reference/PROTOCOL.md",
+      "size": 4370,
+      "sha256": "df5eac6b66f0ed4702fef02ce21feefefe553031aaa1440d7b1420b944ca681e"
+    },
+    {
+      "path": "docs/hex80-reference/README.md",
+      "size": 2524,
+      "sha256": "f960e9e407dc59add65b90ac730120b33cd3bb2c30fbb9075c1c1b072cc295da"
+    },
+    {
+      "path": "docs/hex80-reference/hex80_reader_example.py",
+      "size": 6239,
+      "sha256": "34a1d6b7a9d699664370fb73240dfce921222401869dfb4e74839db992a44faa"
+    },
+    {
+      "path": "docs/research/MAD68Pro_A8_A9_A0_Approach_Critique.md",
+      "size": 17528,
+      "sha256": "d2473fef4f34cc38009c4dbfd339b645326b8571ee0ce9eb337ec6067de79f0c"
+    },
+    {
+      "path": "docs/research/README.txt",
+      "size": 730,
+      "sha256": "1d205cc24cd86efd0e1ac5513e573c70e048333916170ff38839004c6701cf08"
+    },
+    {
+      "path": "docs/stability/AUDIT_V3_9_0.md",
+      "size": 56601,
+      "sha256": "6cbaf410b1ff7be5b9063cf04fcce383c140300be4545d6b2aede8ac43287709"
+    },
+    {
+      "path": "docs/stability/BASELINE_V3_9_0.md",
+      "size": 3034,
+      "sha256": "bd3fe070cb4c13c21bf7a7fb8ca8539edbae94f66961badc28355ec502e13bea"
+    },
+    {
+      "path": "docs/stability/CHANGED_FILES_S01.txt",
+      "size": 1563,
+      "sha256": "346ef83999f0f424f1c1d86bbeb375d4b69ea7e67ad2f1f8571c478472ce714b"
+    },
+    {
+      "path": "docs/stability/CHANGED_FILES_S02A.txt",
+      "size": 1726,
+      "sha256": "a56c5e40957d0f95f38bf21c61fc9c0d772a0c4b984eddd7c97a26ff678a98a9"
+    },
+    {
+      "path": "docs/stability/CHANGED_FILES_S02A1.txt",
+      "size": 884,
+      "sha256": "2991be9cdaf09f796d201b98f5931773a7eb8b0a00134f93bc21be35b0c2e543"
+    },
+    {
+      "path": "docs/stability/CHANGED_FILES_S02B1.txt",
+      "size": 1111,
+      "sha256": "20a7332e7c24b43d8ca969fccc1ddd11f47f7dbaa227966b1ac7756e03a86896"
+    },
+    {
+      "path": "docs/stability/CHANGED_FILES_S02B2.txt",
+      "size": 1072,
+      "sha256": "12d1cd45b82e81e9bb0d31f69dfbdbeb7bad13322baad83930bbd709d96b8736"
+    },
+    {
+      "path": "docs/stability/CHANGED_FILES_S02B3.txt",
+      "size": 1403,
+      "sha256": "6d3385e04f969296089031445394f323611c9f92c854c2369c1ae7dd235125ff"
+    },
+    {
+      "path": "docs/stability/CHANGED_FILES_S02V1.txt",
+      "size": 1749,
+      "sha256": "ccb39ada8cc66a29c272801e696d47502ef230bb16073260786939d34aeb2f98"
+    },
+    {
+      "path": "docs/stability/CHANGED_FILES_STAGE_01.txt",
+      "size": 1084,
+      "sha256": "261d17cc685476b69dd048b4ce5abbc6330f4af567522d88c47d19a5add89826"
+    },
+    {
+      "path": "docs/stability/DECISIONS.md",
+      "size": 14381,
+      "sha256": "829d471b1f3fd99598eb73a504e57880dd90dc5216979ece1f02bf5d84f8ec39"
+    },
+    {
+      "path": "docs/stability/README.md",
+      "size": 3904,
+      "sha256": "7dcf0ff1369b014734867c2fdff2f4e32cbbb8b97ed84fa574515801cbcf0a54"
+    },
+    {
+      "path": "docs/stability/RISK_REGISTER.md",
+      "size": 16895,
+      "sha256": "18546d819d0b90b886dfcc4c86f45d57555f2031559717e470c3c0ccd004f1d1"
+    },
+    {
+      "path": "docs/stability/STABILITY_MASTER_PLAN.md",
+      "size": 18630,
+      "sha256": "8d326771e047b1cb2058ba87d4e4247ad3bfa90f4c7b649c24ea7347ebc8d7a6"
+    },
+    {
+      "path": "docs/stability/STAGE_01_RESULT.md",
+      "size": 1822,
+      "sha256": "137dc0afe1a0756c9edf267d9349027008749f9fbd2bdeb4b73cc63831fff8a4"
+    },
+    {
+      "path": "docs/stability/STAGE_S01_RESULT.md",
+      "size": 5134,
+      "sha256": "83b13736634e294849e9888cd0044552611b828d5080027fc42790fd3f33f02b"
+    },
+    {
+      "path": "docs/stability/STAGE_S02A1_RESULT.md",
+      "size": 4716,
+      "sha256": "21b3a093562f19fa480f569732535d5e295f2ed9049ce520f1c7bdbfab47f143"
+    },
+    {
+      "path": "docs/stability/STAGE_S02A_RESULT.md",
+      "size": 5080,
+      "sha256": "077f561d48728d70625e479bdbb9cc8d26e1609df69c71356282380a3cd5385c"
+    },
+    {
+      "path": "docs/stability/STAGE_S02B1_RESULT.md",
+      "size": 4505,
+      "sha256": "32e0cdf42576f6624f00df1bd7d6d35511136cc9538f4a7d314166e0999b154d"
+    },
+    {
+      "path": "docs/stability/STAGE_S02B2_RESULT.md",
+      "size": 3646,
+      "sha256": "634e16f860afecdda12b4188660f6ab208c5d4e30c3ea41eebbd2ff6fa093596"
+    },
+    {
+      "path": "docs/stability/STAGE_S02B3_RESULT.md",
+      "size": 4111,
+      "sha256": "3d0af29ad91c0b8d5f3090af8267b81151533f11134d881b86e3bc4143a72728"
+    },
+    {
+      "path": "docs/stability/STAGE_S02V1_RESULT.md",
+      "size": 6053,
+      "sha256": "a11516ec14c4fd49121b6e6939cd409b11f15133ee8633d364dc47a131bff96d"
+    },
+    {
+      "path": "docs/stability/TRACE_PROTOCOL_S02V1.md",
+      "size": 6359,
+      "sha256": "055a88a910e877a37fa4bafc0197574e8d334f698ca2ea308f09944c9062cc36"
+    },
+    {
+      "path": "docs/stability/VALIDATION_MATRIX.md",
+      "size": 6738,
+      "sha256": "6dfe1999a21a3030d2fed8e92b37975185eed0390d7512940e1ef67b58d50121"
+    },
+    {
+      "path": "docs/stability/WORKLOG.md",
+      "size": 16914,
+      "sha256": "3bdbd1e9440a5345c208ec728adaffda9e8cb400354f548e21433ecb67fd58ce"
+    },
+    {
+      "path": "docs/stability/baseline/ORIGINAL_ARCHIVE_SHA256.txt",
+      "size": 128,
+      "sha256": "ae858c92ab65db6c45e628e706eca44e8158c33ca8ef095d74b7dd350490e8b7"
+    },
+    {
+      "path": "docs/stability/baseline/ORIGINAL_CLEAN_PACKAGE_MANIFEST_V3_9_0.json",
+      "size": 44708,
+      "sha256": "f9af2a0a45e6797cc112ffe0463897b74c19ff64953b068520ad4a8a789e501e"
+    },
+    {
+      "path": "docs/stability/baseline/ORIGINAL_SOURCE_SHA256SUMS.txt",
+      "size": 28569,
+      "sha256": "d679152768896d2b018b27048f514ad8f48360a8cfda0f1e43f27ea836bf0821"
+    },
+    {
+      "path": "docs/stability/baseline/PORTABLE_CHECKS_2026-07-30.txt",
+      "size": 10859,
+      "sha256": "4bbbb34c38a710a682c4dd2556660cab261c5975c0021c0d265d61dd07d19309"
+    },
+    {
+      "path": "docs/stability/baseline/STAGE_01_BASELINE_COMPARISON.txt",
+      "size": 243,
+      "sha256": "b8101bbc72e941135425b74fe68168f9523bbf04d08d851ef8f0e680e22e82e6"
+    },
+    {
+      "path": "docs/stability/baseline/STAGE_01_PACKAGE_VERIFICATION.txt",
+      "size": 547,
+      "sha256": "8dbc059408a3992b8189ed6565df490ba78ff6583c4ecf853bbfd5902aced31a"
+    },
+    {
+      "path": "docs/stability/tests/README.md",
+      "size": 2832,
+      "sha256": "1979c9526a5f3808468154f3dbf806d3242a1d23965ee6a9accaadbe5ca81806"
+    },
+    {
+      "path": "docs/stability/tests/S01_BASELINE_COMPARISON_2026-07-30.txt",
+      "size": 532,
+      "sha256": "a091dc217fda1d7b99d227c66330023792e3fb9e12c69275d8d133ca25c28ff9"
+    },
+    {
+      "path": "docs/stability/tests/S01_FINAL_CLANG_CHECKS_2026-07-30.txt",
+      "size": 12943,
+      "sha256": "f912d6eaa7fe3627ea5dea89deb612943a739e87abec1bbbd1b305676f04392b"
+    },
+    {
+      "path": "docs/stability/tests/S01_FINAL_GCC_CHECKS_2026-07-30.txt",
+      "size": 12783,
+      "sha256": "227e47715bdece1573cc9aa1393c70315871ecb11fa5ca7a82e204d4459ef8bf"
+    },
+    {
+      "path": "docs/stability/tests/S01_PACKAGE_VERIFICATION_2026-07-30.txt",
+      "size": 795,
+      "sha256": "11ed1021439c8d9792096a2e3a0cb3f1b32c95b0e53176deb8887884b7b95b2a"
+    },
+    {
+      "path": "docs/stability/tests/S01_PRECHANGE_GCC_CHECKS_2026-07-30.txt",
+      "size": 10827,
+      "sha256": "803c954643d87ed92ae6a954ff2ba5ca89082c84b0cc24ae7d78585e6e81d36f"
+    },
+    {
+      "path": "docs/stability/tests/S01_PROJECT_VALIDATION_2026-07-30.txt",
+      "size": 429,
+      "sha256": "7403d930c7c6348b191236d096b4afc514e06d4a2efc954f4c1ffb586d5c436b"
+    },
+    {
+      "path": "docs/stability/tests/S01_SANITIZERS_GCC_CLANG_2026-07-30.txt",
+      "size": 2402,
+      "sha256": "082c5f9b23220acd5b2b4c669dd2be58561f3e1ca5e8f8892569da3fabf45e7f"
+    },
+    {
+      "path": "docs/stability/tests/S02A1_FINAL_CLANG_CHECKS_2026-07-30.txt",
+      "size": 16232,
+      "sha256": "95e5ab7d9a466235198303b9391d010cf5fc897aba0032feba92865ac776b3eb"
+    },
+    {
+      "path": "docs/stability/tests/S02A1_FINAL_GCC_CHECKS_2026-07-30.txt",
+      "size": 16277,
+      "sha256": "6139826b9642831ebf7625665766fe8ce9ed71e0f3b600fa93572e280f217759"
+    },
+    {
+      "path": "docs/stability/tests/S02A1_PACKAGE_VERIFICATION_2026-07-30.txt",
+      "size": 697,
+      "sha256": "fbf67e7d0ba61433151a5b80b494749451782c6caf9d159f39aeee542deb533e"
+    },
+    {
+      "path": "docs/stability/tests/S02A1_ROOT_CAUSE_REGRESSION_2026-07-30.txt",
+      "size": 516,
+      "sha256": "b42de6bc31ebbcf6960cb8221f3e82f207481bf3ef79d8be75f71f8b96ea14fc"
+    },
+    {
+      "path": "docs/stability/tests/S02A1_WINDOWS_GATE_2026-07-30.txt",
+      "size": 597,
+      "sha256": "124b182cbe9ca241a14f5de1590b2fa0fbbf7d82c03863e63832da0550c362dc"
+    },
+    {
+      "path": "docs/stability/tests/S02A_FINAL_CLANG_CHECKS_2026-07-30.txt",
+      "size": 15379,
+      "sha256": "656b45ad336b7bb4b3ddc68c2139d29a4f3f2b80ed9299bbeee8a104d184b017"
+    },
+    {
+      "path": "docs/stability/tests/S02A_FINAL_GCC_CHECKS_2026-07-30.txt",
+      "size": 15424,
+      "sha256": "88a68a8f7c8077aa8bdf6b276488c8118f22488009d0e0d0a4ee69b4705d3af0"
+    },
+    {
+      "path": "docs/stability/tests/S02A_HOT_PATH_COMPARISON_2026-07-30.txt",
+      "size": 500,
+      "sha256": "16848047dcadd88eca2261511c3f8b441f584836ff65bc6cdad39766dbf2fe71"
+    },
+    {
+      "path": "docs/stability/tests/S02A_PACKAGE_VERIFICATION_2026-07-30.txt",
+      "size": 590,
+      "sha256": "0402c83a8033f8133ee963bc9decbdd40e271ba3d309a0161a1c884f21468eb4"
+    },
+    {
+      "path": "docs/stability/tests/S02B1_FINAL_CLANG_CHECKS_2026-07-30.txt",
+      "size": 20099,
+      "sha256": "86af9378f2ad75314190e7b617efb761a01d04e5af9fc224c86e315db0247e9f"
+    },
+    {
+      "path": "docs/stability/tests/S02B1_FINAL_GCC_CHECKS_2026-07-30.txt",
+      "size": 20144,
+      "sha256": "733e7aaf9bf69f62f44ae7d791137f20ea509767b1463acde510f5d903370477"
+    },
+    {
+      "path": "docs/stability/tests/S02B1_HOT_PATH_COMPARISON_2026-07-30.txt",
+      "size": 163,
+      "sha256": "6fffc578aeb84187eff3c1d0da7adb55d17a4bd385e40917fcefbccbf64eff8e"
+    },
+    {
+      "path": "docs/stability/tests/S02B1_PACKAGE_VERIFICATION_2026-07-30.txt",
+      "size": 390,
+      "sha256": "90f9a3f5d5a80eb66337e40c65ce61c7b338ac447d8dd9f3194a2206c2faca0f"
+    },
+    {
+      "path": "docs/stability/tests/S02B1_PROJECT_VALIDATION_2026-07-30.txt",
+      "size": 309,
+      "sha256": "f7811edcade7322bb23dbf7322caf4f5bad419460f2f7167ed97b92d7e76170a"
+    },
+    {
+      "path": "docs/stability/tests/S02B1_SANITIZERS_2026-07-30.txt",
+      "size": 29,
+      "sha256": "f70e0e26e3144de28d33616c6c502fe4ec144c5d0222f84076db7be81252a7ed"
+    },
+    {
+      "path": "docs/stability/tests/S02B1_SPARKLINK_AVAILABLE_GATE_2026-07-30.txt",
+      "size": 595,
+      "sha256": "3a0651693c7f57773963f72af41c9418d5d476925d29261c478bc4b850a9aad1"
+    },
+    {
+      "path": "docs/stability/tests/S02B2_FINAL_CLANG_CHECKS_2026-07-30.txt",
+      "size": 23341,
+      "sha256": "ed655315e1e9c2f04f9e4ccbab91654bbff339adf6360a96aa2f3b83b9f67901"
+    },
+    {
+      "path": "docs/stability/tests/S02B2_FINAL_GCC_CHECKS_2026-07-30.txt",
+      "size": 23386,
+      "sha256": "43d31c430be0c42fabd1fcefdeaf7a4368b7e096f23624c4775a120d83d9d9b8"
+    },
+    {
+      "path": "docs/stability/tests/S02B2_HOT_PATH_COMPARISON_2026-07-30.txt",
+      "size": 179,
+      "sha256": "7e0dab9d2bf8c93274d944f6321825826929b5ad435247fde4d565d1508e9a4e"
+    },
+    {
+      "path": "docs/stability/tests/S02B2_PACKAGE_VERIFICATION_2026-07-30.txt",
+      "size": 665,
+      "sha256": "46d40d02df4b0d5e41bd09b23fe00a5270de60755624cc47eac0bcf663f953db"
+    },
+    {
+      "path": "docs/stability/tests/S02B2_SANITIZERS_2026-07-30.txt",
+      "size": 113,
+      "sha256": "10da89d37c48e90300d5f7db4b877c534a75a4bfe802d0d8f0483fec8942f7ab"
+    },
+    {
+      "path": "docs/stability/tests/S02B3_FINAL_CLANG_CHECKS_2026-07-30.txt",
+      "size": 26970,
+      "sha256": "917b37b5ccdda6adcac07c4f716107d0f66543f65f58b9dd0ba5465df44b54ee"
+    },
+    {
+      "path": "docs/stability/tests/S02B3_FINAL_GCC_CHECKS_2026-07-30.txt",
+      "size": 26934,
+      "sha256": "d6021c17f52e14e24e3f6ad51aa61a905bb46d779a5bd5aa365976e63511b900"
+    },
+    {
+      "path": "docs/stability/tests/S02B3_HOT_PATH_COMPARISON_2026-07-30.txt",
+      "size": 969,
+      "sha256": "c700794a182ec9fb6a8024013bbb6952d59307d187d1b24db7f1835cf73f3b4b"
+    },
+    {
+      "path": "docs/stability/tests/S02B3_PACKAGE_VERIFICATION_2026-07-30.txt",
+      "size": 679,
+      "sha256": "faa61e2129f4939f64d3a73403ec023507d7f89e013c55a48303d7c9cd56a00e"
+    },
+    {
+      "path": "docs/stability/tests/S02B3_SANITIZERS_2026-07-30.txt",
+      "size": 581,
+      "sha256": "e5cf1b52bf6bd00c09deebbc9368618aa7e3eeac83508a338bf0d950b8084dd1"
+    },
+    {
+      "path": "docs/stability/tests/S02V1_FINAL_CLANG_CHECKS_2026-07-30.txt",
+      "size": 27167,
+      "sha256": "c66dfa5d0a080ff6470fb7a0c601eb4e9d5866de9015390855cd181c1f74736f"
+    },
+    {
+      "path": "docs/stability/tests/S02V1_FINAL_GCC_CHECKS_2026-07-30.txt",
+      "size": 27212,
+      "sha256": "41fad53c1685c665433a31b67e715b0a798f8451d11bc324945008af7f344c9d"
+    },
+    {
+      "path": "docs/stability/tests/S02V1_HOT_PATH_COMPARISON_2026-07-30.txt",
+      "size": 1793,
+      "sha256": "f22b3791946b697c8673b042fc57a0e437dd07c478f7823aaae3dbca4b879bb8"
+    },
+    {
+      "path": "docs/stability/tests/S02V1_PACKAGE_VERIFICATION_2026-07-30.txt",
+      "size": 611,
+      "sha256": "491dc689c1c9857f480712aea41439f774298cd659adb73043a274e0d5bdbc44"
+    },
+    {
+      "path": "docs/stability/tests/S02V1_PROJECT_VALIDATION_2026-07-30.txt",
+      "size": 296,
+      "sha256": "d86cebe448fd9c155f45a0878c5bf723e48b013477545e4058413664541b3abb"
+    },
+    {
+      "path": "docs/stability/tests/S02V1_SANITIZERS_2026-07-30.txt",
+      "size": 358,
+      "sha256": "f4046166bc4198e5cc89bac9fdae7cd743a7febc6cf59f22add16a42398f475b"
+    },
+    {
+      "path": "docs/stability/tests/S02_BARRIER_SANITIZERS_2026-07-30.txt",
+      "size": 484,
+      "sha256": "68a325e610bff9abe43d376bb431dc74f765ee5b38c13d9745f1f345e14a011c"
+    },
+    {
+      "path": "docs/stability/tests/S02_PRECHANGE_GCC_CHECKS_2026-07-30.txt",
+      "size": 12792,
+      "sha256": "d4e8c3fba051753ec81fb6b9c6031a19ede60de100569c4a9a406329675ba67d"
+    },
+    {
+      "path": "docs/stability/tests/STAGE_01_FINAL_CHECKS_2026-07-30.txt",
+      "size": 10859,
+      "sha256": "8790ee375d83c71ba52c98daab7e30ed45c4ed466a46dc425e8bf54c47d46fd7"
+    },
+    {
+      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_S01_LIFECYCLE_CONTRACTS.txt",
+      "size": 1100,
+      "sha256": "78fd9dac25107f58e93caa41c8347c229a0bfbfcd80c8b4db8a4d797551c1de2"
+    },
+    {
+      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_S02A1_SOUP_PATCH_HOTFIX.txt",
+      "size": 1015,
+      "sha256": "c63b47e2a8b817c0a96c5681797b697765046c57ba373180e1106243ade7015e"
+    },
+    {
+      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_S02A_EXCEPTION_BARRIERS.txt",
+      "size": 1389,
+      "sha256": "466ef40ae20b6c6267e5c68670a93c01d4925d174df0f3f7cfe465bf3ed70a69"
+    },
+    {
+      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_S02V1_TRACE.txt",
+      "size": 1420,
+      "sha256": "c6e54e150c62f5a40f56fdc806f03dcac77259b40814d91cab3515debc82b231"
+    },
+    {
+      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_STAGE_01.txt",
+      "size": 992,
+      "sha256": "1113806dbd7ad49071eec0e3abd22c11c1e053be5a51f6b96f8cf9d9a4118d34"
+    },
+    {
+      "path": "docs/validation/VALIDATION_PACKAGE_V3_8_0.txt",
+      "size": 5678,
+      "sha256": "1db9e5c392379df07b5f33711987ad40539714224b84dbe7a6986138f41a59ad"
+    },
+    {
+      "path": "docs/validation/VALIDATION_PACKAGE_V3_9_0.txt",
+      "size": 4111,
+      "sha256": "7fc9e556bcd40cc69620e7076b88f9c14b69fe9823789c58ca5cb6065d8c9ba4"
+    },
+    {
+      "path": "src/HallJoyProject/.gitignore",
+      "size": 1210,
+      "sha256": "ca3a5b10b6310dcabbcb003769188c59bd1f0b1795da6cc20467feec257cc99d"
+    },
+    {
+      "path": "src/HallJoyProject/BUILD_README.txt",
+      "size": 2025,
+      "sha256": "97f95c1dfd24e192985312130af23dbb098f16c15dc02abe1551de5de18927af"
+    },
+    {
+      "path": "src/HallJoyProject/BUNDLED_ANALOG_STACK.txt",
+      "size": 493,
+      "sha256": "fc9ae8b6540430d9168c75e103eaedcaecd0c03957c1b4c9d3a061df188d3046"
+    },
+    {
+      "path": "src/HallJoyProject/COMMERCIAL_LICENSE.md",
+      "size": 750,
+      "sha256": "4b71e4464a4f5768b94440bc5177624e1f2fa347cd7bfeb956f79631f42621fb"
+    },
+    {
+      "path": "src/HallJoyProject/CONTRIBUTING.md",
+      "size": 763,
+      "sha256": "5f27e08e0e8802be36996ceee835b3c62f62941548b766e5424ffbc1c0a14fc2"
+    },
+    {
+      "path": "src/HallJoyProject/CUSTOM_UI_ARCHITECTURE.md",
+      "size": 5474,
+      "sha256": "7b263542a6b3cbc633916b3be47c1c67e40f2032a3ba030252985b034e409f39"
+    },
+    {
+      "path": "src/HallJoyProject/DIAGNOSTIC_SUPPORT.md",
+      "size": 963,
+      "sha256": "519d6d15f5b4ae0f626921217cc786ebc118d49ee49629b24b718a8a5b65da4c"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/HallJoy.h",
+      "size": 39,
+      "sha256": "245ff9031a96ef2ffade37bd506c2cf3e602747e29b80a41cb2be9f3c9691154"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/HallJoy.ico",
+      "size": 251829,
+      "sha256": "ca8c67a2858a100bda66a900397353f63e29877e5d0b9d6672c83c511cc2ca86"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/HallJoy.rc",
+      "size": 7010,
+      "sha256": "f0b88ff7b815dfdfab743b35dcc04093d16d545f336fa3b0d54f9bea8557f101"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/HallJoy.vcxproj",
+      "size": 17411,
+      "sha256": "bcfb27f56a6ef58bb671482f183014ecd2a813d5305e29f3981891a13316007a"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/HallJoy.vcxproj.filters",
+      "size": 13754,
+      "sha256": "549313ebaef825637d9189f38ce297a92cf0aa1dd993d4ba205fb9eb4317a5e2"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/Resource.h",
+      "size": 811,
+      "sha256": "e2d82fcd912c7b813c5ea5d01b62c16eb437c4cf5afb7c4cec84d2820f617f7e"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/addressed_analog_backend.cpp",
+      "size": 64682,
+      "sha256": "275dfa3fb2c844555e5741f00988cb91a22e88510769d6ddb1af881a2a7fbc4d"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/addressed_analog_backend.h",
+      "size": 1292,
+      "sha256": "10275ba90505d69fe06c3ba0d7a4c44899e196b27b6aa8e28421eed0d6c74457"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/addressed_poll_scheduler.cpp",
+      "size": 10693,
+      "sha256": "ce66d7ba5dd068da28d05e7c4935dec901360879196e1c211302607906e79ccd"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/addressed_poll_scheduler.h",
+      "size": 2671,
+      "sha256": "971073c9c48ae3f6e08cafdf33ee6e083322731d21d08111bc05156c7b75ba05"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/analog_host_client.cpp",
+      "size": 85911,
+      "sha256": "54a5cf25e52724f58cd1e498cb1fba979fc2bad5e25c1935f015de2def82b205"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/analog_host_client.h",
+      "size": 2074,
+      "sha256": "78091fb43710e79c026fef0e8549a5d27117c1e98be1cf60c0d125a460424ad7"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/analog_host_shared.h",
+      "size": 4618,
+      "sha256": "5e0ea90bbd187f662e3efd8ba07ef749419971a5190c35b76ba86a7c4e1556df"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/app.cpp",
+      "size": 44188,
+      "sha256": "40f24f4a7fdbc419750cd8f9ad3763cd6856f173eb0c83d5e236937ad46eb6dc"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/app.h",
+      "size": 149,
+      "sha256": "4cecfd9d53cdbf0b4de476ed7b88c8c56fa514a0e644e20c824e2a30cd005fd3"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/app_deps.cpp",
+      "size": 21640,
+      "sha256": "9a9d3a27d5a978dd52c230b2cbc95a419e4121c7a2cb2e17b1075f9528b49f4a"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/app_deps.h",
+      "size": 268,
+      "sha256": "7ce042357efe663196173c0a9c7d0300152098de7c4ddbf90fecc91236894819"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/app_paths.cpp",
+      "size": 732,
+      "sha256": "cc4daef79d0abd389c71875d53a981c2314b8fa9489b23370c2cac76cedcc886"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/app_paths.h",
+      "size": 358,
+      "sha256": "e0777bb0c1484c516f1b9f96151c5250d5d73fea5981d91cbde159d132e1acdf"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/backend.cpp",
+      "size": 158447,
+      "sha256": "d487e444bbb239a50572fa410ba820902b17982f937d9ee6f0d3d313bb0b6ed4"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/backend.h",
+      "size": 13448,
+      "sha256": "c40686fe6922ecb091b97020b7b5818bb122065ba93f65dcffefc53b0177bc62"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/backend_curve.cpp",
+      "size": 4675,
+      "sha256": "a2865b7c66bca1c316b7fdb9321ff72f15767334b63c2033a5115978c6173fd9"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/backend_curve.h",
+      "size": 195,
+      "sha256": "ce6ca8a56b571604a45283535cd7a3b8210b483fca99e28aa61d82d0f0dde433"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/backend_sayo.inc",
+      "size": 24861,
+      "sha256": "ffa0101d1ae6b7d25021542a61574f2ddcbf42a1700ab68bc1715ddb712e28d6"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/backend_sparklink.inc",
+      "size": 52591,
+      "sha256": "85b317a21e9e2f11756b5838412dee3a2e92d01c5e07ed23cdde5a091137a865"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/binding_actions.cpp",
+      "size": 9986,
+      "sha256": "7fa182c52e399e7627a6b5b2a4a9ce3f948cbbce59a786f6fb2984b62d2d1064"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/binding_actions.h",
+      "size": 1572,
+      "sha256": "2204f9987ac2f2c87ae9655887cc6bc96e96d43a625974408c05d663640252a5"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/bindings.cpp",
+      "size": 11879,
+      "sha256": "10cbfdfc763792ec365a830af9fde41605672ebe073323254812146c9aae4ff5"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/bindings.h",
+      "size": 3396,
+      "sha256": "f94720cac30bd39162cbd2eb7815f28cc34290e5da57950482d0eb7629a4f357"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/curve_clipboard.h",
+      "size": 752,
+      "sha256": "1078971fad817ba0e6e44449d63d921fc222ff824165901bf93e67cf3f09b53f"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/curve_math.cpp",
+      "size": 3432,
+      "sha256": "9e01f3a86f3ff881f74908dca861c0f8ae0f7ac54595766deb5efe0159cd29ce"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/curve_math.h",
+      "size": 3056,
+      "sha256": "721c45aee6f8e2a8fe3a6745602eff5dc45f7f45f9bd4e4ee45bc58c2d2428da"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/custom_page_controls.cpp",
+      "size": 5775,
+      "sha256": "4060d8a3ff176105e8cd1033edcef4cc7cba9087d557b16622ce1582534ec88d"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/custom_page_controls.h",
+      "size": 1133,
+      "sha256": "d93f80e58a136c7c9919b69ec5d80a2fe32d8bfdd602841c44f875aaecc1b2d1"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/custom_page_surface.cpp",
+      "size": 9592,
+      "sha256": "f4d821b81e171b0d4988b6d7008a20039ac05132bc54358e73fe51090d5432e8"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/custom_page_surface.h",
+      "size": 1952,
+      "sha256": "6396f4693a224474af79bbcb648b29d92d256c80bf31f399a2ff2a6c40e461fd"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/debug_log.cpp",
+      "size": 37257,
+      "sha256": "04d2dceb90e4a2526dc6cd534be5ebd0058cab15fb926a6ab0f502a74604cac9"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/debug_log.h",
+      "size": 1135,
+      "sha256": "5249e5b9b92582cc8299526c5cdde7afde12214b08a8e259b4c8764ef928411f"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/embedded_analog_stack.cpp",
+      "size": 6343,
+      "sha256": "9910e2cae800824b6b9a2ae009d83c2776b9a4ff59d60c7c7a3c52dfeb4a65c8"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/embedded_analog_stack.h",
+      "size": 639,
+      "sha256": "f2b65fb9076a9b3a174d8ae4788626cffc8848da026924562f08f98ecd7d8d50"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/framework.h",
+      "size": 395,
+      "sha256": "4afdded82fbf3d4822d743ea3c3167e11c9fb84591759b871761f4a27e761d77"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/gamepad_render.cpp",
+      "size": 3203,
+      "sha256": "55543cba7305700bd26b1b4ab2f35e4183dca8770cc051e8dcaadbb872be03d3"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/gamepad_render.h",
+      "size": 600,
+      "sha256": "2e839a06ef5b4e67c4d39eb86eaa981a0145ce1541fdee5ca26a92d4a6521ea6"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/global_profiles.cpp",
+      "size": 4337,
+      "sha256": "b5cce2283cb1372bee6a0c6af47052a50d370a36c52cde0ec0a77534d5ce2a30"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/global_profiles.h",
+      "size": 916,
+      "sha256": "cc064863b84a617197a897510b7d85449fe13f6c8f86a683cca127f461bb6c65"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/hex80_backend.cpp",
+      "size": 33127,
+      "sha256": "571743c2b0d5893549ce3edda4ec2660c9552643461899b4c0bea3544c5bff6a"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/hex80_backend.h",
+      "size": 1551,
+      "sha256": "336ae4348558b3d3ecfd4c824b7e4f1ecfadc5f44e7d66fd94e72f876807fa25"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/hex80_protocol.cpp",
+      "size": 4934,
+      "sha256": "3c756f032a875c6a04b7e5d8b2dc1d179ce7959b7682565f8997021b9288e3ef"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/hex80_protocol.h",
+      "size": 3265,
+      "sha256": "bd3828cd58be9134eddc4dd1fabbfb5c07ed6ae7a604b6e0695b34db00886729"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/hid_io_operation.h",
+      "size": 5241,
+      "sha256": "b6187f7f6ba22ea8ba4ac1d59c205bd639b775cb5474f799d98a40f3bf671c83"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/ini_util.cpp",
+      "size": 573,
+      "sha256": "92a0bb2d50ddb2586d8c4478936c6fa8e4e00f373a9a9f0ced3e8f2df2162a18"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/ini_util.h",
+      "size": 445,
+      "sha256": "e9dded280250164070e396fb60c8e1a56bd77dce6e46d63a9ddaee8e5588dcad"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/key_settings.cpp",
+      "size": 10070,
+      "sha256": "3fc6dea627bcb4c0b1596a8375443e14a09cf5050bd012de91393f375e4f4596"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/key_settings.h",
+      "size": 1897,
+      "sha256": "006e8059a6d517d971f833f2744435bd9269174ff601888b3f51cf970e7cffb9"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_bind_panel.cpp",
+      "size": 4902,
+      "sha256": "66c75f5bb4fb9d6fa8010743ea0196d71f27feac5babf285dfd2459c660f82ef"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_bind_panel.h",
+      "size": 230,
+      "sha256": "380b145169212a93ea926dfcb0bc0351219f1163a2e79189d8336dc33c8bd5df"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_keysettings_panel.cpp",
+      "size": 32564,
+      "sha256": "7417d84890fa195b18f4263b9444d1f8935b0c20d8cfc8b41bf74f437c5df531"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_keysettings_panel.h",
+      "size": 2882,
+      "sha256": "eab703cc27a71bdc906d60c2d7a30d0cd4fba4f2a131b858b50fd44283c52e69"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_keysettings_panel_graph.cpp",
+      "size": 33727,
+      "sha256": "e7258592e4ba217d1f0027474db80b5c7ac0b8b647897ae1fcb60296af12a8c4"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_keysettings_panel_internal.h",
+      "size": 3037,
+      "sha256": "6016105a9cd941a3292b1cf160150b2468fc92cf9cb7c668836d8af9974d9031"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_keysettings_panel_logic.cpp",
+      "size": 16012,
+      "sha256": "5a149a7ec9bdf5281b5d55f782d5177b49424c35afce646724f70f3e884732af"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_keysettings_panel_style.cpp",
+      "size": 15674,
+      "sha256": "7e5aa700f1af7cee088afe11bb279127c5de30259a9640d2d3df4fe41c3b48e9"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_layout.cpp",
+      "size": 30068,
+      "sha256": "5d26fff7da0da22db889041a0a4abd576936020313e37deb77723803cedd4547"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_layout.h",
+      "size": 1906,
+      "sha256": "a28d8c2e15ef5a4c812074793f2b4c8d63493c5241fc9bff6114f3dabf3198c4"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_page_main.cpp",
+      "size": 72679,
+      "sha256": "46bafbe7b5c36d67c05d129e6c07df8478d9df918d7fe5f8b0518ac8bff7c430"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_profiles.cpp",
+      "size": 15233,
+      "sha256": "34823e2135aaf27a66193a66d76cafd4c20c2803cdd90966d768126963150abb"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_profiles.h",
+      "size": 1866,
+      "sha256": "d90510ac09a375d9c8fdfa67f3eb9bdd1b2e34d3c8b1a819151aadab3a5e2248"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_render.cpp",
+      "size": 34874,
+      "sha256": "51dfdb95fd34d8eb3495348545cded19320ed01952ee6e0ac070acb16a09bb8d"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_render.h",
+      "size": 1835,
+      "sha256": "216fa0d07dcfdbfedc45cce6700233c926b9ecb3f1a0998ccfd3e3250d796b4b"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_subpages.cpp",
+      "size": 385688,
+      "sha256": "9cfc8ce848bed24fd358d4926521c2e5c9ee61fd45b24dd90b37ae5d162a7eb4"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_ui.cpp",
+      "size": 6363,
+      "sha256": "3ba248427eaf492bc81034447ac4243ad277d60fc3f4b9156d2b1a41797f61b5"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_ui.h",
+      "size": 375,
+      "sha256": "d8a5dea568b0e200cf60f92457d78e94b1be62941c982a21b2fb95c59527dd1a"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_ui_internal.h",
+      "size": 975,
+      "sha256": "ee5cce6cdcba186c76464c031b1cc960001b092bfa929cc19de2f4950bfcc474"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_ui_state.h",
+      "size": 684,
+      "sha256": "f57b2544a0a4ae2be16d4496346da712a68001e91a48660b2d036e6898616a55"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mad68pr_backend.cpp",
+      "size": 111944,
+      "sha256": "7925ebee935d9fe4aaa08ca44c4bd77ef885bbb6a4b548c69fef2343fe1a3fe1"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mad68pr_backend.h",
+      "size": 2203,
+      "sha256": "8877f12794e2cf830ac8cbda4508556ba94f7cda55ecba55e10dfca1dd4896ff"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mad68pr_protocol.cpp",
+      "size": 6179,
+      "sha256": "56eb27e1c8be9e344df22ac5aad3a611a940cc4f5b18c9e192795ed2640a1d9a"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mad68pr_protocol.h",
+      "size": 6929,
+      "sha256": "9d51e9ec55fa9bd80b04c6b29945682e5fde38154c6d0e39d5ea6711df2ae1d8"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/main.cpp",
+      "size": 5542,
+      "sha256": "37f6c8e2c35adadc79954a35942aa85e74f6f7896f494ab5c884ed74331d9e93"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mouse_bind_codes.h",
+      "size": 1185,
+      "sha256": "2aac4e0d61c3b4ef2c629a876436fdca15bc12a441109c6d793cba9fd83d9108"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mouse_ipc.cpp",
+      "size": 2337,
+      "sha256": "6a48fece64512cedbb12f219ce3949fbcca1186b19ced16c03c1816b4cfd4366"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mouse_ipc.h",
+      "size": 1278,
+      "sha256": "8ecc7bc7e79de5bde59d1f4a16ba4e721d734f379271e7abf4a57be685d0cf3b"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_backend.h",
+      "size": 4117,
+      "sha256": "53a59f380bf91603372ecf199e62106c63ed710172b1b0b60c7362251f51beb7"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_backend_registry.cpp",
+      "size": 5354,
+      "sha256": "65beb62edd8fbc5142842a7b5279d4badfac16da1e5c7b96ff79ff3e1850cdf7"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_backend_registry.h",
+      "size": 1236,
+      "sha256": "0626e66f9b407eddc42a07e8acbcf8ae8ff35deff17dd9b9f5ca1295b47724cb"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_backends.def",
+      "size": 497,
+      "sha256": "a5801baaf56c0b71dd0864634ce1d51f35966d274499a244dd7663564bbad5b9"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_routing.cpp",
+      "size": 2783,
+      "sha256": "ee27391c4be8005b398118a579b77ef58894f7151fe12bebb28dec0e191e6ce5"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_routing.h",
+      "size": 862,
+      "sha256": "0db088f276b9e73a2f4abd3f3c7e6bb1e7614195fa1a8674a8cb190ac00ec994"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/overlay_server.cpp",
+      "size": 58259,
+      "sha256": "5e581fb4f436cbf6c78374b1b291fb24ce787bd3ae1934360853a127c161bbf0"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/overlay_server.h",
+      "size": 1980,
+      "sha256": "4bcdf3a481992a176749e8931a0bd35d593f7dc040721f34802072ad0e887ef0"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/premium_combo.h",
+      "size": 3678,
+      "sha256": "afd8296778e7bbbf485640fa3ae353f7cc070c7252c1a0902503ce72e88aac04"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/premium_combo_anim.cpp",
+      "size": 9925,
+      "sha256": "0ab0a900b4b5b0fb01472594f905ee690951d60eeda1ca3320ac462a632440a2"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/premium_combo_core.cpp",
+      "size": 26358,
+      "sha256": "14da3c9ae7d114fd6b9d70f8bba757042469eef2be8fe49f2f4d08606fae5605"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/premium_combo_internal.h",
+      "size": 14356,
+      "sha256": "ae3c443bedff7d2ee6ad900313e7112fd15319a6d218db4bcee85139592a8020"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/premium_combo_logic.cpp",
+      "size": 30104,
+      "sha256": "b19e9f1c8f0d5e72404cb182f0dd70b85f9d18ff1826475fc57e0e95cf8cdfa2"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/premium_combo_paint.cpp",
+      "size": 26856,
+      "sha256": "abd930ef19e44a1885faf973b22a31d84440ebec157bc864cd47d75a0e7925cd"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/profile_ini.cpp",
+      "size": 9201,
+      "sha256": "e0548b58f625d4a29b9d8930d70f597d24ac30f8a2033b3462ba9ce8568070c0"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/profile_ini.h",
+      "size": 124,
+      "sha256": "51fb4f6ba5496dbafff836dd9eae2a01e32e27f65c74250b9b8a94a526e0417d"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/realtime_loop.cpp",
+      "size": 20389,
+      "sha256": "fc65529ad02533b0733c426c9be31616e5cf713604571ba8aba54a716d63c259"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/realtime_loop.h",
+      "size": 804,
+      "sha256": "39be621d19cc5d13aa45cdf86571e79909ea1a1045a581b6049880fa43620c8b"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_abxy.cpp",
+      "size": 4905,
+      "sha256": "280587b01ed51e5af56511cebdcaf620cad097024b4ba4e34dcb85a25da5caa6"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_abxy.h",
+      "size": 386,
+      "sha256": "84e62d8a56d5c4f360658d3085d1f5faaaf38e7c725319179bc7a92b9e9c7687"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_bumpers.cpp",
+      "size": 8613,
+      "sha256": "d5492ddcdf2bed757aec39ed0f9a7203faa4cb8a3ce0f13a2c1cfd1811bef905"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_bumpers.h",
+      "size": 674,
+      "sha256": "d75b17433e8f5a83ac40bb594d6a12e726272ee38635b3f1a9c361d92f5263c1"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_dpad.cpp",
+      "size": 6930,
+      "sha256": "07b1b521a31e016656b37ab5c33e9fe16f3e8c0b6eb53e6f9781b85473396a49"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_dpad.h",
+      "size": 586,
+      "sha256": "0533efd044036576ceb8b4a52460c438f133b4540c496379f1137303242fd789"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_guide.cpp",
+      "size": 14330,
+      "sha256": "62e4de43acfdaffd31f51a2771bdf728dcd7f67e0a7018e905a00c3105ff70d5"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_guide.h",
+      "size": 234,
+      "sha256": "ac8a4b4e7b3a1b4563ed63d46d5d9ea1a795effa283b7df759ffbe6fc69100a2"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_icons.cpp",
+      "size": 8585,
+      "sha256": "af49251ec46d681a7f532da7b27c5798fb34f661b46bd55ed9a02060e7fbd019"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_icons.h",
+      "size": 1178,
+      "sha256": "0f86990398aac401386b7f363676c5d7e3d031108b31f7e6efcd92e4b173fd8b"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_panel.cpp",
+      "size": 78636,
+      "sha256": "1b21d4a80223eacfee81ca207223c6f0647ee72dc188528b5a866719505093f3"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_panel.h",
+      "size": 311,
+      "sha256": "8569e848f60c5dd1696d195f92d3c1a55bce983ca15eb462ea451dfcd8bf8f9a"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_startselect.cpp",
+      "size": 6770,
+      "sha256": "c4cb0465c3aeebc2e02c6aed04ac8129c2c625368a1799bf161de849261ac9ba"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_startselect.h",
+      "size": 559,
+      "sha256": "b0f2afd05fed4d42c252d8386ab832d3c14acae15483e023361d36bd7f878f1a"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_sticks.cpp",
+      "size": 6738,
+      "sha256": "19f8538e42bd4e1abd79cc32f491918c108fbd829c612c91c0cf5d9ccb990de7"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_sticks.h",
+      "size": 680,
+      "sha256": "a7d1a1d2ee4d45da96d5ae16a97c02b11ee2bf2c1ef2aa3019f32cb36e40ea46"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_triggers.cpp",
+      "size": 7780,
+      "sha256": "970b1928393d5d70e58d603420417d238b3205165a5ceabc9ce7b154731ed085"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_triggers.h",
+      "size": 622,
+      "sha256": "e03253c1a07509e58426e8f3e05e942108d9b1d8ba0abb8a277f718757ffe420"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/settings.cpp",
+      "size": 16437,
+      "sha256": "43253660fa1da959cea90db806c77030def998d03b082dd4a497fb4401a6e318"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/settings.h",
+      "size": 6136,
+      "sha256": "c0b4907be8f099e466a0201855e4974fc838af9ab40cb80323b061c961ac67d9"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/settings_ini.cpp",
+      "size": 31993,
+      "sha256": "13a6a21cca86ce2d99550db4eaa8862e5d17a455414b028cc11c7ac11442490c"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/settings_ini.h",
+      "size": 279,
+      "sha256": "7bc9e73d5750cb0b3fcc338f6e05b7d0f23d5a089f480d339e8ef28ffb4708fd"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/small.ico",
+      "size": 251829,
+      "sha256": "ca8c67a2858a100bda66a900397353f63e29877e5d0b9d6672c83c511cc2ca86"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/stability_trace.cpp",
+      "size": 9936,
+      "sha256": "0cc53ab3a83d076db483d2fe36ed9bf3094390f13c32a7a917b6c0f389aab0cb"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/stability_trace.h",
+      "size": 773,
+      "sha256": "91df97ef7c58a0222e65027dece87b2faaca570e1d3ac443d69a234e91492911"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/tab_dark.h",
+      "size": 6306,
+      "sha256": "bcd00c168846b251c2ac0a44bbd73ca1c4e548629ef300d714a12a5a928d1f28"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/targetver.h",
+      "size": 313,
+      "sha256": "98488711a351764d005e8c3d3fd40aaed28396870a660c28abd81ac2a53d4b90"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/ui_theme.cpp",
+      "size": 3102,
+      "sha256": "c75e03689cfe5283a2c221f6ed4d869d351f276150ad4ae1fdedfa60d5adb01b"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/ui_theme.h",
+      "size": 861,
+      "sha256": "f71995592a6626e8e9d0f96e552944e9ce165fb875fe4945ba466fa1cb7a631a"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_scheduler.h",
+      "size": 2331,
+      "sha256": "c744d38f58f2279d3bcf769c41a6b70d7be30faf48c728f57658c98ea6ac6e4d"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/win_util.cpp",
+      "size": 2558,
+      "sha256": "1b4f622a6e2f71c95fbab10a44d54733f316ca95f2e2c6335107a898354a08fc"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/win_util.h",
+      "size": 577,
+      "sha256": "0dfd21bf544538c73f96bea038bb9acad62c852150c97d3052a317e554671778"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/worker_exception_barrier.h",
+      "size": 2885,
+      "sha256": "291977752f51ca054a3021b7ea7493c0d02a3a51931e739c266b7916dd9db6ae"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/worker_lifecycle.h",
+      "size": 16636,
+      "sha256": "b1eabb240e7dc29d0213f6e5825bb4a8a800df61165a214a76c29bc80139b9cc"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/worker_primitives.h",
+      "size": 3695,
+      "sha256": "4427d3cbea9e08dfb03f106e4adf774caba8a5f622aa24a5bb0b4324ae7bcf19"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy.sln",
+      "size": 1284,
+      "sha256": "e5dd049faf447cb712c3788e1efb14cf8d208be47ddc36849853151c10be5657"
+    },
+    {
+      "path": "src/HallJoyProject/INPUT_OVERLAY_NOTES.md",
+      "size": 7622,
+      "sha256": "79e99b911aadf04b77cb8a11a84f5af9041bb7e89e24306fd3bea64a9494a767"
+    },
+    {
+      "path": "src/HallJoyProject/LICENSE",
+      "size": 34523,
+      "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+    },
+    {
+      "path": "src/HallJoyProject/MADLIONS_SAFEHID_V6.md",
+      "size": 4524,
+      "sha256": "bae1dfcccf2f0b261c77911392fc6ac0903a61d49bfaeae6e54a066c88302059"
+    },
+    {
+      "path": "src/HallJoyProject/PERFORMANCE_AND_STABILITY_GOALS.md",
+      "size": 10066,
+      "sha256": "980fd2e0b63521611ebd5b3a510da40c12cf6c2de0dd0a95138d5b30e5f37c23"
+    },
+    {
+      "path": "src/HallJoyProject/README.md",
+      "size": 5881,
+      "sha256": "087956daea619f4073f0c510f336770d3cffa44c302e13114e06cc6785df1a43"
+    },
+    {
+      "path": "src/HallJoyProject/SAYO_DEVICE_NOTES.md",
+      "size": 1601,
+      "sha256": "1d3db52051fcbb63d385c84c98255e9e550db861cbd51a97bf13ec43e2f5adbc"
+    },
+    {
+      "path": "src/HallJoyProject/SOURCE_AUDIT_V6.md",
+      "size": 3066,
+      "sha256": "41a829e9a8735f045a88eb9cc0e381f976deb80d58a704f47e74b308703ffba2"
+    },
+    {
+      "path": "src/HallJoyProject/TESTING.md",
+      "size": 11470,
+      "sha256": "f38c4100770748c3463e8c73be3a24122ea4ca6d770089bdaf9a6c3d80c9efa7"
+    },
+    {
+      "path": "src/HallJoyProject/runtime/.gitkeep",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "src/HallJoyProject/tests/addressed_exception_boundary_static_audit.py",
+      "size": 6541,
+      "sha256": "dddadf6d374e4691ea6551b95727a2d36d45c5b69cec66e6bd41e6b542dcdc74"
+    },
+    {
+      "path": "src/HallJoyProject/tests/addressed_poll_scheduler_test.cpp",
+      "size": 4400,
+      "sha256": "6cca542c29ac44bd305008105773d9d64e698950443f76bf8ca52fbe19f9d3a0"
+    },
+    {
+      "path": "src/HallJoyProject/tests/diagnostic_logger_static_audit.py",
+      "size": 1687,
+      "sha256": "1a6ad51392ac3cdcef13ae633a960ccc3d381414b098b3ca87ed3d82065f07fd"
+    },
+    {
+      "path": "src/HallJoyProject/tests/exception_barrier_static_audit.py",
+      "size": 5367,
+      "sha256": "5491ec364e848ec96016fef688f8b33659d71bffdf46b7d4e3d3fc47c27d06e9"
+    },
+    {
+      "path": "src/HallJoyProject/tests/final_production_static_audit.py",
+      "size": 5802,
+      "sha256": "b748a8291b005fb63dd0411d1829284dfce89f20b51fef993e14c3fd4a83ec99"
+    },
+    {
+      "path": "src/HallJoyProject/tests/hex80_protocol_test.cpp",
+      "size": 5040,
+      "sha256": "2950a6d8678c9ed5b47adffdd48322d36a6ab1fc458394d6ab2b03a8ff029d48"
+    },
+    {
+      "path": "src/HallJoyProject/tests/hex80_routing_static_audit.py",
+      "size": 4527,
+      "sha256": "e896afc62fd7daa9bcd12a33fd870a0d8a7d8eb83cce9085880472bb0f5f6848"
+    },
+    {
+      "path": "src/HallJoyProject/tests/hid_io_operation_lifecycle_test.cpp",
+      "size": 4685,
+      "sha256": "f942e31c70608df53f24701dc0e9ac27fd72140a134a535bb6fe9d2899ee8977"
+    },
+    {
+      "path": "src/HallJoyProject/tests/lifecycle_scaffolding_static_audit.py",
+      "size": 3507,
+      "sha256": "a7724dbbf3c136628463544f97ae145ac1d4afca3a261f75ca17c4700cd56ce1"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_a8_a9_state_verify.py",
+      "size": 8453,
+      "sha256": "8d024d2dee04ed2fa014194a0b14027a6426cc3bddb0e3c53215c08e0e629b26"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_halljoy_route_audit.py",
+      "size": 5265,
+      "sha256": "466e26c0730587146ba6f36860bb001aa49a884046eadd91be6fe933fe4610af"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_hardware_log_verify.py",
+      "size": 3067,
+      "sha256": "c0681455b76aa33477bc575a5b54565d5f036af3a532fc819f974df049ac15d4"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_hardware_timing_verify.py",
+      "size": 2373,
+      "sha256": "59712204d1b15626d6e6f02a6da3820bc04c2564e54fe9d18d98be870cb08f09"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_log_analyze.py",
+      "size": 5001,
+      "sha256": "3b8677c0dbe8f587fc9f16526a537ef9dafc9d9861aa6c8f4a9e0cd415d25ebf"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_protocol_test.cpp",
+      "size": 7052,
+      "sha256": "a83da8de1b45f6f362fa4bc99ddd0358bda28240eeff9d7eee5f97f1cb802403"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_static_safety_audit.py",
+      "size": 17516,
+      "sha256": "711cc725d75e7c20e9a75690abc5038b9cd98f97ae525c13873696d2ffa65d5e"
+    },
+    {
+      "path": "src/HallJoyProject/tests/native_analog_backend_contract_test.cpp",
+      "size": 1644,
+      "sha256": "e8dfd20bca28f822b5f0fb06b7ed07858aff6043600276efb167335071024020"
+    },
+    {
+      "path": "src/HallJoyProject/tests/native_backend_architecture_static_audit.py",
+      "size": 4604,
+      "sha256": "73b4f3f823566af987439559d3a749d3a5418fa5ad0c11ffd38423a12523d55c"
+    },
+    {
+      "path": "src/HallJoyProject/tests/native_worker_exception_barrier_static_audit.py",
+      "size": 5397,
+      "sha256": "c1e69341b958c64b0b98bf7d827fe63bd4afd89a8895c0e652e68d547c6d8384"
+    },
+    {
+      "path": "src/HallJoyProject/tests/plugin_preopen_patch_contract_audit.py",
+      "size": 2472,
+      "sha256": "c490440ecae5ed54886871c4f8d47009bb40adedcf6bee85e540761ec08ce34a"
+    },
+    {
+      "path": "src/HallJoyProject/tests/protocol_family_routing_static_audit.py",
+      "size": 5079,
+      "sha256": "0d31e3065b1501c805f6aaa987f892896516768bdfd0cfbf4e2de4a59998b5da"
+    },
+    {
+      "path": "src/HallJoyProject/tests/sparklink_exception_boundary_static_audit.py",
+      "size": 6147,
+      "sha256": "9799bb7565a75e45509869e0bb87366b44d49acbd2726629023993ab8eaa0ab5"
+    },
+    {
+      "path": "src/HallJoyProject/tests/stability_trace_static_audit.py",
+      "size": 4831,
+      "sha256": "65a5da3555a73d5085a0afeaf58a335815cee10090c157c2d23120a32d811ce2"
+    },
+    {
+      "path": "src/HallJoyProject/tests/universal_native_routing_static_audit.py",
+      "size": 4612,
+      "sha256": "3db83019c24daaec67717443474dfd925211e40b8f16ea7f9cc5ca5b9f4f579b"
+    },
+    {
+      "path": "src/HallJoyProject/tests/vigem_output_scheduler_test.cpp",
+      "size": 1435,
+      "sha256": "9f64c81ac5d19b34bffba51f6928420f5c8e45d3ca126bca7f0d63a15b2689c4"
+    },
+    {
+      "path": "src/HallJoyProject/tests/worker_exception_barrier_test.cpp",
+      "size": 3437,
+      "sha256": "3a2ed2ae70bc7f41fa2b577ab34252421f72688568b363f8cabe0531672b7987"
+    },
+    {
+      "path": "src/HallJoyProject/tests/worker_lifecycle_test.cpp",
+      "size": 11423,
+      "sha256": "dcbaa653a607c8a3b7d5453891c5ee7bd8332b67391ba90b5d589c7d83d35a9e"
+    },
+    {
+      "path": "src/HallJoyProject/tests/worker_primitives_test.cpp",
+      "size": 4855,
+      "sha256": "ba929322703f692f6a61e7f19aba1652874fae2929d9df9d3529c4feaefd628b"
+    },
+    {
+      "path": "src/HallJoyProject/third_party/ViGEmClient/include/ViGEm/Client.h",
+      "size": 20459,
+      "sha256": "a4bf0cc2ba588708218344fecf07b95bc4748b36c27d47f32bcde5d122180a48"
+    },
+    {
+      "path": "src/HallJoyProject/third_party/ViGEmClient/include/ViGEm/Common.h",
+      "size": 7245,
+      "sha256": "766527c639a93f5fc0acfd1c873599f9e4a482e89c809a2192fa4d5c372f37bf"
+    },
+    {
+      "path": "src/HallJoyProject/third_party/ViGEmClient/include/ViGEm/Util.h",
+      "size": 2816,
+      "sha256": "6941749464e0dcfa94bb74274a0824d9a3f67015015060e15d70c77e037fdaae"
+    },
+    {
+      "path": "src/HallJoyProject/third_party/ViGEmClient/include/ViGEm/km/BusShared.h",
+      "size": 11833,
+      "sha256": "7e21cef8a670c61dd26568d7e5506accfd5893ffae1062c5a0d134613aaf751f"
+    },
+    {
+      "path": "src/HallJoyProject/third_party/ViGEmClient/lib/release/x64/ViGEmClient.lib",
+      "size": 1245970,
+      "sha256": "800239e478698154f544ad81c4580a3e6a2a48358d1ff67d970c996b382640b4"
+    },
+    {
+      "path": "src/HallJoyProject/third_party/WootingAnalogSDK091/include/wooting-analog-sdk.h",
+      "size": 13912,
+      "sha256": "4261239074988819419402538fc44af77f43babd0413959e1e7d0c0a3f565611"
+    },
+    {
+      "path": "src/HallJoyProject/third_party/WootingAnalogSDK091/lib/wooting_analog_sdk.dll.lib",
+      "size": 13134,
+      "sha256": "0c4ac22c37956f4253c5dfd4cff8743ff79c28fe14dfbb97bb7df64013e1f963"
+    },
+    {
+      "path": "src/HallJoyProject/tools/build_diagnostic.ps1",
+      "size": 987,
+      "sha256": "e165f7b0017810d270ffa5211b96d2be17c906e9c1d27b09414c7d924bc116e1"
+    },
+    {
+      "path": "src/HallJoyProject/tools/build_madlions_diagnostic.ps1",
+      "size": 6838,
+      "sha256": "ef47c64f475ff271c119fe3a6771b0b59fcb06f748905c2103512b3c7f4694fc"
+    },
+    {
+      "path": "src/HallJoyProject/tools/run_safety_hotfix_tests.ps1",
+      "size": 1237,
+      "sha256": "7318cec02f3d91b86b0444b55fa5a97a88a101c74888eb5bce39e8a0defc9217"
+    },
+    {
+      "path": "src/HallJoyProject/tools/validate_addressed_protocol_backend.py",
+      "size": 6585,
+      "sha256": "9bab8fc32eb46d2f8d6fcf97fc2ba525e243362efd0cba9bb92c7ce84b48b102"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/.gitignore",
+      "size": 205,
+      "sha256": "5e73f2fd4264feaa065b671eda4278266e214ba10e66ec2b0d7a40c43f8e9077"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/.gitmodules",
+      "size": 76,
+      "sha256": "11c178e379d2ae9f29a56fd19ac70f4763163c95a07b316cf0be6916353ff313"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/CHANGELOG_HALLJOY_FIX.txt",
+      "size": 2510,
+      "sha256": "d2b477fbe0958509269ea5e2935fefc4a451e0c0266a726c6201323be777ac71"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/LICENCE",
+      "size": 1076,
+      "sha256": "54b5e69dd2142a93b8419199250287e8a085f5d47ece15d79b681680c6e014af"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/README.md",
+      "size": 2271,
+      "sha256": "ff9758d9af175e6124750be34764a0fc1634c28ef469fd2242bed14559435e58"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/README_BUILD_NO_SUN.txt",
+      "size": 830,
+      "sha256": "68c3a3e747fab2f4a1b4bb6515566a93e7e422649fd95d68fde3e9fef9268303"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/README_HALLJOY_FIX.md",
+      "size": 2622,
+      "sha256": "fad3485bb13bec39f43d958c58313e7189fa2fe488f3d71c373e245e0ef9e97f"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/abiv0-mad68native.sun",
+      "size": 300,
+      "sha256": "2949e5d21f1fd1b9e4e82941287a2b9990039036b3273458c81e11d2aea2267d"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/abiv0-pluswooting.sun",
+      "size": 287,
+      "sha256": "22aad26e7dcd5a3f8c8f818ca870f4a30390e5f25ed572f7414bdd0e7676c619"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/abiv0.sun",
+      "size": 253,
+      "sha256": "82a7193f0f312e2970ceab49fb4b4e3d08840af76071975fbc6e56bf513c224a"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/abiv1-pluswooting-mad68native.sun",
+      "size": 334,
+      "sha256": "e138dd529e3fe617219a26f641b030495b19c6992138106f2f1f281cb3369204"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/abiv1-pluswooting.sun",
+      "size": 287,
+      "sha256": "c1a0ea137eddf95bff3a1bf78b8205f632754af74c9f261ee086e7628419b1d2"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/abiv1.sun",
+      "size": 253,
+      "sha256": "282a36cc066a09dde833ed274f9fd9837b8c9a2427d47c65284228a2dd7419bc"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/build.bat",
+      "size": 692,
+      "sha256": "c0d4eb5dcd0b8d35e2070f7b41967a09bbcde9c96705b65e99730b94ef91badb"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/build.sh",
+      "size": 553,
+      "sha256": "9c558d48fb43a6c73f57043e0de9950292b5d07c518ea0a3a651a49de977a85f"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/halljoy_dense_snapshot.h",
+      "size": 1496,
+      "sha256": "5d93774fbf149b6e2fec8364af6ec332eb21af1d36f290b9e11df9e78023557c"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/halljoy_plugin_telemetry.h",
+      "size": 2224,
+      "sha256": "ce3f2359e3d6b7e32f1f1d6e4d8ac739367cc0dc01a64d72ade6772a2e9db67e"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/main.cpp",
+      "size": 32143,
+      "sha256": "b1b46f0b926c589b353177ea2b7b1b3f217ab238f9a41436291ab6018f45bc61"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/patches/plugin_build_flags.diff",
+      "size": 2238,
+      "sha256": "5b7da4fd4aff4d4e761e7d402f545841f8fa4d5d500b220d103b8d797567e118"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/patches/plugin_main_fix.diff",
+      "size": 11891,
+      "sha256": "aa8b3cee3605888174a00f90ded0213a8a525410ad1a07f39a9bbb2cf1daba71"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/tools/Apply-Soup-Madlions-Fix.ps1",
+      "size": 33594,
+      "sha256": "4af55f6b0f90b368d8d154d030aab1f5517a6f8fe3964cc4c376834d2cf472ae"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/tools/build_fixed_plugin.ps1",
+      "size": 11172,
+      "sha256": "4cb5d5fde89ca0fcfb0e71b3d48a8ec0e57e87b2be761cd9bed1f9970ac738f0"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/wooting_analog_common.a",
+      "size": 22790496,
+      "sha256": "d7605b59e85bc0e14d7d3221978c554bc57941131256905c94761e9fca9f05c5"
+    },
+    {
+      "path": "third_party/UniversalAnalogPluginFixed/wooting_analog_common.lib",
+      "size": 11942102,
+      "sha256": "5a7c996e8dd25669477a2e05b603632c48f7a3f48a2eee3ed676aa17b92ba30b"
+    },
+    {
+      "path": "tools/COLLECT_STABILITY_TRACE.cmd",
+      "size": 253,
+      "sha256": "98ec4004eee50f53bedfef7a2b2757430229150d33b1be68fa7cf0f90a759cd3"
+    },
+    {
+      "path": "tools/analyze_stability_trace.py",
+      "size": 9019,
+      "sha256": "e299504da50738509aada13556c0e23cb6ddb61d4f905b782f07cd4d9a9141c0"
+    },
+    {
+      "path": "tools/build.ps1",
+      "size": 28315,
+      "sha256": "a2e2833eddaed61dcf1345f742c4409c4086f5c80dd8464e48cb0aac14afcb68"
+    },
+    {
+      "path": "tools/collect_stability_trace.ps1",
+      "size": 1497,
+      "sha256": "3af753c49892418c251fc57395fc7b7a34ed24e8872ffb0b58a46552ab08f052"
+    },
+    {
+      "path": "tools/new_native_backend.py",
+      "size": 11565,
+      "sha256": "8c3a2e00f5ff650fcb224378ab41b546c4f602935656325a51c99664217bff50"
+    },
+    {
+      "path": "tools/run_native_backend_checks.py",
+      "size": 3922,
+      "sha256": "a87a794498f6250e0579ef3001c69f24c7fc6b69848a97a7b74c2edff29a2f51"
+    }
+  ]
+}

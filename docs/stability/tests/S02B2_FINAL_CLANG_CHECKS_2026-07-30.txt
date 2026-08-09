@@ -1,0 +1,349 @@
+PASS: normal log is queued
+PASS: normal log has no WriteFile path
+PASS: normal log has no forced flush
+PASS: writer owns forced flush
+PASS: flush is bounded to 250 ms
+PASS: filesystem write occurs after queue unlock
+PASS: shutdown closes producer gate before stop
+DIAGNOSTIC_LOGGER_STATIC_AUDIT=PASS
+PASS: allocation-free worker exception barrier exists
+PASS: common worker barrier entry exists
+PASS: std::exception is contained
+PASS: unknown exceptions are contained
+PASS: fault record is fixed-size
+PASS: fault record is trivially copyable
+PASS: fault and completion callbacks are compile-time noexcept
+PASS: realtime_loop.cpp includes common barrier
+PASS: realtime_loop.cpp keeps worker algorithm in a separate body
+PASS: realtime_loop.cpp OS thread entry is noexcept
+PASS: realtime_loop.cpp invokes common barrier
+PASS: realtime_loop.cpp has a dedicated fault publisher
+PASS: debug_log.cpp includes common barrier
+PASS: debug_log.cpp keeps worker algorithm in a separate body
+PASS: debug_log.cpp OS thread entry is noexcept
+PASS: debug_log.cpp invokes common barrier
+PASS: debug_log.cpp has a dedicated fault publisher
+PASS: overlay_server.cpp includes common barrier
+PASS: overlay_server.cpp keeps worker algorithm in a separate body
+PASS: overlay_server.cpp OS thread entry is noexcept
+PASS: overlay_server.cpp invokes common barrier
+PASS: overlay_server.cpp has a dedicated fault publisher
+PASS: realtime fail-safe reset is declared noexcept
+PASS: realtime fail-safe reset is implemented
+PASS: realtime exception path clears published values
+PASS: realtime exception/completion closes running publications
+PASS: realtime repeated start cannot report a faulted generation as healthy
+PASS: realtime OS resources unwind through noexcept RAII
+PASS: debug writer fault closes producer gate
+PASS: debug shutdown reaps resources after writer fault
+PASS: debug init cannot replace an unreaped writer generation
+PASS: overlay fault clears running publications
+PASS: overlay WSA ownership has balanced exceptional cleanup
+PASS: overlay restart remains blocked until old generation is reaped
+PASS: exception barrier header is visible in MSVC project
+PASS: barrier adds no production object or static initializer
+PASS: portable exception barrier test is in the common gate
+PASS: portable exception barrier test exists
+EXCEPTION_BARRIER_STATIC_AUDIT=PASS
+PASS: native target is production
+PASS: native target does not force diagnostic
+PASS: address wake is used
+PASS: address wake import library is linked in every configuration
+PASS: precise output deadline timer is used
+PASS: all native families participate in UAP arbitration
+PASS: universal native target can run without UAP
+PASS: native protocols preserve multi-device analogue max
+PASS: unified output scheduler is wired
+PASS: all analogue sources issue realtime wakes
+PASS: fixed-deadline coalescing contract exists
+PASS: MAD68 special limiter bypass is removed
+PASS: duplicate ViGEm keepalive is removed
+PASS: closeable input event was removed
+PASS: production trace is hard-disabled
+PASS: Addressed file trace is diagnostic-only
+PASS: MAD per-key file log is diagnostic-only
+PASS: UAP host file log is diagnostic-only
+PASS: quiet native A9 watchdog remains
+PASS: telemetry aggregator remains
+PASS: generic native UI telemetry remains
+PASS: configuration covers MADLIONS native A0
+PASS: configuration covers Hex80
+PASS: configuration covers Addressed
+PASS: configuration covers Spark
+PASS: configuration covers Sayo
+PASS: configuration covers plugin host
+PASS: gamepad tester covers MADLIONS native A0
+PASS: gamepad tester covers Hex80
+PASS: gamepad tester covers Addressed
+PASS: gamepad tester covers Spark
+PASS: gamepad tester covers Sayo
+PASS: gamepad tester covers UAP/Wooting
+PASS: both UI pages request live telemetry
+PASS: Raw Input registration remains
+PASS: green digital indicator remains
+PASS: final build identity is present
+FINAL_PRODUCTION_STATIC_AUDIT=PASS
+[OK] Hex80 documented identity is exact
+[OK] Hex80 matrix and chunk contract are fixed
+[OK] routing probe is GET-only
+[OK] calibration exit is sent only in active validated session
+[OK] Hex80 publishes to common realtime path
+[OK] Hex80 digital fallback is blocked only for owned HID
+[OK] shared native VID/PID registry is additive
+[OK] routing is complete before UAP starts
+[OK] UAP consumes native VID/PID registry before HID open
+[OK] Hex80 lifecycle is catalog-driven
+[OK] Configuration and Gamepad Tester expose Hex80
+[OK] project compiles registry and Hex80 sources
+[OK] poller has no artificial fixed sleep
+HEX80_ROUTING_STATIC_AUDIT=PASS
+PASS: worker lifecycle contract exists
+PASS: worker primitive seam exists
+PASS: lifecycle contract is namespaced
+PASS: all worker states have one common enum
+PASS: worker state Stopped is present
+PASS: worker state Starting is present
+PASS: worker state Running is present
+PASS: worker state StopRequested is present
+PASS: worker state Joined is present
+PASS: worker state Faulted is present
+PASS: worker state Poisoned is present
+PASS: wait/time/thread seam is explicit
+PASS: time seam is injectable
+PASS: wait seam is injectable
+PASS: thread start/join seams are injectable
+PASS: S01 headers are not included by production translation units: 
+PASS: lifecycle header is visible in MSVC project
+PASS: primitive seam header is visible in MSVC project
+PASS: S01 adds no production object file
+PASS: lifecycle unit test is in portable gate
+PASS: primitive seam test is in portable gate
+PASS: lifecycle unit test exists
+PASS: primitive seam unit test exists
+LIFECYCLE_SCAFFOLDING_STATIC_AUDIT=PASS
+PASS: MAD68 descriptor is in central catalog
+PASS: MAD68 value enters common raw path
+PASS: MAD68 enters multi-device max arbitration
+PASS: UAP stays available for other analogue keyboards
+PASS: digital fallback stays blocked for native-owned HID
+PASS: native UAP child excludes only capability-validated exact VID/PID pairs
+PASS: normal UAP target remains unchanged
+PASS: native build explicitly selects dedicated UAP
+PASS: native UAP preserves baseline hotplug policy
+PASS: native exclusion happens before Soup CreateFileW
+PASS: normal UAP initialization preserved
+PASS: normal embedded UAP preparation preserved
+PASS: normal UAP resource preserved
+PASS: realtime curve path consumes common raw
+PASS: UI publication receives filtered analog
+PASS: blue keyboard render consumes standard UI analog
+PASS: ViGEm report builder consumes filtered analog
+PASS: ViGEm update receives built report
+PASS: routing and lifecycle use central manager
+PASS: dedicated UAP applies validated routing before Soup CreateFileW
+PASS: stale full-matrix key falls back per HID without dropping healthy keys
+PASS: stale WASD falls back per HID and only dead global transport re-arms
+PASS: ownership freshness is explicitly guarded
+PASS: leading packet mismatch waits for post-edge A0
+PASS: lost A8 ACK can be confirmed semantically
+PASS: startup snapshot cannot directly grant full ownership
+PASS: exit watchdog performs idempotent A9 recovery
+
+HALLJOY_ROUTE_AUDIT=PASS
+route=MAD68 descriptor -> NativeAnalogBackends_ReadMilli -> curve -> UI + ViGEm
+MAD68PR NATIVE STATIC SAFETY AUDIT PASSED
+root=/mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject
+device opcode allow-list: A8, A9 only
+native mutation gate: exact 65-byte fingerprint + MAD68 layout identity + audited 0102 or reversible A9 ACK
+publication modes: full 67 HID keys or emergency real W/A/S/D
+UAP/Wooting: preserved and embedded
+strategies: hardware-confirmed primary + clean retry + 11 finite fallbacks; max 2 recovery cycles per 60-second window
+UAP/Wooting: preserved; only runtime-validated exact native VID/PID pairs are excluded before HID open
+native backend architecture audit: OK (5 registered protocols)
+PASS: mad68pr_backend.cpp includes the common exception barrier
+PASS: mad68pr_backend.cpp keeps the worker algorithm in a uint32 body
+PASS: mad68pr_backend.cpp worker entry is noexcept
+PASS: found function signature: void Mad68WorkerEntry() noexcept
+PASS: found function body: void Mad68WorkerEntry() noexcept
+PASS: mad68pr_backend.cpp worker entry invokes the common barrier
+PASS: mad68pr_backend.cpp barrier wires body, fault and completion callbacks
+PASS: found function signature: void Mad68WorkerOnFault(
+PASS: found function body: void Mad68WorkerOnFault(
+PASS: mad68pr_backend.cpp stores a fixed exception record
+PASS: mad68pr_backend.cpp fault path closes the worker loop
+PASS: mad68pr_backend.cpp fault path publishes safe state: ResetSessionPublished();
+PASS: mad68pr_backend.cpp fault path publishes safe state: g_devicePresent.store(false
+PASS: mad68pr_backend.cpp fault path publishes safe state: g_firmwareVersion.store(0
+PASS: mad68pr_backend.cpp fault path publishes safe state: g_productId.store(0
+PASS: mad68pr_backend.cpp fault path publishes safe state: g_uiState.store(static_cast<int>(UiState::Stopped)
+PASS: mad68pr_backend.cpp fault path emits allocation-free diagnostics
+PASS: found function signature: void Mad68WorkerOnCompletion(
+PASS: found function body: void Mad68WorkerOnCompletion(
+PASS: mad68pr_backend.cpp completion always clears running publication
+PASS: found function signature: bool Mad68ProR_Start()
+PASS: found function body: bool Mad68ProR_Start()
+PASS: mad68pr_backend.cpp reaps a completed generation before replacement
+PASS: mad68pr_backend.cpp joins before assigning a new std::thread
+PASS: mad68pr_backend.cpp resets fault state for a new generation
+PASS: mad68pr_backend.cpp starts the noexcept worker entry
+PASS: MAD68 exceptional reset is noexcept
+PASS: MAD68 fault clears target digital state
+PASS: hex80_backend.cpp includes the common exception barrier
+PASS: hex80_backend.cpp keeps the worker algorithm in a uint32 body
+PASS: hex80_backend.cpp worker entry is noexcept
+PASS: found function signature: void Hex80WorkerEntry() noexcept
+PASS: found function body: void Hex80WorkerEntry() noexcept
+PASS: hex80_backend.cpp worker entry invokes the common barrier
+PASS: hex80_backend.cpp barrier wires body, fault and completion callbacks
+PASS: found function signature: void Hex80WorkerOnFault(
+PASS: found function body: void Hex80WorkerOnFault(
+PASS: hex80_backend.cpp stores a fixed exception record
+PASS: hex80_backend.cpp fault path closes the worker loop
+PASS: hex80_backend.cpp fault path publishes safe state: g_connected.store(false
+PASS: hex80_backend.cpp fault path publishes safe state: g_present.store(false
+PASS: hex80_backend.cpp fault path publishes safe state: g_detectedPid.store(0
+PASS: hex80_backend.cpp fault path publishes safe state: g_activePid.store(0
+PASS: hex80_backend.cpp fault path publishes safe state: g_activeVersion.store(0
+PASS: hex80_backend.cpp fault path publishes safe state: ClearPublishedValues();
+PASS: hex80_backend.cpp fault path emits allocation-free diagnostics
+PASS: found function signature: void Hex80WorkerOnCompletion(
+PASS: found function body: void Hex80WorkerOnCompletion(
+PASS: hex80_backend.cpp completion always clears running publication
+PASS: found function signature: bool Hex80_Start()
+PASS: found function body: bool Hex80_Start()
+PASS: hex80_backend.cpp reaps a completed generation before replacement
+PASS: hex80_backend.cpp joins before assigning a new std::thread
+PASS: hex80_backend.cpp resets fault state for a new generation
+PASS: hex80_backend.cpp starts the noexcept worker entry
+PASS: Hex80 exceptional publication reset is noexcept
+PASS: Addressed nested reader remains explicitly deferred to S02B.2/S06
+NATIVE_WORKER_EXCEPTION_BARRIER_STATIC_AUDIT=PASS
+PASS: pre-open marker constant exists
+PASS: generated pre-open C++ block is locatable
+PASS: validation marker is emitted into generated C++
+PASS: generated block is compile-time gated
+PASS: generated block consumes the exact native HID route list
+PASS: generated block skips a claimed path before opening it
+PASS: generated block is inserted at the enumeration-loop body start
+PASS: post-patch validation reuses the marker constant
+PASS: emitted marker precedes the first device CreateFileW
+PLUGIN_PREOPEN_PATCH_CONTRACT_AUDIT=PASS
+[OK] all routing prepares before UAP through manager
+[OK] MADLIONS enumeration is brand-wide
+[OK] MADLIONS unknown PID requires reversible A9 ACK
+[OK] MADLIONS exact HID fingerprint retained
+[OK] MADLIONS native route keeps the 68-key layout boundary
+[OK] UAP receives dynamic exact VID/PID routing
+[OK] UAP exclusion is before Soup open
+[OK] Raw Input targets only routed MADLIONS PIDs
+[OK] Sayo discovery is VID-wide
+[OK] Sayo unknown PID requires depth response
+[OK] Sayo audited PID keeps priority
+[OK] Sayo publishes actual VID/PID
+[OK] Sayo and Spark descriptors run before UAP
+[OK] Sayo and Spark only claim proven protocols
+[OK] Hex80 exact protocol is independently catalogued
+[OK] Addressed protocol is restored and independently catalogued
+[OK] Addressed accepts protocol family rather than one VID/PID
+[OK] Backend accepts any registered native source
+Protocol-family routing static audit passed.
+PASS: SparkLink includes the common allocation-free exception barrier
+PASS: SparkLink polling algorithm remains in a separate body
+PASS: SparkLink has a noexcept C++ boundary
+PASS: SparkLink OS entry is noexcept
+PASS: found function signature: static DWORD SparkPollThreadProcCpp() noexcept
+PASS: found function body: static DWORD SparkPollThreadProcCpp() noexcept
+PASS: SparkLink C++ boundary invokes the common barrier
+PASS: SparkLink C++ boundary wires SparkPollThreadProcImpl
+PASS: SparkLink C++ boundary wires SparkWorkerOnCppFault
+PASS: SparkLink C++ boundary wires SparkWorkerOnCppCompletion
+PASS: SparkLink C++ boundary wires 0xE0520003u
+PASS: found function signature: static DWORD WINAPI SparkPollThreadProc(LPVOID) noexcept
+PASS: found function body: static DWORD WINAPI SparkPollThreadProc(LPVOID) noexcept
+PASS: existing structured-exception boundary is preserved
+PASS: SEH wrapper delegates normal execution to the C++ barrier
+PASS: SEH path publishes the same fail-safe state
+PASS: SEH boundary avoids the normal logging pipeline
+PASS: found function signature: static bool SparkReleasePublishedInput() noexcept
+PASS: found function body: static bool SparkReleasePublishedInput() noexcept
+PASS: SparkLink exceptional cleanup releases all published analogue values
+PASS: SparkLink exceptional cleanup clears connected publication
+PASS: SparkLink exceptional cleanup clears freshness publication
+PASS: SparkLink exceptional cleanup wakes realtime for the neutral snapshot
+PASS: found function signature: static void SparkWorkerOnCppFault(
+PASS: found function body: static void SparkWorkerOnCppFault(
+PASS: SparkLink stores a fixed C++ fault record
+PASS: SparkLink fault closes further HID writes
+PASS: SparkLink C++ fault publishes neutral state
+PASS: SparkLink C++ fault emits allocation-free diagnostics
+PASS: found function signature: static void SparkWorkerOnCppCompletion(
+PASS: found function body: static void SparkWorkerOnCppCompletion(
+PASS: all SparkLink exits publish neutral state
+PASS: all C++ exits publish generation completion
+PASS: found function signature: static void SparkWorkerOnStructuredFault(DWORD code) noexcept
+PASS: found function body: static void SparkWorkerOnStructuredFault(DWORD code) noexcept
+PASS: SEH fault uses the fixed fault record
+PASS: SEH code is retained separately
+PASS: SEH fault publishes neutral state and completion
+PASS: found function signature: static bool SparkStart()
+PASS: found function body: static bool SparkStart()
+PASS: new SparkLink generation resets old fault diagnostics
+PASS: new SparkLink generation starts as not completed
+PASS: completion handshake is reset before thread creation
+PASS: SparkLink start checks early worker exit before and after publication
+PASS: early exit cannot be reported as a successful connection
+PASS: found function signature: static bool SparkStop()
+PASS: found function body: static bool SparkStop()
+PASS: owner-side reap publishes completed generation
+PASS: cooperative shutdown replacement remains explicitly deferred to S08
+SPARKLINK_EXCEPTION_BOUNDARY_STATIC_AUDIT=PASS
+[OK] routing registry enumerates every native protocol family
+[OK] backend contract owns discovery lifecycle read and telemetry
+[OK] catalog registers every native backend exactly once
+[OK] registry is exact first-claim-wins VID/PID ownership
+[OK] pre-UAP route order is descriptor-driven and deterministic
+[OK] before-UAP native routes start before UAP initialisation
+[OK] all native probes respect foreign ownership
+[OK] all native routes publish a validated claim
+[OK] UAP exclusion occurs before any Soup HID open
+[OK] Addressed protocol is active and event-driven
+[OK] independent native routes survive unavailable UAP
+[OK] real analogue sources aggregate through one common registry
+[OK] digital fallback remains excluded from authoritative native values
+[OK] generic telemetry reaches UI without per-backend wiring
+UNIVERSAL_NATIVE_ROUTING_STATIC_AUDIT=PASS
+addressed scheduler tests passed
+hex80 protocol tests passed: 104 slots, 82 mapped HID keys
+mad68pr full protocol tests passed: 68 descriptors, 67 HID keys
++ /opt/pyvenv/bin/python /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/diagnostic_logger_static_audit.py
++ /opt/pyvenv/bin/python /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/exception_barrier_static_audit.py
++ /opt/pyvenv/bin/python /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/final_production_static_audit.py
++ /opt/pyvenv/bin/python /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/hex80_routing_static_audit.py
++ /opt/pyvenv/bin/python /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/lifecycle_scaffolding_static_audit.py
++ /opt/pyvenv/bin/python /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/mad68pr_halljoy_route_audit.py
++ /opt/pyvenv/bin/python /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/mad68pr_static_safety_audit.py
++ /opt/pyvenv/bin/python /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/native_backend_architecture_static_audit.py
++ /opt/pyvenv/bin/python /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/native_worker_exception_barrier_static_audit.py
++ /opt/pyvenv/bin/python /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/plugin_preopen_patch_contract_audit.py
++ /opt/pyvenv/bin/python /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/protocol_family_routing_static_audit.py
++ /opt/pyvenv/bin/python /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/sparklink_exception_boundary_static_audit.py
++ /opt/pyvenv/bin/python /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/universal_native_routing_static_audit.py
++ clang++ -std=c++20 -O2 -Wall -Wextra -pedantic -I/mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/addressed_poll_scheduler_test.cpp /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy/addressed_poll_scheduler.cpp -o /tmp/halljoy-native-tests-233vf025/addressed_scheduler
++ /tmp/halljoy-native-tests-233vf025/addressed_scheduler
++ clang++ -std=c++20 -O2 -Wall -Wextra -pedantic -I/mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/hid_io_operation_lifecycle_test.cpp -o /tmp/halljoy-native-tests-233vf025/hid_lifecycle
++ /tmp/halljoy-native-tests-233vf025/hid_lifecycle
++ clang++ -std=c++20 -O2 -Wall -Wextra -pedantic -I/mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/vigem_output_scheduler_test.cpp -o /tmp/halljoy-native-tests-233vf025/vigem_scheduler
++ /tmp/halljoy-native-tests-233vf025/vigem_scheduler
++ clang++ -std=c++20 -O2 -Wall -Wextra -pedantic -I/mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/native_analog_backend_contract_test.cpp -o /tmp/halljoy-native-tests-233vf025/native_contract
++ /tmp/halljoy-native-tests-233vf025/native_contract
++ clang++ -std=c++20 -O2 -Wall -Wextra -pedantic -I/mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/worker_lifecycle_test.cpp -o /tmp/halljoy-native-tests-233vf025/worker_lifecycle
++ /tmp/halljoy-native-tests-233vf025/worker_lifecycle
++ clang++ -std=c++20 -O2 -Wall -Wextra -pedantic -I/mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/worker_primitives_test.cpp -o /tmp/halljoy-native-tests-233vf025/worker_primitives
++ /tmp/halljoy-native-tests-233vf025/worker_primitives
++ clang++ -std=c++20 -O2 -Wall -Wextra -pedantic -I/mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/worker_exception_barrier_test.cpp -o /tmp/halljoy-native-tests-233vf025/worker_exception_barrier
++ /tmp/halljoy-native-tests-233vf025/worker_exception_barrier
++ clang++ -std=c++20 -O2 -Wall -Wextra -pedantic -I/mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/hex80_protocol_test.cpp /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy/hex80_protocol.cpp -o /tmp/halljoy-native-tests-233vf025/hex80_protocol_test
++ /tmp/halljoy-native-tests-233vf025/hex80_protocol_test
++ clang++ -std=c++20 -O2 -Wall -Wextra -pedantic -I/mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/mad68pr_protocol_test.cpp /mnt/data/halljoy_s02b2/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy/mad68pr_protocol.cpp -o /tmp/halljoy-native-tests-233vf025/mad68pr_protocol_test
++ /tmp/halljoy-native-tests-233vf025/mad68pr_protocol_test
+native backend checks: all static and portable C++ tests passed

@@ -1,0 +1,15 @@
+CLEAN_PACKAGE_VALIDATION
+root_entries=BUILD.cmd,README.md,docs,src,third_party,tools
+root_cmd_count=1
+all_cmd_count=1
+halljoy_source_files_preserved=156
+halljoy_source_tree_byte_identical=PASS
+uap_source_files_preserved=24
+uap_source_tree_byte_identical=PASS
+build_required_paths=PASS
+vigem_size=1245970
+vigem_sha256=800239E478698154F544AD81C4580A3E6A2A48358D1FF67D970C996B382640B4
+firmware_knowledge_base_manifest_files=69
+firmware_knowledge_base_manifest_validation=PASS
+powershell_path_relocation=PASS
+full_windows_msbuild=NOT_RUN_IN_LINUX_ENVIRONMENT

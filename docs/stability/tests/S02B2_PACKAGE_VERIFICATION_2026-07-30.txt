@@ -1,0 +1,13 @@
+S02B.2 package verification — 2026-07-30
+
+Pass 1 clean-unpack verification:
+- self-excluding CLEAN_PACKAGE_MANIFEST.json: PASS;
+- all listed paths are relative and traversal-safe: PASS;
+- every extracted file matches size and SHA-256: PASS;
+- no unlisted files except the manifest itself: PASS;
+- full GCC static/portable gate after clean extraction: PASS;
+- SparkLink targeted exception-boundary audit after clean extraction: PASS.
+
+The final archive is rebuilt after adding this report and regenerating the
+self-excluding manifest. Final archive SHA-256, manifest verification and a
+second clean-unpack gate are performed externally without modifying the tree.

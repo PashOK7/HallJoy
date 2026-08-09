@@ -1,0 +1,31 @@
+S02B.1 changed files relative to S02A.1
+
+MODIFIED
+- docs/stability/DECISIONS.md
+- docs/stability/README.md
+- docs/stability/RISK_REGISTER.md
+- docs/stability/STABILITY_MASTER_PLAN.md
+- docs/stability/STAGE_S02A1_RESULT.md
+- docs/stability/WORKLOG.md
+- docs/validation/CLEAN_PACKAGE_MANIFEST.json
+- src/HallJoyProject/HallJoy/hex80_backend.cpp
+- src/HallJoyProject/HallJoy/mad68pr_backend.cpp
+
+ADDED
+- docs/stability/CHANGED_FILES_S02B1.txt
+- docs/stability/STAGE_S02B1_RESULT.md
+- docs/stability/tests/S02A1_WINDOWS_GATE_2026-07-30.txt
+- docs/stability/tests/S02B1_FINAL_CLANG_CHECKS_2026-07-30.txt
+- docs/stability/tests/S02B1_FINAL_GCC_CHECKS_2026-07-30.txt
+- docs/stability/tests/S02B1_HOT_PATH_COMPARISON_2026-07-30.txt
+- docs/stability/tests/S02B1_PROJECT_VALIDATION_2026-07-30.txt
+- docs/stability/tests/S02B1_SANITIZERS_2026-07-30.txt
+- src/HallJoyProject/tests/native_worker_exception_barrier_static_audit.py
+
+REMOVED
+- none
+
+Production source scope:
+- modified: mad68pr_backend.cpp, hex80_backend.cpp
+- added production objects: 0
+- Addressed/Sayo/SparkLink/UAP runtime changes: 0

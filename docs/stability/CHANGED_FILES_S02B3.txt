@@ -1,0 +1,32 @@
+S02B.3 changed files relative to S02B.2
+Date: 2026-07-30
+
+Production runtime:
+MODIFIED src/HallJoyProject/HallJoy/addressed_analog_backend.cpp
+
+Test infrastructure:
+ADDED    src/HallJoyProject/tests/addressed_exception_boundary_static_audit.py
+MODIFIED src/HallJoyProject/tests/native_worker_exception_barrier_static_audit.py
+
+Documentation:
+MODIFIED docs/stability/DECISIONS.md
+MODIFIED docs/stability/README.md
+MODIFIED docs/stability/RISK_REGISTER.md
+MODIFIED docs/stability/STABILITY_MASTER_PLAN.md
+MODIFIED docs/stability/STAGE_S02B2_RESULT.md
+ADDED    docs/stability/STAGE_S02B3_RESULT.md
+ADDED    docs/stability/CHANGED_FILES_S02B3.txt
+MODIFIED docs/stability/VALIDATION_MATRIX.md
+MODIFIED docs/stability/WORKLOG.md
+MODIFIED docs/stability/tests/README.md
+ADDED    docs/stability/tests/S02B3_FINAL_GCC_CHECKS_2026-07-30.txt
+ADDED    docs/stability/tests/S02B3_FINAL_CLANG_CHECKS_2026-07-30.txt
+ADDED    docs/stability/tests/S02B3_SANITIZERS_2026-07-30.txt
+ADDED    docs/stability/tests/S02B3_HOT_PATH_COMPARISON_2026-07-30.txt
+ADDED    docs/stability/tests/S02B3_PACKAGE_VERIFICATION_2026-07-30.txt
+MODIFIED docs/validation/CLEAN_PACKAGE_MANIFEST.json
+
+Production scope assertion:
+- exactly one production source file changed;
+- no packet constants, scheduler algorithms, project items or build scripts changed;
+- Addressed device hardware validation remains deferred.

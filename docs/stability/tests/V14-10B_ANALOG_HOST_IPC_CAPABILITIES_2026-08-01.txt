@@ -1,0 +1,96 @@
+HallJoy v1.4 - V14-10B analog-host IPC capability evidence
+Date: 2026-08-01
+
+Scope
+-----
+- Remove named mapping/events from the isolated analog-host transport.
+- Pass only four unnamed kernel capabilities to the created child through an
+  explicit process handle list.
+- Bind shared schema v10 to owner PID and a CSPRNG launch token.
+- Validate inherited handles and both child/parent identity directions.
+
+Implementation contract
+-----------------------
+- Parent creates an unnamed mapping, unnamed manual stop event, unnamed
+  auto-reset snapshot event and a real owner-process handle.
+- STARTUPINFOEXW plus PROC_THREAD_ATTRIBUTE_HANDLE_LIST limits inheritance to
+  those four handles. CreateProcessW enables inheritance only for that list.
+- Child uses inherited handle values directly. It contains no
+  OpenFileMappingW, OpenEventW or Local\HallJoyAnalog name path.
+- Child validates every handle, schema magic/version/size, owner PID, CSPRNG
+  launch token and GetProcessId(owner handle) before publishing.
+- Parent accepts Ready only when shared hostPid equals the PID returned by its
+  own CreateProcessW call.
+
+Validation
+----------
+1. python src/HallJoyProject/tests/analog_host_ipc_static_audit.py
+   PASS.
+
+2. python tools/run_native_backend_checks.py
+   PASS. All static audits and portable C++20 tests passed, including the
+   updated generation and private-UAP-path contracts.
+
+3. powershell -NoProfile -ExecutionPolicy Bypass
+     -File .\tools\run_analog_simulator.ps1 -RunSeconds 7
+   PASS after a fresh x64 Release rebuild. Normal common pipeline and balanced
+   child/parent shutdown exited 0.
+
+4. powershell -NoProfile -ExecutionPolicy Bypass
+     -File .\tools\run_analog_simulator.ps1 -SkipBuild
+     -InjectAnalogHostIpcHandleRejection -RunSeconds 9
+   PASS. The first child received a non-inherited mapping handle, rejected it
+   with exit code 31, and was fully reaped. After the bounded restart delay the
+   second child inherited the original valid capability set, completed the
+   common pipeline and exited cleanly.
+
+5. Existing analog-host fault scenarios, each with -SkipBuild -RunSeconds 7:
+   - InjectAnalogHostSupervisorStartFailure: PASS.
+   - InjectAnalogHostSupervisorCppFault: PASS.
+   - InjectAnalogHostChildCppFault: PASS.
+   - InjectAnalogHostChildReapTimeout: PASS.
+   - InjectAnalogHostBridgeStopTimeout: PASS.
+
+6. powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+   PASS. Official x64 production build produced zero errors and only the
+   allowlisted third-party ViGEm LNK4099 diagnostic. All static/portable gates
+   and the real embedded ABI1 runtime gate passed.
+
+7. powershell -NoProfile -ExecutionPolicy Bypass
+     -File .\tools\run_production_smoke.ps1 -RunSeconds 10
+   PASS. Production trace published inherited_handles/named_objects=0 policy,
+   connected Irok MG75 Max at 1CA6:0529/FFB0, completed 37,953/37,953 route
+   queries with zero failures, joined the isolated child and both parent
+   workers, and exited 0. No analog rows changed, so this is not new input
+   proof.
+
+Artifact
+--------
+Path: build/output/HallJoy.exe
+Size: 2,218,496 bytes
+SHA-256: 8FD6609DFF589DF76515EF62C6B1365C83C47BFB0452AC5D5BCB20B8DDE78223
+Production trace SHA-256:
+A098F363C4D52D7852D07BE0432B0A4B3AB6CD4F43ACE31AC8DD573C86B9A7EB
+
+State safety
+------------
+Source backup:
+C:\github\HallJoy_v1.4_BACKUPS\V14-10B-prechange-20260801-1128
+Runtime backup:
+C:\github\HallJoy_v1.4_BACKUPS\V14-10B-runtime-20260801-1138
+The 11 LocalAppData files matched their backup after production smoke. Zero
+transaction temporary files and zero HallJoy processes remained.
+
+Threat boundary and next work
+-----------------------------
+- This closes named-object precreation and substitution. It is not a sandbox
+  against a process already authorized to modify HallJoy memory or duplicate
+  its private handles.
+- Existing child job containment and bounded generation ownership are retained.
+- V14-10C owns overlay HTTP framing and bounded parsing/overflow. V14-10D owns
+  overlay origin, concurrency and shutdown gates.
+- Remote CI was not run; it is optional and no push is permitted.
+
+Rollback
+--------
+Use the parent of the local V14-10B implementation commit.

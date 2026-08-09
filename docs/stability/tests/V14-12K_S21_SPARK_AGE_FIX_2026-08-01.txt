@@ -1,0 +1,88 @@
+HallJoy V14-12K / S21 SparkLink freshness-age correction
+Date: 2026-08-01
+
+ORIGINAL ONE-HOUR OBSERVATION
+artifact_sha256=6A2E82709F6FC6B652ECAEA657BA4FBD1544B0832934865779D9FF7F0306D97F
+duration_seconds=3604.553
+resource_samples=703
+overlay_probes=12/12
+overlay_max_observed_latency_ms=0.6
+handles_start=210
+handles_end=211
+private_memory_growth_bytes=180224
+shutdown_ms=92
+remaining_processes=0
+state_files_unchanged=11
+spark_worker_generations=3
+spark_queries=14138221
+spark_ok=14138219
+spark_fail=2
+spark_changed_rows=139473
+spark_input_notifies=139474
+spark_stale_events=2
+spark_reconnect_events=2
+
+FINDING
+Both stale events reported an impossible silence age near UINT64_MAX. The
+main-thread tick timestamp may be captured immediately before the worker
+publishes a slightly newer packet timestamp. Raw unsigned subtraction then
+underflowed and falsely crossed the stale threshold.
+
+CORRECTION
+spark_freshness_age_saturates_when_observed_time_is_older=true
+exact_threshold_semantics_preserved=true
+backward_time_tested=true
+high_bit_and_uint64_max_cases_tested=true
+backend_raw_subtraction_prohibited_by_audit=true
+soak_aggregates_all_worker_generations=true
+soak_rejects_impossible_stale_age=true
+default_soak_minutes=60
+default_evidence_root=build/evidence
+
+CORRECTED ARTIFACT GATES
+static_audits=46/46 PASS
+portable_cpp20_tests=28/28 PASS
+official_release_x64=PASS
+compiler_errors=0
+compiler_warnings=0
+external_allowlisted_lnk4099_only=true
+artifact_name=HallJoy.exe
+artifact_size_bytes=2206208
+artifact_sha256=81609DC44D12F7DF44C2A7D801D8992CBFDCB45221F07AE041ED4711F4EB840C
+
+TARGETED PRODUCTION REGRESSION
+duration_seconds=120.666
+resource_samples=56
+overlay_probes=2/2
+handles_start=210
+handles_end=211
+handles_max=211
+private_memory_growth_bytes=-12288
+shutdown_ms=220
+remaining_processes=0
+state_files_unchanged=11
+spark_worker_generations=1
+spark_queries=464905
+spark_ok=464905
+spark_fail=0
+spark_changed_rows=0
+spark_input_notifies=0
+spark_stale_events=0
+spark_reconnect_events=0
+raw_evidence=build/evidence/S21-spark-age-fix-2m
+
+QUALIFICATION DECISION
+Per D-029, the completed one-hour soak and 1000-cycle qualification are not
+repeated for this narrow deterministic timestamp correction. Release approval
+still requires the pending external Aula hardware result and any remaining
+manual device-matrix gates.
+
+EVIDENCE RETENTION NOTE
+The original hour and 1000-cycle raw bundles were stored below build/output and
+were removed by a subsequent official clean build. Their independently checked
+numeric results remain recorded in the worklog and validation matrix. The
+corrected regression bundle is retained below build/evidence, outside the clean
+build output tree.
+
+PRE-CHANGE BACKUP
+C:\github\HallJoy_v1.4_BACKUPS\V14-12K-S21-spark-age-prechange-20260801-204000

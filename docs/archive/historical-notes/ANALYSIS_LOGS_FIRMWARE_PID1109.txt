@@ -1,0 +1,87 @@
+ANALYSIS OF THE RECEIVED LOGS AND FIRMWARE
+==========================================
+
+Input files
+-----------
+
+HallJoyAnalogHost (1).log
+HallJoyAddressedAnalog.log
+35ed6b7a73cfe7e7fd222e6862032e49.bin
+
+Log findings
+------------
+
+1. Universal Analog Plugin loaded normally:
+   - ABI1;
+   - SDK initialise result=0;
+   - transport_error=0;
+   - 225 successful poll calls;
+   - clean shutdown without a crash.
+
+2. UAP did not publish the PID 1109 device:
+   - dense_devices=0;
+   - count=0.
+   This is expected for a dedicated native build, where VID 373B/PID 1109 is
+   excluded from UAP before `CreateFileW`.
+
+3. A different backend was running at the same time:
+   - protocol=madlions-a0-passive;
+   - profile=madlions-a0-fw-1109;
+   - usage=0001:0000;
+   - samples=0 for the entire session.
+
+4. The HallJoy MAD68 Pro R Native Stable source does not contain the
+   `protocol=madlions-a0-passive` lines. The test therefore used neither the
+   dedicated `HallJoyMAD68ProRNative.exe` nor another target built from those
+   sources.
+
+5. The correct firmware-specific backend must:
+   - create `HallJoyMAD68ProR.log`;
+   - write `backend worker start build=MAD68ProR-Native-Stable-v3.5`;
+   - execute the safe `A9 -> A8 -> A9` sequence;
+   - receive A0 packets and publish actual values in the `0..1600` range.
+
+Firmware findings
+-----------------
+
+Size: 124656 bytes
+SHA-256: 2a7df4ffc491476b79da5333f51179f68fbbb5c5e146e987cfb5df764b79cead
+
+Architecture:
+- RV32/WCH; the initial code contains typical RV32 JAL/NOP instructions.
+
+USB device descriptor at offset 0xA8D4:
+- bLength: 18
+- bDescriptorType: 1
+- bcdUSB: 0x0200
+- idVendor: 0x373B
+- idProduct: 0x1109
+- bcdDevice: 0x0102
+- EP0 maximum packet size: 64
+
+HID report descriptor near offset 0xA870:
+- Usage Page 0x0001;
+- Usage 0x0000;
+- Input: 64 bytes;
+- Output: 64 bytes.
+
+Image metadata:
+- Apr 15 2025;
+- device identifier 373B:1109;
+- revision 0102.
+
+This is the exact image that was already audited. There is no reason to modify
+the firmware at this stage. First obtain a valid hardware log from the dedicated
+native backend. A firmware patch should be considered only if
+`STEADY-STATE A0 CONFIRMED` is still absent after a correct `A9 -> A8 -> A9`
+sequence and post-sweep key presses.
+
+v3.5 change
+-----------
+
+- the generic AddressedAnalog worker does not start in
+  `HALLJOY_MAD68PR_NATIVE`;
+- the build script verifies this guard;
+- the legacy AddressedAnalog launcher is blocked with a warning;
+- `START_HERE_BUILD_MAD68PRO_R.cmd` was added;
+- the README identifies the correct runtime target unambiguously.

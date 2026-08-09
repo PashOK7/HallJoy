@@ -1,0 +1,66 @@
+HallJoy V14-12I / S21 final 1000 production cycles
+Date: 2026-08-01
+Status: VERIFIED
+
+Artifact
+--------
+Path: build/output/HallJoy.exe
+Size: 2206208 bytes
+SHA-256: 6A2E82709F6FC6B652ECAEA657BA4FBD1544B0832934865779D9FF7F0306D97F
+
+Command
+-------
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File \
+  tools/run_release_qualification.ps1 \
+  -Cycles 1000 -RunSeconds 1 -ProgressEvery 25 \
+  -EvidenceRoot build/output/qualification-evidence/S21-1000-cycles-20260801
+
+Machine result
+--------------
+checkpoint.status=passed
+summary.status=passed
+cycles_requested=1000
+cycles_passed=1000
+remaining_processes=0
+user_state_files_before=11
+user_state_files_after=11
+user_state_changed=0
+min_shutdown_ms=101
+average_shutdown_ms=277.1
+p50_shutdown_ms=250
+p95_shutdown_ms=430
+p99_shutdown_ms=1315
+max_shutdown_ms=2662
+shutdown_over_1000_ms=16
+max_handles_observed=217
+max_working_set_bytes=13828096
+spark_route_queries=1598879
+spark_route_ok=1598454
+spark_route_fail=425
+
+Independent evidence verification
+---------------------------------
+cycle trace files=1000
+recorded trace SHA-256 mismatches=0
+before/after state manifests identical=true
+route_queries == route_ok + route_fail=true
+cycles with route_fail=425
+max route_fail per cycle=1
+evidence bytes=11617796
+
+Interpretation
+--------------
+Every cycle launched the ordinary production path with no simulator or fault
+argument, ran for one second and closed through bounded WM_CLOSE. Every process
+returned exit zero and produced a complete trace with no ERROR or trace.capped.
+The 425 non-ok Spark transactions were single transactions recorded only in the
+worker shutdown statistics; there was no corresponding runtime ERROR/fault and
+no cycle contained more than one. This is consistent with cancellation at the
+shutdown boundary, not an accepted realtime-stream failure.
+
+Remaining release gates
+-----------------------
+- 8-24 hour production soak;
+- manual Irok input/mode/unplug/reconnect observation;
+- unavailable physical-device owner matrix;
+- external Aula WIN 60 HE MAX hardware validation.

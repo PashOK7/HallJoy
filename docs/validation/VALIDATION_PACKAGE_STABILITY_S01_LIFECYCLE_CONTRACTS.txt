@@ -1,0 +1,32 @@
+HallJoy Universal Analog v3.9.0
+Stability package S01: lifecycle contracts and test scaffolding
+Date: 2026-07-30
+
+STATUS
+- Portable acceptance: PASS
+- Existing production runtime integration: intentionally absent
+- Windows/MSVC executable build: NOT RUN in this environment
+- Hardware validation: not applicable to isolated contracts
+
+CHANGES
+- Added worker_lifecycle.h
+- Added worker_primitives.h
+- Added worker_lifecycle_test.cpp
+- Added worker_primitives_test.cpp
+- Added lifecycle_scaffolding_static_audit.py
+- Extended portable test runner
+- Added headers to MSVC project as ClInclude only
+
+REGRESSION
+- Existing production .cpp/.h/.inc changed: 0
+- Existing ClCompile items changed: 0
+- Production translation units including new headers: 0
+- GCC full portable/static gate: PASS
+- Clang full portable/static gate: PASS
+- GCC + Clang Werror ASan UBSan for S01 tests: PASS
+- Project XML parse: PASS
+
+CLAIMS BOUNDARY
+S01 does not claim that any existing backend lifecycle defect is fixed. It
+provides the tested contract required for later migrations. All 45 audited
+production risks remain Open.

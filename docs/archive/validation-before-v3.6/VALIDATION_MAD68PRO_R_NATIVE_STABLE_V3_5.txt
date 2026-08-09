@@ -1,0 +1,65 @@
+HallJoy MAD68 Pro R Native Stable v3.5 validation
+
+Firmware:
+- SHA-256 exact match: PASS
+- image base 0x5000: PASS
+- WCH/QingKe +xwchc disassembly: PASS
+- A8/A9 distinct-state proof: PASS
+- A9 does not touch telemetry gate: PASS
+- A0 scheduler 15-tick limiter: PASS
+- forced count=3 plus observed mirror catch-up cycle: PASS
+- steady first-changed-slot behavior: PASS
+
+Hardware log:
+- A9/A8/A9 ACKs: PASS
+- 68 expected descriptors: PASS
+- unexpected descriptors: 0
+- A0 packets after final A9 ACK: 271
+- exact ordered cycles after final A9 ACK: 3
+- fourth cycle ends 4.236 s after final A9 ACK: PASS
+- median A0 interval: 15 ms
+- host opcode A0 sent: 0
+- raw range: 0..1600
+- checksum-error markers: 0
+- post-startup physical-edge steady branch: NOT TESTED BY AVAILABLE LOG
+
+HallJoy integration:
+- UAP/Wooting preserved: PASS
+- normal UAP target unchanged: PASS
+- dedicated UAP exact VID/PID pre-open exclusion: PASS
+- UAP init before MAD EP82 ownership: PASS
+- Raw Input registration before MAD worker: PASS
+- held-before-start key guard: PASS
+- native A0 enters common raw path: PASS
+- standard filtered UI path: PASS
+- standard blue keyboard bars: PASS
+- standard BuildReportForPad path: PASS
+- ViGEm update path: PASS
+- emergency WASD: PASS
+- startup 68/68 cannot grant Full directly: PASS
+- post-edge sequence freshness gate: PASS
+- per-key stale fallback: PASS
+- only dead global A0 transport re-arms: PASS
+- persistent overlapped ReadFile: PASS
+- malformed wire logging: PASS
+- A0 rate/gap/age diagnostics: PASS
+- normal + watchdog A9 recovery: PASS
+
+Safety:
+- runtime opcode allow-list A8/A9 only: PASS
+- firmware mutation gate bcdDevice 0x0102 only: PASS
+- finite 13-strategy matrix: PASS
+- max 2 recovery cycles / 60 s: PASS
+- no flash/config opcode: PASS
+
+Local executable checks:
+- C++20 protocol unit test: PASS
+- C++20 backend syntax check with Win32/HID contract stubs: PASS
+- static safety audit: PASS
+- HallJoy route audit: PASS
+- critique state verifier: PASS
+- project XML parse: PASS
+
+Environment limitation:
+- Full MSVC/Windows SDK link cannot be executed in this Linux environment.
+- BUILD_MAD68PRO_R_NATIVE_STABLE_V3_5.cmd performs the real Windows build.

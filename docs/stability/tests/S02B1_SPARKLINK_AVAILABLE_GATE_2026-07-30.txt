@@ -1,0 +1,12 @@
+S02B.1 available-hardware gate — 2026-07-30
+
+User-reported result:
+- SparkLink runtime on the S02B.1 package works correctly;
+- no observed functional regression on the available keyboard;
+- MAD68 and Hex80 are not currently available to the project owner.
+
+Scope statement:
+- this is a regression smoke of the complete S02B.1 package on SparkLink;
+- it is not a device-specific verification of the modified MAD68/Hex80 workers;
+- MAD68/Hex80 hardware gates are deferred to a prefinal package tested by their owners;
+- no compiler warning/error transcript was supplied with this confirmation.

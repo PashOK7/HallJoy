@@ -1,0 +1,99 @@
+HallJoy V14-11B UAP device identity evidence
+Date: 2026-08-01
+
+User constraint
+---------------
+No UAP-routed keyboard and no pair of identical UAP devices is available.
+D-022 therefore requires exact production-code properties, multiple compilers,
+sanitizers, the real ABI/build and an available-device production regression.
+This evidence does not claim a physical UAP USB or firmware measurement.
+
+Production contract
+-------------------
+- Versioned domain: HallJoy/UAP/device-id/v2.
+- Path identity inputs: normalized HID interface path, VID, PID, usage page,
+  usage. Enumeration occurrence is ignored.
+- ASCII path case and slash direction normalize identically.
+- Every string field is length-framed before hashing.
+- Missing path falls back to metadata plus occurrence and is not flagged
+  DuplicateSafeId in telemetry or dense snapshots.
+- UI prints the 64-bit ID and stable-path versus fallback status.
+- Serial-less devices moved between ports follow the interface/port path.
+
+Deterministic tests
+-------------------
+UAP_DEVICE_IDENTITY_STATIC_AUDIT=PASS
+UAP_DEVICE_IDENTITY_TEST=PASS
+  all permutations of 8 identical devices: 40320
+  shuffled reconnect/subset generations: 100000
+  unique synthetic HID paths: 250000
+  observed collisions: 0
+  unique pathless fallback occurrences: 1024
+  path case/slash normalization: PASS
+  numeric descriptor separation: PASS
+  length-framing ambiguity traps: PASS
+  persisted-ID golden vectors: 4/4 PASS
+
+UAP_POLL_PACING_TEST=PASS
+  paced/unpaced modeled calls: 1000/20000
+  paced/unpaced modeled busy us: 50000/1000000
+  deadline/work properties: 10232
+  uint64 deadline overflow edge: PASS
+
+Toolchains
+----------
+GCC 15.2, -O2 -Wall -Wextra -pedantic: PASS, no warnings
+MSVC 19.44, /std:c++20 /EHsc /W4: PASS, no warnings
+Clang 21.1.8, ASan+UBSan, -O1 -Wall -Wextra -pedantic: PASS, zero reports
+Complete repository gate: 36/36 static audits, 20/20 portable tests PASS
+
+Build and runtime
+-----------------
+Official MSVC x64 Release build: PASS, 0 errors
+Warning policy: PASS, only allowlisted LNK4099 ViGEm PDB diagnostic
+PRIVATE_UAP_ABI_RUNTIME=PASS abi=1 initial_devices=0
+  name='Universal Analog Plugin (HallJoy SafeHID v11 stable-identity deadline-paced telemetry)'
+Production overlay responsiveness/framing/concurrency/origin: PASS
+  maximum parallel state latency=1.9 ms
+Irok native SparkLink regression:
+  route queries=65610, successful=65610, failures=0
+  changed rows=4224, realtime notifications=4225
+  average/max route interval=313/1001 us
+  balanced shutdown, exit code 0
+User data: 11 files before/after, zero differences
+Remaining HallJoy processes: 0
+Persistence transaction temporary files: 0
+Trace ERROR events: 0
+
+Artifacts
+---------
+build/output/HallJoy.exe
+  size=2233856
+  sha256=C7D28AA23D882A1ED57FA2562DF7F6C8375DE6E3B02D09C33EE08B184123B116
+third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv0.dll
+  size=412160
+  sha256=8607E318CEFCFCC93D3C950461E448A2C36FD96A27696BD8F1B27D0801434C3A
+third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+  size=284672
+  sha256=DC55B011218977267E1EF8C6B06306B36E108DD6C347D01C77861EA3955B09FF
+build/output/HallJoyStabilityTrace.log
+  size=10068
+  sha256=A6C33C41A99D2FB7BFF540D439956E0F295290D458E9BB690B3D6D0624016111
+
+Limits
+------
+A finite test cannot mathematically prove absence of all collisions in a
+64-bit ABI. The 250,000-device collision smoke, field-boundary cases and golden
+vectors are the practical regression proof. Driver-specific HID path changes
+and physical USB latency remain outside a software-only claim.
+
+Backup
+------
+C:\github\HallJoy_v1.4_BACKUPS\V14-11B-prechange-20260801-1317
+15 files, SHA-256 verified at copy time.
+
+Status
+------
+HJ-AUD-P2-006: Verified by D-022 automated production-code gates.
+HJ-AUD-P2-007: Verified by D-022 automated production-code gates.
+Next: V14-11C snapshot export contention.

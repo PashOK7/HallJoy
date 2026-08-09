@@ -1,0 +1,56 @@
+HallJoy V14-06D.1 SparkLink service-stop shutdown evidence
+Date: 2026-07-31
+Workstation keyboard: Irok MG75 Max
+
+Scope
+- Close the shutdown-time window in which Backend_Tick/SparkTickHotplug could
+  reconnect SparkLink after the native registry had stopped its active worker.
+- Preserve protocol discovery, commands, parsing, poll modes and mappings.
+
+Automated gates
+- sparklink_cooperative_shutdown_static_audit.py: PASS
+- PowerShell simulator runner parse: PASS
+- InjectSparkShutdownRace: PASS, exit 0
+- InjectSparkStopTimeout regression: PASS, expected exit 2
+- Normal deterministic analog simulator: PASS, exit 0
+- Full static and portable C++20 gate through tools/build.ps1: PASS
+- Production MSVC x64 Release: PASS, 0 errors
+- Warning baseline: PASS; allowlisted LNK4099 only
+
+Production Irok shutdown
+- Device opened: VID 0x1CA6, PID 0x0529, usage page 0xFFB0
+- Graceful WM_CLOSE process exit: 0
+- Remaining HallJoy parent/diagnostic/analog-host processes: 0
+- Spark worker.start: 1
+- Spark worker.exit: 1
+- hotplug.reconnect after service.stop.begin: 0
+- device.open after service.stop.begin: 0
+- connected after service.stop.begin: 0
+- service.stop.end: joined=1 reconnect_blocked=1
+
+Held-key unplug/reconnect acceptance
+- User result: PASS; input recovered and no axis/key remained stuck
+- Spark worker.start / worker.exit: 3 / 3
+- Successful hotplug.reconnect events: 2
+- Changed analog rows by generation: 92 + 406 + 1,575 = 2,073
+- Realtime input notifications: 93 + 407 + 1,575 = 2,075
+- Reconnect/device-open/connected after final service.stop.begin: 0 / 0 / 0
+- Process exit: 0; remaining HallJoy processes: 0
+- Trace size: 12,212 bytes
+- Trace SHA-256:
+  8595A84ACE70209A0CEE9DF9E814DFA2A8B188EAD992B3CC9AB110EB0308DC5E
+- Analyzer unplug recognition: PASS after accepting the ordered
+  disconnected -> hotplug.reconnect transport-exit form used by Irok
+- Remaining analyzer WARN items concern unrelated polling-mode/row-limit
+  coverage and unavailable non-Irok HID routes, not this acceptance gate
+
+Artifact
+- Path: build/output/HallJoy.exe
+- Size: 2,134,528 bytes
+- SHA-256: 330748ACBB0EDC0E35A4BA39807EC16F3DF2CB849940ED10128CDCF714BFEE25
+
+Evidence classification
+- The shutdown structure is real-device production evidence.
+- The injected post-stop hotplug probe is simulator lifecycle evidence only.
+- Held-key unplug/reconnect is real-device production evidence.
+- HJ-V14-P1-004 and V14-06D.1 are Verified.

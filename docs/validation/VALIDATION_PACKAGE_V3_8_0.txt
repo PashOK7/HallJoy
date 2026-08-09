@@ -1,0 +1,122 @@
+HallJoy Universal Analog Final v3.8.0 validation
+================================================
+
+Scope
+-----
+This revision replaces the old MADLIONS-only ownership list with a central
+native analogue protocol registry. Addressed Analog is restored to the final
+production target and participates in the same low-latency curve/SOCD/ViGEm
+pipeline as all other analogue sources.
+
+Native protocol families
+------------------------
+1. MAD68-family asynchronous A0
+   - VID 373B brand enumeration
+   - exact 65-byte native interface fingerprint
+   - audited 0102 device or compatible MAD68 layout identity plus reversible A9 ACK
+   - firmware runtime command allow-list remains A8/A9 only
+
+2. Hex80-compatible 0x96 matrix polling
+   - VID 373B, FF60:0061 and compatible report lengths
+   - valid read-only 02 96 24 travel_max response
+   - valid read-only 02 96 1C matrix-chunk response
+   - PID does not need to be pre-listed
+
+3. Addressed Analog 09/94/02
+   - vendor-independent FF60:0061, 64-byte input/output fingerprint
+   - optional read-only 09/83/00 key map
+   - valid checksummed 09/94/02 response containing exactly the requested key IDs
+   - up to nine requested keys per packet
+   - dynamic map with the verified QBZ/IPI-compatible fallback
+
+4. SparkLink/XD
+   - supported vendor-page/report fingerprint
+   - synchronous valid 01/02 device-info response before ownership is published
+
+5. Sayo depth
+   - audited 8089:0009 route retained
+   - other VID 8089 PIDs require a valid 0x22 depth response
+
+6. UAP/Soup
+   - receives every device not claimed by a validated native protocol
+   - exact claimed VID:PID pairs are excluded before Soup CreateFileW
+
+Central arbitration
+-------------------
+- NativeAnalogRouting_Reset starts a clean startup classification pass.
+- The first capability-validated protocol claim owns an exact VID:PID pair.
+- MAD68, Hex80 and Addressed classify before Backend_Init.
+- SparkLink and Sayo prove and claim before wooting_analog_initialise.
+- The full exact-ID list is exported through HALLJOY_UAP_NATIVE_HID_IDS.
+- The dedicated UAP patch applies the list before opening HID paths.
+- Unknown or rejected devices remain available to UAP; no blind command sweep is used.
+- The universal target can continue without the optional UAP host when at least one
+  validated native route is available. Ordinary non-native builds keep fatal UAP
+  preparation behaviour.
+
+Addressed restoration and integration
+--------------------------------------
+- Compile-time Addressed disable removed from the final target.
+- Active polling starts after the common backend/realtime path.
+- Changed values issue RealtimeLoop_NotifyInputChanged immediately.
+- Disconnect/reset publishes zero and wakes the common realtime path.
+- Production per-key/support/trace files are disabled; trace output is diagnostic-only.
+- Configuration and Gamepad Tester expose live Addressed VID/PID, map, activity,
+  report sizes, response age and poll counters.
+- A real Addressed analogue sample blocks digital fallback for its HID, but no longer
+  suppresses a second real UAP analogue keyboard using the same HID usage. Real
+  analogue sources use max aggregation.
+
+Preserved low-latency path
+--------------------------
+- WaitOnAddress/WakeByAddress input wake.
+- High-resolution fixed-deadline ViGEm scheduler.
+- First changed report after idle sends immediately.
+- Bursts inside one millisecond coalesce to the newest report without extending the deadline.
+- Curve cache, SOCD, multiple binds and full XInput report validation remain common.
+- No interpolation, prediction, digital-to-analogue fallback or repeated fake samples.
+
+UI and production behaviour
+----------------------------
+- Configuration and Gamepad Tester retain in-memory debug information.
+- Blue analogue bars and green digital preview indicators remain.
+- Digital input remains UI-only and is not used as analogue control.
+- Production does not create continuous MAD68, Addressed, analog-host, per-key,
+  latency or general diagnostic logs.
+- Quiet MAD68 emergency A9 restoration remains.
+
+Automated validation completed
+------------------------------
+PASS: final_production_static_audit.py
+PASS: protocol_family_routing_static_audit.py
+PASS: universal_native_routing_static_audit.py
+PASS: hex80_routing_static_audit.py
+PASS: mad68pr_halljoy_route_audit.py
+PASS: mad68pr_static_safety_audit.py
+PASS: diagnostic_logger_static_audit.py
+PASS: validate_addressed_protocol_backend.py
+PASS: addressed_poll_scheduler_test (portable C++20)
+PASS: hex80_protocol_test (104 slots, 82 mapped HID keys)
+PASS: mad68pr_protocol_test (68 descriptors, 67 HID keys)
+PASS: vigem_output_scheduler_test (portable C++20)
+PASS: hid_io_operation_lifecycle_test (portable C++20)
+PASS: native_analog_routing.cpp portable syntax check with Win32 API stubs
+PASS: HallJoy.vcxproj and HallJoy.vcxproj.filters XML parse
+PASS: PowerShell delimiter/static structure checks
+PASS: exactly one CMD file: BUILD.cmd
+
+Regression boundaries
+---------------------
+- realtime_loop.cpp is byte-identical to v3.7.4.
+- vigem_output_scheduler.h is byte-identical to v3.7.4.
+- backend_curve.cpp is byte-identical to v3.7.4.
+- keyboard_render.cpp is byte-identical to v3.7.4.
+- mad68pr_protocol.cpp/.h are byte-identical to v3.7.4.
+- Stock keyboard firmware is not modified.
+
+Environment limitation
+----------------------
+The package was prepared in Linux. A complete Visual Studio/MSBuild link and physical
+USB verification for every protocol family cannot be run here. BUILD.cmd performs the
+Windows dependency/preflight checks and the final MSVC Release x64 build. Physical
+hardware validation remains required for newly discovered compatible models.

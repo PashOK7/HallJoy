@@ -1,0 +1,82 @@
+HallJoy v1.4 - V14-07C private UAP ABI/unload evidence
+Date: 2026-07-31 (Europe/Moscow)
+
+Scope
+-----
+Private UAP C ABI exception containment, RAII mutex ownership, truthful
+initialization state, null argument handling, bounded plugin unload outside the
+global devices mutex, and child-process containment on incomplete unload.
+
+Automated gates
+---------------
+1. python src/HallJoyProject/tests/private_uap_abi_safety_static_audit.py
+   Result: PRIVATE_UAP_ABI_SAFETY_STATIC_AUDIT=PASS
+
+2. python tools/run_native_backend_checks.py --require-compiler
+   Result: PASS for every static audit and portable C++20 test, including
+   uap_cabi_guard_test.
+
+3. python tools/check_private_uap_abi.py
+   third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+   Environment excludes VID 1CA6/PID 0529 from UAP because Irok MG75 Max is
+   capability-owned by the independent native SparkLink route.
+   Result: PRIVATE_UAP_ABI_RUNTIME=PASS abi=1 initial_devices=0
+   Assertions: state false before init, true after init, false after unload;
+   null device-info/full-buffer calls return 0; bounded unload succeeds and is
+   idempotent.
+
+4. powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+   Result: PASS. Production MSVC x64 Release: 0 errors. Warning policy: PASS;
+   only allowlisted external ViGEmClient LNK4099 PDB diagnostic.
+   The build itself runs gate 3 against the newly compiled ABI1 DLL.
+
+Production smoke
+----------------
+The final build ran for four seconds from build/output with the Irok MG75 Max
+attached. Parent PID 2424 started diagnostic-watch PID 11832 and isolated
+analog-host PID 16976. A normal task termination signal was sent to the parent.
+Within the bounded wait all three processes exited; remaining HallJoy process
+count was 0.
+
+Trace analyzer: WARN only because this short smoke did not exercise a physical
+SparkLink reconnect or every polling mode/row limit. Required lifecycle events
+were present:
+  analog-host:child.start=1
+  analog-host:child.exit=1
+  analog-host:worker.start=2
+  analog-host:worker.exit=2
+  analog-host:stop.joined=1
+  backend:shutdown.end=1
+  main:session.end=1
+Trace SHA-256:
+  E9F0EC58E7A9292FB87C85FB891746D5E8537371537D2F641A9BA167FCC96AC9
+
+Artifacts
+---------
+build/output/HallJoy.exe
+  Size: 2,141,184 bytes
+  SHA-256: 15228FC17B70FB84AD2861FC04904E872B3571CCABBCEB26D6DFD3AE894D533B
+
+third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv0.dll
+  Size: 410,112 bytes
+  SHA-256: 4A827E1E8272C3232AE4EE477483846C93E9BE3AE0B5DE5090CE9423A075466E
+
+third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+  Size: 282,112 bytes
+  SHA-256: 8E0CC3D55CA1E2EC9EAB2CD9E148AFDAA9882D41FB420149189643CE02B4662B
+
+Backup
+------
+C:\github\HallJoy_v1.4_BACKUPS\V14-07C-prechange-20260731
+The final pre-rebuild runtime snapshot contains 13 files and was verified by
+SHA-256 before the final build. User CurvePresets, GlobalProfiles, Layouts,
+bindings.ini and settings.ini were restored and hash-verified afterward.
+
+Result
+------
+V14-07C: VERIFIED LOCALLY
+HJ-AUD-P1-015: VERIFIED
+HJ-AUD-P1-016: VERIFIED
+HJ-AUD-P2-008: VERIFIED
+HJ-AUD-P2-009: VERIFIED
+HJ-AUD-P1-004: PARTIAL only for deferred device-owner/soak qualification

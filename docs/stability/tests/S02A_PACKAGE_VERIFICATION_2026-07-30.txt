@@ -1,0 +1,19 @@
+HallJoy S02A package verification — pass 1
+Date: 2026-07-30
+
+Archive:
+HallJoy_v3_9_0_STABILITY_S02A_EXCEPTION_BARRIERS_CORE_PREVERIFY.zip
+SHA-256:
+3593d0f9efc4404c6aaaca39bf0947253483f6b233fed43757ba1faf1ba16820
+
+After clean unpack:
+- CLEAN_PACKAGE_MANIFEST: PASS
+- Manifest files: 290
+- Manifest bytes: 39750800
+- python tools/run_native_backend_checks.py: PASS
+- Static audits: PASS
+- Portable C++ tests: PASS
+
+The final archive adds only this verification record and regenerates the
+self-excluding clean package manifest. The final archive is verified again
+externally after creation.

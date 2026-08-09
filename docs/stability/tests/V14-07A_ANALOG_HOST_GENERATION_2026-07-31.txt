@@ -1,0 +1,40 @@
+HallJoy v1.4 V14-07A analog-host generation verification
+Date: 2026-07-31
+Workstation: Windows x64, MSVC Build Tools 17.14.40
+
+Scope
+-----
+Parent-side snapshot bridge/supervisor generation, partial-start rollback,
+bounded group shutdown, retained ownership, restart poison and application
+containment. This is simulator lifecycle evidence, not keyboard hardware
+verification.
+
+Commands and results
+--------------------
+python tools/run_native_backend_checks.py --require-compiler
+RESULT: PASS (all static audits and portable C++20 tests)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_analog_simulator.ps1 -RunSeconds 7
+RESULT: PASS (fresh simulator build, normal common pipeline, exit 0)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_analog_simulator.ps1 -SkipBuild -InjectAnalogHostSupervisorStartFailure -RunSeconds 7
+RESULT: PASS (partial-start bridge joined before rollback, exit 0)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_analog_simulator.ps1 -SkipBuild -InjectAnalogHostBridgeStopTimeout -RunSeconds 7
+RESULT: PASS (bounded timeout containment, retained resources, restart blocked,
+backend/app failure propagation, expected application exit 2)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
+RESULT: PASS (production MSVC x64 Release, 0 errors; only allowlisted LNK4099)
+
+Verdict
+-------
+V14-07A: VERIFIED LOCALLY
+HJ-AUD-P1-006: VERIFIED by parent generation and timeout/restart gates
+HJ-AUD-P1-007: VERIFIED by injected partial-start rollback gate
+
+Remaining
+---------
+Analog-host exception/crash publication and private UAP C ABI, lock, state and
+unload safety remain V14-07B/C. Remote CI was not run because it is optional,
+the account quota is unavailable, and no push is permitted.

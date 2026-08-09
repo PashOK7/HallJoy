@@ -1,0 +1,14 @@
+HallJoy S01 strict sanitizer gate
+Date: 2026-07-30
+g++ (Debian 14.2.0-19) 14.2.0
+clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 10999b6d034fe318f3d56c83bddb6572593a8bb0)
+
++ /usr/bin/g++ -std=c++20 -O1 -g -Wall -Wextra -Wpedantic -Werror -fno-omit-frame-pointer -fsanitize=address,undefined -I/mnt/data/halljoy_s01/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy /mnt/data/halljoy_s01/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/worker_lifecycle_test.cpp -o /tmp/halljoy_s01_san_package/g++_worker_lifecycle
++ ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/halljoy_s01_san_package/g++_worker_lifecycle
++ /usr/bin/g++ -std=c++20 -O1 -g -Wall -Wextra -Wpedantic -Werror -fno-omit-frame-pointer -fsanitize=address,undefined -I/mnt/data/halljoy_s01/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy /mnt/data/halljoy_s01/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/worker_primitives_test.cpp -o /tmp/halljoy_s01_san_package/g++_worker_primitives
++ ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/halljoy_s01_san_package/g++_worker_primitives
++ /usr/local/swift/usr/bin/clang++ -std=c++20 -O1 -g -Wall -Wextra -Wpedantic -Werror -fno-omit-frame-pointer -fsanitize=address,undefined -I/mnt/data/halljoy_s01/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy /mnt/data/halljoy_s01/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/worker_lifecycle_test.cpp -o /tmp/halljoy_s01_san_package/clang++_worker_lifecycle
++ ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/halljoy_s01_san_package/clang++_worker_lifecycle
++ /usr/local/swift/usr/bin/clang++ -std=c++20 -O1 -g -Wall -Wextra -Wpedantic -Werror -fno-omit-frame-pointer -fsanitize=address,undefined -I/mnt/data/halljoy_s01/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/HallJoy /mnt/data/halljoy_s01/HallJoy_UniversalAnalog_v3_9_0_EXTENSIBLE_FINAL_Source/src/HallJoyProject/tests/worker_primitives_test.cpp -o /tmp/halljoy_s01_san_package/clang++_worker_primitives
++ ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/halljoy_s01_san_package/clang++_worker_primitives
+S01_SANITIZERS=PASS

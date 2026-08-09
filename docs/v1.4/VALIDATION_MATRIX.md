@@ -2623,3 +2623,18 @@ stock firmware remains unsupported for gaming**.
 - `version_identity_static_audit.py`: PASS;
 - `protocol_family_routing_static_audit.py`: PASS;
 - complete `run_native_backend_checks.py --require-compiler`: PASS.
+
+### GitHub publication
+
+- release integration commit: `723eb6a10ee1d9814df9d5e158d599a9ce439f3c`;
+- PR `#3` into `main`: MERGED after two portable and two Windows Release jobs
+  passed;
+- merge commit: `b63b3b209bf0cbf1736810e5d04489568e6cb79c`;
+- annotated tag `v1.4.0`: resolves to the merge commit, PASS;
+- GitHub Release `v1.4.0`: published, non-draft, non-prerelease, and returned by
+  the latest-release API, PASS;
+- uploaded assets: `HallJoy.exe`, `README_FOR_TESTER.txt`, `SHA256SUMS.txt`, and
+  `THIRD_PARTY_NOTICES.md`, all in `uploaded` state, PASS;
+- GitHub asset digest for `HallJoy.exe`:
+  `sha256:c03cb7a19db73921d69904a7abdab954d54f3d5ce42899add9c24012d93d0402`,
+  matching the locally qualified release artifact, PASS.

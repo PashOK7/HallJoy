@@ -17,7 +17,8 @@ version or release status.
 - Production diagnostics: no continuous telemetry or log writer; crash-only
   `HallJoyCrash.txt`
 - Public release notes: [`RELEASE_NOTES_v1.4.md`](../../RELEASE_NOTES_v1.4.md)
-- GitHub publication: prepared locally, commit/push/release pending
+- GitHub publication: [`v1.4.0`](https://github.com/PashOK7/HallJoy/releases/tag/v1.4.0)
+  published as the latest stable release
 - Final artifact: `build/release/HallJoy.exe`, 2,187,776 bytes, SHA-256
   `C03CB7A19DB73921D69904A7ABDAB954D54F3D5CE42899ADD9C24012D93D0402`
 

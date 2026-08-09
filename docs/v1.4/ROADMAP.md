@@ -907,6 +907,7 @@ v1.4 can be tagged only when:
 - Current clean artifact: `build/release/HallJoy.exe`, 2,187,776 bytes,
   SHA-256
   `C03CB7A19DB73921D69904A7ABDAB954D54F3D5CE42899ADD9C24012D93D0402`.
-- Remaining publication work is Git-only: review the complete integration diff,
-  commit it intentionally, push/merge it to `main`, create tag `v1.4.0`, and
-  publish the clean four-file release package.
+- Publication completed through PR
+  [#3](https://github.com/PashOK7/HallJoy/pull/3), merge commit
+  `b63b3b209bf0cbf1736810e5d04489568e6cb79c`, annotated tag `v1.4.0`, and the
+  [latest stable GitHub Release](https://github.com/PashOK7/HallJoy/releases/tag/v1.4.0).

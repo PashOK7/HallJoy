@@ -2998,3 +2998,25 @@ Production startup/shutdown smoke passed without a continuous or crash log.
 The release directory was rebuilt after smoke so it contains only the intended
 four files. Final EXE: 2,187,776 bytes, SHA-256
 `C03CB7A19DB73921D69904A7ABDAB954D54F3D5CE42899ADD9C24012D93D0402`.
+
+## 2026-08-10: GitHub v1.4.0 publication
+
+Backed up the complete working tree outside the repository together with a Git
+bundle of every reachable ref. Audited all 64 untracked files before staging;
+no executable, DLL, object, log, firmware, archive, credential, build, or backup
+path entered the 189-file release commit. Staged whitespace and forbidden-path
+checks passed.
+
+Published integration commit `723eb6a10ee1d9814df9d5e158d599a9ce439f3c`
+to `v1.4-integration` and opened PR
+[#3](https://github.com/PashOK7/HallJoy/pull/3). Both push and PR workflow runs
+passed their portable and Windows Release jobs. The PR was merged normally into
+`main` as `b63b3b209bf0cbf1736810e5d04489568e6cb79c`; no force push or check bypass
+was used.
+
+Created annotated tag `v1.4.0` on that merge commit and published
+[HallJoy v1.4.0](https://github.com/PashOK7/HallJoy/releases/tag/v1.4.0) as the
+latest stable, non-draft, non-prerelease GitHub Release. Uploaded the four clean
+package files. GitHub reports the EXE asset at 2,187,776 bytes with digest
+`sha256:c03cb7a19db73921d69904a7abdab954d54f3d5ce42899add9c24012d93d0402`,
+matching the qualified local file and `SHA256SUMS.txt`.

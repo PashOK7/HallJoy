@@ -2633,8 +2633,11 @@ stock firmware remains unsupported for gaming**.
 - annotated tag `v1.4.0`: resolves to the merge commit, PASS;
 - GitHub Release `v1.4.0`: published, non-draft, non-prerelease, and returned by
   the latest-release API, PASS;
-- uploaded assets: `HallJoy.exe`, `README_FOR_TESTER.txt`, `SHA256SUMS.txt`, and
+- public assets: `HallJoy.exe`, `SHA256SUMS.txt`, and
   `THIRD_PARTY_NOTICES.md`, all in `uploaded` state, PASS;
+- the test-only `README_FOR_TESTER.txt` is intentionally excluded from the
+  public release; the release page links directly to `HallJoy.exe` before a
+  collapsed full changelog, PASS;
 - GitHub asset digest for `HallJoy.exe`:
   `sha256:c03cb7a19db73921d69904a7abdab954d54f3d5ce42899add9c24012d93d0402`,
   matching the locally qualified release artifact, PASS.

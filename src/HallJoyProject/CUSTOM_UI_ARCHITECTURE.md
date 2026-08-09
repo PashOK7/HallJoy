@@ -1,66 +1,185 @@
-# Custom UI Architecture Direction
+# HallJoy Custom UI Architecture
 
-HallJoy should move away from scrollable pages made from many Win32 child controls.
+## Release rule
 
-The target UI model is a custom retained/immediate hybrid surface:
-- each scrollable page is one HWND and one backbuffer;
-- UI elements are data records, not child windows;
-- layout produces rectangles in content coordinates;
-- scrolling changes only the viewport offset;
-- painting clips to the viewport and draws visible elements from the retained model;
-- hit testing maps mouse coordinates through the viewport into content coordinates;
-- hover, pressed, focused, drag, and text-edit states are owned by HallJoy;
-- scrollbars are drawn by HallJoy and never rely on native scroll controls;
-- controls should redraw with stable dark theme pixels only, without white native erase frames;
-- expensive content can be cached as page/layer bitmaps, invalidated only when state changes.
+All scrollable keyboard pages use one viewport architecture. A page-specific
+scroll implementation, a timer-led frame patch, or moving visible child HWNDs
+during scroll is not an acceptable release solution.
 
-The current Win32 child-control approach is not acceptable for the final high-refresh UI goal because:
-- each edit/button/slider/static is its own window with its own erase/redraw lifecycle;
-- moving child windows during scroll causes white frames, disappearing controls, or forced synchronous repaint;
-- forcing repaint avoids artifacts but caps perceived scroll smoothness;
-- the page cannot be treated as a single retained texture while it is made of separate native windows.
+The reference is no longer a single page. The contract is shared by:
 
-Migration policy:
-- do not rewrite every page at once;
-- migrate one visible problem page at a time;
-- keep the old implementation only as a temporary fallback while the custom page reaches feature parity;
-- start with `Input Overlay` because it is scroll-heavy, self-contained, and currently shows the clearest artifacts;
-- after `Input Overlay`, apply the same renderer to `Mouse settings`, then `Configuration`, then `Remap`.
+- Remap;
+- Configuration;
+- Gamepad Tester;
+- Global settings;
+- Input Overlay;
+- Mouse settings.
 
-First custom page requirements for `Input Overlay`:
-- custom labels, buttons, checkboxes, sliders, chips, color preview, hue strip, URL/status text, and scrollbar;
-- custom numeric/text fields for port and HEX with caret, selection, clipboard paste, backspace/delete, and focus ring;
-- wheel and drag scrolling must feel smooth on a 240 Hz display;
-- no white flashes, disappearing controls, stale text, ghost trails, clipped controls, or delayed scrollbar thumb;
-- visuals must match HallJoy's dark theme and look at least as polished as the existing custom controls;
-- settings must still save immediately;
-- keyboard navigation can be minimal at first but must not break mouse workflows.
+## Shared viewport contract
 
-Validation checklist for each migrated page:
-- fast wheel scroll up/down;
-- scrollbar drag top to bottom and back;
-- resize while scrolled;
-- tab switch away/back;
-- interact with sliders and text fields while scrolled;
-- verify no visual artifacts on high refresh display;
-- verify settings persist after restart.
+`HallJoy/custom_page_surface.h` owns the common mechanics:
 
-Shared implementation:
-- new custom pages should use `HallJoy/custom_page_surface.h`;
-- `CustomPageSurface` owns scroll offset, content height, retained bitmap cache, styled scrollbar geometry/painting, and scroll paint counters;
-- new custom controls should use `HallJoy/custom_page_controls.h` for shared text, button, chip, checkbox, slider, and rounded-rect drawing;
-- page code should keep controls as data records, render content into the surface cache, and use `CustomPageSurface_SetScrollY` for wheel/drag scrolling;
-- avoid adding Win32 child controls to new scroll-heavy pages unless there is a measured reason and the control does not participate in smooth scrolling;
-- `Input Overlay` is the reference implementation for this architecture before migrating `Mouse settings`, `Configuration`, and `Remap`.
+- `CustomPageSurface` stores content height, viewport offset, retained bitmap,
+  cache invalidation and scroll performance counters;
+- `CustomPageScrollController` owns wheel remainder, scrollbar thumb capture,
+  track paging and cancellation;
+- `CustomPageSurface_HandleScrollMessage` is the only active wheel/thumb/track
+  state machine for the six pages;
+- layout and hit-test rectangles are content coordinates;
+- `CustomPageSurface_ClientToContent` and
+  `CustomPageSurface_ContentToClient` are the coordinate boundary;
+- `CustomPageSurface_Present` rebuilds a dirty retained cache when necessary,
+  copies the viewport slice and draws the common scrollbar;
+- a scroll-only update changes `scrollY`; it does not rebuild unchanged content
+  and does not reposition a forest of child windows.
 
-Migration status:
-- `Input Overlay`: uses `CustomPageSurface` for retained page cache, scrollbar, scroll state, and scroll perf counters.
-- `Mouse settings`: migrated to the same single-HWND retained-render path as `Input Overlay`; its controls are now data records and scrolling copies the cached page slice instead of moving child HWNDs. Shared drawing primitives are being extracted into `custom_page_controls` so the next pages do not duplicate button/slider/text code.
-- `Configuration`: now uses the shared retained bitmap path for the custom-mode page, matching `Input Overlay` and `Mouse settings`: the full content is rendered into `CustomPageSurface::contentCache`, scrolling copies the visible slice, and state changes mark the cache dirty. `KeySettingsPanel` draws its override/invert toggles, info text, mode selector, and preset selector without visible child HWNDs. The lower settings block also draws Snap Stick, Last Key Priority, Block Bound Keys, missed-HID debug, addressed-protocol status, slider/chip, and status on the same surface. Remaining work: replace the temporary/simple custom dropdown behavior with full rename/delete/inline-create parity, then remove the hidden compatibility HWNDs entirely.
+Page renderers use `HallJoy/custom_page_controls.h` for shared dark-theme
+primitives. Page-specific code describes items, layout, values and actions; it
+must not implement another scrollbar lifecycle.
 
-Configuration scroll rule:
-- never move or repaint separate child controls while `customControls` is enabled;
-- wheel and scrollbar movement must only change `scrollY` and BitBlt from the retained page cache;
-- settings changes, graph morphs, profile edits, and hotplug visibility changes must call `Config_MarkSurfaceDirty`;
-- if text, combo boxes, or graph labels lag behind the graph during scroll, it means a control escaped the retained path or the cache is being skipped.
-- Non-scroll pages should still use the same visual primitives and should add `CustomPageSurface` as soon as they need scrolling.
+## Rendering ownership
+
+Each scrollable page is one visible HWND and one composited visual result.
+Labels, buttons, chips, sliders, closed combo faces, Remap cards and icons are
+records rendered into the page surface. This prevents independent native
+erase/paint lifecycles from exposing white frames or temporarily disappearing
+elements while the viewport moves.
+
+Dynamic regions may render live when their values genuinely change every UI
+tick. Gamepad Tester bars are the current example. They still use the same
+scroll controller, coordinate model and scrollbar; “dynamic” does not permit a
+second scrolling architecture.
+
+Configuration's live graph follows the same rule with an explicit two-phase
+composition. `KeySettingsPanel_DrawGraphRetainedContent` renders only the
+cacheable plot and curve into the page surface. After
+`CustomPageSurface_Present`, `KeySettingsPanel_DrawGraphViewportOverlay`
+renders the current analog marker and then the editable handles in viewport
+coordinates. A telemetry tick invalidates only the graph rectangle; it must
+never mark the full page cache dirty. This separation is required both for
+continuous input updates and for retained-scroll performance.
+
+Native controls may remain only as nonvisual compatibility/action controllers
+or as transient popup/keyboard owners when replacing them would remove required
+semantics. In particular:
+
+- closed Configuration and Global combo faces are rendered in the retained
+  page;
+- their `PremiumCombo` HWND is shown only to own an explicitly opened popup and
+  is closed before viewport movement;
+- hidden Remap icon HWNDs preserve existing drag/action metadata, but never
+  paint or move as scroll content; the selected controller is positioned once
+  when a drag starts.
+
+These compatibility HWNDs are transitional internal objects, not members of
+the visual layout. New visible scroll content must not be added as child HWNDs.
+
+## State and invalidation
+
+The page owns hover, pressed, focus, drag and edit state. A semantic value or
+layout change marks the surface dirty. A viewport-only change invalidates the
+window without invalidating the retained content cache.
+
+The following operations must mark content dirty:
+
+- settings/profile/layout changes;
+- graph morphs and status text changes;
+- hotplug-dependent visibility or labels;
+- Remap pack/icon/action changes;
+- animation state that changes rendered content.
+
+Scrolling, scrollbar hover and thumb capture must not mark stable content dirty.
+
+## Popup and input rules
+
+- Hit testing converts the client point to content coordinates exactly once.
+- Scrollbar capture belongs to `CustomPageScrollController` and is cancelled on
+  `WM_CAPTURECHANGED` or `WM_CANCELMODE`.
+- An open popup is closed before scroll changes its anchor.
+- Wheel and thumb paths must remain responsive without `RDW_UPDATENOW`, native
+  background erase, or a low-priority `WM_TIMER` scheduler.
+- The shared keyboard preview is outside the subpage viewport. Its input dirty
+  bits must invalidate it on every active subpage and must never be gated by the
+  Remap tab.
+
+## Enforced invariants
+
+`tests/pre_release_ui_static_audit.py` and
+`tests/factory_reset_static_audit.py` guard the active architecture:
+
+- all six pages call the shared scroll controller;
+- retained pages present through `CustomPageSurface_Present`;
+- Configuration's retained callback cannot call the complete graph renderer;
+  the live graph overlay must be composed after retained presentation;
+- Remap active layout does not call `SetWindowPos` or `DeferWindowPos`;
+- Global active layout does not move child HWNDs;
+- Configuration active custom layout and Spark rows do not move child HWNDs.
+
+`tools/run_ui_scroll_stress.ps1` launches the production executable, activates
+every real page surface, warms retained caches, sends bounded wheel/update
+bursts, checks responsiveness and steady-state GDI/USER handle growth, then
+requires a graceful zero-exit shutdown. It does not take screenshots and cannot
+replace owner visual acceptance.
+
+## Release validation
+
+Automated gates:
+
+- static architecture audits;
+- full production build and native test suite;
+- six-page scroll stress with stable GUI resources;
+- production lifecycle qualification with unchanged user state.
+
+Owner visual gates on the exact final executable:
+
+- fast wheel scroll and scrollbar drag in every page;
+- no missing elements, white flashes, stale pixels or ghost trails;
+- resize while scrolled and tab switch away/back;
+- sliders, combo popups, text fields and Remap drag while scrolled;
+- keyboard preview and Gamepad Tester releases never stick;
+- motion is acceptable on the owner's high-refresh display.
+
+No previous `Verified` label substitutes for this final visual gate.
+
+## Retained control visual identity
+
+A retained page must not approximate an existing custom control with a generic
+button or a second renderer. `PremiumCombo::PaintRetainedFace` is the canonical
+closed-face renderer for Configuration and Global settings. It uses the same
+font, text alignment, arrow separator, border metrics, placeholder rules and
+extra save icon as the popup-owning `PremiumCombo` HWND.
+
+The retained face is deliberately stable: opening a popup must not substitute a
+different font or add a second focus outline. The controller may be visible only
+while its popup is logically open. `PremiumCombo::MsgDropStateChanged` requires
+the owning retained page to hide that HWND immediately after close, including
+Escape, outside click and selection paths.
+
+Encoding-sensitive glyph strings are forbidden for small UI icons. Remap's
+gamepad-disable action reuses the vector power renderer; dirty profile state uses
+the existing vector save icon rather than an appended Unicode status marker.
+
+## Retained interaction semantics
+
+Retained rendering does not weaken control behavior. Hit IDs are classified by
+bounded domains rather than threshold comparisons. User binding mutations call
+`KeyboardUI_SaveBindingsAfterUserChange`, which owns persistence plus the
+global-profile dirty notification; direct active-binding saves in Remap paths
+are forbidden by the static audit.
+
+Input Overlay direction, depth source and label font follow the same hybrid
+PremiumCombo contract: canonical cached face, content-coordinate hit testing,
+and a hidden controller shown only while its popup is open. A choice control
+must not emulate a combo by cycling text on button activation.
+
+Because `PremiumCombo_Popup` is top-level, pointer wheel input targets the popup
+rather than the hidden/anchored controller. `PopupProc` routes the unchanged
+message synchronously to `ComboProc`. Only the controller may mutate
+`hotIndex`/`scrollTop`; duplicating list-scroll behavior in the popup is
+forbidden.
+
+Wheel routing and option navigation are separate contracts. An open popup calls
+`ScrollPopupWheel`, which may mutate only `scrollTop` and only if
+`GetMaxScrollTop() > 0`. `curSel` and `hotIndex` are invariant under wheel
+input. Fitting lists ignore the wheel; keyboard arrows retain option-navigation
+semantics.

@@ -898,7 +898,7 @@ static void SwapFly_Stop(bool commit)
         if (g_swapfly.srcHid != 0)
         {
             BindingActions_AppendForPad(g_swapfly.pendingPadIndex, g_swapfly.pendingAct, g_swapfly.srcHid);
-            Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
+            KeyboardUI_SaveBindingsAfterUserChange(g_swapfly.hPage);
         }
 
         InvalidateKeyByHid(g_swapfly.srcHid);
@@ -1814,7 +1814,7 @@ static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, L
                     BindingActions_RemoveFromPad(padIndex, act, hid);
                 else
                     Bindings_ClearHidForPad(padIndex, hid);
-                Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
+                KeyboardUI_SaveBindingsAfterUserChange(hBtn);
                 InvalidateRect(hBtn, nullptr, FALSE);
             }
         }
@@ -2125,7 +2125,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                 {
                     // Unbind immediately
                     BindingActions_RemoveFromPad(srcPadIndex, srcAct, src);
-                    Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
+                    KeyboardUI_SaveBindingsAfterUserChange(hWnd);
                     InvalidateKeyByHid(src);
 
                     // Visual: shrink dragged ghost to zero (instead of instant hide)
@@ -2156,7 +2156,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                         BindingActions_RemoveFromPad(srcPadIndex, srcAct, src);
 
                     BindingActions_AppendForPad(srcPadIndex, srcAct, dst);
-                    Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
+                    KeyboardUI_SaveBindingsAfterUserChange(hWnd);
                     InvalidateKeyByHid(src);
                     InvalidateKeyByHid(dst);
                     return 0;
@@ -2173,7 +2173,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                     if (!SwapFly_Start(hWnd, src, dst, dstAct, srcPadIndex))
                     {
                         BindingActions_AppendForPad(srcPadIndex, dstAct, src);
-                        Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
+                        KeyboardUI_SaveBindingsAfterUserChange(hWnd);
                         InvalidateKeyByHid(src);
                         InvalidateKeyByHid(dst);
                     }
@@ -2190,7 +2190,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                     if (ActionToGameButton(srcAct, gb))
                     {
                         Bindings_RemoveButtonHidForPad(srcPadIndex, gb, src);
-                        Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
+                        KeyboardUI_SaveBindingsAfterUserChange(hWnd);
                         InvalidateKeyByHid(src);
                         InvalidateKeyByHid(dst);
                         return 0;
@@ -2209,7 +2209,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                             BindingActions_AppendForPad(srcPadIndex, srcAct, dst);
                         else
                             BindingActions_ApplyForPad(srcPadIndex, srcAct, dst);
-                        Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
+                        KeyboardUI_SaveBindingsAfterUserChange(hWnd);
                     }
                 }
                 else
@@ -2217,7 +2217,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                     if (!copy)
                         BindingActions_RemoveFromPad(srcPadIndex, srcAct, src);
                     BindingActions_ApplyForPad(srcPadIndex, srcAct, dst);
-                    Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
+                    KeyboardUI_SaveBindingsAfterUserChange(hWnd);
                 }
 
                 InvalidateKeyByHid(src);

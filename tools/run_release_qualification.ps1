@@ -34,6 +34,12 @@ if ($existing.Count -ne 0) {
 
 $output = Split-Path -Parent $ExePath
 $trace = Join-Path $output 'HallJoyStabilityTrace.log'
+$forbiddenProductionLogs = @(
+    $trace,
+    (Join-Path $output 'HallJoyDiagnostic.log'),
+    (Join-Path $output 'HallJoyAddressedAnalogTrace.log'),
+    (Join-Path $output 'HallJoyCrash.txt')
+)
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if ([string]::IsNullOrWhiteSpace($EvidenceRoot)) {
     $EvidenceRoot = Join-Path $root "build\evidence\release-qualification\$stamp"
@@ -168,17 +174,13 @@ $stateRoot = Join-Path $env:LOCALAPPDATA 'HallJoy'
 $stateBefore = Get-HallJoyStateSnapshot -StateRoot $stateRoot
 Write-StateSnapshot -Snapshot $stateBefore -Path $stateBeforePath
 $exeHash = (Get-FileHash -LiteralPath $ExePath -Algorithm SHA256).Hash
-$requiredTraceTokens = @(
-    '[component=app][event=startup.transaction.commit] origin=initial',
-    '[component=realtime][event=stop.end]',
-    '[component=vigem-output][event=stop.end]',
-    '[component=backend][event=shutdown.end]',
-    '[component=main][event=session.end] exit_code=0'
-)
 $results = [System.Collections.Generic.List[object]]::new()
 
-if (Test-Path -LiteralPath $trace -PathType Leaf) {
-    Move-Item -LiteralPath $trace -Destination (Join-Path $EvidenceRoot 'preexisting-trace.log')
+foreach ($logPath in $forbiddenProductionLogs) {
+    if (Test-Path -LiteralPath $logPath -PathType Leaf) {
+        $preservedName = 'preexisting-' + [IO.Path]::GetFileName($logPath)
+        Move-Item -LiteralPath $logPath -Destination (Join-Path $EvidenceRoot $preservedName)
+    }
 }
 Write-QualificationCheckpoint -Status 'running' -CycleResults $results
 
@@ -225,37 +227,13 @@ try {
             }
 
             Wait-NoHallJoyProcess -TimeoutSeconds 3
-            if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
-                throw "Production trace was not produced in cycle $cycle."
-            }
-            $traceText = Get-Content -LiteralPath $trace -Raw -Encoding UTF8
-            $missing = @($requiredTraceTokens | Where-Object { -not $traceText.Contains($_) })
-            if ($missing.Count -ne 0) {
-                throw "Production trace is incomplete in cycle $cycle. Missing: $($missing -join ', ')"
-            }
-            if ($traceText -match '\[level=ERROR\]') {
-                throw "Production trace contains an ERROR event in cycle $cycle."
-            }
-            if ($traceText -match '\[component=trace\]\[event=capped\]') {
-                throw "Production trace was capped in cycle $cycle."
+            $unexpectedLogs = @($forbiddenProductionLogs | Where-Object {
+                Test-Path -LiteralPath $_ -PathType Leaf
+            })
+            if ($unexpectedLogs.Count -ne 0) {
+                throw "Production created a continuous diagnostic or crash log in cycle $cycle`: $($unexpectedLogs -join ', ')"
             }
 
-            $sparkRouteQueries = 0L
-            $sparkRouteOk = 0L
-            $sparkRouteFail = 0L
-            $sparkStats = [regex]::Matches(
-                $traceText,
-                '\[component=spark\]\[event=worker\.stats\][^\r\n]*route_queries=(\d+)[^\r\n]*route_ok=(\d+)[^\r\n]*route_fail=(\d+)'
-            )
-            if ($sparkStats.Count -gt 0) {
-                $lastSparkStats = $sparkStats[$sparkStats.Count - 1]
-                $sparkRouteQueries = [long]$lastSparkStats.Groups[1].Value
-                $sparkRouteOk = [long]$lastSparkStats.Groups[2].Value
-                $sparkRouteFail = [long]$lastSparkStats.Groups[3].Value
-            }
-
-            $cycleTrace = Join-Path $EvidenceRoot ('cycle-{0:D4}.log' -f $cycle)
-            Move-Item -LiteralPath $trace -Destination $cycleTrace
             $results.Add([pscustomobject]@{
                 cycle = $cycle
                 pid = $process.Id
@@ -263,16 +241,13 @@ try {
                 shutdown_ms = [Math]::Round(([DateTime]::UtcNow - $shutdownStartedAt).TotalMilliseconds)
                 max_handles = $maxHandles
                 max_working_set_bytes = $maxWorkingSet
-                spark_route_queries = $sparkRouteQueries
-                spark_route_ok = $sparkRouteOk
-                spark_route_fail = $sparkRouteFail
-                trace_sha256 = (Get-FileHash -LiteralPath $cycleTrace -Algorithm SHA256).Hash
+                continuous_log_files = 0
+                crash_report = $false
             })
             Write-QualificationCheckpoint -Status 'running' -CycleResults $results
             if ($cycle -eq 1 -or $cycle -eq $Cycles -or ($cycle % $ProgressEvery) -eq 0) {
-                Write-Host ("Cycle {0}/{1}: PASS exit=0 shutdown_ms={2} max_handles={3} spark_ok={4} spark_fail={5}" -f `
-                    $cycle, $Cycles, $results[$results.Count - 1].shutdown_ms, $maxHandles,
-                    $sparkRouteOk, $sparkRouteFail)
+                Write-Host ("Cycle {0}/{1}: PASS exit=0 shutdown_ms={2} max_handles={3} logs=0" -f `
+                    $cycle, $Cycles, $results[$results.Count - 1].shutdown_ms, $maxHandles)
             }
         }
         finally {
@@ -310,9 +285,8 @@ try {
         max_shutdown_ms = ($results | Measure-Object -Property shutdown_ms -Maximum).Maximum
         max_handles_observed = ($results | Measure-Object -Property max_handles -Maximum).Maximum
         max_working_set_bytes = ($results | Measure-Object -Property max_working_set_bytes -Maximum).Maximum
-        spark_route_queries = ($results | Measure-Object -Property spark_route_queries -Sum).Sum
-        spark_route_ok = ($results | Measure-Object -Property spark_route_ok -Sum).Sum
-        spark_route_fail = ($results | Measure-Object -Property spark_route_fail -Sum).Sum
+        continuous_log_files = 0
+        crash_reports = 0
         cycles = $results
     }
     $summaryPath = Join-Path $EvidenceRoot 'summary.json'

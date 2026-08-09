@@ -87,7 +87,8 @@ public:
         {
             response = SyncPayload(
                 currentFault_ == Fault::WrongFirmware,
-                currentFault_ == Fault::WrongBuildDate);
+                currentFault_ == Fault::WrongBuildDate,
+                physicalExtendedSync_);
         }
         else if (command == kCommandApi && report[1] == 3u &&
             payload[0] == kOrderPrecisionStroke)
@@ -196,6 +197,40 @@ public:
         returnSwappedHalves_ = enabled;
     }
 
+    void SetPhysicalExtendedSync(bool enabled)
+    {
+        physicalExtendedSync_ = enabled;
+    }
+
+    void SetCompatibleFamilyProfile()
+    {
+        compatibleFamily_ = true;
+        precisionUm_ = 20u;
+        minimumTravelUm_ = 20u;
+        maximumTravelUm_ = 4000u;
+        defaultMap_.fill({});
+        activeFunctions_.fill(0);
+        std::uint8_t key = 1u;
+        for (auto& row : defaultMap_)
+        {
+            for (auto& cell : row)
+            {
+                if (key > 84u)
+                    break;
+                cell = key;
+                activeFunctions_[key] = key <= 3u
+                    ? 0xF001u
+                    : static_cast<std::uint16_t>(key);
+                ++key;
+            }
+        }
+    }
+
+    void DuplicateCompatibleFactoryKey()
+    {
+        defaultMap_[0][1] = defaultMap_[0][0];
+    }
+
     const TravelMatrix& Travel() const noexcept { return travel_; }
     std::size_t TransactionCount() const noexcept { return transactionCount_; }
     std::size_t FlushCount() const noexcept { return flushCount_; }
@@ -211,11 +246,53 @@ private:
             report[1], report[2], report.data() + 4u);
     }
 
-    static std::vector<std::uint8_t> SyncPayload(
+    std::vector<std::uint8_t> SyncPayload(
         bool wrongFirmware,
-        bool wrongBuildDate)
+        bool wrongBuildDate,
+        bool physicalExtended) const
     {
-        std::vector<std::uint8_t> payload(54u, 0);
+        std::vector<std::uint8_t> payload(
+            physicalExtended ? kSyncPayloadBytes : 54u,
+            0);
+        if (physicalExtended)
+        {
+            // Exact physical descriptor shape repeated in HallJoy (3).log.
+            // The persisted trace zeroed serial payload offsets 9..24.
+            constexpr std::array<std::uint8_t, 60> observed{{
+                0x00, 0x02, 0x19, 0x02, 0x0A, 0xC0, 0x01, 0x00,
+                0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x10, 0x41, 0x70, 0x70, 0x20, 0x56, 0x31,
+                0x2E, 0x31, 0x2E, 0x36, 0x00, 0x00, 0x31, 0x36,
+                0x3A, 0x33, 0x10, 0x46, 0x65, 0x62, 0x20, 0x20,
+                0x34, 0x20, 0x36, 0x33, 0x32, 0x30, 0x38, 0xFC,
+                0x01, 0x03, 0x12, 0xFF,
+            }};
+            std::copy(observed.begin(), observed.end(), payload.begin());
+            constexpr char serial[] = "AULA-WIN60-TEST";
+            std::copy_n(serial, sizeof(serial) - 1u,
+                payload.begin() + kSyncSerialOffset);
+            if (compatibleFamily_)
+            {
+                payload[1] = 0x34u;
+                payload[2] = 0x12u;
+                payload[3] = 0x77u;
+                payload[4] = 0x05u;
+                constexpr char compatibleVersion[] = "App V2.0.0";
+                constexpr char compatibleBuild[] = "Mar 15 ";
+                std::fill_n(payload.begin() + kSyncAppVersionOffset,
+                    kSyncAppVersionBytes, 0u);
+                std::copy_n(compatibleVersion, sizeof(compatibleVersion) - 1u,
+                    payload.begin() + kSyncAppVersionOffset);
+                std::copy_n(compatibleBuild, sizeof(compatibleBuild) - 1u,
+                    payload.begin() + kSyncBuildDescriptorOffset);
+            }
+            if (wrongFirmware)
+                payload[kSyncAppVersionOffset + 9u] = '5';
+            if (wrongBuildDate)
+                payload[kSyncBuildDescriptorOffset + 15u] ^= 0x01u;
+            return payload;
+        }
         payload[0] = 0;
         payload[1] = 0x78;
         payload[2] = 0x56;
@@ -235,15 +312,17 @@ private:
         return payload;
     }
 
-    static std::vector<std::uint8_t> PrecisionPayload(bool wrongPrecision)
+    std::vector<std::uint8_t> PrecisionPayload(bool wrongPrecision) const
     {
-        const std::uint16_t maximum = wrongPrecision ? 3300u : 3400u;
+        const std::uint16_t maximum = wrongPrecision
+            ? (compatibleFamily_ ? 300u : 3300u)
+            : maximumTravelUm_;
         return {
             0x00,
             kOrderPrecisionStroke,
-            static_cast<std::uint8_t>(kExpectedPrecisionUm),
-            static_cast<std::uint8_t>(kExpectedMinimumTravelUm & 0xFFu),
-            static_cast<std::uint8_t>(kExpectedMinimumTravelUm >> 8u),
+            static_cast<std::uint8_t>(precisionUm_),
+            static_cast<std::uint8_t>(minimumTravelUm_ & 0xFFu),
+            static_cast<std::uint8_t>(minimumTravelUm_ >> 8u),
             static_cast<std::uint8_t>(maximum & 0xFFu),
             static_cast<std::uint8_t>(maximum >> 8u),
         };
@@ -421,6 +500,11 @@ private:
     Fault armedFault_ = Fault::None;
     Fault currentFault_ = Fault::None;
     bool returnSwappedHalves_ = false;
+    bool physicalExtendedSync_ = true;
+    bool compatibleFamily_ = false;
+    std::uint16_t precisionUm_ = kExpectedPrecisionUm;
+    std::uint16_t minimumTravelUm_ = kExpectedMinimumTravelUm;
+    std::uint16_t maximumTravelUm_ = kExpectedMaximumTravelUm;
 };
 
 struct TraceCapture
@@ -447,6 +531,7 @@ struct TraceCapture
     }
 };
 
+#if !defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
 void AssertPoisonedAfterFailure(
     Fault fault,
     std::size_t transaction,
@@ -469,6 +554,7 @@ void AssertPoisonedAfterFailure(
     assert(transport.WriteCount() == writesBefore);
     assert(transport.FlushCount() == flushesBefore);
 }
+#endif
 
 void TestCleanProbePollStatusAndRelease()
 {
@@ -540,6 +626,81 @@ void TestEveryTransactionFlushesAndStaleInputIsDiscarded()
     assert(transport.FlushCount() == kCapabilityTransactions);
 }
 
+void TestCompatibleFamilyProfileUsesDynamicMapAndPrecision()
+{
+    FirmwareShapedTransport transport;
+    transport.SetCompatibleFamilyProfile();
+    transport.SetTravel(0u, 3u, 2000u);
+    Client client(transport);
+    CapabilityProof proof{};
+    Failure failure{};
+    assert(client.Probe(&proof, &failure,
+        CompatibilityProfile::Compatible6x21Family));
+    assert(failure.stage == FailureStage::None);
+    assert(proof.profile == CompatibilityProfile::Compatible6x21Family);
+    assert(proof.physicalKeyPositions == 84u);
+    assert(proof.defaultMappedKeys == 81u);
+    assert(proof.mappedKeys == 81u);
+    assert(proof.precision.precisionUm == 20u);
+    assert(proof.precision.minimumTravelUm == 20u);
+    assert(proof.precision.maximumTravelUm == 4000u);
+    constexpr std::size_t expectedTransactions = 19u;
+    static_assert(expectedTransactions <= kMaximumCapabilityTransactions);
+    assert(transport.TransactionCount() == expectedTransactions);
+    assert(transport.FlushCount() == expectedTransactions);
+    assert(transport.WriteCount() == expectedTransactions);
+
+    TravelMatrix travel{};
+    assert(client.ReadTravelMatrix(proof, &travel, &failure));
+    SnapshotResult snapshot{};
+    BuildHidMilliSnapshot(
+        proof.keyMap, travel, proof.precision.maximumTravelUm, &snapshot);
+    assert(snapshot.milli[0x04u] == 500u);
+}
+
+#if !defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+void TestCompatibleFamilyIsNotAcceptedByExactProfile()
+{
+    FirmwareShapedTransport transport;
+    transport.SetCompatibleFamilyProfile();
+    Client client(transport);
+    CapabilityProof proof{};
+    Failure failure{};
+    assert(!client.Probe(&proof, &failure));
+    assert(failure.stage == FailureStage::UnexpectedFirmware);
+    assert(transport.TransactionCount() == 1u);
+}
+#endif
+
+void TestCompatibleFamilyRejectsAmbiguousDefaultMap()
+{
+    FirmwareShapedTransport transport;
+    transport.SetCompatibleFamilyProfile();
+    transport.DuplicateCompatibleFactoryKey();
+    Client client(transport);
+    CapabilityProof proof{};
+    Failure failure{};
+    assert(!client.Probe(&proof, &failure,
+        CompatibilityProfile::Compatible6x21Family));
+    assert(!client.IsUsable());
+}
+
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+void TestLegacyInferredSyncIsRejected()
+{
+    FirmwareShapedTransport transport;
+    transport.SetPhysicalExtendedSync(false);
+    Client client(transport);
+    CapabilityProof proof{};
+    Failure failure{};
+    assert(!client.Probe(&proof, &failure));
+    assert(failure.stage == FailureStage::ReadFirst);
+    assert(!client.IsUsable());
+    assert(transport.TransactionCount() == 1u);
+}
+#endif
+
+#if !defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
 void TestTransportAndProofFailuresPoisonSession()
 {
     struct Case
@@ -590,6 +751,7 @@ void TestTornActiveMapGenerationIsRejected()
     assert(transport.FlushCount() == 15u);
     assert(transport.WriteCount() == 15u);
 }
+#endif
 
 void TestStatusFailurePoisonsSession()
 {
@@ -743,9 +905,19 @@ void TestRandomFirmwareShapedMatricesRoundTrip()
 int main()
 {
     TestCleanProbePollStatusAndRelease();
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+    TestLegacyInferredSyncIsRejected();
+#endif
     TestEveryTransactionFlushesAndStaleInputIsDiscarded();
+    TestCompatibleFamilyProfileUsesDynamicMapAndPrecision();
+#if !defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+    TestCompatibleFamilyIsNotAcceptedByExactProfile();
+#endif
+    TestCompatibleFamilyRejectsAmbiguousDefaultMap();
+#if !defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
     TestTransportAndProofFailuresPoisonSession();
     TestTornActiveMapGenerationIsRejected();
+#endif
     TestStatusFailurePoisonsSession();
     TestRuntimeActiveMapRefresh();
     TestDisabledAndInternalActiveFunctionsAreNotPublished();

@@ -5,7 +5,7 @@ now authoritative for v1.4. The old `v3.9.0` name identifies provenance only.
 Statuses remain conservative until the corresponding v1.4 package reruns every
 required gate.
 
-Source audit: `docs/stability/AUDIT_V3_9_0_RU.md`. Current package mapping is
+Source audit: `docs/stability/AUDIT_V3_9_0.md`. Current package mapping is
 maintained in `ROADMAP.md`.
 
 ## Additional v1.4 integration risks
@@ -153,322 +153,223 @@ user state and no survivor. This verifies the reset transaction and shared
 application lifecycle; it does not change the pending MAD68 HE or Aula hardware
 release gates.
 
-## Статусы
+## Imported audit statuses
 
-- `Open` — подтверждённая проблема или риск, production fix ещё не принят.
-- `Partial` — часть риска закрыта отдельным малым пакетом; оставшаяся область явно указана.
-- `Implemented` — код изменён, но обязательная платформенная/hardware проверка ещё не завершена.
-- `Verified` — все обязательные gates пройдены.
-- `Deferred` — отложено с явно записанной причиной; не означает исправление.
+Status meanings:
 
-| ID | Приоритет | Краткое описание | Пакет | Статус | Ключевая проверка |
+- `Open`: proven issue with no accepted production correction;
+- `Partial`: only part of the issue has passed its required gates;
+- `Implemented`: code correction is complete, but a required platform/hardware
+  gate remains;
+- `Verified`: every mandatory gate for this record passed;
+- `Deferred`: explicitly postponed and not counted as corrected.
+
+| ID | Priority | Finding | Package | Status | Acceptance evidence |
 |---|---|---|---|---|---|
-| `HJ-AUD-P1-001` | P1 | `TerminateThread` используется как обычный механизм shutdown | `S04/S05/S08` | Implemented | all ordinary occurrences removed in V14-06A-F and deterministic timeout containment passed; final soak/device qualification remains |
-| `HJ-AUD-P1-002` | P1 | «Ограниченный shutdown» трёх native backend'ов всё равно может зависнуть навсегда | `S06/S07` | Implemented | Addressed, Hex80 and MAD68 bounded join/retention/containment gates passed in V14-12B-D; physical device qualification remains |
-| `HJ-AUD-P1-003` | P1 | Контракт `stop()` недостоверен | `S03` | Verified | generation-scoped StopResult, poison-on-failure and registry fault tests passed |
-| `HJ-AUD-P1-004` | P1 | Нет верхней границы C++-исключений в ключевых worker-потоках | `S02` | Partial | UAP workers/C ABI verified in V14-07C; only deferred device-owner and final soak gates remain in release qualification |
-| `HJ-AUD-P1-005` | P1 | Addressed reader закрывает HID HANDLE из другого потока при активном stack `OVERLAPPED` | `S06` | Implemented | reader-only close, cancel-and-reap ownership audit and simulator containment passed; Addressed hardware gate deferred |
-| `HJ-AUD-P1-006` | P1 | Analog host допускает повторную инициализацию поверх не завершившегося поколения потоков | `S09` | Verified | parent generation, bounded group timeout, retained ownership and restart-rejection gates passed in V14-07A |
-| `HJ-AUD-P1-007` | P1 | Partial-start cleanup analog host может unmap'нуть память под живым bridge thread | `S09` | Verified | injected supervisor-start failure joined bridge before IPC rollback in V14-07A |
-| `HJ-AUD-P1-008` | P1 | Потеря device-change wakeup из-за manual-reset `ResetEvent` после ожидания | `S11` | Verified | durable monotonic wake sequence, notify/wait race tests and production Irok smoke passed in V14-08A |
-| `HJ-AUD-P1-009` | P1 | Initial startup игнорирует отказ realtime и зависимых native phases | `S11` | Verified | explicit commit, reverse rollback and realtime/native-phase fault injections passed in V14-08A |
-| `HJ-AUD-P1-010` | P1 | Синхронный ViGEm update находится внутри realtime worker | `S12` | Verified | dedicated output owner, latest-state/multi-pad equivalence and bounded 60-second driver-stall containment passed in V14-08B |
-| `HJ-AUD-P1-011` | P1 | Mouse IPC неверно определяет, создано ли новое mapping | `S15` | Verified | immediate `CreateFileMappingW` disposition capture, preserve/validate-existing runtime self-test and production init trace passed in V14-10A |
-| `HJ-AUD-P1-012` | P1 | Named IPC analog host допускает precreation/spoofing в той же сессии пользователя | `S15` | Verified | named transport removed; explicit inherited-handle list, v10 owner/token schema, child/parent identity checks and invalid-handle restart gate passed in V14-10B |
-| `HJ-AUD-P1-013` | P1 | Встроенный dependency installer имеет TOCTOU и неполную проверку цепочки поставки | `S18` | Verified | automatic download/elevation removed; exact official ViGEmBus 1.22.0 manual-only page is lock-pinned and negative primitive audits pass in V14-12F |
-| `HJ-AUD-P1-014` | P1 | Dependency installer может навсегда заморозить UI | `S18` | Verified | installer process launch and every wait path removed; pure guidance policy, MSVC W4/WX, official build and normal Irok regression pass in V14-12F |
-| `HJ-AUD-P1-015` | P1 | UAP plugin не защищает C ABI от исключений и использует ручные lock/unlock | `S10` | Verified | common C ABI barrier, portable exception/RAII test and no-manual-lock static audit passed in V14-07C |
-| `HJ-AUD-P1-016` | P1 | UAP unload выполняет неограниченный join, удерживая глобальный devices mutex | `S10` | Verified | bounded plugin joins occur outside devices mutex; ABI runtime unload and child-process containment gates passed in V14-07C |
-| `HJ-AUD-P2-001` | P2 | Overlay server обслуживает только одного клиента синхронно | `S16` | Verified | fixed 16-client worker table, 8 slow plus 8 parallel state requests, prompt saturation rejection and active-client shutdown passed in V14-10D |
-| `HJ-AUD-P2-002` | P2 | Overlay HTTP parser не реализует framing | `S16` | Verified | incremental fragmentation/pipelining/body framing, strict length/transfer-coding rejection and 8/4/2 KiB socket limit gates passed in V14-10C |
-| `HJ-AUD-P2-003` | P2 | Overlay telemetry parser допускает unsigned overflow | `S16` | Verified | exact-key `from_chars`, duplicate/junk/overflow rejection and one-billion bound passed simulator and production socket gates in V14-10C |
-| `HJ-AUD-P2-004` | P2 | Overlay endpoint открыт любому origin | `S16` | Verified | per-generation 128-bit session cookie, exact loopback origin echo and hostile/null-origin rejection passed simulator and production gates in V14-10D |
-| `HJ-AUD-P2-005` | P2 | Mouse IPC читает interlocked-written поля обычными volatile reads | `S15` | Verified | peer-owned attach/heartbeat and schema fields use interlocked reads; static audit and simulator policy self-test passed in V14-10A |
-| `HJ-AUD-P2-006` | P2 | UAP poll workers собраны без какого-либо pacing | `S17` | Verified | exact production policy, 10,232 deadline properties, error-backoff/model tests, GCC/MSVC, ASan+UBSan, build and regression pass; no physical USB claim |
-| `HJ-AUD-P2-007` | P2 | UAP device identity нестабильна для двух одинаковых устройств | `S17` | Verified | path-based production identity passed 40,320 permutations, 100,000 reconnect generations, 250,000-path collision smoke, fallbacks, golden vectors and three toolchains |
-| `HJ-AUD-P2-008` | P2 | `is_initialised()` plugin всегда возвращает `true` | `S10` | Verified | runtime ABI gate proves false before init, true after init and false after bounded unload |
-| `HJ-AUD-P2-009` | P2 | `_device_info` не проверяет `buffer == nullptr` | `S10` | Verified | runtime ABI gate proves null device-info and full-buffer arguments return zero without a fault |
-| `HJ-AUD-P2-010` | P2 | Snapshot export удерживает глобальный devices mutex при копировании всех значений | `S17` | Verified | V14-11C bounded owner pins, blocked-reader removal, lifetime/coherence stress and sanitizer/build/ABI gates passed |
-| `HJ-AUD-P2-011` | P2 | Сохранение `settings.ini` может заменить хороший файл неполным temp | `S13` | Verified | unique same-directory temp, checked flush/readback/replace and five injected failure stages preserve the known-good hash |
-| `HJ-AUD-P2-012` | P2 | Overlay settings сохраняются напрямую и всегда сообщают успех | `S13` | Verified | overlay copies the base into a transaction, checks every write/readback and reports exact failure stage |
-| `HJ-AUD-P2-013` | P2 | Profile stream не проверяется после flush/close | `S13` | Verified | stream flush/good/close state, schema readback and all-stage bindings fault probe passed |
-| `HJ-AUD-P2-014` | P2 | Layout preset очищается и пишется неатомарно без проверки ошибок | `S13` | Verified | checked transaction, schema/exact-entry readback and five injected stages preserve the layout probe hash |
-| `HJ-AUD-P2-015` | P2 | Curve preset writer также игнорирует результаты записей | `S13` | Verified | curve preset/state checked writes, exact readback and five injected stages preserve both probe hashes |
-| `HJ-AUD-P2-016` | P2 | Большинство вызовов сохранения игнорируют возвращаемую ошибку | `S13` | Verified | central trace/UI reporting covers autosave; profile/layout/curve manual paths retain or roll back state and report partial rename |
-| `HJ-AUD-P2-017` | P2 | Writable state хранится рядом с executable | `S14` | Verified | LocalAppData default, explicit writable portable marker, source-preserving transactional migration/replay and five-stage failure gate passed |
-| `HJ-AUD-P2-018` | P2 | Имена профилей недостаточно нормализованы | `S14` | Verified | shared NFC/case/reserved-name/length/direct-child policy and Unicode collision tests passed |
-| `HJ-AUD-P2-019` | P2 | Публикация curve settings имеет слабый memory-order contract | `S11` | Verified | release generation publication, acquire cache observation and concurrency test passed in V14-08A |
-| `HJ-AUD-P2-020` | P2 | Глобальный lifecycle registry не защищён и не кодирует thread affinity | `S03` | Verified | mutex serialization, owner token and wrong-thread fault test passed |
-| `HJ-AUD-P2-021` | P2 | VID:PID ownership слишком крупнозернистый | `S17` | Verified | V14-11D exact path claims, same-pair sibling/reorder/collision tests, shared Soup pre-open hook, three toolchains, ABI/build and Irok regression passed |
-| `HJ-AUD-P3-001` | P3 | TESTING.md описывает отсутствующий тестовый контур | `S20` | Verified | current shipped commands, unified runner and S20 docs audit |
-| `HJ-AUD-P3-002` | P3 | Внутренние README/BUILD документы относятся к другим поколениям проекта | `S20` | Verified | v1.4 x64 build/runtime/storage guides and stale-marker audit |
-| `HJ-AUD-P3-003` | P3 | Один static audit сам устарел относительно текущей архитектуры | `S20` | Verified | Addressed validator rewritten for catalog/lifecycle and required by unified runner |
-| `HJ-AUD-P3-004` | P3 | Validation docs переоценивают lifecycle validation | `S20` | Verified | v3.9 record prominently historical; current matrix owns release claims |
-| `HJ-AUD-P3-005` | P3 | Release Win32 конфигурация ссылается на x64 ViGEm library | `S20` | Verified | unsupported Win32/x86 configurations removed; exact x64 library audit/build pass |
-| `HJ-AUD-P3-006` | P3 | Проект компилируется только с Warning Level 3 | `S20` | Verified | Debug/Release x64 use W4 with documented narrow baseline; official build has 0 unexpected warnings |
-| `HJ-AUD-P3-007` | P3 | Корневой README не перечисляет реальные build dependencies | `S20` | Verified | README dependency list and independent clean-room build pass |
-| `HJ-AUD-P3-008` | P3 | Sun build tool берётся с moving branch | `S20` | Verified | exact locked commit, fresh fetch and independent build pass |
-
-### Evidence for HJ-AUD-P2-006
-
-V14-11A removes every production `UAP_POLL_SLEEP_MS=0` target and applies a
-1000 us start-to-start deadline only when Soup classifies the device as a poll
-transport. Fast successful cycles wait only for the unused deadline; cycles
-that already took at least 1 ms receive no additional delay. Madlions report
-failures back off 2, 4, 8, 16, 32 and 64 ms, remain capped at 64 ms and reset
-after success. Report-stream Wooting, Razer and NuPhy devices do not enter the
-pacing branch.
-
-The deterministic portable model reduced a 50 us transaction from 20,000 to
-1,000 calls per modeled second and from 1,000,000 to 50,000 us of modeled busy
-time. The static audit, all 19 portable tests, rebuilt ABI1 load/name/null/
-bounded-unload gate, official MSVC build and production Irok regression pass.
-The Irok uses the native SparkLink route, not UAP, so no real UAP CPU, USB or
-sampling claim is made. Because UAP hardware is unavailable, D-022 accepts the
-exact production-code property/sanitizer/build gates for this code-level risk;
-the risk is `Verified` without upgrading that evidence into a physical claim.
-
-### Evidence for HJ-AUD-P2-007
-
-V14-11B replaces metadata plus enumeration occurrence with a versioned hash of
-the normalized Soup HID interface path and the numeric HID descriptor. Case and
-slash variants normalize identically; length-framed fields prevent ambiguous
-concatenation. When a path exists, occurrence is ignored and both telemetry
-ABIs publish `DuplicateSafeId`. If path is absent, metadata plus occurrence is
-still unique but the flag is deliberately absent and the UI says fallback.
-
-The exact header used by production passed all 40,320 enumeration orders of
-eight identical fake devices, 100,000 shuffled reconnect/subset generations,
-250,000 unique fake paths without a collision, 1,024 fallback occurrences,
-descriptor/path/case boundaries and four persisted-ID golden vectors. GCC 15,
-MSVC 19.44 and Clang 21 ASan+UBSan pass. A 64-bit ABI can never offer a
-mathematical no-collision proof; the test guards practical regressions. A
-serial-less keyboard moved to a different USB port intentionally follows the
-new interface path because software cannot infer physical sameness.
-
-### Evidence for HJ-AUD-P2-010
-
-V14-11C changes the device registry from exclusive pointers to ref-counted
-owners. The exact production helper locks `devices_mtx` only while copying at
-most eight `shared_ptr` values into a fixed array. Telemetry collection,
-per-device snapshot locking and all 256-value copies happen after the helper
-returns and the registry lock has been released. Hotplug removal pins the
-callback owner, and unload pins its worker set before cancel/join outside the
-registry lock.
-
-The portable test removes the sole registry entry while its pinned reader is
-deliberately blocked on the device snapshot mutex, proves destruction is
-deferred until the reader releases its pin, executes 100,000 exact-destruction
-cycles and validates at least 50,000 coherent 256-value reads during concurrent
-publication. GCC 15, MSVC 19.44 `/W4 /WX`, Clang 21 ASan+UBSan, 37 static
-audits, 21 portable tests, the official build, ABI1 v12 load/unload and native
-Irok regression pass. These are code-level contention/lifetime proofs under
-D-022; they do not measure physical UAP latency.
-
-### Evidence for HJ-AUD-P2-021
-
-V14-11D keys native ownership by a compact fingerprint of the complete
-normalized HID interface path rather than VID/PID. The common implementation
-normalizes ASCII case and slash direction, hashes UTF-16 units, includes the
-unit count and performs exact semicolon-token matching. The first successful
-protocol proof owns only that path; a sibling interface with identical VID/PID
-remains independently classifiable. MAD68, Hex80, Addressed, SparkLink and Sayo
-all reject foreign path claims before opening HID and claim the exact path they
-proved. Soup calls the same plugin hook before its first `CreateFileW`.
-
-The production implementation passes same-pair sibling vectors, 10,000
-reorder/reconnect generations, exact prefix/suffix rejection and a 300,000-path
-collision smoke under GCC 15, MSVC 19.44 `/W4 /WX` and Clang 21 ASan+UBSan.
-All 38 static audits, 22 portable tests, the exact ABI1 v13 gate, official build
-and a 45,873/45,874-query native Irok regression pass. D-022 permits code-level
-verification because no UAP or multi-UAP hardware is available; this does not
-claim physical UAP coexistence or mathematically exclude every 64-bit collision.
-
-## Evidence package S01
-
-S01 добавил общий lifecycle-контракт, generation-aware state machine и fault-injection seam. V14-05 подключил этот контракт к production registry и backend callbacks, поэтому `HJ-AUD-P1-003` и `HJ-AUD-P2-020` закрыты проверенными локальными gates. V14-06A-F удалили все ordinary `TerminateThread` и закрыли Sayo reader exception boundary локальными fault-injection gates. V14-07C закрыл UAP worker/C ABI часть. `HJ-AUD-P1-001` остаётся `Implemented`, потому что `Verified` требует финального soak/device qualification; открытая часть `HJ-AUD-P1-004` теперь ограничена отложенными device-owner и финальными soak gates.
-
-## Evidence package S02A
-
-S02A добавил общий allocation-free `RunWorkerEntryBarrier`, portable unit tests и `noexcept` wrappers для realtime, diagnostic writer и overlay worker. При C++-исключении:
-
-- realtime закрывает run/alive publications, освобождает MMCSS/timer/time-period через RAII и публикует нейтральное UI/ViGEm состояние;
-- logger немедленно закрывает producer gate и запрещает переинициализацию поверх не освобождённого writer generation;
-- overlay сбрасывает running/port, закрывает worker-owned sockets, сохраняет WSA ownership до owner-side reap и блокирует restart до `Stop()`.
-
-Normal scheduling/processing loops realtime, logger и overlay подтверждены побайтно одинаковыми относительно S01. S02A/S02A.1 затем прошли пользовательский clean Windows build и runtime smoke test. Риск остаётся `Partial`, потому что часть native backend workers и UAP exports ещё не покрыта.
+| `HJ-AUD-P1-001` | P1 | `TerminateThread` used as a normal shutdown mechanism | `S04/S05/S08` | Implemented | normal occurrences removed in V14-06A-F; final soak/device qualification remained |
+| `HJ-AUD-P1-002` | P1 | supposedly bounded shutdown in three native backends could still hang indefinitely | `S06/S07` | Implemented | Addressed, Hex80, and MAD68 bounded join/retention/containment gates passed in V14-12B-D; physical device qualification remained |
+| `HJ-AUD-P1-003` | P1 | backend `stop()` contract could report false success | `S03` | Verified | generation-scoped result, poison-on-failure, and registry tests passed in V14-05 |
+| `HJ-AUD-P1-004` | P1 | key worker entries lacked complete C++ exception boundaries | `S02` | Partial | UAP workers/C ABI passed V14-07C; deferred device-owner/final-soak gates remained |
+| `HJ-AUD-P1-005` | P1 | Addressed closed a HID handle cross-thread while stack `OVERLAPPED` remained active | `S06` | Implemented | reader-only close, cancel-and-reap audit, and simulator containment passed; hardware gate deferred |
+| `HJ-AUD-P1-006` | P1 | analogue host could reinitialize over an incomplete generation | `S09` | Verified | parent generation, bounded group timeout, retained ownership, and restart rejection passed in V14-07A |
+| `HJ-AUD-P1-007` | P1 | partial-start cleanup could unmap IPC beneath a live bridge thread | `S09` | Verified | injected supervisor-start failure joined the bridge before rollback in V14-07A |
+| `HJ-AUD-P1-008` | P1 | manual-reset event handling could lose a device-change wake | `S11` | Verified | monotonic wake sequence, race tests, and production Irok smoke passed in V14-08A |
+| `HJ-AUD-P1-009` | P1 | startup ignored realtime and dependent native-phase failures | `S11` | Verified | explicit commit/reverse rollback and phase fault injection passed in V14-08A |
+| `HJ-AUD-P1-010` | P1 | synchronous ViGEm update ran inside the realtime worker | `S12` | Verified | dedicated output owner, equivalence tests, and bounded driver-stall containment passed in V14-08B |
+| `HJ-AUD-P1-011` | P1 | mouse IPC misdetected whether a mapping was newly created | `S15` | Verified | immediate creation-disposition capture and preserve/validate self-test passed in V14-10A |
+| `HJ-AUD-P1-012` | P1 | named analogue-host IPC allowed same-session precreation/spoofing | `S15` | Verified | inherited-handle transport, owner/token schema, identity checks, and invalid-handle restart gate passed in V14-10B |
+| `HJ-AUD-P1-013` | P1 | built-in dependency installer had TOCTOU and supply-chain gaps | `S18` | Verified | automatic download/elevation removed; exact ViGEmBus 1.22.0 manual page pinned in V14-12F |
+| `HJ-AUD-P1-014` | P1 | dependency installation could freeze the UI indefinitely | `S18` | Verified | installer launch/wait paths removed; guidance policy and build regression passed in V14-12F |
+| `HJ-AUD-P1-015` | P1 | UAP C ABI leaked exceptions and used manual lock/unlock | `S10` | Verified | C ABI barrier, RAII tests, and no-manual-lock audit passed in V14-07C |
+| `HJ-AUD-P1-016` | P1 | UAP unload performed unbounded joins while holding the device mutex | `S10` | Verified | bounded joins moved outside the mutex; ABI unload and child containment passed in V14-07C |
+| `HJ-AUD-P2-001` | P2 | overlay served only one client synchronously | `S16` | Verified | fixed 16-client table, slow/parallel/limit gates, and active-client shutdown passed in V14-10D |
+| `HJ-AUD-P2-002` | P2 | overlay HTTP parser lacked framing | `S16` | Verified | incremental fragmentation/pipelining/body parsing and strict size/encoding rejection passed in V14-10C |
+| `HJ-AUD-P2-003` | P2 | overlay telemetry parser allowed unsigned overflow | `S16` | Verified | exact-key `from_chars`, duplicate/junk/overflow rejection, and one-billion bound passed |
+| `HJ-AUD-P2-004` | P2 | overlay endpoint accepted arbitrary origins | `S16` | Verified | 128-bit session cookie, exact loopback origin, and hostile/null-origin rejection passed in V14-10D |
+| `HJ-AUD-P2-005` | P2 | mouse IPC used ordinary volatile reads for interlocked peer fields | `S15` | Verified | peer-owned schema/heartbeat fields use interlocked reads; audit and simulator passed in V14-10A |
+| `HJ-AUD-P2-006` | P2 | UAP polling workers had no pacing | `S17` | Verified | deadline pacing and failure-backoff policy/property/sanitizer/build gates passed in V14-11A |
+| `HJ-AUD-P2-007` | P2 | identity of two identical UAP devices was unstable | `S17` | Verified | path identity passed exhaustive reorder/reconnect stress, golden vectors, GCC/MSVC, and sanitizers in V14-11B |
+| `HJ-AUD-P2-008` | P2 | plugin `is_initialised()` always returned true | `S10` | Verified | runtime ABI gate proved false-before, true-after, and false-after bounded unload |
+| `HJ-AUD-P2-009` | P2 | `_device_info` failed to validate a null buffer | `S10` | Verified | ABI gate proved null and full-buffer calls return zero safely |
+| `HJ-AUD-P2-010` | P2 | snapshot export held the global device mutex during value copying | `S17` | Verified | bounded owner pins, blocked-reader removal, lifetime/coherence stress, and ABI gates passed in V14-11C |
+| `HJ-AUD-P2-011` | P2 | `settings.ini` save could replace a valid file with an incomplete temporary file | `S13` | Verified | unique same-directory temp, checked flush/readback/replace, and five failure stages preserved the known-good hash |
+| `HJ-AUD-P2-012` | P2 | overlay settings wrote directly and always reported success | `S13` | Verified | transactional copy, checked writes/readback, and exact failure-stage reporting passed |
+| `HJ-AUD-P2-013` | P2 | profile stream state was not checked after flush/close | `S13` | Verified | flush/good/close checks, schema readback, and binding fault probes passed |
+| `HJ-AUD-P2-014` | P2 | layout presets were truncated and rewritten non-atomically | `S13` | Verified | checked transaction, exact-entry readback, and five injected stages preserved the layout hash |
+| `HJ-AUD-P2-015` | P2 | curve-preset writes ignored I/O results | `S13` | Verified | checked preset/state writes, exact readback, and five stages preserved both hashes |
+| `HJ-AUD-P2-016` | P2 | most save callers ignored returned errors | `S13` | Verified | central trace/UI reporting plus rollback/retained state covered automatic and manual paths |
+| `HJ-AUD-P2-017` | P2 | writable state lived beside the executable | `S14` | Verified | LocalAppData default, explicit writable portable marker, and source-preserving transactional migration passed |
+| `HJ-AUD-P2-018` | P2 | profile names lacked adequate normalization and path policy | `S14` | Verified | shared NFC/case/reserved-name/length/direct-child policy and Unicode collision tests passed |
+| `HJ-AUD-P2-019` | P2 | curve settings used a weak memory-order contract | `S11` | Verified | release publication, acquire cache observation, and concurrency test passed in V14-08A |
+| `HJ-AUD-P2-020` | P2 | lifecycle registry was not serialized and did not enforce thread affinity | `S03` | Verified | owner-thread registry plus wrong-thread tests passed in V14-05 |
+| `HJ-AUD-P2-021` | P2 | VID:PID ownership was too coarse | `S17` | Verified | exact-path claims, same-pair sibling/collision tests, native/Soup gates, toolchains, ABI/build, and Irok regression passed in V14-11D |
+| `HJ-AUD-P3-001` | P3 | `TESTING.md` described a nonexistent test flow | `S20` | Verified | shipped commands, unified runner, and documentation audit passed |
+| `HJ-AUD-P3-002` | P3 | internal README/build documents belonged to older generations | `S20` | Verified | current v1.4 x64 build/runtime/storage guidance and stale-marker audit passed |
+| `HJ-AUD-P3-003` | P3 | an Addressed static audit no longer matched current architecture | `S20` | Verified | validator rewritten for catalog/lifecycle and required by the unified runner |
+| `HJ-AUD-P3-004` | P3 | validation documents overstated lifecycle coverage | `S20` | Verified | v3.9 record marked historical; current matrix owns release claims |
+| `HJ-AUD-P3-005` | P3 | Win32 configuration referenced an x64 ViGEm library | `S20` | Verified | unsupported Win32/x86 configurations removed; exact x64 audit/build passed |
+| `HJ-AUD-P3-006` | P3 | project compiled at Warning Level 3 | `S20` | Verified | Debug/Release x64 moved to W4 with a narrow documented baseline and zero unexpected build warnings |
+| `HJ-AUD-P3-007` | P3 | root README omitted real build dependencies | `S20` | Verified | dependency list and independent clean-room build passed |
+| `HJ-AUD-P3-008` | P3 | Sun build tool followed a moving branch | `S20` | Verified | exact locked commit, fresh fetch, and independent build passed |
 
 
-## Evidence package S02B.1
+The current release retains these imported IDs while the sections below track
+v1.4-specific UI, hardware, documentation, and layout risks.
 
-S02B.1 намеренно ограничен двумя native backend'ами без вложенных worker-поколений: MAD68 и Hex80.
+## Imported stabilization evidence
 
-- OS entry обоих workers теперь `noexcept` и использует общий `RunWorkerEntryBarrier`;
-- `std::exception` и неизвестные C++-исключения не выходят за thread boundary;
-- fault path закрывает loop, сбрасывает native ownership/connected publications и обнуляет опубликованные analog values;
-- completion всегда снимает `g_running`;
-- перед заменой `std::thread` владелец reap'ит завершившееся поколение, поэтому restart после fault не вызывает `std::terminate`;
-- normal polling bodies подтверждены посимвольно одинаковыми относительно S02A.1, кроме нового типа результата и финального `return 0u`;
-- GCC/Clang common gates и ASan/UBSan portable suite прошли.
+The detailed S01-S12 narratives are maintained in `docs/stability/`, where the
+initial audit, stage results, decisions, validation matrix, and chronological
+worklog have been fully edited in English. This release register retains their
+accepted IDs and current statuses without duplicating those historical reports.
 
-Статус риска остаётся `Partial`: доступный SparkLink regression smoke полного пакета S02B.1 пройден, но device-specific MAD68/Hex80 gate отложен до предфинального внешнего архива. Это не считается `Verified` для двух изменённых backend'ов.
+The evidence sequence established generation-aware lifecycle contracts, shared
+allocation-free C++ exception barriers, truthful registry stop results,
+cooperative worker shutdown, reader-owned overlapped I/O, bounded analogue-host
+and UAP generations, durable startup wake publication, a dedicated ViGEm output
+owner, transactional persistence, hardened inherited-handle IPC, framed and
+origin-bound overlay HTTP, deadline-paced UAP polling, stable device identity,
+exact HID-interface ownership, pinned dependencies, and x64/W4 build gates.
 
-## Evidence package S02B.2
+Status promotion remained conservative: a code correction with an outstanding
+physical-device or final-soak requirement stayed Implemented or Partial rather
+than being treated as Verified. Exact package evidence is indexed by
+`docs/stability/VALIDATION_MATRIX.md` and `docs/stability/tests/README.md`.
 
-S02B.2 ограничен SparkLink worker boundary и не меняет HID protocol/hot path.
+## UI risks reopened after V14-12Q
 
-- существующая SEH-защита сохранена внешним Win32 wrapper;
-- C++-исключения проходят через общий allocation-free `RunWorkerEntryBarrier`;
-- C++ и SEH fault paths обнуляют analog publications, очищают connected/freshness и будят realtime loop для neutral snapshot;
-- fault закрывает write-capable publication и сохраняет fixed record/native SEH code;
-- completion публикует `g_sparkWorkerExited`;
-- `SparkStart()` проверяет ранний выход worker до и после connected publication, исключая ложный healthy start;
-- Spark polling loop подтверждён посимвольно одинаковым относительно S02B.1;
-- GCC/Clang common gates и ASan/UBSan portable suite прошли.
+| ID | Priority | Risk | Mitigation/evidence | Status |
+|---|---|---|---|---|
+| `HJ-UI-P1-001` | P1 | analogue input repaints tab/static pixels and visibly flickers | dirty-region commit, buffered tab row, visible Remap invalidation gate, compile-time paint trace | Implemented; visual pending |
+| `HJ-UI-P1-002` | P1 | Configuration telemetry is stale or refreshes the whole page | changed-hash/visible-tab gate and `720x36` live rect; static guard and Irok log | Implemented; visual pending |
+| `HJ-UI-P1-003` | P1 | Spark selectors violate combobox mouse/keyboard/focus semantics | real `PremiumCombo` children and keyboard contract | Implemented; interaction/visual pending |
+| `HJ-UI-P2-001` | P2 | diagnostics diverge between two pages | one route-complete builder consumed by Gamepad Tester; Configuration is brief status only | Implemented; visual pending |
+| `HJ-UI-P2-002` | P2 | reset danger/focus styling is visually inconsistent | one rounded renderer, no accent strip or `DrawFocusRect` | Implemented; visual pending |
 
-Пользовательский Windows/MSVC + реальный SparkLink gate S02B.2 пройден: analog input, ViGEm, режимы, reconnect и shutdown работали без регрессий до lifecycle-only V14-06D. V14-06D удалил `TerminateThread` и прошёл deterministic timeout containment; повторный device regression остаётся release qualification, а открытая часть S08 теперь ограничена Sayo.
+No UI row is `Verified` until the owner accepts the final EXE visually. Physical
+MAD68 HE/UAP and Aula risks are unaffected.
 
-## Evidence package S02B.3
+## UI refresh risks after V14-12S
 
-S02B.3 ограничен Addressed exception containment и не меняет protocol/polling/overlapped hot path.
+| ID | Priority | Risk | Root correction/evidence | Status |
+|---|---|---|---|---|
+| `HJ-UI-P1-004` | P1 | shared keyboard preview loses fast release outside Remap | removed active-tab gate after dirty-bit consume; regression guard and six-tab harness | Implemented; visual pending |
+| `HJ-UI-P1-005` | P1 | Remap thumb drag relayouts every raw pointer event and loses icon frames | 16 ms latest-target coalescing, deferred no-redraw child batch, one no-erase repaint | Implemented; visual pending |
+| `HJ-UI-P1-006` | P1 | Tester gamepad motion is capped near 10 FPS | gamepad report hash sampled every UI tick; 100 ms retained only for diagnostics | Implemented; visual pending |
+| `HJ-UI-P1-007` | P1 | Global scroll flashes owner-draw buttons white | atomic frame layout; removed synchronous per-pointer all-child update | Implemented; visual pending |
+| `HJ-UI-P2-003` | P2 | Configuration combos leave intermediate move/erase artifacts | all four PremiumCombos use deferred no-redraw batches; scroll is frame-coalesced | Implemented; visual pending |
+| `HJ-UI-P3-001` | P3 | new Input Overlay profile starts with excessive smoothing | native/web missing-value default set to 15%; persisted value preserved | Implemented; visual pending |
 
-- main worker и вложенный HID reader получили отдельные `noexcept` barriers;
-- reader HANDLE освобождается RAII при stack unwinding;
-- owner session всегда join'ит reader до rethrow, поэтому joinable `std::thread` не вызывает `std::terminate`;
-- exceptional cleanup очищает stack-backed scheduler pointer, pending response token и analog publication;
-- повторный start reap'ит завершившееся main generation до замены `std::thread`;
-- session polling loop, reader I/O loop и packet constructors token-identical S02B.2.
+No row is `Verified` until the owner accepts the final production EXE.
 
-Статус риска остаётся `Partial`: Addressed device gate отложен до предфинального внешнего архива; UAP/C ABI ещё не покрыт. Sayo boundary закрыт локально в V14-06F, но его device gate остаётся release qualification. Риск `HJ-AUD-P1-005` не закрывается — cross-thread force-close активного overlapped HANDLE остаётся S06.
+## Unified viewport risks after V14-12T
 
-This paragraph records the historical S02B.3 result. V14-12B subsequently
-removed the force-close path; the current status is the table entry above, with
-physical Addressed qualification still deferred.
+V14-12S.1 was rejected by the owner because higher FPS exposed disappearing
+elements. Rows `HJ-UI-P1-005`, `HJ-UI-P1-007` and `HJ-UI-P2-003` remain open and
+their earlier child-batch mitigation is superseded by D-040.
 
-## Evidence package S02B.4 / V14-06F
+| ID | Priority | Risk | Root correction/evidence | Status |
+|---|---|---|---|---|
+| `HJ-UI-P1-008` | P1 | per-page scroll implementations diverge and regress independently | one `CustomPageScrollController` required by static audit on all six pages | Implemented; visual pending |
+| `HJ-UI-P1-009` | P1 | child HWND erase/move cycles make elements flash or disappear | retained content-space composition; no active Remap/Global/Configuration HWND movement | Implemented; visual pending |
+| `HJ-UI-P2-004` | P2 | compatibility combo/icon HWNDs escape back into visual layout | native HWNDs limited to popup/keyboard/action ownership; active layout guards | Implemented; removal debt tracked |
+| `HJ-UI-P2-005` | P2 | retained page caches leak GDI/USER resources under repeated scroll | warm-cache 6-page stress: GDI 211/211/207 and USER 227/227/227 start/max/end | Implemented; visual pending |
 
-V14-06F ограничен Sayo reader exception/completion boundary и не меняет discovery, depth protocol, mapping, polling interval или normalization.
+The final production stress and lifecycle gates pass, but none of these rows is
+`Verified` before owner testing of the exact SHA-256 artifact.
 
-- каждый Win32 reader входит через отдельный `noexcept` C++ barrier внутри SEH wrapper;
-- C++ и structured faults сохраняют фиксированную per-reader диагностику, обнуляют published input и сигналят общий stop event;
-- completion каждого reader публикуется независимо, а выход последнего reader снимает connected state и повторно нейтрализует input;
-- startup publication отклоняет уже завершившуюся или faulted reader group, включая отдельную проверку publish race;
-- simulator-only C++ exception injection, Sayo timeout containment, normal simulator, полный portable gate и production MSVC build прошли.
+## Retained-control regression risks after V14-12T.1
 
-Статус `HJ-AUD-P1-004` остаётся `Partial` только из-за отложенных hardware/soak gates; UAP workers/C ABI закрыты V14-07C, а отсутствие реальной Sayo-клавиатуры не подменяется simulator evidence.
+| ID | Priority | Risk | Root correction/evidence | Status |
+|---|---|---|---|---|
+| `HJ-UI-P1-010` | P1 | retained combo face differs from popup controller and jumps on open | canonical `PaintRetainedFace`; duplicate focus outline removed; three popup lifecycle cases PASS | Implemented; visual pending |
+| `HJ-UI-P1-011` | P1 | popup controller stays visible and re-enters scroll composition after close | explicit `MsgDropStateChanged`; runtime verifies one visible while open and zero after close | Implemented; visual pending |
+| `HJ-UI-P2-006` | P2 | encoding-sensitive text glyphs render as mojibake | vector Remap power/save icons; static guard forbids the text substitutes | Implemented; visual pending |
 
-## Evidence package S09 / V14-07A
+The unified scroll implementation remains active and its 6/6 stress gate still
+passes. These rows are not `Verified` until owner review of the exact artifact.
 
-V14-07A ограничен parent-side analog-host generation и не меняет private UAP
-ABI, plugin polling или keyboard protocol behavior.
+## Retained interaction risks after V14-12T.2
 
-- snapshot bridge и supervisor публикуются как одно lifecycle generation;
-- успешный shutdown закрывает thread, IPC, event и job HANDLEs только после
-  общего confirmed join;
-- simulator-only supervisor-create failure останавливает и join'ит уже
-  созданный bridge до освобождения IPC;
-- две ограниченные shutdown-фазы покрывают graceful stop и child-job
-  containment; незавершённый parent join сохраняет все reachable resources,
-  переводит generation в `Poisoned` и запрещает restart;
-- backend/application shutdown принимает этот результат и выбирает
-  process-level containment без зависимого teardown;
-- partial-start injection, bridge-timeout injection, normal simulator, полный
-  portable/static gate и production MSVC build прошли.
+| ID | Priority | Risk | Root correction/evidence | Status |
+|---|---|---|---|---|
+| `HJ-UI-P1-012` | P1 | Remap power click is consumed as icon drag | bounded icon-domain classifier; static guard | Implemented; owner pending |
+| `HJ-UI-P1-013` | P1 | binding edits do not expose global profile dirty/save state | shared save/dirty/notify transaction | Implemented; owner pending |
+| `HJ-UI-P2-007` | P2 | Overlay choices behave as cycling buttons | three canonical PremiumCombos; 3/3 Overlay lifecycle PASS | Implemented; owner pending |
+| `HJ-UI-P1-014` | P1 | wheel input over a top-level PremiumCombo popup is lost | popup routes `WM_MOUSEWHEEL` to controller state | Superseded by P1-015 |
+| `HJ-UI-P1-015` | P1 | combo wheel navigates options or affects fitting lists | overflow-only `scrollTop`; `curSel`/`hotIndex` invariant; runtime state assertions | Implemented; owner pending |
+| `HJ-UI-P1-016` | P1 | Configuration graph invalidates but replays a retained stale live marker until unrelated input dirties the page | split retained plot/curve from post-present marker/handle overlay; graph-only timer invalidation; static layer-order guards and 6/6 UI stress | Implemented; physical visual pending |
 
-На момент V14-07A эти доказательства закрывали `HJ-AUD-P1-006` и
-`HJ-AUD-P1-007`, но ещё не меняли `HJ-AUD-P1-004`, `HJ-AUD-P1-015` или
-`HJ-AUD-P1-016`; их последующее закрытие описано в V14-07C ниже.
+Automated tests do not replace the owner's interaction check.
 
-## Evidence package S10 / V14-07C
+## Aula physical diagnostic risks after V14-12U
 
-V14-07C защищает приватный UAP на границе, непосредственно загружаемой
-изолированным child host:
+| ID | Priority | Risk | Root correction/evidence | Status |
+|---|---|---|---|---|
+| `HJ-AULA-P1-001` | P1 | broad Spark discovery opens and probes Aula `1CA2:1902 / FFA0` | dedicated-family rejection before Spark `CreateFileW`; static audits and repeated physical skip events | Closed/PASS |
+| `HJ-AULA-P1-002` | P1 | production trace hides the exact first Aula proof failure | isolated raw/decoded aggressive trace identified the 54/60-byte gate | Closed/PASS |
+| `HJ-AULA-P1-003` | P1 | relaxed diagnostics accidentally publish incompatible input | mismatch-mask zero required for claim/publication; runtime semantic mismatch also blocks publication | Guarded/PASS |
 
-- общий `CAbiInvoke` не выпускает C++-исключения через C ABI и переводит plugin
-  в faulted/restart-blocked state;
-- все Soup mutex'ы освобождаются RAII guard'ами, ручных `lock/unlock` больше нет;
-- `is_initialised()` отражает живое поколение, а null/zero-length входы
-  `_device_info` и `_read_full_buffer` безопасно возвращают ноль;
-- unload снимает global devices lock до cancel/join, ограничивает все ожидания
-  общим deadline и очищает устройства только после confirmed completion;
-- при неподтверждённом unload child host не делает `FreeLibrary`, а завершает
-  disposable child process под уже проверенным parent/job containment.
+The earlier `HallJoyStabilityTrace (1).log` was not a clean lifecycle run and
+proved only the Spark/Aula collision. The later single-EXE logs supersede it for
+transport and parser diagnosis, but still do not verify strict Aula support.
 
-Portable exception/RAII test, static audit, реальный ABI1 load/init/null/unload
-gate, полный production build и process-clean smoke прошли. Это переводит
-`HJ-AUD-P1-015`, `HJ-AUD-P1-016`, `HJ-AUD-P2-008` и `HJ-AUD-P2-009` в
-`Verified`. `HJ-AUD-P1-004` остаётся `Partial` только до device-owner/soak
-qualification в V14-12.
+| ID | Priority | Risk | Root correction/evidence | Status |
+|---|---|---|---|---|
+| `HJ-AULA-P1-004` | P1 | inferred 54-byte sync gate rejects valid physical 60-byte response before later proof | diagnostic-only dual envelope exposed all later stages | Superseded by P1-006/P1-007 |
+| `HJ-AULA-P1-005` | P1 | transient sharing violation motivates unsafe shared HID fallback | second trace proves 62/62 exclusive opens; no shared fallback added | Closed by evidence |
 
-## Evidence package S11 / V14-08A
+That diagnostic-only assessment was superseded by V14-12U.2 after three
+complete physical proofs authenticated the immutable descriptor structure.
 
-V14-08A делает запуск backend-зависимостей транзакцией и устраняет потерю
-уведомлений без изменения keyboard protocols или ViGEm report construction:
+## Aula physical production-contract risks after V14-12U.2
 
-- readiness публикуется только после успешного realtime, `AfterRealtime`, Raw
-  Input prerequisite и `AfterRawInput`; отсутствие необязательного protocol
-  family отличается от отказа уже обнаруженного устройства;
-- любой отказ откатывает полученные стадии в обратном порядке; неподтверждённый
-  stop останавливает дальнейший teardown и включает process containment;
-- процессный монотонный input sequence не сбрасывается при старте/restart, а
-  worker проверяет pending sequence до каждого `WaitOnAddress`;
-- curve generation release-публикуется после atomic settings write и
-  acquire-читается каждым thread-local cache до построения нового snapshot.
+| ID | Priority | Risk | Root correction/evidence | Status |
+|---|---|---|---|---|
+| `HJ-AULA-P1-006` | P1 | binary build descriptor is misread as `Feb  4 6320`, causing a false firmware mismatch | exact 16-byte physical descriptors replace inferred date parsing | Implemented/PASS |
+| `HJ-AULA-P1-007` | P1 | legacy inferred 54-byte sync remains an unproven compatibility path | production and diagnostic parsers now require physical 60-byte sync | Implemented/PASS |
+| `HJ-AULA-P1-008` | P1 | physical travel channel exists but no non-zero runtime input has been observed | two strict claim-capable runs sustained polling for about 58 and 17.5 minutes; tester reports analogue travel visible in HallJoy; startup-only raw frames remain zero because of the 256-report trace cap | Closed/PASS within owner-observed input boundary |
+| `HJ-AULA-P1-009` | P1 | device disconnect clears input but return-after-disconnect may fail to reclaim the same Aula | log 8 proves three successful reconnects with retained identity and strict proof; the first recovered session delivered 1,008 matrices at 341.463 Hz with 329 non-zero frames across 12 HIDs | Closed/PASS |
+| `HJ-AULA-P1-010` | P1 | diagnostic raw cap proves startup but hides runtime Hz, 10-key behavior and later analogue values | log 7: 21,027/21,027 matrices, 343.973 Hz, all transactions <=4 ms, max 22 active, 2,654 frames at 10+, 8 releases to zero, 40 HID coverage | Closed/PASS |
+| `HJ-AULA-P2-001` | P2 | repeated Spark dedicated-interface skips drown useful evidence | per-scan count plus cumulative summary, rate-limited to one event per 60 seconds | Closed/PASS |
+| `HJ-AULA-P2-002` | P2 | shutdown `CancelIoEx` is misreported as a runtime transport failure | stop-aware `protocol.cancelled`/`poll.cancelled`, INFO severity, failed counter unchanged | Closed/PASS |
 
-Portable race/publication tests, static audit, simulator-only realtime-start и
-native-phase failure injections, normal common-pipeline simulator, официальный
-production build и шестисекундный Irok MG75 Max smoke прошли. Это переводит
-`HJ-AUD-P1-008`, `HJ-AUD-P1-009` и `HJ-AUD-P2-019` в `Verified`.
-Синхронный ViGEm update был вынесен отдельно в V14-08B.
+## Aula family-admission risks after V14-12V
 
-## Evidence package S12 / V14-08B
+| ID | Priority | Risk | Root correction/evidence | Status |
+|---|---|---|---|---|
+| `HJ-AULA-P1-011` | P1 | flexible support probes unrelated HID devices or claims a false positive | SetupAPI brand/VID prefilter before metadata open; exact transport shape; complete exclusive-session structural proof; exact-path claim only | Guarded/PASS automated |
+| `HJ-AULA-P1-012` | P1 | a larger sibling map overruns fixed five-batch assumptions | unique dynamic map bounded to 126 positions; nine batches/generation and 25 total proof transactions; 84-position regression under ASan/UBSan | Guarded/PASS automated |
+| `HJ-AULA-P2-003` | P2 | protocol-compatible sibling is presented as physically verified | exact/family classification is retained in capability proof; public matrix limits physical evidence to WIN 60 HE MAX | Guarded; sibling hardware untested |
 
-После начального подключения на startup-потоке runtime-владение ViGEm
-передано отдельному output worker:
+## AULA W669 / Standard risks after V14-14
 
-- realtime выполняет только неблокирующую публикацию полного newest-state
-  batch; вызов драйвера, reconnect и destroy находятся вне `Backend_Tick`;
-- при coalescing маски ожидающих virtual pads объединяются, а payload всех
-  reports обновляется из самого нового полного snapshot;
-- остановка worker ограничена тремя секундами. Неподтверждённый join сохраняет
-  HANDLE и driver state, запрещает dependent teardown и выбирает process
-  containment;
-- simulator-only блокировка driver update на 60 секунд доказала, что realtime
-  продолжает весь семисекундный сценарий и останавливается штатно до output
-  timeout; production не содержит пути активации этой инъекции;
-- normal simulator, полный native/portable gate, production build и Irok MG75
-  Max smoke с чистым shutdown прошли.
+| ID | Priority | Risk | Root correction/evidence | Status |
+|---|---|---|---|---|
+| `HJ-W669-P1-001` | P1 | declared length `05` is mistaken for live subtype `05`, so valid events are rejected or configuration frames are published | firmware queue layout and official driver independently prove subtype `01`; parser test covers length `03/05` and rejects subtype `05` | Closed/PASS automated |
+| `HJ-W669-P1-002` | P1 | shared VID/PID causes WIN60 geometry to be assigned to WIN68/KP-TE153 or unrelated devices | read-only `0D` firmware product selects exact official SI2825/SI2828/SI2851 61/68/69-key profiles; unknown products remain explicit-only; PID, substring and key count never select a factory map | Guarded/PASS automated |
+| `HJ-W669-P1-003` | P1 | a synchronous fallback competes with the live dispatcher and drops change/release events | physical log proves 532 live packets were consumed by the old snapshot collector; all in-session snapshot/fallback I/O removed, leaving one receive owner | Corrected/PASS automated; physical rerun pending |
+| `HJ-W669-P1-004` | P1 | an exploratory fallback changes calibration or persistent keyboard configuration | streaming allow-list is now `18/80`, `21/02`, `21/03`, `21/04`, `21/0A`; `21/0E` removed from runtime and mutating subcommands remain absent | Guarded/PASS code review and protocol tests |
+| `HJ-W669-P2-001` | P2 | diagnostic I/O hides actual event delivery or mixes sensor-domain values with live travel | `21/0E` publication removed; raw trace and live counters cover subtype-`01` only; firmware-default poll code `0` is reported as unspecified | Corrected/PASS automated; physical rerun pending |
+| `HJ-W669-P2-002` | P2 | diagnostic package produces several competing `.log` files | single-log profile writes parent/W669 evidence to `HallJoy.log`; isolated UAP host file logging is disabled for this profile | Closed/PASS smoke |
+| `HJ-W669-P1-005` | P1 | zero `18/80` records are mistaken for absent keys, so a stock WIN60 is rejected before live subscription | physical log proves zero means factory inheritance and `01 FA` at official Fn position 122; known SI2825 factory baseline is overlaid with explicit records and covered by a ten-fragment regression fixture | Corrected/PASS automated; physical live rerun pending |
+| `HJ-W669-P1-006` | P1 | raw `21/0E` values around `0x0Axx` are clamped against processed maximum 340, creating false full presses | physical packet analysis separates sensor-domain snapshots from processed subtype-`01` travel; snapshot values can no longer reach `Publish` | Corrected/PASS code review; physical rerun pending |
+| `HJ-W669-P2-003` | P2 | expected idle read cancellation is counted as a transport failure | timed I/O preserves the wait cause as `WAIT_TIMEOUT` after cancellation drain; only non-timeout read failures increment the session counter | Corrected/PASS MSVC and portable gates; physical rerun pending |
+| `HJ-W669-P1-007` | P1 | an absent MAX-family backend repeatedly enumerates every HID interface and periodically stalls an active W669 stream | absent discovery is event-driven through `WM_DEVICECHANGE`; only a present/transient candidate receives timed retries; static gate and local timeline pass | Corrected/PASS automated; physical rerun pending |
+| `HJ-W669-P1-008` | P1 | competing stability/debug `CREATE_ALWAYS` owners make the only support log blind to W669 raw/timing data | one mapped file owner plus asynchronous sanitized append API; build requires diagnostic/single-log flags and W669 markers | Corrected/PASS build and local smoke |
+| `HJ-W669-P1-009` | P1 | synchronous mapped-log flush stalls after clean shutdown until the 12-second process watchdog kills HallJoy | clean shutdown uses unmap/truncate/close through the cache manager; no explicit blocking flush; repeated local smoke exits in 75 ms | Corrected/PASS local lifecycle |
+| `HJ-W669-P2-004` | P2 | normal diagnostic runs create MAD and exit sidecars despite the one-log contract | MAD is inline; successful watchdog exit creates no report; crash-only sidecars remain | Corrected/PASS local package smoke |
+| `HJ-W669-P1-010` | P1 | a future W669 sibling with a different key count is either unnecessarily rejected or receives a plausible but wrong HID layout | seven current official products are covered by exact firmware-product profiles; unknown products may prove an explicit map but all-zero factory inheritance fails closed because key count cannot identify HID usages | Guarded/PASS automated; future unknown factory layouts require evidence |
 
-`HJ-AUD-P1-010` переведён в `Verified`.
+## Public documentation and built-in layout risks
 
-## Правило закрытия
-
-Запись переводится в `Verified` только после выполнения acceptance criteria соответствующего пакета и сохранения test log в `docs/stability/tests/`. Один и тот же кодовый change может закрыть несколько записей, но каждая запись получает отдельное доказательство.
-
-## Сводка
-
-- P1: 3 implemented, 1 partial, 12 verified.
-- P2: 1 open, 20 verified.
-- P3: 6 open, 2 verified.
-- Всего: 7 open, 3 implemented, 1 partial, 34 verified.
-
-## Дополнительный риск, обнаруженный при Windows gate S02A
-
-| ID | Приоритет | Краткое описание | Пакет | Статус | Ключевая проверка |
-|---|---|---|---|---|---|
-| `HJ-DISC-P1-001` | P1 build blocker | Fresh Soup patch всегда падал: validator требовал marker, который generator не эмитил | `S02A.1` | Verified | clean Windows `BUILD.cmd` + generated `hwHid.cpp` ordering check |
-
-S02A.1 добавляет marker внутрь генерируемого `$preOpenBlock` и отдельный audit generator/validator contract. Повторная чистая Windows-сборка и runtime smoke test пройдены; build blocker закрыт как `Verified`.
-
-## Evidence infrastructure S02V1
-
-S02V1 не меняет статус ни одного исходного риска и не считается исправлением production-дефекта. Пакет вводит временный доказательный слой для последующей приёмки:
-
-- bounded 1 МиБ memory-mapped event trace;
-- запрет disk I/O и flush в worker event paths;
-- непрерывный sequence, balanced worker generations и обязательный final shutdown;
-- машинный `PASS/WARN/FAIL`;
-- проверяемый SparkLink/ViGEm сценарий;
-- обязательное удаление специализированных событий после подтверждения пакета.
-
-Ручной SparkLink smoke S02B.3 зафиксирован как положительное наблюдение, но evidence-verified статус для будущих runtime-пакетов требует trace bundle. `HJ-AUD-P1-004` остаётся `Partial`; UAP/C ABI boundaries ещё не завершены, а device-specific MAD68/Hex80/Addressed/Sayo gates отложены.
+| ID | Priority | Risk | Root correction/evidence | Status |
+|---|---|---|---|---|
+| `HJ-DOC-P1-001` | P1 | Quick start promises automatic dependency installation that production intentionally cannot perform | README follows V14-12F/S18: manual pinned ViGEmBus 1.22.0 guidance; embedded private Universal Analog Plugin prepares automatically; system Wooting SDK is unnecessary | Closed/PASS code and static audit |
+| `HJ-DOC-P2-002` | P2 | a technical README rewrite drops material user capabilities, storage guidance or licensing while retaining obsolete dependency advice | public/local semantic comparison; restored code-backed video/features/editor/storage/troubleshooting/license content; obsolete system SDK/UAP instructions explicitly excluded; relative-link and content checks pass | Closed/PASS code and documentation audit |
+| `HJ-DOC-P2-003` | P2 | mixed-language, literal machine translation, `_RU` filenames, or stale links make the public project inconsistent and difficult to trust | every translated narrative document compared with its preserved source and manually rewritten; generated evidence retained verbatim; references, tables, headings, fences, Cyrillic, mojibake, filenames and build-document contracts audited | Closed/PASS editorial and static audit |
+| `HJ-K4-P1-001` | P1 | K4 HE is advertised as gaming-ready on stock firmware even though an idle key can arrive roughly one second late | public matrix requires the physically validated custom `A9 31` full-report firmware and explicitly rejects stock `A9 30` for gaming | Closed/PASS physical and documentation evidence |
+| `HJ-K4-P1-002` | P1 | a general firmware link is mistaken for a compatible K4 image and a user flashes another model's binary | README and hardware matrix state that AnalogSense currently lists no pre-built K4 image and require exact model/layout/MCU verification plus a stock rollback image | Guarded/PASS documentation review |
+| `HJ-LAYOUT-P1-001` | P1 | a newly shipped built-in layout is invisible to every existing user with a non-empty `Layouts` directory | built-ins load first, user files override same-name entries, missing built-in files are then created; ordered static gate | Closed/PASS automated |
+| `HJ-LAYOUT-P2-001` | P2 | adding Keychron K4 HE changes the fresh-install default or loses the user's edited Generic layout | K4 is third; preset zero remains active by default; file override order preserves existing Generic edits; exact 100-key K4 tuple comparison passes | Closed/PASS automated |
+| `HJ-LAYOUT-P2-002` | P2 | historical or bad revision-1 88 px values make numpad `+`/`Enter` end one rendered pixel too low after Reset | both built-ins use visually validated 87 px; transactional geometry revision 2 converts only old 88 px HID 87/88 values in the two named presets and explicitly forbids 87-to-88 expansion; four exact source guards and full production gate pass | Closed/PASS automated; visual evidence supplied by user |

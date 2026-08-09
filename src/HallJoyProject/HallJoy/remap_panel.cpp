@@ -22,6 +22,7 @@
 #include "remap_panel.h"
 #include "profile_ini.h"
 #include "keyboard_ui.h"
+#include "keyboard_ui_internal.h"
 #include "keyboard_ui_state.h"
 #include "backend.h"
 #include "settings.h"
@@ -32,6 +33,8 @@
 #include "ui_theme.h"
 #include "remap_icons.h"
 #include "mouse_bind_codes.h"
+#include "custom_page_surface.h"
+#include "custom_page_controls.h"
 
 using namespace Gdiplus;
 
@@ -292,11 +295,10 @@ struct RemapPanelState
     int scrollY = 0;
     int scrollMax = 0;
     int contentHeight = 0;
-    int wheelRemainder = 0;
-    bool scrollDrag = false;
-    int  scrollDragGrabOffsetY = 0;
-    int  scrollDragThumbHeight = 0;
-    int  scrollDragMax = 0;
+    CustomPageSurface surface;
+    CustomPageScrollController scroll;
+    int hotItem = 0;
+    int pressedItem = 0;
 
     bool dragging = false;
     BindAction dragAction{};
@@ -718,6 +720,7 @@ static void StopAllPanelAnim_Immediate(HWND hPanel, RemapPanelState* st)
     st->dragSrcCenterScreen = POINT{};
 
     if (src) InvalidateRect(src, nullptr, FALSE);
+    CustomPageSurface_MarkDirty(hPanel, &st->surface);
 
     KillTimer(hPanel, DRAG_ANIM_TIMER_ID);
     st->animIntervalMs = 0;
@@ -744,6 +747,7 @@ static void PostAnim_StartShrinkAway(HWND hPanel, RemapPanelState* st)
         st->srcIconScale = 1.0f;
         st->srcIconScaleTarget = 1.0f;
         InvalidateRect(st->dragSrcIconBtn, nullptr, FALSE);
+        CustomPageSurface_MarkDirty(hPanel, &st->surface);
     }
 
     UINT wantMs = GetAnimIntervalMs();
@@ -781,6 +785,7 @@ static void PostAnim_StartFlyBack(HWND hPanel, RemapPanelState* st)
     st->srcIconScale = 0.0f;
     st->srcIconScaleTarget = 0.0f;
     InvalidateRect(st->dragSrcIconBtn, nullptr, FALSE);
+    CustomPageSurface_MarkDirty(hPanel, &st->surface);
 
     UINT wantMs = GetAnimIntervalMs();
     st->animIntervalMs = wantMs;
@@ -855,6 +860,7 @@ static bool PostAnim_Tick(HWND hPanel, RemapPanelState* st)
                     st->srcIconScale = 1.0f;
                     st->srcIconScaleTarget = 1.0f;
                     InvalidateRect(st->dragSrcIconBtn, nullptr, FALSE);
+                    CustomPageSurface_MarkDirty(hPanel, &st->surface);
 
                     // best-effort immediate paint for the under-ghost reveal
                     UpdateWindow(st->dragSrcIconBtn);
@@ -911,6 +917,7 @@ static void PostAnim_Finish(HWND hPanel, RemapPanelState* st)
     st->srcIconScaleTarget = 1.0f;
     st->dragSrcIconBtn = nullptr;
     st->dragSrcCenterScreen = POINT{};
+    CustomPageSurface_MarkDirty(hPanel, &st->surface);
 
     if (!st->dragging)
     {
@@ -1241,6 +1248,26 @@ static void DrawAddGamepadButton(const DRAWITEMSTRUCT* dis)
     DrawTextW(dis->hDC, txt, -1, &tr, DT_SINGLELINE | DT_CENTER | DT_VCENTER | DT_END_ELLIPSIS);
 }
 
+static void DrawDisableGamepadPowerGlyph(HWND scaleWindow, HDC hdc, const RECT& rc, COLORREF glyph)
+{
+    Graphics g(hdc);
+    g.SetSmoothingMode(SmoothingModeHighQuality);
+    g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+
+    const int w = rc.right - rc.left;
+    const int h = rc.bottom - rc.top;
+    const float cx = (float)(rc.left + rc.right) * 0.5f;
+    const float cy = (float)(rc.top + rc.bottom) * 0.5f;
+    const float radius = std::max(4.0f, std::min((float)w, (float)h) * 0.38f);
+
+    Pen penPower(Gp(glyph, 248), std::max(2.0f, (float)S(scaleWindow, 2)));
+    penPower.SetStartCap(LineCapRound);
+    penPower.SetEndCap(LineCapRound);
+    g.DrawArc(&penPower, cx - radius, cy - radius, radius * 2.0f, radius * 2.0f,
+        -48.0f, 276.0f);
+    g.DrawLine(&penPower, cx, cy - radius * 1.03f, cx, cy - radius * 0.18f);
+}
+
 static void DrawDisableGamepadIconButton(const DRAWITEMSTRUCT* dis, RemapPanelState* st, int packIdx)
 {
     if (!dis) return;
@@ -1257,24 +1284,7 @@ static void DrawDisableGamepadIconButton(const DRAWITEMSTRUCT* dis, RemapPanelSt
     if (pushed && !disabled)
         glyph = LerpColor(glyph, UiTheme::Color_Accent(), 0.45f);
 
-    Graphics g(dis->hDC);
-    g.SetSmoothingMode(SmoothingModeHighQuality);
-    g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
-
-    const int w = rc.right - rc.left;
-    const int h = rc.bottom - rc.top;
-    const float cx = (float)(rc.left + rc.right) * 0.5f;
-    const float cy = (float)(rc.top + rc.bottom) * 0.5f;
-    const float radius = std::max(4.0f, std::min((float)w, (float)h) * 0.38f);
-
-    Pen penPower(Gp(glyph, 248), std::max(2.0f, (float)S(dis->hwndItem, 2)));
-    penPower.SetStartCap(LineCapRound);
-    penPower.SetEndCap(LineCapRound);
-
-    // Power icon: open ring + top vertical stem.
-    // Rotate the open ring by -90 deg (CCW) so the gap is at the top.
-    g.DrawArc(&penPower, cx - radius, cy - radius, radius * 2.0f, radius * 2.0f, -48.0f, 276.0f);
-    g.DrawLine(&penPower, cx, cy - radius * 1.03f, cx, cy - radius * 0.18f);
+    DrawDisableGamepadPowerGlyph(dis->hwndItem, dis->hDC, rc, glyph);
 }
 
 static void Remap_CreateIconPackButtons(HWND hWnd, RemapPanelState* st, HINSTANCE hInst, HFONT hFont, int packIdx)
@@ -1561,7 +1571,7 @@ static RECT Remap_GetScrollThumbRect(HWND hWnd, RemapPanelState* st)
 static void Remap_RequestFullRepaint(HWND hWnd)
 {
     RedrawWindow(hWnd, nullptr, nullptr,
-        RDW_INVALIDATE | RDW_ALLCHILDREN);
+        RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN);
 }
 
 static void Remap_SetScrollY(HWND hWnd, RemapPanelState* st, int newScrollY)
@@ -1575,11 +1585,8 @@ static void Remap_SetScrollY(HWND hWnd, RemapPanelState* st, int newScrollY)
     if (target != st->scrollY)
     {
         st->scrollY = target;
-
-        // Keep scrolling deterministic: recompute child positions instead of pixel-scroll.
-        // This avoids owner-draw icon loss and scrollbar smear artifacts.
-        ApplyRemapSizing(hWnd, st);
-        RedrawWindow(hWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN);
+        st->surface.scrollY = target;
+        InvalidateRect(hWnd, nullptr, FALSE);
         return;
     }
 
@@ -1614,85 +1621,24 @@ static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st)
 
     st->scrollMax = Remap_GetMaxScroll(hWnd, st);
     st->scrollY = std::clamp(st->scrollY, 0, st->scrollMax);
-    const int yOff = -st->scrollY;
-
     st->ghostW = S(hWnd, (int)Settings_GetDragIconSizePx());
     st->ghostH = S(hWnd, (int)Settings_GetDragIconSizePx());
 
     if (st->hGhost)
         Ghost_EnsureSurfaceAndResetCache(st);
 
-    int wndCount = 0;
-    if (st->txtHelp && IsWindow(st->txtHelp)) ++wndCount;
-    if (st->btnAddGamepad && IsWindow(st->btnAddGamepad)) ++wndCount;
-    for (HWND h : st->packLabels) if (h && IsWindow(h)) ++wndCount;
-    for (HWND h : st->packRemoveBtns) if (h && IsWindow(h)) ++wndCount;
-    for (HWND h : st->iconBtns) if (h && IsWindow(h)) ++wndCount;
-    HDWP hdwp = BeginDeferWindowPos(std::max(8, wndCount));
+    HWND retainedOnly[] = { st->txtHelp, st->btnAddGamepad };
+    for (HWND child : retainedOnly)
+        if (child) ShowWindow(child, SW_HIDE);
+    for (HWND child : st->packLabels) if (child) ShowWindow(child, SW_HIDE);
+    for (HWND child : st->packRemoveBtns) if (child) ShowWindow(child, SW_HIDE);
+    for (HWND child : st->iconBtns) if (child) ShowWindow(child, SW_HIDE);
 
-    auto Move = [&](HWND w, int x, int y, int ww, int hh)
-    {
-        if (!w || !IsWindow(w)) return;
-        UINT flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW;
-        if (hdwp) hdwp = DeferWindowPos(hdwp, w, nullptr, x, y, ww, hh, flags);
-        else SetWindowPos(w, nullptr, x, y, ww, hh, flags);
-    };
-
-    int helpX = S(hWnd, 12);
-    RECT trackForHelp = Remap_GetScrollTrackRect(hWnd);
-    int helpRight = std::max(helpX + S(hWnd, 220), (int)trackForHelp.left - S(hWnd, 8));
-    int helpW = std::max(S(hWnd, 220), helpRight - helpX);
-    Move(st->txtHelp, helpX, yOff + S(hWnd, 10), helpW, S(hWnd, 56));
-    Move(st->btnAddGamepad, S(hWnd, 12), yOff + S(hWnd, 70), S(hWnd, 210), S(hWnd, 28));
-
-    const int startX = S(hWnd, 12);
-    const int startY = S(hWnd, 124);
-    const int packGapY = S(hWnd, 16);
-    const int headerH = S(hWnd, 22);
-    const int btnW = S(hWnd, (int)Settings_GetRemapButtonSizePx());
-    const int btnH = btnW;
-    const int gapX = S(hWnd, ICON_GAP_X);
-    const int gapY = S(hWnd, ICON_GAP_Y);
-    const int cols = ICON_COLS;
-    const int rowsPerPack = 2;
-    const int packStrideY = headerH + rowsPerPack * btnH + (rowsPerPack - 1) * gapY + packGapY;
-
-    for (int p = 0; p < (int)st->packLabels.size(); ++p)
-    {
-        HWND lbl = st->packLabels[(size_t)p];
-        if (lbl && IsWindow(lbl))
-        {
-            Move(lbl, startX, yOff + startY + p * packStrideY, S(hWnd, 220), headerH);
-        }
-
-        if (p < (int)st->packRemoveBtns.size())
-        {
-            HWND rb = st->packRemoveBtns[(size_t)p];
-            if (rb && IsWindow(rb))
-            {
-                Move(rb, startX + S(hWnd, 68), yOff + startY + p * packStrideY, S(hWnd, 22), S(hWnd, 22));
-            }
-        }
-    }
-
-    int n = (int)st->iconBtns.size();
-    for (int i = 0; i < n; ++i)
-    {
-        if (!st->iconBtns[i]) continue;
-        int iconsPerPack = std::max(1, st->iconsPerPack);
-        int packIdx = i / iconsPerPack;
-        int localIdx = i % iconsPerPack;
-        int cx = localIdx % cols;
-        int row = localIdx / cols;
-
-        Move(st->iconBtns[i],
-            startX + cx * (btnW + gapX),
-            yOff + startY + packIdx * packStrideY + headerH + row * (btnH + gapY),
-            btnW, btnH);
-    }
-
-    if (hdwp) EndDeferWindowPos(hdwp);
-    InvalidateRect(hWnd, nullptr, FALSE);
+    Remap_RecalcContentHeight(hWnd, st);
+    CustomPageSurface_SetState(&st->surface, st->scrollY, st->contentHeight);
+    CustomPageSurface_SetContentHeight(hWnd, &st->surface, st->contentHeight);
+    st->scrollY = st->surface.scrollY;
+    CustomPageSurface_MarkDirty(hWnd, &st->surface);
 }
 
 // ---------------- Drag tick (while dragging only) ----------------
@@ -1729,7 +1675,10 @@ static void DragTick(HWND hPanel, RemapPanelState* st, float dt)
         st->srcIconScale = std::clamp(oldScale + (target - oldScale) * a, 0.0f, 1.0f);
 
         if (std::fabs(st->srcIconScale - oldScale) >= 0.004f)
+        {
             InvalidateRect(st->dragSrcIconBtn, nullptr, FALSE);
+            CustomPageSurface_MarkDirty(hPanel, &st->surface);
+        }
     }
 
     uint16_t hid = 0;
@@ -1843,12 +1792,156 @@ static void DrawRemapScrollbar(HWND hWnd, HDC hdc, RemapPanelState* st)
     }
 
     {
-        Color thumbC = st->scrollDrag ? Gp(UiTheme::Color_Accent(), 240) : Gp(UiTheme::Color_Accent(), 205);
+        Color thumbC = st->scroll.draggingThumb ? Gp(UiTheme::Color_Accent(), 240) : Gp(UiTheme::Color_Accent(), 205);
         SolidBrush br(thumbC);
         GraphicsPath p;
         AddRoundRectPath(p, th, rThumb);
         g.FillPath(&br, &p);
     }
+}
+
+static RECT Remap_IconRectContent(HWND hWnd, RemapPanelState* st, int flatIndex)
+{
+    const int perPack = std::max(1, st ? st->iconsPerPack : RemapIcons_Count());
+    const int pack = std::max(0, flatIndex / perPack);
+    const int local = std::max(0, flatIndex % perPack);
+    const int size = S(hWnd, (int)Settings_GetRemapButtonSizePx());
+    const int headerH = S(hWnd, 22);
+    const int stride = headerH + 2 * size + S(hWnd, ICON_GAP_Y) + S(hWnd, 16);
+    const int x = S(hWnd, 12) + (local % ICON_COLS) * (size + S(hWnd, ICON_GAP_X));
+    const int y = S(hWnd, 124) + pack * stride + headerH +
+        (local / ICON_COLS) * (size + S(hWnd, ICON_GAP_Y));
+    return RECT{ x, y, x + size, y + size };
+}
+
+static RECT Remap_RemoveRectContent(HWND hWnd, RemapPanelState*, int pack)
+{
+    const int size = S(hWnd, (int)Settings_GetRemapButtonSizePx());
+    const int stride = S(hWnd, 22) + 2 * size + S(hWnd, ICON_GAP_Y) + S(hWnd, 16);
+    const int y = S(hWnd, 124) + pack * stride;
+    return RECT{ S(hWnd, 80), y, S(hWnd, 102), y + S(hWnd, 22) };
+}
+
+static void Remap_RenderCacheContent(HWND hWnd, HDC hdc, const RECT& full, void* user)
+{
+    auto* st = (RemapPanelState*)user;
+    if (!st) return;
+    Graphics g(hdc);
+    g.SetSmoothingMode(SmoothingModeHighQuality);
+    g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+
+    RECT help{ S(hWnd, 12), S(hWnd, 10), full.right - S(hWnd, 24), S(hWnd, 66) };
+    CustomPage_DrawText(hdc,
+        L"Drag and drop a gamepad control onto a keyboard key to bind.\n"
+        L"Hold Shift while dropping on a key to add another action from the same gamepad.\n"
+        L"Right click a key on the keyboard to unbind.",
+        help, UiTheme::Color_Text(), DT_LEFT | DT_TOP | DT_WORDBREAK);
+
+    RECT add{ S(hWnd, 12), S(hWnd, 70), S(hWnd, 222), S(hWnd, 98) };
+    wchar_t addText[64]{};
+    if (st->gamepadPacks < REMAP_MAX_GAMEPADS)
+        swprintf_s(addText, L"Add Gamepad (%d/%d)", st->gamepadPacks, REMAP_MAX_GAMEPADS);
+    else
+        swprintf_s(addText, L"Max Gamepads (%d/%d)", st->gamepadPacks, REMAP_MAX_GAMEPADS);
+    CustomPage_DrawButton(g, hdc, add, addText, st->hotItem == REMAP_ID_ADD_GAMEPAD,
+        st->pressedItem == REMAP_ID_ADD_GAMEPAD, st->gamepadPacks < REMAP_MAX_GAMEPADS);
+
+    const int perPack = std::max(1, st->iconsPerPack);
+    const int size = S(hWnd, (int)Settings_GetRemapButtonSizePx());
+    const int headerH = S(hWnd, 22);
+    const int stride = headerH + 2 * size + S(hWnd, ICON_GAP_Y) + S(hWnd, 16);
+    for (int pack = 0; pack < st->gamepadPacks; ++pack)
+    {
+        const int packTop = S(hWnd, 124) + pack * stride;
+        RECT card{ S(hWnd, 8), packTop - S(hWnd, 2),
+            full.right - S(hWnd, 22), packTop + headerH + 2 * size + S(hWnd, ICON_GAP_Y) + S(hWnd, 6) };
+        const int style = Remap_GetIconStyleVariantForPack(pack, st->gamepadPacks);
+        const COLORREF accent = Remap_GetAccentColorForStyleVariant(style);
+        CustomPage_DrawRoundRect(g, card,
+            LerpColor(UiTheme::Color_PanelBg(), accent, 0.10f),
+            LerpColor(UiTheme::Color_Border(), accent, 0.36f), (float)S(hWnd, 10), 232);
+
+        wchar_t title[64]{};
+        swprintf_s(title, L"Gamepad %d", pack + 1);
+        RECT titleRc{ S(hWnd, 12), packTop, S(hWnd, 78), packTop + headerH };
+        CustomPage_DrawText(hdc, title, titleRc, UiTheme::Color_Text(),
+            DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        if (pack > 0)
+        {
+            RECT remove = Remap_RemoveRectContent(hWnd, st, pack);
+            CustomPage_DrawRoundRect(g, remove, Remap_GetPackTileColor(st, pack, false),
+                UiTheme::Color_Border(), (float)S(hWnd, 5));
+            DrawDisableGamepadPowerGlyph(hWnd, hdc, remove, UiTheme::Color_Text());
+        }
+
+        for (int local = 0; local < perPack; ++local)
+        {
+            const int flat = pack * perPack + local;
+            RECT iconRc = Remap_IconRectContent(hWnd, st, flat);
+            const bool source = flat < (int)st->iconBtns.size() &&
+                st->dragSrcIconBtn == st->iconBtns[(size_t)flat];
+            const float scale = source && (st->dragging || st->postMode == RemapPostAnimMode::FlyBack)
+                ? std::clamp(st->srcIconScale, 0.0f, 1.0f) : 1.0f;
+            HBRUSH tile = CreateSolidBrush(Remap_GetPackTileColor(st, pack, false));
+            FillRect(hdc, &iconRc, tile);
+            DeleteObject(tile);
+            const int drawSize = std::clamp((int)std::lround(size * scale), 0, size);
+            if (drawSize > 1)
+            {
+                CachedGlyph* glyph = Icon_GetOrCreate(local, size, false, 0.135f, style);
+                const int dx = iconRc.left + (size - drawSize) / 2;
+                const int dy = iconRc.top + (size - drawSize) / 2;
+                if (glyph && glyph->dc)
+                {
+                    BLENDFUNCTION blend{ AC_SRC_OVER, 0, 255, AC_SRC_ALPHA };
+                    AlphaBlend(hdc, dx, dy, drawSize, drawSize,
+                        glyph->dc, 0, 0, size, size, blend);
+                }
+            }
+        }
+    }
+}
+
+static int Remap_HitTestContent(HWND hWnd, RemapPanelState* st, POINT clientPoint)
+{
+    if (!st) return 0;
+    POINT pt = CustomPageSurface_ClientToContent(&st->surface, clientPoint);
+    RECT add{ S(hWnd, 12), S(hWnd, 70), S(hWnd, 222), S(hWnd, 98) };
+    if (PtInRect(&add, pt) && st->gamepadPacks < REMAP_MAX_GAMEPADS)
+        return REMAP_ID_ADD_GAMEPAD;
+    for (int pack = 1; pack < st->gamepadPacks; ++pack)
+    {
+        RECT remove = Remap_RemoveRectContent(hWnd, st, pack);
+        if (PtInRect(&remove, pt)) return REMAP_ID_REMOVE_GAMEPAD_BASE + pack;
+    }
+    for (int flat = 0; flat < (int)st->iconBtns.size(); ++flat)
+    {
+        RECT icon = Remap_IconRectContent(hWnd, st, flat);
+        if (PtInRect(&icon, pt)) return REMAP_ICON_ID_BASE + flat;
+    }
+    return 0;
+}
+
+static bool Remap_IsRetainedIconHit(const RemapPanelState* st, int hit)
+{
+    if (!st) return false;
+    const int flatIndex = hit - REMAP_ICON_ID_BASE;
+    return flatIndex >= 0 && flatIndex < (int)st->iconBtns.size();
+}
+
+static bool Remap_BeginRetainedIconDrag(HWND hWnd, RemapPanelState* st, int flatIndex)
+{
+    if (!st || flatIndex < 0 || flatIndex >= (int)st->iconBtns.size()) return false;
+    HWND controller = st->iconBtns[(size_t)flatIndex];
+    if (!controller) return false;
+    RECT view = CustomPageSurface_ContentToClient(&st->surface,
+        Remap_IconRectContent(hWnd, st, flatIndex));
+    SetWindowPos(controller, nullptr, view.left, view.top,
+        std::max(1L, view.right - view.left), std::max(1L, view.bottom - view.top),
+        SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW);
+    SendMessageW(controller, WM_LBUTTONDOWN, MK_LBUTTON, 0);
+    CustomPageSurface_MarkDirty(hWnd, &st->surface);
+    return true;
 }
 
 static void PaintPanelBg(HWND hWnd, RemapPanelState* st)
@@ -1873,17 +1966,15 @@ static void PaintPanelBg(HWND hWnd, RemapPanelState* st)
         if (bmp) DeleteObject(bmp);
         if (mem) DeleteDC(mem);
         FillRect(hdc, &rc, UiTheme::Brush_PanelBg());
-        DrawPackBackgrounds(hWnd, hdc, st);
-        DrawRemapScrollbar(hWnd, hdc, st);
         EndPaint(hWnd, &ps);
         return;
     }
 
     HGDIOBJ oldBmp = SelectObject(mem, bmp);
-    RECT local{ 0,0,w,h };
-    FillRect(mem, &local, UiTheme::Brush_PanelBg());
-    DrawPackBackgrounds(hWnd, mem, st);
-    DrawRemapScrollbar(hWnd, mem, st);
+    st->surface.scrollY = st->scrollY;
+    st->surface.contentHeight = st->contentHeight;
+    CustomPageSurface_Present(hWnd, mem, &st->surface,
+        Remap_RenderCacheContent, st, st->scroll.draggingThumb);
 
     BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
 
@@ -1923,7 +2014,7 @@ static void ApplyBindingNow(HWND hWnd, RemapPanelState* st, uint16_t newHid, boo
         BindingActions_AppendForPad(st->dragPadIndex, act, newHid);
     else
         BindingActions_ApplyForPad(st->dragPadIndex, act, newHid);
-    Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
+    KeyboardUI_SaveBindingsAfterUserChange(hWnd);
     InvalidateHidKey(oldHid);
     InvalidateHidKey(newHid);
     if (st->hKeyboardHost) InvalidateRect(st->hKeyboardHost, nullptr, FALSE);
@@ -1956,6 +2047,7 @@ static void ApplyBindingNow(HWND hWnd, RemapPanelState* st, uint16_t newHid, boo
     KillTimer(hWnd, DRAG_ANIM_TIMER_ID);
     st->animIntervalMs = 0;
     Ghost_Hide(st);
+    CustomPageSurface_MarkDirty(hWnd, &st->surface);
 }
 
 // ---------------- Icon subclass (start drag) ----------------
@@ -2080,50 +2172,48 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         if (st && !st->dragging)
         {
             POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
-            RECT thumb = Remap_GetScrollThumbRect(hWnd, st);
-            RECT track = Remap_GetScrollTrackRect(hWnd);
-            int maxScroll = Remap_GetMaxScroll(hWnd, st);
-
-            if (maxScroll > 0 && PtInRect(&thumb, pt))
+            Remap_RecalcContentHeight(hWnd, st);
+            CustomPageSurface_SetState(&st->surface, st->scrollY, st->contentHeight);
+            auto scrollResult = CustomPageSurface_HandleScrollMessage(hWnd, &st->surface,
+                &st->scroll, msg, wParam, lParam, S(hWnd, 54));
+            if (scrollResult != CustomPageScrollResult::NotHandled)
             {
-                st->scrollDrag = true;
-                st->scrollDragGrabOffsetY = pt.y - thumb.top;
-                st->scrollDragThumbHeight = std::max(1, (int)thumb.bottom - (int)thumb.top);
-                st->scrollDragMax = maxScroll;
-                SetCapture(hWnd);
-                Remap_RequestFullRepaint(hWnd);
+                st->scrollY = st->surface.scrollY;
                 return 0;
             }
-
-            if (maxScroll > 0 && PtInRect(&track, pt))
+            const int hit = Remap_HitTestContent(hWnd, st, pt);
+            if (Remap_IsRetainedIconHit(st, hit))
             {
-                int page = std::max(1, Remap_GetViewportHeight(hWnd) - S(hWnd, 48));
-                if (pt.y < thumb.top) Remap_SetScrollY(hWnd, st, st->scrollY - page);
-                else if (pt.y >= thumb.bottom) Remap_SetScrollY(hWnd, st, st->scrollY + page);
+                Remap_BeginRetainedIconDrag(hWnd, st, hit - REMAP_ICON_ID_BASE);
+                return 0;
+            }
+            st->pressedItem = hit;
+            if (hit)
+            {
+                SetCapture(hWnd);
+                CustomPageSurface_MarkDirty(hWnd, &st->surface);
                 return 0;
             }
         }
         break;
 
     case WM_MOUSEMOVE:
-        if (st && st->scrollDrag)
+        if (st && st->scroll.draggingThumb)
+        {
+            CustomPageSurface_HandleScrollMessage(hWnd, &st->surface,
+                &st->scroll, msg, wParam, lParam, S(hWnd, 54));
+            st->scrollY = st->surface.scrollY;
+            return 0;
+        }
+        if (st && !st->dragging)
         {
             POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
-            RECT track = Remap_GetScrollTrackRect(hWnd);
-            int trackH = std::max(1, (int)track.bottom - (int)track.top);
-            int thumbH = std::max(1, st->scrollDragThumbHeight);
-            int travel = std::max(1, trackH - thumbH);
-            int maxScroll = std::max(1, st->scrollDragMax);
-
-            int topWanted = pt.y - st->scrollDragGrabOffsetY;
-            int topMin = (int)track.top;
-            int topMax = (int)track.bottom - thumbH;
-            int top = std::clamp(topWanted, topMin, topMax);
-
-            double t = (double)(top - topMin) / (double)travel;
-            int target = (int)std::lround(t * (double)maxScroll);
-            Remap_SetScrollY(hWnd, st, target);
-            return 0;
+            int hot = Remap_HitTestContent(hWnd, st, pt);
+            if (hot != st->hotItem)
+            {
+                st->hotItem = hot;
+                CustomPageSurface_MarkDirty(hWnd, &st->surface);
+            }
         }
         break;
 
@@ -2160,29 +2250,9 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         }
         if (st)
         {
-            const int delta = GET_WHEEL_DELTA_WPARAM(wParam);
-            st->wheelRemainder += delta;
-
-            UINT lines = 3;
-            SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &lines, 0);
-
-            const int clientH = Remap_GetViewportHeight(hWnd);
-            const int lineStep = std::max(S(hWnd, 28), 12);
-            const int pageStep = std::max(clientH - S(hWnd, 32), lineStep);
-
-            int next = st->scrollY;
-            while (std::abs(st->wheelRemainder) >= WHEEL_DELTA)
-            {
-                const int dir = (st->wheelRemainder > 0) ? 1 : -1;
-                st->wheelRemainder -= dir * WHEEL_DELTA;
-
-                int step = 0;
-                if (lines == WHEEL_PAGESCROLL) step = pageStep;
-                else step = (int)std::max<UINT>(1, lines) * lineStep;
-
-                next -= dir * step;
-            }
-            Remap_SetScrollY(hWnd, st, next);
+            CustomPageSurface_HandleScrollMessage(hWnd, &st->surface,
+                &st->scroll, msg, wParam, lParam, S(hWnd, 54));
+            st->scrollY = st->surface.scrollY;
             return 0;
         }
         return 0;
@@ -2290,7 +2360,7 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
                     // Remove selected pad and keep following pads (shift left).
                     Bindings_RemovePadAndCompact(packIdx, st->gamepadPacks);
-                    Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str());
+                    KeyboardUI_SaveBindingsAfterUserChange(hWnd);
                     Settings_SetVirtualGamepadCount(newCount);
                     Backend_SetVirtualGamepadCount(newCount);
 
@@ -2316,12 +2386,22 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         return 0;
 
     case WM_LBUTTONUP:
-        if (st && st->scrollDrag)
+        if (st && st->scroll.draggingThumb)
         {
-            st->scrollDrag = false;
-            if (!st->dragging && GetCapture() == hWnd)
-                ReleaseCapture();
-            Remap_RequestFullRepaint(hWnd);
+            CustomPageSurface_HandleScrollMessage(hWnd, &st->surface,
+                &st->scroll, msg, wParam, lParam, S(hWnd, 54));
+            return 0;
+        }
+
+        if (st && !st->dragging && st->pressedItem)
+        {
+            POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            int pressed = st->pressedItem;
+            st->pressedItem = 0;
+            if (GetCapture() == hWnd) ReleaseCapture();
+            if (Remap_HitTestContent(hWnd, st, pt) == pressed)
+                PostMessageW(hWnd, WM_COMMAND, MAKEWPARAM(pressed, BN_CLICKED), 0);
+            CustomPageSurface_MarkDirty(hWnd, &st->surface);
             return 0;
         }
 
@@ -2382,10 +2462,11 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         return 0;
 
     case WM_CAPTURECHANGED:
-        if (st && st->scrollDrag)
+        if (st)
         {
-            st->scrollDrag = false;
-            Remap_RequestFullRepaint(hWnd);
+            CustomPageSurface_HandleScrollMessage(hWnd, &st->surface,
+                &st->scroll, msg, wParam, lParam, S(hWnd, 54));
+            st->pressedItem = 0;
         }
         if (st && st->dragging)
             StopAllPanelAnim_Immediate(hWnd, st);
@@ -2404,6 +2485,7 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
                 st->hGhost = nullptr;
             }
             Ghost_FreeSurface(st);
+            CustomPageSurface_Destroy(&st->surface);
 
             delete st;
             SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);

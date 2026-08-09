@@ -220,26 +220,23 @@ bool DecodeSyncInfo(const FrameView& frame, SyncInfo* out) noexcept
         return false;
 
     const auto* p = frame.payload;
+    std::copy_n(p, kSyncPayloadBytes, out->rawPayload.begin());
     out->boardId = static_cast<std::uint32_t>(p[1]) |
         (static_cast<std::uint32_t>(p[2]) << 8u) |
         (static_cast<std::uint32_t>(p[3]) << 16u) |
         (static_cast<std::uint32_t>(p[4]) << 24u);
-    out->keyType = p[3];
-    out->keyboardLayout = p[4];
-    out->runMode = p[7];
-
     for (std::size_t i = 0; i < kSyncSerialBytes; ++i)
         out->serial[i] = static_cast<char>(p[kSyncSerialOffset + i]);
     for (std::size_t i = 0; i < kSyncAppVersionBytes; ++i)
         out->appVersion[i] =
             static_cast<char>(p[kSyncAppVersionOffset + i]);
-    for (std::size_t i = 0; i < kSyncBuildDateBytes; ++i)
-        out->appBuildDate[i] =
-            static_cast<char>(p[kSyncBuildDateOffset + i]);
+    for (std::size_t i = 0; i < kSyncBuildLabelBytes; ++i)
+        out->buildLabel[i] =
+            static_cast<char>(p[kSyncBuildDescriptorOffset + i]);
 
     return out->appVersion[0] == 'A' && out->appVersion[1] == 'p' &&
         out->appVersion[2] == 'p' && out->appVersion[3] == ' ' &&
-        out->appVersion[4] == 'V' && out->appBuildDate[0] != '\0';
+        out->appVersion[4] == 'V' && out->buildLabel[0] != '\0';
 }
 
 bool DecodePrecisionStroke(const FrameView& frame, PrecisionStroke* out) noexcept
@@ -391,16 +388,93 @@ bool IsExpectedAulaWin60HeMaxPrecision(const PrecisionStroke& precision) noexcep
 
 bool IsExpectedAulaWin60HeMaxFirmware(const SyncInfo& sync) noexcept
 {
-    constexpr char expectedVersion[] = "App V1.1.6";
-    constexpr char expectedBuildDate[] = "Feb  4 2026";
-    return std::strncmp(
-            sync.appVersion.data(), expectedVersion,
-            sizeof(expectedVersion) - 1u) == 0 &&
-        sync.appVersion[sizeof(expectedVersion) - 1u] == '\0' &&
-        std::strncmp(
-            sync.appBuildDate.data(), expectedBuildDate,
-            sizeof(expectedBuildDate) - 1u) == 0 &&
-        sync.appBuildDate[sizeof(expectedBuildDate) - 1u] == '\0';
+    constexpr std::array<std::uint8_t, 9> expectedPrefix{{
+        0x00, 0x02, 0x19, 0x02, 0x0A, 0xC0, 0x01, 0x00, 0x10,
+    }};
+    constexpr std::array<std::uint8_t, kSyncDescriptorBytes> expectedApp{{
+        0x41, 0x70, 0x70, 0x20, 0x56, 0x31, 0x2E, 0x31,
+        0x2E, 0x36, 0x00, 0x00, 0x31, 0x36, 0x3A, 0x33,
+    }};
+    constexpr std::array<std::uint8_t, kSyncDescriptorBytes> expectedBuild{{
+        0x46, 0x65, 0x62, 0x20, 0x20, 0x34, 0x20, 0x36,
+        0x33, 0x32, 0x30, 0x38, 0xFC, 0x01, 0x03, 0x12,
+    }};
+    return std::equal(expectedPrefix.begin(), expectedPrefix.end(),
+            sync.rawPayload.begin()) &&
+        sync.rawPayload[kSyncAppLengthOffset] == kSyncDescriptorBytes &&
+        std::equal(expectedApp.begin(), expectedApp.end(),
+            sync.rawPayload.begin() + kSyncAppDescriptorOffset) &&
+        sync.rawPayload[kSyncBuildLengthOffset] == kSyncDescriptorBytes &&
+        std::equal(expectedBuild.begin(), expectedBuild.end(),
+            sync.rawPayload.begin() + kSyncBuildDescriptorOffset) &&
+        sync.rawPayload[kSyncTrailerOffset] == 0xFFu;
+}
+
+bool IsAula6x21FamilyFirmware(const SyncInfo& sync) noexcept
+{
+    // The product/board bytes and build descriptor may legitimately vary
+    // between models. Keep the invariant framing produced by the proven
+    // SparkPlayJoy 6x21 platform and require meaningful descriptor text.
+    const auto printableAscii = [](const char* text, std::size_t bytes) noexcept {
+        bool meaningful = false;
+        for (std::size_t index = 0; index < bytes; ++index)
+        {
+            const auto value = static_cast<unsigned char>(text[index]);
+            if (value == 0)
+                continue;
+            if (value < 0x20u || value > 0x7Eu)
+                return false;
+            meaningful = true;
+        }
+        return meaningful;
+    };
+
+    return sync.rawPayload[0] == 0u &&
+        sync.boardId != 0u &&
+        sync.rawPayload[5] == 0xC0u &&
+        sync.rawPayload[6] == 0x01u &&
+        sync.rawPayload[7] == 0x00u &&
+        sync.rawPayload[kSyncSerialLengthOffset] == kSyncDescriptorBytes &&
+        sync.rawPayload[kSyncAppLengthOffset] == kSyncDescriptorBytes &&
+        sync.rawPayload[kSyncBuildLengthOffset] == kSyncDescriptorBytes &&
+        sync.rawPayload[kSyncTrailerOffset] == 0xFFu &&
+        sync.appVersion[0] == 'A' && sync.appVersion[1] == 'p' &&
+        sync.appVersion[2] == 'p' && sync.appVersion[3] == ' ' &&
+        sync.appVersion[4] == 'V' &&
+        printableAscii(sync.appVersion.data(), kSyncAppVersionBytes) &&
+        printableAscii(sync.buildLabel.data(), kSyncBuildLabelBytes);
+}
+
+bool IsAula6x21FamilyPrecision(const PrecisionStroke& precision) noexcept
+{
+    return precision.precisionUm >= 1u && precision.precisionUm <= 100u &&
+        precision.minimumTravelUm <= precision.maximumTravelUm &&
+        precision.maximumTravelUm >= 500u &&
+        precision.maximumTravelUm <= 10000u;
+}
+
+bool IsAula6x21FamilyDefaultMap(const KeyMap& map) noexcept
+{
+    std::array<bool, 256> seen{};
+    std::size_t physical = 0;
+    std::size_t publishable = 0;
+    for (const auto& row : map)
+    {
+        for (const auto key : row)
+        {
+            if (key == 0)
+                continue;
+            if (seen[key])
+                return false;
+            seen[key] = true;
+            ++physical;
+            if (IsPublishableKeyboardUsage(key))
+                ++publishable;
+        }
+    }
+    // A compatible keyboard must expose a useful keyboard map. The 6x21 wire
+    // matrix is fixed, while the populated positions may vary by model.
+    return physical >= 2u && physical <= kMatrixPositions && publishable >= 1u;
 }
 
 bool IsPublishableKeyboardUsage(std::uint8_t hidUsage) noexcept

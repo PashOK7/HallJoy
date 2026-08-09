@@ -21,12 +21,16 @@
 #include "keyboard_ui_internal.h"
 #include "keyboard_ui_state.h"
 #include "settings.h"
+#include "profile_ini.h"
+#include "app_paths.h"
+#include "global_profiles.h"
 
 // NEW: for premium partial invalidation of graph (live marker updates)
 #include "keyboard_keysettings_panel.h"
 
 // NEW: gear animation invalidation
 #include "keyboard_render.h"
+#include "ui_paint_audit.h"
 
 // created in keyboard_page_main.cpp
 extern "C" HWND KeyboardPageMain_CreatePage(HWND hParent, HINSTANCE hInst);
@@ -95,7 +99,10 @@ static void InvalidateDirtyBits(uint64_t bits, int chunk)
 
         uint16_t hid = (uint16_t)(chunk * 64 + (int)idx);
         if (hid < 256 && g_btnByHid[hid])
+        {
+            UiAuditTraceInvalidation(L"remap_key", L"backend_dirty_bit");
             InvalidateRect(g_btnByHid[hid], nullptr, FALSE);
+        }
     }
 #else
     for (int b = 0; b < 64; ++b)
@@ -104,7 +111,10 @@ static void InvalidateDirtyBits(uint64_t bits, int chunk)
         {
             uint16_t hid = (uint16_t)(chunk * 64 + b);
             if (hid < 256 && g_btnByHid[hid])
+            {
+                UiAuditTraceInvalidation(L"remap_key", L"backend_dirty_bit");
                 InvalidateRect(g_btnByHid[hid], nullptr, FALSE);
+            }
         }
     }
 #endif
@@ -190,6 +200,37 @@ static uint32_t HashGamepadReports()
     return h;
 }
 
+bool KeyboardUI_SaveBindingsAfterUserChange(HWND sourceWindow)
+{
+    if (!Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str()))
+        return false;
+
+    GlobalProfiles_SetDirty(true);
+    if (g_hPageGlobal && IsWindow(g_hPageGlobal))
+        PostMessageW(g_hPageGlobal, WM_APP_KEYBOARD_GLOBAL_PROFILE_DIRTY, 0, 0);
+
+    HWND root = sourceWindow ? GetAncestor(sourceWindow, GA_ROOT) : nullptr;
+    if (root)
+        PostMessageW(root, WM_APP + 1, 0, 0);
+    return true;
+}
+
+static uint64_t HashAnalogTelemetry()
+{
+    // The destination is value-initialized so any padding remains stable.
+    // A changed hash means that at least one published telemetry byte changed.
+    BackendAnalogTelemetry telemetry{};
+    Backend_GetAnalogTelemetry(&telemetry);
+    const auto* bytes = reinterpret_cast<const unsigned char*>(&telemetry);
+    uint64_t hash = 1469598103934665603ull;
+    for (size_t i = 0; i < sizeof(telemetry); ++i)
+    {
+        hash ^= bytes[i];
+        hash *= 1099511628211ull;
+    }
+    return hash;
+}
+
 void KeyboardUI_OnTimerTick(HWND)
 {
     HWND root = nullptr;
@@ -215,6 +256,9 @@ void KeyboardUI_OnTimerTick(HWND)
         uint64_t bits = BackendUI_ConsumeDirtyChunk(chunk);
         if (!bits) continue;
 
+        // The keyboard preview lives above the sub-pages and remains visible on
+        // every tab. Consuming backend dirtiness without invalidating its key
+        // windows loses release transitions until another repaint happens.
         InvalidateDirtyBits(bits, chunk);
     }
 
@@ -224,15 +268,36 @@ void KeyboardUI_OnTimerTick(HWND)
     // NEW: live marker (graph only)
     TickConfigLiveMarker();
 
+    static ULONGLONG s_nextLiveSampleAt = 0;
+    static uint64_t s_lastAnalogHash = 0;
+    static uint32_t s_lastTesterHash = 0;
+    const ULONGLONG now = GetTickCount64();
+    if ((g_activeSubTab == 1 || g_activeSubTab == 2) && now >= s_nextLiveSampleAt)
+    {
+        s_nextLiveSampleAt = now + 100;
+        const uint64_t analogHash = HashAnalogTelemetry();
+        if (analogHash != s_lastAnalogHash)
+        {
+            s_lastAnalogHash = analogHash;
+            if (g_activeSubTab == 1 && g_hPageConfig)
+                PostMessageW(g_hPageConfig, WM_APP_CONFIG_TELEMETRY_REFRESH, 0, 0);
+            else if (g_activeSubTab == 2 && g_hPageTester)
+                PostMessageW(g_hPageTester, WM_APP_TESTER_LIVE_REFRESH,
+                    TESTER_REFRESH_DIAGNOSTICS, 0);
+        }
+
+    }
+
+    // Gamepad bars are animation-rate UI, not slow diagnostic telemetry.
+    // Sample their compact report hash on every UI tick so the tester follows
+    // the configured refresh cadence instead of being capped at 10 FPS.
     if (g_activeSubTab == 2 && g_hPageTester)
     {
-        static uint32_t s_lastTesterHash = 0;
-        uint32_t h = HashGamepadReports();
-
-        if (h != s_lastTesterHash)
+        const uint32_t testerHash = HashGamepadReports();
+        if (testerHash != s_lastTesterHash)
         {
-            s_lastTesterHash = h;
-            InvalidateRect(g_hPageTester, nullptr, FALSE);
+            s_lastTesterHash = testerHash;
+            PostMessageW(g_hPageTester, WM_APP_TESTER_LIVE_REFRESH, 0, 0);
         }
     }
 

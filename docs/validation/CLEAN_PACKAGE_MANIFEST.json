@@ -59,22 +59,22 @@
       "sha256": "6b00c704764694cac26e6a880ed146cc15c49ee560d19b2497df010fd05b6f30"
     },
     {
-      "path": "docs/archive/historical-notes/ANALYSIS_LOGS_FIRMWARE_PID1109_RU.txt",
+      "path": "docs/archive/historical-notes/ANALYSIS_LOGS_FIRMWARE_PID1109.txt",
       "size": 3292,
       "sha256": "8ffb99cefd98853b0f233e09b45b072cbbb187415ad7294d2b23b013e924815c"
     },
     {
-      "path": "docs/archive/historical-notes/BUILD_FIX_V5_0_1_RU.md",
+      "path": "docs/archive/historical-notes/BUILD_FIX_V5_0_1.md",
       "size": 937,
       "sha256": "39133c7e7b341932e6f78fc7e92a0ce1e1fe8d45dfb64475ba3fad888ac52bbc"
     },
     {
-      "path": "docs/archive/historical-notes/MAD68PRO_R_NATIVE_V3_5_CRITIQUE_RESOLUTION_RU.md",
+      "path": "docs/archive/historical-notes/MAD68PRO_R_NATIVE_V3_5_CRITIQUE_RESOLUTION.md",
       "size": 12116,
       "sha256": "d46260eb663c65ef020b9829d19f9350cc89a97f614df1a8cc14f5852d705c58"
     },
     {
-      "path": "docs/archive/historical-notes/README_ADDRESSED_ANALOG_V4_RU.md",
+      "path": "docs/archive/historical-notes/README_ADDRESSED_ANALOG_V4.md",
       "size": 7309,
       "sha256": "4205cd506a1221e21b40071bd4bfcb8be43c19b85b1c4311e7b29ac019b9ca57"
     },
@@ -109,22 +109,22 @@
       "sha256": "fff4600bd6cee0f39e9edd9d9ee303ea55efc1761de1fb5f12b1e3911f0521ae"
     },
     {
-      "path": "docs/current/AV_FALSE_POSITIVE_NOTES_RU.md",
+      "path": "docs/current/AV_FALSE_POSITIVE_NOTES.md",
       "size": 1570,
       "sha256": "023d069e28811cf8d1566d7736c13a5e37eb8f14209feded68b948bfe5896b20"
     },
     {
-      "path": "docs/current/BUILD_PIPELINE_AUDIT_RU.md",
+      "path": "docs/current/BUILD_PIPELINE_AUDIT.md",
       "size": 9838,
       "sha256": "b2cdc65492dc05e7f05561265c634bba5ec3586b500e9817ab2bdf903d5f3bb7"
     },
     {
-      "path": "docs/current/HARDWARE_LOG_SUMMARY_RU.md",
+      "path": "docs/current/HARDWARE_LOG_SUMMARY.md",
       "size": 3264,
       "sha256": "ecd52b02eb505159d732ce6b5791167cbac9b2e15879b57ac7342529e4981c94"
     },
     {
-      "path": "docs/current/MAD68_PRO_R_FIRMWARE_FINAL_AUDIT_RU.md",
+      "path": "docs/current/MAD68_PRO_R_FIRMWARE_FINAL_AUDIT.md",
       "size": 24207,
       "sha256": "a0d65fbe4a7e655942d64b2fac0834500cb5eaf2c52cfb4c7e9027f1d9a1b983"
     },
@@ -134,7 +134,7 @@
       "sha256": "59fa70f099b32eceac56ab477cbdccaa73e4059de666a34e0d1f8590d2a8aa14"
     },
     {
-      "path": "docs/current/V3_6_LOG_ANALYSIS_AND_FIX_RU.md",
+      "path": "docs/current/V3_6_LOG_ANALYSIS_AND_FIX.md",
       "size": 2273,
       "sha256": "deb4680de827ac343055b3a4e9d520375fdd330d57b4f0717818dd0447ddca06"
     },
@@ -204,22 +204,22 @@
       "sha256": "34a1d6b7a9d699664370fb73240dfce921222401869dfb4e74839db992a44faa"
     },
     {
-      "path": "docs/research/MAD68Pro_A8_A9_A0_Approach_Critique_RU.md",
+      "path": "docs/research/MAD68Pro_A8_A9_A0_Approach_Critique.md",
       "size": 17528,
       "sha256": "d2473fef4f34cc38009c4dbfd339b645326b8571ee0ce9eb337ec6067de79f0c"
     },
     {
-      "path": "docs/research/README_RU.txt",
+      "path": "docs/research/README.txt",
       "size": 730,
       "sha256": "1d205cc24cd86efd0e1ac5513e573c70e048333916170ff38839004c6701cf08"
     },
     {
-      "path": "docs/stability/AUDIT_V3_9_0_RU.md",
+      "path": "docs/stability/AUDIT_V3_9_0.md",
       "size": 56601,
       "sha256": "6cbaf410b1ff7be5b9063cf04fcce383c140300be4545d6b2aede8ac43287709"
     },
     {
-      "path": "docs/stability/BASELINE_V3_9_0_RU.md",
+      "path": "docs/stability/BASELINE_V3_9_0.md",
       "size": 3034,
       "sha256": "bd3fe070cb4c13c21bf7a7fb8ca8539edbae94f66961badc28355ec502e13bea"
     },
@@ -264,77 +264,77 @@
       "sha256": "261d17cc685476b69dd048b4ce5abbc6330f4af567522d88c47d19a5add89826"
     },
     {
-      "path": "docs/stability/DECISIONS_RU.md",
+      "path": "docs/stability/DECISIONS.md",
       "size": 14381,
       "sha256": "829d471b1f3fd99598eb73a504e57880dd90dc5216979ece1f02bf5d84f8ec39"
     },
     {
-      "path": "docs/stability/README_RU.md",
+      "path": "docs/stability/README.md",
       "size": 3904,
       "sha256": "7dcf0ff1369b014734867c2fdff2f4e32cbbb8b97ed84fa574515801cbcf0a54"
     },
     {
-      "path": "docs/stability/RISK_REGISTER_RU.md",
+      "path": "docs/stability/RISK_REGISTER.md",
       "size": 16895,
       "sha256": "18546d819d0b90b886dfcc4c86f45d57555f2031559717e470c3c0ccd004f1d1"
     },
     {
-      "path": "docs/stability/STABILITY_MASTER_PLAN_RU.md",
+      "path": "docs/stability/STABILITY_MASTER_PLAN.md",
       "size": 18630,
       "sha256": "8d326771e047b1cb2058ba87d4e4247ad3bfa90f4c7b649c24ea7347ebc8d7a6"
     },
     {
-      "path": "docs/stability/STAGE_01_RESULT_RU.md",
+      "path": "docs/stability/STAGE_01_RESULT.md",
       "size": 1822,
       "sha256": "137dc0afe1a0756c9edf267d9349027008749f9fbd2bdeb4b73cc63831fff8a4"
     },
     {
-      "path": "docs/stability/STAGE_S01_RESULT_RU.md",
+      "path": "docs/stability/STAGE_S01_RESULT.md",
       "size": 5134,
       "sha256": "83b13736634e294849e9888cd0044552611b828d5080027fc42790fd3f33f02b"
     },
     {
-      "path": "docs/stability/STAGE_S02A1_RESULT_RU.md",
+      "path": "docs/stability/STAGE_S02A1_RESULT.md",
       "size": 4716,
       "sha256": "21b3a093562f19fa480f569732535d5e295f2ed9049ce520f1c7bdbfab47f143"
     },
     {
-      "path": "docs/stability/STAGE_S02A_RESULT_RU.md",
+      "path": "docs/stability/STAGE_S02A_RESULT.md",
       "size": 5080,
       "sha256": "077f561d48728d70625e479bdbb9cc8d26e1609df69c71356282380a3cd5385c"
     },
     {
-      "path": "docs/stability/STAGE_S02B1_RESULT_RU.md",
+      "path": "docs/stability/STAGE_S02B1_RESULT.md",
       "size": 4505,
       "sha256": "32e0cdf42576f6624f00df1bd7d6d35511136cc9538f4a7d314166e0999b154d"
     },
     {
-      "path": "docs/stability/STAGE_S02B2_RESULT_RU.md",
+      "path": "docs/stability/STAGE_S02B2_RESULT.md",
       "size": 3646,
       "sha256": "634e16f860afecdda12b4188660f6ab208c5d4e30c3ea41eebbd2ff6fa093596"
     },
     {
-      "path": "docs/stability/STAGE_S02B3_RESULT_RU.md",
+      "path": "docs/stability/STAGE_S02B3_RESULT.md",
       "size": 4111,
       "sha256": "3d0af29ad91c0b8d5f3090af8267b81151533f11134d881b86e3bc4143a72728"
     },
     {
-      "path": "docs/stability/STAGE_S02V1_RESULT_RU.md",
+      "path": "docs/stability/STAGE_S02V1_RESULT.md",
       "size": 6053,
       "sha256": "a11516ec14c4fd49121b6e6939cd409b11f15133ee8633d364dc47a131bff96d"
     },
     {
-      "path": "docs/stability/TRACE_PROTOCOL_S02V1_RU.md",
+      "path": "docs/stability/TRACE_PROTOCOL_S02V1.md",
       "size": 6359,
       "sha256": "055a88a910e877a37fa4bafc0197574e8d334f698ca2ea308f09944c9062cc36"
     },
     {
-      "path": "docs/stability/VALIDATION_MATRIX_RU.md",
+      "path": "docs/stability/VALIDATION_MATRIX.md",
       "size": 6738,
       "sha256": "6dfe1999a21a3030d2fed8e92b37975185eed0390d7512940e1ef67b58d50121"
     },
     {
-      "path": "docs/stability/WORKLOG_RU.md",
+      "path": "docs/stability/WORKLOG.md",
       "size": 16914,
       "sha256": "3bdbd1e9440a5345c208ec728adaffda9e8cb400354f548e21433ecb67fd58ce"
     },
@@ -369,7 +369,7 @@
       "sha256": "8dbc059408a3992b8189ed6565df490ba78ff6583c4ecf853bbfd5902aced31a"
     },
     {
-      "path": "docs/stability/tests/README_RU.md",
+      "path": "docs/stability/tests/README.md",
       "size": 2832,
       "sha256": "1979c9526a5f3808468154f3dbf806d3242a1d23965ee6a9accaadbe5ca81806"
     },
@@ -584,27 +584,27 @@
       "sha256": "8790ee375d83c71ba52c98daab7e30ed45c4ed466a46dc425e8bf54c47d46fd7"
     },
     {
-      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_S01_LIFECYCLE_CONTRACTS_RU.txt",
+      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_S01_LIFECYCLE_CONTRACTS.txt",
       "size": 1100,
       "sha256": "78fd9dac25107f58e93caa41c8347c229a0bfbfcd80c8b4db8a4d797551c1de2"
     },
     {
-      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_S02A1_SOUP_PATCH_HOTFIX_RU.txt",
+      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_S02A1_SOUP_PATCH_HOTFIX.txt",
       "size": 1015,
       "sha256": "c63b47e2a8b817c0a96c5681797b697765046c57ba373180e1106243ade7015e"
     },
     {
-      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_S02A_EXCEPTION_BARRIERS_RU.txt",
+      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_S02A_EXCEPTION_BARRIERS.txt",
       "size": 1389,
       "sha256": "466ef40ae20b6c6267e5c68670a93c01d4925d174df0f3f7cfe465bf3ed70a69"
     },
     {
-      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_S02V1_TRACE_RU.txt",
+      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_S02V1_TRACE.txt",
       "size": 1420,
       "sha256": "c6e54e150c62f5a40f56fdc806f03dcac77259b40814d91cab3515debc82b231"
     },
     {
-      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_STAGE_01_RU.txt",
+      "path": "docs/validation/VALIDATION_PACKAGE_STABILITY_STAGE_01.txt",
       "size": 992,
       "sha256": "1113806dbd7ad49071eec0e3abd22c11c1e053be5a51f6b96f8cf9d9a4118d34"
     },
@@ -624,7 +624,7 @@
       "sha256": "ca3a5b10b6310dcabbcb003769188c59bd1f0b1795da6cc20467feec257cc99d"
     },
     {
-      "path": "src/HallJoyProject/BUILD_README_RU.txt",
+      "path": "src/HallJoyProject/BUILD_README.txt",
       "size": 2025,
       "sha256": "97f95c1dfd24e192985312130af23dbb098f16c15dc02abe1551de5de18927af"
     },
@@ -1344,7 +1344,7 @@
       "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
     },
     {
-      "path": "src/HallJoyProject/MADLIONS_SAFEHID_V6_RU.md",
+      "path": "src/HallJoyProject/MADLIONS_SAFEHID_V6.md",
       "size": 4524,
       "sha256": "bae1dfcccf2f0b261c77911392fc6ac0903a61d49bfaeae6e54a066c88302059"
     },
@@ -1364,7 +1364,7 @@
       "sha256": "1d3db52051fcbb63d385c84c98255e9e550db861cbd51a97bf13ec43e2f5adbc"
     },
     {
-      "path": "src/HallJoyProject/SOURCE_AUDIT_V6_RU.md",
+      "path": "src/HallJoyProject/SOURCE_AUDIT_V6.md",
       "size": 3066,
       "sha256": "41a829e9a8735f045a88eb9cc0e381f976deb80d58a704f47e74b308703ffba2"
     },
@@ -1599,12 +1599,12 @@
       "sha256": "ff9758d9af175e6124750be34764a0fc1634c28ef469fd2242bed14559435e58"
     },
     {
-      "path": "third_party/UniversalAnalogPluginFixed/README_BUILD_NO_SUN_RU.txt",
+      "path": "third_party/UniversalAnalogPluginFixed/README_BUILD_NO_SUN.txt",
       "size": 830,
       "sha256": "68c3a3e747fab2f4a1b4bb6515566a93e7e422649fd95d68fde3e9fef9268303"
     },
     {
-      "path": "third_party/UniversalAnalogPluginFixed/README_HALLJOY_FIX_RU.md",
+      "path": "third_party/UniversalAnalogPluginFixed/README_HALLJOY_FIX.md",
       "size": 2622,
       "sha256": "fad3485bb13bec39f43d958c58313e7189fa2fe488f3d71c373e245e0ef9e97f"
     },

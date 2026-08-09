@@ -651,11 +651,23 @@ NAMESPACE_SOUP
 		}
 		if (pending_read != 0)
 		{
-			while (!GetOverlappedResult(handle, &read_overlapped, &bytes_read, FALSE)
-				&& GetLastError() == ERROR_IO_INCOMPLETE
-				)
+			bool completed = pending_read == 1;
+			if (pending_read == 2)
 			{
-				Sleep(1);
+				// Block on this serialized operation inside the kernel. Polling
+				// GetOverlappedResult with Sleep(1) turns every 1 ms HID packet into
+				// a scheduler-resolution delay and compounds badly for multi-packet
+				// snapshots such as Keychron's four-report matrix response.
+				completed = GetOverlappedResult(handle, &read_overlapped, &bytes_read, TRUE) != FALSE;
+			}
+			if (!completed)
+			{
+				const DWORD error = GetLastError();
+				bytes_read = 0;
+				if (error != ERROR_OPERATION_ABORTED)
+				{
+					disconnected = true;
+				}
 			}
 			pending_read = 0;
 		}
@@ -715,7 +727,12 @@ NAMESPACE_SOUP
 	void hwHid::cancelReceiveReport() noexcept
 	{
 #if SOUP_WINDOWS
-		CancelIoEx(handle, &read_overlapped);
+		if (pending_read == 2)
+		{
+			// Cancellation wakes the blocking completion; the receive thread drains the
+			// completion before the OVERLAPPED storage or read buffer is reused.
+			CancelIoEx(handle, &read_overlapped);
+		}
 #elif SOUP_LINUX
 		if (reading)
 		{

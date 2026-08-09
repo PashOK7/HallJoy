@@ -169,33 +169,53 @@ void TestExactWindowsHidEnvelope()
 
 void TestSyncPrecisionAndDefaultMap()
 {
-    std::vector<std::uint8_t> syncPayload(54u, 0);
-    syncPayload[0] = 0;
-    syncPayload[1] = 0x78;
-    syncPayload[2] = 0x56;
-    syncPayload[3] = 0x34;
-    syncPayload[4] = 0x12;
+    const std::array<std::uint8_t, kSyncPayloadBytes> physical{{
+        0x00, 0x02, 0x19, 0x02, 0x0A, 0xC0, 0x01, 0x00,
+        0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x10, 0x41, 0x70, 0x70, 0x20, 0x56, 0x31,
+        0x2E, 0x31, 0x2E, 0x36, 0x00, 0x00, 0x31, 0x36,
+        0x3A, 0x33, 0x10, 0x46, 0x65, 0x62, 0x20, 0x20,
+        0x34, 0x20, 0x36, 0x33, 0x32, 0x30, 0x38, 0xFC,
+        0x01, 0x03, 0x12, 0xFF,
+    }};
+    std::vector<std::uint8_t> syncPayload(
+        physical.begin(), physical.end());
     constexpr char serial[] = "AULA-UNIT-TEST";
-    std::copy_n(serial, sizeof(serial) - 1u, syncPayload.begin() + 9u);
-    constexpr char version[] = "App V1.1.6";
-    constexpr char buildDate[] = "Feb  4 2026";
-    std::copy_n(version, sizeof(version) - 1u, syncPayload.begin() + 26u);
-    std::copy_n(buildDate, sizeof(buildDate) - 1u, syncPayload.begin() + 43u);
+    std::copy_n(serial, sizeof(serial) - 1u,
+        syncPayload.begin() + kSyncSerialOffset);
     SyncInfo sync{};
     assert(DecodeSyncInfo(Parse(MakeResponse(
         kCommandSync, syncPayload), kCommandSync), &sync));
     assert(IsExpectedAulaWin60HeMaxFirmware(sync));
+    assert(IsAula6x21FamilyFirmware(sync));
+    auto compatibleSyncPayload = syncPayload;
+    compatibleSyncPayload[1] = 0x34u;
+    compatibleSyncPayload[2] = 0x12u;
+    compatibleSyncPayload[3] = 0x77u;
+    compatibleSyncPayload[4] = 0x05u;
+    constexpr char compatibleVersion[] = "App V2.0.0";
+    std::copy_n(compatibleVersion, sizeof(compatibleVersion) - 1u,
+        compatibleSyncPayload.begin() + kSyncAppVersionOffset);
+    assert(DecodeSyncInfo(Parse(MakeResponse(
+        kCommandSync, compatibleSyncPayload), kCommandSync), &sync));
+    assert(!IsExpectedAulaWin60HeMaxFirmware(sync));
+    assert(IsAula6x21FamilyFirmware(sync));
+    compatibleSyncPayload[5] ^= 0x01u;
+    assert(DecodeSyncInfo(Parse(MakeResponse(
+        kCommandSync, compatibleSyncPayload), kCommandSync), &sync));
+    assert(!IsAula6x21FamilyFirmware(sync));
     auto oversizedSyncPayload = syncPayload;
     oversizedSyncPayload.push_back(0);
     assert(!DecodeSyncInfo(Parse(MakeResponse(
         kCommandSync, oversizedSyncPayload), kCommandSync), &sync));
     assert(DecodeSyncInfo(Parse(MakeResponse(
         kCommandSync, syncPayload), kCommandSync), &sync));
-    sync.appVersion[9] = '5';
+    sync.rawPayload[kSyncAppVersionOffset + 9u] = '5';
     assert(!IsExpectedAulaWin60HeMaxFirmware(sync));
     assert(DecodeSyncInfo(Parse(MakeResponse(
         kCommandSync, syncPayload), kCommandSync), &sync));
-    sync.appBuildDate[10] = '5';
+    sync.rawPayload[kSyncBuildDescriptorOffset + 15u] ^= 0x01u;
     assert(!IsExpectedAulaWin60HeMaxFirmware(sync));
 
     const std::vector<std::uint8_t> precisionPayload{
@@ -205,6 +225,12 @@ void TestSyncPrecisionAndDefaultMap()
     assert(DecodePrecisionStroke(Parse(MakeResponse(
         kCommandApi, precisionPayload), kCommandApi), &precision));
     assert(IsExpectedAulaWin60HeMaxPrecision(precision));
+    assert(IsAula6x21FamilyPrecision(precision));
+    precision = PrecisionStroke{20u, 20u, 4000u};
+    assert(!IsExpectedAulaWin60HeMaxPrecision(precision));
+    assert(IsAula6x21FamilyPrecision(precision));
+    precision.maximumTravelUm = 499u;
+    assert(!IsAula6x21FamilyPrecision(precision));
 
     KeyMap decoded{};
     const auto& expected = ExpectedAulaWin60HeMaxDefaultMap();
@@ -226,10 +252,19 @@ void TestSyncPrecisionAndDefaultMap()
     }
     assert(decoded == expected);
     assert(IsExpectedAulaWin60HeMaxDefaultMap(decoded));
+    assert(IsAula6x21FamilyDefaultMap(decoded));
     assert(CountPhysicalKeyPositions(decoded) == 61u);
     assert(CountMappedHids(decoded) == 60u);
     assert(decoded[5][12] == 0x01u);
     assert(!IsPublishableKeyboardUsage(decoded[5][12]));
+    KeyMap compatibleMap{};
+    std::uint8_t key = 1u;
+    for (auto& row : compatibleMap)
+        for (auto& cell : row)
+            if (key <= 84u) cell = key++;
+    assert(IsAula6x21FamilyDefaultMap(compatibleMap));
+    compatibleMap[0][1] = compatibleMap[0][0];
+    assert(!IsAula6x21FamilyDefaultMap(compatibleMap));
 }
 
 void TestActiveFunctionCorrelationAndPublication()

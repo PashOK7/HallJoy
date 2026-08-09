@@ -237,10 +237,10 @@ namespace
 
     void HostLog(const wchar_t* fmt, ...)
     {
-#if !defined(HALLJOY_DIAGNOSTIC)
+#if !defined(HALLJOY_DIAGNOSTIC) || defined(HALLJOY_SINGLE_LOG_DIAGNOSTIC)
         // Production telemetry is kept in shared memory for the in-app debug
-        // panels. The isolated host must not perform synchronous per-poll file
-        // I/O or create HallJoyAnalogHost.log.
+        // panels. Single-log diagnostics also use the parent-side shared-memory
+        // telemetry and must not create a second HallJoyAnalogHost.log.
         (void)fmt;
         return;
 #else

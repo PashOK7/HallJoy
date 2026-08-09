@@ -203,6 +203,7 @@ void PremiumComboInternal::OpenDropDown(State* st)
 
     st->dropped = true;
     st->hotIndex = st->curSel;
+    st->wheelRemainder = 0;
 
     ResetTypeSearch(st);
 
@@ -296,6 +297,8 @@ void PremiumComboInternal::OpenDropDown(State* st)
     PopupStartAnim(st, PopupAnimMode::Opening);
 
     InvalidateRect(st->hwnd, nullptr, FALSE);
+    if (st->parent)
+        SendMessageW(st->parent, PremiumCombo::MsgDropStateChanged(), TRUE, (LPARAM)st->hwnd);
 }
 
 void PremiumComboInternal::CloseDropDown(State* st, bool keepFocusOnCombo)
@@ -306,6 +309,7 @@ void PremiumComboInternal::CloseDropDown(State* st, bool keepFocusOnCombo)
     st->dropped = false;
     st->hotIndex = -1;
     st->scrollTop = 0;
+    st->wheelRemainder = 0;
 
     ResetTypeSearch(st);
 
@@ -333,4 +337,7 @@ void PremiumComboInternal::CloseDropDown(State* st, bool keepFocusOnCombo)
 
     if (keepFocusOnCombo && st->hwnd)
         SetFocus(st->hwnd);
+
+    if (st->parent)
+        SendMessageW(st->parent, PremiumCombo::MsgDropStateChanged(), FALSE, (LPARAM)st->hwnd);
 }

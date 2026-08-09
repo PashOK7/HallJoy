@@ -13,6 +13,7 @@ runtime/
 captures/
 tests_bin/
 perf_results/
+backups/
 **/Debug/
 **/Release/
 **/x64/

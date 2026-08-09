@@ -59,22 +59,22 @@
       "sha256": "6b00c704764694cac26e6a880ed146cc15c49ee560d19b2497df010fd05b6f30"
     },
     {
-      "path": "docs/archive/historical-notes/ANALYSIS_LOGS_FIRMWARE_PID1109_RU.txt",
+      "path": "docs/archive/historical-notes/ANALYSIS_LOGS_FIRMWARE_PID1109.txt",
       "size": 3292,
       "sha256": "8ffb99cefd98853b0f233e09b45b072cbbb187415ad7294d2b23b013e924815c"
     },
     {
-      "path": "docs/archive/historical-notes/BUILD_FIX_V5_0_1_RU.md",
+      "path": "docs/archive/historical-notes/BUILD_FIX_V5_0_1.md",
       "size": 937,
       "sha256": "39133c7e7b341932e6f78fc7e92a0ce1e1fe8d45dfb64475ba3fad888ac52bbc"
     },
     {
-      "path": "docs/archive/historical-notes/MAD68PRO_R_NATIVE_V3_5_CRITIQUE_RESOLUTION_RU.md",
+      "path": "docs/archive/historical-notes/MAD68PRO_R_NATIVE_V3_5_CRITIQUE_RESOLUTION.md",
       "size": 12116,
       "sha256": "d46260eb663c65ef020b9829d19f9350cc89a97f614df1a8cc14f5852d705c58"
     },
     {
-      "path": "docs/archive/historical-notes/README_ADDRESSED_ANALOG_V4_RU.md",
+      "path": "docs/archive/historical-notes/README_ADDRESSED_ANALOG_V4.md",
       "size": 7309,
       "sha256": "4205cd506a1221e21b40071bd4bfcb8be43c19b85b1c4311e7b29ac019b9ca57"
     },
@@ -109,22 +109,22 @@
       "sha256": "fff4600bd6cee0f39e9edd9d9ee303ea55efc1761de1fb5f12b1e3911f0521ae"
     },
     {
-      "path": "docs/current/AV_FALSE_POSITIVE_NOTES_RU.md",
+      "path": "docs/current/AV_FALSE_POSITIVE_NOTES.md",
       "size": 1570,
       "sha256": "023d069e28811cf8d1566d7736c13a5e37eb8f14209feded68b948bfe5896b20"
     },
     {
-      "path": "docs/current/BUILD_PIPELINE_AUDIT_RU.md",
+      "path": "docs/current/BUILD_PIPELINE_AUDIT.md",
       "size": 9838,
       "sha256": "b2cdc65492dc05e7f05561265c634bba5ec3586b500e9817ab2bdf903d5f3bb7"
     },
     {
-      "path": "docs/current/HARDWARE_LOG_SUMMARY_RU.md",
+      "path": "docs/current/HARDWARE_LOG_SUMMARY.md",
       "size": 3264,
       "sha256": "ecd52b02eb505159d732ce6b5791167cbac9b2e15879b57ac7342529e4981c94"
     },
     {
-      "path": "docs/current/MAD68_PRO_R_FIRMWARE_FINAL_AUDIT_RU.md",
+      "path": "docs/current/MAD68_PRO_R_FIRMWARE_FINAL_AUDIT.md",
       "size": 24207,
       "sha256": "a0d65fbe4a7e655942d64b2fac0834500cb5eaf2c52cfb4c7e9027f1d9a1b983"
     },
@@ -134,7 +134,7 @@
       "sha256": "59fa70f099b32eceac56ab477cbdccaa73e4059de666a34e0d1f8590d2a8aa14"
     },
     {
-      "path": "docs/current/V3_6_LOG_ANALYSIS_AND_FIX_RU.md",
+      "path": "docs/current/V3_6_LOG_ANALYSIS_AND_FIX.md",
       "size": 2273,
       "sha256": "deb4680de827ac343055b3a4e9d520375fdd330d57b4f0717818dd0447ddca06"
     },
@@ -204,12 +204,12 @@
       "sha256": "34a1d6b7a9d699664370fb73240dfce921222401869dfb4e74839db992a44faa"
     },
     {
-      "path": "docs/research/MAD68Pro_A8_A9_A0_Approach_Critique_RU.md",
+      "path": "docs/research/MAD68Pro_A8_A9_A0_Approach_Critique.md",
       "size": 17528,
       "sha256": "d2473fef4f34cc38009c4dbfd339b645326b8571ee0ce9eb337ec6067de79f0c"
     },
     {
-      "path": "docs/research/README_RU.txt",
+      "path": "docs/research/README.txt",
       "size": 730,
       "sha256": "1d205cc24cd86efd0e1ac5513e573c70e048333916170ff38839004c6701cf08"
     },
@@ -229,7 +229,7 @@
       "sha256": "ca3a5b10b6310dcabbcb003769188c59bd1f0b1795da6cc20467feec257cc99d"
     },
     {
-      "path": "src/HallJoyProject/BUILD_README_RU.txt",
+      "path": "src/HallJoyProject/BUILD_README.txt",
       "size": 2025,
       "sha256": "97f95c1dfd24e192985312130af23dbb098f16c15dc02abe1551de5de18927af"
     },
@@ -924,7 +924,7 @@
       "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
     },
     {
-      "path": "src/HallJoyProject/MADLIONS_SAFEHID_V6_RU.md",
+      "path": "src/HallJoyProject/MADLIONS_SAFEHID_V6.md",
       "size": 4524,
       "sha256": "bae1dfcccf2f0b261c77911392fc6ac0903a61d49bfaeae6e54a066c88302059"
     },
@@ -944,7 +944,7 @@
       "sha256": "1d3db52051fcbb63d385c84c98255e9e550db861cbd51a97bf13ec43e2f5adbc"
     },
     {
-      "path": "src/HallJoyProject/SOURCE_AUDIT_V6_RU.md",
+      "path": "src/HallJoyProject/SOURCE_AUDIT_V6.md",
       "size": 3066,
       "sha256": "41a829e9a8735f045a88eb9cc0e381f976deb80d58a704f47e74b308703ffba2"
     },
@@ -1129,12 +1129,12 @@
       "sha256": "ff9758d9af175e6124750be34764a0fc1634c28ef469fd2242bed14559435e58"
     },
     {
-      "path": "third_party/UniversalAnalogPluginFixed/README_BUILD_NO_SUN_RU.txt",
+      "path": "third_party/UniversalAnalogPluginFixed/README_BUILD_NO_SUN.txt",
       "size": 830,
       "sha256": "68c3a3e747fab2f4a1b4bb6515566a93e7e422649fd95d68fde3e9fef9268303"
     },
     {
-      "path": "third_party/UniversalAnalogPluginFixed/README_HALLJOY_FIX_RU.md",
+      "path": "third_party/UniversalAnalogPluginFixed/README_HALLJOY_FIX.md",
       "size": 2622,
       "sha256": "fad3485bb13bec39f43d958c58313e7189fa2fe488f3d71c373e245e0ef9e97f"
     },

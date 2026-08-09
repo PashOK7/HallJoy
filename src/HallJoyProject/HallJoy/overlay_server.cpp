@@ -51,7 +51,7 @@ static std::atomic<uint32_t> g_overlayEffectFlags{
     OverlayEffect_GlassRimLight
 };
 static std::atomic<uint32_t> g_overlayAccentColor{ 0x00ff72u };
-static std::atomic<int> g_overlaySmoothingStrengthPercent{ 39 };
+static std::atomic<int> g_overlaySmoothingStrengthPercent{ 15 };
 static std::atomic<int> g_overlayGlassStrengthPercent{ 50 };
 static std::atomic<int> g_overlayBloomStrengthPercent{ 33 };
 static std::atomic<int> g_overlayEdgeStrengthPercent{ 50 };
@@ -917,7 +917,7 @@ function render(){
       stg.smoothing,stg.glass,stg.bloom,stg.edgeSweep,stg.microScale,stg.labelContrast,stg.glassRimLight,
       label.font,label.size,label.shadow,lc.r,lc.g,lc.b].join('|');
     if(sk!==visualStyleKey){visualStyleKey=sk;redraw=true;}
-    const baseResponse=1-(clamp01((stg.smoothing===undefined?35:stg.smoothing)/100)*.82);
+    const baseResponse=1-(clamp01((stg.smoothing===undefined?15:stg.smoothing)/100)*.82);
     const response=fx.smoothing?1-Math.pow(1-baseResponse,dt/16.6667):1;
     for(const k of s.keys){
       const id=k.hid+':'+k.row+':'+k.x;const target=clamp01(((settings.useRawDepth?k.raw:k.out)||0)/1000);

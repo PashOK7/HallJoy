@@ -17,6 +17,7 @@ $exe = Join-Path $outDir ($targetName + '.exe')
 $pdb = Join-Path $outDir ($targetName + '.pdb')
 $map = Join-Path $outDir ($targetName + '.map')
 $sendDir = Join-Path $root 'build\output'
+$releaseDir = Join-Path $root 'build\release'
 $dependencyLockPath = Join-Path $root 'tools\dependency-lock.json'
 $thirdPartyNoticesPath = Join-Path $root 'THIRD_PARTY_NOTICES.md'
 if (-not (Test-Path -LiteralPath $dependencyLockPath -PathType Leaf)) {
@@ -46,6 +47,7 @@ $required = @(
     (Join-Path $pluginRoot 'halljoy_dense_snapshot.h'),
     (Join-Path $pluginRoot 'halljoy_native_hid_claim.h'),
     $project,
+    (Join-Path $hallJoyRoot 'HallJoy\ui_paint_audit.h'),
     (Join-Path $hallJoyRoot 'HallJoy\mad68pr_backend.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\mad68pr_protocol.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\hex80_backend.cpp'),
@@ -54,10 +56,16 @@ $required = @(
     (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_backend.h'),
     (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_client.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_client.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_diagnostic_metrics.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_diagnostic_metrics.h'),
     (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_protocol.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_protocol.h'),
     (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_session_policy.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\aula_win60he_session_policy.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_w669_backend.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_w669_backend.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_w669_protocol.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\aula_w669_protocol.h'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_routing.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\native_hid_interface_claim_registry.h'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_backend.h'),
@@ -76,6 +84,7 @@ $required = @(
     (Join-Path $hallJoyRoot 'tests\runtime_arithmetic_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\protocol_parser_fuzz_smoke_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\prerelease_hardening_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\pre_release_ui_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\resource_ownership_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\native_backend_architecture_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\startup_wake_transaction_static_audit.py'),
@@ -94,12 +103,16 @@ $required = @(
     (Join-Path $hallJoyRoot 'tests\native_analog_backend_contract_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\native_hid_interface_claim_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\native_hid_interface_claim_static_audit.py'),
+	(Join-Path $hallJoyRoot 'tests\keychron_k4he_static_audit.py'),
+	(Join-Path $hallJoyRoot 'tests\uap_hid_receive_event_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\aula_win60he_backend_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\aula_win60he_diagnostic_metrics_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\aula_win60he_protocol_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\aula_win60he_oracle_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\aula_win60he_oracle_fixtures.h'),
     (Join-Path $hallJoyRoot 'tests\aula_win60he_end_to_end_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\aula_win60he_session_policy_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\aula_w669_protocol_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\private_uap_runtime_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\uap_device_identity_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\uap_device_identity_test.cpp'),
@@ -122,6 +135,7 @@ $required = @(
     (Join-Path $root 'tools\fuzz_overlay_http.py'),
     (Join-Path $root 'tools\run_production_smoke.ps1'),
     (Join-Path $root 'tools\run_release_qualification.ps1'),
+    (Join-Path $root 'tools\run_ui_scroll_stress.ps1'),
     (Join-Path $root 'tools\run_long_soak.ps1'),
     (Join-Path $root 'tools\run_storage_migration_test.ps1'),
     (Join-Path $root 'tools\check_private_uap_abi.py'),
@@ -282,6 +296,8 @@ if ($sayoText -notmatch 'attr.VendorID != kSayoVendorId' -or
 }
 $analogHostText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\analog_host_client.cpp') -Raw
 $keyboardSubpagesText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\keyboard_subpages.cpp') -Raw
+$debugLogHeaderText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\debug_log.h') -Raw
+$stabilityTraceHeaderText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\stability_trace.h') -Raw
 if ($projectText -notmatch 'HALLJOY_MAD68PR_NATIVE;HALLJOY_PRODUCTION' -or
     $projectText -match 'HALLJOY_MAD68PR_NATIVE;HALLJOY_DIAGNOSTIC') {
     throw 'Final-build preflight failed: native target must be production and must not enable file diagnostics.'
@@ -304,6 +320,9 @@ if ($realtimeText -notmatch 'WaitOnAddress' -or
 }
 if ($madBackendText -notmatch '(?s)#if !defined\(HALLJOY_DIAGNOSTIC\).*?Final builds expose live state' -or
     $analogHostText -notmatch '(?s)#if !defined\(HALLJOY_DIAGNOSTIC\).*?Production telemetry is kept in shared memory' -or
+    $debugLogHeaderText -notmatch '#define DebugLog_Write\(\.\.\.\) do \{ if constexpr \(false\)' -or
+    $stabilityTraceHeaderText -notmatch '#define StabilityTrace_Write\(\.\.\.\) do \{ if constexpr \(false\)' -or
+    $debugLogText -notmatch '(?s)#elif defined\(HALLJOY_PRODUCTION\).*?SetUnhandledExceptionFilter' -or
     $debugLogText -notmatch 'Production watchdog is intentionally silent' -or
     $debugLogText -notmatch 'HALLJOY_DIAGNOSTIC\) \|\| defined\(HALLJOY_MAD68PR_NATIVE') {
     throw 'Production logging/watchdog preflight failed: hot-path files are not fully disabled or quiet A9 recovery is missing.'
@@ -330,7 +349,7 @@ if ($backendText -notmatch 'void Backend_GetAnalogTelemetry' -or
     $backendText -notmatch 'g_sparkConnected' -or
     $backendText -notmatch 'g_sayoConnected' -or
     $backendText -notmatch 'Hex80_GetTelemetry' -or
-    $keyboardSubpagesText -notmatch 'Config_BuildAnalogTelemetryLines' -or
+    $keyboardSubpagesText -notmatch 'BuildAnalogDiagnosticsLines' -or
     $keyboardSubpagesText -notmatch 'MADLIONS native A0: VID 373B / PID' -or
     $keyboardSubpagesText -notmatch 'ATK x QK Hex80:' -or
     $keyboardSubpagesText -notmatch 'Addressed Analog 09/94/02:' -or
@@ -399,6 +418,11 @@ Write-Host 'Running native backend static checks...' -ForegroundColor Cyan
 & python $nativeCheckRunner --require-compiler
 if ($LASTEXITCODE -ne 0) { throw "Native backend static checks failed: $LASTEXITCODE" }
 
+$uiAudit = Join-Path $hallJoyRoot 'tests\pre_release_ui_static_audit.py'
+Write-Host 'Running pre-release UI static audit...' -ForegroundColor Cyan
+& python $uiAudit
+if ($LASTEXITCODE -ne 0) { throw "Pre-release UI static audit failed: $LASTEXITCODE" }
+
 $generator = Join-Path $root 'tools\new_native_backend.py'
 & python $generator --help | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Native backend generator self-check failed: $LASTEXITCODE" }
@@ -464,7 +488,7 @@ $buildOutput = @(& $msbuild $project `
     '/p:Configuration=Release' `
     '/p:Platform=x64' `
     '/p:HallJoyMad68ProRNative=true' `
-    '/p:HallJoyStabilityTrace=true' `
+    '/p:HallJoyStabilityTrace=false' `
     '/m' 2>&1)
 $buildExitCode = $LASTEXITCODE
 $buildOutput | Out-Host
@@ -482,6 +506,30 @@ $productionWarningCodes = @($productionWarnings | ForEach-Object {
 $warningSummary = if ($productionWarningCodes.Count) { $productionWarningCodes -join ', ' } else { 'none' }
 Write-Host "Production warning baseline: allowed codes=$warningSummary; 0 unexpected." -ForegroundColor DarkGray
 if (-not (Test-Path -LiteralPath $exe)) { throw "Executable not produced: $exe" }
+
+# All continuous telemetry must remain isolated to explicit tester builds.
+# Check the linked image, not only preprocessor settings, so an accidental
+# configuration leak fails the official release before packaging.
+$productionWideStrings = [Text.Encoding]::Unicode.GetString([IO.File]::ReadAllBytes($exe))
+foreach ($forbiddenDiagnosticMarker in @(
+    'HallJoyStabilityTrace.log',
+    'HallJoyStabilityTrace.previous.log',
+    'HallJoyDiagnostic.log',
+    'matrix.health',
+    'matrix.activity',
+    'matrix.session_summary',
+    'matrix.coverage',
+    'ten_key_gate=1'
+)) {
+    if ($productionWideStrings.Contains($forbiddenDiagnosticMarker)) {
+        throw "Production image contains isolated Aula diagnostic telemetry: $forbiddenDiagnosticMarker"
+    }
+}
+if (-not $productionWideStrings.Contains('HallJoyCrash.txt')) {
+    throw 'Production image is missing its crash-only report marker.'
+}
+$productionWideStrings = $null
+Write-Host 'Production continuous telemetry markers: absent; crash-only report retained.' -ForegroundColor DarkGray
 
 $preservedRuntimeNames = @(
     'settings.ini',
@@ -506,9 +554,6 @@ if (Test-Path -LiteralPath $sendDir) {
     New-Item -ItemType Directory -Path $sendDir -Force | Out-Null
 }
 Copy-Item -LiteralPath $exe -Destination $sendDir -Force
-Copy-Item -LiteralPath (Join-Path $root 'tools\analyze_stability_trace.py') -Destination $sendDir -Force
-Copy-Item -LiteralPath (Join-Path $root 'tools\collect_stability_trace.ps1') -Destination $sendDir -Force
-Copy-Item -LiteralPath (Join-Path $root 'tools\COLLECT_STABILITY_TRACE.cmd') -Destination $sendDir -Force
 Copy-Item -LiteralPath $dependencyLockPath -Destination $sendDir -Force
 Copy-Item -LiteralPath $thirdPartyNoticesPath -Destination $sendDir -Force
 
@@ -517,55 +562,33 @@ New-Item -ItemType Directory -Path $symbols -Force | Out-Null
 if (Test-Path -LiteralPath $pdb) { Copy-Item -LiteralPath $pdb -Destination $symbols -Force }
 if (Test-Path -LiteralPath $map) { Copy-Item -LiteralPath $map -Destination $symbols -Force }
 
-@'
-HallJoy v1.4 integration build
+$testerReadme = Join-Path $root 'docs\v1.4\README_FOR_TESTER.txt'
+if (-not (Test-Path -LiteralPath $testerReadme -PathType Leaf)) {
+    throw "Missing release README template: $testerReadme"
+}
+Get-Content -LiteralPath $testerReadme -Encoding UTF8 -Raw |
+    Set-Content -LiteralPath (Join-Path $sendDir 'README_FOR_TESTER.txt') -Encoding UTF8
 
-Aula WIN60HE: firmware-proven support for exact 1CA2:1902 / FFA0:0001 /
-App V1.1.6 (Feb 4 2026); physical Aula hardware is not yet validated.
-
-Запускайте HallJoy.exe обычным способом.
-
-В финальной сборке:
-- изменяемые настройки и профили по умолчанию хранятся в `%LOCALAPPDATA%\HallJoy`;
-- прежние настройки рядом с EXE при первом запуске копируются с резервной копией в
-  `MigrationBackups`, а исходные файлы не удаляются;
-- для явного переносного режима создайте рядом с HallJoy.exe обычный файл `HallJoy.portable`;
-- для управления используются только реальные аналоговые значения;
-- зелёные цифровые индикаторы превью сохранены только как функция интерфейса;
-- живая информация в Configuration и Gamepad Tester работает для MAD68 Pro R,
-  ATK x QK Hex80, Addressed 09/94/02, Aula WIN60HE, SparkLink, SayoDevice и UAP/Wooting-совместимых клавиатур;
-- любой VID 373B Hex80-совместимый PID направляется в native 0x96 только после двух
-  валидных GET-ответов и не конфликтует с UAP, Addressed или native A0;
-- Addressed 09/94/02 возвращён: точный FF60:0061/64-byte fingerprint и валидный
-  checksummed ответ резервируют совместимую QBZ/IPI-платформу независимо от VID/PID;
-- другие PID Sayo принимаются только после валидного ответа штатного depth-протокола;
-- MADLIONS MAD68-family направляется в native A0 только после строгого fingerprint/ACK,
-  а остальные MADLIONS остаются в UAP, поэтому два протокола не конфликтуют;
-- Aula WIN60HE поддерживается только для точного 1CA2:1902, FFA0:0001 и
-  App V1.1.6 / Feb 4 2026 после полного read-only proof; физическая Aula пока не проверена;
-- realtime-поток пробуждается через WaitOnAddress/WakeByAddress;
-- временный ограниченный HallJoyStabilityTrace.log создаётся рядом с EXE для проверки текущего этапа;
-- trace содержит только редкие lifecycle/state-события, не записывает нажатые клавиши,
-  аналоговые значения, вводимый текст, имена пользователя или per-poll данные;
-- непрерывные per-key, latency, host и diagnostic-файлы не создаются;
-- тихое аварийное восстановление A9 после завершения HallJoy сохранено.
-
-Проверка S02V1:
-1. Запустите HallJoy и активно нажимайте аналоговые клавиши не менее 30 секунд.
-2. По очереди выберите SparkLink Safe, Fast Yield и Max Burst.
-3. Установите минимум два разных значения Spark row limit, включая Unlimited/0.
-4. При удерживаемой аналоговой клавише отключите SparkLink, затем подключите обратно.
-5. Убедитесь, что ViGEm снова реагирует, и штатно закройте HallJoy.
-6. Запустите COLLECT_STABILITY_TRACE.cmd.
-7. Передайте HallJoyStabilityTraceBundle.zip для машинной проверки.
-
-Stock-прошивка MAD68, формат A0 и частота телеметрии не изменяются.
-Не запускайте прошивальщики и конфигураторы клавиатуры, пока HallJoy владеет
-vendor-интерфейсом MAD68.
-'@ | Set-Content -LiteralPath (Join-Path $sendDir 'README_FOR_TESTER_RU.txt') -Encoding UTF8
+# Publish a clean, deterministic user-facing folder separately from the staging
+# directory, which may intentionally retain local portable test settings.
+$expectedReleaseDir = [IO.Path]::GetFullPath((Join-Path $root 'build\release')).TrimEnd('\')
+if (Test-Path -LiteralPath $releaseDir) {
+    $resolvedReleaseDir = [IO.Path]::GetFullPath($releaseDir).TrimEnd('\')
+    if (-not $resolvedReleaseDir.Equals($expectedReleaseDir, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Unsafe release cleanup target: $resolvedReleaseDir"
+    }
+    Get-ChildItem -LiteralPath $resolvedReleaseDir -Force | Remove-Item -Recurse -Force
+} else {
+    New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+}
+Copy-Item -LiteralPath (Join-Path $sendDir 'HallJoy.exe') -Destination $releaseDir -Force
+Copy-Item -LiteralPath (Join-Path $sendDir 'README_FOR_TESTER.txt') -Destination $releaseDir -Force
+Copy-Item -LiteralPath $thirdPartyNoticesPath -Destination $releaseDir -Force
+$releaseHash = Get-FileHash -LiteralPath (Join-Path $releaseDir 'HallJoy.exe') -Algorithm SHA256
+"$($releaseHash.Hash)  HallJoy.exe" | Set-Content -LiteralPath (Join-Path $releaseDir 'SHA256SUMS.txt') -Encoding ASCII
 
 Write-Host ''
 Write-Host 'Build completed:' -ForegroundColor Green
-Write-Host "  $(Join-Path $sendDir ($targetName + '.exe'))" -ForegroundColor Green
-Write-Host 'Verification build: bounded event-only HallJoyStabilityTrace.log is enabled for this stabilization stage.' -ForegroundColor Yellow
-Write-Host 'After the test, run COLLECT_STABILITY_TRACE.cmd from build\output.' -ForegroundColor Yellow
+Write-Host "  $(Join-Path $releaseDir ($targetName + '.exe'))" -ForegroundColor Green
+Write-Host "  SHA256 $($releaseHash.Hash)" -ForegroundColor Green
+Write-Host 'Final production profile: continuous telemetry is disabled; crash-only reporting is retained.' -ForegroundColor Green

@@ -426,7 +426,7 @@ struct Device
 				telemetry_rows = 6;
 				telemetry_columns = 16;
 			}
-			else if (kbd.hid.product_id == 0x0B50)
+			else if (kbd.hid.product_id == 0x0B50 || kbd.hid.product_id == 0x0E40)
 			{
 				telemetry_rows = 6;
 				telemetry_columns = 19;

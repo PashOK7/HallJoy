@@ -22,6 +22,7 @@ constexpr std::size_t kMaximumResponseBytes =
 
 constexpr std::size_t kRows = 6;
 constexpr std::size_t kColumns = 21;
+constexpr std::size_t kMatrixPositions = kRows * kColumns;
 constexpr std::size_t kRowsPerTravelHalf = 3;
 constexpr std::size_t kTravelValuesPerHalf =
     kRowsPerTravelHalf * kColumns;
@@ -29,18 +30,30 @@ constexpr std::size_t kTravelPayloadBytes =
     2u + kTravelValuesPerHalf * 2u;
 constexpr std::size_t kStatusPayloadBytes =
     2u + kRows * kColumns + 2u;
-constexpr std::size_t kSyncPayloadBytes = 54u;
+// Exact physical response contract, repeated across three complete exclusive
+// proofs in HallJoy (3).log. The former 54-byte oracle shape was inferred
+// without hardware and is deliberately no longer accepted.
+constexpr std::size_t kSyncPayloadBytes = 60u;
+constexpr std::size_t kSyncDescriptorBytes = 16u;
+constexpr std::size_t kSyncSerialLengthOffset = 8u;
 constexpr std::size_t kSyncSerialOffset = 9u;
-constexpr std::size_t kSyncSerialBytes = 16u;
+constexpr std::size_t kSyncSerialBytes = kSyncDescriptorBytes;
+constexpr std::size_t kSyncAppLengthOffset = 25u;
 constexpr std::size_t kSyncAppVersionOffset = 26u;
 constexpr std::size_t kSyncAppVersionBytes = 10u;
-constexpr std::size_t kSyncBuildDateOffset = 43u;
-constexpr std::size_t kSyncBuildDateBytes = 11u;
+constexpr std::size_t kSyncAppDescriptorOffset = 26u;
+constexpr std::size_t kSyncBuildLengthOffset = 42u;
+constexpr std::size_t kSyncBuildDescriptorOffset = 43u;
+constexpr std::size_t kSyncBuildLabelBytes = 7u;
+constexpr std::size_t kSyncTrailerOffset = 59u;
 constexpr std::size_t kDefaultKeyPayloadBytes = 45u;
-static_assert(kSyncAppVersionOffset + kSyncAppVersionBytes <=
-    kSyncBuildDateOffset);
-static_assert(kSyncBuildDateOffset + kSyncBuildDateBytes ==
-    kSyncPayloadBytes);
+static_assert(kSyncSerialOffset + kSyncDescriptorBytes ==
+    kSyncAppLengthOffset);
+static_assert(kSyncAppDescriptorOffset + kSyncDescriptorBytes ==
+    kSyncBuildLengthOffset);
+static_assert(kSyncBuildDescriptorOffset + kSyncDescriptorBytes ==
+    kSyncTrailerOffset);
+static_assert(kSyncTrailerOffset + 1u == kSyncPayloadBytes);
 static_assert(kTravelPayloadBytes == 128u);
 static_assert(kStatusPayloadBytes == 130u);
 
@@ -68,10 +81,20 @@ constexpr std::uint16_t kExpectedMinimumTravelUm = 10u;
 constexpr std::uint16_t kExpectedMaximumTravelUm = 3400u;
 constexpr std::size_t kExpectedPhysicalKeyPositions = 61u;
 constexpr std::size_t kExpectedPublishableDefaultKeys = 60u;
-constexpr std::size_t kKeyFunctionBatchCount =
+constexpr std::size_t kExactKeyFunctionBatchCount =
     (kExpectedPhysicalKeyPositions + kKeyFunctionRecordsPerFrame - 1u) /
     kKeyFunctionRecordsPerFrame;
-static_assert(kKeyFunctionBatchCount == 5u);
+constexpr std::size_t kMaximumKeyFunctionBatchCount =
+    (kMatrixPositions + kKeyFunctionRecordsPerFrame - 1u) /
+    kKeyFunctionRecordsPerFrame;
+static_assert(kExactKeyFunctionBatchCount == 5u);
+static_assert(kMaximumKeyFunctionBatchCount == 9u);
+
+enum class CompatibilityProfile : std::uint8_t
+{
+    ExactWin60HeMax = 0,
+    Compatible6x21Family,
+};
 
 using Report = std::array<std::uint8_t, kWireReportBytes>;
 using HidWireReport = std::array<std::uint8_t, kWindowsHidReportBytes>;
@@ -98,12 +121,10 @@ struct FrameView
 struct SyncInfo
 {
     std::uint32_t boardId = 0;
-    std::uint8_t keyboardLayout = 0;
-    std::uint8_t keyType = 0;
-    std::uint8_t runMode = 0;
+    std::array<std::uint8_t, kSyncPayloadBytes> rawPayload{};
     std::array<char, kSyncSerialBytes + 1u> serial{};
     std::array<char, kSyncAppVersionBytes + 1u> appVersion{};
-    std::array<char, kSyncBuildDateBytes + 1u> appBuildDate{};
+    std::array<char, kSyncBuildLabelBytes + 1u> buildLabel{};
 };
 
 struct PrecisionStroke
@@ -200,6 +221,9 @@ bool IsExpectedAulaWin60HeMaxDefaultMap(const KeyMap& map) noexcept;
 bool IsExpectedAulaWin60HeMaxPrecision(
     const PrecisionStroke& precision) noexcept;
 bool IsExpectedAulaWin60HeMaxFirmware(const SyncInfo& sync) noexcept;
+bool IsAula6x21FamilyFirmware(const SyncInfo& sync) noexcept;
+bool IsAula6x21FamilyPrecision(const PrecisionStroke& precision) noexcept;
+bool IsAula6x21FamilyDefaultMap(const KeyMap& map) noexcept;
 bool IsPublishableKeyboardUsage(std::uint8_t hidUsage) noexcept;
 bool IsPublishableKeyFunction(std::uint16_t function) noexcept;
 std::size_t CountMappedHids(const KeyMap& map) noexcept;

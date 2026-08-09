@@ -37,7 +37,7 @@ build\output\HallJoy.exe
 ```
 
 Do not use old `build_all.ps1`, V6 Madlions package paths or renamed diagnostic
-executables as a release build. See [BUILD_README_RU.txt](BUILD_README_RU.txt)
+executables as a release build. See [BUILD_README.txt](BUILD_README.txt)
 and the repository [README](../../README.md).
 
 ## Runtime and storage

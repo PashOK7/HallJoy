@@ -141,7 +141,7 @@ static void StartSelAnim(State* st, int fromSel, int toSel)
 
     st->selAnimRunning = true;
     st->selAnimStartTick = GetTickCount();
-    st->selAnimDurationMs = 160; // чуть дольше чем toggles, выглядит "премиальнее"
+    st->selAnimDurationMs = 160; // Slightly longer than toggles for a more premium feel.
 
     st->selAnimFromSel = fromSel;
     st->selAnimToSel = toSel;
@@ -237,6 +237,15 @@ LRESULT CALLBACK PremiumComboInternal::PopupProc(HWND hWnd, UINT msg, WPARAM wPa
         return 0;
     }
 
+    case WM_MOUSEWHEEL:
+        // The popup is a separate top-level window, so wheel input under the
+        // pointer is delivered here rather than to the combo controller. Keep
+        // one scrolling implementation by routing the original message to the
+        // controller, which owns hotIndex/scrollTop and invalidation.
+        if (st && st->hwnd && st->dropped)
+            return SendMessageW(st->hwnd, WM_MOUSEWHEEL, wParam, lParam);
+        return 0;
+
     case WM_NCDESTROY:
         SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);
         return 0;
@@ -251,6 +260,15 @@ LRESULT CALLBACK PremiumComboInternal::PopupProc(HWND hWnd, UINT msg, WPARAM wPa
 LRESULT CALLBACK PremiumComboInternal::ComboProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     State* st = PremiumComboInternal::Get(hWnd);
+
+    if (msg == PC_MSG_QUERY_SCROLL_STATE)
+    {
+        if (!st) return 0;
+        const UINT top = (UINT)std::clamp(st->scrollTop, 0, 255);
+        const UINT maxTop = (UINT)std::clamp(GetMaxScrollTop(st), 0, 255);
+        const UINT selection = (UINT)std::clamp(st->curSel + 1, 0, 65535);
+        return (LRESULT)(top | (maxTop << 8) | (selection << 16));
+    }
 
     auto forwardKeyToParent = [&](UINT m, WPARAM wp, LPARAM lp) -> bool
         {
@@ -363,6 +381,9 @@ LRESULT CALLBACK PremiumComboInternal::ComboProc(HWND hWnd, UINT msg, WPARAM wPa
         InvalidateRect(hWnd, nullptr, FALSE);
         return 0;
 
+    case WM_GETDLGCODE:
+        return DLGC_WANTARROWS | DLGC_WANTCHARS;
+
     case WM_MOUSEMOVE:
         if (st)
         {
@@ -427,9 +448,8 @@ LRESULT CALLBACK PremiumComboInternal::ComboProc(HWND hWnd, UINT msg, WPARAM wPa
             if (PremiumComboInternal::IsInlineEditing(st))
                 return 0;
 
-            int dir = (delta > 0) ? -1 : 1;
             PremiumComboInternal::ResetTypeSearch(st);
-            PremiumComboInternal::MoveHot(st, dir);
+            PremiumComboInternal::ScrollPopupWheel(st, delta);
             return 0;
         }
         return 0;
@@ -455,6 +475,35 @@ LRESULT CALLBACK PremiumComboInternal::ComboProc(HWND hWnd, UINT msg, WPARAM wPa
 
         if (!st->dropped)
         {
+            const bool altDown = (msg == WM_SYSKEYDOWN) &&
+                (GetKeyState(VK_MENU) & 0x8000) != 0 && wParam == VK_DOWN;
+            if (wParam == VK_F4 || altDown || wParam == VK_SPACE || wParam == VK_RETURN)
+            {
+                PremiumComboInternal::ResetTypeSearch(st);
+                PremiumComboInternal::OpenDropDown(st);
+                return 0;
+            }
+
+            if (wParam == VK_UP || wParam == VK_DOWN)
+            {
+                const int count = static_cast<int>(st->items.size());
+                if (count > 0)
+                {
+                    int next = st->curSel;
+                    if (next < 0)
+                        next = (wParam == VK_UP) ? count - 1 : 0;
+                    else
+                        next = std::clamp(next + (wParam == VK_UP ? -1 : 1), 0, count - 1);
+                    if (next != st->curSel)
+                    {
+                        st->curSel = next;
+                        PremiumComboInternal::NotifySelChange(st);
+                        InvalidateRect(hWnd, nullptr, FALSE);
+                    }
+                }
+                return 0;
+            }
+
             forwardKeyToParent(msg, wParam, lParam);
             return 0;
         }

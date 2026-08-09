@@ -10,13 +10,18 @@
 #include <cstring>
 #include <cwchar>
 
+#define HALLJOY_STABILITY_TRACE_IMPLEMENTATION 1
 #include "stability_trace.h"
 
 namespace
 {
 #if defined(HALLJOY_STABILITY_TRACE)
 constexpr std::uint64_t kTraceSchema = 1;
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+constexpr std::uint64_t kMaxTraceBytes = 64u * 1024u * 1024u;
+#else
 constexpr std::uint64_t kMaxTraceBytes = 1024u * 1024u;
+#endif
 constexpr std::uint64_t kTraceCapReserveBytes = 256u;
 constexpr wchar_t kTraceStage[] = L"S02V1";
 
@@ -174,6 +179,13 @@ void StabilityTrace_Init() noexcept
         return;
     }
 
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+    if (!BuildPathNearExe(L"HallJoy.log", g_tracePath, _countof(g_tracePath)))
+    {
+        ReleaseSRWLockExclusive(&g_traceLock);
+        return;
+    }
+#else
     wchar_t previousPath[32768]{};
     if (!BuildPathNearExe(L"HallJoyStabilityTrace.log", g_tracePath, _countof(g_tracePath)) ||
         !BuildPathNearExe(L"HallJoyStabilityTrace.previous.log", previousPath, _countof(previousPath)))
@@ -184,6 +196,7 @@ void StabilityTrace_Init() noexcept
 
     DeleteFileW(previousPath);
     MoveFileExW(g_tracePath, previousPath, MOVEFILE_REPLACE_EXISTING);
+#endif
     g_traceFile = CreateFileW(
         g_tracePath,
         GENERIC_READ | GENERIC_WRITE,
@@ -252,7 +265,10 @@ void StabilityTrace_Shutdown(int exitCode) noexcept
 
     if (view)
     {
-        FlushViewOfFile(view, static_cast<SIZE_T>(finalBytes));
+        // Unmapping and closing the mapped file hands dirty pages to the cache
+        // manager. Explicit FlushViewOfFile/FlushFileBuffers made a diagnostic
+        // shutdown depend on storage/AV latency and has physically stalled past
+        // the 12-second process watchdog even after session.end was appended.
         UnmapViewOfFile(view);
     }
     if (mapping)
@@ -263,7 +279,6 @@ void StabilityTrace_Shutdown(int exitCode) noexcept
         end.QuadPart = static_cast<LONGLONG>(finalBytes);
         if (SetFilePointerEx(file, end, nullptr, FILE_BEGIN))
             SetEndOfFile(file);
-        FlushFileBuffers(file);
         CloseHandle(file);
     }
     ReleaseSRWLockExclusive(&g_traceLock);
@@ -293,6 +308,20 @@ void StabilityTrace_WriteCritical(const wchar_t* level, const wchar_t* component
     va_start(args, fieldsFormat);
     WriteFormatted(level, component, event, fieldsFormat, args);
     va_end(args);
+#endif
+}
+
+void StabilityTrace_AppendPlain(const wchar_t* line) noexcept
+{
+#if !defined(HALLJOY_STABILITY_TRACE)
+    (void)line;
+#else
+    if (!line || !*line || !g_traceEnabled.load(std::memory_order_acquire))
+        return;
+    AcquireSRWLockExclusive(&g_traceLock);
+    if (g_traceEnabled.load(std::memory_order_relaxed))
+        WriteRawLocked(line);
+    ReleaseSRWLockExclusive(&g_traceLock);
 #endif
 }
 

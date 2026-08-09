@@ -953,21 +953,40 @@ bool Ksp_GraphHandleMouse(HWND parent, UINT msg, WPARAM wParam, LPARAM lParam)
 }
 
 // ----------------------------------------------------------------------------
-// Ksp_GraphDraw
+// Graph composition
 // ----------------------------------------------------------------------------
-void Ksp_GraphDraw(HDC hdc, const RECT&)
+struct KspGraphFrame
 {
+    RectF bounds{};
+    int width = 0;
+    int height = 0;
+    KeyDeadzone settings{};
+    bool morphing = false;
+};
+
+static bool CaptureGraphFrame(KspGraphFrame* out)
+{
+    if (!out) return false;
+
     HWND ref = g_kspParent ? g_kspParent : GetActiveWindow();
     if (!ref) ref = GetDesktopWindow();
 
-    RectF bounds = GraphRectF(ref);
-    bounds.Y -= (float)ParentScrollY(ref);
-    int w = (int)std::lround(bounds.Width);
-    int h = (int)std::lround(bounds.Height);
-    if (w <= 1 || h <= 1) return;
+    out->bounds = GraphRectF(ref);
+    out->bounds.Y -= (float)ParentScrollY(ref);
+    out->width = (int)std::lround(out->bounds.Width);
+    out->height = (int)std::lround(out->bounds.Height);
+    out->settings = Ksp_GetVisualCurve();
+    out->morphing = g_kspMorph.running;
+    return out->width > 1 && out->height > 1;
+}
 
-    KeyDeadzone ks = Ksp_GetVisualCurve();
-    bool morphing = g_kspMorph.running;
+static void DrawGraphRetainedContent(HDC hdc, const KspGraphFrame& frame)
+{
+    const RectF& bounds = frame.bounds;
+    const int w = frame.width;
+    const int h = frame.height;
+    const KeyDeadzone& ks = frame.settings;
+    const bool morphing = frame.morphing;
 
     // Always redraw cache while morphing (animation frames)
     if (morphing)
@@ -1005,8 +1024,15 @@ void Ksp_GraphDraw(HDC hdc, const RECT&)
             w, h,
             g_cache.memDC, 0, 0, SRCCOPY);
     }
+}
 
-    // Overlays: Live marker
+static void DrawGraphViewportOverlay(HDC hdc, const KspGraphFrame& frame)
+{
+    const RectF& bounds = frame.bounds;
+    const KeyDeadzone& ks = frame.settings;
+    const bool morphing = frame.morphing;
+
+    // The live marker is intentionally excluded from every retained cache.
     {
         Graphics gg(hdc);
         gg.SetSmoothingMode(SmoothingModeAntiAlias);
@@ -1020,7 +1046,8 @@ void Ksp_GraphDraw(HDC hdc, const RECT&)
         DrawLiveMarkerOverlay(gg, innerAbs, ks, morphing);
     }
 
-    // Handles (on top)
+    // Handles stay in the viewport phase to preserve the original z-order:
+    // retained curve -> live marker -> editable handles.
     {
         Graphics g(hdc);
         g.SetSmoothingMode(SmoothingModeAntiAlias);
@@ -1056,6 +1083,28 @@ void Ksp_GraphDraw(HDC hdc, const RECT&)
         g.DrawLine(&g1, p0, p1);
         g.DrawLine(&g2, p3, p2);
     }
+}
+
+void Ksp_GraphDrawRetainedContent(HDC hdc, const RECT&)
+{
+    KspGraphFrame frame{};
+    if (CaptureGraphFrame(&frame))
+        DrawGraphRetainedContent(hdc, frame);
+}
+
+void Ksp_GraphDrawViewportOverlay(HDC hdc, const RECT&)
+{
+    KspGraphFrame frame{};
+    if (CaptureGraphFrame(&frame))
+        DrawGraphViewportOverlay(hdc, frame);
+}
+
+void Ksp_GraphDraw(HDC hdc, const RECT&)
+{
+    KspGraphFrame frame{};
+    if (!CaptureGraphFrame(&frame)) return;
+    DrawGraphRetainedContent(hdc, frame);
+    DrawGraphViewportOverlay(hdc, frame);
 }
 
 // -----------------------------------------------------------------------------

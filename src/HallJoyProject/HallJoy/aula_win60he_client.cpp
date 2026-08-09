@@ -61,10 +61,12 @@ bool FirstReportMatches(
     }
 }
 
-std::array<std::uint8_t, kExpectedPhysicalKeyPositions> CollectFactoryKeys(
-    const KeyMap& map) noexcept
+std::array<std::uint8_t, kMatrixPositions> CollectFactoryKeys(
+    const KeyMap& map,
+    std::size_t* outCount) noexcept
 {
-    std::array<std::uint8_t, kExpectedPhysicalKeyPositions> keys{};
+    if (outCount) *outCount = 0;
+    std::array<std::uint8_t, kMatrixPositions> keys{};
     std::size_t index = 0;
     for (const auto& row : map)
     {
@@ -74,6 +76,7 @@ std::array<std::uint8_t, kExpectedPhysicalKeyPositions> CollectFactoryKeys(
                 keys[index++] = key;
         }
     }
+    if (outCount) *outCount = index;
     return keys;
 }
 }
@@ -249,7 +252,10 @@ bool Client::Transact(
         outStream, outBytes, failure, selector, index);
 }
 
-bool Client::Probe(CapabilityProof* out, Failure* failure)
+bool Client::Probe(
+    CapabilityProof* out,
+    Failure* failure,
+    CompatibilityProfile profile)
 {
     if (out) *out = CapabilityProof{};
     ClearFailure(failure);
@@ -260,8 +266,10 @@ bool Client::Probe(CapabilityProof* out, Failure* failure)
                 "error:probe-on-poisoned-session");
         return false;
     }
+    compatibilityMismatchMask_ = 0;
 
     CapabilityProof proof{};
+    proof.profile = profile;
     ResponseStream stream{};
     std::size_t bytes = 0;
     FrameView frame{};
@@ -276,11 +284,21 @@ bool Client::Probe(CapabilityProof* out, Failure* failure)
                 0, 0, "error:decode-sync");
         return false;
     }
-    if (!IsExpectedAulaWin60HeMaxFirmware(proof.sync))
+    const bool exactFirmware = IsExpectedAulaWin60HeMaxFirmware(proof.sync);
+    const bool firmwareCompatible =
+        profile == CompatibilityProfile::ExactWin60HeMax
+        ? exactFirmware
+        : IsAula6x21FamilyFirmware(proof.sync);
+    if (!firmwareCompatible)
     {
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        compatibilityMismatchMask_ |= CapabilityMismatch_Firmware;
+        Trace(TraceKind::Error, "soft-mismatch:unexpected-firmware", nullptr);
+#else
         Fail(failure, FailureStage::UnexpectedFirmware, kCommandSync,
             0, 0, "error:unexpected-firmware");
         return false;
+#endif
     }
 
     if (!Transact("precision", BuildPrecisionStrokeRequest(), kCommandApi, 1,
@@ -294,11 +312,21 @@ bool Client::Probe(CapabilityProof* out, Failure* failure)
                 kOrderPrecisionStroke, 0, "error:decode-precision");
         return false;
     }
-    if (!IsExpectedAulaWin60HeMaxPrecision(proof.precision))
+    const bool exactPrecision = IsExpectedAulaWin60HeMaxPrecision(proof.precision);
+    const bool precisionCompatible =
+        profile == CompatibilityProfile::ExactWin60HeMax
+        ? exactPrecision
+        : IsAula6x21FamilyPrecision(proof.precision);
+    if (!precisionCompatible)
     {
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        compatibilityMismatchMask_ |= CapabilityMismatch_Precision;
+        Trace(TraceKind::Error, "soft-mismatch:unexpected-precision", nullptr);
+#else
         Fail(failure, FailureStage::UnexpectedPrecision, kCommandApi,
             kOrderPrecisionStroke, 0, "error:unexpected-precision");
         return false;
+#endif
     }
 
     for (std::uint8_t row = 0; row < kRows; row += 2u)
@@ -320,13 +348,24 @@ bool Client::Probe(CapabilityProof* out, Failure* failure)
 
     proof.physicalKeyPositions = CountPhysicalKeyPositions(proof.defaultKeyMap);
     proof.defaultMappedKeys = CountMappedHids(proof.defaultKeyMap);
-    if (!IsExpectedAulaWin60HeMaxDefaultMap(proof.defaultKeyMap) ||
-        proof.physicalKeyPositions != kExpectedPhysicalKeyPositions ||
-        proof.defaultMappedKeys != kExpectedPublishableDefaultKeys)
+    const bool exactDefaultMap =
+        IsExpectedAulaWin60HeMaxDefaultMap(proof.defaultKeyMap) &&
+        proof.physicalKeyPositions == kExpectedPhysicalKeyPositions &&
+        proof.defaultMappedKeys == kExpectedPublishableDefaultKeys;
+    const bool defaultMapCompatible =
+        profile == CompatibilityProfile::ExactWin60HeMax
+        ? exactDefaultMap
+        : IsAula6x21FamilyDefaultMap(proof.defaultKeyMap);
+    if (!defaultMapCompatible)
     {
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        compatibilityMismatchMask_ |= CapabilityMismatch_DefaultMap;
+        Trace(TraceKind::Error, "soft-mismatch:unexpected-default-map", nullptr);
+#else
         Fail(failure, FailureStage::UnexpectedDefaultMap,
             kCommandDefaultKeys, 0, 0, "error:unexpected-default-map");
         return false;
+#endif
     }
 
     ActiveMapSnapshot activeMap{};
@@ -340,6 +379,10 @@ bool Client::Probe(CapabilityProof* out, Failure* failure)
     if (!ReadTravelMatrix(proof, &initial, failure))
         return false;
 
+    proof.compatibilityMismatchMask = compatibilityMismatchMask_;
+    proof.profile = exactFirmware && exactPrecision && exactDefaultMap
+        ? CompatibilityProfile::ExactWin60HeMax
+        : CompatibilityProfile::Compatible6x21Family;
     *out = proof;
     return true;
 }
@@ -374,10 +417,15 @@ bool Client::ReadActiveMap(
         first.keyMap != second.keyMap ||
         first.mappedKeys != second.mappedKeys)
     {
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        compatibilityMismatchMask_ |= CapabilityMismatch_ActiveMapStability;
+        Trace(TraceKind::Error, "soft-mismatch:unstable-active-map", nullptr);
+#else
         Fail(failure, FailureStage::UnstableActiveMap,
             kCommandKeyFunctions, kKeyLayoutFn0, 0,
             "error:unstable-active-map");
         return false;
+#endif
     }
 
     *out = second;
@@ -400,8 +448,9 @@ bool Client::ReadActiveMapGeneration(
     }
 
     ActiveMapSnapshot snapshot{};
-    const auto factoryKeys = CollectFactoryKeys(defaultKeyMap);
-    if (factoryKeys.back() == 0)
+    std::size_t factoryKeyCount = 0;
+    const auto factoryKeys = CollectFactoryKeys(defaultKeyMap, &factoryKeyCount);
+    if (factoryKeyCount == 0 || factoryKeyCount > factoryKeys.size())
     {
         Fail(failure, FailureStage::DecodeActiveMap,
             kCommandKeyFunctions, kKeyLayoutFn0, 0,
@@ -409,11 +458,11 @@ bool Client::ReadActiveMapGeneration(
         return false;
     }
 
-    for (std::size_t begin = 0; begin < factoryKeys.size();
+    for (std::size_t begin = 0; begin < factoryKeyCount;
         begin += kKeyFunctionRecordsPerFrame)
     {
         KeyQuery query{};
-        const std::size_t remaining = factoryKeys.size() - begin;
+        const std::size_t remaining = factoryKeyCount - begin;
         const std::size_t count = std::min(remaining, query.size());
         if (count == 0u)
         {
@@ -502,10 +551,15 @@ bool Client::ReadTravelMatrix(
             halves[half - 1u], proof.defaultKeyMap,
             firstMatrixRow, proof.precision))
         {
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+            compatibilityMismatchMask_ |= CapabilityMismatch_TravelPlausibility;
+            Trace(TraceKind::Error, "soft-mismatch:implausible-travel", nullptr);
+#else
             Fail(failure, FailureStage::ImplausibleTravel,
                 kCommandMatrix6x21, kSelectorTravel, half,
                 "error:implausible-travel");
             return false;
+#endif
         }
     }
 
@@ -551,7 +605,7 @@ bool TravelValuesPlausible(
     std::uint8_t firstMatrixRow,
     const PrecisionStroke& precision) noexcept
 {
-    if (!IsExpectedAulaWin60HeMaxPrecision(precision) ||
+    if (!IsAula6x21FamilyPrecision(precision) ||
         firstMatrixRow + kRowsPerTravelHalf > kRows)
         return false;
 

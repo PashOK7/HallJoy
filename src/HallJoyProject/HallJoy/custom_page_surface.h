@@ -24,6 +24,24 @@ struct CustomPageSurface
     uint64_t cacheUsMax = 0;
 };
 
+// Shared viewport input state. Scrollable pages keep one of these next to the
+// surface; page-specific hover/pressed/drag state stays in the page model.
+struct CustomPageScrollController
+{
+    bool draggingThumb = false;
+    int thumbGrabOffsetY = 0;
+    int thumbHeight = 0;
+    int maxScrollAtDragStart = 0;
+    int wheelRemainder = 0;
+};
+
+enum class CustomPageScrollResult
+{
+    NotHandled,
+    Handled,
+    OffsetChanged
+};
+
 using CustomPageRenderContentFn = void(*)(HWND hWnd, HDC hdc, const RECT& contentRc, void* user);
 
 void CustomPageSurface_Destroy(CustomPageSurface* surface);
@@ -37,6 +55,17 @@ void CustomPageSurface_SetScrollY(HWND hWnd, CustomPageSurface* surface, int scr
 RECT CustomPageSurface_GetScrollTrackRect(HWND hWnd);
 RECT CustomPageSurface_GetScrollThumbRect(HWND hWnd, const CustomPageSurface* surface);
 void CustomPageSurface_DrawScrollbar(HWND hWnd, HDC hdc, const CustomPageSurface* surface, bool dragging);
+POINT CustomPageSurface_ClientToContent(const CustomPageSurface* surface, POINT clientPoint);
+RECT CustomPageSurface_ContentToClient(const CustomPageSurface* surface, const RECT& contentRect);
+
+CustomPageScrollResult CustomPageSurface_HandleScrollMessage(
+    HWND hWnd,
+    CustomPageSurface* surface,
+    CustomPageScrollController* controller,
+    UINT msg,
+    WPARAM wParam,
+    LPARAM lParam,
+    int wheelStepPx = 44);
 
 uint64_t CustomPageSurface_QpcNow();
 uint64_t CustomPageSurface_QpcToUs(uint64_t ticks);
@@ -49,3 +78,11 @@ bool CustomPageSurface_RenderCache(
     CustomPageSurface* surface,
     CustomPageRenderContentFn renderContent,
     void* user);
+
+bool CustomPageSurface_Present(
+    HWND hWnd,
+    HDC targetDC,
+    CustomPageSurface* surface,
+    CustomPageRenderContentFn renderContent,
+    void* user,
+    bool draggingScrollbar);

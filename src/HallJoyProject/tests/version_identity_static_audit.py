@@ -27,13 +27,17 @@ checks = {
     "file version uses the central tuple": "FILEVERSION HALLJOY_VERSION_TUPLE" in resource,
     "product version uses the central tuple": "PRODUCTVERSION HALLJOY_VERSION_TUPLE" in resource,
     "about dialog uses the central version": "HALLJOY_ABOUT_VERSION_STRING,IDC_STATIC" in resource,
-    "current README identifies v1.4": readme.startswith("# HallJoy v1.4\n"),
+    "README uses the version-independent product name": readme.startswith("# HallJoy\n"),
+    "README omits the obsolete Russian-only validation links":
+        "v1.4 release notes (Russian)" not in readme and
+        "detailed hardware matrix (Russian)" not in readme and
+        "file+.vscode-resource.vscode-cdn.net" not in readme,
     "production target is HallJoy.exe": "<TargetName>HallJoy</TargetName>" in project and
-        "$targetName = 'HallJoy'" in build and "build\\output\\HallJoy.exe" in readme,
+        "$targetName = 'HallJoy'" in build and "build\\release\\HallJoy.exe" in readme,
     "trace collector uses the production process name": "Get-Process -Name 'HallJoy'" in collector,
     "legacy backend-specific executable name is absent": "HallJoyMAD68ProRNative" not in active_text,
     "active product surfaces do not identify 3.9.0": "3.9.0" not in active_text,
-    "historical archive evidence is retained": (repo / "docs" / "stability" / "BASELINE_V3_9_0_RU.md").is_file(),
+    "historical archive evidence is retained": (repo / "docs" / "stability" / "BASELINE_V3_9_0.md").is_file(),
 }
 
 failed = []

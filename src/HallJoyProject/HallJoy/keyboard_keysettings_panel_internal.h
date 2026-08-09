@@ -92,6 +92,8 @@ void        Ksp_RequestSave(HWND parent);
 
 bool Ksp_GraphHandleMouse(HWND parent, UINT msg, WPARAM wParam, LPARAM lParam);
 void Ksp_GraphDraw(HDC hdc, const RECT& rc);
+void Ksp_GraphDrawRetainedContent(HDC hdc, const RECT& rc);
+void Ksp_GraphDrawViewportOverlay(HDC hdc, const RECT& rc);
 
 bool Ksp_StyleHandleDrawItem(const DRAWITEMSTRUCT* dis);
 bool Ksp_StyleHandleMeasureItem(MEASUREITEMSTRUCT* mis);

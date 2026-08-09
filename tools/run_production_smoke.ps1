@@ -24,6 +24,12 @@ if (-not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
 
 $output = Split-Path -Parent $ExePath
 $trace = Join-Path $output 'HallJoyStabilityTrace.log'
+$forbiddenProductionLogs = @(
+    $trace,
+    (Join-Path $output 'HallJoyDiagnostic.log'),
+    (Join-Path $output 'HallJoyAddressedAnalogTrace.log'),
+    (Join-Path $output 'HallJoyCrash.txt')
+)
 if (Test-Path -LiteralPath $trace) {
     Remove-Item -LiteralPath $trace -Force
 }
@@ -125,31 +131,11 @@ $process.Refresh()
 if ($process.ExitCode -ne 0) {
     throw "HallJoy exited with code $($process.ExitCode)."
 }
-if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
-    throw "Production trace was not produced: $trace"
-}
-
-$traceText = Get-Content -LiteralPath $trace -Raw -Encoding UTF8
-$required = @(
-    '[component=app][event=startup.transaction.commit] origin=initial',
-    '[component=realtime][event=stop.end]',
-    '[component=vigem-output][event=stop.end]',
-    '[component=backend][event=shutdown.end]',
-    '[component=main][event=session.end] exit_code=0'
-)
-if ($StartOverlay) {
-    $required += @(
-        "[component=overlay][event=start.ok] port=$OverlayPort",
-        '[component=overlay][event=worker.exit] fault_kind=0',
-        '[component=overlay][event=stop.end]'
-    )
-}
-$missing = @($required | Where-Object { -not $traceText.Contains($_) })
-if ($missing.Count -ne 0) {
-    throw "Production trace is incomplete. Missing: $($missing -join ', ')"
-}
-if ($traceText -match '\[level=ERROR\]') {
-    throw 'Production trace contains an ERROR event.'
+$unexpectedLogs = @($forbiddenProductionLogs | Where-Object {
+    Test-Path -LiteralPath $_ -PathType Leaf
+})
+if ($unexpectedLogs.Count -ne 0) {
+    throw "Production created a continuous diagnostic or crash log: $($unexpectedLogs -join ', ')"
 }
 
 $processCleanupDeadline = [DateTime]::UtcNow.AddSeconds(2)
@@ -167,4 +153,4 @@ if ($StartOverlay) {
 } else {
     Write-Host 'HallJoy production startup/shutdown smoke: PASS' -ForegroundColor Green
 }
-Write-Host "Trace: $trace"
+Write-Host 'Continuous diagnostic logs: none; crash report: none' -ForegroundColor Green

@@ -10,7 +10,7 @@ Performed after all source, test and documentation changes were frozen:
 - every extracted manifest path matches size/SHA-256;
 - no unexpected file is absent from the manifest except the manifest itself;
 - portable/static gate rerun from extracted archive: PASS;
-- all 45 audit risk IDs remain present in RISK_REGISTER_RU.md;
+- all 45 audit risk IDs remain present in RISK_REGISTER.md;
 - no __pycache__, .pyc, object or test binary is packaged.
 
 The project tree was not modified after final manifest generation.

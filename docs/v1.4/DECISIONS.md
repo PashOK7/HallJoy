@@ -593,11 +593,193 @@ scrollbar is conditional: no track or thumb is drawn when the entire content
 fits. Remap, Configuration, Global settings, Input Overlay and Mouse settings
 are overflow-capable and follow this rule.
 
-Gamepad Tester remains intentionally scrollbar-free because its card grid is
-computed from the available viewport height rather than from an unbounded
-content height. If it later gains fixed-height content that can overflow, it
-must adopt the common scrolling contract instead of clipping controls.
+V14-12R made Gamepad Tester the canonical route-complete diagnostics surface.
+Its diagnostic line count is therefore unbounded by the adaptive gamepad-card
+grid, so Tester now also adopts the common conditional wheel/track/thumb-drag
+scrolling contract instead of clipping a multi-route snapshot.
 
 Destructive actions must communicate danger through their resting fill as well
 as border and text. Hover-only or border-only danger styling is insufficient
 because the idle state is the primary state users see.
+
+## D-037 - Live UI publication is visible-tab, changed-snapshot and region gated
+
+Date: 2026-08-02
+
+Backend dirty-key publication was initially limited to active Remap children;
+this part is superseded by D-038 because the shared keyboard preview is visible
+above every tab. Configuration and Gamepad Tester may sample live telemetry
+only while one of those pages is visible, at a bounded cadence, and may post a
+paint request only when their stable telemetry/report hash changes. Hidden
+pages do not poll or repaint for presentation.
+
+Configuration keeps static settings in `CustomPageSurface`; its brief live
+source status is composed after the cache and invalidates only its own rect.
+All route-complete backend diagnostics have one builder and one consumer,
+Gamepad Tester. Configuration must not grow a second detailed diagnostics card.
+
+Controls which present a list choice must be real themed child controls with
+mouse, keyboard, focus and popup semantics. A painted rectangle that cycles a
+value is not an acceptable combobox. Release-only code must not contain paint
+telemetry; `HALLJOY_UI_AUDIT_TRACE` is a separate diagnostic target property.
+
+## D-038 - Shared preview is event-complete; scroll layout is frame-committed
+
+Date: 2026-08-02
+
+The keyboard preview is owned by the main keyboard page, not by Remap, and is
+visible above every sub-page. Backend dirty bits must therefore invalidate its
+key HWND on every active tab before the bits are discarded. Page visibility
+may gate page-specific telemetry, but never a shared visible consumer.
+
+Continuous scroll input is a latest-value stream. Remap, Configuration and
+Global settings store the newest thumb target and commit it at most once per
+16-ms frame. Every affected child group is positioned with one deferred,
+no-redraw batch; the parent then schedules one no-erase redraw. Synchronous
+`RDW_UPDATENOW` and one-layout-per-`WM_MOUSEMOVE` are forbidden in these hot
+paths. Slow diagnostics may use 100 ms sampling; gamepad motion UI samples its
+report hash at normal UI cadence.
+
+## D-039 - Scroll deadlines must not depend on WM_TIMER delivery
+
+Date: 2026-08-02
+
+`WM_TIMER` is a fallback drain mechanism, not the primary animation scheduler
+under continuous pointer input. Each scroll mouse event compares the monotonic
+clock with the next frame deadline and immediately commits the latest target
+when due. A timer is armed only to deliver a pending final frame if input stops.
+
+The scroll frame interval follows the configured UI cadence but is clamped to
+8–16 ms. A 1 ms deadline tolerance compensates for integer clock granularity
+and prevents a 15–16 ms input stream from degrading to every second frame.
+
+## D-040 - One viewport architecture owns every scrollable keyboard page
+
+Date: 2026-08-02
+
+V14-12S.1 is superseded. Raising commit cadence while moving independent child
+windows improved measured FPS but allowed visual elements to disappear. The
+release architecture therefore treats mixed parent/child composition during
+scroll as the root defect, not as a scheduling problem.
+
+Remap, Configuration, Gamepad Tester, Global settings, Input Overlay and Mouse
+settings must use `CustomPageScrollController`, content coordinates and the
+common scrollbar. Retained pages present through `CustomPageSurface_Present`;
+scroll-only updates change the viewport offset and do not move visible child
+HWNDs. Dynamic Tester content may render live but may not introduce another
+scroll state machine.
+
+Native HWNDs are permitted only as transient popup/keyboard owners or hidden
+compatibility action controllers. They are not visual scroll-layout elements.
+Static architecture guards and the six-page production stress runner are
+release gates. Automated PASS does not replace owner visual acceptance.
+
+## D-041 - Retained controls reuse canonical painters and explicit popup lifecycle
+
+Date: 2026-08-02
+
+A retained page may own geometry and input routing, but it may not reproduce an
+existing custom control with a generic button or local drawing approximation.
+Closed PremiumCombo faces must use `PremiumCombo::PaintRetainedFace`, including
+the canonical font, alignment, arrow section, border and extra icon.
+
+Popup controller HWND visibility is a state machine: visible only while the
+popup is logically open, hidden after selection, Escape or outside-click close.
+`MsgDropStateChanged` is the mandatory owner notification. Text glyphs are not
+accepted as icon substitutes where a vector renderer exists.
+
+## D-042 - Retained migration preserves control semantics through explicit transactions
+
+Date: 2026-08-02
+
+Hit classification uses disjoint, bounded ID domains; numeric ordering is not a
+type system. A binding edit is one transaction: persist active bindings, mark
+the active global profile dirty, notify its retained surface and request normal
+application persistence.
+
+A finite named choice set is a PremiumCombo, not a button that cycles captions.
+Retained pages render its canonical face and reveal the controller only for
+popup and keyboard behavior.
+
+## D-043 - Popup input is routed to the controller-owned combo state
+
+Date: 2026-08-02
+
+`PremiumCombo_Popup` is a separate top-level window and receives pointer wheel
+messages directly. It must synchronously route `WM_MOUSEWHEEL` to its owning
+controller; `hotIndex`, `scrollTop`, visibility and invalidation remain owned by
+one implementation. The popup must not create a second scroll state machine.
+
+## D-044 - Combo wheel moves the viewport only when the popup overflows
+
+Date: 2026-08-02
+
+Routing wheel input is insufficient if it invokes option navigation. While a
+popup is open, wheel input may change only `scrollTop`, and only when
+`items > visibleRows`. It must not change `curSel` or `hotIndex`. A fitting
+popup ignores wheel input. Keyboard arrows remain the explicit option-navigation
+mechanism.
+
+## D-045 - Diagnostic continuation cannot weaken native ownership
+
+Date: 2026-08-02
+
+An aggressive hardware diagnostic may continue after semantic mismatches so
+later read-only protocol stages are observable. It may not claim the HID path or
+publish analogue values unless the complete strict proof has mismatch mask zero.
+Transport timeout, malformed/correlation failure or exclusive-session loss
+still poisons the session and requires reopen because Aula has no transaction ID.
+
+Backends must also reject immutable identities dedicated to another native
+family before `CreateFileW`. This prevents a broad protocol scanner such as
+Spark from repeatedly probing Aula, without reserving an Aula-rejected path away
+from UAP.
+
+## D-046 - Physical envelopes may extend diagnostic parsing, not production trust
+
+Date: 2026-08-02
+
+A structurally valid response observed repeatedly on the exact physical HID
+interface supersedes an inferred oracle for diagnostic traversal. The observed
+60-byte Aula sync envelope may be accepted only under
+`HALLJOY_AULA_AGGRESSIVE_TRACE` until its extended fields are authenticated.
+The normal build keeps the pinned 54-byte contract.
+
+Accepting an envelope is not firmware authentication. Any decoded identity
+mismatch remains recorded and forbids route claim and analogue publication.
+An intermittent sharing violation is not grounds for shared HID ownership when
+a later trace proves exclusive open succeeds reliably.
+
+## D-047 - Physical sync evidence supersedes the inferred Aula oracle
+
+Date: 2026-08-03
+
+The production Aula identity is the exact repeated 60-byte physical sync
+descriptor, not the former 54-byte fixture generated without hardware. Three
+16-byte blocks are length-delimited by `0x10`; immutable prefix, app/build
+descriptors and `0xFF` trailer are compared exactly. Only the serial block is
+device-specific and excluded from firmware equality while remaining reconnect
+evidence.
+
+Binary build-descriptor bytes must not be presented as a decoded build-date
+string. Legacy 54-byte sync is rejected rather than retained as a compatibility
+path, because there is no physical evidence for it.
+
+## D-048 - Aula compatibility is a bounded protocol family, not a PID table
+
+Date: 2026-08-05
+
+The physically verified WIN 60 HE MAX identity remains an exact profile, but
+production discovery may admit a sibling PID or firmware after a complete live
+proof of the same 6x21 read-only protocol. Discovery is first restricted to
+Aula VID `1CA2` or an Aula/SparkPlayJoy SetupAPI brand identity, then requires
+`FFA0:0001`, exact 65-byte HID reports, a structural 60-byte sync descriptor,
+plausible precision/travel, a unique dynamic default map, two identical Fn0
+generations and both valid travel halves.
+
+The active-map request count is derived from the proven physical positions and
+bounded to nine batches per generation; the complete proof is bounded to 25
+transactions. Arbitrary HID interfaces are never metadata-opened or probed.
+Only the exact successfully proven interface path is claimed. A sibling passing
+this gate is protocol-compatible, not physically validated, until independent
+hardware evidence exists.

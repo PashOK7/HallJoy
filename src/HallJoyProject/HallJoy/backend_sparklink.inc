@@ -50,6 +50,8 @@ static std::atomic<uint32_t>      g_sparkAvgRouteTxUs{ 0 };
 static std::atomic<uint32_t>      g_sparkMaxRouteTxUs{ 0 };
 static std::array<std::atomic<ULONGLONG>, kSparkMaxRows> g_sparkRowLastOkMs{};
 static std::atomic<ULONGLONG>     g_sparkLastTelemetryLogMs{ 0 };
+static std::atomic<ULONGLONG>     g_sparkLastDedicatedSkipLogMs{ 0 };
+static std::atomic<uint64_t>      g_sparkDedicatedSkipTotal{ 0 };
 static std::atomic<halljoy::worker::WorkerExceptionKind> g_sparkWorkerFaultKind{
     halljoy::worker::WorkerExceptionKind::None };
 static halljoy::worker::WorkerExceptionRecord g_sparkWorkerFaultRecord{};
@@ -325,6 +327,27 @@ static int SparkUsageSupportScore(uint16_t usagePage, uint16_t usage)
     if ((usagePage == kSparkUsagePageV2 || usagePage == kSparkUsagePageLegacy) && usage != 0)
         return 1;
     return 0;
+}
+
+// A legacy Spark interface and Aula both use FFA0:0001, so usage metadata is
+// not a family discriminator. Keep immutable, audited VID/PID ownership ahead
+// of any Spark CreateFile/probe. This is classification only: if Aula rejects
+// the device, the path remains unclaimed and available to UAP.
+static bool SparkPathIsDedicatedAula(const wchar_t* path)
+{
+    if (!path || !*path)
+        return false;
+    wchar_t vid[16]{};
+    wchar_t pid[16]{};
+    _snwprintf_s(vid, _countof(vid), _TRUNCATE, L"vid_%04x",
+        static_cast<unsigned>(aula_win60he::kAulaVendorId));
+    _snwprintf_s(pid, _countof(pid), _TRUNCATE, L"pid_%04x",
+        static_cast<unsigned>(aula_win60he::kAulaProductId));
+    std::wstring normalized(path);
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+        [](wchar_t ch) { return static_cast<wchar_t>(std::towlower(ch)); });
+    return normalized.find(vid) != std::wstring::npos &&
+        normalized.find(pid) != std::wstring::npos;
 }
 
 static bool SparkReadCaps(HANDLE h, uint16_t* inLen, uint16_t* outLen, uint16_t* usagePage, uint16_t* usage)
@@ -841,6 +864,7 @@ static HANDLE SparkTryOpenDevice(
     uint16_t bestReadOnlyVid = 0;
     uint16_t bestReadOnlyPid = 0;
     uint16_t bestReadOnlyUsagePage = 0;
+    uint32_t dedicatedAulaSkipped = 0;
 
     for (DWORD idx = 0;; ++idx)
     {
@@ -871,6 +895,11 @@ static HANDLE SparkTryOpenDevice(
         if (NativeAnalogRouting_ProtocolHasClaims(NativeAnalogProtocol::SparkLink) &&
             !routedToSpark)
             continue;
+        if (!routedToSpark && SparkPathIsDedicatedAula(detail->DevicePath))
+        {
+            ++dedicatedAulaSkipped;
+            continue;
+        }
 
         bool writeCapable = true;
         HANDLE h = CreateFileW(
@@ -969,6 +998,27 @@ static HANDLE SparkTryOpenDevice(
         else
         {
             CloseHandle(h);
+        }
+    }
+
+    if (dedicatedAulaSkipped != 0)
+    {
+        const std::uint64_t total = g_sparkDedicatedSkipTotal.fetch_add(
+            dedicatedAulaSkipped, std::memory_order_relaxed) + dedicatedAulaSkipped;
+        const ULONGLONG nowMs = GetTickCount64();
+        ULONGLONG lastLogMs = g_sparkLastDedicatedSkipLogMs.load(std::memory_order_relaxed);
+        if (lastLogMs == 0 || nowMs - lastLogMs >= 60'000u)
+        {
+            if (g_sparkLastDedicatedSkipLogMs.compare_exchange_strong(
+                    lastLogMs, nowMs, std::memory_order_relaxed))
+            {
+                StabilityTrace_Write(L"INFO", L"spark", L"candidate.skip_dedicated_summary",
+                    L"owner=aula-win60he vid=0x%04X pid=0x%04X pre_open=1 interfaces=%u cumulative=%llu interval_ms=60000",
+                    static_cast<unsigned>(aula_win60he::kAulaVendorId),
+                    static_cast<unsigned>(aula_win60he::kAulaProductId),
+                    static_cast<unsigned>(dedicatedAulaSkipped),
+                    static_cast<unsigned long long>(total));
+            }
         }
     }
 

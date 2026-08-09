@@ -693,4 +693,220 @@ v1.4 can be tagged only when:
   checks, official x64 build and one physical Irok lifecycle cycle passed, but
   subsequent manual Irok review rejected the UI. V14-12Q is In progress; the
   blocking inventory and clean-audit scope are in
-  `RELEASE_UI_AUDIT_HANDOFF_2026-08-02_RU.md`.
+  `RELEASE_UI_AUDIT_HANDOFF_2026-08-02.md`.
+
+### V14-12R / clean pre-release UI audit
+
+- Re-audited the six-tab UI without inheriting any prior visual `Verified`
+  claim. Added release-excluded paint/invalidation aggregation and a permanent
+  static UI regression gate.
+- Isolated dynamic repaint commits to dirty rectangles, buffered the tab row,
+  made live polling visible-tab/change gated, and reduced Configuration steady
+  telemetry repaint to its `720x36` status region.
+- Replaced both Spark click-cyclers with real `PremiumCombo` children, unified
+  detailed route diagnostics in Gamepad Tester, and replaced the reset strip/
+  dotted focus with one rounded themed renderer.
+- Production build, instrumented Irok run, 3/3 lifecycle qualification and a
+  15-second simulator run pass. V14-12R remains **In progress** until owner
+  visual acceptance; MAD68 HE/UAP and Aula remain independent blockers.
+- Full record: `PRE_RELEASE_UI_AUDIT_2026-08-02.md`.
+
+### V14-12S / UI refresh root correction
+
+- Corrected the shared-preview ownership error that consumed release dirty bits
+  without invalidating keys outside Remap.
+- Split animation-rate Tester report refresh from 100 ms diagnostics.
+- Replaced raw-message Remap/Configuration/Global scrolling with 16 ms
+  latest-target commits, atomic child batches and one no-erase repaint.
+- Batched all Configuration PremiumCombos and removed unrelated keyboard-driven
+  tab-row paints. New overlay smoothing defaults to 15% without changing saved
+  profiles.
+- Static audit, full build, UI stress harness, simulator and 3/3 production
+  lifecycle qualification pass. V14-12S remains **In progress** pending owner
+  visual acceptance.
+
+### V14-12S.1 / adaptive scroll deadline
+
+- Owner accepted the visual corrections and isolated the remaining complaint
+  to low scroll FPS on some tabs.
+- Replaced timer-led scrolling with input-driven elapsed-deadline commits;
+  retained the timer only to drain the last pending target.
+- Cadence is adaptive from 8 to 16 ms with clock-granularity tolerance. Code
+  stress improved from roughly 29 to roughly 70 commits/s without active erase.
+- Full build and production qualification 3/3 pass. Scroll smoothness awaits
+  the owner's recheck of the latest EXE.
+
+### V14-12T / unified scroll viewport
+
+- Owner testing rejected V14-12S.1: measured FPS improved while elements could
+  disappear. The per-page child-window mitigation is superseded.
+- Introduced one controller, content-coordinate model, retained presenter and
+  common scrollbar for all six keyboard pages.
+- Remap visual content and Configuration/Global closed combo faces are now
+  composed inside their page surfaces; visible HWND movement was removed from
+  active scroll layouts. Tester keeps live bars inside the shared contract.
+- Added static architecture enforcement and a reusable six-page production
+  stress runner. Full build, 6/6 scroll stress and 3/3 lifecycle qualification
+  pass with stable GUI resources and unchanged user state.
+- V14-12T is **In progress** pending owner visual acceptance of the exact final
+  EXE. Compatibility controller removal is follow-up architecture debt, not a
+  reason to restore per-page scroll paths.
+
+### V14-12T.1 / retained control visual parity
+
+- Preserved the accepted unified scroll behavior.
+- Replaced retained combo approximations with the canonical PremiumCombo face;
+  restored vector power/save icons and removed the added inner focus outline.
+- Added an explicit close notification so temporary combo HWNDs cannot remain
+  visible after popup selection, Escape or outside click.
+- Full build, 6/6 scroll stress, three popup lifecycle cases and 3/3 production
+  qualification pass. Status remains **In progress** for owner visual review.
+
+### V14-12T.2 / retained interaction semantics
+
+- Bounded Remap icon hits so the gamepad power action reaches its handler.
+- Centralized binding persistence and global-profile dirty notification.
+- Replaced three Input Overlay cycling buttons with canonical PremiumCombos.
+- Full build, 6/6 page stress and 6/6 popup lifecycle checks pass. Status is
+  **In progress** pending owner interaction review of the final EXE.
+
+### V14-12T.3 / PremiumCombo popup wheel
+
+- Routed popup wheel input to the single controller-owned list state.
+- Added runtime wheel injection to all six popup lifecycle cases.
+- Full build and 6/6 page/popup stress pass; owner font-list recheck pending.
+
+### V14-12T.4 / overflow-only combo viewport scroll
+
+- Superseded V14-12T.3 option navigation with viewport-only wheel scrolling.
+- Short lists ignore wheel; only the overflowing font list changes `scrollTop`.
+- Runtime asserts unchanged selection for all six popup cases. Full build and
+  6/6 stress pass; owner recheck pending.
+
+### V14-12U / Aula physical diagnosis
+
+- Fixed the proven Spark/Aula ownership collision before HID open.
+- Produced one self-contained aggressive, read-only `HallJoy.exe` with strict
+  claim/publication isolation and one automatic 64 MiB `HallJoy.log`.
+- Next gate: receive `HallJoy.log`, identify the first
+  failing proof stage, then correct the production contract from physical
+  evidence. Physical Aula support remains **In progress** until that run passes.
+
+### V14-12U.1 / physical sync envelope
+
+- The first new single-file trace showed only a transient external holder;
+  shared HID fallback was rejected.
+- The next trace proved 62 successful exclusive sessions and a stable valid
+  60-byte sync response, exposing the inferred 54-byte parser gate as root.
+- Aggressive diagnostics now accept the physical envelope and proceed through
+  later read-only proof while retaining strict claim/publication isolation.
+- Next gate: run the new EXE and use its precision/map/travel evidence to define
+  the production contract. Physical Aula support remains **In progress**.
+
+### V14-12U.2 / physical production proof
+
+- `HallJoy (3).log` completed the full 17-read proof three times on hardware.
+- Replaced the inferred 54-byte sync model with the exact repeated 60-byte
+  descriptor contract; the false build-date mismatch is removed.
+- Precision, default/active maps and both travel envelopes match production.
+- Next gate: run the corrected claim-capable build, press several keys through
+  their full travel, then test reconnect. Status remains **In progress** until
+  non-zero runtime travel is captured.
+
+### V14-12U.3 / physical runtime input
+
+- Two corrected claim-capable runs passed strict proof, dedicated route claim,
+  connection and sustained runtime polling for about 58 and 17.5 minutes.
+- The tester reports analogue key travel visible in HallJoy. Physical input is
+  PASS within that owner-observed boundary.
+- The raw report cap retained only zero-valued startup frames; no non-zero byte
+  capture is claimed retroactively.
+- One run proves disconnect clearing and continued rediscovery, but the keyboard
+  was not returned before exit. Physical Aula support remains **In progress**
+  only for the return-after-disconnect reconnect gate.
+
+### V14-12U.4 / single-run diagnostic telemetry v2
+
+- Replaced startup-only raw evidence with 5-second matrix-rate, latency,
+  active-key/10+ and release-to-zero windows plus event and per-HID coverage.
+- Aggregated Spark skip spam and separated expected shutdown cancellation from
+  real runtime transport failures.
+- Sanitizers 6/6, full native checks, diagnostic and official production builds
+  pass; production contains none of the high-detail telemetry markers.
+- One final tester run now covers rate, 10-key hold, full release, ranges and
+  unplug/reconnect. After it passes, build the crash-only final release.
+
+### V14-12U.5 / physical Hz and multi-key result
+
+- Log 7 proves 21,027 error-free physical matrices at 343.973 Hz lifetime and
+  340.245-346.178 Hz across every 5-second window.
+- Two travel transactions never exceeded 2.644 ms; 22-key maximum, 2,654
+  frames at 10+, eight releases to zero and 40-HID coverage passed.
+- The tester closed after 61 seconds without unplugging the keyboard. Reuse the
+  same EXE for one short unplug/replug; reconnect is the only remaining Aula
+  gate before the crash-only final release.
+
+### V14-12U.6 / physical reconnect result
+
+- `HallJoy (8).log` records three successful return-after-disconnect cycles with
+  retained device identity and a fresh strict proof on every connection.
+- The first post-reconnect session produced 1,008 matrices at 341.463 Hz, 329
+  non-zero frames and 12 observed HIDs, proving restored analogue input.
+- Intermediate write/read failures are bounded USB transition evidence from
+  additional disconnect cycles; each is followed by a successful strict reclaim.
+- Final shutdown is clean with exit code 0. The Aula physical release gates are
+  complete; proceed to the telemetry-free/crash-only production artifact.
+
+### V14-12U.7 / final zero-telemetry production profile
+
+- Official `tools/build.ps1` no longer enables `HallJoyStabilityTrace`; tester
+  collectors are not copied into the production staging package.
+- Debug and stability event calls compile away at each production call site via
+  discarded constexpr branches, preserving compile-time checking and zero runtime
+  argument evaluation without relying on LTCG.
+- The ordinary file logger and writer thread remain disabled. Production installs
+  only an unhandled-exception filter with no vectored first-chance hook or normal
+  I/O; it writes `HallJoyCrash.txt` only after a crash. Silent A9 recovery remains.
+- Full native checks, W4 release build and binary marker audit PASS. A hidden
+  portable WM_CLOSE smoke exits 0 and creates no log or crash artifact.
+- Clean artifact: `build/release/HallJoy.exe`, 2,161,152 bytes, SHA-256
+  `AF7C536FF454AF94278C457E2A978E447E9345580240253F7B603748AB79C39F`.
+
+### V14-12V / bounded Aula 6x21 protocol family
+
+- Replaced the one-PID/one-firmware admission gate with two explicit profiles:
+  physically proven `ExactWin60HeMax` and structurally proven
+  `Compatible6x21Family`.
+- Discovery is brand-scoped before HID metadata open: Aula VID `1CA2` or an
+  Aula/SparkPlayJoy SetupAPI identity. Arbitrary HID devices are not probed.
+- Default and Fn0 maps are dynamic within 126 matrix positions. Proof cost is
+  `7 + 2*ceil(keys/14)`, 17 for the known keyboard and at most 25.
+- Alternate firmware/precision and an 84-position synthetic keyboard pass the
+  family profile; exact-profile rejection, duplicates, malformed descriptors,
+  unstable maps and implausible travel remain fail-closed.
+- Aula sanitizer suite 6/6, routing/static audits, full native suite and MSVC
+  Release x64 build PASS. Physical compatibility is claimed only for the
+  previously tested WIN 60 HE MAX.
+- Production artifact: `build/release/HallJoy.exe`, 2,164,224 bytes, SHA-256
+  `2833DA24AF9D086A084B045FCEEA78F08883536FD96F48E1EFEEC938B652E1BB`.
+
+### Final v1.4 publication candidate
+
+- Keychron K4 HE custom full-report support is promoted from short-run
+  performance validation to physical owner acceptance after long-term daily
+  HallJoy use. Stock per-key firmware remains explicitly unsupported for gaming.
+- Public documentation links to the AnalogSense full-report explanation and
+  flashing guide without implying that its current pre-built list contains a
+  K4 HE image.
+- The English documentation corpus, internal links, tables, build contracts,
+  version identity, production profile, and complete compiler-backed native
+  backend suite pass.
+- The official `Release|x64` build completed with zero errors and only the
+  allow-listed external ViGEm `LNK4099`; continuous telemetry markers are absent
+  and crash-only reporting is retained.
+- Current clean artifact: `build/release/HallJoy.exe`, 2,187,776 bytes,
+  SHA-256
+  `C03CB7A19DB73921D69904A7ABDAB954D54F3D5CE42899ADD9C24012D93D0402`.
+- Remaining publication work is Git-only: review the complete integration diff,
+  commit it intentionally, push/merge it to `main`, create tag `v1.4.0`, and
+  publish the clean four-file release package.

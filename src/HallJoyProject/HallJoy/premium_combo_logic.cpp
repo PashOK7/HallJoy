@@ -1060,3 +1060,47 @@ void PremiumComboInternal::UpdateHoverState(HWND hWnd, State* st, LPARAM lParam)
     if (changed)
         InvalidateRect(hWnd, nullptr, FALSE);
 }
+
+bool PremiumComboInternal::ScrollPopupWheel(State* st, int wheelDelta)
+{
+    if (!st || !st->dropped || IsInlineEditing(st)) return false;
+    const int maxTop = GetMaxScrollTop(st);
+    if (maxTop <= 0)
+    {
+        st->wheelRemainder = 0;
+        return false;
+    }
+
+    st->wheelRemainder += wheelDelta;
+    UINT wheelLines = 3;
+    SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &wheelLines, 0);
+    if (wheelLines == 0)
+    {
+        st->wheelRemainder = 0;
+        return true;
+    }
+    const int rows = GetVisibleRows(st);
+    const int step = wheelLines == WHEEL_PAGESCROLL
+        ? std::max(1, rows - 1)
+        : std::max(1, (int)wheelLines);
+
+    int nextTop = st->scrollTop;
+    while (std::abs(st->wheelRemainder) >= WHEEL_DELTA)
+    {
+        const int direction = st->wheelRemainder > 0 ? 1 : -1;
+        st->wheelRemainder -= direction * WHEEL_DELTA;
+        nextTop -= direction * step;
+    }
+    nextTop = std::clamp(nextTop, 0, maxTop);
+    if (nextTop == st->scrollTop)
+        return true;
+
+    st->scrollTop = nextTop;
+    st->hotBtnIndex = -1;
+    st->hotBtnKind = PremiumCombo::ItemButtonKind::None;
+    if (IsInlineEditing(st))
+        UpdateInlineEditRect(st);
+    if (st->hwndPopup)
+        InvalidateRect(st->hwndPopup, nullptr, FALSE);
+    return true;
+}

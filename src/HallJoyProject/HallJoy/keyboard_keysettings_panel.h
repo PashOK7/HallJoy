@@ -10,6 +10,7 @@ void KeySettingsPanel_SetSelectedHid(uint16_t hid);
 // their child HWNDs, while existing storage/command logic remains unchanged.
 void KeySettingsPanel_EnableCustomControls(bool enabled);
 void KeySettingsPanel_UpdateCustomControlsLayout(HWND parent);
+void KeySettingsPanel_CloseCustomPopups();
 void KeySettingsPanel_DrawControls(HWND parent, HDC hdc);
 bool KeySettingsPanel_HandleCustomControlsMouse(HWND parent, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -25,8 +26,15 @@ bool KeySettingsPanel_HandleMouse(HWND parent, UINT msg, WPARAM wParam, LPARAM l
 // Keyboard shortcuts (Config page should forward WM_KEYDOWN / WM_SYSKEYDOWN here)
 bool KeySettingsPanel_HandleKey(HWND parent, UINT msg, WPARAM wParam, LPARAM lParam);
 
-// Draw graph (called from Configuration page WM_PAINT)
+// Draw the complete graph (legacy/non-retained Configuration paint path).
 void KeySettingsPanel_DrawGraph(HDC hdc, const RECT& rc);
+
+// Retained Configuration paint is deliberately split into two phases:
+// 1) cacheable graph background/curve; 2) viewport overlay containing the
+// live analog marker and the handles that must remain above it.
+// This keeps analog telemetry out of the page cache without changing z-order.
+void KeySettingsPanel_DrawGraphRetainedContent(HDC hdc, const RECT& rc);
+void KeySettingsPanel_DrawGraphViewportOverlay(HDC hdc, const RECT& rc);
 
 // Owner-draw plumbing
 bool KeySettingsPanel_HandleDrawItem(const DRAWITEMSTRUCT* dis);

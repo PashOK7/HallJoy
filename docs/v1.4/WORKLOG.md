@@ -2001,6 +2001,1000 @@ not a release candidate.
 
 The complete defect inventory, confirmed facts, open hypotheses, audit plan and
 acceptance criteria are recorded in
-`RELEASE_UI_AUDIT_HANDOFF_2026-08-02_RU.md`. Backup branch
+`RELEASE_UI_AUDIT_HANDOFF_2026-08-02.md`. Backup branch
 `backup/pre-release-ui-audit-20260802` preserves commit `3b3e9a3` before the
 new audit. Physical MAD68 HE/UAP and Aula acceptance remain separate blockers.
+
+## 2026-08-02 - V14-12R clean code/log UI audit
+
+Created backup branch `backup/pre-clean-ui-audit-20260802` at
+`63024a9907dc` before source changes. Re-read the complete v1.4 documentation
+set and audited the six-tab HWND/owner-draw/custom-surface tree without using
+old visual status as evidence and without retaining screenshots.
+
+Implemented dirty-rect buffer commits, a separately buffered tab row, active-
+tab Remap invalidation, changed-hash live telemetry gates, partial Configuration
+status updates, real Spark `PremiumCombo` children, canonical route diagnostics
+in Gamepad Tester, conditional Tester scrolling, and one rounded reset renderer
+without the rejected strip/dotted focus. Added `HallJoyUiAudit` as a build-only
+trace target plus `pre_release_ui_static_audit.py` in the official build gate.
+
+Validation:
+
+- UI static audit PASS;
+- production and UI-audit x64 builds PASS;
+- safe instrumented Irok run: Configuration steady dirty area `720x36`, no
+  telemetry-driven tab-row paints, exit 0 and normal shutdown marker;
+- release qualification 3/3 PASS with unchanged state and zero survivors;
+- simulator 15-second isolated-data rerun PASS (the first 8-second attempt was
+  too short for two late opposing-key phases);
+- final package: 2,228,224 bytes, SHA-256
+  `6BCBA47D86448E7D262250AEAF7EAFD89FD448CA8A917B1C514711F31FCB6CC3`.
+
+An earlier external automation attempt used an invalid cross-process
+`TCM_GETITEMRECT` pointer and crashed COMCTL32. It was discarded, its crash
+artifacts were removed, and the scalar-message rerun completed normally.
+
+Status remains In progress. The owner must perform the visual/DPI/control-state
+matrix on the final rebuilt EXE; MAD68 HE/UAP and Aula are unchanged blockers.
+Detailed record: `PRE_RELEASE_UI_AUDIT_2026-08-02.md`.
+
+## 2026-08-02 - V14-12S UI refresh root correction
+
+After owner testing exposed refresh failures, backed up commit `63024a9907dc`
+as `backup/pre-ui-refresh-root-fix-20260802` and saved the complete dirty layer
+under `build/backups/ui-refresh-root-fix-20260802-142333`.
+
+Found and corrected the lost keyboard-preview release transition: the preview
+is outside the tab pages and always visible, so consuming dirty bits behind a
+Remap-only invalidation gate was invalid. Split Tester animation-rate gamepad
+reports from 100 ms route telemetry. Rebuilt Remap, Configuration and Global
+thumb scrolling around 16 ms last-value frame coalescing, batched no-redraw
+child positioning and one no-erase commit. Configuration now batches both
+key-mode/profile combos and both Spark combos. Removed unrelated key-driven
+tab-row repaint. Fresh overlay smoothing now defaults to 15 while persisted
+profiles retain their value.
+
+The code harness activated all six pages, generated input and stress-dragged
+scrollbars without screenshots. Configuration dropped from 120 paints/s and
+258 erase messages to 24 burst paints and zero active-interval erases; tab-row
+key churn dropped from about 60 paints/s to selection-only paints. Full build,
+static UI audit, UI-audit build, 15 s simulator and final production
+qualification 3/3 pass. Final EXE is 2,230,784 bytes, SHA-256
+`1B5671F36EDE9CD2CB1153A2D02729387D0974D25FFB031D457A4FDC7AB523D1`.
+Visual acceptance remains pending owner review.
+
+## 2026-08-02 - V14-12S.1 scroll deadline starvation
+
+Owner accepted the corrected visuals but reported low scroll FPS on several
+pages. Runtime stress reproduced ~29 FPS and proved that low-priority
+`WM_TIMER` delivery plus the 15/16 ms Windows timing boundary skipped frames.
+Remap, Configuration and Global now commit elapsed deadlines directly while
+handling mouse input; the timer only drains the final pending target. Cadence
+follows UI refresh within 8–16 ms with a 1 ms clock-granularity tolerance.
+
+Alternating Configuration stress reached approximately 70 commits/s with zero
+active erases. Full build and final 3/3 production qualification pass, with 22
+user-state files unchanged. Artifact: 2,231,808 bytes, SHA-256
+`F9A32FEB956E7ED38CE7CB75BBE8254D64B296259821B9922ECA8EFF9D5B040C`.
+
+## 2026-08-02 - V14-12T unified scroll viewport architecture
+
+The owner rejected V14-12S.1 after visual testing: FPS was higher, but elements
+could disappear while scrolling. That invalidated the per-page child-window
+coalescing direction. The root fault was mixed composition ownership, not one
+timer interval.
+
+Backed up the complete working state to branch
+`backup/pre-unified-scroll-architecture-20260802` at
+`63024a9907dc946f4533c94a459fd65acec03df5` and to
+`build/backups/unified-scroll-architecture-20260802-150715`.
+
+Extended `custom_page_surface` with one wheel/thumb/track/capture controller,
+content/client coordinate conversion and one retained viewport presenter.
+Migrated the active paths of Remap, Configuration, Gamepad Tester, Global
+settings, Input Overlay and Mouse settings to that controller. Remap cards and
+icons now render as one retained layer. Configuration/Global closed combo faces
+render in their page caches; native combo HWNDs are popup/keyboard controllers
+only. Dynamic Tester bars remain live but use the same viewport contract.
+
+Added architecture guards and `tools/run_ui_scroll_stress.ps1`. Final gates:
+static audits PASS; full production build PASS; 6/6 page stress with 240
+wheel/update cycles per page PASS and no steady-state GUI resource growth; 3/3
+lifecycle qualification PASS with 22 user-state files unchanged. Final EXE:
+2,232,832 bytes, SHA-256
+`851C84A63AB6A1532C21E4FE477A16F9D9248BF4AB76090E3DD9AEAA969C2509`.
+Automated status is Implemented/PASS; owner visual acceptance remains pending.
+
+## 2026-08-02 - V14-12T.1 retained-control visual parity
+
+Owner testing accepted the unified scroll behavior and found four visual
+regressions: a mojibake-like Remap disable glyph, button-like retained combos,
+an invalid dirty suffix, and a face/font/focus change while a popup was open.
+Backed up the dirty tree to
+`build/backups/post-unified-scroll-visual-regressions-20260802-162140`.
+
+Added `PremiumCombo::PaintRetainedFace` so KSP, Spark and Global closed faces use
+the canonical combo painter instead of approximations. Restored the vector
+power glyph and vector save icon, removed the added inner focus outline, and
+added an explicit popup state notification so controller HWNDs hide on every
+close path.
+
+Full rebuild and static gates pass. The production runner passed all six scroll
+pages plus popup lifecycle checks for Configuration preset, Global profile and
+Keyboard layout; each had one popup/controller while open and zero after close.
+GDI and USER handles were flat. Lifecycle qualification passed 3/3 with 28
+state files unchanged. Artifact: 2,233,344 bytes, SHA-256
+`76CB02D76131E72B78652969C3673F3A2E586BCB843FD4ED57B78F51F6FD4677`.
+Visual acceptance of this exact artifact remains pending owner review.
+
+## 2026-08-02 - V14-12T.2 retained interaction semantics
+
+Fixed three root interaction regressions without changing the accepted unified
+scroll path. Remap remove IDs (`3000+`) had been swallowed by an unbounded
+`>= REMAP_ICON_ID_BASE` drag test; icon classification is now bounded by the
+actual collection. Every user binding mutation now uses one transaction which
+persists active bindings, marks the global profile dirty, refreshes Global
+settings and requests normal application persistence.
+
+Input Overlay direction, depth and label font are now real PremiumCombos. The
+former click-to-cycle branches were removed. Global dirty state shows
+`Global profile - unsaved` plus the existing save icon.
+
+Backup: `build/backups/pre-remap-profile-overlay-semantics-20260802-164735`.
+Full build and static audit PASS. Stress: 6/6 pages x 240 cycles and 6/6 popup
+lifecycle cases PASS; GDI `203/207/204`, USER `231/231/230`, exit 0. Artifact:
+2,232,832 bytes, SHA-256
+`8BE26D58294AD7E02D38C0970E4A8F6BD321A976638DC0E809A0425020D714CA`.
+No screenshots; owner interaction acceptance is pending.
+
+## 2026-08-02 - V14-12T.3 PremiumCombo popup wheel routing
+
+The font list exposed a controller/popup routing gap: `WM_MOUSEWHEEL` is sent
+to the separate top-level popup under the pointer, while list scroll state is
+owned by the combo controller. `PopupProc` now forwards the original wheel
+message synchronously to that single implementation. Backup:
+`build/backups/pre-premium-combo-wheel-20260802-174051`.
+
+Static audit and full production build PASS. The runtime runner now injects six
+wheel messages into every open popup; all 6/6 popup cases remain responsive and
+open during routing, then close with zero visible controllers. Six-page stress
+also passed at 240 cycles/page. GDI `105/105/102`, USER `174/177/176`, exit 0.
+Artifact: 2,232,832 bytes, SHA-256
+`45AEDB2FA1952843B004FED3F80EAD7F18DC8357FAD5EF2D64BBE237A6AC221B`.
+
+## 2026-08-02 - V14-12T.4 overflow-only combo viewport scrolling
+
+Owner review rejected V14-12T.3 because routed wheel input still called
+`MoveHot`, changing the highlighted option instead of scrolling the list.
+Replaced it with `ScrollPopupWheel`: it changes only `scrollTop`, activates only
+when `GetMaxScrollTop() > 0`, respects the Windows wheel-lines setting and
+accumulates high-resolution deltas. Selection and hot option are not mutated.
+Backup: `build/backups/pre-premium-combo-viewport-wheel-20260802-175224`.
+
+The runtime guard now reads combo scroll state. Five fitting popups report
+`maxTop=0`, stay `0->0`, and preserve selection. The 13-font popup reports
+`maxTop=3`, scrolls `1->3`, and preserves selection. Full build and 6/6 page
+stress PASS; GDI `105/106/102`, USER `176/176/176`, exit 0. Artifact:
+2,233,856 bytes, SHA-256
+`ED0082DFDC24F8A4137B1559D1B43058186C19ED4B9142E7F9BEE107F65EB00D`.
+
+## 2026-08-02 - V14-12U Aula physical diagnostic and backend isolation
+
+The second physical Aula log proved that SparkLink repeatedly opened the exact
+Aula `1CA2:1902 / FFA0` interface: 9 opens and 9 failed Spark protocol probes in
+14.9 seconds. Added a pre-open dedicated-family gate so Spark never sends its
+protocol to Aula; a rejected Aula path remains unclaimed and available to UAP.
+
+Added an isolated aggressive diagnostic build. It continues past semantic
+capability mismatches to later read-only stages, while strict claim/publication
+remain mandatory. Transport/correlation failures close and reopen the session.
+Raw reports are traced with sync serial bytes redacted and HID identities hashed.
+
+Backups: `pre-aula-aggressive-trace-20260802-221717` and
+`pre-spark-aula-routing-20260802-222839`. Sanitizers and three routing/static
+audits PASS; production and diagnostic builds PASS. Diagnostic artifact:
+2,245,632 bytes, SHA-256
+`D6F48D134481668DE9819A457CEFFC6FE5A97F5A6BD5980CFE6FE4529F1F8036`.
+The delivery was simplified to exactly one EXE. It creates/overwrites one
+64 MiB `HallJoy.log` beside itself; no collector, script, archive, previous log
+or portable marker is delivered. The full native backend suite also passed.
+Physical strict proof remains pending the returned `HallJoy.log`.
+
+## 2026-08-02 - V14-12U.1 physical 60-byte sync envelope
+
+Two single-EXE traces separated a transient ownership failure from the actual
+protocol barrier. `HallJoy (1).log` had 9/9 exclusive-open sharing violations.
+`HallJoy (2).log` then opened exclusively 62/62 times and received one stable,
+checksum-valid `0x81` response to every sync request. Its physical payload is
+60 bytes, not the 54 bytes inferred by the hardware-unvalidated oracle.
+
+The isolated aggressive parser now accepts either the pinned 54-byte oracle
+envelope or the physically observed 60-byte envelope. Production remains
+54-byte strict. The extended response continues through read-only proof with a
+firmware mismatch, so claim and analogue publication remain blocked. Added an
+ASan/UBSan aggressive end-to-end fixture that reproduces the redacted physical
+frame and proves all 17 transactions execute while the mismatch mask remains
+set. Backup: `build/backups/pre-aula-physical-sync60-20260802-230529`.
+
+Sanitizers 5/5, Aula/routing static audits, full native backend checks,
+production build and diagnostic build PASS. New single-file diagnostic:
+2,245,632 bytes, SHA-256
+`4AC9B51E9EE1824E6050400FF09F94B763084EEEE7A816A6D8A4290E938D54CA`.
+
+## 2026-08-03 - V14-12U.2 physical Aula production contract
+
+`HallJoy (3).log` (66,147 bytes, 223 lines, SHA-256
+`30FFE7CFB512F9FCE5988D71FF38D2F58922957DCEE7B675CA5113E7A7979DAB`)
+completed three exclusive 17-transaction proofs. Precision `10/10/3400`, the
+61-position/60-usage default map, two active Fn0 generations and both travel
+envelopes matched exactly. The sole mismatch was our interpretation of the
+physical sync build descriptor.
+
+Replaced the hardware-unvalidated 54-byte sync oracle with the repeated physical
+60-byte contract in production. The three 16-byte descriptor blocks and final
+`FF` are pinned; the device-specific serial block is retained for reconnect but
+excluded from firmware equality. Misleading build-date decoding was replaced
+with the proven ASCII label prefix. Legacy 54-byte responses now fail closed.
+Backup: `build/backups/pre-aula-physical-production-contract-20260803-001133`.
+
+Sanitizers 5/5, full native backend suite, documentation/static gates and both
+MSVC Release builds PASS. Production artifact: 2,235,392 bytes, SHA-256
+`8F6F85CD17BCE471728006BA4642203142815C708407C64E2C21F5DCF25817D0`.
+Single-file claim-capable diagnostic: 2,245,120 bytes, SHA-256
+`23CEC8D7EF2479B353EABE7AAB8857CB04BDF3CC6BD0FE3D1FC89DAA1C02BB14`.
+
+## 2026-08-04 - V14-12U.3 physical Aula runtime input
+
+The owner returned two claim-capable traces and reported that analogue input
+appeared in HallJoy. `HallJoy (4).log` is 1,840,992 bytes / 9,311 lines, SHA-256
+`8529C724EDA13F93892237B11C5012D85FA8CD36A38BC71D85B64EF4BAC7E52C`;
+`HallJoy (5).log` is 629,044 bytes / 3,015 lines, SHA-256
+`5C1FC4F0DFC1AE152EA395463CD458C6123F08A27F783C05E2B8E9B8EDFF2A48`.
+Both runs completed strict proof with zero mismatch, claimed the dedicated Aula
+route, connected and published the 60-key matrix. They then sustained polling
+for about 58 and 17.5 minutes respectively.
+
+The trace cap records only the first 256 ordinary protocol reports. Its 58
+complete travel-half frames per log were captured during startup and are all
+zero; the later physical presses are therefore owner-observed evidence, not a
+claimed non-zero byte capture. The first run ends with a real HID disappearance
+and 59 bounded rediscovery attempts. The keyboard did not reappear before exit,
+so disconnect/retry passed but reconnect remains pending. The second run's sole
+continuation-read failure coincides exactly with shutdown and is cancellation
+of an in-flight transaction. Backup:
+`build/backups/pre-aula-physical-input-evidence-20260804-001`.
+
+## 2026-08-04 - V14-12U.4 useful single-run Aula telemetry
+
+Logs 4/5 exposed three diagnostic design failures: a 256-report cap retained
+startup proof traffic instead of runtime activity, Spark emitted thousands of
+identical per-interface skip lines, and shutdown `CancelIoEx` was classified as
+a protocol warning. Replaced that blind trace shape with a diagnostic-only,
+allocation-free matrix metrics path. It emits 5-second real polling-rate and
+transaction-latency windows, active-key histograms including a dedicated 10+
+bucket, press/release-to-zero transitions, event snapshots with HID/row/column/
+micrometre values, final per-HID maxima, session summaries and reconnect
+downtime. Spark skip evidence is aggregated to at most one line per minute;
+shutdown cancellation is INFO and does not increment runtime failures.
+
+Added a portable metrics test covering 10 simultaneous keys, complete release,
+frequency, latency buckets and coverage. Aula ASan/UBSan is now 6/6 PASS; the
+full native/static/portable suite and official production build pass. The
+production linked image contains none of the high-detail diagnostic markers.
+The isolated package contains exactly one 2,254,336-byte `HallJoy.exe`, SHA-256
+`F2727D0A7E901DF89D95B27B1D0CD86D7D2B9655B59EB4998F62594FCAF158C5`.
+Its builder verifies the linked schema before delivery. Backups:
+`build/backups/pre-aula-diagnostic-telemetry-v2-20260804-001` and
+`build/backups/pre-aula-diagnostic-v2-docs-20260804-001`.
+
+## 2026-08-05 - V14-12U.5 physical rate and multi-key evidence
+
+`HallJoy (7).log` (142,904 bytes / 417 lines, SHA-256
+`EBDDF2DCEA3D72BBCA1E6219A340312A0BB55167826F6BC2187FC41079B968A9`)
+validated telemetry v2 and the physical runtime path. Strict proof/claim passed;
+21,027/21,027 matrices completed in 61.129 seconds with zero failed updates.
+Lifetime rate was 343.973 Hz and all twelve 5-second windows stayed between
+340.245 and 346.178 Hz. Both travel transactions averaged 2,076 us, peaked at
+2,644 us and never entered a bucket above 4 ms.
+
+The keyboard reached 22 simultaneous active keys, spent 2,654 frames at 10+,
+returned fully to zero eight times and exercised 40 HID usages up to 3,400 um.
+Shutdown cancellation was correctly informational and every worker joined.
+No disconnect/reconnect occurred, so the same diagnostic EXE still needs one
+short unplug/replug run; no replacement binary is required. Documentation
+backup: `build/backups/pre-aula-log7-evidence-20260805-001`.
+
+## 2026-08-05 - V14-12U.6 physical reconnect closure
+
+Reviewed `HallJoy (8).log` (592,665 bytes / 1,800 lines, SHA-256
+`3360D442A527DA993E846B6F88456406BAD2EADD02B4A18E3FAF49C63A0041C7`).
+The run contains three disconnects and three successful reconnects. Every
+recovered connection retains the original physical identity and completes the
+strict Aula proof with zero mismatch.
+
+The first recovered session is decisive functional evidence: 1,008 matrices at
+341.463 Hz, 329 non-zero frames, 238 changed frames, four complete releases and
+12 observed HIDs reaching 3,400 um. Thus the result proves restored analogue
+data, not merely HID re-enumeration. Later write/read failures coincide with two
+additional USB transitions; the bounded retry loop reclaims the device both
+times. Shutdown is clean, all workers join, and the process exits 0.
+
+`HJ-AULA-P1-009` is Closed/PASS. Together with log 7's sustained rate and
+multi-key evidence, all Aula physical blockers required for the production
+artifact are closed. The next build should remove diagnostic telemetry and keep
+only crash-oriented production logging. Documentation backup:
+`build/backups/pre-aula-log8-evidence-20260805-001`.
+
+## 2026-08-05 - V14-12U.7 final production build
+
+Converted the official artifact from the temporary verification profile to a
+true zero-continuous-telemetry release. `tools/build.ps1` explicitly passes
+`HallJoyStabilityTrace=false`, no longer packages trace collectors and validates
+the linked EXE for absence of stability, diagnostic and high-detail Aula markers.
+
+Moved ordinary debug and stability APIs to production compile-away call sites.
+Discarded `if constexpr(false)` branches retain type checking and mark diagnostic
+locals as used, but generate no argument evaluation, strings, calls or runtime
+branches. This avoids depending on cross-TU optimizer behavior. The ordinary log
+writer/file path stays disabled. Production now installs only the unhandled crash
+filter; it performs no normal I/O and writes privacy-limited `HallJoyCrash.txt`
+only after a crash. The vectored first-chance hook remains diagnostic-only, while
+the silent native A9 exit watchdog is preserved.
+
+The full native suite passed. Official W4 Release x64 completed with zero errors
+and zero unexpected warnings; only the accepted third-party ViGEmClient LNK4099
+baseline remains. Linked-image marker audit passed. An isolated hidden portable
+runtime smoke ran for five seconds, accepted WM_CLOSE, exited 0 and created no
+ordinary, trace, diagnostic or crash log.
+
+Published clean `build/release/HallJoy.exe`: 2,161,152 bytes, SHA-256
+`AF7C536FF454AF94278C457E2A978E447E9345580240253F7B603748AB79C39F`.
+Package also contains README, third-party notices and `SHA256SUMS.txt`. Backup:
+`build/backups/pre-final-production-profile-20260805-001`.
+
+## 2026-08-05 - public v1.4 release notes and repository status
+
+Reviewed the complete `v1.3..v1.4-integration` history and the remaining
+working-tree changes before GitHub publication. The 55 committed changesets are
+all v1.4 work: runtime/device architecture, persistence/security, stability,
+qualification and UI hardening. The remaining source, test and documentation
+diff is the final unified UI scroll/control work, Aula physical protocol and
+rate/reconnect proof, and conversion from the temporary diagnostic profile to
+the zero-continuous-telemetry production target. No unrelated tracked log or
+crash artifact was found in the publication scope.
+
+Added the public Russian release document
+`RELEASE_NOTES_v1.4.md`. It describes user-visible device support, the shared
+six-tab scroll architecture, control fixes, low-latency ViGEm scheduling,
+persistence migration, security boundaries, cooperative shutdown, production
+diagnostics, validation evidence, v1.3 upgrade steps and known limitations.
+Updated the repository README to point to the release notes, use the clean
+`build/release` artifact, record physical Aula acceptance and document the
+crash-only production log contract. Replaced the stale development/rejected UI
+summary in this index with the final qualification state.
+
+Verified backup before documentation writes at
+`build/backups/pre-public-v14-release-notes-20260805-002`; all three copied files
+matched their sources by SHA-256. The earlier `-001` flat backup is intentionally
+not authoritative because the two same-named README files collided in one
+directory; no source file was affected.
+
+## 2026-08-05 - explicit supported-hardware matrix
+
+Audited the actual discovery and proof boundaries of all six native protocols
+after the release-scope review exposed ambiguity between brand support, dynamic
+protocol compatibility and physical model validation. Aula is intentionally
+restricted to the exact `1CA2:1902 / FFA0:0001 / 65-byte / App V1.1.6`
+identity and complete 17-transaction proof; another VID/PID with the same wire
+commands is not automatically accepted. Hex80 accepts proven PID variants only
+within `VID 373B`; Sayo accepts proven PID variants only within `VID 8089`;
+MAD68 additionally requires the 68-key family boundary; Addressed and SparkLink
+are deliberately dynamic after their stronger live protocol proofs.
+
+Added `SUPPORTED_HARDWARE.md` with separate sections for physical HallJoy
+evidence, native protocol-compatible families and the device list declared by
+the pinned UAP/Soup runtime. Linked it from the public README and release notes.
+Updated the Aula protocol document's stale pre-hardware wording with the final
+rate, rollover and reconnect evidence. Documentation backup verified by SHA-256
+at `build/backups/pre-supported-hardware-matrix-20260805-001`.
+
+## 2026-08-05 - V14-12V bounded Aula/SparkPlayJoy 6x21 family
+
+Replaced the exact-PID/exact-firmware admission architecture with an exact
+known profile plus a bounded compatible-family profile. The discovery prefilter
+now accepts Aula VID `1CA2` or Aula/SparkPlayJoy SetupAPI identity, but opens no
+unrelated HID metadata handles. Every candidate must still expose
+`FFA0:0001`, exact 65-byte reports and complete a strict exclusive-session
+read-only proof before its exact interface path is claimed.
+
+Generalized the 60-byte sync, precision/travel and default-map validators without
+weakening framing, checksum, correlation or session-poison rules. Default maps
+may contain a unique dynamic set of up to 126 physical positions. Fn0 reads use
+up to nine 14-record batches per generation and require two identical complete
+generations. Total proof is bounded to 25 transactions; the physically verified
+61-position WIN 60 HE MAX remains the exact 17-transaction profile.
+
+Added alternate firmware/precision and 84-position end-to-end fixtures plus
+negative duplicate, malformed and exact-profile rejection coverage. Aula Clang
+ASan+UBSan passed 6/6; Aula/routing static audits and the complete native suite
+passed. Official MSVC Release x64 build passed with zero errors and no unexpected
+warnings. New production artifact: 2,164,224 bytes, SHA-256
+`2833DA24AF9D086A084B045FCEEA78F08883536FD96F48E1EFEEC938B652E1BB`.
+
+## 2026-08-05 - public GitHub README draft
+
+Reworked the top of the repository README from a build-first engineering page
+into a user-facing HallJoy overview. Added a concise feature summary, quick
+start, a complete Input Overlay/OBS setup section and an initial keyboard list.
+The overlay description is grounded in the production controls and browser
+implementation: loopback-only URL, transparent canvas, raw/after-curve depth,
+fill direction, label/color/effect controls, 15% default smoothing and retained
+idle rendering.
+
+The hardware list explicitly separates three HallJoy physical devices from
+models declared by the pinned UAP/Soup runtime and from dynamically proven
+protocol families. Explicit UAP names were taken from the vendored runtime
+README and decoder; NuPhy/DrunkDeer/Wooting remain family-level entries where
+the local runtime does not publish a complete per-model guarantee. This is
+intentionally a review draft rather than an inflated physical-validation claim.
+
+Verified backup before the README rewrite:
+`build/backups/pre-readme-homepage-20260805-001`. README version/build static
+audits and `git diff --check` pass.
+
+## 2026-08-05 - public keyboard list review pass
+
+Reorganized the GitHub compatibility draft into a native HallJoy block, a
+separate pinned UAP/Soup block and a Discord/support-request block. Added Irok
+MG75 Pro, clarified the tested ATK Hex80 name, recorded SayoDevice O3C as the
+tested Sayo model while retaining protocol-proof discovery for sibling devices,
+and consolidated all named MADLIONS models into one public row with their actual
+native-versus-UAP routing stated explicitly.
+
+Added the fallback behavior and contribution boundary: HallJoy attempts only
+known safe protocol families; failed automatic detection should be reported to
+Discord user `pash.ok`. Open-source readers, an open SDK/protocol description,
+firmware or an offline `.exe` updater/configurator are sufficient starting
+evidence for implementation. The README also states that some firmware exposes
+no external analogue protocol, in which case HallJoy alone cannot manufacture
+one.
+
+Updated `SUPPORTED_HARDWARE.md` to keep the Irok, ATK Hex80 and SayoDevice O3C
+claims consistent. Verified backup:
+`build/backups/pre-readme-keyboard-list-20260805-001`.
+
+Backup before the architecture change was verified at
+`build/backups/pre-aula-family-protocol-20260805-001`. No new physical model is
+claimed: untested siblings are only `protocol-compatible` until hardware proof.
+
+The final packaging pass also moved the Russian tester README out of an inline
+Windows PowerShell here-string into an explicitly UTF-8-read template. This
+removes codepage-dependent mojibake from `build/release/README_FOR_TESTER.txt`
+without changing the production binary. The final qualified EXE hash and
+`SHA256SUMS.txt` both equal
+`2833DA24AF9D086A084B045FCEEA78F08883536FD96F48E1EFEEC938B652E1BB`.
+
+## 2026-08-06 - English GitHub landing README
+
+Replaced the mixed Russian/English repository README with a fully English
+GitHub landing page. The rewrite covers the product overview, quick start,
+OBS Input Overlay setup and customization, native and embedded-UAP keyboard
+lists, Discord support request guidance, source build, runtime architecture,
+protocol arbitration, diagnostics, limitations, and contributor workflow.
+
+The detailed Russian release notes and hardware matrix remain linked and are
+explicitly labelled as Russian references. Automated validation confirms zero
+Cyrillic characters in `README.md`, all local Markdown targets exist, the
+version/build documentation audits pass, and `git diff --check` reports no
+formatting error. Pre-change backup:
+`build/backups/pre-english-github-readme-20260806-001`.
+
+## 2026-08-07 - physical Keychron K4 HE ANSI support
+
+Investigated the newly connected `3434:0E40` keyboard before attempting any
+firmware mutation. Windows exposes its analogue endpoint as the expected
+vendor-defined `FF60:0061` HID interface with 33-byte input/output reports. The
+pinned UAP already implemented Keychron's `A9 01` version and `A9 30` per-key
+read-only protocol, but rejected K4 HE because its PID and 6x19 matrix were not
+catalogued.
+
+Added an exact K4 HE ANSI identity and a 114-cell/100-key matrix derived from
+the official `Keychron/qmk_firmware` `hall_effect_playground` branch at immutable
+commit `bc56b3c611dcc1a8ed9a2acb8bdc4da5e1a80c27`. Added matching private-UAP
+topology telemetry and a static audit that enforces PID routing, vendor usage,
+matrix size, physical-key count and source provenance. Updated the normalized
+Soup overlay hash in the dependency lock.
+
+The rebuilt private ABI detected exactly one physical device. A 20-second live
+read measured seven active key codes, 202 distinct analogue levels, full-scale
+`1.0000`, 567 value transitions, 537 coherent worker publications and clean
+bounded unload. The official K4 HE source exposes `A9 30` and does not implement
+the optional `A9 31` bulk command, so the compatible per-key route is intentional.
+No bootloader entry, firmware write or configuration mutation was performed.
+
+Pre-change backup with matching SHA-256 copies:
+`build/backups/pre-keychron-k4he-20260807-001`.
+
+The official release pipeline then exposed two independent stale harness bugs.
+Packaging referenced an undefined `$repoRoot` variable after a successful link;
+the production smoke and cycle runner still required a stability trace even
+though the final target deliberately compiles continuous tracing out. The build
+root reference was corrected and regression-guarded. Both runners now enforce
+the actual production contract: clean exit, bounded graceful shutdown, no
+surviving process, unchanged user state, no continuous diagnostic file and no
+crash report.
+
+Final MSVC Release x64 build passed with zero errors and no unexpected warnings.
+The linked-image telemetry exclusion passed. Overlay response, framing,
+origin/concurrency and 500-case parallel fuzz passed. Three release cycles
+passed with 118-217 ms shutdowns, zero logs and all 30 user-state files
+unchanged. The UAP DLL extracted from the final EXE independently reported
+`3434:0E40`, `FF60:0061`, topology 6x19/114 slots, 236 nominal levels and clean
+bounded unload. Final artifact: 2,165,248 bytes, SHA-256
+`B8FFE5ACB43DDDDB2C0C9634057E7D5A34771E90F1BF9907B0576E5E4A7762ED`.
+
+## 2026-08-07 - K4 HE stock latency finding and full-report firmware candidate
+
+The user performed the missing gameplay-oriented physical check and found that
+the K4 HE analogue value can appear about one second after initial travel, or
+only once the key crosses its digital actuation point. This invalidates the
+earlier release-support conclusion. The prior run proved value correctness and
+multi-key publication but did not measure first-value latency below actuation.
+
+Root cause is the stock-firmware fallback in bundled Soup/UAP. K4 HE implements
+only `A9 30`, which returns one matrix position. The worker prioritizes digitally
+active and already-moving keys but samples only four new background positions
+per update. A first sub-actuation movement can therefore wait for most of the
+6x19 sweep. Digital actuation promotes the key and explains the observed sudden
+appearance. Public documentation now explicitly excludes stock K4 HE from
+release support instead of masking this as a performance limitation.
+
+A firmware candidate was built from the current official Keychron `2025q3`
+branch at commit `ee7390c3bbdc1f71a1cc8d54323f3f1d97868593`. The only functional
+change adds the established packetized `A9 31` full-matrix read command and its
+capability marker; HallJoy's existing fast path consumes four 32-byte reports
+covering all 114 matrix slots per sample. The `keychron/k4_he/ansi:keychron`
+build completed for STM32F401 with `3434:0E40` and STM32 DFU. Candidate SHA-256:
+`FCEBEBD31E5D54A72D3C7C23619878F983606FE390584F2D9317693F40E31AA4`.
+
+The official K4 HE ANSI stock v1.1.1 firmware was downloaded from Keychron and
+saved as rollback material; SHA-256:
+`4E877497A0EDC1A0D97CD52F5FF9BA86EF7DC84D56969E81DB7DE19EB6151E5F`.
+No firmware write occurred before exact DFU enumeration. Physical validation is
+still required before K4 HE can return to the supported-hardware list.
+
+## 2026-08-07 - K4 HE full-report flash and Windows receive latency fix
+
+Entered STM32 DFU only after exactly one `0483:DF11` device with serial
+`3381347A3035` was present. Before writing, saved a complete 256 KiB internal
+flash image as `keychron_k4_he_ansi_preflash_full_3381347A3035.bin`; SHA-256:
+`BF53C24706D761EDDF5AF447549627020F1410B5DAF431438FBCAB1FF63AB0A0`.
+Flashed the exact `A9 31` candidate and verified successful DFU manifest/leave
+and normal re-enumeration as `3434:0E40` with all HID interfaces.
+
+The first private-UAP physical run proved immediate values below digital
+actuation (minimum positive `5/235`, 222 positive levels), full travel,
+five-of-five simultaneous keys and bounded unload. It also exposed a separate
+host bottleneck: a complete four-report snapshot ran at only 65.4 Hz because
+Soup polled `GetOverlappedResult(..., FALSE)` with `Sleep(1)` for every report.
+Direct hidapi on the same firmware sustained about 172.3 Hz, isolating the
+delay to the Windows receive loop rather than firmware or USB descriptors.
+
+Replaced timer polling with the blocking kernel completion form
+`GetOverlappedResult(..., TRUE)`. The established Soup handle/OVERLAPPED layout
+and cancellation ownership remain unchanged. A new mandatory static audit
+prevents reintroduction of `Sleep` polling, and the normalized overlay hash is
+pinned in `tools/dependency-lock.json`. The private ABI lifecycle gate detects
+one device and unloads cleanly; the full Release build passes all static and
+portable tests, MSVC compilation, the production warning allowlist and the
+linked-image no-continuous-telemetry check.
+
+On the rebuilt private UAP, a 20-second physical-device idle measurement
+recorded 3,458 complete updates at 181.6 Hz, 5,508 us average interval and
+7,099 us maximum interval. A subsequent 12-second pressed run sustained
+191.1 Hz with a 5,233 us average and 7,011 us maximum interval. It observed
+20 physical keys, 231 distinct positive levels, minimum `5/235`, full-scale
+1.0 and 2,916 value transitions. A separate three-second idle run confirmed
+zero active keys for the complete final second at 185-187 Hz and clean bounded
+unload. This closes the 65 Hz host-performance and release-to-zero gates.
+
+USB disconnect/reconnect remains the final physical gate before public support
+status changes; the firmware rollback images remain retained.
+
+## 2026-08-08: AULA W669 / WIN60 HE Standard adaptive diagnostic
+
+Re-audited the supplied W669 V3.17.08 firmware and the official AULA WebHID
+driver from first principles. Corrected the earlier live-packet
+reconstruction: both scanner implementations emit analogue subtype `01`;
+their declared lengths are `03` and `05`. Subtype `05` is a per-key trigger
+configuration response, not a second live format. Also removed the unsupported
+inference that descriptor byte `08` itself identifies high-precision units.
+
+Added a separate `AulaW669` native backend rather than extending the physically
+proved WIN60 HE MAX transport. Admission is interface-path scoped and requires
+the exact `FF1B:0091` 64-byte HID shape plus two independent read-only protocol
+proofs: `21/04` travel range and the complete ten-fragment `18/80` 132-position
+map. The corrected backend uses the official SI2825 factory layout only for a
+confirmed `WIN 60 HE` identity and overlays explicit `18/80` remaps; unknown
+siblings must prove their own explicit map instead of inheriting WIN60
+geometry. It tries shared/exclusive sessions and WriteFile/HidD_SetOutputReport
+transports, subscribes through the RAM-only `21/02` mask, and clears it with
+`21/03`.
+
+The single-EXE diagnostic logs every W669 TX/RX report, HID identity/caps,
+configured 1/2/4/8 kHz polling-rate query `21/0A`, live event
+frequency/intervals, active
+keys and publication counts to `HallJoy.log`. A one-shot `21/0E` matrix
+snapshot independently checks the stream; after three quiet seconds the
+diagnostic build retries bounded snapshots every two seconds without invoking
+calibration, reset or persistent configuration commands. The isolated UAP
+host uses parent-side shared telemetry in this profile and no longer creates a
+second `.log` file.
+
+Protocol tests, truncation/random-input sanitizer coverage and the complete
+native-backend gate pass. Optimized single-log diagnostic artifact:
+`build/aula-w669-diagnostic/HallJoy.exe`, 2,249,216 bytes, SHA-256
+`DF91FB6D9487235A43ACF84B3FA56D47A41D562112B1E9E2CC820D2D65CDE6BA`.
+Local no-W669 smoke exited cleanly with code zero and produced `HallJoy.log`;
+physical W669 analogue correctness remains intentionally unclaimed until the
+user returns that log.
+
+## 2026-08-08: W669 first physical log and factory-map root correction
+
+The returned `HallJoy.log` (SHA-256
+`455BD1BE26976F53CEC0AE287D2FDE8CE9C28B9078E5C52CFB696349A1793524`)
+proved the exact `2E3C:C365`, `WIN 60 HE`, `FF1B:0091`, 64-byte interface and
+the `21/04` descriptor (`maximum=340`). Both shared and exclusive WriteFile
+routes received all ten `18/80` fragments, but the first diagnostic rejected
+them as `map_failed` before subscription. The process itself then shut down
+normally with exit code zero.
+
+Root cause: the implementation treated an all-zero four-byte map record as an
+empty matrix position. The real device uses zero to inherit the factory layer;
+its only explicit record was `01 FA` at logical position 122, exactly the Fn
+position in the official SI2825 layout. Consequently the first build erased 60
+valid factory keys and its `>=20 mapped` safety gate correctly stopped the
+session, but for the wrong decoded premise.
+
+The corrected protocol keeps the official 61-position SI2825 factory map for
+the confirmed `WIN 60 HE` product, then overlays non-zero `18/80` records.
+Unknown products do not inherit WIN60 geometry and must still prove enough
+explicit entries. A regression fixture reproduces all ten physical fragments,
+including the position-122 Fn record. Corrected live-subscription and timing
+remain pending one physical rerun. The corrected optimized single-log artifact
+is `build/aula-w669-diagnostic/HallJoy.exe`, 2,250,240 bytes, SHA-256
+`D3212F8F3C419D9FE5BA103B3D313B2F7EC325B64DB13A2D92439CC7CF07B54B`.
+
+The follow-up full Ghidra export covered 717 discovered functions and traced
+the previously unexercised live path end to end. Handler `0x080118C2` copies
+the `21/02` request mask directly to RAM `0x2000E878`. The normal producer's
+literal at `0x08018558` and alternate producer's literal at `0x08018E94` both
+resolve to the same address. Their constructors (`0x080180E2` and
+`0x08018BB4`) check `mask[column] & (1 << row)` without a digital-actuation
+condition and queue subtype `01` with declared length 3 or 5, row, column and
+little-endian processed travel. HallJoy's request and parser match these exact
+wire fields. No missing start command or second enable flag exists in this
+path; remaining physical validation is Windows delivery, real event timing and
+release-to-zero behavior rather than an unresolved firmware command.
+
+## 2026-08-09: W669 live proof and removal of the corrupting snapshot path
+
+Analyzed the returned `HallJoy (2).log` (SHA-256
+`1B1934BDC281F7CA83A7273EFC89B0A706623E7574F111FF73F4B0FBF9273955`)
+at packet level instead of trusting the diagnostic rollups. The corrected
+factory map and firmware subscription work: the trace contains 3,950 valid
+subtype-`01` events across 21 positions, 325 distinct positive levels, maximum
+340 and 204 explicit zero releases. Reconstructing state from live packets
+alone ends all 21 positions at zero.
+
+The apparent stuck state was created inside HallJoy. `21/0E` returned idle
+sensor-domain values around `0x0Axx`, which the diagnostic incorrectly divided
+by the processed maximum 340 and clamped to full travel. Each requested
+132-packet burst retained only 64 packets, and the synchronous snapshot reader
+also intercepted and discarded 532 valid live events. It therefore both
+created 14 false active keys and lost real release updates.
+
+Removed snapshot collection and publication from startup and quiet-stream
+recovery. The event-driven subtype-`01` stream now has one receive owner and an
+idle keyboard triggers no extra request. Corrected overlapped timeout handling
+so `CancelAndDrain`'s terminal `ERROR_OPERATION_ABORTED` does not replace the
+original `WAIT_TIMEOUT` and inflate transport failures. The physical polling
+query's code zero is accepted as firmware-default with unspecified nominal
+rate rather than logged as a response timeout.
+
+The complete portable/static native-backend gate and optimized MSVC diagnostic
+build pass. New single-EXE artifact:
+`build/aula-w669-diagnostic/HallJoy.exe`, 2,313,728 bytes, SHA-256
+`D640F7D4C497DED890FE7C45CE7188CA883137A9737FF9A080694A04423C3A1F`.
+A physical rerun remains required to close the corrected host-state gate.
+
+## 2026-08-09: W669 reported stalls, diagnostic ownership and discovery correction
+
+Analyzed `HallJoy (4).log` (SHA-256
+`C24DD91D26EF4056202DCA659E168E43DADFF8AA9BF0FB8A2A5C320BBA39E28A`).
+The 64 MiB file contains only 35,120 meaningful bytes/175 lines and ends
+abruptly at 32.984 seconds without `session.end`. The structured timeline has
+no process-wide event gap above 1.1 seconds, but it cannot measure the reported
+W669 stalls: `StabilityTrace` and `DebugLog` both opened `HallJoy.log` with
+`CREATE_ALWAYS`, so the mapped trace won ownership and discarded all W669 raw
+and interval telemetry from the asynchronous logger.
+
+The surviving evidence exposed a separate runtime interference source. With
+no MAX-family device present, `aula-win60he` performed 36 full SetupAPI/HID
+enumerations in 33 seconds, each walking 21-22 interfaces and taking roughly
+8-20 ms. This happened while the W669 backend was already active. Absent MAX
+discovery is now event-driven: after the initial scan it waits indefinitely
+for the existing `WM_DEVICECHANGE` wake; timed retries remain only when an
+exact candidate exists but its admission/open is transiently incomplete.
+
+The diagnostic logging architecture now has one file owner. `StabilityTrace`
+owns the bounded mapped `HallJoy.log`; the asynchronous `DebugLog` writer
+sanitizes and appends its queued lines to that same sink. MAD68 diagnostics are
+routed into it instead of creating `HallJoyMAD68ProR.log`. The build script now
+explicitly enables `HallJoyDiagnostic` and `HallJoySingleLogDiagnostic` and
+fails packaging unless W669 raw/telemetry and MAD markers are linked.
+
+A local lifecycle run then found an independent shutdown stall after a valid
+`session.end`: synchronous `FlushViewOfFile`/`FlushFileBuffers` could exceed
+the 12-second shutdown watchdog. Clean mapped-log shutdown now unmaps,
+truncates and closes through the Windows cache manager without blocking disk
+flushes. Normal exit no longer creates `HallJoyDiagnosticExit.txt`; crash-only
+sidecars remain available for abnormal termination.
+
+Final local eight-second smoke: exit code 0, close latency 75 ms, all workers
+joined, one 38,703-byte `HallJoy.log`, zero diagnostic/MAD sidecars, inline
+`log.init` and MAD evidence, and no one-second absent-MAX enumeration train.
+All native/static gates and optimized MSVC build pass. Corrected artifact:
+`build/aula-w669-diagnostic/HallJoy.exe`, 2,318,848 bytes, SHA-256
+`6931EA0AA3B32205F0AEA395C90C7081C3A4F9A1606CE1C1A74583D00FDB377E`.
+The reported physical W669 stall still requires one run of this observable,
+non-interfering build before release support can be closed.
+
+## 2026-08-09: Configuration live graph retained-layer correction
+
+The selected-key graph appeared to update only after clicking HallJoy. The
+backend values, selected HID, 1 ms default UI timer and graph-region
+invalidation were all active; focus was not the trigger. The real fault was a
+nested-cache ownership violation: `Config_RenderCacheContent` captured the
+live marker inside Configuration's retained full-content bitmap. A telemetry
+repaint therefore copied the old marker, while an unrelated click happened to
+dirty and rebuild the page cache.
+
+The graph now has an explicit retained-content phase and a viewport-overlay
+phase. The stable plot/curve remains cached. The current analog marker is
+composed after `CustomPageSurface_Present`, followed by the handles so their
+original z-order is unchanged. Analog changes still invalidate only the graph
+rectangle and never rebuild the full page. The legacy non-retained renderer
+uses both phases and therefore preserves its behavior.
+
+`pre_release_ui_static_audit.py` now prevents the live marker from re-entering
+the retained callback, requires post-present composition, preserves
+marker-before-handles ordering and forbids full-cache dirtying from the live
+timer. Full static and portable native checks pass. Release x64 MSVC build
+passes with only the allow-listed external ViGEm missing-PDB warning. Unified
+UI stress passes 6/6 pages at 120 wheel events each; Configuration measured
+63.0 update cycles/s, GDI handles were 109/109/106 and USER handles
+194/195/194 (start/max/end), and shutdown returned zero. Evidence from the
+official packaged executable:
+`build/evidence/ui-scroll-stress/20260809-172117`; tested EXE SHA-256
+`EF018D57768C5E0249E9B33D53C8A5D4396EEEAA4887B6790F7F9488337E2BBC`.
+Owner visual confirmation of continuous physical-key motion remains pending.
+
+## 2026-08-09: AULA Standard/W669 multi-geometry family coverage
+
+Re-audited both Aula protocol families rather than treating the shared brand or
+PID as a layout identity. The MAX `5C/12/23/2B` family was already dynamic
+inside its proved 6x21 matrix: it derives the physical-key count from the
+device's default map and reads `ceil(keys/14)` active-map batches. The remaining
+coverage gap was Standard/W669, where all-zero `18/80` records mean “inherit
+factory layout” and therefore cannot describe a previously unknown geometry.
+
+The current official Standard web driver catalog lists seven products on
+`2E3C:C365`. Its code sends read-only opcode `0D`, parses the fifth CSV field as
+the firmware product, then loads `config/keys/<product>.json`. Audited all seven
+live official files. Four SI2825 products share the byte-identical 61-key map
+SHA-256 `04E2FDA00FDB1645C74D42121102C1CF233658DDF43FB2611ACE57460CFCB448`;
+two SI2828 products share the 68-key map
+`CC2CBBC9C051230279BA8CE3B52054739446DC19C78CF1A38ADFD2D7C6CDF9E1`;
+SI2851/KP-TE153 UK has a distinct 69-key map
+`FCB98F5DF82C2E00D94501389C452172C4FAB6F103DF3CBF489FFFE9B89945C3`.
+
+HallJoy now performs the same offline bounded classification. Every proof and
+reconnect queries `0D`; exact SI2825/SI2828/SI2851 product IDs select their own
+factory map before the complete `18/80` override generation is applied. An
+exact HID marketing-name fallback exists only when the identity command is
+unavailable. Unknown firmware products start from an empty map and must prove
+enough explicit assignments; they never inherit WIN60/68 geometry by PID,
+substring, or key count. A proved firmware identity must remain byte-identical
+when the streaming session is reopened.
+
+Added parser rejection/fuzz coverage, all seven product aliases, exact
+61/68/69-key map fixtures, session-identity and no-guessed-layout static guards.
+`python tools/run_native_backend_checks.py --require-compiler` passes. The full
+official build passes all required gates and MSVC x64 release linking with only
+the allow-listed external ViGEm missing-PDB warning. Production artifact:
+`build/release/HallJoy.exe`, SHA-256
+`0BD04CBF5FDA26B9B1A5C7BBBCFB40E357A5CF51A3EB8534816D354791F39A14`.
+WIN68 and KP-TE153 remain official-driver-derived/implementation-tested, not
+physically validated on their own hardware.
+
+## 2026-08-09: public README contract and Keychron K4 HE layout preset
+
+Reworked the public English README around user-visible behavior. The feature
+introduction now describes low latency and last-key priority without exposing
+the internal analogue/curve/conflict/ViGEm pipeline. The keyboard support table
+uses Aula, Irok/SparkLink and protocol-compatible-brand wording, explicitly
+records the physically tested unsupported Irok MG75 v2, spells out Universal
+Analog Plugin, and moves Input Overlay below hardware compatibility. Removed the
+claim that physical hardware is required for an initial implementation, added a
+high-risk custom-firmware warning, and placed an advanced-reader boundary before
+the source-build sections.
+
+Re-audited dependency behavior before changing Quick start. HallJoy does not
+auto-install ViGEmBus: V14-12F/S18 intentionally replaced downloader/elevation
+code with exact pinned ViGEmBus 1.22.0 manual guidance. A system Wooting Analog
+SDK has not been required since the private embedded ABI1 runtime decision on
+2026-07-31; the verified runtime is prepared automatically without UAC. README
+now states both boundaries exactly.
+
+Added `Keychron K4 HE` as a separate 100-key built-in layout using the exact
+geometry of the physically configured local K4 HE layout. It is the third
+built-in and cannot replace preset zero. Fixed built-in discovery for existing
+users: built-ins are registered first, user files then override same-name
+presets, and only missing preset files are created. This preserves edited files
+while allowing newly shipped layouts to appear in a non-empty `Layouts` folder.
+
+Validation: exact 100/100 geometry comparison PASS; persistence static audit
+PASS with built-in merge/default guards; version-identity audit updated to keep
+the product heading version-independent while requiring the current v1.4 release
+record; `python tools/run_native_backend_checks.py --require-compiler` PASS;
+MSVC `Release|x64` validation build PASS with only the allow-listed external
+ViGEm missing-PDB warning. Isolated artifact:
+`build/validation-keychron/HallJoy.exe`, SHA-256
+`5481699CC583156904AEFB7DE3950CFC01B245D3CD2029B82F512CF507A28499`.
+
+## 2026-08-09: Git author-name canonicalization
+
+Rewrote commit metadata so the obsolete author/committer spelling is
+canonicalized to `PashOK7`. Email addresses, author/committer dates, messages and
+file trees were retained. The operation ran in a bundle-backed mirror because
+the active integration worktree contained 99 modified/untracked paths. A full
+workspace copy plus verified before/after all-ref bundles are stored under
+`C:\github\HallJoy_v1.4_PRE_PASHA_REWRITE_20260809-212131`.
+
+The public update used one atomic force-with-lease transaction for `main`, the
+legacy Codex branch and tags v1.0-v1.3. Public `main` changed from
+`2467cb75e3e2c124c29a57000e47a85892d20a41` to
+`1abf87fea235bf655de8fbec8cce8a9a928f63dd`; its tree remained exactly
+`c3cf7d18adb37dd9a1c597af7ee83dcf3bd95802`. Local status and binary-diff hashes
+matched before/after ref replacement, and the old sample object was absent after
+local reflog expiry and pruning. Reachable local history now contains 0 author
+and 0 committer occurrences of the obsolete spelling.
+
+GitHub still serves old commits by direct SHA and PR #1 retains the read-only
+old `refs/pull/1/head`; the repository has zero forks. Current branches/tags and
+new patch views are canonical, but complete GitHub cache/PR-ref expungement
+requires a GitHub Support request. First changed commit:
+`24c7398a647ff7d5067c715b71ac6696db01a56c`; rewritten root:
+`74b81c9fd62af9b1b274607ea0959a6a7dfb1285`; affected pull requests: 1.
+
+## 2026-08-09: corrected built-in numpad tall-key height
+
+The first investigation incorrectly treated the user's manually validated 87 px
+Keychron height as corruption because the historical Generic preset used 88 px.
+The resulting revision-1 migration expanded both tall keys to 88. A Reset then
+reloaded those persisted values and visual evidence showed `Num+` and numpad
+`Enter` ending one rendered pixel too low. That hypothesis and migration were
+wrong and are superseded by this correction.
+
+Both `Generic 100% ANSI` and `Keychron K4 HE` now define HID usages 87/88 at the
+visually validated height of 87 px. Because Reset reloads the persisted preset,
+`BuiltinGeometryRevision=2` narrowly converts the old 88 px value to 87 for only
+those two usages and names. It also supersedes files marked by bad revision 1,
+never expands an existing 87 px key, and preserves every unrelated layout edit.
+Both local presets were repaired. Pre-correction source, presets and release exe
+are backed up under `backups/tall-key-correction-20260809-215235`.
+
+Validation: four exact 87 px source guards PASS; migration direction/scope and
+obsolete 87-to-88 rejection guards PASS; complete native backend and production
+packaging gates PASS; optimized MSVC x64 build has zero errors and only the
+allow-listed ViGEm missing-PDB warning. Continuous telemetry is absent and
+crash-only reporting is retained. A production startup/WM_CLOSE smoke exited 0;
+both persisted presets finished at revision 2 with exact 87/87 tall-key values.
+Production artifact:
+`build/release/HallJoy.exe`, SHA-256
+`CF3FE3A87DC913B986A8837E59084154126438B4EC9DEF4C3815F64C95BCDEB9`.
+
+## 2026-08-09: restored current user-facing README content
+
+Compared public `main` README blob
+`b4f711f9f4dd055ba50e790eef5aad2838f89635` with the current local README and
+restored useful content that had been lost during the technical rewrite. The
+README now exposes the working video overview, project origin, Windows x64
+requirements, four-pad limit, Snap Stick, Block Bound Keys, layout-editor and
+shareable-preset capabilities, current run flow, saved-data/portable-mode paths,
+current troubleshooting, and AGPL/commercial licensing plus third-party notices.
+
+Obsolete system Wooting SDK/UAP installation, plugin-folder cleanup, SDK rollback,
+old Aula limitations, and legacy Visual Studio-only build guidance remain absent.
+Claims were checked against bindings/runtime/UI/storage code; the YouTube target
+returned HTTP 200; every relative Markdown link resolves; README content/static
+checks and `git diff --check` pass. Backup:
+`backups/readme-restoration-20260809-221133`.
+
+## 2026-08-09: project-wide English documentation migration
+
+Removed the obsolete README sentence that linked readers to Russian-only
+release and hardware documents. Restored the author's original personal
+paragraph verbatim, including its emoji.
+
+Created the first complete English migration of every project-maintained
+document and source comment. The
+46 documentation files whose names ended in `_RU` were renamed to neutral
+English names, all internal references were updated, and the two HallJoy-owned
+notes inside the pinned Universal Analog Plugin tree were translated and
+renamed as well. The public `RELEASE_NOTES_v1.4.md` and
+`SUPPORTED_HARDWARE.md` were rewritten as reviewed English documents rather
+than retaining raw machine-translated copy.
+
+The pre-migration files are preserved under
+`backups/english-migration-20260809-223645`; the local `backups/` tree is
+explicitly ignored by Git so historical Russian copies cannot enter a release.
+Validation found no Cyrillic in maintained documentation or source comments,
+no `_RU.md`/`_RU.txt` names or stale references, no broken project-relative
+Markdown links, and no inconsistent Markdown tables. Vendored Soup language
+dictionaries remain intact because they are localization data, not HallJoy
+documentation. The complete compiler-backed native backend gate,
+`s20_build_docs_static_audit.py`, and `git diff --check` pass.
+
+## 2026-08-09: editorial review of the English documentation
+
+The first migration draft was treated as an intermediate artifact, not as
+publication-ready prose. Every document that had contained Russian narrative
+text was compared with its pre-migration source and rewritten in idiomatic
+technical English. The review covered the public release and hardware pages,
+current protocol investigations, archived historical notes, stability plans,
+risk and decision records, stage results, tester instructions, firmware notes,
+and the HallJoy-owned Universal Analog Plugin documentation.
+
+Long historical records were condensed where repetition obscured the result,
+but their decisions, risk identifiers, evidence boundaries, commands, and
+unresolved hardware requirements were preserved. Existing English validation
+logs and machine-generated manifests were not paraphrased: they remain primary
+evidence rather than editorial prose. The mixed-language v1.4 index was repaired,
+and the official build guide now states the exact Windows x64 and unsupported
+Win32/x86 contract required by the build audit.
+
+Post-review validation found no Cyrillic in maintained documentation or source
+comments and no mojibake in UTF-8 documentation. It also found no `_RU`
+filenames or stale paths, malformed headings, unclosed code fences, inconsistent
+Markdown tables, or broken HallJoy-relative links.
+`s20_build_docs_static_audit.py`, `version_identity_static_audit.py`,
+`protocol_family_routing_static_audit.py`, and the complete compiler-backed
+`run_native_backend_checks.py --require-compiler` gate pass.
+
+## 2026-08-10: Keychron K4 HE support boundary and final publication build
+
+Corrected the public K4 HE status after the owner confirmed that the custom
+read-only `A9 31` full-report firmware has been used as a daily HallJoy keyboard
+for an extended period with immediate analogue response and no observed
+stability, release, reconnect, or gameplay regressions. Public support now
+clearly applies to that custom firmware. Stock K4 firmware remains unsupported
+for gaming because its one-key-at-a-time `A9 30` path can delay a previously
+idle key by roughly one second.
+
+Added `https://analogsense.org/firmware/` as a background and flashing-guide
+reference. The page returned HTTP 200 and describes patched full analogue
+reports, but its current pre-built image list contains Q1 HE, Q3 HE, Q5 HE,
+K2 HE, and Lemokey P1 HE—not K4 HE. Documentation therefore warns users not to
+flash another model's image and does not describe the page as a K4 download.
+
+Rebuilt the complete current tree with `BUILD.cmd`. The full static and portable
+C++20 gate passed, MSVC `Release|x64` completed with zero errors and only the
+allow-listed external ViGEm missing-PDB `LNK4099`, and the linked-image audit
+found no continuous telemetry markers while retaining `HallJoyCrash.txt`.
+Production startup/shutdown smoke passed without a continuous or crash log.
+The release directory was rebuilt after smoke so it contains only the intended
+four files. Final EXE: 2,187,776 bytes, SHA-256
+`C03CB7A19DB73921D69904A7ABDAB954D54F3D5CE42899ADD9C24012D93D0402`.

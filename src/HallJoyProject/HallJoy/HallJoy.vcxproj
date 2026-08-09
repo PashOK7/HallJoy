@@ -65,6 +65,16 @@
     <OutDir>$(ProjectDir)..\x64\AnalogSimulator\</OutDir>
     <IntDir>$(ProjectDir)..\x64\AnalogSimulator\obj\</IntDir>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyUiAudit)'=='true'">
+    <TargetName>HallJoyUiAudit</TargetName>
+    <OutDir>$(ProjectDir)..\x64\UiAudit\</OutDir>
+    <IntDir>$(ProjectDir)..\x64\UiAudit\obj\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyAulaAggressiveTrace)'=='true'">
+    <TargetName>HallJoy</TargetName>
+    <OutDir>$(ProjectDir)..\x64\AulaAggressiveTrace\</OutDir>
+    <IntDir>$(ProjectDir)..\x64\AulaAggressiveTrace\obj\</IntDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
@@ -152,6 +162,21 @@
       <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
     </Link>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoySingleLogDiagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_SINGLE_LOG_DIAGNOSTIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyAulaAggressiveTrace)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_AULA_AGGRESSIVE_TRACE;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyUiAudit)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_UI_AUDIT_TRACE;HALLJOY_DIAGNOSTIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="app.h" />
     <ClInclude Include="analog_host_client.h" />
@@ -206,8 +231,11 @@
     <ClInclude Include="hex80_protocol.h" />
     <ClInclude Include="aula_win60he_backend.h" />
     <ClInclude Include="aula_win60he_client.h" />
+    <ClInclude Include="aula_win60he_diagnostic_metrics.h" />
     <ClInclude Include="aula_win60he_protocol.h" />
     <ClInclude Include="aula_win60he_session_policy.h" />
+    <ClInclude Include="aula_w669_backend.h" />
+    <ClInclude Include="aula_w669_protocol.h" />
     <ClInclude Include="native_analog_routing.h" />
     <ClInclude Include="addressed_poll_scheduler.h" />
     <ClInclude Include="realtime_loop.h" />
@@ -230,6 +258,7 @@
     <ClInclude Include="tab_dark.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="ui_theme.h" />
+    <ClInclude Include="ui_paint_audit.h" />
     <ClInclude Include="version.h" />
     <ClInclude Include="win_util.h" />
     <ClInclude Include="worker_lifecycle.h" />
@@ -298,8 +327,11 @@
     <ClCompile Include="hex80_protocol.cpp" />
     <ClCompile Include="aula_win60he_backend.cpp" />
     <ClCompile Include="aula_win60he_client.cpp" />
+    <ClCompile Include="aula_win60he_diagnostic_metrics.cpp" />
     <ClCompile Include="aula_win60he_protocol.cpp" />
     <ClCompile Include="aula_win60he_session_policy.cpp" />
+    <ClCompile Include="aula_w669_backend.cpp" />
+    <ClCompile Include="aula_w669_protocol.cpp" />
     <ClCompile Include="native_analog_routing.cpp" />
     <ClCompile Include="addressed_poll_scheduler.cpp" />
     <ClCompile Include="realtime_loop.cpp" />

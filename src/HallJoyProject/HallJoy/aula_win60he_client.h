@@ -17,6 +17,9 @@ constexpr std::uint32_t kMatrixResponseTimeoutMs = 1000u;
 // carries no generation counter, so one generation alone is not a coherent
 // snapshot proof.
 constexpr std::size_t kCapabilityTransactions = 17u;
+constexpr std::size_t kMaximumCapabilityTransactions =
+    7u + 2u * kMaximumKeyFunctionBatchCount;
+static_assert(kMaximumCapabilityTransactions == 25u);
 
 class ReportTransport
 {
@@ -86,6 +89,7 @@ struct ActiveMapSnapshot
 
 struct CapabilityProof
 {
+    CompatibilityProfile profile = CompatibilityProfile::ExactWin60HeMax;
     SyncInfo sync{};
     PrecisionStroke precision{};
     KeyMap defaultKeyMap{};
@@ -94,6 +98,19 @@ struct CapabilityProof
     std::size_t physicalKeyPositions = 0;
     std::size_t defaultMappedKeys = 0;
     std::size_t mappedKeys = 0;
+    // Diagnostic builds may continue through semantic mismatches to discover
+    // the device's complete read-only shape. Any non-zero bit still forbids
+    // routing claim and analogue publication.
+    std::uint32_t compatibilityMismatchMask = 0;
+};
+
+enum CapabilityMismatch : std::uint32_t
+{
+    CapabilityMismatch_Firmware = 1u << 0,
+    CapabilityMismatch_Precision = 1u << 1,
+    CapabilityMismatch_DefaultMap = 1u << 2,
+    CapabilityMismatch_ActiveMapStability = 1u << 3,
+    CapabilityMismatch_TravelPlausibility = 1u << 4,
 };
 
 using HidMilliSnapshot = std::array<std::uint16_t, 256>;
@@ -108,7 +125,10 @@ class Client
 public:
     explicit Client(ReportTransport& transport, TraceSink trace = {}) noexcept;
 
-    bool Probe(CapabilityProof* out, Failure* failure = nullptr);
+    bool Probe(
+        CapabilityProof* out,
+        Failure* failure = nullptr,
+        CompatibilityProfile profile = CompatibilityProfile::ExactWin60HeMax);
     bool ReadActiveMap(
         const KeyMap& defaultKeyMap,
         ActiveMapSnapshot* out,
@@ -120,6 +140,10 @@ public:
     bool QueryStatus(StatusMatrix* out, Failure* failure = nullptr);
 
     bool IsUsable() const noexcept { return !poisoned_; }
+    std::uint32_t CompatibilityMismatchMask() const noexcept
+    {
+        return compatibilityMismatchMask_;
+    }
 
 private:
     bool ReadActiveMapGeneration(
@@ -163,6 +187,7 @@ private:
     ReportTransport& transport_;
     TraceSink trace_{};
     bool poisoned_ = false;
+    std::uint32_t compatibilityMismatchMask_ = 0;
 };
 
 bool TravelValuesPlausible(

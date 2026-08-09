@@ -36,7 +36,12 @@ namespace
         std::vector<std::wstring> labels;
         bool uniformSpacing = false;
         int uniformGap = 8;
+        int builtinGeometryRevision = 0;
     };
+
+    // Revision 1 was an unreleased, visually incorrect 87 -> 88 migration.
+    // Revision 2 establishes the visually validated 87 px tall-key contract.
+    static constexpr int kBuiltinGeometryRevision = 2;
 
     static const KeyDef g_a75Keys[] =
     {
@@ -190,7 +195,7 @@ namespace
         {L"7",     95, 2,  900, 42},
         {L"8",     96, 2,  948, 42},
         {L"9",     97, 2,  996, 42},
-        {L"Num+",  87, 2, 1044, 42, 88},
+        {L"Num+",  87, 2, 1044, 42, 87},
 
         {L"Caps",  57, 3,    0, 84},
         {L"A",      4, 3,   90, 42},
@@ -225,7 +230,7 @@ namespace
         {L"1",     89, 4,  900, 42},
         {L"2",     90, 4,  948, 42},
         {L"3",     91, 4,  996, 42},
-        {L"NEnt",  88, 4, 1044, 42, 88},
+        {L"NEnt",  88, 4, 1044, 42, 87},
 
         {L"Ctrl", 224, 5,    0, 54},
         {L"Win",  227, 5,   60, 54},
@@ -241,10 +246,73 @@ namespace
         {L".",     99, 5,  996, 42},
     };
 
+    // Keychron K4 HE ANSI geometry captured from the physically validated
+    // keyboard layout. This is an optional preset, not the application default.
+    static const KeyDef g_keychronK4HeKeys[] =
+    {
+        {L"Esc",   41, 0,   0, 42}, {L"F1",    58, 0,  47, 42},
+        {L"F2",    59, 0,  95, 42}, {L"F3",    60, 0, 144, 42},
+        {L"F4",    61, 0, 192, 42}, {L"F5",    62, 0, 240, 42},
+        {L"F6",    63, 0, 288, 42}, {L"F7",    64, 0, 335, 42},
+        {L"F8",    65, 0, 383, 42}, {L"F9",    66, 0, 431, 42},
+        {L"F10",   67, 0, 480, 42}, {L"F11",   68, 0, 528, 42},
+        {L"F12",   69, 0, 575, 42}, {L"PrtSc", 70, 0, 864, 42},
+
+        {L"`",     53, 1,   0, 42}, {L"1",     30, 1,  47, 42},
+        {L"2",     31, 1,  95, 42}, {L"3",     32, 1, 144, 42},
+        {L"4",     33, 1, 192, 42}, {L"5",     34, 1, 240, 42},
+        {L"6",     35, 1, 288, 42}, {L"7",     36, 1, 335, 42},
+        {L"8",     37, 1, 384, 42}, {L"9",     38, 1, 431, 42},
+        {L"0",     39, 1, 480, 42}, {L"-",     45, 1, 528, 42},
+        {L"=",     46, 1, 575, 42}, {L"Back",  42, 1, 624, 90},
+        {L"Home",  74, 0, 672, 42}, {L"PgUp",  75, 0, 767, 42},
+        {L"Num",   83, 1, 720, 42}, {L"/",     84, 1, 767, 42},
+        {L"*",     85, 1, 816, 42}, {L"-",     86, 1, 864, 42},
+
+        {L"Tab",   43, 2,   0, 74}, {L"Q",     20, 2,  80, 42},
+        {L"W",     26, 2, 128, 42}, {L"E",      8, 2, 176, 42},
+        {L"R",     21, 2, 224, 42}, {L"T",     23, 2, 272, 42},
+        {L"Y",     28, 2, 320, 42}, {L"U",     24, 2, 368, 42},
+        {L"I",     12, 2, 416, 42}, {L"O",     18, 2, 464, 42},
+        {L"P",     19, 2, 512, 42}, {L"[",     47, 2, 560, 42},
+        {L"]",     48, 2, 608, 42}, {L"\\",    49, 2, 656, 58},
+        {L"Del",   76, 0, 623, 42}, {L"End",   77, 0, 720, 42},
+        {L"PgDn",  78, 0, 815, 42}, {L"7",     95, 2, 720, 42},
+        {L"8",     96, 2, 767, 42}, {L"9",     97, 2, 816, 42},
+        {L"Num+",  87, 2, 864, 42, 87},
+
+        {L"Caps",  57, 3,   0, 84}, {L"A",      4, 3,  90, 42},
+        {L"S",     22, 3, 138, 42}, {L"D",      7, 3, 186, 42},
+        {L"F",      9, 3, 234, 42}, {L"G",     10, 3, 282, 42},
+        {L"H",     11, 3, 330, 42}, {L"J",     13, 3, 378, 42},
+        {L"K",     14, 3, 426, 42}, {L"L",     15, 3, 474, 42},
+        {L";",     51, 3, 522, 42}, {L"'",     52, 3, 569, 42},
+        {L"Enter", 40, 3, 618, 97}, {L"4",     92, 3, 720, 42},
+        {L"5",     93, 3, 767, 42}, {L"6",     94, 3, 816, 42},
+
+        {L"Shift",225, 4,   0,106}, {L"Z",     29, 4, 112, 42},
+        {L"X",     27, 4, 160, 42}, {L"C",      6, 4, 208, 42},
+        {L"V",     25, 4, 256, 42}, {L"B",      5, 4, 304, 42},
+        {L"N",     17, 4, 352, 42}, {L"M",     16, 4, 400, 42},
+        {L",",     54, 4, 448, 42}, {L".",     55, 4, 496, 42},
+        {L"/",     56, 4, 544, 42}, {L"Shift",229, 4, 592, 74},
+        {L"Up",    82, 4, 672, 42}, {L"1",     89, 4, 720, 42},
+        {L"2",     90, 4, 767, 42}, {L"3",     91, 4, 816, 42},
+        {L"NEnt",  88, 4, 864, 42, 87},
+
+        {L"Ctrl", 224, 5,   0, 54}, {L"Win",  227, 5,  60, 54},
+        {L"Alt",  226, 5, 120, 54}, {L"Space", 44, 5, 180,299},
+        {L"Alt",  230, 5, 484, 42}, {L"Menu", 101, 5, 531, 42},
+        {L"Ctrl", 228, 5, 578, 42}, {L"Left",  80, 5, 625, 42},
+        {L"Down",  81, 5, 672, 42}, {L"Right", 79, 5, 720, 42},
+        {L"0",     98, 5, 767, 42}, {L".",     99, 5, 816, 42},
+    };
+
     static const PresetDef g_builtinPresets[] =
     {
         { L"DrunkDeer A75 Pro", g_a75Keys, (int)(sizeof(g_a75Keys) / sizeof(g_a75Keys[0])) },
         { L"Generic 100% ANSI", g_generic100Keys, (int)(sizeof(g_generic100Keys) / sizeof(g_generic100Keys[0])) },
+        { L"Keychron K4 HE", g_keychronK4HeKeys, (int)(sizeof(g_keychronK4HeKeys) / sizeof(g_keychronK4HeKeys[0])) },
     };
 
     static std::vector<PresetStore> g_presets;
@@ -444,6 +512,8 @@ namespace
         out.labels = std::move(labels);
         out.uniformSpacing = (GetPrivateProfileIntW(L"LayoutPreset", L"UniformSpacing", 0, path) != 0);
         out.uniformGap = ClampUniformGap(GetPrivateProfileIntW(L"LayoutPreset", L"UniformGap", 8, path));
+        out.builtinGeometryRevision = GetPrivateProfileIntW(
+            L"LayoutPreset", L"BuiltinGeometryRevision", 0, path);
         for (size_t i = 0; i < out.keys.size() && i < out.labels.size(); ++i)
             out.keys[i].label = out.labels[i].c_str();
         return true;
@@ -468,6 +538,8 @@ namespace
         ok &= WritePrivateProfileStringW(L"LayoutPreset", L"UniformSpacing", p.uniformSpacing ? L"1" : L"0", temporaryPath) != FALSE;
         swprintf_s(v, L"%d", ClampUniformGap(p.uniformGap));
         ok &= WritePrivateProfileStringW(L"LayoutPreset", L"UniformGap", v, temporaryPath) != FALSE;
+        swprintf_s(v, L"%d", p.builtinGeometryRevision > 0 ? p.builtinGeometryRevision : 0);
+        ok &= WritePrivateProfileStringW(L"LayoutPreset", L"BuiltinGeometryRevision", v, temporaryPath) != FALSE;
 
         for (int i = 0; i < (int)p.keys.size(); ++i)
         {
@@ -501,6 +573,9 @@ namespace
         ok &= static_cast<int>(GetPrivateProfileIntW(
             L"LayoutPreset", L"UniformGap", static_cast<UINT>(-1), temporaryPath)) ==
             ClampUniformGap(p.uniformGap);
+        ok &= static_cast<int>(GetPrivateProfileIntW(
+            L"LayoutPreset", L"BuiltinGeometryRevision", static_cast<UINT>(-1), temporaryPath)) ==
+            (p.builtinGeometryRevision > 0 ? p.builtinGeometryRevision : 0);
 
         for (int i = 0; ok && i < (int)p.keys.size(); ++i)
         {
@@ -532,6 +607,28 @@ namespace
             IniUtil_ReportSaveFailure(L"layout preset", p.filePath.c_str(), result);
             return false;
         }
+        return true;
+    }
+
+    static bool ApplyBuiltinGeometryMigrations(PresetStore& preset)
+    {
+        if (preset.builtinGeometryRevision >= kBuiltinGeometryRevision)
+            return false;
+
+        const bool generic100 = FileNamePolicy_Equivalent(preset.name, L"Generic 100% ANSI");
+        const bool keychronK4 = FileNamePolicy_Equivalent(preset.name, L"Keychron K4 HE");
+        if (!generic100 && !keychronK4)
+            return false;
+
+        // Reset reloads the persisted preset. Repair only the two known tall
+        // numpad usages and only their old 88 px value; preserve every other
+        // user edit and never expand an already-correct 87 px key.
+        for (auto& key : preset.keys)
+        {
+            if ((key.hid == 87 || key.hid == 88) && key.h == 88)
+                key.h = 87;
+        }
+        preset.builtinGeometryRevision = kBuiltinGeometryRevision;
         return true;
     }
 
@@ -664,6 +761,7 @@ namespace
             p.name = b.name;
             p.filePath = BuildPresetPath(p.name);
             p.keys.assign(b.keys, b.keys + b.count);
+            p.builtinGeometryRevision = kBuiltinGeometryRevision;
             p.labels.clear();
             p.labels.reserve((size_t)b.count);
             for (const auto& k : p.keys) p.labels.emplace_back(k.label ? k.label : L"");
@@ -686,7 +784,11 @@ namespace
 
             PresetStore p{};
             if (LoadPresetFile(e.path().c_str(), p))
+            {
+                if (ApplyBuiltinGeometryMigrations(p))
+                    SavePresetFile(p);
                 AddOrReplacePreset(p);
+            }
         }
     }
 
@@ -706,12 +808,12 @@ namespace
     {
         std::call_once(g_initOnce, []()
         {
+            // Register every shipped preset for both fresh and existing users.
+            // Files loaded afterwards intentionally override same-name built-ins,
+            // preserving user edits while newly shipped presets remain discoverable.
+            AddBuiltinDefaults();
             LoadPresetsFromDir();
-            if (g_presets.empty())
-            {
-                AddBuiltinDefaults();
-                EnsurePresetFilesExist();
-            }
+            EnsurePresetFilesExist();
             ActivatePreset(0);
         });
     }

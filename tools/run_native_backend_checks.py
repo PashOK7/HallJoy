@@ -132,6 +132,11 @@ def main() -> int:
                 hall / "aula_win60he_protocol.cpp",
                 hall / "aula_win60he_client.cpp",
             ]),
+            ("aula_win60he_diagnostic_metrics", [
+                tests / "aula_win60he_diagnostic_metrics_test.cpp",
+                hall / "aula_win60he_diagnostic_metrics.cpp",
+                hall / "aula_win60he_protocol.cpp",
+            ]),
             ("aula_win60he_session_policy", [
                 tests / "aula_win60he_session_policy_test.cpp",
                 hall / "aula_win60he_session_policy.cpp",

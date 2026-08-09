@@ -1,4 +1,4 @@
-# HallJoy v1.4 development
+# HallJoy v1.4
 
 This directory is the authoritative source for v1.4 scope, status, decisions,
 risks, and validation. Documents under `docs/stability` preserve the imported
@@ -7,59 +7,19 @@ version or release status.
 
 ## Current status
 
-- Product version: `v1.4` (in development)
+- Product version: `v1.4.0.0`
 - Working branch: `v1.4-integration`
-- Completed package: `V14-09` transactional persistence, writable-state
-  migration and filename hardening
-- Completed hotfix: `V14-06D.1` SparkLink shutdown/reconnect race, Verified
-- Completed subpackage: `V14-10A` Mouse IPC creation, schema and atomic-read
-  correctness, Verified locally
-- Completed subpackage: `V14-10B` analog-host inherited-handle IPC,
-  Verified locally
-- Completed subpackage: `V14-10C` bounded overlay HTTP framing and telemetry
-  parsing, Verified locally
-- Completed subpackage: `V14-10D` bounded overlay concurrency, strict origin
-  policy and cooperative client shutdown, Verified locally
-- Completed package: `V14-10` IPC and overlay security/correctness
-- Verified by automated gates: `V14-11A` deadline pacing for UAP poll
-  transports; no physical UAP performance claim is made
-- Verified by automated gates: `V14-11B` stable identity for identical UAP
-  devices across enumeration reorder and reconnect generations
-- Verified by automated gates: `V14-11C` bounded device-owner capture; snapshot
-  and telemetry exports no longer wait on per-device locks under the registry
-- Verified by automated gates: `V14-11D` exact HID interface-path ownership;
-  sibling interfaces with the same VID/PID are no longer hidden as one device
-- Completed package: `V14-11` UAP pacing, identity, snapshot contention and
-  exact interface ownership
-- Implemented subpackage: `V14-12A` Aula WIN 60 HE MAX native support,
-  firmware-proven and implementation-tested; physical Aula hardware remains
-  unvalidated
-- Implemented subpackage: `V14-12B/S06` Addressed overlapped-I/O ownership and
-  bounded stop; deterministic timeout containment and available Irok regression
-  pass, while physical Addressed hardware remains unvalidated
-- Completed pre-qualification package: `V14-12G/S20` current build/test docs,
-  catalog-driven Addressed audit, x64-only project configurations and MSVC
-  Warning Level 4 with zero unexpected production warnings
-- Verified package: `V14-12L/S21` saturating runtime arithmetic, recoverable
-  overlay/ViGEm worker containment and rare clipboard/UAP ownership cleanup;
-  full compiler, sanitizer, locked-plugin build and Irok qualification pass
-- Verified package: `V14-12N/S21` deterministic shutdown containment for every
-  production keyboard route; 9/9 process scenarios pass with zero survivors
-- Verified package: `V14-12O/S21` production input-to-overlay load profiling
-  and retained browser rendering; physical Irok, full HallJoy/browser process
-  trees and the 1 ms/8 ms refresh comparison pass without state mutation
-- Verified package: `V14-12P` recoverable factory reset; styled Global-settings
-  action, atomic request, exact-target backup, reverse rollback injection,
-  official build and physical Irok lifecycle regression pass
-- Reopened after manual review: `V14-12Q` automated gates passed, but physical
-  Irok review found input-driven UI flicker, stale Configuration telemetry,
-  fake poll comboboxes, duplicated diagnostics and rejected reset-button states;
-  see `RELEASE_UI_AUDIT_HANDOFF_2026-08-02_RU.md`
-- Next work: `V14-12/S21` release qualification and hardware matrix. The Aula
-  physical result may arrive asynchronously but remains mandatory before release
-- GitHub publication: not started
-- Release status: not release-ready
-- Current UI gate: rejected; a clean paint/control/diagnostics audit is required
+- Release qualification: passed
+- UI gate: unified scroll architecture passed automated 6/6-tab stress; final
+  scroll behavior and visual result accepted by the owner
+- Aula physical gate: passed, including real analogue matrices, 10+ rollover,
+  measured rate and three disconnect/reconnect recoveries
+- Production diagnostics: no continuous telemetry or log writer; crash-only
+  `HallJoyCrash.txt`
+- Public release notes: [`RELEASE_NOTES_v1.4.md`](../../RELEASE_NOTES_v1.4.md)
+- GitHub publication: prepared locally, commit/push/release pending
+- Final artifact: `build/release/HallJoy.exe`, 2,187,776 bytes, SHA-256
+  `C03CB7A19DB73921D69904A7ABDAB954D54F3D5CE42899ADD9C24012D93D0402`
 
 The current workstation has an Irok MG75 Max (`VID 1CA6`, `PID 0529`) that
 passes SparkLink capability, analog-row, held-key unplug/reconnect and balanced
@@ -132,14 +92,17 @@ D-022 this verifies the code-level ownership contract, not physical multi-UAP
 hardware or an impossible mathematical proof against every 64-bit collision.
 V14-12A independently reproduced the supplied Aula WIN 60 HE MAX protocol
 evidence against exact npm sources and the supplied firmware. The native
-backend accepts only `1CA2:1902`, `FFA0:0001`, the 65-byte Windows envelope and
-firmware `App V1.1.6 / Feb 4 2026`; it runs a 17-transaction read-only proof on
-one exclusive session before claiming the exact interface path. Parser, oracle,
+backend originally accepted only `1CA2:1902`, `FFA0:0001`, the 65-byte Windows
+envelope and firmware `App V1.1.6 / Feb 4 2026`; V14-12V supersedes that
+admission rule with a bounded brand-scoped 6x21 family proof while preserving
+the exact physically verified profile. Parser, oracle,
 end-to-end, poisoned-session and ambiguous-device tests pass GCC, MSVC
 `/W4 /WX` and Clang ASan+UBSan. The official build, private ABI, overlay and
 Irok regression pass with 65,379/65,379 SparkLink queries and unchanged user
-state. This is firmware-proven support, not physical Aula validation; input,
-hotplug, multiple devices and other firmware versions remain open.
+state. At the V14-12A package stage this was firmware-proven support rather than
+physical Aula validation. The later V14-12U.5/U.6 hardware runs below close
+input, rate, rollover and reconnect for the stated firmware. Other identities
+remain outside the physical claim even when accepted as protocol-compatible.
 V14-12G closes the remaining S20 build/documentation risks. Unsupported
 Win32/x86 configurations were removed, both supported x64 configurations use
 Warning Level 4 with a narrow documented legacy baseline, and the official
@@ -164,6 +127,9 @@ validation record is explicitly historical. Automated gates and a normal Irok
   integrity, diagnostics, and protected-directory fallback.
 - [BUILD_REPRODUCIBILITY.md](BUILD_REPRODUCIBILITY.md) - dependency lock,
   local/CI commands, toolchains, and warning policy.
+- [PRE_RELEASE_UI_AUDIT_2026-08-02.md](PRE_RELEASE_UI_AUDIT_2026-08-02.md) -
+  independent code-and-log UI audit, unified scrolling architecture, and the
+  owner's recorded final visual acceptance.
 
 ## Documentation rule
 
@@ -224,3 +190,141 @@ The latest post-V14-12Q production artifact is the 2,228,224-byte
 Its one-cycle physical Irok regression passed with unchanged user state and a
 193 ms graceful shutdown. This UI correction does not change the outstanding
 physical MAD68 HE/UAP or Aula release gates.
+
+The clean post-handoff UI audit produced a 2,228,224-byte `HallJoy.exe`,
+SHA-256 `6BCBA47D86448E7D262250AEAF7EAFD89FD448CA8A917B1C514711F31FCB6CC3`.
+Static UI guards, instrumented Irok runtime, 3/3 production lifecycle cycles
+and the 15-second simulator pass. UI-01 through UI-05 are implemented but remain
+`In progress` until the owner completes visual acceptance; no earlier
+`Verified` status is accepted as visual evidence.
+
+The V14-12S root-corrected artifact is the 2,230,784-byte
+`build/output/HallJoy.exe`, SHA-256
+`1B5671F36EDE9CD2CB1153A2D02729387D0974D25FFB031D457A4FDC7AB523D1`.
+It restores event-complete keyboard preview updates on every tab, moves
+Tester gamepad motion to UI cadence, frame-coalesces the three problematic
+scroll paths, atomically moves Configuration combos and defaults new overlay
+smoothing to 15%. Full build, code-driven UI stress logs, simulator and final
+3/3 lifecycle qualification pass. Visual status remains pending owner review.
+
+After the owner accepted the visuals but reported low scroll FPS, V14-12S.1
+removed `WM_TIMER` starvation from Remap/Configuration/Global scrolling and
+introduced adaptive 8–16 ms input-driven frame deadlines. The stress rate rose
+from about 29 to about 70 commits/s with zero active erase. The latest artifact
+is 2,231,808 bytes, SHA-256
+`F9A32FEB956E7ED38CE7CB75BBE8254D64B296259821B9922ECA8EFF9D5B040C`;
+full build and final 3/3 qualification pass. Scroll visual recheck is pending.
+
+V14-12S.1 was subsequently rejected by the owner because higher FPS did not
+prevent elements from disappearing. V14-12T supersedes that approach with one
+viewport architecture for all six keyboard pages: a shared controller,
+content-coordinate hit testing, retained composition and one common scrollbar.
+The final 2,232,832-byte `build/output/HallJoy.exe`, SHA-256
+`851C84A63AB6A1532C21E4FE477A16F9D9248BF4AB76090E3DD9AEAA969C2509`,
+passes the full build, 6/6 production scroll stress and 3/3 lifecycle
+qualification with stable GUI resources and unchanged user state. This is
+automated evidence only; visual acceptance remains pending owner review.
+
+V14-12T.1 fixes the retained-control visual regressions without reverting the
+accepted unified scroll. KSP, Spark and Global faces now reuse the canonical
+PremiumCombo painter; vector power/save icons replace encoding-sensitive text,
+the added inner focus outline is removed, and popup controllers hide on every
+close path. The 2,233,344-byte artifact SHA-256 is
+`76CB02D76131E72B78652969C3673F3A2E586BCB843FD4ED57B78F51F6FD4677`.
+Full build, 6/6 scroll stress, three popup lifecycle cases and 3/3 qualification
+pass. Visual status remains pending owner review.
+
+V14-12T.2 restores interaction semantics after the retained migration: bounded
+Remap hit domains make the gamepad power action clickable, a shared binding
+transaction exposes global-profile dirty/save state, and Input Overlay
+direction/depth/font are true PremiumCombos rather than cycling buttons. The
+2,232,832-byte artifact SHA-256 is
+`8BE26D58294AD7E02D38C0970E4A8F6BD321A976638DC0E809A0425020D714CA`.
+Full build, 6/6 scroll stress and 6/6 popup lifecycle cases pass. Owner
+interaction review remains pending.
+
+V14-12T.3 fixes mouse-wheel routing for long PremiumCombo popups, including the
+Input Overlay font list. Final artifact SHA-256:
+`45AEDB2FA1952843B004FED3F80EAD7F18DC8357FAD5EF2D64BBE237A6AC221B`.
+Full build and popup wheel/lifecycle stress pass.
+
+V14-12T.4 corrects that first wheel implementation: wheel input now changes
+only the viewport of an overflowing popup. Five fitting lists remain at
+`scrollTop=0`; the font list scrolls while selection remains unchanged. Final
+artifact SHA-256:
+`ED0082DFDC24F8A4137B1559D1B43058186C19ED4B9142E7F9BEE107F65EB00D`.
+
+V14-12U adds a physical Aula diagnostic package after a tester trace proved
+that SparkLink was repeatedly opening and probing the Aula interface. Spark now
+rejects the dedicated Aula identity before HID open. The separate
+`build/aula-diagnostic/HallJoy.exe` traces every read-only Aula proof stage into
+one automatic `HallJoy.log` beside itself while keeping strict
+claim/publication gates. No helper scripts are delivered. See
+`AULA_PHYSICAL_DIAGNOSTIC_2026-08-02.md`; this diagnostic EXE is not a release
+candidate and physical Aula acceptance remains pending its returned trace.
+
+The first two returned single-file logs refined that diagnosis. A transient
+`ERROR_SHARING_VIOLATION` disappeared in the next run: exclusive open succeeded
+62/62 times. The actual root was HallJoy's inferred 54-byte sync gate rejecting
+the physical keyboard's stable, checksum-valid 60-byte response. V14-12U.1
+allows that envelope only in the aggressive diagnostic build, continues later
+read-only stages, and still blocks claim/publication through the firmware
+mismatch mask. The replacement diagnostic EXE SHA-256 is
+`4AC9B51E9EE1824E6050400FF09F94B763084EEEE7A816A6D8A4290E938D54CA`.
+
+`HallJoy (3).log` then completed all 17 read-only proof transactions three
+times on the physical keyboard. Precision `10/10/3400`, the 61-position map,
+two stable active-map generations and both travel envelopes match. The last
+mismatch was our incorrect string interpretation of a binary build descriptor.
+V14-12U.2 replaces the inferred 54-byte oracle with the exact repeated 60-byte
+physical descriptor in production. Runtime non-zero travel and reconnect are
+the remaining physical acceptance gates.
+
+The claim-capable single-file diagnostic for that gate is 2,245,120 bytes,
+SHA-256 `23CEC8D7EF2479B353EABE7AAB8857CB04BDF3CC6BD0FE3D1FC89DAA1C02BB14`.
+
+`HallJoy (4).log` and `HallJoy (5).log` close the physical runtime-input gate.
+Both runs pass strict proof with zero mismatch, claim the dedicated Aula route,
+connect and sustain polling for about 58 and 17.5 minutes; the tester confirms
+that analogue key travel appeared in HallJoy. The raw trace cap retained only
+the first zero-valued startup frames, so no non-zero byte capture is claimed.
+The longer run proves disconnect clearing and bounded rediscovery, but the
+keyboard was not reattached before exit. Return-after-disconnect reconnect is
+the remaining Aula physical gate.
+
+V14-12U.4 corrects the diagnostic blind spot before asking for one last hardware
+run. The single-file schema-v2 EXE records exact 5-second polling frequency,
+transaction latency buckets, 0/1/2-4/5-9/10+ active-key distributions,
+release-to-zero transitions, event snapshots and final per-HID travel maxima.
+It also rate-limits Spark skip evidence and treats shutdown cancellation as
+normal lifecycle. Sanitizers are 6/6 and all native/production gates pass; the
+production image contains no high-detail markers. Diagnostic SHA-256:
+`F2727D0A7E901DF89D95B27B1D0CD86D7D2B9655B59EB4998F62594FCAF158C5`.
+
+`HallJoy (7).log` validates the new measurements on hardware: 21,027 successful
+matrices at 343.973 Hz, no failed update, all paired travel transactions below
+4 ms, maximum 22 simultaneous keys, 2,654 frames at 10+, eight full releases
+and 40-HID coverage up to 3,400 um. Shutdown is clean.
+
+`HallJoy (8).log` closes the remaining physical reconnect gate. It records three
+successful reconnects to the retained physical identity, each with a complete
+strict proof. The first recovered session delivered 1,008 matrices at 341.463
+Hz, including 329 non-zero frames over 12 HIDs, proving actual analogue recovery
+rather than enumeration alone. Transient write/read failures coincide with the
+tester's additional USB cycles; every cycle recovered and final shutdown joined
+all workers with exit code 0. Aula physical release blockers are closed; the next
+artifact can be the crash-only production release build.
+
+The final production profile is now built at `build/release/HallJoy.exe`.
+Ordinary debug and stability-trace calls are eliminated at their call sites, so
+their arguments are not evaluated and no logger thread or normal log file exists
+at runtime. The production image contains none of the stability, diagnostic or
+Aula matrix telemetry markers. A lightweight unhandled-exception filter performs
+no normal-operation I/O and creates `HallJoyCrash.txt` only after a process crash;
+the silent native A9 emergency watchdog remains enabled. The isolated hidden
+portable smoke started, accepted PID-owned `WM_CLOSE`, exited 0 and created zero
+normal/crash logs. The Aula backend now admits brand-scoped compatible 6x21
+profiles only after a complete structural read-only proof; the physical claim
+remains limited to the tested WIN 60 HE MAX identity. Final artifact: 2,164,224
+bytes, SHA-256
+`2833DA24AF9D086A084B045FCEEA78F08883536FD96F48E1EFEEC938B652E1BB`.

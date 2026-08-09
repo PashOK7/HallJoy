@@ -177,6 +177,116 @@ void CustomPageSurface_DrawScrollbar(HWND hWnd, HDC hdc, const CustomPageSurface
     CpDrawRoundRect(g, th, UiTheme::Color_Accent(), UiTheme::Color_Accent(), rr, dragging ? 240 : 205);
 }
 
+POINT CustomPageSurface_ClientToContent(const CustomPageSurface* surface, POINT clientPoint)
+{
+    if (surface)
+        clientPoint.y += surface->scrollY;
+    return clientPoint;
+}
+
+RECT CustomPageSurface_ContentToClient(const CustomPageSurface* surface, const RECT& contentRect)
+{
+    RECT result = contentRect;
+    if (surface)
+        OffsetRect(&result, 0, -surface->scrollY);
+    return result;
+}
+
+CustomPageScrollResult CustomPageSurface_HandleScrollMessage(
+    HWND hWnd,
+    CustomPageSurface* surface,
+    CustomPageScrollController* controller,
+    UINT msg,
+    WPARAM wParam,
+    LPARAM lParam,
+    int wheelStepPx)
+{
+    if (!hWnd || !surface || !controller)
+        return CustomPageScrollResult::NotHandled;
+
+    const int before = surface->scrollY;
+    switch (msg)
+    {
+    case WM_MOUSEWHEEL:
+    {
+        const int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+        if (delta == 0)
+            return CustomPageScrollResult::Handled;
+        controller->wheelRemainder += delta;
+        const int detents = controller->wheelRemainder / WHEEL_DELTA;
+        controller->wheelRemainder %= WHEEL_DELTA;
+        if (detents != 0)
+            CustomPageSurface_SetScrollY(hWnd, surface,
+                surface->scrollY - detents * std::max(1, wheelStepPx));
+        break;
+    }
+    case WM_LBUTTONDOWN:
+    {
+        POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+        const int maxScroll = CustomPageSurface_GetMaxScroll(hWnd, surface);
+        if (maxScroll <= 0)
+            return CustomPageScrollResult::NotHandled;
+        const RECT thumb = CustomPageSurface_GetScrollThumbRect(hWnd, surface);
+        const RECT track = CustomPageSurface_GetScrollTrackRect(hWnd);
+        if (PtInRect(&thumb, pt))
+        {
+            controller->draggingThumb = true;
+            controller->thumbGrabOffsetY = pt.y - thumb.top;
+            controller->thumbHeight = std::max(1L, thumb.bottom - thumb.top);
+            controller->maxScrollAtDragStart = maxScroll;
+            SetCapture(hWnd);
+            InvalidateRect(hWnd, &track, FALSE);
+            return CustomPageScrollResult::Handled;
+        }
+        if (!PtInRect(&track, pt))
+            return CustomPageScrollResult::NotHandled;
+
+        RECT client{};
+        GetClientRect(hWnd, &client);
+        const int page = std::max(1, (int)(client.bottom - client.top) - CpScale(hWnd, 48));
+        CustomPageSurface_SetScrollY(hWnd, surface,
+            pt.y < thumb.top ? surface->scrollY - page : surface->scrollY + page);
+        break;
+    }
+    case WM_MOUSEMOVE:
+    {
+        if (!controller->draggingThumb)
+            return CustomPageScrollResult::NotHandled;
+        POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+        const RECT track = CustomPageSurface_GetScrollTrackRect(hWnd);
+        const int thumbH = std::max(1, controller->thumbHeight);
+        const int travel = std::max(1, (int)(track.bottom - track.top) - thumbH);
+        const int top = std::clamp((int)pt.y - controller->thumbGrabOffsetY,
+            (int)track.top, (int)track.bottom - thumbH);
+        const double position = (double)(top - track.top) / (double)travel;
+        CustomPageSurface_SetScrollY(hWnd, surface,
+            (int)std::lround(position * (double)controller->maxScrollAtDragStart));
+        break;
+    }
+    case WM_LBUTTONUP:
+        if (!controller->draggingThumb)
+            return CustomPageScrollResult::NotHandled;
+        controller->draggingThumb = false;
+        if (GetCapture() == hWnd)
+            ReleaseCapture();
+        InvalidateRect(hWnd, nullptr, FALSE);
+        break;
+    case WM_CAPTURECHANGED:
+    case WM_CANCELMODE:
+        if (!controller->draggingThumb)
+            return CustomPageScrollResult::NotHandled;
+        controller->draggingThumb = false;
+        InvalidateRect(hWnd, nullptr, FALSE);
+        break;
+    default:
+        return CustomPageScrollResult::NotHandled;
+    }
+
+    return surface->scrollY != before
+        ? CustomPageScrollResult::OffsetChanged
+        : CustomPageScrollResult::Handled;
+}
+
 uint64_t CustomPageSurface_QpcNow()
 {
     LARGE_INTEGER q{};
@@ -289,5 +399,39 @@ bool CustomPageSurface_RenderCache(
     surface->cacheRebuilds++;
     surface->cacheUsTotal += cacheUs;
     surface->cacheUsMax = std::max(surface->cacheUsMax, cacheUs);
+    return true;
+}
+
+bool CustomPageSurface_Present(
+    HWND hWnd,
+    HDC targetDC,
+    CustomPageSurface* surface,
+    CustomPageRenderContentFn renderContent,
+    void* user,
+    bool draggingScrollbar)
+{
+    if (!hWnd || !targetDC || !surface || !renderContent)
+        return false;
+
+    RECT client{};
+    GetClientRect(hWnd, &client);
+    FillRect(targetDC, &client, UiTheme::Brush_PanelBg());
+
+    if (!CustomPageSurface_RenderCache(hWnd, targetDC, surface, renderContent, user))
+        return false;
+
+    HDC cacheDC = CreateCompatibleDC(targetDC);
+    if (!cacheDC)
+        return false;
+    HGDIOBJ old = SelectObject(cacheDC, surface->contentCache);
+    const int copyW = std::min((int)(client.right - client.left), surface->cacheWidth);
+    const int copyH = std::min((int)(client.bottom - client.top),
+        std::max(0, surface->cacheHeight - surface->scrollY));
+    if (copyW > 0 && copyH > 0)
+        BitBlt(targetDC, 0, 0, copyW, copyH, cacheDC, 0, surface->scrollY, SRCCOPY);
+    SelectObject(cacheDC, old);
+    DeleteDC(cacheDC);
+
+    CustomPageSurface_DrawScrollbar(hWnd, targetDC, surface, draggingScrollbar);
     return true;
 }

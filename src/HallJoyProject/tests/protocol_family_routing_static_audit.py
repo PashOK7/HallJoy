@@ -83,6 +83,11 @@ checks = {
         and "NativeAnalogProtocol::SayoDepth" in sayo
         and "SparkQueryDeviceInfo(routeProbe)" in spark
         and "NativeAnalogProtocol::SparkLink" in spark),
+    "Spark never probes the dedicated Aula identity": (
+        "SparkPathIsDedicatedAula(detail->DevicePath)" in spark
+        and spark.index("SparkPathIsDedicatedAula(detail->DevicePath)")
+            < spark.index("HANDLE h = CreateFileW", spark.index("SparkTryOpenDevice"))
+        and "candidate.skip_dedicated" in spark),
     "Hex80 exact protocol is independently catalogued": (
         "Hex80_GetNativeBackendDescriptor" in catalog
         and "BuildTravelInfoPayload" in hex80
@@ -96,16 +101,16 @@ checks = {
         "attrs.VendorID !=" not in addressed
         and "attrs.ProductID !=" not in addressed
         and "ProbeAddressedResponse" in addressed),
-    "Aula WIN60HE exact protocol is independently catalogued": (
+    "Aula/SparkPlayJoy 6x21 protocol family is independently catalogued": (
         "AulaWin60He_GetNativeBackendDescriptor" in catalog
         and "NativeAnalogProtocol::AulaWin60He" in aula
         and "kAulaVendorId = 0x1CA2" in aula_protocol
         and "kAulaProductId = 0x1902" in aula_protocol
         and "kAulaUsagePage = 0xFFA0" in aula_protocol
         and "kAulaUsage = 0x0001" in aula_protocol),
-    "Aula claims only after full read-only proof": (
-        "client.Probe(&capability" in aula
-        and aula.index("client.Probe(&capability", aula.index("AulaWin60He_PrepareProtocolRouting"))
+    "Aula family claims only after full read-only proof": (
+        "client.Probe(" in aula
+        and aula.index("client.Probe(", aula.index("AulaWin60He_PrepareProtocolRouting"))
             < aula.index("NativeAnalogRouting_Claim(", aula.index("AulaWin60He_PrepareProtocolRouting"))
         and "session.candidate.path.c_str()," in aula
         and "ReserveExact" not in aula

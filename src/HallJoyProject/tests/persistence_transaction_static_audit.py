@@ -87,6 +87,43 @@ require(layout, "PresetStore candidate = g_presets[idx];", "active layout memory
 require(layout, "g_presets[idx] = std::move(candidate);", "active layout memory commits only after file save")
 require(layout, "PresetStore candidate = g_presets[presetIdx];", "layout editor stages a candidate before save")
 require(layout, "g_presets[presetIdx] = std::move(candidate);", "layout editor memory commits only after file save")
+require(layout, 'L"Keychron K4 HE", g_keychronK4HeKeys', "Keychron K4 HE ships as a distinct built-in layout")
+
+layout_init = layout.find("static void EnsureInit()")
+layout_init_order = [
+    layout.find("AddBuiltinDefaults();", layout_init),
+    layout.find("LoadPresetsFromDir();", layout_init),
+    layout.find("EnsurePresetFilesExist();", layout_init),
+    layout.find("ActivatePreset(0);", layout_init),
+]
+if any(position < 0 for position in layout_init_order) or layout_init_order != sorted(layout_init_order):
+    raise SystemExit("FAIL: built-in layout merge order is missing or unsafe")
+print("PASS: built-ins load first, user files override them, and preset zero remains the default")
+
+keychron_begin = layout.find("static const KeyDef g_keychronK4HeKeys[]")
+keychron_end = layout.find("static const PresetDef g_builtinPresets[]", keychron_begin)
+keychron_body = layout[keychron_begin:keychron_end]
+if keychron_body.count("{L\"") != 100:
+    raise SystemExit("FAIL: Keychron K4 HE built-in must contain exactly 100 keys")
+print("PASS: Keychron K4 HE built-in contains the validated 100-key geometry")
+
+for preset_name, body in (
+    ("Generic 100% ANSI", layout[layout.find("static const KeyDef g_generic100Keys[]"):keychron_begin]),
+    ("Keychron K4 HE", keychron_body),
+):
+    for label, hid, row in (("Num+", 87, 2), ("NEnt", 88, 4)):
+        matching_lines = [line for line in body.splitlines() if f'{{L"{label}",' in line]
+        if len(matching_lines) != 1 or f'{hid}, {row},' not in matching_lines[0] or not matching_lines[0].rstrip().endswith(', 87},'):
+            raise SystemExit(f"FAIL: {preset_name} {label} must retain the visually validated height of 87 px")
+        print(f"PASS: {preset_name} {label} retains the visually validated height of 87 px")
+
+require(layout, "static constexpr int kBuiltinGeometryRevision = 2;", "corrected tall-key migration supersedes the bad revision 1")
+require(layout, "(key.hid == 87 || key.hid == 88) && key.h == 88", "only the old 88 px tall-key value is selected")
+require(layout, "key.h = 87;", "old persisted tall keys migrate to the visually validated 87 px")
+require(layout, 'L"BuiltinGeometryRevision"', "layout files persist the corrected geometry revision")
+if "(key.hid == 87 || key.hid == 88) && key.h == 87" in layout or "key.h = 88;" in layout:
+    raise SystemExit("FAIL: obsolete 87-to-88 tall-key migration must not return")
+print("PASS: no migration can overwrite the visually validated 87 px height")
 
 require(curves, "CurvePresetTransactionWrite", "curve preset has a checked transaction writer")
 require(curves, "CurvePresetTransactionValidate", "curve preset is parsed back before commit")

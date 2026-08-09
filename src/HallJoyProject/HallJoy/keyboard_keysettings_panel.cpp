@@ -523,9 +523,8 @@ void KeySettingsPanel_EnableCustomControls(bool enabled)
 {
     g_kspCustomControls = enabled;
 
-    // Keep the real PremiumCombo controls alive in the custom page. Their popup,
-    // row action icons and inline EDIT child are part of the original component
-    // and cannot be replaced by a cached painted imitation without regressions.
+    // The retained page owns every closed-face pixel. PremiumCombo instances
+    // remain alive only as popup/keyboard controllers and are normally hidden.
     HWND paintedByParent[] = {
         g_kspChkUnique, g_kspChkInvert, g_kspTxtInfo,
         g_kspLblMode, g_kspLblProfile
@@ -552,7 +551,7 @@ void KeySettingsPanel_EnableCustomControls(bool enabled)
             continue;
         PremiumCombo::SetEnabled(h, true);
         EnableWindow(h, TRUE);
-        ShowWindow(h, SW_SHOWNA);
+        ShowWindow(h, enabled ? SW_HIDE : SW_SHOWNA);
     }
 
     KeySettingsPanel_UpdateCustomControlsLayout(g_kspParent);
@@ -566,25 +565,19 @@ bool KeySettingsPanel_CustomControlsEnabled()
 
 void KeySettingsPanel_UpdateCustomControlsLayout(HWND parent)
 {
-    if (!parent || !g_kspCustomControls)
-        return;
+    (void)parent;
+}
 
-    auto placeCombo = [&](HWND hCombo, RECT contentRect)
+void KeySettingsPanel_CloseCustomPopups()
+{
+    HWND combos[] = { g_kspComboMode, g_kspComboProfile };
+    for (HWND combo : combos)
     {
-        if (!hCombo || !IsWindow(hCombo))
-            return;
-
-        RECT viewRect = Ksp_ToViewRect(parent, contentRect);
-        SetWindowPos(hCombo, nullptr,
-            viewRect.left, viewRect.top,
-            viewRect.right - viewRect.left,
-            viewRect.bottom - viewRect.top,
-            SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-        PremiumCombo::SetEnabled(hCombo, true);
-    };
-
-    placeCombo(g_kspComboMode, Ksp_ModeComboRect(parent));
-    placeCombo(g_kspComboProfile, Ksp_ProfileComboRect(parent));
+        if (!combo || !IsWindow(combo)) continue;
+        PremiumCombo::ShowDropDown(combo, false);
+        if (g_kspCustomControls)
+            ShowWindow(combo, SW_HIDE);
+    }
 }
 
 void KeySettingsPanel_DrawControls(HWND parent, HDC hdc)
@@ -620,6 +613,18 @@ void KeySettingsPanel_DrawControls(HWND parent, HDC hdc)
     CustomPage_DrawText(hdc, L"Preset:", Ksp_ToViewRect(parent, Ksp_ProfileLabelRect(parent)), UiTheme::Color_Text(),
         DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
 
+    auto drawCombo = [&](HWND combo, RECT rc, const wchar_t* placeholder)
+    {
+        rc = Ksp_ToViewRect(parent, rc);
+        if (combo)
+            PremiumCombo::PaintRetainedFace(combo, hdc, rc, false);
+        else
+            CustomPage_DrawText(hdc, placeholder ? placeholder : L"", rc,
+                UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    };
+    drawCombo(g_kspComboMode, Ksp_ModeComboRect(parent), L"Linear (Segments)");
+    drawCombo(g_kspComboProfile, Ksp_ProfileComboRect(parent), L"Custom");
+
 }
 
 bool KeySettingsPanel_HandleCustomControlsMouse(HWND parent, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -633,11 +638,13 @@ bool KeySettingsPanel_HandleCustomControlsMouse(HWND parent, UINT msg, WPARAM wP
 
     bool overUnique = Ksp_IsKeySelected() && Ksp_PointInRect(unique, pt);
     bool overInvert = Ksp_PointInRect(invert, pt);
+    bool overMode = Ksp_PointInRect(Ksp_ModeComboRect(parent), pt);
+    bool overProfile = Ksp_PointInRect(Ksp_ProfileComboRect(parent), pt);
 
     // Native PremiumCombo child windows receive their own mouse input.
     if (msg == WM_SETCURSOR || msg == WM_MOUSEMOVE)
     {
-        if (overUnique || overInvert)
+        if (overUnique || overInvert || overMode || overProfile)
         {
             SetCursor(LoadCursorW(nullptr, IDC_HAND));
             return msg == WM_SETCURSOR;
@@ -647,7 +654,7 @@ bool KeySettingsPanel_HandleCustomControlsMouse(HWND parent, UINT msg, WPARAM wP
 
     if (msg == WM_LBUTTONDOWN)
     {
-        if (overUnique || overInvert)
+        if (overUnique || overInvert || overMode || overProfile)
         {
             SetFocus(parent);
             return true;
@@ -661,6 +668,18 @@ bool KeySettingsPanel_HandleCustomControlsMouse(HWND parent, UINT msg, WPARAM wP
             return KeySettingsPanel_HandleCommand(parent, MAKEWPARAM(KSP_ID_UNIQUE, BN_CLICKED), 0);
         if (overInvert)
             return KeySettingsPanel_HandleCommand(parent, MAKEWPARAM(KSP_ID_INVERT, BN_CLICKED), 0);
+        HWND combo = overMode ? g_kspComboMode : (overProfile ? g_kspComboProfile : nullptr);
+        if (combo)
+        {
+            KeySettingsPanel_CloseCustomPopups();
+            RECT view = Ksp_ToViewRect(parent, overMode ? Ksp_ModeComboRect(parent) : Ksp_ProfileComboRect(parent));
+            SetWindowPos(combo, HWND_TOP, view.left, view.top,
+                std::max(1L, view.right - view.left), std::max(1L, view.bottom - view.top),
+                SWP_NOACTIVATE | SWP_SHOWWINDOW);
+            SetFocus(combo);
+            PremiumCombo::ShowDropDown(combo, true);
+            return true;
+        }
         return false;
     }
 
@@ -863,6 +882,16 @@ bool KeySettingsPanel_HandleKey(HWND parent, UINT msg, WPARAM wParam, LPARAM lPa
 void KeySettingsPanel_DrawGraph(HDC hdc, const RECT& rc)
 {
     Ksp_GraphDraw(hdc, rc);
+}
+
+void KeySettingsPanel_DrawGraphRetainedContent(HDC hdc, const RECT& rc)
+{
+    Ksp_GraphDrawRetainedContent(hdc, rc);
+}
+
+void KeySettingsPanel_DrawGraphViewportOverlay(HDC hdc, const RECT& rc)
+{
+    Ksp_GraphDrawViewportOverlay(hdc, rc);
 }
 
 bool KeySettingsPanel_HandleDrawItem(const DRAWITEMSTRUCT* dis)

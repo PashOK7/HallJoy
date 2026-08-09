@@ -33,18 +33,28 @@ def main() -> int:
     if os.name == "nt" and not asan_dll.is_file():
         raise SystemExit(f"Clang ASan runtime is missing: {asan_dll}")
 
-    suites: list[tuple[str, list[Path]]] = [
-        ("protocol", [tests / "aula_win60he_protocol_test.cpp", hall / "aula_win60he_protocol.cpp"]),
-        ("oracle", [tests / "aula_win60he_oracle_test.cpp", hall / "aula_win60he_protocol.cpp"]),
+    suites: list[tuple[str, list[Path], list[str]]] = [
+        ("protocol", [tests / "aula_win60he_protocol_test.cpp", hall / "aula_win60he_protocol.cpp"], []),
+        ("oracle", [tests / "aula_win60he_oracle_test.cpp", hall / "aula_win60he_protocol.cpp"], []),
         ("end_to_end", [
             tests / "aula_win60he_end_to_end_test.cpp",
             hall / "aula_win60he_protocol.cpp",
             hall / "aula_win60he_client.cpp",
-        ]),
+        ], []),
+        ("end_to_end_aggressive", [
+            tests / "aula_win60he_end_to_end_test.cpp",
+            hall / "aula_win60he_protocol.cpp",
+            hall / "aula_win60he_client.cpp",
+        ], ["-DHALLJOY_AULA_AGGRESSIVE_TRACE"]),
+        ("diagnostic_metrics", [
+            tests / "aula_win60he_diagnostic_metrics_test.cpp",
+            hall / "aula_win60he_diagnostic_metrics.cpp",
+            hall / "aula_win60he_protocol.cpp",
+        ], []),
         ("session_policy", [
             tests / "aula_win60he_session_policy_test.cpp",
             hall / "aula_win60he_session_policy.cpp",
-        ]),
+        ], []),
     ]
     environment = os.environ.copy()
     leak_detection = "0" if os.name == "nt" else "1"
@@ -56,7 +66,7 @@ def main() -> int:
         output = Path(temporary)
         if os.name == "nt":
             shutil.copy2(asan_dll, output / asan_dll.name)
-        for name, sources in suites:
+        for name, sources, compile_flags in suites:
             executable = output / (name + (".exe" if os.name == "nt" else ""))
             command = [
                 clang,
@@ -69,6 +79,7 @@ def main() -> int:
                 "-pedantic",
                 "-fno-omit-frame-pointer",
                 "-fsanitize=address,undefined",
+                *compile_flags,
                 f"-I{hall}",
                 *map(str, sources),
                 "-o",

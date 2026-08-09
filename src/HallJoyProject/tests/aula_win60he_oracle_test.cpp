@@ -70,7 +70,7 @@ void TestFirmwareIdentityPrecisionAndDefaultMap()
     assert(DecodeSyncInfo(Parse(kResponseSync, kCommandSync), &sync));
     assert(IsExpectedAulaWin60HeMaxFirmware(sync));
     assert(std::strncmp(sync.appVersion.data(), "App V1.1.6", 10u) == 0);
-    assert(std::strncmp(sync.appBuildDate.data(), "Feb  4 2026", 11u) == 0);
+    assert(std::strncmp(sync.buildLabel.data(), "Feb  4 ", 7u) == 0);
 
     PrecisionStroke precision{};
     assert(DecodePrecisionStroke(Parse(

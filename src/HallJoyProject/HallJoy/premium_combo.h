@@ -70,6 +70,12 @@ namespace PremiumCombo
         return msg;
     }
 
+    inline UINT MsgDropStateChanged()
+    {
+        static UINT msg = RegisterWindowMessageW(L"PremiumCombo_DropStateChanged");
+        return msg;
+    }
+
     // Create control.
     // style: typically WS_CHILD|WS_VISIBLE|WS_TABSTOP etc. (0 => default)
     HWND Create(HWND parent, HINSTANCE hInst,
@@ -114,6 +120,12 @@ namespace PremiumCombo
     void SetItemButtonKind(HWND hCombo, int idx, ItemButtonKind kind);
 
     void ResetVisualState(HWND hCombo);
+
+    // Draws the exact stable closed-face appearance into a retained page.
+    // The popup remains owned by hCombo; this API prevents scroll pages from
+    // maintaining a second, visually divergent combo renderer.
+    void PaintRetainedFace(HWND hCombo, HDC hdc, const RECT& rect, bool hovered = false);
+    bool GetRetainedExtraIconRect(HWND hCombo, const RECT& comboRect, RECT* outRect);
 
     // Inline edit API
     bool IsEditingItem(HWND hCombo);

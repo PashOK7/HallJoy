@@ -79,10 +79,10 @@ New-Item -ItemType Directory -Force -Path $symbolsDir | Out-Null
 if (Test-Path -LiteralPath $pdb) { Copy-Item -LiteralPath $pdb -Destination $symbolsDir -Force }
 Copy-Item -LiteralPath (Join-Path $repo 'runtime\universal_analog_abiv1.dll') -Destination $symbolsDir -Force
 $latencyFiles = @(
-    'LATENCY_TRACE_TEST_RU.md',
+    'LATENCY_TRACE_TEST.md',
     'run_latency_trace.ps1',
     'collect_latency_trace.ps1',
-    'V11_0_DENSE_DEVICE_SNAPSHOT_RU.md'
+    'V11_0_DENSE_DEVICE_SNAPSHOT.md'
 )
 foreach ($name in $latencyFiles) {
     $source = Join-Path $packageRoot $name
@@ -126,7 +126,7 @@ LATENCY TRACE (TEMPORARY V10.1)
 4. Close HallJoy normally.
 5. Run .\collect_latency_trace.ps1.
 6. Return HallJoyDiagnostic.log and HallJoyLatencyTraceExtract.txt.
-See LATENCY_TRACE_TEST_RU.md for field definitions.
+See LATENCY_TRACE_TEST.md for field definitions.
 
 PASS CRITERIA
 - HallJoy never closes or freezes.

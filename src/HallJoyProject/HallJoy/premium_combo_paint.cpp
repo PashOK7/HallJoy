@@ -444,10 +444,13 @@ static RECT ScaleRectFromCenter(const RECT& r, float t01)
 // ============================================================================
 // Paint closed combo (impl)
 // ============================================================================
-static void PaintCombo_Impl(HWND hwndCombo, State* st, HDC hdc)
+static void PaintCombo_Impl(HWND hwndCombo, State* st, HDC hdc, const RECT* targetRect = nullptr)
 {
     RECT rc{};
-    GetClientRect(hwndCombo, &rc);
+    if (targetRect)
+        rc = *targetRect;
+    else
+        GetClientRect(hwndCombo, &rc);
 
     int w = rc.right - rc.left;
     int h = rc.bottom - rc.top;
@@ -838,4 +841,57 @@ void PremiumComboInternal::PaintPopup(HWND hwndPopup, State* st, HDC hdc)
 
     RestoreDC(buf.memDC, -1);
     buf.End(hdc, 0, 0);
+}
+
+void PremiumCombo::PaintRetainedFace(HWND hCombo, HDC hdc, const RECT& rect, bool hovered)
+{
+    State* st = PremiumComboInternal::Get(hCombo);
+    if (!st || !hdc || rect.right <= rect.left || rect.bottom <= rect.top)
+        return;
+
+    // A retained page represents the stable closed face. Popup/focus state is
+    // owned by the real control when it is temporarily shown, but must not make
+    // the cached face jump between different fonts, borders or animation frames.
+    const bool oldHovered = st->hovered;
+    const bool oldArrowHot = st->arrowHot;
+    const bool oldDropped = st->dropped;
+    const bool oldSelAnimRunning = st->selAnimRunning;
+    const float oldArrowT = st->arrowT;
+    const ExtraIconKind oldExtraIconDraw = st->extraIconDraw;
+    const float oldExtraIconT = st->extraIconT;
+
+    st->hovered = hovered;
+    st->arrowHot = false;
+    st->dropped = false;
+    st->selAnimRunning = false;
+    st->arrowT = 0.0f;
+    st->extraIconDraw = st->extraIcon;
+    st->extraIconT = st->extraIcon == ExtraIconKind::None ? 0.0f : 1.0f;
+
+    PaintCombo_Impl(hCombo, st, hdc, &rect);
+
+    st->hovered = oldHovered;
+    st->arrowHot = oldArrowHot;
+    st->dropped = oldDropped;
+    st->selAnimRunning = oldSelAnimRunning;
+    st->arrowT = oldArrowT;
+    st->extraIconDraw = oldExtraIconDraw;
+    st->extraIconT = oldExtraIconT;
+}
+
+bool PremiumCombo::GetRetainedExtraIconRect(HWND hCombo, const RECT& comboRect, RECT* outRect)
+{
+    if (outRect) *outRect = RECT{};
+    State* st = PremiumComboInternal::Get(hCombo);
+    if (!st || !outRect || st->extraIcon == ExtraIconKind::None)
+        return false;
+
+    const ExtraIconKind oldDraw = st->extraIconDraw;
+    const float oldT = st->extraIconT;
+    st->extraIconDraw = st->extraIcon;
+    st->extraIconT = 1.0f;
+    *outRect = ComputeExtraIconRectForPaint(hCombo, st, comboRect);
+    st->extraIconDraw = oldDraw;
+    st->extraIconT = oldT;
+    return outRect->right > outRect->left && outRect->bottom > outRect->top;
 }

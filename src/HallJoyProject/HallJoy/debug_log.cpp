@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <mutex>
 
+#define HALLJOY_DEBUG_LOG_IMPLEMENTATION 1
 #include "debug_log.h"
 #include "worker_exception_barrier.h"
 #include "worker_join_policy.h"
@@ -235,10 +236,17 @@ static DWORD DebugLogWriterThreadBody()
             if (batch.empty())
                 break;
 
-            // Never hold the queue/state lock during filesystem I/O. Producers,
-            // including the realtime thread, can enqueue while this worker writes.
+            // Never hold the queue/state lock while writing. Producers,
+            // including the realtime thread, can enqueue while this worker drains.
             for (const auto& line : batch)
+#if defined(HALLJOY_SINGLE_LOG_DIAGNOSTIC)
+            {
+                const std::wstring safeLine = SanitizeDiagnosticText(line.c_str());
+                StabilityTrace_AppendPlain(safeLine.c_str());
+            }
+#else
                 WriteUtf8Line(hFile, line.c_str());
+#endif
             dirty = true;
         }
 
@@ -334,7 +342,11 @@ void DebugLog_Init()
     }
 
 #if defined(HALLJOY_DIAGNOSTIC)
-    g_logPath = BuildPathNearExe(L"HallJoyDiagnostic.log");
+#if defined(HALLJOY_SINGLE_LOG_DIAGNOSTIC)
+    g_logPath = StabilityTrace_Path();
+#else
+    g_logPath = BuildPathNearExe(L"HallJoy.log");
+#endif
 #else
     g_logPath = BuildPathNearExe(L"log.txt");
 #endif
@@ -344,6 +356,7 @@ void DebugLog_Init()
     g_writerFaultRecord = {};
     g_writerFaultKind.store(halljoy::worker::WorkerExceptionKind::None, std::memory_order_relaxed);
 
+#if !defined(HALLJOY_SINGLE_LOG_DIAGNOSTIC)
     g_logFile = CreateFileW(
         g_logPath.c_str(),
         GENERIC_WRITE,
@@ -358,8 +371,15 @@ void DebugLog_Init()
         DWORD w = 0;
         WriteFile(g_logFile, utf8Bom, 3, &w, nullptr);
     }
+#endif
 
-    if (g_logFile != INVALID_HANDLE_VALUE)
+    const bool sinkReady =
+#if defined(HALLJOY_SINGLE_LOG_DIAGNOSTIC)
+        StabilityTrace_IsEnabled();
+#else
+        g_logFile != INVALID_HANDLE_VALUE;
+#endif
+    if (sinkReady)
     {
         g_writeEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
         if (g_writeEvent)
@@ -368,7 +388,7 @@ void DebugLog_Init()
         }
     }
 
-    if (g_logFile == INVALID_HANDLE_VALUE || !g_writeEvent || !g_writerThread)
+    if (!sinkReady || !g_writeEvent || !g_writerThread)
     {
         if (g_writerThread)
         {
@@ -789,7 +809,7 @@ static LONG CALLBACK DiagnosticVectoredExceptionHandler(EXCEPTION_POINTERS* ep)
             WriteUtf8Line(file, line);
         }
 
-        WriteUtf8Line(file, L"log=HallJoyDiagnostic.log");
+        WriteUtf8Line(file, L"log=HallJoy.log");
         WriteUtf8Line(file, L"note=this report is written at first chance; SetUnhandledExceptionFilter is not guaranteed to run after stack corruption, fail-fast, filter replacement, or direct process termination");
         WriteUtf8Line(file, L"privacy=no minidump; no username, command line, hardware inventory, or absolute user path is intentionally collected");
         FlushFileBuffers(file);
@@ -801,14 +821,18 @@ static LONG CALLBACK DiagnosticVectoredExceptionHandler(EXCEPTION_POINTERS* ep)
 
 static LONG WINAPI DiagnosticUnhandledExceptionFilter(EXCEPTION_POINTERS* ep)
 {
-#if !defined(HALLJOY_DIAGNOSTIC)
+#if !defined(HALLJOY_DIAGNOSTIC) && !defined(HALLJOY_PRODUCTION)
     (void)ep;
     return EXCEPTION_CONTINUE_SEARCH;
 #else
     const DWORD code = (ep && ep->ExceptionRecord) ? ep->ExceptionRecord->ExceptionCode : 0;
     const void* address = (ep && ep->ExceptionRecord) ? ep->ExceptionRecord->ExceptionAddress : nullptr;
     const std::wstring moduleAndOffset = ModuleNameAndOffset(address);
+#if defined(HALLJOY_DIAGNOSTIC)
     const std::wstring crashPath = BuildPathNearExe(L"HallJoyDiagnosticCrash.txt");
+#else
+    const std::wstring crashPath = BuildPathNearExe(L"HallJoyCrash.txt");
+#endif
 
     HANDLE file = CreateFileW(
         crashPath.c_str(),
@@ -820,7 +844,11 @@ static LONG WINAPI DiagnosticUnhandledExceptionFilter(EXCEPTION_POINTERS* ep)
         nullptr);
     if (file != INVALID_HANDLE_VALUE)
     {
+#if defined(HALLJOY_DIAGNOSTIC)
         WriteUtf8Line(file, L"HallJoy diagnostic crash report");
+#else
+        WriteUtf8Line(file, L"HallJoy production crash report");
+#endif
 
         SYSTEMTIME st{};
         GetLocalTime(&st);
@@ -841,8 +869,10 @@ static LONG WINAPI DiagnosticUnhandledExceptionFilter(EXCEPTION_POINTERS* ep)
         WriteUtf8Line(file, line);
         WriteDiagnosticContext(file, ep);
         WriteUtf8Line(file, L"source=SetUnhandledExceptionFilter");
-        WriteUtf8Line(file, L"log=HallJoyDiagnostic.log");
-        WriteUtf8Line(file, L"privacy=no minidump; no username, hardware inventory, or absolute user path is intentionally collected");
+#if defined(HALLJOY_DIAGNOSTIC)
+        WriteUtf8Line(file, L"log=HallJoy.log");
+#endif
+        WriteUtf8Line(file, L"privacy=no minidump; no command line, username, hardware inventory, or absolute user path is intentionally collected");
         FlushFileBuffers(file);
         CloseHandle(file);
     }
@@ -858,6 +888,11 @@ void DebugLog_InstallCrashHandler()
     LPTOP_LEVEL_EXCEPTION_FILTER previous = SetUnhandledExceptionFilter(DiagnosticUnhandledExceptionFilter);
     DebugLog_Write(L"[diagnostic] crash handlers installed vectored=%p previous_uef=%p current_uef=%p; support log is privacy-sanitized",
         g_vectoredExceptionHandler, previous, DiagnosticUnhandledExceptionFilter);
+#elif defined(HALLJOY_PRODUCTION)
+    // Zero normal-operation I/O and no vectored first-chance hook: the release
+    // pays only for this one-time process setting. The handler opens its report
+    // file solely after an unhandled exception has already occurred.
+    SetUnhandledExceptionFilter(DiagnosticUnhandledExceptionFilter);
 #endif
 }
 
@@ -956,50 +991,56 @@ bool DebugLog_TryRunExitWatchdogCommand()
 #endif
 
 #if defined(HALLJOY_DIAGNOSTIC)
-    const std::wstring path = BuildPathNearExe(L"HallJoyDiagnosticExit.txt");
-    HANDLE file = CreateFileW(
-        path.c_str(),
-        GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        nullptr,
-        CREATE_ALWAYS,
-        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH,
-        nullptr);
-    if (file != INVALID_HANDLE_VALUE)
+    // A clean diagnostic run already ends with session.end in HallJoy.log.
+    // Keep the sidecar exit report crash-only so ordinary testing has exactly
+    // one evidence file and stale successful reports cannot be misread later.
+    if (!normalExit || exitCode != 0)
     {
-        WriteUtf8Line(file, L"HallJoy diagnostic process exit report");
+        const std::wstring path = BuildPathNearExe(L"HallJoyDiagnosticExit.txt");
+        HANDLE file = CreateFileW(
+            path.c_str(),
+            GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            nullptr,
+            CREATE_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH,
+            nullptr);
+        if (file != INVALID_HANDLE_VALUE)
+        {
+            WriteUtf8Line(file, L"HallJoy diagnostic process exit report");
 
-        SYSTEMTIME st{};
-        GetLocalTime(&st);
-        wchar_t line[512]{};
-        _snwprintf_s(
-            line, _countof(line), _TRUNCATE,
-            L"time=%04u-%02u-%02u %02u:%02u:%02u.%03u",
-            st.wYear, st.wMonth, st.wDay,
-            st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
-        WriteUtf8Line(file, line);
+            SYSTEMTIME st{};
+            GetLocalTime(&st);
+            wchar_t line[512]{};
+            _snwprintf_s(
+                line, _countof(line), _TRUNCATE,
+                L"time=%04u-%02u-%02u %02u:%02u:%02u.%03u",
+                st.wYear, st.wMonth, st.wDay,
+                st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
+            WriteUtf8Line(file, line);
 
-        _snwprintf_s(line, _countof(line), _TRUNCATE, L"watched_pid=%lu", watchedPid);
-        WriteUtf8Line(file, line);
-        _snwprintf_s(line, _countof(line), _TRUNCATE, L"open_error=%lu", openError);
-        WriteUtf8Line(file, line);
-        _snwprintf_s(line, _countof(line), _TRUNCATE, L"wait_result=0x%08lX", waitResult);
-        WriteUtf8Line(file, line);
-        _snwprintf_s(line, _countof(line), _TRUNCATE, L"exit_code=0x%08lX", exitCode);
-        WriteUtf8Line(file, line);
-        _snwprintf_s(line, _countof(line), _TRUNCATE, L"exit_hint=%s", ExitCodeHint(exitCode));
-        WriteUtf8Line(file, line);
-        _snwprintf_s(line, _countof(line), _TRUNCATE, L"normal_shutdown_marker=%d", normalExit ? 1 : 0);
-        WriteUtf8Line(file, line);
-        _snwprintf_s(line, _countof(line), _TRUNCATE,
-            L"mad68pr_emergency_A9_attempted=%d", mad68EmergencyRestoreAttempted ? 1 : 0);
-        WriteUtf8Line(file, line);
-        _snwprintf_s(line, _countof(line), _TRUNCATE,
-            L"mad68pr_emergency_A9_write_sent=%d", mad68EmergencyRestoreSent ? 1 : 0);
-        WriteUtf8Line(file, line);
-        WriteUtf8Line(file, L"privacy=no command line, username, absolute user path, or memory dump is collected");
-        FlushFileBuffers(file);
-        CloseHandle(file);
+            _snwprintf_s(line, _countof(line), _TRUNCATE, L"watched_pid=%lu", watchedPid);
+            WriteUtf8Line(file, line);
+            _snwprintf_s(line, _countof(line), _TRUNCATE, L"open_error=%lu", openError);
+            WriteUtf8Line(file, line);
+            _snwprintf_s(line, _countof(line), _TRUNCATE, L"wait_result=0x%08lX", waitResult);
+            WriteUtf8Line(file, line);
+            _snwprintf_s(line, _countof(line), _TRUNCATE, L"exit_code=0x%08lX", exitCode);
+            WriteUtf8Line(file, line);
+            _snwprintf_s(line, _countof(line), _TRUNCATE, L"exit_hint=%s", ExitCodeHint(exitCode));
+            WriteUtf8Line(file, line);
+            _snwprintf_s(line, _countof(line), _TRUNCATE, L"normal_shutdown_marker=%d", normalExit ? 1 : 0);
+            WriteUtf8Line(file, line);
+            _snwprintf_s(line, _countof(line), _TRUNCATE,
+                L"mad68pr_emergency_A9_attempted=%d", mad68EmergencyRestoreAttempted ? 1 : 0);
+            WriteUtf8Line(file, line);
+            _snwprintf_s(line, _countof(line), _TRUNCATE,
+                L"mad68pr_emergency_A9_write_sent=%d", mad68EmergencyRestoreSent ? 1 : 0);
+            WriteUtf8Line(file, line);
+            WriteUtf8Line(file, L"privacy=no command line, username, absolute user path, or memory dump is collected");
+            FlushFileBuffers(file);
+            CloseHandle(file);
+        }
     }
 
     WriteSyntheticCrashReportIfMissing(watchedPid, exitCode, normalExit);

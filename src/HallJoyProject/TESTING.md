@@ -46,10 +46,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_release_qualific
 ```
 
 The release-cycle runner verifies exit code, shutdown deadline, remaining
-HallJoy processes, stability-trace errors, handle count, and preservation of the
-user-state snapshot. It checkpoints every completed cycle and records SparkLink
-route counters. It exercises ordinary operation and does not inject a realtime
-failure. The final S21 cycle gate is:
+HallJoy processes, handle count, preservation of the user-state snapshot and
+the final zero-continuous-log/crash-only policy. It checkpoints every completed
+cycle. It exercises ordinary production operation, creates no stability trace
+and does not inject a realtime failure. The final S21 cycle gate is:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_release_qualification.ps1 -Cycles 1000 -RunSeconds 1 -ProgressEvery 25
@@ -95,9 +95,13 @@ that is not connected.
 
 Before release, record the available-device matrix and perform input, reconnect,
 held-key unplug/reconnect, graceful shutdown and long-run checks required by
-`docs/v1.4/VALIDATION_MATRIX.md`. Aula WIN 60 HE MAX remains firmware-proven but
-hardware-unvalidated until the external tester reports a result. That pending
-gate does not block code/test work, but it does block release approval.
+`docs/v1.4/VALIDATION_MATRIX.md`. Aula WIN 60 HE MAX has completed three physical
+exclusive protocol proofs and two long claim/runtime runs; the tester confirmed
+analogue input. The remaining Aula gate uses the single-file diagnostic schema
+v2: hold 10 keys for 10 seconds, release all, then unplug for 10 seconds and
+reconnect without closing HallJoy. Its 5-second health windows record real
+matrix Hz, latency, active-key distribution, release-to-zero and per-HID maxima.
+Return-after-disconnect evidence continues to block release approval.
 
 ## Overlay checks
 

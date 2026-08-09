@@ -33,10 +33,10 @@ def main() -> int:
     runner = read(ROOT / "tools" / "run_native_backend_checks.py")
     testing = read(PROJECT_ROOT / "TESTING.md")
     readme = read(PROJECT_ROOT / "README.md")
-    build_readme = read(PROJECT_ROOT / "BUILD_README_RU.txt")
+    build_readme = read(PROJECT_ROOT / "BUILD_README.txt")
     historical = read(ROOT / "docs" / "validation" / "VALIDATION_PACKAGE_V3_9_0.txt")
     release_risks = read(ROOT / "docs" / "v1.4" / "RISK_REGISTER.md")
-    imported_risks = read(ROOT / "docs" / "stability" / "RISK_REGISTER_RU.md")
+    imported_risks = read(ROOT / "docs" / "stability" / "RISK_REGISTER.md")
     roadmap = read(ROOT / "docs" / "v1.4" / "ROADMAP.md")
     evidence = ROOT / "docs" / "stability" / "tests" / "V14-12G_S20_BUILD_DOCS_2026-08-01.txt"
 
@@ -85,6 +85,8 @@ def main() -> int:
             "official build no longer rejects warnings outside the one linker baseline")
     require("run_native_backend_checks.py" in build and "--require-compiler" in build,
             "official build no longer requires the unified automated gate")
+    require("$testerReadme = Join-Path $root" in build and "$repoRoot" not in build,
+            "release README packaging uses an undefined repository-root variable")
     require("validate_addressed_protocol_backend.py" in runner,
             "rewritten Addressed validator is absent from the unified runner")
 
@@ -92,7 +94,10 @@ def main() -> int:
         require(stale not in testing, f"stale testing reference returned: {stale}")
     require("run_native_backend_checks.py --require-compiler" in testing and
             "run_release_qualification.ps1" in testing and
-            "Aula WIN 60 HE MAX remains firmware-proven" in testing,
+            "Aula WIN 60 HE MAX has completed three physical" in testing and
+            "the tester confirmed" in testing and
+            "Return-after-disconnect evidence" in testing and
+            "hold 10 keys for 10 seconds" in testing,
             "TESTING.md does not describe the current automated/hardware gates")
 
     require("Madlions V6 SafeHID branch" not in readme and
@@ -101,9 +106,10 @@ def main() -> int:
     require("Windows x64 only" in readme and "build\\output\\HallJoy.exe" in readme and
             "%LOCALAPPDATA%\\HallJoy" in readme,
             "project README is missing the current target/output/storage contract")
-    require("BUILD.cmd" in build_readme and "build\\output\\HallJoy.exe" in build_readme and
-            "Win32/x86 не поддерживается" in build_readme,
-            "Russian build guide is missing the current x64 build contract")
+    require("BUILD.cmd" in build_readme and "build\\release\\HallJoy.exe" in build_readme and
+            "build\\output" in build_readme and
+            "Win32/x86 is not supported" in build_readme,
+            "build guide is missing the current x64 build contract")
 
     require(historical.startswith("HISTORICAL RECORD ONLY - NOT CURRENT v1.4 RELEASE EVIDENCE"),
             "v3.9 validation record lacks the historical warning")

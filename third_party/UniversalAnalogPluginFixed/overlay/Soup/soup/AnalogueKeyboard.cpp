@@ -152,6 +152,10 @@ NAMESPACE_SOUP
 				{
 					return "Keychron K2 HE";
 				}
+				if (hid.product_id == 0x0E40) // ANSI
+				{
+					return "Keychron K4 HE ANSI";
+				}
 			}
 		}
 		else if (hid.vendor_id == 0x362D) // Lemokey
@@ -257,6 +261,19 @@ NAMESPACE_SOUP
 		KEY_LCTRL,     KEY_LMETA, KEY_LALT, KEY_NONE, KEY_NONE, KEY_NONE, KEY_SPACE, KEY_NONE, KEY_NONE, KEY_RALT,  KEY_FN,        KEY_RCTRL,        KEY_ARROW_LEFT,    KEY_ARROW_DOWN,   KEY_ARROW_RIGHT, KEY_NONE,
 	};
 	static_assert(sizeof(layout_keychron_k2_he) == 2 + 6 * 16);
+
+	// Matrix and PID are taken from Keychron/qmk_firmware hall_effect_playground
+	// commit bc56b3c611dcc1a8ed9a2acb8bdc4da5e1a80c27:
+	// keyboards/keychron/k4_he/ansi/{info.json,keymaps/default/keymap.c}.
+	static const uint8_t layout_keychron_k4_he_ansi[] = { 6, 19,
+		KEY_ESCAPE,    KEY_F1,    KEY_F2,   KEY_F3,   KEY_F4,   KEY_F5,   KEY_F6,    KEY_F7,   KEY_F8,   KEY_F9,    KEY_F10,       KEY_F11,          KEY_F12,           KEY_DEL,        KEY_HOME,       KEY_END,            KEY_PAGE_UP,        KEY_PAGE_DOWN,       KEY_OEM_2 /* cycle rgb effect */,
+		KEY_BACKQUOTE, KEY_1,     KEY_2,    KEY_3,    KEY_4,    KEY_5,    KEY_6,     KEY_7,    KEY_8,    KEY_9,     KEY_0,         KEY_MINUS,        KEY_EQUALS,        KEY_NONE,       KEY_BACKSPACE,  KEY_NUM_LOCK,       KEY_NUMPAD_DIVIDE,   KEY_NUMPAD_MULTIPLY, KEY_NUMPAD_SUBTRACT,
+		KEY_TAB,       KEY_Q,     KEY_W,    KEY_E,    KEY_R,    KEY_T,    KEY_Y,     KEY_U,    KEY_I,    KEY_O,     KEY_P,         KEY_BRACKET_LEFT, KEY_BRACKET_RIGHT, KEY_BACKSLASH,  KEY_NONE,       KEY_NUMPAD7,         KEY_NUMPAD8,         KEY_NUMPAD9,         KEY_NUMPAD_ADD,
+		KEY_CAPS_LOCK, KEY_A,     KEY_S,    KEY_D,    KEY_F,    KEY_G,    KEY_H,     KEY_J,    KEY_K,    KEY_L,     KEY_SEMICOLON, KEY_QUOTE,        KEY_NONE,          KEY_ENTER,      KEY_NONE,       KEY_NUMPAD4,         KEY_NUMPAD5,         KEY_NUMPAD6,         KEY_NONE,
+		KEY_LSHIFT,    KEY_NONE,  KEY_Z,    KEY_X,    KEY_C,    KEY_V,    KEY_B,     KEY_N,    KEY_M,    KEY_COMMA, KEY_PERIOD,    KEY_SLASH,        KEY_NONE,          KEY_RSHIFT,     KEY_ARROW_UP,   KEY_NUMPAD1,         KEY_NUMPAD2,         KEY_NUMPAD3,         KEY_NUMPAD_ENTER,
+		KEY_LCTRL,     KEY_LMETA, KEY_LALT, KEY_NONE, KEY_NONE, KEY_NONE, KEY_SPACE, KEY_NONE, KEY_NONE, KEY_NONE,  KEY_RALT,      KEY_FN,           KEY_RCTRL,         KEY_ARROW_LEFT, KEY_ARROW_DOWN, KEY_ARROW_RIGHT,      KEY_NUMPAD0,         KEY_NUMPAD_DECIMAL,  KEY_NONE,
+	};
+	static_assert(sizeof(layout_keychron_k4_he_ansi) == 2 + 6 * 19);
 
 	static const uint8_t layout_lemokey_p1_he_ansi[] = { 6, 15,
 		KEY_ESCAPE,    KEY_F1,    KEY_F2,   KEY_F3,   KEY_F4,   KEY_F5,   KEY_F6,    KEY_F7,   KEY_F8,   KEY_F9,    KEY_F10,       KEY_F11,          KEY_F12,           KEY_DEL,        KEY_NONE /* mute */,
@@ -377,6 +394,10 @@ NAMESPACE_SOUP
 							)
 						{
 							kbd.keychron.layout = layout_keychron_k2_he;
+						}
+						else if (hid.product_id == 0x0E40) // ANSI
+						{
+							kbd.keychron.layout = layout_keychron_k4_he_ansi;
 						}
 						else if (kbd.hid.product_id == 0x0610) // ANSI
 						{

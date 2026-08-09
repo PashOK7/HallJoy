@@ -2,18 +2,18 @@ HallJoy stability S01 changed files versus Stage 01 plan archive
 Date: 2026-07-30
 
 MODIFIED README.md
-MODIFIED docs/stability/DECISIONS_RU.md
-MODIFIED docs/stability/README_RU.md
-MODIFIED docs/stability/RISK_REGISTER_RU.md
-MODIFIED docs/stability/STABILITY_MASTER_PLAN_RU.md
-MODIFIED docs/stability/WORKLOG_RU.md
-MODIFIED docs/stability/tests/README_RU.md
+MODIFIED docs/stability/DECISIONS.md
+MODIFIED docs/stability/README.md
+MODIFIED docs/stability/RISK_REGISTER.md
+MODIFIED docs/stability/STABILITY_MASTER_PLAN.md
+MODIFIED docs/stability/WORKLOG.md
+MODIFIED docs/stability/tests/README.md
 MODIFIED docs/validation/CLEAN_PACKAGE_MANIFEST.json
 MODIFIED src/HallJoyProject/HallJoy/HallJoy.vcxproj
 MODIFIED src/HallJoyProject/HallJoy/HallJoy.vcxproj.filters
 MODIFIED tools/run_native_backend_checks.py
 ADDED    docs/stability/CHANGED_FILES_S01.txt
-ADDED    docs/stability/STAGE_S01_RESULT_RU.md
+ADDED    docs/stability/STAGE_S01_RESULT.md
 ADDED    docs/stability/tests/S01_BASELINE_COMPARISON_2026-07-30.txt
 ADDED    docs/stability/tests/S01_FINAL_CLANG_CHECKS_2026-07-30.txt
 ADDED    docs/stability/tests/S01_FINAL_GCC_CHECKS_2026-07-30.txt
@@ -21,7 +21,7 @@ ADDED    docs/stability/tests/S01_PACKAGE_VERIFICATION_2026-07-30.txt
 ADDED    docs/stability/tests/S01_PRECHANGE_GCC_CHECKS_2026-07-30.txt
 ADDED    docs/stability/tests/S01_PROJECT_VALIDATION_2026-07-30.txt
 ADDED    docs/stability/tests/S01_SANITIZERS_GCC_CLANG_2026-07-30.txt
-ADDED    docs/validation/VALIDATION_PACKAGE_STABILITY_S01_LIFECYCLE_CONTRACTS_RU.txt
+ADDED    docs/validation/VALIDATION_PACKAGE_STABILITY_S01_LIFECYCLE_CONTRACTS.txt
 ADDED    src/HallJoyProject/HallJoy/worker_lifecycle.h
 ADDED    src/HallJoyProject/HallJoy/worker_primitives.h
 ADDED    src/HallJoyProject/tests/lifecycle_scaffolding_static_audit.py

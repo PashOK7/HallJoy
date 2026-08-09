@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstring>
 #include <cstdint>
+#include <cwctype>
 #include <cstdlib>
 #include <mutex>
 #include <stdexcept>
@@ -37,6 +38,7 @@
 #include "realtime_loop.h"
 #include "hid_io_operation.h"
 #include "addressed_analog_backend.h"
+#include "aula_win60he_protocol.h"
 #include "mad68pr_backend.h"
 #include "hex80_backend.h"
 #include "native_analog_routing.h"

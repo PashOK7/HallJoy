@@ -27,6 +27,10 @@ namespace PremiumComboInternal
     // ---------------------------------------------------------------------
     inline constexpr const wchar_t* PC_COMBO_CLASS = L"PremiumCombo_Control";
     inline constexpr const wchar_t* PC_POPUP_CLASS = L"PremiumCombo_Popup";
+    // Read-only automation diagnostic: low byte=scrollTop, next byte=maxTop,
+    // high word=curSel+1. The UI stress runner uses it to verify that wheel
+    // input scrolls only overflowing popups and never changes selection.
+    inline constexpr UINT PC_MSG_QUERY_SCROLL_STATE = WM_APP + 390;
 
     // ---------------------------------------------------------------------
     // DPI helper
@@ -161,6 +165,7 @@ namespace PremiumComboInternal
 
         // Scroll
         int scrollTop = 0;             // index of first visible item in popup
+        int wheelRemainder = 0;        // high-resolution wheel delta accumulator
 
         // Capture-based dropdown (robust close on outside click)
         bool captureActive = false;
@@ -274,6 +279,7 @@ namespace PremiumComboInternal
     int  GetMaxScrollTop(State* st);
     void ClampScroll(State* st);
     void EnsureIndexVisible(State* st, int idx);
+    bool ScrollPopupWheel(State* st, int wheelDelta);
     void ClampPopupToMonitor(RECT& r);
 
     // ---------------------------------------------------------------------

@@ -1,19 +1,19 @@
 S02B.1 changed files relative to S02A.1
 
 MODIFIED
-- docs/stability/DECISIONS_RU.md
-- docs/stability/README_RU.md
-- docs/stability/RISK_REGISTER_RU.md
-- docs/stability/STABILITY_MASTER_PLAN_RU.md
-- docs/stability/STAGE_S02A1_RESULT_RU.md
-- docs/stability/WORKLOG_RU.md
+- docs/stability/DECISIONS.md
+- docs/stability/README.md
+- docs/stability/RISK_REGISTER.md
+- docs/stability/STABILITY_MASTER_PLAN.md
+- docs/stability/STAGE_S02A1_RESULT.md
+- docs/stability/WORKLOG.md
 - docs/validation/CLEAN_PACKAGE_MANIFEST.json
 - src/HallJoyProject/HallJoy/hex80_backend.cpp
 - src/HallJoyProject/HallJoy/mad68pr_backend.cpp
 
 ADDED
 - docs/stability/CHANGED_FILES_S02B1.txt
-- docs/stability/STAGE_S02B1_RESULT_RU.md
+- docs/stability/STAGE_S02B1_RESULT.md
 - docs/stability/tests/S02A1_WINDOWS_GATE_2026-07-30.txt
 - docs/stability/tests/S02B1_FINAL_CLANG_CHECKS_2026-07-30.txt
 - docs/stability/tests/S02B1_FINAL_GCC_CHECKS_2026-07-30.txt

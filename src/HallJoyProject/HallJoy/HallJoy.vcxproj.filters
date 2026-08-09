@@ -153,10 +153,19 @@
     <ClCompile Include="aula_win60he_client.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="aula_win60he_diagnostic_metrics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="aula_win60he_protocol.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="aula_win60he_session_policy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="aula_w669_backend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="aula_w669_protocol.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="native_analog_routing.cpp">
@@ -371,10 +380,19 @@
     <ClInclude Include="aula_win60he_client.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="aula_win60he_diagnostic_metrics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="aula_win60he_protocol.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="aula_win60he_session_policy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aula_w669_backend.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aula_w669_protocol.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="native_analog_routing.h">

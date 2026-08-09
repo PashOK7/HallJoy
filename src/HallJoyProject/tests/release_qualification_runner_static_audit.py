@@ -38,15 +38,12 @@ require("Get-HallJoyStateSnapshot" in runner and "Write-StateSnapshot" in runner
         "Assert-SameStateSnapshot" in runner and "state-before.json" in runner and
         "state-after.json" in runner,
         "LocalAppData file set and SHA-256 values are persisted and invariant")
-require("startup.transaction.commit" in runner and "backend][event=shutdown.end" in runner and
-        "main][event=session.end] exit_code=0" in runner,
-        "trace proves committed startup and complete backend/session shutdown")
-require("\\[level=ERROR\\]" in runner and "event=capped" in runner and
-        "trace_sha256" in runner,
-        "each cycle rejects trace errors/capping and records its trace hash")
-require("spark_route_queries" in runner and "spark_route_ok" in runner and
-        "spark_route_fail" in runner and "worker\\.stats" in runner,
-        "cycle and aggregate evidence retain SparkLink route health counters")
+require("forbiddenProductionLogs" in runner and "HallJoyStabilityTrace.log" in runner and
+        "HallJoyDiagnostic.log" in runner and "HallJoyCrash.txt" in runner,
+        "each cycle enforces the final zero-continuous-log and crash-only policy")
+require("continuous_log_files = 0" in runner and "crash_report = $false" in runner and
+        "trace_sha256" not in runner and "worker\\.stats" not in runner,
+        "machine evidence records quiet production without stale trace-derived counters")
 require("checkpoint.json" in runner and "Write-QualificationCheckpoint" in runner and
         "Status 'failed'" in runner and "Status 'passed'" in runner,
         "machine-readable checkpoints survive progress, success, and failure")

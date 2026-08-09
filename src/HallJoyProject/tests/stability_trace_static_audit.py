@@ -14,6 +14,9 @@ header = (HALL / "stability_trace.h").read_text(encoding="utf-8")
 source = (HALL / "stability_trace.cpp").read_text(encoding="utf-8")
 project = (HALL / "HallJoy.vcxproj").read_text(encoding="utf-8")
 build = (TOOLS / "build.ps1").read_text(encoding="utf-8")
+debug_header = (HALL / "debug_log.h").read_text(encoding="utf-8")
+debug_source = (HALL / "debug_log.cpp").read_text(encoding="utf-8")
+mad68_source = (HALL / "mad68pr_backend.cpp").read_text(encoding="utf-8")
 spark = (HALL / "backend_sparklink.inc").read_text(encoding="utf-8")
 collector = (TOOLS / "collect_stability_trace.ps1").read_text(encoding="utf-8")
 
@@ -22,7 +25,6 @@ required_source = [
     "HallJoyStabilityTrace.previous.log",
     "CreateFileMappingW",
     "MapViewOfFile",
-    "FlushViewOfFile",
     "event=trace.capped",
     "StabilityTrace_WriteCritical",
     "HALLJOY_STABILITY_TRACE",
@@ -30,14 +32,50 @@ required_source = [
 for token in required_source:
     assert token in source, token
 assert "noexcept" in header
+assert "HALLJOY_STABILITY_TRACE_IMPLEMENTATION" in header
+assert "#define StabilityTrace_Write(...) do { if constexpr (false)" in header
+assert "#define StabilityTrace_WriteCritical(...) do { if constexpr (false)" in header
+assert "#define HALLJOY_STABILITY_TRACE_IMPLEMENTATION 1" in source
 write_formatted = source[source.index("void WriteFormatted"):source.index("#endif", source.index("void WriteFormatted"))]
 assert "WriteFile" not in write_formatted
 assert "FlushViewOfFile" not in write_formatted
+shutdown = source[source.index("void StabilityTrace_Shutdown"):source.index("void StabilityTrace_Write(")]
+assert "FlushViewOfFile(" not in shutdown
+assert "FlushFileBuffers(" not in shutdown
 assert 'ClCompile Include="stability_trace.cpp"' in project
 assert 'ClInclude Include="stability_trace.h"' in project
 assert "HallJoyStabilityTrace" in project
-assert "/p:HallJoyStabilityTrace=true" in build
-assert "COLLECT_STABILITY_TRACE.cmd" in build
+assert "/p:HallJoyStabilityTrace=false" in build
+assert "/p:HallJoyStabilityTrace=true" not in build
+package_section = build[build.index("Copy-Item -LiteralPath $exe -Destination $sendDir -Force"):]
+assert "COLLECT_STABILITY_TRACE.cmd') -Destination $sendDir" not in package_section
+assert "HallJoyStabilityTrace.log is enabled" not in build
+assert "HallJoyCrash.txt" in build
+assert "#define DebugLog_Write(...) do { if constexpr (false)" in debug_header
+assert "#define DebugLog_WriteBuffered(...) do { if constexpr (false)" in debug_header
+assert "#define HALLJOY_DEBUG_LOG_IMPLEMENTATION 1" in debug_source
+assert "StabilityTrace_AppendPlain(safeLine.c_str())" in debug_source
+single_log_init = debug_source[
+    debug_source.index("void DebugLog_Init"):
+    debug_source.index("halljoy::lifecycle::StopResult DebugLog_Shutdown")
+]
+assert "g_logPath = StabilityTrace_Path()" in single_log_init
+assert "#if !defined(HALLJOY_SINGLE_LOG_DIAGNOSTIC)\n    g_logFile = CreateFileW" in single_log_init
+assert 'DebugLog_WriteBuffered(L"[mad68pr] %ls", body)' in mad68_source
+watchdog = debug_source[
+    debug_source.index("bool DebugLog_TryRunExitWatchdogCommand"):
+    debug_source.index("void DebugLog_StartExitWatchdog")
+]
+assert "if (!normalExit || exitCode != 0)" in watchdog
+assert "SetUnhandledExceptionFilter(DiagnosticUnhandledExceptionFilter)" in debug_source
+assert "AddVectoredExceptionHandler" in debug_source
+production_install = debug_source[
+    debug_source.index("void DebugLog_InstallCrashHandler"):
+    debug_source.index("static void WriteSyntheticCrashReportIfMissing")
+]
+assert "#elif defined(HALLJOY_PRODUCTION)" in production_install
+assert "AddVectoredExceptionHandler" not in production_install.split(
+    "#elif defined(HALLJOY_PRODUCTION)", 1)[1]
 assert "HallJoyStabilityTraceBundle.zip" in collector
 assert 'L"spark", L"worker.stats"' in spark
 assert "changed_rows=%u input_notifies=%u" in spark

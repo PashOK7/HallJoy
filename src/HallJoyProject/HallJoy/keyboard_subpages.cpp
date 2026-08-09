@@ -50,6 +50,7 @@
 #include "debug_log.h"
 #include "custom_page_surface.h"
 #include "custom_page_controls.h"
+#include "ui_paint_audit.h"
 
 using namespace Gdiplus;
 namespace fs = std::filesystem;
@@ -116,23 +117,55 @@ static void BeginDoubleBufferPaint(HWND hWnd, PAINTSTRUCT& ps, HDC& outMemDC, HB
 static void EndDoubleBufferPaint(HWND hWnd, PAINTSTRUCT& ps, HDC memDC, HBITMAP bmp, HGDIOBJ oldBmp)
 {
     HDC hdc = ps.hdc;
-    RECT rc{};
-    GetClientRect(hWnd, &rc);
-    BitBlt(hdc, 0, 0, rc.right - rc.left, rc.bottom - rc.top, memDC, 0, 0, SRCCOPY);
+    // Commit only the invalidated area. Several pages contain live regions;
+    // copying the complete client bitmap for a small dirty region needlessly
+    // replaces static pixels and makes input-driven updates visibly flash.
+    const RECT& dirty = ps.rcPaint;
+    if (dirty.right > dirty.left && dirty.bottom > dirty.top)
+    {
+        BitBlt(hdc, dirty.left, dirty.top,
+            dirty.right - dirty.left, dirty.bottom - dirty.top,
+            memDC, dirty.left, dirty.top, SRCCOPY);
+    }
     SelectObject(memDC, oldBmp);
     DeleteObject(bmp);
     DeleteDC(memDC);
     EndPaint(hWnd, &ps);
 }
 
+static std::vector<std::wstring> BuildAnalogDiagnosticsLines(const BackendAnalogTelemetry& t);
+
+struct TesterPageState
+{
+    CustomPageSurface surface;
+    CustomPageScrollController scroll;
+};
+
 // ============================================================================
 // Gamepad Tester page (DPI-scaled)
 // ============================================================================
 LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    static UiPaintAuditCounter paintAudit(L"tester");
+    auto* state = (TesterPageState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
     switch (msg)
     {
-    case WM_ERASEBKGND: return 1;
+    case WM_CREATE:
+        state = new TesterPageState();
+        SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)state);
+        return 0;
+
+    case WM_ERASEBKGND:
+        paintAudit.Event(WM_ERASEBKGND);
+        return 1;
+
+    case WM_APP_TESTER_LIVE_REFRESH:
+        // Tester is the canonical live diagnostics surface. It repaints only
+        // after a changed gamepad/telemetry hash is posted by the visible-tab gate.
+        UiAuditTraceInvalidation(L"tester", wParam == TESTER_REFRESH_DIAGNOSTICS
+            ? L"telemetry_hash_changed" : L"gamepad_hash_changed");
+        InvalidateRect(hWnd, nullptr, FALSE);
+        return 0;
 
     case WM_PAINT:
     {
@@ -141,6 +174,7 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
         HBITMAP bmp = nullptr;
         HGDIOBJ oldBmp = nullptr;
         BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        paintAudit.Event(WM_PAINT, &ps.rcPaint);
 
         RECT rcClient{};
         GetClientRect(hWnd, &rcClient);
@@ -156,14 +190,24 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
         int clientH = (int)(rcClient.bottom - rcClient.top);
         BackendAnalogTelemetry analog{};
         Backend_GetAnalogTelemetry(&analog);
-        bool showAnalogInfo = analog.sdkInitialised || analog.sparkConnected || analog.sayoConnected ||
-            analog.mad68Present || analog.hex80Present || analog.addressedPresent ||
-            analog.nativeProtocolCount > 0;
-        int analogInfoH = showAnalogInfo ? S(hWnd, 72) : 0;
+        const auto analogLines = BuildAnalogDiagnosticsLines(analog);
+        const bool showAnalogInfo = !analogLines.empty();
+        int analogInfoH = showAnalogInfo ? S(hWnd, 16 + (int)analogLines.size() * 18) : 0;
         int availW = std::max(1, clientW - margin * 2 - cardGap * (cols - 1));
-        int availH = std::max(1, clientH - margin * 2 - analogInfoH - (showAnalogInfo ? cardGap : 0) - cardGap * (rows - 1));
+        const int minCardH = S(hWnd, 156);
+        int availH = std::max(minCardH * rows,
+            clientH - margin * 2 - analogInfoH - (showAnalogInfo ? cardGap : 0) - cardGap * (rows - 1));
         int cardW = std::max(1, availW / cols);
         int cardH = std::max(1, availH / rows);
+        const int contentHeight = margin * 2 + analogInfoH +
+            (showAnalogInfo ? cardGap : 0) + rows * cardH + cardGap * (rows - 1);
+        if (state)
+        {
+            CustomPageSurface_SetState(&state->surface, state->surface.scrollY, contentHeight);
+            state->surface.scrollY = std::clamp(state->surface.scrollY, 0,
+                CustomPageSurface_GetMaxScroll(hWnd, &state->surface));
+        }
+        const int scrollY = state ? state->surface.scrollY : 0;
 
         HPEN cardPen = CreatePen(PS_SOLID, 1, UiTheme::Color_Border());
         HGDIOBJ oldPenGlobal = SelectObject(memDC, cardPen);
@@ -182,15 +226,19 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
         if (showAnalogInfo)
         {
-            RECT info{ margin, margin, clientW - margin, margin + analogInfoH };
+            RECT info{ margin, margin - scrollY, clientW - margin, margin - scrollY + analogInfoH };
             FillRect(memDC, &info, UiTheme::Brush_ControlBg());
             Rectangle(memDC, info.left, info.top, info.right, info.bottom);
 
             int x = info.left + S(hWnd, 10);
             int y = info.top + S(hWnd, 8);
-            int lineH = S(hWnd, 16);
-            wchar_t buf[256]{};
+            int lineH = S(hWnd, 18);
 
+            for (const auto& line : analogLines)
+                textLine(x, y, line, lineH);
+
+#if 0 // Replaced by the single route-complete diagnostics builder above.
+            wchar_t buf[256]{};
             if (analog.mad68Connected)
             {
                 const wchar_t* mode = analog.mad68Full ? L"full native" : L"emergency W/A/S/D";
@@ -348,13 +396,15 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
                 }
             }
         }
+#endif
+        }
 
         for (int pad = 0; pad < padCount; ++pad)
         {
             int col = pad % cols;
             int row = pad / cols;
             int left = margin + col * (cardW + cardGap);
-            int top = margin + analogInfoH + (showAnalogInfo ? cardGap : 0) + row * (cardH + cardGap);
+            int top = margin - scrollY + analogInfoH + (showAnalogInfo ? cardGap : 0) + row * (cardH + cardGap);
 
             RECT card{ left, top, left + cardW, top + cardH };
             FillRect(memDC, &card, UiTheme::Brush_ControlBg());
@@ -402,6 +452,9 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
             textLine(x0, y, L"Buttons: " + GamepadRender_ButtonsToString(r.wButtons), lineH);
         }
 
+        if (state)
+            CustomPageSurface_DrawScrollbar(hWnd, memDC, &state->surface, state->scroll.draggingThumb);
+
         SelectObject(memDC, oldFont);
         SelectObject(memDC, oldBrushGlobal);
         SelectObject(memDC, oldPenGlobal);
@@ -409,6 +462,64 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
         EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
         return 0;
     }
+
+    case WM_MOUSEWHEEL:
+        if (state)
+        {
+            CustomPageSurface_HandleScrollMessage(hWnd, &state->surface, &state->scroll,
+                msg, wParam, lParam, S(hWnd, 54));
+            return 0;
+        }
+        break;
+
+    case WM_LBUTTONDOWN:
+        if (state)
+        {
+            if (CustomPageSurface_HandleScrollMessage(hWnd, &state->surface, &state->scroll,
+                msg, wParam, lParam, S(hWnd, 54)) != CustomPageScrollResult::NotHandled)
+                return 0;
+        }
+        break;
+
+    case WM_MOUSEMOVE:
+        if (state && state->scroll.draggingThumb)
+        {
+            CustomPageSurface_HandleScrollMessage(hWnd, &state->surface, &state->scroll,
+                msg, wParam, lParam, S(hWnd, 54));
+            return 0;
+        }
+        break;
+
+    case WM_LBUTTONUP:
+        if (state && state->scroll.draggingThumb)
+        {
+            CustomPageSurface_HandleScrollMessage(hWnd, &state->surface, &state->scroll,
+                msg, wParam, lParam, S(hWnd, 54));
+            return 0;
+        }
+        break;
+
+    case WM_CAPTURECHANGED:
+        if (state)
+        {
+            CustomPageSurface_HandleScrollMessage(hWnd, &state->surface, &state->scroll,
+                msg, wParam, lParam, S(hWnd, 54));
+        }
+        return 0;
+
+    case WM_SIZE:
+        if (state)
+            CustomPageSurface_SetScrollY(hWnd, &state->surface, state->surface.scrollY);
+        return 0;
+
+    case WM_NCDESTROY:
+        if (state)
+        {
+            CustomPageSurface_Destroy(&state->surface);
+            delete state;
+            SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);
+        }
+        return DefWindowProcW(hWnd, msg, wParam, lParam);
     }
 
     return DefWindowProcW(hWnd, msg, wParam, lParam);
@@ -1466,6 +1577,7 @@ enum class OverlayCustomKind
 {
     Label,
     Button,
+    Combo,
     Checkbox,
     Slider,
     Chip,
@@ -1511,6 +1623,7 @@ struct OverlayCustomState
 {
     std::vector<OverlayCustomItem> items;
     CustomPageSurface surface;
+    CustomPageScrollController scroll;
     int scrollY = 0;
     int contentHeight = 0;
     int hotId = 0;
@@ -1518,10 +1631,6 @@ struct OverlayCustomState
     int focusId = 0;
     int dragId = 0;
     int colorDragMode = 0; // 1 = saturation/value square, 2 = hue strip
-    bool scrollDrag = false;
-    int scrollDragGrabOffsetY = 0;
-    int scrollDragThumbHeight = 0;
-    int scrollDragMax = 0;
     std::wstring portText;
     std::wstring hexText;
     std::wstring labelHexText;
@@ -1529,6 +1638,9 @@ struct OverlayCustomState
     OverlayColorBitmapCache labelColorCache;
     OverlayColorUiState indicatorColorUi;
     OverlayColorUiState labelColorUi;
+    HWND comboDirection = nullptr;
+    HWND comboDepthSource = nullptr;
+    HWND comboLabelFont = nullptr;
 };
 
 static void OverlayCustom_DestroyColorCache(OverlayColorBitmapCache& cache)
@@ -1724,9 +1836,9 @@ static void OverlayCustom_RebuildLayout(HWND hWnd, OverlayCustomState* st)
         y += labelH + S(hWnd, 6);
         OverlayCustom_AddItem(st, OVERLAY_ID_PORT, OverlayCustomKind::Edit, RECT{ x, y, x + portW, y + editH }, st->portText);
         st->items.back().enabled = !OverlayServer_IsRunning();
-        OverlayCustom_AddItem(st, OVERLAY_ID_DIRECTION, OverlayCustomKind::Button, RECT{ x + portW + gap, y, x + portW + gap + directionW, y + editH },
+        OverlayCustom_AddItem(st, OVERLAY_ID_DIRECTION, OverlayCustomKind::Combo, RECT{ x + portW + gap, y, x + portW + gap + directionW, y + editH },
             OverlayServer_GetFillDirection() == OverlayFillDirection::TopDown ? L"Top to bottom" : L"Bottom to top");
-        OverlayCustom_AddItem(st, OVERLAY_ID_DEPTH_SOURCE, OverlayCustomKind::Button, RECT{ x + portW + gap + directionW + gap, y, x + portW + gap + directionW + gap + depthW, y + editH },
+        OverlayCustom_AddItem(st, OVERLAY_ID_DEPTH_SOURCE, OverlayCustomKind::Combo, RECT{ x + portW + gap + directionW + gap, y, x + portW + gap + directionW + gap + depthW, y + editH },
             OverlayServer_GetUseRawDepth() ? L"Raw press depth" : L"After curves");
         y += editH + rowGap;
     }
@@ -1738,12 +1850,12 @@ static void OverlayCustom_RebuildLayout(HWND hWnd, OverlayCustomState* st)
         y += editH + S(hWnd, 8);
         OverlayCustom_AddItem(st, 3, OverlayCustomKind::Label, RECT{ x, y, x + directionW, y + labelH }, L"Fill direction");
         y += labelH + S(hWnd, 6);
-        OverlayCustom_AddItem(st, OVERLAY_ID_DIRECTION, OverlayCustomKind::Button, RECT{ x, y, x + directionW, y + editH },
+        OverlayCustom_AddItem(st, OVERLAY_ID_DIRECTION, OverlayCustomKind::Combo, RECT{ x, y, x + directionW, y + editH },
             OverlayServer_GetFillDirection() == OverlayFillDirection::TopDown ? L"Top to bottom" : L"Bottom to top");
         y += editH + S(hWnd, 8);
         OverlayCustom_AddItem(st, 4, OverlayCustomKind::Label, RECT{ x, y, x + depthW, y + labelH }, L"Depth display");
         y += labelH + S(hWnd, 6);
-        OverlayCustom_AddItem(st, OVERLAY_ID_DEPTH_SOURCE, OverlayCustomKind::Button, RECT{ x, y, x + depthW, y + editH },
+        OverlayCustom_AddItem(st, OVERLAY_ID_DEPTH_SOURCE, OverlayCustomKind::Combo, RECT{ x, y, x + depthW, y + editH },
             OverlayServer_GetUseRawDepth() ? L"Raw press depth" : L"After curves");
         y += editH + rowGap;
     }
@@ -1769,7 +1881,7 @@ static void OverlayCustom_RebuildLayout(HWND hWnd, OverlayCustomState* st)
     int styleBtnW = std::min(S(hWnd, 180), w);
     int styleChipW = S(hWnd, 74);
     int styleSliderW = std::max(S(hWnd, 140), w - styleBtnW - styleChipW - gap * 2);
-    OverlayCustom_AddItem(st, OVERLAY_ID_LABEL_FONT, OverlayCustomKind::Button, RECT{ x, y, x + styleBtnW, y + editH }, OverlayCustom_LabelFontName(OverlayServer_GetLabelFontIndex()));
+    OverlayCustom_AddItem(st, OVERLAY_ID_LABEL_FONT, OverlayCustomKind::Combo, RECT{ x, y, x + styleBtnW, y + editH }, OverlayCustom_LabelFontName(OverlayServer_GetLabelFontIndex()));
     y += editH + S(hWnd, 8);
 
     OverlayCustom_AddItem(st, 15, OverlayCustomKind::Label, RECT{ x, y, x + styleBtnW, y + sliderH }, L"Size");
@@ -2142,6 +2254,19 @@ static void OverlayCustom_DrawItem(HWND hWnd, HDC hdc, Graphics& g, OverlayCusto
     case OverlayCustomKind::Button:
         CustomPage_DrawButton(g, hdc, rc, it.text, hot, pressed, it.enabled);
         break;
+    case OverlayCustomKind::Combo:
+    {
+        HWND combo = nullptr;
+        if (st)
+        {
+            if (it.id == OVERLAY_ID_DIRECTION) combo = st->comboDirection;
+            else if (it.id == OVERLAY_ID_DEPTH_SOURCE) combo = st->comboDepthSource;
+            else if (it.id == OVERLAY_ID_LABEL_FONT) combo = st->comboLabelFont;
+        }
+        if (combo)
+            PremiumCombo::PaintRetainedFace(combo, hdc, rc, hot);
+        break;
+    }
     case OverlayCustomKind::Checkbox:
     {
         bool checked = OverlayServer_GetEffectEnabled(it.flag);
@@ -2228,7 +2353,7 @@ static void OverlayCustom_DrawScrollbar(HWND hWnd, HDC hdc, Graphics& g, Overlay
     if (!st) return;
     st->surface.contentHeight = st->contentHeight;
     st->surface.scrollY = st->scrollY;
-    CustomPageSurface_DrawScrollbar(hWnd, hdc, &st->surface, st->scrollDrag);
+    CustomPageSurface_DrawScrollbar(hWnd, hdc, &st->surface, st->scroll.draggingThumb);
 }
 
 static void OverlayCustom_SetSliderFromPoint(HWND hWnd, OverlayCustomState* st, OverlayCustomItem* it, int x)
@@ -2334,6 +2459,79 @@ static void OverlayCustom_SetHueFromPoint(HWND hWnd, OverlayCustomState* st, Ove
     InvalidateRect(hWnd, nullptr, FALSE);
 }
 
+static HWND OverlayCustom_ComboForId(OverlayCustomState* st, int id)
+{
+    if (!st) return nullptr;
+    if (id == OVERLAY_ID_DIRECTION) return st->comboDirection;
+    if (id == OVERLAY_ID_DEPTH_SOURCE) return st->comboDepthSource;
+    if (id == OVERLAY_ID_LABEL_FONT) return st->comboLabelFont;
+    return nullptr;
+}
+
+static void OverlayCustom_CloseComboAnchors(OverlayCustomState* st)
+{
+    if (!st) return;
+    HWND combos[] = { st->comboDirection, st->comboDepthSource, st->comboLabelFont };
+    for (HWND combo : combos)
+    {
+        if (!combo) continue;
+        PremiumCombo::ShowDropDown(combo, false);
+        ShowWindow(combo, SW_HIDE);
+    }
+}
+
+static void OverlayCustom_OpenComboAnchor(HWND hWnd, OverlayCustomState* st, int id)
+{
+    HWND combo = OverlayCustom_ComboForId(st, id);
+    if (!combo) return;
+    const OverlayCustomItem* item = nullptr;
+    for (const auto& candidate : st->items)
+        if (candidate.id == id) { item = &candidate; break; }
+    if (!item) return;
+
+    OverlayCustom_CloseComboAnchors(st);
+    RECT view = CustomPageSurface_ContentToClient(&st->surface, item->rc);
+    SetWindowPos(combo, HWND_TOP, view.left, view.top,
+        std::max(1L, view.right - view.left), std::max(1L, view.bottom - view.top),
+        SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    SetFocus(combo);
+    PremiumCombo::ShowDropDown(combo, true);
+}
+
+static void OverlayCustom_InitCombos(HWND hWnd, OverlayCustomState* st)
+{
+    if (!st) return;
+    HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
+    HFONT font = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+    auto create = [&](int id)
+    {
+        HWND combo = PremiumCombo::Create(hWnd, hInst, 0, 0, 10, 10, id,
+            WS_CHILD | WS_TABSTOP);
+        PremiumCombo::SetFont(combo, font, false);
+        PremiumCombo::SetDropMaxVisible(combo, 10);
+        ShowWindow(combo, SW_HIDE);
+        return combo;
+    };
+
+    st->comboDirection = create(OVERLAY_ID_DIRECTION);
+    PremiumCombo::AddString(st->comboDirection, L"Top to bottom");
+    PremiumCombo::AddString(st->comboDirection, L"Bottom to top");
+
+    st->comboDepthSource = create(OVERLAY_ID_DEPTH_SOURCE);
+    PremiumCombo::AddString(st->comboDepthSource, L"After curves");
+    PremiumCombo::AddString(st->comboDepthSource, L"Raw press depth");
+
+    st->comboLabelFont = create(OVERLAY_ID_LABEL_FONT);
+    for (int i = 0; i < 13; ++i)
+        PremiumCombo::AddString(st->comboLabelFont, OverlayCustom_LabelFontName(i));
+
+    PremiumCombo::SetCurSel(st->comboDirection,
+        OverlayServer_GetFillDirection() == OverlayFillDirection::TopDown ? 0 : 1, false);
+    PremiumCombo::SetCurSel(st->comboDepthSource, OverlayServer_GetUseRawDepth() ? 1 : 0, false);
+    PremiumCombo::SetCurSel(st->comboLabelFont,
+        std::clamp(OverlayServer_GetLabelFontIndex(), 0, 12), false);
+}
+
 static void OverlayCustom_Activate(HWND hWnd, OverlayCustomState* st, int id)
 {
     if (!st) return;
@@ -2362,16 +2560,10 @@ static void OverlayCustom_Activate(HWND hWnd, OverlayCustomState* st, int id)
         OverlayPage_SetClipboardText(hWnd, OverlayCustom_BuildUrl(st));
         break;
     case OVERLAY_ID_DIRECTION:
-        OverlayServer_SetFillDirection(OverlayServer_GetFillDirection() == OverlayFillDirection::TopDown
-            ? OverlayFillDirection::BottomUp
-            : OverlayFillDirection::TopDown);
-        break;
     case OVERLAY_ID_DEPTH_SOURCE:
-        OverlayServer_SetUseRawDepth(!OverlayServer_GetUseRawDepth());
-        break;
     case OVERLAY_ID_LABEL_FONT:
-        OverlayServer_SetLabelFontIndex((OverlayServer_GetLabelFontIndex() + 1) % 13);
-        break;
+        OverlayCustom_OpenComboAnchor(hWnd, st, id);
+        return;
     default:
     {
         uint32_t flag = 0;
@@ -2388,6 +2580,38 @@ static void OverlayCustom_Activate(HWND hWnd, OverlayCustomState* st, int id)
 static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     auto* st = (OverlayCustomState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+
+    if (msg == PremiumCombo::MsgDropStateChanged())
+    {
+        if (st && !wParam)
+        {
+            ShowWindow((HWND)lParam, SW_HIDE);
+            OverlayCustom_MarkCacheDirty(hWnd, st);
+        }
+        return 0;
+    }
+
+    if (msg == WM_COMMAND && st && HIWORD(wParam) == CBN_SELCHANGE)
+    {
+        const int id = LOWORD(wParam);
+        HWND combo = (HWND)lParam;
+        if (combo == OverlayCustom_ComboForId(st, id))
+        {
+            const int selection = PremiumCombo::GetCurSel(combo);
+            if (id == OVERLAY_ID_DIRECTION)
+                OverlayServer_SetFillDirection(selection == 1
+                    ? OverlayFillDirection::BottomUp : OverlayFillDirection::TopDown);
+            else if (id == OVERLAY_ID_DEPTH_SOURCE)
+                OverlayServer_SetUseRawDepth(selection == 1);
+            else if (id == OVERLAY_ID_LABEL_FONT)
+                OverlayServer_SetLabelFontIndex(std::clamp(selection, 0, 12));
+            OverlayCustom_RebuildLayout(hWnd, st);
+            OverlayCustom_RequestSave(hWnd);
+            OverlayCustom_MarkCacheDirty(hWnd, st);
+            return 0;
+        }
+    }
+
     switch (msg)
     {
     case WM_ERASEBKGND:
@@ -2402,17 +2626,20 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
         OverlayCustom_SyncColorUiFromRgb(st->indicatorColorUi, OverlayServer_GetAccentColor());
         OverlayCustom_SyncColorUiFromRgb(st->labelColorUi, OverlayServer_GetLabelColor());
         SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)st);
+        OverlayCustom_InitCombos(hWnd, st);
         OverlayCustom_RebuildLayout(hWnd, st);
         return 0;
     }
 
     case WM_NCDESTROY:
+        OverlayCustom_CloseComboAnchors(st);
         OverlayCustom_DestroyCache(st);
         delete st;
         SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);
         return 0;
 
     case WM_SIZE:
+        OverlayCustom_CloseComboAnchors(st);
         OverlayCustom_RebuildLayout(hWnd, st);
         InvalidateRect(hWnd, nullptr, FALSE);
         return 0;
@@ -2420,11 +2647,18 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
     case WM_SHOWWINDOW:
         if (wParam && st)
         {
+            PremiumCombo::SetCurSel(st->comboDirection,
+                OverlayServer_GetFillDirection() == OverlayFillDirection::TopDown ? 0 : 1, false);
+            PremiumCombo::SetCurSel(st->comboDepthSource, OverlayServer_GetUseRawDepth() ? 1 : 0, false);
+            PremiumCombo::SetCurSel(st->comboLabelFont,
+                std::clamp(OverlayServer_GetLabelFontIndex(), 0, 12), false);
             st->hexText = OverlayPage_FormatHex(OverlayServer_GetAccentColor());
             st->labelHexText = OverlayPage_FormatHex(OverlayServer_GetLabelColor());
             OverlayCustom_RebuildLayout(hWnd, st);
             InvalidateRect(hWnd, nullptr, FALSE);
         }
+        else if (st)
+            OverlayCustom_CloseComboAnchors(st);
         return 0;
 
     case WM_PAINT:
@@ -2435,37 +2669,12 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
         HBITMAP bmp = nullptr;
         HGDIOBJ oldBmp = nullptr;
         BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
-        RECT rc{};
-        GetClientRect(hWnd, &rc);
-        FillRect(memDC, &rc, UiTheme::Brush_PanelBg());
-        Graphics g(memDC);
-        g.SetSmoothingMode(SmoothingModeAntiAlias);
-        g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
-        g.SetTextRenderingHint(TextRenderingHintClearTypeGridFit);
         if (st)
         {
-            if (OverlayCustom_RenderContentCache(hWnd, memDC, st))
-            {
-                HDC cacheDC = CreateCompatibleDC(memDC);
-                if (cacheDC)
-                {
-                    HGDIOBJ old = SelectObject(cacheDC, st->surface.contentCache);
-                    int copyW = std::min((int)(rc.right - rc.left), st->surface.cacheWidth);
-                    int copyH = std::min((int)(rc.bottom - rc.top), std::max(0, st->surface.cacheHeight - st->scrollY));
-                    if (copyW > 0 && copyH > 0)
-                        BitBlt(memDC, 0, 0, copyW, copyH, cacheDC, 0, st->scrollY, SRCCOPY);
-                    SelectObject(cacheDC, old);
-                    DeleteDC(cacheDC);
-                }
-            }
-            else
-            {
-                HGDIOBJ oldFont = SelectObject(memDC, GetStockObject(DEFAULT_GUI_FONT));
-                for (const auto& it : st->items)
-                    OverlayCustom_DrawItem(hWnd, memDC, g, st, it);
-                SelectObject(memDC, oldFont);
-            }
-            OverlayCustom_DrawScrollbar(hWnd, memDC, g, st);
+            st->surface.contentHeight = st->contentHeight;
+            st->surface.scrollY = st->scrollY;
+            CustomPageSurface_Present(hWnd, memDC, &st->surface,
+                OverlayCustom_RenderCacheContent, st, st->scroll.draggingThumb);
         }
         EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
         if (st && st->surface.scrollSampleStartMs != 0)
@@ -2488,16 +2697,11 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
     {
         if (!st) break;
         POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
-        if (st->scrollDrag)
+        if (st->scroll.draggingThumb)
         {
-            RECT track = OverlayCustom_GetScrollTrackRect(hWnd);
-            int thumbH = std::max(1, st->scrollDragThumbHeight);
-            int travel = std::max(1, (int)(track.bottom - track.top) - thumbH);
-            int maxScroll = std::max(1, st->scrollDragMax);
-            int topWanted = pt.y - st->scrollDragGrabOffsetY;
-            int topClamped = std::clamp(topWanted, (int)track.top, (int)track.bottom - thumbH);
-            double t = (double)(topClamped - track.top) / (double)travel;
-            OverlayCustom_SetScrollY(hWnd, st, (int)std::lround(t * (double)maxScroll));
+            CustomPageSurface_HandleScrollMessage(hWnd, &st->surface, &st->scroll,
+                msg, wParam, lParam, S(hWnd, 54));
+            st->scrollY = st->surface.scrollY;
             return 0;
         }
         if (st->dragId)
@@ -2526,25 +2730,15 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
     case WM_LBUTTONDOWN:
     {
         if (!st) break;
+        OverlayCustom_CloseComboAnchors(st);
         SetFocus(hWnd);
         POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
-        RECT thumb = OverlayCustom_GetScrollThumbRect(hWnd, st);
-        RECT track = OverlayCustom_GetScrollTrackRect(hWnd);
-        int maxScroll = OverlayCustom_GetMaxScroll(hWnd, st);
-        if (maxScroll > 0 && PtInRect(&thumb, pt))
+        st->surface.contentHeight = st->contentHeight;
+        st->surface.scrollY = st->scrollY;
+        if (CustomPageSurface_HandleScrollMessage(hWnd, &st->surface, &st->scroll,
+            msg, wParam, lParam, S(hWnd, 54)) != CustomPageScrollResult::NotHandled)
         {
-            st->scrollDrag = true;
-            st->scrollDragGrabOffsetY = pt.y - thumb.top;
-            st->scrollDragThumbHeight = std::max(1, (int)thumb.bottom - (int)thumb.top);
-            st->scrollDragMax = maxScroll;
-            SetCapture(hWnd);
-            InvalidateRect(hWnd, nullptr, FALSE);
-            return 0;
-        }
-        if (maxScroll > 0 && PtInRect(&track, pt))
-        {
-            int page = std::max(S(hWnd, 80), (int)((track.bottom - track.top) * 0.75));
-            OverlayCustom_SetScrollY(hWnd, st, pt.y < thumb.top ? st->scrollY - page : st->scrollY + page);
+            st->scrollY = st->surface.scrollY;
             return 0;
         }
 
@@ -2579,11 +2773,12 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
         if (!st) break;
         POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
         int pressed = st->pressedId;
-        bool wasDrag = st->dragId != 0 || st->scrollDrag;
+        bool wasDrag = st->dragId != 0 || st->scroll.draggingThumb;
         st->pressedId = 0;
         st->dragId = 0;
         st->colorDragMode = 0;
-        st->scrollDrag = false;
+        CustomPageSurface_HandleScrollMessage(hWnd, &st->surface, &st->scroll,
+            msg, wParam, lParam, S(hWnd, 54));
         if (GetCapture() == hWnd)
             ReleaseCapture();
         OverlayCustomItem* hit = OverlayCustom_HitTest(st, pt);
@@ -2600,7 +2795,8 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
             st->pressedId = 0;
             st->dragId = 0;
             st->colorDragMode = 0;
-            st->scrollDrag = false;
+            CustomPageSurface_HandleScrollMessage(hWnd, &st->surface, &st->scroll,
+                msg, wParam, lParam, S(hWnd, 54));
             OverlayCustom_MarkCacheDirty(hWnd, st);
         }
         return 0;
@@ -2608,16 +2804,12 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
     case WM_MOUSEWHEEL:
         if (st)
         {
-            int delta = GET_WHEEL_DELTA_WPARAM(wParam);
-            int lines = 3;
-            SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &lines, 0);
-            if (lines <= 0) lines = 3;
-            int linePx = S(hWnd, 18);
-            int step = std::max(S(hWnd, 24), lines * linePx);
-            int notches = delta / WHEEL_DELTA;
-            if (notches == 0)
-                notches = (delta > 0) ? 1 : -1;
-            OverlayCustom_SetScrollY(hWnd, st, st->scrollY - notches * step);
+            OverlayCustom_CloseComboAnchors(st);
+            st->surface.contentHeight = st->contentHeight;
+            st->surface.scrollY = st->scrollY;
+            CustomPageSurface_HandleScrollMessage(hWnd, &st->surface, &st->scroll,
+                msg, wParam, lParam, S(hWnd, 54));
+            st->scrollY = st->surface.scrollY;
             return 0;
         }
         break;
@@ -5341,12 +5533,21 @@ struct GlobalSettingsPageState
     HWND lblFactoryResetHint = nullptr;
 
     CustomPageSurface surface;
+    CustomPageScrollController scroll;
     int scrollY = 0;
     int contentHeight = 0;
-    bool scrollDrag = false;
-    int scrollDragGrabOffsetY = 0;
-    int scrollDragThumbHeight = 0;
-    int scrollDragMax = 0;
+    RECT rcGlobalProfile{};
+    RECT rcLayout{};
+    RECT rcLayoutEditor{};
+    RECT rcLayoutsFolder{};
+    RECT rcPollSlider{};
+    RECT rcPollChip{};
+    RECT rcUiRefreshSlider{};
+    RECT rcUiRefreshChip{};
+    RECT rcFactoryReset{};
+    int hotId = 0;
+    int pressedId = 0;
+    int dragId = 0;
 
     int   pendingDeleteIdx = -1;
     DWORD pendingDeleteTick = 0;
@@ -5362,61 +5563,87 @@ static constexpr int GLOB_ID_LAYOUT_COMBO = 7603;
 static constexpr int GLOB_ID_LAYOUT_EDITOR = 7604;
 static constexpr int GLOB_ID_LAYOUTS_FOLDER = 7605;
 static constexpr int GLOB_ID_GLOBAL_PROFILE_COMBO = 7606;
+static constexpr int GLOB_ID_GLOBAL_PROFILE_SAVE = 7610;
 static constexpr int GLOB_ID_FACTORY_RESET = 7607;
 
 static void Global_DrawActionButton(const DRAWITEMSTRUCT* dis, bool danger = false)
 {
     if (!dis) return;
 
-    RECT rc = dis->rcItem;
-    HDC hdc = dis->hDC;
+    const int width = dis->rcItem.right - dis->rcItem.left;
+    const int height = dis->rcItem.bottom - dis->rcItem.top;
+    if (width <= 1 || height <= 1) return;
 
-    bool disabled = (dis->itemState & ODS_DISABLED) != 0;
-    bool pressed = (dis->itemState & ODS_SELECTED) != 0;
-    bool hot = (dis->itemState & ODS_HOTLIGHT) != 0;
-
-    COLORREF bg = danger ? RGB(108, 35, 43) : UiTheme::Color_ControlBg();
-    if (pressed)
-        bg = danger ? RGB(82, 28, 34) : RGB(42, 42, 44);
-    else if (hot)
-        bg = danger ? RGB(128, 41, 50) : RGB(40, 40, 42);
-
-    HBRUSH br = CreateSolidBrush(bg);
-    FillRect(hdc, &rc, br);
-    DeleteObject(br);
-
-    const COLORREF border = danger ? RGB(222, 78, 91) : UiTheme::Color_Border();
-    HPEN pen = CreatePen(PS_SOLID, 1, border);
-    HGDIOBJ oldPen = SelectObject(hdc, pen);
-    HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
-    Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
-    SelectObject(hdc, oldBrush);
-    SelectObject(hdc, oldPen);
-    DeleteObject(pen);
-
-    if (danger)
+    auto draw = [&](HDC hdc, const RECT& rc)
     {
-        RECT accent{ rc.left + 1, rc.top + 1, rc.left + S(dis->hwndItem, 4), rc.bottom - 1 };
-        HBRUSH accentBrush = CreateSolidBrush(RGB(222, 78, 91));
-        FillRect(hdc, &accent, accentBrush);
-        DeleteObject(accentBrush);
+        const bool disabled = (dis->itemState & ODS_DISABLED) != 0;
+        const bool pressed = (dis->itemState & ODS_SELECTED) != 0;
+        const bool hot = (dis->itemState & ODS_HOTLIGHT) != 0;
+
+        COLORREF bg = danger ? RGB(108, 35, 43) : UiTheme::Color_ControlBg();
+        if (disabled)
+            bg = danger ? RGB(69, 40, 44) : RGB(35, 35, 37);
+        else if (pressed)
+            bg = danger ? RGB(82, 28, 34) : RGB(42, 42, 44);
+        else if (hot)
+            bg = danger ? RGB(128, 41, 50) : RGB(40, 40, 42);
+
+        FillRect(hdc, &rc, UiTheme::Brush_PanelBg());
+
+        Graphics g(hdc);
+        g.SetSmoothingMode(SmoothingModeAntiAlias);
+        g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+        RectF bounds(0.75f, 0.75f, (REAL)(rc.right - rc.left) - 1.5f,
+            (REAL)(rc.bottom - rc.top) - 1.5f);
+        const float radius = (float)std::clamp(S(dis->hwndItem, 7), 4, 12);
+        GraphicsPath path;
+        AddRoundRectPath(path, bounds, radius);
+        SolidBrush fill(Gp(bg));
+        g.FillPath(&fill, &path);
+
+        const COLORREF border = danger ? RGB(222, 78, 91) : UiTheme::Color_Border();
+        Pen outline(Gp(disabled ? UiTheme::Color_Border() : border), 1.25f);
+        outline.SetLineJoin(LineJoinRound);
+        g.DrawPath(&outline, &path);
+
+        if ((dis->itemState & ODS_FOCUS) != 0 && !disabled)
+        {
+            RectF focus = bounds;
+            focus.Inflate(-3.0f, -3.0f);
+            GraphicsPath focusPath;
+            AddRoundRectPath(focusPath, focus, std::max(3.0f, radius - 2.0f));
+            Pen focusPen(Gp(danger ? RGB(255, 171, 180) : UiTheme::Color_Accent()), 2.0f);
+            focusPen.SetLineJoin(LineJoinRound);
+            g.DrawPath(&focusPen, &focusPath);
+        }
+
+        wchar_t text[128]{};
+        GetWindowTextW(dis->hwndItem, text, (int)_countof(text));
+        SetBkMode(hdc, TRANSPARENT);
+        SetTextColor(hdc, disabled ? UiTheme::Color_TextMuted() :
+            (danger ? RGB(255, 238, 240) : UiTheme::Color_Text()));
+        DrawTextW(hdc, text, -1, const_cast<RECT*>(&rc),
+            DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    };
+
+    HDC memDC = CreateCompatibleDC(dis->hDC);
+    HBITMAP bitmap = memDC ? CreateCompatibleBitmap(dis->hDC, width, height) : nullptr;
+    if (!memDC || !bitmap)
+    {
+        if (bitmap) DeleteObject(bitmap);
+        if (memDC) DeleteDC(memDC);
+        draw(dis->hDC, dis->rcItem);
+        return;
     }
 
-    wchar_t text[128]{};
-    GetWindowTextW(dis->hwndItem, text, (int)(sizeof(text) / sizeof(text[0])));
-
-    SetBkMode(hdc, TRANSPARENT);
-    SetTextColor(hdc, disabled ? UiTheme::Color_TextMuted() :
-        (danger ? RGB(255, 238, 240) : UiTheme::Color_Text()));
-    DrawTextW(hdc, text, -1, &rc,
-        DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-
-    if (dis->itemState & ODS_FOCUS)
-    {
-        RECT focus = rc;
-        InflateRect(&focus, -4, -4);
-        DrawFocusRect(hdc, &focus);
-    }
+    HGDIOBJ oldBitmap = SelectObject(memDC, bitmap);
+    RECT local{ 0, 0, width, height };
+    draw(memDC, local);
+    BitBlt(dis->hDC, dis->rcItem.left, dis->rcItem.top, width, height,
+        memDC, 0, 0, SRCCOPY);
+    SelectObject(memDC, oldBitmap);
+    DeleteObject(bitmap);
+    DeleteDC(memDC);
 }
 
 static void Global_RequestSave(HWND hWnd)
@@ -5826,16 +6053,6 @@ static void Global_SetScrollY(HWND hWnd, GlobalSettingsPageState* st, int scroll
         return;
 
     st->scrollY = st->surface.scrollY;
-    Global_Layout(hWnd, st);
-    RedrawWindow(hWnd, nullptr, nullptr,
-        RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
-}
-
-static void Global_DrawScrollbar(HWND hWnd, HDC hdc, GlobalSettingsPageState* st)
-{
-    if (!st) return;
-    CustomPageSurface_SetState(&st->surface, st->scrollY, st->contentHeight);
-    CustomPageSurface_DrawScrollbar(hWnd, hdc, &st->surface, st->scrollDrag);
 }
 
 static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
@@ -5860,67 +6077,30 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
 
     int sliderW = (rc.right - rc.left) - margin * 2 - scrollbarReserve - chipW - gap;
     sliderW = std::max(S(hWnd, 180), sliderW);
-    auto pos = [&](HWND child, int px, int py, int pw, int ph)
-    {
-        if (child)
-            SetWindowPos(child, nullptr, px, py - st->scrollY, pw, ph,
-                SWP_NOZORDER | SWP_NOACTIVATE);
-    };
-
-    pos(st->lblGlobalProfile, x, y, sliderW + gap + chipW, labelH);
+    // All geometry is retained in content coordinates. The compatibility
+    // PremiumCombo HWNDs stay hidden until their popup is explicitly opened.
     y += labelH + S(hWnd, 6);
-
-    pos(st->cmbGlobalProfile, x, y, sliderW + gap + chipW, comboVisibleH);
+    st->rcGlobalProfile = RECT{ x, y, x + sliderW + gap + chipW, y + comboVisibleH };
     y += comboVisibleH + rowGap;
-
-    pos(st->lblLayout, x, y, sliderW + gap + chipW, labelH);
     y += labelH + S(hWnd, 6);
-
-    pos(st->cmbLayout, x, y, sliderW + gap + chipW, comboVisibleH);
+    st->rcLayout = RECT{ x, y, x + sliderW + gap + chipW, y + comboVisibleH };
     y += comboVisibleH + rowGap;
-
-    if (st->btnLayoutEditor)
-    {
-        int bw = S(hWnd, 210);
-        int bh = S(hWnd, 28);
-        pos(st->btnLayoutEditor, x, y, bw, bh);
-        y += bh + S(hWnd, 14);
-    }
-
-    if (st->btnOpenLayoutsFolder)
-    {
-        int bw = S(hWnd, 210);
-        int bh = S(hWnd, 28);
-        pos(st->btnOpenLayoutsFolder, x, y, bw, bh);
-        y += bh + S(hWnd, 14);
-    }
-
-    pos(st->lblPoll, x, y, sliderW + gap + chipW, labelH);
+    st->rcLayoutEditor = RECT{ x, y, x + S(hWnd, 210), y + S(hWnd, 28) };
+    y += S(hWnd, 28) + S(hWnd, 14);
+    st->rcLayoutsFolder = RECT{ x, y, x + S(hWnd, 210), y + S(hWnd, 28) };
+    y += S(hWnd, 28) + S(hWnd, 14);
     y += labelH + S(hWnd, 6);
-
-    pos(st->sldPoll, x, y, sliderW, sliderH);
-    pos(st->chipPoll, x + sliderW + gap, y, chipW, chipH);
+    st->rcPollSlider = RECT{ x, y, x + sliderW, y + sliderH };
+    st->rcPollChip = RECT{ x + sliderW + gap, y, x + sliderW + gap + chipW, y + chipH };
     y += sliderH + rowGap;
-
-    pos(st->lblUiRefresh, x, y, sliderW + gap + chipW, labelH);
     y += labelH + S(hWnd, 6);
-
-    pos(st->sldUiRefresh, x, y, sliderW, sliderH);
-    pos(st->chipUiRefresh, x + sliderW + gap, y, chipW, chipH);
+    st->rcUiRefreshSlider = RECT{ x, y, x + sliderW, y + sliderH };
+    st->rcUiRefreshChip = RECT{ x + sliderW + gap, y, x + sliderW + gap + chipW, y + chipH };
     y += sliderH + S(hWnd, 14);
-
-    pos(st->lblHint, x, y,
-        std::max(S(hWnd, 120), sliderW + gap + chipW), S(hWnd, 20));
     y += S(hWnd, 20) + S(hWnd, 18);
-
-    pos(st->lblFactoryReset, x, y, sliderW + gap + chipW, labelH);
     y += labelH + S(hWnd, 7);
-
-    pos(st->btnFactoryReset, x, y, S(hWnd, 210), S(hWnd, 30));
+    st->rcFactoryReset = RECT{ x, y, x + S(hWnd, 210), y + S(hWnd, 30) };
     y += S(hWnd, 30) + S(hWnd, 7);
-
-    pos(st->lblFactoryResetHint, x, y,
-        std::max(S(hWnd, 120), sliderW + gap + chipW), S(hWnd, 34));
     y += S(hWnd, 34) + margin;
 
     const int previousScroll = st->scrollY;
@@ -5929,12 +6109,158 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
     CustomPageSurface_SetContentHeight(hWnd, &st->surface, st->contentHeight);
     st->scrollY = st->surface.scrollY;
     if (st->scrollY != previousScroll)
+    {
         Global_Layout(hWnd, st);
+        return;
+    }
+    CustomPageSurface_MarkDirty(hWnd, &st->surface);
+}
+
+static void Global_RenderContent(HWND hWnd, HDC hdc, const RECT&, void* user)
+{
+    auto* st = (GlobalSettingsPageState*)user;
+    if (!st) return;
+    Graphics g(hdc);
+    g.SetSmoothingMode(SmoothingModeAntiAlias);
+    g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+
+    const int labelH = S(hWnd, 18);
+    auto labelAbove = [&](const RECT& control, const wchar_t* text)
+    {
+        RECT r{ control.left, control.top - S(hWnd, 24), control.right, control.top - S(hWnd, 6) };
+        CustomPage_DrawText(hdc, text, r, UiTheme::Color_Text(),
+            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    };
+    auto button = [&](int id, const RECT& r, const wchar_t* text)
+    {
+        CustomPage_DrawButton(g, hdc, r, text, st->hotId == id,
+            st->pressedId == id, true);
+    };
+
+    labelAbove(st->rcGlobalProfile,
+        GlobalProfiles_IsDirty() ? L"Global profile - unsaved" : L"Global profile");
+    PremiumCombo::PaintRetainedFace(st->cmbGlobalProfile, hdc, st->rcGlobalProfile,
+        st->hotId == GLOB_ID_GLOBAL_PROFILE_COMBO || st->hotId == GLOB_ID_GLOBAL_PROFILE_SAVE);
+    labelAbove(st->rcLayout, L"Keyboard layout");
+    PremiumCombo::PaintRetainedFace(st->cmbLayout, hdc, st->rcLayout,
+        st->hotId == GLOB_ID_LAYOUT_COMBO);
+    button(GLOB_ID_LAYOUT_EDITOR, st->rcLayoutEditor, L"Open Layout Editor Window");
+    button(GLOB_ID_LAYOUTS_FOLDER, st->rcLayoutsFolder, L"Open Layouts Folder");
+
+    labelAbove(st->rcPollSlider, L"Polling rate");
+    CustomPage_DrawSlider(g, hWnd, st->rcPollSlider, 1, 20,
+        (int)std::clamp(Settings_GetPollingMs(), 1u, 20u));
+    wchar_t value[32]{};
+    swprintf_s(value, L"%u ms", (unsigned)Settings_GetPollingMs());
+    CustomPage_DrawChip(g, hdc, st->rcPollChip, value);
+
+    labelAbove(st->rcUiRefreshSlider, L"UI refresh interval");
+    CustomPage_DrawSlider(g, hWnd, st->rcUiRefreshSlider, 1, 200,
+        (int)std::clamp(Settings_GetUIRefreshMs(), 1u, 200u));
+    swprintf_s(value, L"%u ms", (unsigned)Settings_GetUIRefreshMs());
+    CustomPage_DrawChip(g, hdc, st->rcUiRefreshChip, value);
+
+    RECT hint{ st->rcUiRefreshSlider.left, st->rcUiRefreshSlider.bottom + S(hWnd, 14),
+        st->rcUiRefreshChip.right, st->rcUiRefreshSlider.bottom + S(hWnd, 34) };
+    CustomPage_DrawText(hdc, L"Changes are applied immediately and saved automatically.",
+        hint, UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+
+    RECT factoryLabel{ st->rcFactoryReset.left, st->rcFactoryReset.top - S(hWnd, 25),
+        st->rcFactoryReset.right, st->rcFactoryReset.top - S(hWnd, 7) };
+    CustomPage_DrawText(hdc, L"Factory reset", factoryLabel, UiTheme::Color_Text(),
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    CustomPage_DrawRoundRect(g, st->rcFactoryReset, RGB(108, 35, 43), RGB(222, 78, 91),
+        (float)S(hWnd, 7));
+    CustomPage_DrawText(hdc, L"Reset All Settings", st->rcFactoryReset, RGB(255, 238, 240),
+        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    RECT factoryHint{ st->rcFactoryReset.left, st->rcFactoryReset.bottom + S(hWnd, 7),
+        st->rcUiRefreshChip.right, st->rcFactoryReset.bottom + S(hWnd, 41) };
+    CustomPage_DrawText(hdc,
+        L"Backs up and resets settings, bindings, profiles, layouts and curve presets.",
+        factoryHint, UiTheme::Color_TextMuted(), DT_LEFT | DT_TOP | DT_WORDBREAK | DT_END_ELLIPSIS);
+    (void)labelH;
+}
+
+static int Global_HitTest(GlobalSettingsPageState* st, POINT clientPoint)
+{
+    if (!st) return 0;
+    POINT pt = CustomPageSurface_ClientToContent(&st->surface, clientPoint);
+    RECT saveIcon{};
+    if (PremiumCombo::GetRetainedExtraIconRect(
+        st->cmbGlobalProfile, st->rcGlobalProfile, &saveIcon) && PtInRect(&saveIcon, pt))
+        return GLOB_ID_GLOBAL_PROFILE_SAVE;
+    const std::pair<int, RECT*> hits[] = {
+        { GLOB_ID_GLOBAL_PROFILE_COMBO, &st->rcGlobalProfile },
+        { GLOB_ID_LAYOUT_COMBO, &st->rcLayout },
+        { GLOB_ID_LAYOUT_EDITOR, &st->rcLayoutEditor },
+        { GLOB_ID_LAYOUTS_FOLDER, &st->rcLayoutsFolder },
+        { GLOB_ID_POLL_SLIDER, &st->rcPollSlider },
+        { GLOB_ID_UIREFRESH_SLIDER, &st->rcUiRefreshSlider },
+        { GLOB_ID_FACTORY_RESET, &st->rcFactoryReset }
+    };
+    for (const auto& hit : hits)
+        if (PtInRect(hit.second, pt)) return hit.first;
+    return 0;
+}
+
+static void Global_CloseComboAnchors(GlobalSettingsPageState* st)
+{
+    if (!st) return;
+    HWND combos[] = { st->cmbGlobalProfile, st->cmbLayout };
+    for (HWND combo : combos)
+    {
+        if (!combo) continue;
+        PremiumCombo::ShowDropDown(combo, false);
+        ShowWindow(combo, SW_HIDE);
+    }
+}
+
+static void Global_OpenComboAnchor(HWND hWnd, GlobalSettingsPageState* st, HWND combo, const RECT& contentRect)
+{
+    if (!st || !combo) return;
+    Global_CloseComboAnchors(st);
+    RECT view = CustomPageSurface_ContentToClient(&st->surface, contentRect);
+    SetWindowPos(combo, HWND_TOP, view.left, view.top,
+        std::max(1L, view.right - view.left), std::max(1L, view.bottom - view.top),
+        SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    SetFocus(combo);
+    PremiumCombo::ShowDropDown(combo, true);
+}
+
+static void Global_SetSliderFromClient(HWND hWnd, GlobalSettingsPageState* st, int id, int clientX)
+{
+    if (!st) return;
+    if (id == GLOB_ID_POLL_SLIDER)
+    {
+        const int value = CustomPage_SliderValueFromPoint(hWnd, st->rcPollSlider, 1, 20, clientX);
+        Settings_SetPollingMs((UINT)value);
+        RealtimeLoop_SetIntervalMs(Settings_GetPollingMs());
+    }
+    else if (id == GLOB_ID_UIREFRESH_SLIDER)
+    {
+        const int value = CustomPage_SliderValueFromPoint(hWnd, st->rcUiRefreshSlider, 1, 200, clientX);
+        Settings_SetUIRefreshMs((UINT)value);
+    }
+    else return;
+    GlobalProfiles_SetDirty(true);
+    Global_RequestApplyTiming(hWnd);
+    Global_RequestSave(hWnd);
+    CustomPageSurface_MarkDirty(hWnd, &st->surface);
 }
 
 LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     auto* st = (GlobalSettingsPageState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+
+    if (msg == PremiumCombo::MsgDropStateChanged())
+    {
+        if (st && !wParam)
+        {
+            ShowWindow((HWND)lParam, SW_HIDE);
+            CustomPageSurface_MarkDirty(hWnd, &st->surface);
+        }
+        return 0;
+    }
 
     if (msg == PremiumCombo::MsgItemTextCommit())
     {
@@ -6155,13 +6481,17 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         GlobalProfiles_SetDirty(false);
         Global_UpdateProfileSaveIcon(st);
         Global_RequestSave(hWnd);
+        CustomPageSurface_MarkDirty(hWnd, &st->surface);
         return 0;
     }
 
     if (msg == WM_APP_GLOBAL_PROFILE_DIRTY)
     {
         if (st)
+        {
             Global_UpdateProfileSaveIcon(st);
+            CustomPageSurface_MarkDirty(hWnd, &st->surface);
+        }
         return 0;
     }
 
@@ -6177,7 +6507,13 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         HBITMAP bmp = nullptr;
         HGDIOBJ oldBmp = nullptr;
         BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
-        Global_DrawScrollbar(hWnd, memDC, st);
+        if (st)
+        {
+            st->surface.scrollY = st->scrollY;
+            st->surface.contentHeight = st->contentHeight;
+            CustomPageSurface_Present(hWnd, memDC, &st->surface,
+                Global_RenderContent, st, st->scroll.draggingThumb);
+        }
         EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
         return 0;
     }
@@ -6277,6 +6613,18 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             WS_CHILD | WS_VISIBLE | SS_LEFT, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblFactoryResetHint, WM_SETFONT, (WPARAM)hFont, TRUE);
 
+        // Retain the two PremiumCombo instances only as popup/keyboard
+        // controllers. Every scrolled pixel, including their closed faces, is
+        // rendered by the page surface.
+        HWND compatibilityChildren[] = {
+            st->lblGlobalProfile, st->cmbGlobalProfile, st->lblLayout, st->cmbLayout,
+            st->btnLayoutEditor, st->btnOpenLayoutsFolder, st->lblPoll, st->sldPoll,
+            st->chipPoll, st->lblUiRefresh, st->sldUiRefresh, st->chipUiRefresh,
+            st->lblHint, st->lblFactoryReset, st->btnFactoryReset, st->lblFactoryResetHint
+        };
+        for (HWND child : compatibilityChildren)
+            if (child) ShowWindow(child, SW_HIDE);
+
         Global_UpdateUi(st);
         Global_Layout(hWnd, st);
         return 0;
@@ -6291,84 +6639,107 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         {
             CustomPageSurface_SetState(&st->surface, st->scrollY, st->contentHeight);
             POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
-            RECT thumb = CustomPageSurface_GetScrollThumbRect(hWnd, &st->surface);
-            RECT track = CustomPageSurface_GetScrollTrackRect(hWnd);
-            int maxScroll = Global_GetMaxScroll(hWnd, st);
-
-            if (maxScroll > 0 && PtInRect(&thumb, pt))
+            Global_CloseComboAnchors(st);
+            auto scrollResult = CustomPageSurface_HandleScrollMessage(hWnd, &st->surface,
+                &st->scroll, msg, wParam, lParam, S(hWnd, 54));
+            if (scrollResult != CustomPageScrollResult::NotHandled)
             {
-                st->scrollDrag = true;
-                st->scrollDragGrabOffsetY = pt.y - thumb.top;
-                st->scrollDragThumbHeight = std::max(1, (int)thumb.bottom - (int)thumb.top);
-                st->scrollDragMax = maxScroll;
+                st->scrollY = st->surface.scrollY;
+                return 0;
+            }
+            st->pressedId = Global_HitTest(st, pt);
+            st->dragId = (st->pressedId == GLOB_ID_POLL_SLIDER ||
+                st->pressedId == GLOB_ID_UIREFRESH_SLIDER) ? st->pressedId : 0;
+            if (st->pressedId)
+            {
                 SetCapture(hWnd);
-                InvalidateRect(hWnd, nullptr, FALSE);
-                return 0;
+                if (st->dragId)
+                    Global_SetSliderFromClient(hWnd, st, st->dragId, pt.x);
+                CustomPageSurface_MarkDirty(hWnd, &st->surface);
             }
-
-            if (maxScroll > 0 && PtInRect(&track, pt))
-            {
-                RECT rc{};
-                GetClientRect(hWnd, &rc);
-                int page = std::max(1, (int)(rc.bottom - rc.top) - S(hWnd, 48));
-                Global_SetScrollY(hWnd, st,
-                    pt.y < thumb.top ? st->scrollY - page : st->scrollY + page);
-                return 0;
-            }
+            return 0;
         }
         break;
 
     case WM_MOUSEMOVE:
-        if (st && st->scrollDrag)
+        if (st)
         {
             POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
-            RECT track = CustomPageSurface_GetScrollTrackRect(hWnd);
-            int trackH = std::max(1, (int)track.bottom - (int)track.top);
-            int thumbH = std::max(1, st->scrollDragThumbHeight);
-            int travel = std::max(1, trackH - thumbH);
-            int maxScroll = std::max(1, st->scrollDragMax);
-            int topMin = track.top;
-            int topMax = std::max(topMin, (int)track.bottom - thumbH);
-            int top = std::clamp((int)pt.y - st->scrollDragGrabOffsetY, topMin, topMax);
-            double position = (double)(top - topMin) / (double)travel;
-            Global_SetScrollY(hWnd, st, (int)std::lround(position * (double)maxScroll));
+            auto scrollResult = CustomPageSurface_HandleScrollMessage(hWnd, &st->surface,
+                &st->scroll, msg, wParam, lParam, S(hWnd, 54));
+            if (scrollResult != CustomPageScrollResult::NotHandled)
+            {
+                st->scrollY = st->surface.scrollY;
+                return 0;
+            }
+            if (st->dragId)
+            {
+                Global_SetSliderFromClient(hWnd, st, st->dragId, pt.x);
+                return 0;
+            }
+            const int hot = Global_HitTest(st, pt);
+            if (hot != st->hotId)
+            {
+                st->hotId = hot;
+                CustomPageSurface_MarkDirty(hWnd, &st->surface);
+            }
             return 0;
         }
         break;
 
     case WM_LBUTTONUP:
-        if (st && st->scrollDrag)
+        if (st)
         {
-            st->scrollDrag = false;
+            const bool wasScroll = st->scroll.draggingThumb;
+            CustomPageSurface_HandleScrollMessage(hWnd, &st->surface,
+                &st->scroll, msg, wParam, lParam, S(hWnd, 54));
+            POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            const int pressed = st->pressedId;
+            const bool wasSlider = st->dragId != 0;
+            st->pressedId = 0;
+            st->dragId = 0;
             if (GetCapture() == hWnd)
                 ReleaseCapture();
-            InvalidateRect(hWnd, nullptr, FALSE);
+            if (!wasScroll && !wasSlider && pressed && Global_HitTest(st, pt) == pressed)
+            {
+                if (pressed == GLOB_ID_GLOBAL_PROFILE_COMBO)
+                    Global_OpenComboAnchor(hWnd, st, st->cmbGlobalProfile, st->rcGlobalProfile);
+                else if (pressed == GLOB_ID_GLOBAL_PROFILE_SAVE)
+                {
+                    WPARAM wp = MAKEWPARAM((UINT)PremiumCombo::ExtraIconKind::Save,
+                        (UINT)GLOB_ID_GLOBAL_PROFILE_COMBO);
+                    PostMessageW(hWnd, PremiumCombo::MsgExtraIcon(), wp,
+                        (LPARAM)st->cmbGlobalProfile);
+                }
+                else if (pressed == GLOB_ID_LAYOUT_COMBO)
+                    Global_OpenComboAnchor(hWnd, st, st->cmbLayout, st->rcLayout);
+                else
+                    PostMessageW(hWnd, WM_COMMAND, MAKEWPARAM(pressed, BN_CLICKED), 0);
+            }
+            CustomPageSurface_MarkDirty(hWnd, &st->surface);
             return 0;
         }
         break;
 
     case WM_CAPTURECHANGED:
     case WM_CANCELMODE:
-        if (st && st->scrollDrag)
+        if (st)
         {
-            st->scrollDrag = false;
-            InvalidateRect(hWnd, nullptr, FALSE);
+            CustomPageSurface_HandleScrollMessage(hWnd, &st->surface,
+                &st->scroll, msg, wParam, lParam, S(hWnd, 54));
+            st->pressedId = 0;
+            st->dragId = 0;
+            CustomPageSurface_MarkDirty(hWnd, &st->surface);
         }
         return 0;
 
     case WM_MOUSEWHEEL:
         if (st)
         {
-            int delta = GET_WHEEL_DELTA_WPARAM(wParam);
-            if (delta != 0)
-            {
-                UINT lines = 3;
-                SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &lines, 0);
-                int lineCount = lines == WHEEL_PAGESCROLL ? 3 : (int)std::clamp<UINT>(lines, 1, 12);
-                int step = S(hWnd, 18) * lineCount;
-                Global_SetScrollY(hWnd, st,
-                    st->scrollY - (delta / WHEEL_DELTA) * step);
-            }
+            Global_CloseComboAnchors(st);
+            CustomPageSurface_HandleScrollMessage(hWnd, &st->surface,
+                &st->scroll, msg, wParam, lParam, S(hWnd, 54));
+            st->scrollY = st->surface.scrollY;
             return 0;
         }
         break;
@@ -6476,6 +6847,9 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
                 wchar_t nameBuf[260]{};
                 PremiumCombo::GetLBText(st->cmbGlobalProfile, sel, nameBuf, (int)_countof(nameBuf));
                 Global_ApplyActiveGlobalProfile(st, hWnd, nameBuf);
+                PremiumCombo::ShowDropDown(st->cmbGlobalProfile, false);
+                ShowWindow(st->cmbGlobalProfile, SW_HIDE);
+                CustomPageSurface_MarkDirty(hWnd, &st->surface);
             }
             return 0;
         }
@@ -6500,6 +6874,9 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
                 Global_NotifyMainPage(hWnd);
                 Global_RequestSave(hWnd);
             }
+            PremiumCombo::ShowDropDown(st->cmbLayout, false);
+            ShowWindow(st->cmbLayout, SW_HIDE);
+            CustomPageSurface_MarkDirty(hWnd, &st->surface);
             return 0;
         }
 
@@ -6556,7 +6933,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
     case WM_NCDESTROY:
         if (st)
         {
-            if (st->scrollDrag && GetCapture() == hWnd)
+            if (st->scroll.draggingThumb && GetCapture() == hWnd)
                 ReleaseCapture();
             GlobalDeleteConfirm_Clear(hWnd, st);
             if (st->hToast && IsWindow(st->hToast))
@@ -6916,6 +7293,7 @@ struct MouseCustomState
 {
     std::vector<MouseCustomItem> items;
     CustomPageSurface surface;
+    CustomPageScrollController scroll;
     int scrollY = 0;
     int contentHeight = 0;
     int hotId = 0;
@@ -7239,28 +7617,12 @@ static LRESULT MouseCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
         HBITMAP bmp = nullptr;
         HGDIOBJ oldBmp = nullptr;
         BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
-        RECT rc{};
-        GetClientRect(hWnd, &rc);
-        FillRect(memDC, &rc, UiTheme::Brush_PanelBg());
         if (st)
         {
             st->surface.contentHeight = st->contentHeight;
             st->surface.scrollY = st->scrollY;
-            if (CustomPageSurface_RenderCache(hWnd, memDC, &st->surface, MouseCustom_RenderCacheContent, st))
-            {
-                HDC cacheDC = CreateCompatibleDC(memDC);
-                if (cacheDC)
-                {
-                    HGDIOBJ old = SelectObject(cacheDC, st->surface.contentCache);
-                    int copyW = std::min((int)(rc.right - rc.left), st->surface.cacheWidth);
-                    int copyH = std::min((int)(rc.bottom - rc.top), std::max(0, st->surface.cacheHeight - st->scrollY));
-                    if (copyW > 0 && copyH > 0)
-                        BitBlt(memDC, 0, 0, copyW, copyH, cacheDC, 0, st->scrollY, SRCCOPY);
-                    SelectObject(cacheDC, old);
-                    DeleteDC(cacheDC);
-                }
-            }
-            CustomPageSurface_DrawScrollbar(hWnd, memDC, &st->surface, st->scrollDrag);
+            CustomPageSurface_Present(hWnd, memDC, &st->surface,
+                MouseCustom_RenderCacheContent, st, st->scroll.draggingThumb);
         }
         EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
         return 0;
@@ -7276,15 +7638,11 @@ static LRESULT MouseCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
     case WM_MOUSEWHEEL:
         if (st)
         {
-            int delta = GET_WHEEL_DELTA_WPARAM(wParam);
-            if (delta != 0)
-            {
-                int step = S(hWnd, 44);
-                st->surface.scrollY = st->scrollY;
-                st->surface.contentHeight = st->contentHeight;
-                CustomPageSurface_SetScrollY(hWnd, &st->surface, st->scrollY - ((delta / WHEEL_DELTA) * step));
-                st->scrollY = st->surface.scrollY;
-            }
+            st->surface.scrollY = st->scrollY;
+            st->surface.contentHeight = st->contentHeight;
+            CustomPageSurface_HandleScrollMessage(hWnd, &st->surface, &st->scroll,
+                msg, wParam, lParam, S(hWnd, 44));
+            st->scrollY = st->surface.scrollY;
             return 0;
         }
         break;
@@ -7293,23 +7651,11 @@ static LRESULT MouseCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
         {
             SetFocus(hWnd);
             POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
-            RECT thumb = CustomPageSurface_GetScrollThumbRect(hWnd, &st->surface);
-            RECT track = CustomPageSurface_GetScrollTrackRect(hWnd);
-            int maxScroll = CustomPageSurface_GetMaxScroll(hWnd, &st->surface);
-            if (maxScroll > 0 && PtInRect(&thumb, pt))
+            st->surface.scrollY = st->scrollY;
+            st->surface.contentHeight = st->contentHeight;
+            if (CustomPageSurface_HandleScrollMessage(hWnd, &st->surface, &st->scroll,
+                msg, wParam, lParam, S(hWnd, 44)) != CustomPageScrollResult::NotHandled)
             {
-                st->scrollDrag = true;
-                st->scrollDragGrabOffsetY = pt.y - thumb.top;
-                st->scrollDragThumbHeight = std::max(1, (int)thumb.bottom - (int)thumb.top);
-                st->scrollDragMax = maxScroll;
-                SetCapture(hWnd);
-                InvalidateRect(hWnd, nullptr, FALSE);
-                return 0;
-            }
-            if (maxScroll > 0 && PtInRect(&track, pt))
-            {
-                int page = std::max(1, (int)((track.bottom - track.top) * 0.75));
-                CustomPageSurface_SetScrollY(hWnd, &st->surface, pt.y < thumb.top ? st->scrollY - page : st->scrollY + page);
                 st->scrollY = st->surface.scrollY;
                 return 0;
             }
@@ -7334,15 +7680,10 @@ static LRESULT MouseCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
         if (st)
         {
             POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
-            if (st->scrollDrag)
+            if (st->scroll.draggingThumb)
             {
-                RECT track = CustomPageSurface_GetScrollTrackRect(hWnd);
-                int thumbH = std::max(1, st->scrollDragThumbHeight);
-                int travel = std::max(1, (int)(track.bottom - track.top) - thumbH);
-                int topWanted = pt.y - st->scrollDragGrabOffsetY;
-                int top = std::clamp(topWanted, (int)track.top, (int)track.bottom - thumbH);
-                double t = (double)(top - track.top) / (double)travel;
-                CustomPageSurface_SetScrollY(hWnd, &st->surface, (int)std::lround(t * (double)std::max(1, st->scrollDragMax)));
+                CustomPageSurface_HandleScrollMessage(hWnd, &st->surface, &st->scroll,
+                    msg, wParam, lParam, S(hWnd, 44));
                 st->scrollY = st->surface.scrollY;
                 return 0;
             }
@@ -7374,10 +7715,11 @@ static LRESULT MouseCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
         {
             POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
             int pressed = st->pressedId;
-            bool wasDrag = st->dragId != 0 || st->scrollDrag;
+            bool wasDrag = st->dragId != 0 || st->scroll.draggingThumb;
             st->pressedId = 0;
             st->dragId = 0;
-            st->scrollDrag = false;
+            CustomPageSurface_HandleScrollMessage(hWnd, &st->surface, &st->scroll,
+                msg, wParam, lParam, S(hWnd, 44));
             if (GetCapture() == hWnd)
                 ReleaseCapture();
             MouseCustomItem* hit = MouseCustom_HitTest(st, pt);
@@ -7393,7 +7735,8 @@ static LRESULT MouseCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
         {
             st->pressedId = 0;
             st->dragId = 0;
-            st->scrollDrag = false;
+            CustomPageSurface_HandleScrollMessage(hWnd, &st->surface, &st->scroll,
+                msg, wParam, lParam, S(hWnd, 44));
             CustomPageSurface_MarkDirty(hWnd, &st->surface);
         }
         return 0;
@@ -8212,6 +8555,8 @@ static void DrawSnappyToggleOwnerDraw(const DRAWITEMSTRUCT* dis)
 // ============================================================================
 struct ConfigPageState
 {
+    HWND cmbSparkPollMode = nullptr;
+    HWND cmbSparkRows = nullptr;
     HWND chkSnappy = nullptr;
     HWND chkLastKeyPriority = nullptr;
     HWND lblLastKeyPrioritySensitivity = nullptr;
@@ -8235,15 +8580,11 @@ struct ConfigPageState
 
     // vertical scroll state for Configuration page
     CustomPageSurface surface;
+    CustomPageScrollController scroll;
     int scrollY = 0;
     int contentHeight = 0;
-    bool scrollDrag = false;
-    int  scrollDragStartY = 0;
-    int  scrollDragStartScrollY = 0;
-    int  scrollDragGrabOffsetY = 0;
-    int  scrollDragThumbHeight = 0;
-    int  scrollDragMax = 0;
     bool customControls = true;
+    bool sparkControlsVisible = false;
     int hotCustomId = 0;
     int pressedCustomId = 0;
     int dragCustomId = 0;
@@ -8266,6 +8607,7 @@ static void Config_OffsetAllChildren(HWND hWnd, int dy);
 static void Config_SetScrollY(HWND hWnd, ConfigPageState* st, int newScrollY);
 static void Config_SetCustomChildrenVisible(ConfigPageState* st, bool visible);
 static void Config_MarkSurfaceDirty(HWND hWnd, ConfigPageState* st);
+static bool Config_UpdateSparkCombos(HWND hWnd, ConfigPageState* st);
 static void DrawCpWeightHintIfNeeded(HWND hWnd, HDC hdc);
 
 static int Config_ScrollbarWidthPx(HWND hWnd) { return S(hWnd, 12); }
@@ -8636,9 +8978,8 @@ static std::wstring Config_Utf8ToWide(const char* text)
     return result;
 }
 
-static std::vector<std::wstring> Config_BuildAnalogTelemetryLines(
-    const BackendAnalogTelemetry& t,
-    const std::wstring& profileStatus)
+static std::vector<std::wstring> BuildAnalogDiagnosticsLines(
+    const BackendAnalogTelemetry& t)
 {
     std::vector<std::wstring> lines;
     wchar_t line[768]{};
@@ -8980,9 +9321,8 @@ static std::vector<std::wstring> Config_BuildAnalogTelemetryLines(
         lines.emplace_back(line);
     }
 
-    // Reserve one stable line for preset/profile notifications so content
-    // height does not change when a toast/status message appears.
-    lines.emplace_back(profileStatus);
+    if (lines.empty())
+        lines.emplace_back(L"Analog input: no analog source connected");
     return lines;
 }
 
@@ -8993,8 +9333,7 @@ static RECT Config_CustomStatusRect(HWND hWnd, ConfigPageState* st)
     Backend_GetAnalogTelemetry(&t);
     if (t.sparkConnected)
         y += S(hWnd, 28) + S(hWnd, 10);
-    const auto lines = Config_BuildAnalogTelemetryLines(t, st ? st->profileStatusText : std::wstring{});
-    return Config_Rect(S(hWnd, 12), y, S(hWnd, 720), S(hWnd, std::max(1, (int)lines.size()) * 18));
+    return Config_Rect(S(hWnd, 12), y, S(hWnd, 720), S(hWnd, 36));
 }
 
 static void Config_DrawCustomToggle(HWND hWnd, HDC hdc, Gdiplus::Graphics& g, const RECT& rc, const std::wstring& text, bool checked, bool enabled)
@@ -9002,8 +9341,14 @@ static void Config_DrawCustomToggle(HWND hWnd, HDC hdc, Gdiplus::Graphics& g, co
     CustomPage_DrawCheckbox(g, hdc, hWnd, rc, text, checked, enabled);
 }
 
-static void Config_DrawCustomCombo(HWND hWnd, HDC hdc, Gdiplus::Graphics& g, const RECT& rc, const std::wstring& text, bool enabled)
+static void Config_DrawCustomCombo(HWND hWnd, HDC hdc, Gdiplus::Graphics& g,
+    HWND combo, const RECT& rc, const std::wstring& text, bool enabled)
 {
+    if (combo)
+    {
+        PremiumCombo::PaintRetainedFace(combo, hdc, rc, false);
+        return;
+    }
     CustomPage_DrawRoundRect(g, rc, UiTheme::Color_ControlBg(), enabled ? UiTheme::Color_Border() : RGB(52, 52, 52), 4.0f, enabled ? 255 : 150);
     RECT trc = rc;
     trc.left += S(hWnd, 8);
@@ -9043,35 +9388,72 @@ static void Config_DrawCustomControls(HWND hWnd, HDC hdc, ConfigPageState* st)
     Backend_GetAnalogTelemetry(&t);
     if (t.sparkConnected)
     {
-        const wchar_t* mode = L"Safe";
-        switch (Settings_GetSparkPollMode())
-        {
-        case SettingsSparkPollMode_FastYield: mode = L"Fast yield"; break;
-        case SettingsSparkPollMode_MaxBurst: mode = L"Max burst"; break;
-        default: break;
-        }
-        wchar_t rows[32]{};
-        UINT limit = Settings_GetSparkRowLimit();
-        if (limit == 0)
-            swprintf_s(rows, L"Auto");
-        else
-            swprintf_s(rows, L"%u rows", (unsigned)limit);
-
         CustomPage_DrawText(hdc, L"HE poll mode", Config_ToViewRect(Config_CustomSparkModeLabelRect(hWnd), st), UiTheme::Color_Text(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-        Config_DrawCustomCombo(hWnd, hdc, g, Config_ToViewRect(Config_CustomSparkModeRect(hWnd), st), mode, true);
         CustomPage_DrawText(hdc, L"Rows", Config_ToViewRect(Config_CustomSparkRowsLabelRect(hWnd), st), UiTheme::Color_Text(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-        Config_DrawCustomCombo(hWnd, hdc, g, Config_ToViewRect(Config_CustomSparkRowsRect(hWnd), st), rows, true);
+        const wchar_t* mode = L"Safe";
+        if (Settings_GetSparkPollMode() == SettingsSparkPollMode_FastYield) mode = L"Fast yield";
+        else if (Settings_GetSparkPollMode() == SettingsSparkPollMode_MaxBurst) mode = L"Max burst";
+        wchar_t rows[24]{};
+        UINT rowLimit = Settings_GetSparkRowLimit();
+        if (rowLimit == 0) wcscpy_s(rows, L"Auto");
+        else swprintf_s(rows, L"%u row%ls", (unsigned)rowLimit, rowLimit == 1 ? L"" : L"s");
+        Config_DrawCustomCombo(hWnd, hdc, g, st->cmbSparkPollMode,
+            Config_ToViewRect(Config_CustomSparkModeRect(hWnd), st), mode, true);
+        Config_DrawCustomCombo(hWnd, hdc, g, st->cmbSparkRows,
+            Config_ToViewRect(Config_CustomSparkRowsRect(hWnd), st), rows, true);
     }
-    RECT status = Config_ToViewRect(Config_CustomStatusRect(hWnd, st), st);
-    const auto telemetryLines = Config_BuildAnalogTelemetryLines(t, st->profileStatusText);
-    RECT row = status;
+}
+
+static void Config_DrawLiveStatus(HWND hWnd, HDC hdc, ConfigPageState* st)
+{
+    if (!st || !st->customControls) return;
+    BackendAnalogTelemetry t{};
+    Backend_GetAnalogTelemetry(&t);
+    std::wstring source = L"No analog source connected";
+    if (t.sparkConnected) source = L"SparkLink connected";
+    else if (t.mad68Connected) source = L"MADLIONS native input connected";
+    else if (t.hex80Connected) source = L"Hex80 native input connected";
+    else if (t.addressedConnected) source = L"Addressed analog input connected";
+    else if (t.sayoConnected) source = L"SayoDevice connected";
+    else if (t.sdkInitialised) source = L"Analog SDK active";
+    else if (t.nativeProtocolCount > 0) source = L"Native analog source detected";
+
+    RECT row = Config_ToViewRect(Config_CustomStatusRect(hWnd, st), st);
     row.bottom = row.top + S(hWnd, 18);
-    for (const auto& telemetryLine : telemetryLines)
-    {
-        CustomPage_DrawText(hdc, telemetryLine, row, UiTheme::Color_TextMuted(),
+    CustomPage_DrawText(hdc, source + L" | Live diagnostics: Gamepad Tester", row,
+        UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    OffsetRect(&row, 0, S(hWnd, 18));
+    if (!st->profileStatusText.empty())
+        CustomPage_DrawText(hdc, st->profileStatusText, row, UiTheme::Color_TextMuted(),
             DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-        OffsetRect(&row, 0, S(hWnd, 18));
-    }
+}
+
+static bool Config_UpdateSparkCombos(HWND hWnd, ConfigPageState* st)
+{
+    if (!st) return false;
+    BackendAnalogTelemetry t{};
+    Backend_GetAnalogTelemetry(&t);
+    const bool visible = st->customControls && t.sparkConnected;
+    const bool changed = visible != st->sparkControlsVisible;
+    st->sparkControlsVisible = visible;
+
+    HWND combos[] = { st->cmbSparkPollMode, st->cmbSparkRows };
+    for (HWND combo : combos)
+        if (combo && (!visible || changed))
+        {
+            PremiumCombo::ShowDropDown(combo, false);
+            ShowWindow(combo, SW_HIDE);
+            EnableWindow(combo, visible ? TRUE : FALSE);
+        }
+    if (st->cmbSparkPollMode && PremiumCombo::GetCurSel(st->cmbSparkPollMode) !=
+        (int)std::clamp<UINT>(Settings_GetSparkPollMode(), 0u, 2u))
+        PremiumCombo::SetCurSel(st->cmbSparkPollMode,
+            (int)std::clamp<UINT>(Settings_GetSparkPollMode(), 0u, 2u), false);
+    if (st->cmbSparkRows && PremiumCombo::GetCurSel(st->cmbSparkRows) !=
+        (int)std::clamp<UINT>(Settings_GetSparkRowLimit(), 0u, 8u))
+        PremiumCombo::SetCurSel(st->cmbSparkRows,
+            (int)std::clamp<UINT>(Settings_GetSparkRowLimit(), 0u, 8u), false);
+    return changed;
 }
 
 static void Config_SetCustomChildrenVisible(ConfigPageState* st, bool visible)
@@ -9109,7 +9491,7 @@ static void Config_RenderCacheContent(HWND hWnd, HDC hdc, const RECT& full, void
     SetPropW(hWnd, CONFIG_SCROLLY_PROP, (HANDLE)(INT_PTR)0);
 
     RECT rc = full;
-    KeySettingsPanel_DrawGraph(hdc, rc);
+    KeySettingsPanel_DrawGraphRetainedContent(hdc, rc);
     DrawCpWeightHintIfNeeded(hWnd, hdc);
     KeySettingsPanel_DrawControls(hWnd, hdc);
     Config_DrawCustomControls(hWnd, hdc, st);
@@ -9124,6 +9506,31 @@ static void Config_MarkSurfaceDirty(HWND hWnd, ConfigPageState* st)
     CustomPageSurface_MarkDirty(hWnd, &st->surface);
 }
 
+static void Config_ClosePopupAnchors(ConfigPageState* st)
+{
+    KeySettingsPanel_CloseCustomPopups();
+    if (!st) return;
+    HWND combos[] = { st->cmbSparkPollMode, st->cmbSparkRows };
+    for (HWND combo : combos)
+    {
+        if (!combo) continue;
+        PremiumCombo::ShowDropDown(combo, false);
+        ShowWindow(combo, SW_HIDE);
+    }
+}
+
+static void Config_OpenPopupAnchor(HWND hWnd, ConfigPageState* st, HWND combo, RECT contentRect)
+{
+    if (!st || !combo) return;
+    Config_ClosePopupAnchors(st);
+    RECT view = Config_ToViewRect(contentRect, st);
+    SetWindowPos(combo, HWND_TOP, view.left, view.top,
+        std::max(1L, view.right - view.left), std::max(1L, view.bottom - view.top),
+        SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    SetFocus(combo);
+    PremiumCombo::ShowDropDown(combo, true);
+}
+
 static bool Config_HandleCustomControlsMouse(HWND hWnd, ConfigPageState* st, UINT msg, WPARAM wParam, LPARAM contentLParam)
 {
     if (!st || !st->customControls) return false;
@@ -9134,8 +9541,8 @@ static bool Config_HandleCustomControlsMouse(HWND hWnd, ConfigPageState* st, UIN
     if (hit(Config_CustomToggleRect(hWnd, 0))) hitId = ID_SNAPPY;
     else if (hit(Config_CustomToggleRect(hWnd, 1))) hitId = ID_LAST_KEY_PRIORITY;
     else if (hit(Config_CustomToggleRect(hWnd, 2))) hitId = ID_BLOCK_BOUND_KEYS;
-    else if (hit(Config_CustomSparkModeRect(hWnd))) hitId = ID_SPARK_POLL_MODE;
-    else if (hit(Config_CustomSparkRowsRect(hWnd))) hitId = ID_SPARK_ROW_LIMIT;
+    else if (st->sparkControlsVisible && hit(Config_CustomSparkModeRect(hWnd))) hitId = ID_SPARK_POLL_MODE;
+    else if (st->sparkControlsVisible && hit(Config_CustomSparkRowsRect(hWnd))) hitId = ID_SPARK_ROW_LIMIT;
     else if (hit(Config_CustomLkpSliderRect(hWnd))) hitId = ID_LAST_KEY_PRIORITY_SENS_SLIDER;
 
     if (msg == WM_MOUSEMOVE)
@@ -9195,23 +9602,14 @@ static bool Config_HandleCustomControlsMouse(HWND hWnd, ConfigPageState* st, UIN
             Config_UpdateLkpSensitivityUi(st);
             RequestSave(hWnd);
         }
-        else if (pressed == ID_SPARK_POLL_MODE)
-        {
-            UINT cur = Settings_GetSparkPollMode();
-            UINT next = (cur >= SettingsSparkPollMode_MaxBurst) ? SettingsSparkPollMode_Safe : (cur + 1u);
-            Settings_SetSparkPollMode(next);
-            RequestSave(hWnd);
-        }
-        else if (pressed == ID_SPARK_ROW_LIMIT)
-        {
-            UINT cur = Settings_GetSparkRowLimit();
-            UINT next = (cur >= 8u) ? 0u : (cur + 1u);
-            Settings_SetSparkRowLimit(next);
-            RequestSave(hWnd);
-        }
         else
         {
-            PostMessageW(hWnd, WM_COMMAND, MAKEWPARAM((UINT)pressed, BN_CLICKED), 0);
+            if (pressed == ID_SPARK_POLL_MODE)
+                Config_OpenPopupAnchor(hWnd, st, st->cmbSparkPollMode, Config_CustomSparkModeRect(hWnd));
+            else if (pressed == ID_SPARK_ROW_LIMIT)
+                Config_OpenPopupAnchor(hWnd, st, st->cmbSparkRows, Config_CustomSparkRowsRect(hWnd));
+            else
+                PostMessageW(hWnd, WM_COMMAND, MAKEWPARAM((UINT)pressed, BN_CLICKED), 0);
         }
         Config_MarkSurfaceDirty(hWnd, st);
         return true;
@@ -9388,9 +9786,28 @@ static void Config_SetScrollY(HWND hWnd, ConfigPageState* st, int newScrollY)
         SetPropW(hWnd, CONFIG_SCROLLY_PROP, (HANDLE)(INT_PTR)st->scrollY);
     }
     if (st->customControls)
+    {
         KeySettingsPanel_UpdateCustomControlsLayout(hWnd);
+        Config_UpdateSparkCombos(hWnd, st);
+    }
     else
         Config_RequestFullRepaint(hWnd);
+}
+
+static CustomPageScrollResult Config_HandleSharedScroll(
+    HWND hWnd, ConfigPageState* st, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    if (!st) return CustomPageScrollResult::NotHandled;
+    Config_RecalcContentHeight(hWnd, st);
+    CustomPageSurface_SetState(&st->surface, st->scrollY, st->contentHeight);
+    CustomPageScrollResult result = CustomPageSurface_HandleScrollMessage(
+        hWnd, &st->surface, &st->scroll, msg, wParam, lParam, S(hWnd, 54));
+    if (result == CustomPageScrollResult::OffsetChanged)
+    {
+        st->scrollY = st->surface.scrollY;
+        SetPropW(hWnd, CONFIG_SCROLLY_PROP, (HANDLE)(INT_PTR)st->scrollY);
+    }
+    return result;
 }
 
 static LPARAM Config_AdjustClientMouseLParamForScroll(ConfigPageState* st, LPARAM lParam)
@@ -9418,7 +9835,7 @@ static void DrawConfigScrollbar(HWND hWnd, HDC hdc, ConfigPageState* st)
     if (!st) return;
     Config_RecalcContentHeight(hWnd, st);
     CustomPageSurface_SetState(&st->surface, st->scrollY, st->contentHeight);
-    CustomPageSurface_DrawScrollbar(hWnd, hdc, &st->surface, st->scrollDrag);
+    CustomPageSurface_DrawScrollbar(hWnd, hdc, &st->surface, st->scroll.draggingThumb);
 }
 
 static std::wstring SanitizePresetNameForFile(const std::wstring& in)
@@ -9782,6 +10199,17 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 {
     auto* st = (ConfigPageState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
 
+    if (msg == PremiumCombo::MsgDropStateChanged())
+    {
+        if (st && !wParam)
+        {
+            ShowWindow((HWND)lParam, SW_HIDE);
+            Config_MarkSurfaceDirty(hWnd, st);
+        }
+        return 0;
+    }
+    static UiPaintAuditCounter paintAudit(L"configuration");
+
     if (msg == WM_APP_CONFIG_PROFILE_APPLIED)
     {
         if (st)
@@ -10103,13 +10531,34 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
     switch (msg)
     {
-    case WM_ERASEBKGND: return 1;
+    case WM_ERASEBKGND:
+        paintAudit.Event(WM_ERASEBKGND);
+        return 1;
+
+    case WM_APP_CONFIG_TELEMETRY_REFRESH:
+        if (st)
+        {
+            if (Config_UpdateSparkCombos(hWnd, st))
+            {
+                UiAuditTraceInvalidation(L"configuration", L"spark_visibility_changed");
+                Config_RecalcContentHeight(hWnd, st);
+                Config_MarkSurfaceDirty(hWnd, st);
+            }
+            else
+            {
+                RECT status = Config_ToViewRect(Config_CustomStatusRect(hWnd, st), st);
+                UiAuditTraceInvalidation(L"configuration", L"telemetry_hash_changed", &status);
+                InvalidateRect(hWnd, &status, FALSE);
+            }
+        }
+        return 0;
 
     case WM_PAINT:
     {
         uint64_t paintStart = CustomPageSurface_QpcNow();
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
+        paintAudit.Event(WM_PAINT, &ps.rcPaint);
         RECT rc{};
         GetClientRect(hWnd, &rc);
 
@@ -10123,22 +10572,14 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             Config_RecalcContentHeight(hWnd, st);
             st->surface.scrollY = st->scrollY;
             CustomPageSurface_SetState(&st->surface, st->scrollY, st->contentHeight);
-            if (CustomPageSurface_RenderCache(hWnd, memDC, &st->surface, Config_RenderCacheContent, st))
-            {
-                HDC cacheDC = CreateCompatibleDC(memDC);
-                if (cacheDC)
-                {
-                    HGDIOBJ old = SelectObject(cacheDC, st->surface.contentCache);
-                    int copyW = std::min((int)(rc.right - rc.left), st->surface.cacheWidth);
-                    int copyH = std::min((int)(rc.bottom - rc.top), std::max(0, st->surface.cacheHeight - st->surface.scrollY));
-                    if (copyW > 0 && copyH > 0)
-                        BitBlt(memDC, 0, 0, copyW, copyH, cacheDC, 0, st->surface.scrollY, SRCCOPY);
-                    SelectObject(cacheDC, old);
-                    DeleteDC(cacheDC);
-                }
-            }
+            CustomPageSurface_Present(hWnd, memDC, &st->surface,
+                Config_RenderCacheContent, st, st->scroll.draggingThumb);
             st->scrollY = st->surface.scrollY;
-            DrawConfigScrollbar(hWnd, memDC, st);
+            // Dynamic telemetry must be composed after the retained page has
+            // been presented. Otherwise graph-only invalidation just copies
+            // the old marker from the page cache until an unrelated click.
+            KeySettingsPanel_DrawGraphViewportOverlay(memDC, rc);
+            Config_DrawLiveStatus(hWnd, memDC, st);
         }
         else
         {
@@ -10149,7 +10590,10 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             DrawConfigScrollbar(hWnd, memDC, st);
         }
 
-        BitBlt(hdc, 0, 0, rc.right - rc.left, rc.bottom - rc.top, memDC, 0, 0, SRCCOPY);
+        const RECT& dirty = ps.rcPaint;
+        if (dirty.right > dirty.left && dirty.bottom > dirty.top)
+            BitBlt(hdc, dirty.left, dirty.top, dirty.right - dirty.left, dirty.bottom - dirty.top,
+                memDC, dirty.left, dirty.top, SRCCOPY);
         SelectObject(memDC, oldBmp);
         DeleteObject(bmp);
         DeleteDC(memDC);
@@ -10210,6 +10654,26 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             0, 0, 10, 10,
             hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblProfileStatus, WM_SETFONT, (WPARAM)hFont, TRUE);
+
+        st->cmbSparkPollMode = PremiumCombo::Create(hWnd, hInst, 0, 0, 10, 10,
+            ID_SPARK_POLL_MODE, WS_CHILD | WS_TABSTOP);
+        PremiumCombo::SetFont(st->cmbSparkPollMode, hFont, true);
+        PremiumCombo::AddString(st->cmbSparkPollMode, L"Safe");
+        PremiumCombo::AddString(st->cmbSparkPollMode, L"Fast yield");
+        PremiumCombo::AddString(st->cmbSparkPollMode, L"Max burst");
+        PremiumCombo::SetDropMaxVisible(st->cmbSparkPollMode, 3);
+
+        st->cmbSparkRows = PremiumCombo::Create(hWnd, hInst, 0, 0, 10, 10,
+            ID_SPARK_ROW_LIMIT, WS_CHILD | WS_TABSTOP);
+        PremiumCombo::SetFont(st->cmbSparkRows, hFont, true);
+        PremiumCombo::AddString(st->cmbSparkRows, L"Auto");
+        for (int rows = 1; rows <= 8; ++rows)
+        {
+            wchar_t text[24]{};
+            swprintf_s(text, L"%d row%ls", rows, rows == 1 ? L"" : L"s");
+            PremiumCombo::AddString(st->cmbSparkRows, text);
+        }
+        PremiumCombo::SetDropMaxVisible(st->cmbSparkRows, 9);
 
         st->chkSnappy = CreateWindowW(L"BUTTON", L"Snap Stick",
             WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_OWNERDRAW,
@@ -10280,6 +10744,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         LayoutConfigControls(hWnd, st);
         Config_SetCustomChildrenVisible(st, !st->customControls);
         Config_SetScrollY(hWnd, st, 0);
+        Config_UpdateSparkCombos(hWnd, st);
         Config_MarkSurfaceDirty(hWnd, st);
 
         SetProfileStatus(st, L"");
@@ -10361,30 +10826,11 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
     {
         if (st)
         {
-            POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
-            RECT thumb = Config_GetScrollThumbRect(hWnd, st);
-            RECT track = Config_GetScrollTrackRect(hWnd);
-            int maxScroll = Config_GetMaxScroll(hWnd, st);
-
-            if (maxScroll > 0 && PtInRect(&thumb, pt))
+            Config_ClosePopupAnchors(st);
+            if (Config_HandleSharedScroll(hWnd, st, msg, wParam, lParam) !=
+                CustomPageScrollResult::NotHandled)
             {
-                st->scrollDrag = true;
-                st->scrollDragStartY = pt.y;
-                st->scrollDragStartScrollY = st->scrollY;
-                st->scrollDragGrabOffsetY = pt.y - thumb.top;
-                st->scrollDragThumbHeight = std::max(1, (int)thumb.bottom - (int)thumb.top);
-                st->scrollDragMax = maxScroll;
-                SetCapture(hWnd);
                 Config_MarkSurfaceDirty(hWnd, st);
-                return 0;
-            }
-
-            if (maxScroll > 0 && PtInRect(&track, pt))
-            {
-                if (pt.y < thumb.top)
-                    Config_SetScrollY(hWnd, st, st->scrollY - std::max(1, Config_GetViewportHeight(hWnd) - S(hWnd, 48)));
-                else if (pt.y >= thumb.bottom)
-                    Config_SetScrollY(hWnd, st, st->scrollY + std::max(1, Config_GetViewportHeight(hWnd) - S(hWnd, 48)));
                 return 0;
             }
         }
@@ -10407,24 +10853,9 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
     case WM_MOUSEMOVE:
     {
-        if (st && st->scrollDrag)
+        if (st && st->scroll.draggingThumb)
         {
-            POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
-            RECT track = Config_GetScrollTrackRect(hWnd);
-            int trackH = std::max(1, (int)track.bottom - (int)track.top);
-            int thumbH = std::max(1, st->scrollDragThumbHeight);
-            int travel = std::max(1, trackH - thumbH);
-            int maxScroll = std::max(1, st->scrollDragMax);
-
-            int topWanted = pt.y - st->scrollDragGrabOffsetY;
-            int topMin = (int)track.top;
-            int topMax = (int)track.bottom - thumbH;
-            if (topMax < topMin) topMax = topMin;
-            int top = std::clamp(topWanted, topMin, topMax);
-            double t = (double)(top - topMin) / (double)travel;
-            int target = (int)std::lround(t * (double)maxScroll);
-
-            Config_SetScrollY(hWnd, st, target);
+            Config_HandleSharedScroll(hWnd, st, msg, wParam, lParam);
             return 0;
         }
 
@@ -10446,10 +10877,9 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
     case WM_LBUTTONUP:
     {
-        if (st && st->scrollDrag)
+        if (st && st->scroll.draggingThumb)
         {
-            st->scrollDrag = false;
-            if (GetCapture() == hWnd) ReleaseCapture();
+            Config_HandleSharedScroll(hWnd, st, msg, wParam, lParam);
             Config_MarkSurfaceDirty(hWnd, st);
             return 0;
         }
@@ -10481,15 +10911,8 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
         if (st)
         {
-            int delta = GET_WHEEL_DELTA_WPARAM(wParam);
-            int lines = 3;
-            SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &lines, 0);
-            if (lines <= 0) lines = 3;
-
-            int linePx = S(hWnd, 18);
-            int step = std::max(S(hWnd, 24), lines * linePx);
-            int next = st->scrollY - ((delta / WHEEL_DELTA) * step);
-            Config_SetScrollY(hWnd, st, next);
+            Config_ClosePopupAnchors(st);
+            Config_HandleSharedScroll(hWnd, st, msg, wParam, lParam);
             return 0;
         }
         break;
@@ -10497,9 +10920,11 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
     case WM_CAPTURECHANGED:
     {
-        if (st && st->scrollDrag)
+        if (st)
         {
-            st->scrollDrag = false;
+            Config_HandleSharedScroll(hWnd, st, msg, wParam, lParam);
+            st->pressedCustomId = 0;
+            st->dragCustomId = 0;
             Config_MarkSurfaceDirty(hWnd, st);
         }
         return 0;
@@ -10616,6 +11041,27 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
     {
         if (st) DeleteConfirm_Clear(hWnd, st);
 
+        if (st && HIWORD(wParam) == CBN_SELCHANGE &&
+            LOWORD(wParam) == (UINT)ID_SPARK_POLL_MODE && (HWND)lParam == st->cmbSparkPollMode)
+        {
+            Settings_SetSparkPollMode((UINT)std::clamp(PremiumCombo::GetCurSel(st->cmbSparkPollMode), 0, 2));
+            RequestSave(hWnd);
+            PremiumCombo::ShowDropDown(st->cmbSparkPollMode, false);
+            ShowWindow(st->cmbSparkPollMode, SW_HIDE);
+            Config_MarkSurfaceDirty(hWnd, st);
+            return 0;
+        }
+        if (st && HIWORD(wParam) == CBN_SELCHANGE &&
+            LOWORD(wParam) == (UINT)ID_SPARK_ROW_LIMIT && (HWND)lParam == st->cmbSparkRows)
+        {
+            Settings_SetSparkRowLimit((UINT)std::clamp(PremiumCombo::GetCurSel(st->cmbSparkRows), 0, 8));
+            RequestSave(hWnd);
+            PremiumCombo::ShowDropDown(st->cmbSparkRows, false);
+            ShowWindow(st->cmbSparkRows, SW_HIDE);
+            Config_MarkSurfaceDirty(hWnd, st);
+            return 0;
+        }
+
         if (LOWORD(wParam) == (UINT)ID_ANALOG_SELF_TEST && HIWORD(wParam) == BN_CLICKED && st)
         {
             if (!st->selfTestRunning)
@@ -10685,6 +11131,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
         if (KeySettingsPanel_HandleCommand(hWnd, wParam, lParam))
         {
+            KeySettingsPanel_CloseCustomPopups();
             if (st && st->customControls)
                 Config_MarkSurfaceDirty(hWnd, st);
             else if (st && st->scrollY != 0)

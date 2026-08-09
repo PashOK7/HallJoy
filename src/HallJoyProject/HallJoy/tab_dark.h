@@ -8,6 +8,7 @@
 #include <commctrl.h>
 
 #include "ui_theme.h"
+#include "ui_paint_audit.h"
 
 // Dark painter for WC_TABCONTROL on Win10.
 // Key properties:
@@ -121,6 +122,33 @@ namespace TabDark
         SelectObject(hdc, oldFont);
     }
 
+    static void PaintTabControlBuffered(HWND hTab, HDC target)
+    {
+        RECT rc{};
+        GetClientRect(hTab, &rc);
+        const int width = rc.right - rc.left;
+        const int height = rc.bottom - rc.top;
+        if (width <= 0 || height <= 0)
+            return;
+
+        HDC memDC = CreateCompatibleDC(target);
+        HBITMAP bitmap = memDC ? CreateCompatibleBitmap(target, width, height) : nullptr;
+        if (!memDC || !bitmap)
+        {
+            if (bitmap) DeleteObject(bitmap);
+            if (memDC) DeleteDC(memDC);
+            PaintTabControl(hTab, target);
+            return;
+        }
+
+        HGDIOBJ oldBitmap = SelectObject(memDC, bitmap);
+        PaintTabControl(hTab, memDC);
+        BitBlt(target, 0, 0, width, height, memDC, 0, 0, SRCCOPY);
+        SelectObject(memDC, oldBitmap);
+        DeleteObject(bitmap);
+        DeleteDC(memDC);
+    }
+
     static void PostSelChangedIfNeeded(HWND hTab, int oldSel)
     {
         int newSel = TabCtrl_GetCurSel(hTab);
@@ -135,9 +163,11 @@ namespace TabDark
     static LRESULT CALLBACK TabSubclassProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam,
         UINT_PTR, DWORD_PTR)
     {
+        static UiPaintAuditCounter paintAudit(L"tab_row");
         switch (msg)
         {
         case WM_ERASEBKGND:
+            paintAudit.Event(WM_ERASEBKGND);
             return 1;
 
         case WM_PRINTCLIENT:
@@ -145,7 +175,7 @@ namespace TabDark
             HDC hdc = (HDC)wParam;
             if (hdc)
             {
-                PaintTabControl(hWnd, hdc);
+                PaintTabControlBuffered(hWnd, hdc);
                 return 0;
             }
             break;
@@ -155,7 +185,8 @@ namespace TabDark
         {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
-            PaintTabControl(hWnd, hdc);
+            paintAudit.Event(WM_PAINT, &ps.rcPaint);
+            PaintTabControlBuffered(hWnd, hdc);
             EndPaint(hWnd, &ps);
             return 0;
         }
@@ -170,8 +201,16 @@ namespace TabDark
             LRESULT r = DefSubclassProc(hWnd, msg, wParam, lParam);
             PostSelChangedIfNeeded(hWnd, oldSel);
 
-            // ensure repaint on interaction
-            InvalidateRect(hWnd, nullptr, FALSE);
+            // Arbitrary keyboard input is delivered to the focused tab even
+            // when it does not navigate. Repaint only for pointer feedback or
+            // an actual selection change, otherwise typing drives the whole
+            // tab row at the input repeat rate.
+            const bool selectionChanged = TabCtrl_GetCurSel(hWnd) != oldSel;
+            if (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONUP || selectionChanged)
+            {
+                UiAuditTraceInvalidation(L"tab_row", L"tab_interaction");
+                InvalidateRect(hWnd, nullptr, FALSE);
+            }
             return r;
         }
 

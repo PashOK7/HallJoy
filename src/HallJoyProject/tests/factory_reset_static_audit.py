@@ -92,10 +92,10 @@ for marker, description in (
     ("FactoryReset_Request", "confirmed action persists the reset request"),
     ("WM_APP_FACTORY_RESET_RESTART", "confirmed action requests graceful restart"),
     ("CustomPageSurface surface", "Global settings uses the shared scrollbar surface"),
-    ("CustomPageSurface_DrawScrollbar", "Global settings draws the common themed scrollbar"),
+    ("CustomPageSurface_Present", "Global settings presents the common retained viewport"),
     ("Global_SetScrollY", "Global settings owns bounded scroll state"),
     ("WM_MOUSEWHEEL", "Global settings supports wheel scrolling"),
-    ("scrollDrag", "Global settings supports scrollbar thumb dragging"),
+    ("CustomPageScrollController", "Global settings uses the common scrollbar controller"),
     ("danger ? RGB(108, 35, 43)", "danger action has a red resting fill"),
 ):
     require(global_page, marker, description)

@@ -415,6 +415,11 @@ void Log(const wchar_t* fmt, ...)
     _vsnwprintf_s(body, _countof(body), _TRUNCATE, fmt, args);
     va_end(args);
 
+#if defined(HALLJOY_SINGLE_LOG_DIAGNOSTIC)
+    DebugLog_WriteBuffered(L"[mad68pr] %ls", body);
+    return;
+#else
+
     SYSTEMTIME st{};
     GetLocalTime(&st);
     wchar_t line[4400]{};
@@ -443,6 +448,7 @@ void Log(const wchar_t* fmt, ...)
     DWORD written = 0;
     if (!utf8.empty()) WriteFile(file, utf8.data(), static_cast<DWORD>(utf8.size()), &written, nullptr);
     CloseHandle(file);
+#endif
 #endif
 }
 

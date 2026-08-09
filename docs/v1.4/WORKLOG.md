@@ -3016,7 +3016,15 @@ was used.
 
 Created annotated tag `v1.4.0` on that merge commit and published
 [HallJoy v1.4.0](https://github.com/PashOK7/HallJoy/releases/tag/v1.4.0) as the
-latest stable, non-draft, non-prerelease GitHub Release. Uploaded the four clean
-package files. GitHub reports the EXE asset at 2,187,776 bytes with digest
+latest stable, non-draft, non-prerelease GitHub Release. The initial upload used
+the four clean package files. GitHub reports the EXE asset at 2,187,776 bytes
+with digest
 `sha256:c03cb7a19db73921d69904a7abdab954d54f3d5ce42899add9c24012d93d0402`,
 matching the qualified local file and `SHA256SUMS.txt`.
+
+After publication, shortened the visible release summary and moved the complete
+release notes into a collapsed `<details>` section. Added a direct
+`HallJoy.exe` download link at the top so users do not need to scroll through
+the changelog. Removed the test-only `README_FOR_TESTER.txt` public asset; the
+release now exposes only `HallJoy.exe`, `SHA256SUMS.txt`, and
+`THIRD_PARTY_NOTICES.md`. The executable and its digest were not changed.

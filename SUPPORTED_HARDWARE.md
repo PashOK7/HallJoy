@@ -22,6 +22,7 @@ claim only the exact HID interface that completes their protocol proof.
 |---|---|---|---|
 | Aula WIN 60 HE MAX | `1CA2:1902`, `FFA0:0001`, `App V1.1.6 / Feb 4 2026` | Native Aula `5C/12/23/2B` | strict capability proof, real analogue matrices, 10+ rollover, up to 22 simultaneous keys, release-to-zero, about 344 Hz, and three disconnect/reconnect cycles |
 | Aula WIN 60 HE (Standard/W669) | `2E3C:C365`, `FF1B:0091`, report ID 1 | Native W669 `0D/18/21` | physical live stream and user confirmation on the SI2825 family; exact firmware-product selection is still required |
+| Redragon K673RGB-M (BR) | `2E3C:C365`, `FF1B:0091`, `7272BRHEXYXK673JCARGB,V3.18.01` | Native W669 `0D/18/21` | exact 81-key profile, 1,491 physical live events, analogue from 7/340, full 340/340 travel, balanced release-to-zero, and four simultaneous keys observed |
 | Irok MG75 Max | `1CA6:0529`, usage page `FFB0` | Native SparkLink/XD | real analogue input, sustained polling, held-key unplug/reconnect, repeated startup/shutdown, and no reconnect after stop |
 | MADLIONS MAD 68 Pro R | `373B:1109`, `bcdDevice 0102` | Native asynchronous A0 | A9/A8/A9 capability proof, A0 stream, exact 68-position sequence, and physical W/A travel changes |
 | SayoDevice O3C | `8089:0009` | Native depth `0x22` | physical O3C depth stream; current keyboard HID assignments are used instead of fixed letters |
@@ -50,7 +51,7 @@ A sibling with another PID, firmware build, or key count may be admitted only
 after the complete structural proof and remains **protocol-compatible** until
 physically tested.
 
-### Aula WIN 60/68 HE Standard and KP-TE153 (W669)
+### Aula WIN 60/68 HE Standard, KP-TE153, and Redragon K673 (W669)
 
 The Standard/W669 family is a different protocol from the MAX family. HallJoy
 reads the firmware product through opcode `0D`, selects the matching official
@@ -62,6 +63,9 @@ uses the `21` event stream.
 | `SI2825HEARGB`, `SI2825KRT12HEARGB`, `SI2825KR-AHEARGB`, `SI2825KZHEARGB` | WIN60, 61 keys | official profile; physical Standard/W669 stream evidence and separate WIN 60 HE user confirmation |
 | `SI2828HEARGB`, `SI2828KZHEARGB` | WIN68, 68 keys | official-driver-derived profile and automated tests; not physically tested by HallJoy |
 | `SI2851UKKZHEARGB` | KP-TE153 UK, 69 keys | official-driver-derived profile and automated tests; not physically tested by HallJoy |
+| `7272BRHEXYXK673JCARGB` | Redragon K673RGB-M BR, 81 publishable keys | physically validated live analogue stream, early travel, full scale, release-to-zero, and multi-key input |
+| `7272UKHEXYXBJCARGB` | Redragon K673RGB-M UK, 81 publishable keys | official-profile-derived map and automated tests; not physically tested by HallJoy |
+| `7272USHEXYXK673JCARGB` | Redragon K673WB-RGB-M US, 80 publishable keys | official-profile-derived map and automated tests; not physically tested by HallJoy |
 
 An unknown W669 product never inherits a guessed WIN60/WIN68 layout from its
 PID, product-name substring, or key count. It must return a sufficiently

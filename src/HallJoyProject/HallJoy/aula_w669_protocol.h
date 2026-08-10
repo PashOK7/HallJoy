@@ -45,6 +45,9 @@ enum class FactoryLayoutProfile : std::uint8_t
     Si2825Win60,
     Si2828Win68,
     Si2851KpTe153Uk,
+    K673Br,
+    K673Uk,
+    K673Us,
 };
 
 Report BuildDeviceInfoRequest() noexcept;
@@ -57,6 +60,9 @@ Report BuildUnsubscribeRequest() noexcept;
 PositionToHid Win60FactoryMap() noexcept;
 PositionToHid Win68FactoryMap() noexcept;
 PositionToHid KpTe153UkFactoryMap() noexcept;
+PositionToHid K673BrFactoryMap() noexcept;
+PositionToHid K673UkFactoryMap() noexcept;
+PositionToHid K673UsFactoryMap() noexcept;
 PositionToHid FactoryMap(FactoryLayoutProfile profile) noexcept;
 FactoryLayoutProfile FactoryProfileForProduct(const char* product) noexcept;
 

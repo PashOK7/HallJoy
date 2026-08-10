@@ -15,8 +15,11 @@ checks = {
         "strategy=live_subscription_only snapshot_publish=disabled" in backend,
     "idle cancellation preserves the original wait timeout":
         "wait == WAIT_TIMEOUT ? WAIT_TIMEOUT : GetLastError()" in backend,
-    "only non-timeout receive failures increment the session counter":
-        "if (!received && GetLastError() != WAIT_TIMEOUT) g_failures.fetch_add(1);" in backend,
+    "normal stop cancellation is classified before receive failure accounting":
+        "expectedStopCancellation" in backend and
+        "readError == ERROR_OPERATION_ABORTED || readError == ERROR_INVALID_HANDLE" in backend and
+        'L"aula-w669", L"protocol.cancelled"' in backend and
+        "else if (readError != WAIT_TIMEOUT)" in backend,
     "firmware-default poll code is accepted without a fabricated rate":
         "case 0: hz = 0; break;" in protocol and
         "nominal_poll_hz=unspecified mode=firmware_default" in backend,
@@ -30,6 +33,13 @@ checks = {
         "Si2851KpTe153Uk" in protocol and
         "Win68FactoryMap" in protocol and
         "KpTe153UkFactoryMap" in protocol,
+    "exact Redragon K673 products have separate official factory profiles":
+        "K673Br" in protocol and
+        "K673Uk" in protocol and
+        "K673Us" in protocol and
+        "7272BRHEXYXK673JCARGB" in protocol and
+        "7272UKHEXYXBJCARGB" in protocol and
+        "7272USHEXYXK673JCARGB" in protocol,
     "unknown products never inherit a guessed known factory layout":
         "default: return {};" in protocol and
         "unknown_explicit_only" in backend,

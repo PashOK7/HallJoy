@@ -562,13 +562,6 @@ New-Item -ItemType Directory -Path $symbols -Force | Out-Null
 if (Test-Path -LiteralPath $pdb) { Copy-Item -LiteralPath $pdb -Destination $symbols -Force }
 if (Test-Path -LiteralPath $map) { Copy-Item -LiteralPath $map -Destination $symbols -Force }
 
-$testerReadme = Join-Path $root 'docs\v1.4\README_FOR_TESTER.txt'
-if (-not (Test-Path -LiteralPath $testerReadme -PathType Leaf)) {
-    throw "Missing release README template: $testerReadme"
-}
-Get-Content -LiteralPath $testerReadme -Encoding UTF8 -Raw |
-    Set-Content -LiteralPath (Join-Path $sendDir 'README_FOR_TESTER.txt') -Encoding UTF8
-
 # Publish a clean, deterministic user-facing folder separately from the staging
 # directory, which may intentionally retain local portable test settings.
 $expectedReleaseDir = [IO.Path]::GetFullPath((Join-Path $root 'build\release')).TrimEnd('\')
@@ -582,7 +575,6 @@ if (Test-Path -LiteralPath $releaseDir) {
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 }
 Copy-Item -LiteralPath (Join-Path $sendDir 'HallJoy.exe') -Destination $releaseDir -Force
-Copy-Item -LiteralPath (Join-Path $sendDir 'README_FOR_TESTER.txt') -Destination $releaseDir -Force
 Copy-Item -LiteralPath $thirdPartyNoticesPath -Destination $releaseDir -Force
 $releaseHash = Get-FileHash -LiteralPath (Join-Path $releaseDir 'HallJoy.exe') -Algorithm SHA256
 "$($releaseHash.Hash)  HallJoy.exe" | Set-Content -LiteralPath (Join-Path $releaseDir 'SHA256SUMS.txt') -Encoding ASCII

@@ -130,6 +130,45 @@ PositionToHid KpTe153UkFactoryMap() noexcept
     return map;
 }
 
+PositionToHid K673BrFactoryMap() noexcept
+{
+    // Official iLLumiPC 7272BRHEXYXK673JCARGB profile. Matrix indices are
+    // firmware sensor positions; the rotary encoder and internal Fn control
+    // deliberately remain unpublished because they have no keyboard usage.
+    return {
+        0x29, 0x00, 0x3a, 0x3b, 0x3c, 0x3d, 0x00, 0x3e, 0x3f, 0x40, 0x41,
+        0x42, 0x43, 0x44, 0x45, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x35, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+        0x2d, 0x2e, 0x00, 0x2a, 0x49, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x2b, 0x14, 0x1a, 0x08, 0x15, 0x17, 0x1c, 0x18, 0x0c, 0x12, 0x13,
+        0x2f, 0x30, 0x00, 0x00, 0x4c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x39, 0x00, 0x04, 0x16, 0x07, 0x09, 0x0a, 0x0b, 0x0d, 0x0e, 0x0f,
+        0x33, 0x34, 0x32, 0x28, 0x4b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0xe1, 0x64, 0x1d, 0x1b, 0x06, 0x19, 0x05, 0x11, 0x10, 0x36, 0x37,
+        0x38, 0x87, 0x00, 0x52, 0x4e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0xe0, 0xe3, 0xe2, 0x00, 0x00, 0x00, 0x2c, 0x00, 0x00, 0x00, 0xe6,
+        0x00, 0xe4, 0x50, 0x51, 0x4f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+}
+
+PositionToHid K673UkFactoryMap() noexcept
+{
+    auto map = K673BrFactoryMap();
+    map[79] = 0x31;  // Backslash beside ISO Enter
+    map[100] = 0x00;
+    map[101] = 0xe5; // Right Shift
+    return map;
+}
+
+PositionToHid K673UsFactoryMap() noexcept
+{
+    auto map = K673UkFactoryMap();
+    map[58] = 0x31;  // ANSI backslash
+    map[79] = 0x00;
+    map[89] = 0x00;  // No ISO key
+    return map;
+}
+
 FactoryLayoutProfile FactoryProfileForProduct(const char* product) noexcept
 {
     if (!product) return FactoryLayoutProfile::Unknown;
@@ -151,6 +190,12 @@ FactoryLayoutProfile FactoryProfileForProduct(const char* product) noexcept
         return FactoryLayoutProfile::Si2828Win68;
     if (is("SI2851UKKZHEARGB"))
         return FactoryLayoutProfile::Si2851KpTe153Uk;
+    if (is("7272BRHEXYXK673JCARGB"))
+        return FactoryLayoutProfile::K673Br;
+    if (is("7272UKHEXYXBJCARGB"))
+        return FactoryLayoutProfile::K673Uk;
+    if (is("7272USHEXYXK673JCARGB"))
+        return FactoryLayoutProfile::K673Us;
     return FactoryLayoutProfile::Unknown;
 }
 
@@ -161,6 +206,9 @@ PositionToHid FactoryMap(FactoryLayoutProfile profile) noexcept
     case FactoryLayoutProfile::Si2825Win60: return Win60FactoryMap();
     case FactoryLayoutProfile::Si2828Win68: return Win68FactoryMap();
     case FactoryLayoutProfile::Si2851KpTe153Uk: return KpTe153UkFactoryMap();
+    case FactoryLayoutProfile::K673Br: return K673BrFactoryMap();
+    case FactoryLayoutProfile::K673Uk: return K673UkFactoryMap();
+    case FactoryLayoutProfile::K673Us: return K673UsFactoryMap();
     default: return {};
     }
 }

@@ -49,7 +49,8 @@ if ($unexpected.Count -ne 0) {
 if (-not (Test-Path -LiteralPath $compiled -PathType Leaf)) {
     throw "Diagnostic executable was not produced: $compiled"
 }
-$diagnosticWideStrings = [Text.Encoding]::Unicode.GetString([IO.File]::ReadAllBytes($compiled))
+$diagnosticBytes = [IO.File]::ReadAllBytes($compiled)
+$diagnosticWideStrings = [Text.Encoding]::Unicode.GetString($diagnosticBytes)
 foreach ($requiredDiagnosticMarker in @(
     'matrix.health',
     'matrix.activity',
@@ -60,6 +61,10 @@ foreach ($requiredDiagnosticMarker in @(
     'protocol.cancelled'
     '[aula.w669.raw]'
     '[aula.w669.telemetry]'
+    '[aula.w669.diagnostic]'
+    '[aula.w669.session_summary]'
+    '[aula.w669.coverage]'
+    'redragon_k673_br_81'
     '[mad68pr]'
 )) {
     if (-not $diagnosticWideStrings.Contains($requiredDiagnosticMarker)) {
@@ -67,6 +72,18 @@ foreach ($requiredDiagnosticMarker in @(
     }
 }
 $diagnosticWideStrings = $null
+$diagnosticAsciiStrings = [Text.Encoding]::ASCII.GetString($diagnosticBytes)
+foreach ($requiredK673Identity in @(
+    '7272BRHEXYXK673JCARGB'
+    '7272UKHEXYXBJCARGB'
+    '7272USHEXYXK673JCARGB'
+)) {
+    if (-not $diagnosticAsciiStrings.Contains($requiredK673Identity)) {
+        throw "Diagnostic executable is missing K673 identity: $requiredK673Identity"
+    }
+}
+$diagnosticAsciiStrings = $null
+$diagnosticBytes = $null
 
 if (Test-Path -LiteralPath $package) {
     $resolved = [IO.Path]::GetFullPath($package).TrimEnd('\')

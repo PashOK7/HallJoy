@@ -85,8 +85,8 @@ def main() -> int:
             "official build no longer rejects warnings outside the one linker baseline")
     require("run_native_backend_checks.py" in build and "--require-compiler" in build,
             "official build no longer requires the unified automated gate")
-    require("$testerReadme = Join-Path $root" in build and "$repoRoot" not in build,
-            "release README packaging uses an undefined repository-root variable")
+    require("README_FOR_TESTER" not in build,
+            "obsolete tester README returned to the production package")
     require("validate_addressed_protocol_backend.py" in runner,
             "rewritten Addressed validator is absent from the unified runner")
 

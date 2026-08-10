@@ -279,6 +279,9 @@ const wchar_t* ProfileName(aula_w669::FactoryLayoutProfile profile)
     case aula_w669::FactoryLayoutProfile::Si2825Win60: return L"si2825_win60_61";
     case aula_w669::FactoryLayoutProfile::Si2828Win68: return L"si2828_win68_68";
     case aula_w669::FactoryLayoutProfile::Si2851KpTe153Uk: return L"si2851_kp_te153_uk_69";
+    case aula_w669::FactoryLayoutProfile::K673Br: return L"redragon_k673_br_81";
+    case aula_w669::FactoryLayoutProfile::K673Uk: return L"redragon_k673_uk_81";
+    case aula_w669::FactoryLayoutProfile::K673Us: return L"redragon_k673_us_80";
     default: return L"unknown_explicit_only";
     }
 }
@@ -463,24 +466,75 @@ bool Run(const Candidate& c)
     Clear();
     if (!s.Send(aula_w669::BuildSubscriptionRequest(mask))) return false;
     g_connected.store(true, std::memory_order_release);
-    DebugLog_Write(L"[aula.w669.session] connected vid=%04X pid=%04X max=%u mapped=%u mode=%ls exclusive=%d strategy=live_subscription_only snapshot_publish=disabled",
-        c.attributes.VendorID, c.attributes.ProductID, proof.travel.maximum, g_mapped.load(),
+    DebugLog_Write(L"[aula.w669.session] connected vid=%04X pid=%04X firmware_product=%hs profile=%ls max=%u mapped=%u mode=%ls exclusive=%d strategy=live_subscription_only snapshot_publish=disabled",
+        c.attributes.VendorID, c.attributes.ProductID,
+        proof.deviceInfo.product.data(), ProfileName(proof.factoryProfile),
+        proof.travel.maximum, g_mapped.load(),
         proof.useControlWrite ? L"control" : L"write", proof.exclusive ? 1 : 0);
     std::uint64_t previousUs = 0, intervalSum = 0, intervalCount = 0, maxInterval = 0;
     std::uint64_t lastRollup = GetTickCount64(), lastRollupLive = g_liveEvents.load();
+#if defined(HALLJOY_DIAGNOSTIC)
+    std::array<std::uint64_t, 256> diagnosticEvents{};
+    std::array<std::uint64_t, 256> diagnosticReleases{};
+    std::array<std::uint16_t, 256> diagnosticMin{};
+    std::array<std::uint16_t, 256> diagnosticMax{};
+    diagnosticMin.fill(0xffff);
+    std::uint64_t diagnosticPositiveEdges = 0, diagnosticZeroEdges = 0;
+    std::uint32_t diagnosticUnique = 0, diagnosticPeakActive = 0;
+    std::uint16_t diagnosticMinPositiveRaw = 0xffff, diagnosticMaxRaw = 0;
+    const auto diagnosticStartedMs = GetTickCount64();
+    const auto diagnosticStartedLive = g_liveEvents.load(std::memory_order_relaxed);
+#endif
     while (!g_stop.load(std::memory_order_acquire))
     {
         aula_w669::Report r{};
         const bool received = s.Read(&r, 100);
-        if (!received && GetLastError() != WAIT_TIMEOUT) g_failures.fetch_add(1);
+        if (!received)
+        {
+            const DWORD readError = GetLastError();
+            const bool expectedStopCancellation =
+                g_stop.load(std::memory_order_acquire) &&
+                (readError == ERROR_OPERATION_ABORTED || readError == ERROR_INVALID_HANDLE);
+            if (expectedStopCancellation)
+                StabilityTrace_Write(L"INFO", L"aula-w669", L"protocol.cancelled",
+                    L"operation=read win32=%lu reason=stop", readError);
+            else if (readError != WAIT_TIMEOUT)
+                g_failures.fetch_add(1, std::memory_order_relaxed);
+        }
         aula_w669::LiveEvent event{};
         if (received && aula_w669::DecodeLiveEvent(r.data(), r.size(), &event))
         {
             const auto nowUs = NowUs();
             if (previousUs && nowUs > previousUs) { const auto d = nowUs - previousUs; intervalSum += d; ++intervalCount; maxInterval = std::max(maxInterval, d); }
             previousUs = nowUs; LARGE_INTEGER qpc{}; QueryPerformanceCounter(&qpc);
+#if defined(HALLJOY_DIAGNOSTIC)
+            const std::size_t position = std::size_t(event.row) * aula_w669::kColumns + event.column;
+            const std::uint8_t diagnosticHid = proof.map[position];
+            const std::uint16_t diagnosticOld = diagnosticHid ?
+                g_milli[diagnosticHid].load(std::memory_order_relaxed) : 0;
+#endif
             Publish(event.row, event.column, event.travel, proof, qpc.QuadPart);
             g_liveEvents.fetch_add(1, std::memory_order_relaxed);
+#if defined(HALLJOY_DIAGNOSTIC)
+            if (diagnosticHid)
+            {
+                const auto diagnosticMilli = aula_w669::ToMilli(event.travel, proof.travel.maximum);
+                ++diagnosticEvents[diagnosticHid];
+                if (event.travel && diagnosticMax[diagnosticHid] == 0) ++diagnosticUnique;
+                diagnosticMin[diagnosticHid] = std::min(diagnosticMin[diagnosticHid], event.travel);
+                diagnosticMax[diagnosticHid] = std::max(diagnosticMax[diagnosticHid], event.travel);
+                diagnosticMaxRaw = std::max(diagnosticMaxRaw, event.travel);
+                if (event.travel)
+                    diagnosticMinPositiveRaw = std::min(diagnosticMinPositiveRaw, event.travel);
+                if (diagnosticOld == 0 && diagnosticMilli != 0) ++diagnosticPositiveEdges;
+                if (diagnosticOld != 0 && diagnosticMilli == 0)
+                {
+                    ++diagnosticZeroEdges;
+                    ++diagnosticReleases[diagnosticHid];
+                }
+                diagnosticPeakActive = std::max(diagnosticPeakActive, g_active.load(std::memory_order_relaxed));
+            }
+#endif
         }
         const auto nowMs = GetTickCount64();
         if (nowMs - lastRollup >= 1000)
@@ -494,9 +548,36 @@ bool Run(const Candidate& c)
                 static_cast<unsigned long long>(total), g_active.load(), g_mapped.load(),
                 g_avgUs.load(), g_maxUs.load(), static_cast<unsigned long long>(g_failures.load()),
                 static_cast<unsigned long long>(g_lastMs.load() ? nowMs - g_lastMs.load() : 0));
+#if defined(HALLJOY_DIAGNOSTIC)
+            DebugLog_WriteBuffered(L"[aula.w669.diagnostic] elapsed_ms=%llu unique_pressed_keys=%u peak_simultaneous=%u positive_edges=%llu release_to_zero_edges=%llu min_positive_raw=%u max_raw=%u active_now=%u",
+                static_cast<unsigned long long>(nowMs - diagnosticStartedMs), diagnosticUnique,
+                diagnosticPeakActive, static_cast<unsigned long long>(diagnosticPositiveEdges),
+                static_cast<unsigned long long>(diagnosticZeroEdges),
+                diagnosticMinPositiveRaw == 0xffff ? 0 : diagnosticMinPositiveRaw,
+                diagnosticMaxRaw, g_active.load(std::memory_order_relaxed));
+#endif
             lastRollup = nowMs; lastRollupLive = live;
         }
     }
+#if defined(HALLJOY_DIAGNOSTIC)
+    DebugLog_Write(L"[aula.w669.session_summary] duration_ms=%llu unique_pressed_keys=%u peak_simultaneous=%u positive_edges=%llu release_to_zero_edges=%llu min_positive_raw=%u max_raw=%u active_at_stop=%u session_live_events=%llu failures=%llu",
+        static_cast<unsigned long long>(GetTickCount64() - diagnosticStartedMs),
+        diagnosticUnique, diagnosticPeakActive,
+        static_cast<unsigned long long>(diagnosticPositiveEdges),
+        static_cast<unsigned long long>(diagnosticZeroEdges),
+        diagnosticMinPositiveRaw == 0xffff ? 0 : diagnosticMinPositiveRaw,
+        diagnosticMaxRaw, g_active.load(std::memory_order_relaxed),
+        static_cast<unsigned long long>(g_liveEvents.load(std::memory_order_relaxed) - diagnosticStartedLive),
+        static_cast<unsigned long long>(g_failures.load(std::memory_order_relaxed)));
+    for (std::size_t hid = 0; hid < diagnosticEvents.size(); ++hid)
+        if (diagnosticEvents[hid])
+            DebugLog_Write(L"[aula.w669.coverage] hid=%02X events=%llu releases=%llu min_raw=%u max_raw=%u final_milli=%u",
+                static_cast<unsigned>(hid),
+                static_cast<unsigned long long>(diagnosticEvents[hid]),
+                static_cast<unsigned long long>(diagnosticReleases[hid]),
+                diagnosticMin[hid], diagnosticMax[hid],
+                g_milli[hid].load(std::memory_order_relaxed));
+#endif
     s.Send(aula_w669::BuildUnsubscribeRequest());
     { std::lock_guard<std::mutex> lock(g_handleMutex); g_activeHandle = INVALID_HANDLE_VALUE; }
     return true;

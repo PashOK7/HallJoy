@@ -9,6 +9,15 @@
 int main()
 {
     using namespace aula_w669;
+    const auto mapHash = [](const PositionToHid& values) {
+        std::uint64_t hash = 1469598103934665603ull;
+        for (const auto value : values)
+        {
+            hash ^= value;
+            hash *= 1099511628211ull;
+        }
+        return hash;
+    };
     const auto deviceRequest = BuildDeviceInfoRequest();
     assert(deviceRequest[0] == 1 && deviceRequest[1] == 0x0d);
 
@@ -36,6 +45,14 @@ int main()
         FactoryLayoutProfile::Si2825Win60);
     assert(FactoryProfileForProduct("SI2851UKKZHEARGB") ==
         FactoryLayoutProfile::Si2851KpTe153Uk);
+    assert(FactoryProfileForProduct("7272BRHEXYXK673JCARGB") ==
+        FactoryLayoutProfile::K673Br);
+    assert(FactoryProfileForProduct(" 7272ukhexyxbjcargb ") ==
+        FactoryLayoutProfile::K673Uk);
+    assert(FactoryProfileForProduct("7272USHEXYXK673JCARGB") ==
+        FactoryLayoutProfile::K673Us);
+    assert(FactoryProfileForProduct("K673RGB-M") ==
+        FactoryLayoutProfile::Unknown);
     assert(FactoryProfileForProduct("UNKNOWN-W669") ==
         FactoryLayoutProfile::Unknown);
     identityReport[2] = 1;
@@ -79,6 +96,32 @@ int main()
     assert(kpTe153[38] == 0x4a && kpTe153[58] == 0x28);
     assert(kpTe153[79] == 0x32 && kpTe153[89] == 0x64 &&
         kpTe153[99] == 0x87);
+
+    const auto k673Br = K673BrFactoryMap();
+    assert(MappedKeyCount(k673Br) == 81);
+    assert(mapHash(k673Br) == 0xc110ac8ca8c64448ull);
+    assert(k673Br[0] == 0x29 && k673Br[2] == 0x3a &&
+        k673Br[14] == 0x45 && k673Br[37] == 0x49);
+    assert(k673Br[59] == 0x4c && k673Br[79] == 0x32 &&
+        k673Br[80] == 0x28 && k673Br[100] == 0x87);
+    assert(k673Br[102] == 0x52 && k673Br[103] == 0x4e &&
+        k673Br[123] == 0x50 && k673Br[124] == 0x51 &&
+        k673Br[125] == 0x4f);
+
+    const auto k673Uk = K673UkFactoryMap();
+    assert(MappedKeyCount(k673Uk) == 81);
+    assert(mapHash(k673Uk) == 0x65301581d7ca3081ull);
+    assert(k673Uk[79] == 0x31 && k673Uk[100] == 0x00 &&
+        k673Uk[101] == 0xe5);
+
+    const auto k673Us = K673UsFactoryMap();
+    assert(MappedKeyCount(k673Us) == 80);
+    assert(mapHash(k673Us) == 0x2943aa8b95f576bbull);
+    assert(k673Us[58] == 0x31 && k673Us[79] == 0x00 &&
+        k673Us[89] == 0x00 && k673Us[101] == 0xe5);
+    assert(FactoryMap(FactoryLayoutProfile::K673Br) == k673Br);
+    assert(FactoryMap(FactoryLayoutProfile::K673Uk) == k673Uk);
+    assert(FactoryMap(FactoryLayoutProfile::K673Us) == k673Us);
     assert(FactoryMap(FactoryLayoutProfile::Unknown) == PositionToHid{});
     std::array<bool, 10> fragments{};
     Report mapPacket{};

@@ -67,6 +67,7 @@ runtime instead.
 |---|---|---|
 | Aula | **Aula WIN 60 HE MAX**, **Aula WIN 60 HE**, **Aula WIN 68 HE**, **KP-TE153**, and compatible siblings | MAX uses the dynamic 6×21 backend. Standard/W669 reads the firmware product identity and selects an official 61-, 68-, or 69-key factory profile before applying the keyboard's live remap records. WIN 68 HE and KP-TE153 profiles are official-driver-derived but not yet physically validated by HallJoy. |
 | Irok/SparkLink | **Irok MG75 Max**, **Irok MG75 Pro**, and protocol-compatible models | MG75 Max is physically validated with sustained polling and reconnect tests. Not every Irok keyboard is compatible: **Irok MG75 v2 was physically tested and is not supported**. |
+| Redragon | Compatible magnetic-switch revisions of **K673RGB-M**, **K673WB-RGB-M**, **K580-M**, **K552-M (PT)**, **K552BGC-M**, **K552RGB-M SP**, **K556RGB-M**, **K556BP-RGB-M**, **K617RGB-M**, **K617RGB-MP (PT)**, **K618RGB-M**, **K686RGB-M**, **K686BG-RGB-M**, **K707-RGB-M**, **K721RGB-M**, **K721WRB-RGB-M**, **M82**, **M82 SE**, **RS82 RT** | **K673RGB-M is physically tested with HallJoy.** Compatible revisions of the other listed models appear in the same official analogue driver family and are expected to work, but have not yet been physically tested with HallJoy. |
 | MADLIONS | **MAD 68 Pro R**, **MAD60HE**, **MAD68HE**, **MAD68R** | MAD 68 Pro R uses native A0; the other listed models use the embedded Universal Analog Plugin runtime |
 | ATK | **ATK Hex80** | Native Hex80 `0x96`; a compatible PID is accepted only after valid GET responses |
 | SayoDevice | **O3C** | O3C has been tested; other SayoDevice products may work when they expose the same validated `0x22` depth protocol |
@@ -241,6 +242,7 @@ Xbox controller.
 | Irok/SparkLink-compatible devices | Native matrix/route polling | Capability fingerprint and valid protocol response |
 | Aula WIN 60 HE MAX and compatible 6×21 family | Native read-only `5C/12/23/2B` polling | Brand-scoped prefilter, `FFA0:0001`, 65-byte HID envelope, and complete dynamic proof; `1CA2:1902 / App V1.1.6` is physically validated |
 | Aula WIN 60/68 HE Standard and KP-TE153 | Native W669 `0D/18/21` event stream | `FF1B:0091`, 64-byte report-ID-1 envelope, read-only firmware identity, travel descriptor, complete 132-position override generation, and an exact official SI2825/SI2828/SI2851 factory profile; an unknown product must prove enough explicit mappings and never inherits a guessed layout |
+| Compatible revisions of the listed Redragon magnetic-switch models | Native analogue event stream | **K673RGB-M is physically tested.** Compatible revisions of K673WB-RGB-M, K580-M, K552 family, K556 family, K617 family, K618RGB-M, K686 family, K707-RGB-M, K721 family, M82/M82 SE, and RS82 RT are official-driver-derived and expected to work, but are not yet physically validated with HallJoy. |
 | Wooting, selected MADLIONS devices, and others | Universal Analog Plugin | Support provided by HallJoy's pinned embedded runtime |
 
 Brand or VID alone is not enough. A native backend receives a device only after
@@ -387,6 +389,11 @@ A9 recovery watchdog remains enabled.
   its factory map is known; key count alone is not enough to map HID usages safely.
 - Keep the keyboard's official configurator closed while HallJoy owns its vendor
   interface.
+- Redragon K673RGB-M is physically validated for early analogue travel, full
+  scale, balanced release-to-zero, and multi-key streaming. Compatible
+  magnetic-switch revisions of the other Redragon models named in the table
+  come from the same official driver family and are expected to work, but
+  remain physically unverified by HallJoy.
 
 ## Adding a new protocol
 

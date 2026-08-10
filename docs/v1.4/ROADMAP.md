@@ -911,3 +911,14 @@ v1.4 can be tagged only when:
   [#3](https://github.com/PashOK7/HallJoy/pull/3), merge commit
   `b63b3b209bf0cbf1736810e5d04489568e6cb79c`, annotated tag `v1.4.0`, and the
   [latest stable GitHub Release](https://github.com/PashOK7/HallJoy/releases/tag/v1.4.0).
+
+### v1.4.1 patch release
+
+- Add exact native W669 profiles for Redragon K673RGB-M BR/UK and
+  K673WB-RGB-M US without weakening the unknown-product fail-closed policy.
+- Publish physical validation only for K673RGB-M; describe other compatible
+  Redragon magnetic-switch revisions as official-driver-derived expectations.
+- Correct normal W669 stop cancellation accounting and remove the obsolete
+  tester README from production packaging.
+- Release identity `1.4.1.0`, full production qualification, and a three-file
+  public package are complete.

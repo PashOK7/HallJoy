@@ -1,5 +1,23 @@
 # HallJoy v1.4 release notes
 
+## v1.4.1 patch update
+
+HallJoy v1.4.1 adds partial native support for the Redragon magnetic-switch
+family while preserving the v1.4 production architecture and crash-only
+logging profile.
+
+- Redragon K673RGB-M (BR firmware `V3.18.01`) is physically validated with
+  early analogue travel, full-scale input, balanced release-to-zero, and
+  multi-key streaming.
+- Exact official profiles are included for K673RGB-M BR/UK and K673WB-RGB-M
+  US. Other compatible Redragon models listed in the hardware table are
+  official-driver-derived expectations, not physical validation claims.
+- Normal W669 read cancellation during an intentional shutdown is no longer
+  counted as a transport failure.
+- The obsolete tester README is no longer generated or included in the public
+  release package. The package contains only `HallJoy.exe`, its checksum, and
+  third-party notices.
+
 HallJoy v1.4 is a major architecture, hardware-support, interface, and
 reliability release. It replaces the older shared-runtime design with isolated
 protocol ownership, a bounded realtime/output pipeline, transactional storage,

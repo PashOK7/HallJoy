@@ -2641,3 +2641,87 @@ stock firmware remains unsupported for gaming**.
 - GitHub asset digest for `HallJoy.exe`:
   `sha256:c03cb7a19db73921d69904a7abdab954d54f3d5ce42899add9c24012d93d0402`,
   matching the locally qualified release artifact, PASS.
+
+### V14-15 Redragon K673RGB-M exact W669 diagnostic candidate
+
+- supplied package static extraction: PASS; no installer/updater execution and
+  no K673 firmware image found;
+- live iLLumiPC catalog identity: PASS, exact `2E3C:C365`, `FF1B:0091`, report
+  ID 1 and products `7272BRHEXYXK673JCARGB`, `7272UKHEXYXBJCARGB`, and
+  `7272USHEXYXK673JCARGB`;
+- protocol cross-check: PASS, W669 opcode `0D`, map `18/80`, travel `21/04`,
+  live subscription `21/02`, live events `21/01`, unsubscribe `21/03`;
+- exact official 6-by-22 maps: PASS, BR 81, UK 81 and US 80 publishable HID
+  usages; exact variant differences retained;
+- marketing-name/PID fallback: absent, PASS; only exact firmware product may
+  select a K673 factory layout;
+- K673 protocol regression and W669 static audit: PASS;
+- diagnostic observability: PASS, raw RX/TX plus frequency, interval,
+  minimum-positive, release, multi-key, summary and per-HID coverage markers;
+- MSVC diagnostic build: PASS, 2,330,112-byte single `HallJoy.exe`, SHA-256
+  `E38E2291DAA63CB28597E55FC683EAC7B38365E32874749D3167F28CC69D18F7`;
+- Authenticode: intentionally unsigned diagnostic candidate;
+- isolated no-device smoke: PASS, one `HallJoy.log`, graceful `WM_CLOSE`, exit
+  code zero and no surviving process;
+- physical BR K673 identity: PASS, exact
+  `7272BRHEXYXK673JCARGB,V3.18.01` selected `redragon_k673_br_81` and proved
+  all ten map fragments, 81 HID usages and range `0..340`;
+- physical live stream: PASS, 1,491 subtype-`21/01` events were decoded and
+  published during 12.234 seconds with 17 distinct pressed keys;
+- early analogue and full scale: PASS, minimum positive raw 7/340 (about
+  2.06%) and maximum raw 340;
+- release integrity: PASS, 72 positive edges, 72 release-to-zero edges,
+  `active_at_stop=0`, and every observed HID ending at `final_milli=0`;
+- simultaneous-key observation: PASS for the four keys actually held by the
+  tester; a ten-key claim was not exercised and is not made;
+- numeric polling-rate claim: NOT MEASURED, because `21/0A` returned firmware
+  default code zero and the 27-231 Hz rollups count motion-dependent change
+  events rather than scans;
+- shutdown: PASS, all workers joined with `fault_kind=0`; the diagnostic's
+  terminal `failures=1` was an expected cancelled read incorrectly counted as
+  failure, now corrected and guarded by the W669 static audit;
+- corrected diagnostic rebuild: PASS, unsigned 2,330,112-byte
+  `build/aula-diagnostic/HallJoy.exe`, SHA-256
+  `EE6135930FDB9D950CFC6F3FB2270E4EFBD12F861893AD6E4B3CB53191904D1B`;
+- corrected-build isolated smoke: PASS, four-second run, graceful `WM_CLOSE`,
+  exit code zero, one `HallJoy.log`, and no surviving process;
+- physical evidence: `HallJoy (9).log`, SHA-256
+  `B2D76566F0BCD93B4997081400DE6539694A0814F32415C8BCD3C2E2F7A72A94`.
+
+### V14-16 Redragon K673 production release candidate
+
+- complete official `tools/build.ps1` pipeline: PASS;
+- all required native/static/portable gates: PASS;
+- MSVC production `Release|x64`: PASS, zero errors and only allow-listed
+  external ViGEm `LNK4099` missing-PDB warning;
+- linked-image telemetry exclusion: PASS, no general `HallJoy.log`, stability,
+  W669 raw/telemetry/diagnostic/summary/coverage, or ten-key markers;
+- crash-only reporting contract: PASS, `HallJoyCrash.txt` retained;
+- package/hash consistency: PASS, `SHA256SUMS.txt` matches the EXE;
+- isolated five-second smoke: PASS, graceful `WM_CLOSE`, exit code zero, no
+  surviving process, unchanged executable hash, and no log or crash file;
+- candidate: unsigned 2,188,288-byte `build/release/HallJoy.exe`, SHA-256
+  `EFD250C67F07CDB477788BF3461C042527E64566B946A7621F079B4E54945D19`.
+- release-package contract: `README_FOR_TESTER.txt` removed from its source
+  template and production build; static audit rejects its return; intended
+  package is only `HallJoy.exe`, `SHA256SUMS.txt`, and
+  `THIRD_PARTY_NOTICES.md`, physically reproduced by the completed official
+  pipeline, PASS.
+
+### V14-17 v1.4.1 release qualification
+
+- centralized public/file/product version: `1.4.1` / `1.4.1.0`, PASS;
+- complete official `tools/build.ps1` pipeline: PASS;
+- native, static, portable C++20, documentation, dependency, and private-UAP
+  ABI gates: PASS;
+- MSVC production `Release|x64`: PASS, zero errors and only the allow-listed
+  external ViGEm `LNK4099` missing-PDB warning;
+- linked-image telemetry exclusion: PASS; crash-only reporting retained;
+- release folder: exactly `HallJoy.exe`, `SHA256SUMS.txt`, and
+  `THIRD_PARTY_NOTICES.md`, PASS;
+- executable resource identity: FileVersion and ProductVersion `1.4.1.0`, PASS;
+- checksum consistency: `SHA256SUMS.txt` matches the 2,188,288-byte EXE, PASS;
+- isolated five-second portable smoke: graceful `WM_CLOSE`, exit code zero,
+  unchanged executable hash, and no log or crash report, PASS;
+- final unsigned candidate SHA-256:
+  `B21060D0FE5676A6301DDB2EEB0412DFBF5EDC4850BAD575B82045905FDE4243`.

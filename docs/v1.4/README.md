@@ -7,7 +7,7 @@ version or release status.
 
 ## Current status
 
-- Product version: `v1.4.0.0`
+- Product version: `v1.4.1.0`
 - Working branch: `v1.4-integration`
 - Release qualification: passed
 - UI gate: unified scroll architecture passed automated 6/6-tab stress; final
@@ -17,10 +17,10 @@ version or release status.
 - Production diagnostics: no continuous telemetry or log writer; crash-only
   `HallJoyCrash.txt`
 - Public release notes: [`RELEASE_NOTES_v1.4.md`](../../RELEASE_NOTES_v1.4.md)
-- GitHub publication: [`v1.4.0`](https://github.com/PashOK7/HallJoy/releases/tag/v1.4.0)
+- GitHub publication: [`v1.4.1`](https://github.com/PashOK7/HallJoy/releases/tag/v1.4.1)
   published as the latest stable release
-- Final artifact: `build/release/HallJoy.exe`, 2,187,776 bytes, SHA-256
-  `C03CB7A19DB73921D69904A7ABDAB954D54F3D5CE42899ADD9C24012D93D0402`
+- Final artifact: `build/release/HallJoy.exe`, 2,188,288 bytes, SHA-256
+  `B21060D0FE5676A6301DDB2EEB0412DFBF5EDC4850BAD575B82045905FDE4243`
 
 The current workstation has an Irok MG75 Max (`VID 1CA6`, `PID 0529`) that
 passes SparkLink capability, analog-row, held-key unplug/reconnect and balanced

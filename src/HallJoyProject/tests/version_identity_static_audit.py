@@ -21,8 +21,8 @@ collector = read(repo / "tools" / "collect_stability_trace.ps1")
 
 active_text = "\n".join((version, resource, backend, readme, build, project, build_cmd, collector))
 checks = {
-    "version tuple is 1.4.0.0": "#define HALLJOY_VERSION_TUPLE 1,4,0,0" in version,
-    "public version is 1.4.0": '#define HALLJOY_VERSION_STRING "1.4.0"' in version,
+    "version tuple is 1.4.1.0": "#define HALLJOY_VERSION_TUPLE 1,4,1,0" in version,
+    "public version is 1.4.1": '#define HALLJOY_VERSION_STRING "1.4.1"' in version,
     "runtime build ID is centralized": "HALLJOY_BUILD_ID_W" in version and "HALLJOY_BUILD_ID_W" in backend,
     "file version uses the central tuple": "FILEVERSION HALLJOY_VERSION_TUPLE" in resource,
     "product version uses the central tuple": "PRODUCTVERSION HALLJOY_VERSION_TUPLE" in resource,

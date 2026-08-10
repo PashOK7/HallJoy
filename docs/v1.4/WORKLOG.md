@@ -3028,3 +3028,151 @@ release notes into a collapsed `<details>` section. Added a direct
 the changelog. Removed the test-only `README_FOR_TESTER.txt` public asset; the
 release now exposes only `HallJoy.exe`, `SHA256SUMS.txt`, and
 `THIRD_PARTY_NOTICES.md`. The executable and its digest were not changed.
+
+## 2026-08-10: Redragon K673RGB-M W669 diagnostic candidate
+
+Statically unpacked the supplied signed Redragon `V2.06.01` desktop package
+without running its installer or firmware tools. Neither that package, its
+newer `V2.06.08` application payload, nor the referenced firmware channel
+contains a K673 firmware image. No unrelated embedded firmware is considered
+safe to flash.
+
+Cross-checked the exact `K673RGB-M` against the public iLLumiPC WebHID catalog
+and client. It identifies three exact firmware products on `2E3C:C365`,
+`FF1B:0091`, report ID 1 and uses the existing W669 `0D/18/21` protocol,
+including the real `21/01` per-key change stream and the `21/02` 22-column live
+subscription. Recovered and hash-pinned the three official 132-position
+factory maps rather than inferring a layout from the shared PID or marketing
+name.
+
+Added distinct BR, UK and US K673 profiles selected only by the exact read-only
+opcode-`0D` firmware product. The ambiguous HID name `K673RGB-M` remains an
+invalid fallback. Unknown W669 products still receive no guessed factory map.
+Portable protocol tests compare all 132 BR positions with the recovered source
+and cover the variant differences and exact/unknown identity policy.
+
+Extended diagnostic-only W669 telemetry with the exact selected product and
+profile, raw reports, event rate and intervals, minimum positive raw travel,
+release-to-zero edges, unique pressed-key count, peak simultaneous keys,
+session summary, and per-HID coverage. Production code retains the existing
+allocation-free live publication path because the new counters compile only
+under `HALLJOY_DIAGNOSTIC`.
+
+Built the single-file candidate at `build/aula-diagnostic/HallJoy.exe`,
+2,330,112 bytes, SHA-256
+`E38E2291DAA63CB28597E55FC683EAC7B38365E32874749D3167F28CC69D18F7`.
+The candidate is intentionally unsigned and not a release artifact. Physical
+K673 validation remains pending. A four-second isolated no-device smoke created
+the one expected `HallJoy.log`, accepted graceful `WM_CLOSE`, exited with code
+zero, and left no surviving process.
+
+## 2026-08-10: Redragon K673RGB-M physical BR validation
+
+Analyzed the returned `HallJoy (9).log` (SHA-256
+`B2D76566F0BCD93B4997081400DE6539694A0814F32415C8BCD3C2E2F7A72A94`).
+The device identifies as `K673RGB-M`, firmware
+`W669,34,KB,FR,7272BRHEXYXK673JCARGB,V3.18.01`. The exact
+`redragon_k673_br_81` route completed all ten map fragments, proved 81
+publishable usages and travel maximum 340, and entered the real `21/01` stream
+through a shared non-exclusive session.
+
+The 12.234-second run decoded and published 1,491 live change events across 17
+HID usages. It recorded 72 positive edges and exactly 72 release-to-zero edges,
+minimum positive travel 7/340 (about 2.06%), maximum travel 340, four keys held
+simultaneously, `active_at_stop=0`, and zero final output for every observed
+key. The tester did not hold ten keys and the read-only polling query returned
+firmware-default code zero, so neither a ten-key stress result nor a numeric
+1,000 Hz claim is inferred from the motion-dependent event rollups.
+
+The only anomalous counter was terminal `failures=1`. The preceding telemetry
+was zero-failure and the same timestamp shows clean stop, unsubscribe and
+`fault_kind=0`; the pending `ReadFile` was completed by normal stop-time
+`CancelIoEx`. W669 now treats `ERROR_OPERATION_ABORTED` and
+`ERROR_INVALID_HANDLE` as informational only when stop has already been
+requested, while preserving every such error as a real failure at runtime.
+The backend static audit now guards that distinction. The complete native
+backend gate, documentation audit and optimized MSVC diagnostic rebuild pass.
+Corrected unsigned diagnostic artifact: `build/aula-diagnostic/HallJoy.exe`,
+2,330,112 bytes, SHA-256
+`EE6135930FDB9D950CFC6F3FB2270E4EFBD12F861893AD6E4B3CB53191904D1B`.
+The public README and hardware matrix now list the physically validated BR
+K673 separately from the official-profile-only UK and US variants.
+An isolated four-second smoke of that exact rebuilt EXE accepted `WM_CLOSE`,
+exited with code zero, left no surviving process and produced the expected
+single `HallJoy.log` beside its extracted private host DLL.
+
+## 2026-08-10: Redragon K673 production release candidate
+
+Ran the official `tools/build.ps1` production pipeline against the complete
+K673 tree. All native/static/portable gates passed, MSVC `Release|x64`
+completed with zero errors and only the allow-listed external ViGEm `LNK4099`
+missing-PDB warning. The linked-image audit found no continuous, W669 raw,
+telemetry, diagnostic, summary, or coverage markers and retained only the
+crash-report contract.
+
+The first packaging attempt correctly stopped because the previous
+`build/release/HallJoy.exe` and its child processes were still running. After a
+normal user-requested close, the complete official pipeline was rerun and
+packaged successfully. Initial unsigned candidate before the packaging cleanup:
+`build/release/HallJoy.exe`, 2,188,288 bytes, SHA-256
+`33A08D48AFE088814CEAC319CFB52D216F65F96003A74BC133E1359C9D2C9814`.
+The digest exactly matches `build/release/SHA256SUMS.txt`.
+
+An independent five-second smoke copied that exact EXE to a clean temporary
+directory, accepted `WM_CLOSE`, exited with code zero, left no parent or child
+process, retained an unchanged executable hash, and created neither a
+continuous log nor a crash report. Only the expected private analogue-host DLL
+was extracted beside it.
+
+## 2026-08-10: Remove obsolete tester README packaging
+
+Removed the legacy `README_FOR_TESTER.txt` template and its mandatory
+production packaging path. It had no runtime consumer and had already been
+excluded manually from the public GitHub release, but the official local build
+still regenerated it in both staging and release directories. Production now
+packages only `HallJoy.exe`, `SHA256SUMS.txt`, and
+`THIRD_PARTY_NOTICES.md`. The build-documentation audit now rejects any future
+return of the obsolete filename to `tools/build.ps1`.
+
+The official production pipeline was then rerun to completion with HallJoy
+closed. It produced exactly three release files and no tester README. All
+native/static/portable gates, the linked-image telemetry exclusion and MSVC
+`Release|x64` passed again. Final unsigned candidate:
+`build/release/HallJoy.exe`, 2,188,288 bytes, SHA-256
+`EFD250C67F07CDB477788BF3461C042527E64566B946A7621F079B4E54945D19`;
+the checksum file matches. An independent five-second smoke exited zero after
+`WM_CLOSE`, left no process, did not alter the EXE and created no log or crash
+report. The superseded local release folder was moved to the recoverable backup
+`C:\github\HallJoy_K673_analysis_20260810\retired_release_with_tester_readme_20260810_2328`.
+
+## 2026-08-10: Public Redragon compatibility wording
+
+Expanded the README's two user-facing hardware tables with readable Redragon
+marketing model names from the official driver catalog. The text deliberately
+separates evidence levels: K673RGB-M is the only physically tested Redragon;
+the other listed magnetic-switch models are described as expected compatible
+through the same official analogue family, not as physically validated. Raw
+firmware product identities were removed from the public Redragon rows while
+remaining preserved in the technical protocol and validation records.
+
+## 2026-08-11: HallJoy v1.4.1 release qualification
+
+Raised the centralized product identity from `1.4.0.0` to `1.4.1.0` for the
+Redragon patch release. The runtime build family remains `HallJoy-v1.4`, while
+the protected-directory private runtime path receives the full `v1.4.1`
+version through the existing centralized macro.
+
+The official `tools/build.ps1` production pipeline passed on the complete
+release tree. Every native, static, portable C++20, documentation, dependency,
+private-UAP ABI, warning-policy, and linked-image gate passed. MSVC
+`Release|x64` completed with zero errors and only the allow-listed external
+ViGEm `LNK4099` missing-PDB warning. The release folder contains exactly
+`HallJoy.exe`, `SHA256SUMS.txt`, and `THIRD_PARTY_NOTICES.md`.
+
+The final unsigned `HallJoy.exe` is 2,188,288 bytes, reports FileVersion and
+ProductVersion `1.4.1.0`, and has SHA-256
+`B21060D0FE5676A6301DDB2EEB0412DFBF5EDC4850BAD575B82045905FDE4243`.
+An independent five-second portable smoke accepted `WM_CLOSE`, exited with
+code zero, preserved the executable hash, and created neither a continuous log
+nor a crash report. This qualifies the tree for the `v1.4.1` GitHub release
+with partial Redragon support: only K673RGB-M is physically validated.

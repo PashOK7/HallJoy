@@ -24,8 +24,9 @@ The firmware contains the exact vendor report descriptor for report ID 1. It
 also contains a 39-entry opcode dispatcher covering `00..26`; the analogue
 path is opcode `21` and the current base-layer key map is opcode `18`.
 
-The official AULA driver currently lists several products on the same
-`2E3C:C365` transport, including WIN60 HE, WIN68 HE and KP-TE153 variants. A
+Official W669 configurators list several products on the same `2E3C:C365`
+transport, including AULA WIN60 HE/WIN68 HE/KP-TE153 variants and Redragon
+K673RGB-M variants. A
 matching VID/PID is therefore only a candidate signal, not a model identity.
 The complete HID shape plus read-only travel and map responses identify a
 protocol session; PID alone never does.
@@ -40,9 +41,14 @@ bounded classification and embeds the audited official factory maps:
 | `SI2825HEARGB`, `SI2825KRT12HEARGB`, `SI2825KR-AHEARGB`, `SI2825KZHEARGB` | 61-key WIN60 | `04E2FDA00FDB1645C74D42121102C1CF233658DDF43FB2611ACE57460CFCB448` |
 | `SI2828HEARGB`, `SI2828KZHEARGB` | 68-key WIN68 | `CC2CBBC9C051230279BA8CE3B52054739446DC19C78CF1A38ADFD2D7C6CDF9E1` |
 | `SI2851UKKZHEARGB` | 69-key KP-TE153 UK | `FCB98F5DF82C2E00D94501389C452172C4FAB6F103DF3CBF489FFFE9B89945C3` |
+| `7272BRHEXYXK673JCARGB` | 81 publishable-key K673 BR | `E2ED942977639D2C925C083F186F8285045C212238BD54CA3DFA462B388E85B5` |
+| `7272UKHEXYXBJCARGB` | 81 publishable-key K673 UK | `95CAECC35B88F7D5BB489FF00B966D5A027E525450898FB7066B8DC4C72E12A7` |
+| `7272USHEXYXK673JCARGB` | 80 publishable-key K673 US | `3793C15E57E7B2F70F158EEFB746D85DA4D9A3CA04D625100B6888A3B64E06CD` |
 
 WIN68 and KP-TE153 are implementation-tested from official protocol/layout
 evidence but remain physically unvalidated until their own hardware is tested.
+The BR K673 product `7272BRHEXYXK673JCARGB` is also physically validated; the
+UK and US K673 geometries retain automated evidence only.
 
 ## Canonical frame indexing
 

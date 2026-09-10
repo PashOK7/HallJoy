@@ -46,14 +46,25 @@ all copies or substantial portions. The full license text is:
 > OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 > SOFTWARE.
 
-The official build copies this notice beside `HallJoy.exe`. Release archives
-must retain it; sending a test executable alone is not the release package.
+The official build copies this notice beside `HallJoy.exe`. GitHub Releases
+publishes it as accompanying license documentation; it is not a runtime
+dependency. Users can download and run HallJoy.exe without placing this document
+beside it. Redistributors must preserve the applicable notices and source access.
+
+HallJoy source for release 1.5.0:
+https://github.com/PashOK7/HallJoy/tree/v1.5.0
+HallJoy's AGPL-3.0 license is supplied as the separate LICENSE release asset.
 
 ## Wooting Analog SDK/common library
 
 - Headers and prebuilt common libraries are used by the isolated Universal Analog
   Plugin compatibility layer.
 - Bundled library files are under `third_party/UniversalAnalogPluginFixed/`.
+- License: Mozilla Public License 2.0 (MPL-2.0).
+- Upstream source: https://github.com/WootingKb/wooting-analog-sdk
+- License text: https://www.mozilla.org/MPL/2.0/
+- Covered source remains available under MPL-2.0; HallJoy's license does not
+  restrict recipients' rights to those components under MPL-2.0.
 - Do not replace these binaries without updating the build preflight hashes/source
   attribution and reviewing the corresponding upstream license.
 
@@ -62,7 +73,8 @@ must retain it; sending a test executable alone is not the release package.
 - Headers and audited x64 import library are under
   `src/HallJoyProject/third_party/ViGEmClient/`.
 - Copyright (c) 2017-2023 Nefarius Software Solutions e.U. and Contributors.
-- License: MIT; the license text is preserved in the distributed headers.
+- License: MIT; the full permission and warranty notice reproduced above also
+  applies to ViGEmClient with its copyright notice listed here.
 
 ## ViGEmBus
 

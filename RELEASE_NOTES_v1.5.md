@@ -6,6 +6,13 @@ the layout editor, and everyday usability. Download and run
 No archive extraction is needed. Close the previous HallJoy before replacing it.
 Keep your existing HallJoy data folder; do not delete it to update.
 
+**Only HallJoy.exe is needed to run the app.**
+[Third-party notices](https://github.com/PashOK7/HallJoy/releases/download/v1.5.0/THIRD_PARTY_NOTICES.md)
+and [LICENSE](https://github.com/PashOK7/HallJoy/releases/download/v1.5.0/LICENSE)
+are accompanying license documents, not additional installation files.
+[Source code for this release](https://github.com/PashOK7/HallJoy/tree/v1.5.0)
+is available separately.
+
 ## Highlights
 
 - A HallJoy Discord community is now available for help, feedback, keyboard

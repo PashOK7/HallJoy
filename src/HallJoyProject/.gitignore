@@ -58,6 +58,9 @@ README.md.*.bak
 *.bak-*
 *.bak-sayo-*
 irok_*.cpp
+!HallJoy/irok_nd75_backend.cpp
+!HallJoy/irok_nd75_protocol.cpp
+!tests/irok_nd75_protocol_test.cpp
 irok_*.cpp.*
 rawkbd_probe.cpp
 spark_probe.cpp

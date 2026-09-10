@@ -1,0 +1,3 @@
+# Source fixtures, vendor snapshots and dependency overlays are SHA256-locked.
+# Preserve exact bytes on every platform; editor encoding is in .editorconfig.
+* -text

@@ -221,13 +221,6 @@ def main() -> int:
                 tests / "extended_key_bindings_test.cpp",
                 hall / "bindings.cpp",
             ]),
-            ("key_settings_domain", [
-                tests / "key_settings_domain_test.cpp",
-                hall / "key_settings.cpp",
-                hall / "backend_curve.cpp",
-                hall / "settings.cpp",
-                hall / "curve_math.cpp",
-            ]),
             ("protocol_parser_fuzz_smoke", [
                 tests / "protocol_parser_fuzz_smoke_test.cpp",
                 hall / "aula_win60he_protocol.cpp",
@@ -254,6 +247,12 @@ def main() -> int:
             ]),
         ]
         if os.name == "nt":
+            # Production settings expose Win32 types; test the actual linked
+            # implementation on Windows, keeping pure curve math portable.
+            fixed_tests.append(("key_settings_domain", [
+                tests / "key_settings_domain_test.cpp", hall / "key_settings.cpp",
+                hall / "backend_curve.cpp", hall / "settings.cpp", hall / "curve_math.cpp",
+            ]))
             # This suite now includes real Win32 INI file roundtrips, not only
             # the original platform-independent numeric conversion cases.
             fixed_tests.append(("bounded_ini_numeric", [tests / "bounded_ini_numeric_test.cpp"]))

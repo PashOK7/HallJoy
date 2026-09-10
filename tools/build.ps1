@@ -508,12 +508,6 @@ Write-Host 'Running native backend static checks...' -ForegroundColor Cyan
 & python $nativeCheckRunner --require-compiler
 if ($LASTEXITCODE -ne 0) { throw "Native backend static checks failed: $LASTEXITCODE" }
 
-# A static audit cannot detect a loader which silently substitutes defaults.
-# Gate official releases on production-linked file roundtrips and write faults.
-# The helper uses a fresh test data root and forbids backend initialization.
-Write-Host 'Running production-linked settings/profile roundtrip tests...' -ForegroundColor Cyan
-& (Join-Path $root 'tools\run_profile_transaction_tests.ps1')
-
 $uiAudit = Join-Path $hallJoyRoot 'tests\pre_release_ui_static_audit.py'
 Write-Host 'Running pre-release UI static audit...' -ForegroundColor Cyan
 & python $uiAudit
@@ -586,6 +580,12 @@ if ($LASTEXITCODE -ne 0) { throw "Private UAP ABI runtime gate failed: $LASTEXIT
 New-Item -ItemType Directory -Path $runtime -Force | Out-Null
 Copy-Item -LiteralPath $abi0 -Destination (Join-Path $runtime 'universal_analog_abiv0.dll') -Force
 Copy-Item -LiteralPath $abi1 -Destination (Join-Path $runtime 'universal_analog_abiv1.dll') -Force
+
+# A static audit cannot detect a loader which silently substitutes defaults.
+# The simulator embeds the same runtime resources: materialize them FIRST on a
+# clean checkout, then test file roundtrips with backend initialization forbidden.
+Write-Host 'Running production-linked settings/profile roundtrip tests...' -ForegroundColor Cyan
+& (Join-Path $root 'tools\run_profile_transaction_tests.ps1')
 
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
 $msbuild = $null

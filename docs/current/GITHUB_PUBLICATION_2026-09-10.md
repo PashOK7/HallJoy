@@ -32,3 +32,10 @@ on Linux. No fake replacement SDK, skipped Windows coverage or EXE change.
 Run 34510636301 also identifies bounded_ini_numeric as Windows-only: its newer
 tests exercise GetPrivateProfileString/temporary files, not just numeric parsing.
 Moved that entire test to the same mandatory Windows group, retaining all cases.
+
+The same dependency review classifies key_settings_domain as Windows-linked
+(production settings.h uses Win32 types); pure curve_math remains portable.
+Windows CI also revealed profile simulator compilation preceded generation of
+its embedded UAP resource DLLs. Reordered the official build: generate/validate
+runtime first, then compile/run profile tests, then compile the production EXE.
+No cached DLL assumption or test omission remains at this boundary.

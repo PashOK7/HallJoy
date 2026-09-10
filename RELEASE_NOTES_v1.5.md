@@ -1,8 +1,9 @@
 # HallJoy 1.5.0
 
 Windows x64. This update focuses on configuration reliability, keyboard layouts,
-the layout editor, and everyday usability. Download the Windows ZIP, extract it
-to a folder, and run HallJoy.exe. Close the previous HallJoy before replacing it.
+the layout editor, and everyday usability. Download and run
+[HallJoy.exe](https://github.com/PashOK7/HallJoy/releases/download/v1.5.0/HallJoy.exe).
+No archive extraction is needed. Close the previous HallJoy before replacing it.
 Keep your existing HallJoy data folder; do not delete it to update.
 
 ## Highlights
@@ -63,7 +64,7 @@ text. Open HallJoy folder provides access to the diagnostic log.
   this is not a promise that every stock firmware exposes analog input.
 - ROG Azoth 96 HE, Aula HERO84 HE, IROK ND75 and Attack Shark X68 HE remain frozen.
 - HallJoy itself is not Authenticode-signed; Windows may show an unknown publisher.
-  SHA256SUMS verifies file integrity, not publisher authentication.
+  SHA-256 verifies file integrity, not publisher authentication.
 
 New layout geometry has automated checks, not a claim of physical testing on
 every listed keyboard. See [supported hardware](SUPPORTED_HARDWARE.md).

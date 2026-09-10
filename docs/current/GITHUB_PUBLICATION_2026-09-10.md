@@ -1,5 +1,22 @@
 # GitHub publication — 2026-09-10
 
+## Published
+
+HallJoy v1.5.0 is the latest non-prerelease:
+https://github.com/PashOK7/HallJoy/releases/tag/v1.5.0.
+Tag/source revision: 31470d22db96111095e5625a5707f44bfcd053c3.
+Both Linux and full Windows checks PASS:
+https://github.com/PashOK7/HallJoy/actions/runs/34511013964.
+The uploaded ZIP is the unchanged four-user-tested candidate, not a replacement
+CI build. GitHub asset SHA256 matches
+6EF62BE7DB0ABBE861D4595E1E9A74163C989B8862D8C625BAEFECA4EF8B7026;
+contained EXE SHA256 remains
+F6CF016FA3D8B15D80EB2AF83BCAE1D8E16F989FE142EBC92D96CA454232079B.
+ZIP and checksum were verified while draft before publication. Tag readback
+confirms the CI-passing revision. No older release was changed.
+
+## Publication fixes and evidence
+
 Owner authorized pushing current sources and publishing 1.5.0. First source
 commit abd0eeb69a004acb74edb3448ee7882cf0253127 reached main. CI run 34510146142
 caught two clean-checkout problems hidden by local working files:
@@ -16,12 +33,8 @@ Git checkout, not only the original working tree, must pass checks before releas
 
 Actions uploads now occur only for workflow_dispatch and expire after three days.
 Automatic push/PR compilation and tests still run. No paid budget changed and no
-old artifact/cache/release deleted. Across the five owner repositories, only
-HallJoy currently has non-expired Actions artifacts: 12, 14,243,850 bytes. Nova's
-81 historical records total about 14.5 GiB but all are expired; their metadata
-must not be counted as current storage. All inspected caches are empty. Billing
-API is unavailable with current OAuth scopes, so the account email's current
-500 MB usage cannot be reconciled from these artifact listings alone.
+old artifact/cache/release deleted. Account billing and other private repository
+details are kept in local notes, not in this public release report.
 
 Next CI run 34510415822 passes the corrected source checks but reveals the
 ViGEm child transport ABI test was incorrectly scheduled on Linux. It includes

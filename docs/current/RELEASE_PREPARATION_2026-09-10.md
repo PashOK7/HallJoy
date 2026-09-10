@@ -1,5 +1,9 @@
 # Release preparation review — 2026-09-10
 
+Published as v1.5.0 with green Linux/Windows CI. Current publication status:
+[GITHUB_PUBLICATION_2026-09-10.md](GITHUB_PUBLICATION_2026-09-10.md).
+Unpublished-state descriptions below are historical preparation evidence.
+
 Final audit and four-user feedback: [FINAL_RELEASE_AUDIT_2026-09-10.md](FINAL_RELEASE_AUDIT_2026-09-10.md).
 
 ## Latest follow-up: overlay-only input

@@ -138,10 +138,6 @@ def main() -> int:
             ("vigem_output_producer_lease", [
                 tests / "vigem_output_producer_lease_test.cpp",
             ]),
-            ("vigem_child_transport", [
-                tests / "vigem_child_transport_test.cpp",
-                hall / "vigem_child_transport.cpp",
-            ]),
             ("vigem_output_channel_process", [
                 tests / "vigem_output_channel_process_test.cpp",
                 hall / "vigem_output_channel.cpp",
@@ -259,6 +255,13 @@ def main() -> int:
             ]),
         ]
         if os.name == "nt":
+            # Uses the real Windows ViGEm SDK ABI (including Windows packing
+            # headers), even with fake device calls. Keep mandatory coverage in
+            # the Windows build rather than substituting a fake SDK on Linux.
+            fixed_tests.append(("vigem_child_transport", [
+                tests / "vigem_child_transport_test.cpp",
+                hall / "vigem_child_transport.cpp",
+            ]))
             fixed_tests.append(("block_keys_hotkey_windows", [tests / "block_keys_hotkey_windows_test.cpp"]))
             fixed_tests.append(("support_log_windows", [
                 tests / "support_log_windows_test.cpp", hall / "support_log.cpp"

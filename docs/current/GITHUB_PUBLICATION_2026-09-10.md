@@ -22,3 +22,9 @@ HallJoy currently has non-expired Actions artifacts: 12, 14,243,850 bytes. Nova'
 must not be counted as current storage. All inspected caches are empty. Billing
 API is unavailable with current OAuth scopes, so the account email's current
 500 MB usage cannot be reconciled from these artifact listings alone.
+
+Next CI run 34510415822 passes the corrected source checks but reveals the
+ViGEm child transport ABI test was incorrectly scheduled on Linux. It includes
+the actual Windows SDK header (pshpack1.h), even with fake device calls. The test
+now runs in the mandatory Windows test group; portable protocol/state tests stay
+on Linux. No fake replacement SDK, skipped Windows coverage or EXE change.

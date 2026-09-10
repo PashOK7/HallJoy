@@ -31,9 +31,9 @@ def main() -> int:
     solution = read(PROJECT_ROOT / "HallJoy.sln")
     build = read(ROOT / "tools" / "build.ps1")
     runner = read(ROOT / "tools" / "run_native_backend_checks.py")
-    testing = read(PROJECT_ROOT / "TESTING.md")
+    testing = read(ROOT / "docs" / "development" / "TESTING.md")
     readme = read(PROJECT_ROOT / "README.md")
-    build_readme = read(PROJECT_ROOT / "BUILD_README.txt")
+    build_readme = read(ROOT / "docs" / "development" / "BUILD_README.txt")
     historical = read(ROOT / "docs" / "validation" / "VALIDATION_PACKAGE_V3_9_0.txt")
     release_risks = read(ROOT / "docs" / "v1.4" / "RISK_REGISTER.md")
     imported_risks = read(ROOT / "docs" / "stability" / "RISK_REGISTER.md")
@@ -81,7 +81,7 @@ def main() -> int:
             "bundled x64 ViGEmClient.lib is missing")
 
     require("Unexpected production compiler/linker warnings were emitted." in build and
-            "warning LNK4099:.*ViGEmClient\\.pdb" in build,
+            "ViGEmClient\\.lib\\(ViGEmClient\\.obj\\)\\s*: warning LNK4099:" in build,
             "official build no longer rejects warnings outside the one linker baseline")
     require("run_native_backend_checks.py" in build and "--require-compiler" in build,
             "official build no longer requires the unified automated gate")
@@ -103,11 +103,11 @@ def main() -> int:
     require("Madlions V6 SafeHID branch" not in readme and
             "Settings saved next to the executable" not in readme,
             "project README returned to the V6/storage story")
-    require("Windows x64 only" in readme and "build\\output\\HallJoy.exe" in readme and
+    require("Windows x64 only" in readme and "build\\release\\HallJoy.exe" in readme and
             "%LOCALAPPDATA%\\HallJoy" in readme,
             "project README is missing the current target/output/storage contract")
     require("BUILD.cmd" in build_readme and "build\\release\\HallJoy.exe" in build_readme and
-            "build\\output" in build_readme and
+            "build\\release" in build_readme and
             "Win32/x86 is not supported" in build_readme,
             "build guide is missing the current x64 build contract")
 

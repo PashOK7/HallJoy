@@ -26,7 +26,7 @@ def main() -> int:
 
     all_cpp = "\n".join(text(path) for path in SRC.glob("*.cpp"))
     for getter in getters:
-        require(re.search(rf"const\s+NativeAnalogBackendDescriptor&\s+{getter}\s*\(", all_cpp) is not None,
+        require(re.search(rf"const\s+NativeAnalogBackendDescriptor\s*&\s*{getter}\s*\(", all_cpp) is not None,
                 f"catalog getter has no definition: {getter}")
 
     app = text(SRC / "app.cpp")

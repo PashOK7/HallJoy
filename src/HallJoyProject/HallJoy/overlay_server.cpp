@@ -3,6 +3,8 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#include "support_log.h"
+#include "settings.h"
 #include <bcrypt.h>
 
 #include <algorithm>
@@ -20,6 +22,7 @@
 #include <vector>
 
 #include "overlay_server.h"
+#include "analog_key_codes.h"
 #include "backend.h"
 #include "keyboard_layout.h"
 #include "debug_log.h"
@@ -104,7 +107,6 @@ static std::atomic<uint64_t> g_perfClientLabelBuildUs{ 0 };
 static std::atomic<uint64_t> g_perfClientReports{ 0 };
 static std::atomic<ULONGLONG> g_perfLastLogMs{ 0 };
 
-static void OverlayPerfLogFile(const wchar_t* line);
 
 static uint64_t OverlayNowUs()
 {
@@ -124,6 +126,7 @@ static void OverlayAtomicMax(std::atomic<uint64_t>& target, uint64_t value)
 
 static void OverlayPerfMaybeLog()
 {
+    if (!Settings_GetDiagnosticLogging()) return;
     ULONGLONG now = GetTickCount64();
     ULONGLONG last = g_perfLastLogMs.load(std::memory_order_relaxed);
     if (now - last < 5000)
@@ -198,7 +201,7 @@ static void OverlayPerfMaybeLog()
         (unsigned long long)clientSpriteBuild,
         (unsigned long long)clientLabelBuild);
     DebugLog_Write(L"%s", line);
-    OverlayPerfLogFile(line);
+    SupportLog_OverlaySummary(line);
 }
 
 static void AppendUInt(std::string& out, unsigned value)
@@ -213,62 +216,6 @@ static void AppendUInt64(std::string& out, unsigned long long value)
     char buf[32]{};
     auto r = std::to_chars(buf, buf + sizeof(buf), value);
     out.append(buf, r.ptr);
-}
-
-static std::wstring OverlayPerfLogPath()
-{
-    std::wstring path;
-    std::vector<wchar_t> buf(1024);
-    DWORD len = 0;
-    for (;;)
-    {
-        len = GetModuleFileNameW(nullptr, buf.data(), (DWORD)buf.size());
-        if (len == 0)
-            return L"overlay_perf.log";
-        if (len < buf.size())
-            break;
-        if (buf.size() > 65536)
-            return L"overlay_perf.log";
-        buf.resize(buf.size() * 2);
-    }
-    path.assign(buf.data(), len);
-    size_t slash = path.find_last_of(L"\\/");
-    if (slash != std::wstring::npos)
-        path.erase(slash + 1);
-    else
-        path.clear();
-    path += L"overlay_perf.log";
-    return path;
-}
-
-static void OverlayPerfLogFile(const wchar_t* line)
-{
-    if (!line || !*line)
-        return;
-    static const std::wstring path = OverlayPerfLogPath();
-    HANDLE h = CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
-        nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (h == INVALID_HANDLE_VALUE)
-        return;
-
-    SYSTEMTIME st{};
-    GetLocalTime(&st);
-    wchar_t prefix[64]{};
-    swprintf_s(prefix, L"%04u-%02u-%02u %02u:%02u:%02u.%03u ",
-        st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
-    std::wstring full = prefix;
-    full += line;
-    full += L"\r\n";
-
-    int need = WideCharToMultiByte(CP_UTF8, 0, full.c_str(), (int)full.size(), nullptr, 0, nullptr, nullptr);
-    if (need > 0)
-    {
-        std::string utf8((size_t)need, '\0');
-        WideCharToMultiByte(CP_UTF8, 0, full.c_str(), (int)full.size(), utf8.data(), need, nullptr, nullptr);
-        DWORD written = 0;
-        WriteFile(h, utf8.data(), (DWORD)utf8.size(), &written, nullptr);
-    }
-    CloseHandle(h);
 }
 
 static std::string Utf8FromWide(const wchar_t* w)
@@ -389,7 +336,7 @@ static std::string OverlayBuildStateJson()
     unsigned lg = (labelColor >> 8) & 0xffu;
     unsigned lb = labelColor & 0xffu;
 
-    const auto layout = KeyboardLayout_GetSnapshot();
+    const auto layout = KeyboardLayout_GetOverlaySnapshot();
     const size_t layoutKeyCount = layout ? layout->keys.size() : 0u;
 
     std::string ss;
@@ -457,8 +404,10 @@ static std::string OverlayBuildStateJson()
     for (size_t i = 0; i < keys.size(); ++i)
     {
         const KeyDef& k = keys[i];
-        uint16_t raw = (k.hid < 256) ? BackendUI_GetRawMilli(k.hid) : 0;
-        uint16_t out = (k.hid < 256) ? BackendUI_GetAnalogMilli(k.hid) : 0;
+        uint16_t raw = halljoy::keycode::IsSupported(k.hid)
+            ? BackendUI_GetRawMilli(k.hid) : 0;
+        uint16_t out = halljoy::keycode::IsSupported(k.hid)
+            ? BackendUI_GetAnalogMilli(k.hid) : 0;
         if (i != 0) ss += ',';
         ss += "{\"label\":\"";
         ss += JsonEscape(Utf8FromWide(k.label));
@@ -466,12 +415,18 @@ static std::string OverlayBuildStateJson()
         AppendUInt(ss, (unsigned)k.hid);
         ss += ",\"row\":";
         AppendUInt(ss, (unsigned)k.row);
+        ss += ",\"y\":";
+        AppendUInt(ss, (unsigned)KeyboardLayout_KeyY(k));
         ss += ",\"x\":";
         AppendUInt(ss, (unsigned)k.x);
         ss += ",\"w\":";
         AppendUInt(ss, (unsigned)k.w);
         ss += ",\"h\":";
         AppendUInt(ss, (unsigned)k.h);
+        if (k.notchW) {
+            ss += ",\"notchW\":"; AppendUInt(ss, (unsigned)k.notchW);
+            ss += ",\"notchY\":"; AppendUInt(ss, (unsigned)k.notchY);
+        }
         ss += ",\"raw\":";
         AppendUInt(ss, (unsigned)raw);
         ss += ",\"out\":";
@@ -584,7 +539,7 @@ function resize(){
 }
 function recalcLayout(keys){
   let maxX=1,maxY=1;
-  for(const k of keys){maxX=Math.max(maxX,k.x+k.w);maxY=Math.max(maxY,k.row*46+(k.h||40));}
+for(const k of keys){maxX=Math.max(maxX,k.x+k.w);maxY=Math.max(maxY,(k.y??k.row*46)+(k.h||40));}
   boardW=maxX;boardH=maxY;scale=Math.max(.1,Math.min(cw/maxX,ch/maxY)*.96);ox=(cw-boardW*scale)*.5;oy=(ch-boardH*scale)*.5;
 }
 function syntheticApply(s,now){
@@ -699,12 +654,27 @@ function drawGlassMaterial(g,w,h,r,c,vq,glassStrength,eased){
   }
   g.restore();
 }
-function getSprite(w,h,v,s,c,fx,stg){
+function keyPath(g,x,y,w,h,r,nw=0,ny=0){
+  if(!nw){rr2(g,x,y,w,h,r);return;}
+  nw=Math.max(.001,Math.min(nw,w-.001));ny=Math.max(.001,Math.min(ny,h-.001));
+  const p=[[x,y],[x+w,y],[x+w,y+h],[x+nw,y+h],[x+nw,y+ny],[x,y+ny]];
+  g.beginPath();
+  for(let i=0;i<p.length;i++){
+    const a=p[(i+p.length-1)%p.length],b=p[i],c=p[(i+1)%p.length];
+    const before=Math.hypot(a[0]-b[0],a[1]-b[1]),after=Math.hypot(c[0]-b[0],c[1]-b[1]);
+    const radius=Math.max(0,Math.min(r,before/2,after/2));
+    const sx=b[0]+(a[0]-b[0])*radius/before,sy=b[1]+(a[1]-b[1])*radius/before;
+    if(i===0)g.moveTo(sx,sy);else g.lineTo(sx,sy);
+    g.quadraticCurveTo(b[0],b[1],b[0]+(c[0]-b[0])*radius/after,b[1]+(c[1]-b[1])*radius/after);
+  }
+  g.closePath();
+}
+function getSprite(w,h,v,s,c,fx,stg,nw=0,ny=0){
   const rv=Math.round(clamp01(v)*96);
   const bloomStrength=stBloom(stg);
   const edgeStrength=stEdge(stg);
   const glassStrength=stGlass(stg);
-  const key=[w,h,rv,s.fillDirection,fx.glass?1:0,fx.bloom?1:0,fx.edgeSweep?1:0,c.r,c.g,c.b,bloomStrength.toFixed(2),edgeStrength.toFixed(2),glassStrength.toFixed(2)].join('|');
+  const key=[w,h,nw,ny,rv,s.fillDirection,fx.glass?1:0,fx.bloom?1:0,fx.edgeSweep?1:0,c.r,c.g,c.b,bloomStrength.toFixed(2),edgeStrength.toFixed(2),glassStrength.toFixed(2)].join('|');
   const hit=spriteCache.get(key);
   if(hit){spriteCache.delete(key);spriteCache.set(key,hit);perfSpriteHits++;return hit.canvas;}
   perfSpriteMisses++;
@@ -715,7 +685,7 @@ function getSprite(w,h,v,s,c,fx,stg){
   const eased=vq*vq*(3-2*vq);
   const bloomPower=fx.bloom?clamp01(eased*bloomStrength):0;
   const edgePower=fx.edgeSweep?clamp01(eased*edgeStrength):0;
-  g.save();g.shadowColor='rgba(0,0,0,.30)';g.shadowBlur=18;g.shadowOffsetY=6;rr2(g,0,0,w,h,r);
+  g.save();g.shadowColor='rgba(0,0,0,.30)';g.shadowBlur=18;g.shadowOffsetY=6;keyPath(g,0,0,w,h,r,nw,ny);
   if(fx.glass&&glassStrength>0.001){
     const base=g.createLinearGradient(0,0,0,h);
     base.addColorStop(0,'rgba(32,39,49,.78)');
@@ -726,14 +696,14 @@ function getSprite(w,h,v,s,c,fx,stg){
     g.fillStyle='rgba(16,20,28,.70)';
   }
   g.fill();g.restore();
-  rr2(g,0,0,w,h,r);g.save();g.clip();
+  keyPath(g,0,0,w,h,r,nw,ny);g.save();g.clip();
   const fh=h*vq,fy=s.fillDirection==='top-down'?0:h-fh;g.fillStyle=rgb(c);g.shadowColor=rgba(c,0.12+0.88*bloomPower);g.shadowBlur=fx.bloom?(4+Math.min(96,bloomStrength*3.2)*bloomPower):0;g.fillRect(0,fy,w,fh);
   if(fx.edgeSweep&&vq>0){g.shadowBlur=8+42*edgePower;g.fillStyle='rgba(255,255,255,'+(0.58+0.42*edgePower)+')';g.fillRect(0,s.fillDirection==='top-down'?fy+fh-3:fy,w,3);}
   if(fx.edgeSweep&&vq>0){const sheen=g.createLinearGradient(0,0,w,0);sheen.addColorStop(0,'rgba(255,255,255,0)');sheen.addColorStop(.42,rgba(c,0.10+0.28*edgePower));sheen.addColorStop(.58,'rgba(255,255,255,'+(0.08+0.34*edgePower)+')');sheen.addColorStop(1,'rgba(255,255,255,0)');g.shadowBlur=0;g.fillStyle=sheen;g.fillRect(2,2,w-4,Math.max(2,h*.14));}
   g.restore();
-  if(fx.glass)drawGlassMaterial(g,w,h,r,c,vq,glassStrength,eased);
-  rr2(g,.5,.5,w-1,h-1,r);g.lineWidth=1+2.2*edgePower;g.strokeStyle=vq>0&&fx.edgeSweep?rgba(c,0.30+0.70*edgePower):'rgba(255,255,255,.22)';g.shadowColor=rgba(c,0.10+0.78*edgePower);g.shadowBlur=vq>0&&fx.edgeSweep?10+70*edgePower:0;g.stroke();
-  if(vq>0&&fx.edgeSweep){rr2(g,2,2,w-4,h-4,Math.max(1,r-2));g.shadowBlur=0;g.lineWidth=.8+4.8*edgePower;g.strokeStyle=rgba(c,0.10+0.70*edgePower);g.stroke();}
+  if(fx.glass){g.save();keyPath(g,0,0,w,h,r,nw,ny);g.clip();drawGlassMaterial(g,w,h,r,c,vq,glassStrength,eased);g.restore();}
+  keyPath(g,.5,.5,w-1,h-1,r,nw?Math.max(.1,nw-.5):0,ny?Math.max(.1,ny-.5):0);g.lineWidth=1+2.2*edgePower;g.strokeStyle=vq>0&&fx.edgeSweep?rgba(c,0.30+0.70*edgePower):'rgba(255,255,255,.22)';g.shadowColor=rgba(c,0.10+0.78*edgePower);g.shadowBlur=vq>0&&fx.edgeSweep?10+70*edgePower:0;g.stroke();
+  if(vq>0&&fx.edgeSweep){keyPath(g,2,2,w-4,h-4,Math.max(1,r-2),nw?Math.max(.1,nw-2):0,ny?Math.max(.1,ny-2):0);g.shadowBlur=0;g.lineWidth=.8+4.8*edgePower;g.strokeStyle=rgba(c,0.10+0.70*edgePower);g.stroke();}
   spriteCache.set(key,{canvas:cn});
   if(spriteCache.size>SPRITE_CACHE_MAX)spriteCache.delete(spriteCache.keys().next().value);
   perfSpriteBuild+=(performance.now()-buildStart)*1000;
@@ -764,12 +734,12 @@ function getLabelSprite(w,h,label,labelPower,enabled,style){
 function drawGlassNeighborLight(k,c,stg,live){
   const rimStrength=stRimLight(stg);
   if(rimStrength<=.001)return;
-  const x=k.x,y=k.row*46,w=k.w,h=k.h||40,r=7;
+  const x=k.x,y=(k.y??k.row*46),w=k.w,h=k.h||40,r=7;
   const hits=[];
   for(const item of live){
     const o=item[0],ov=item[1];
     if(o===k||ov<=.003)continue;
-    const sx=o.x,sh=o.h||40,sy=o.row*46,sw=o.w;
+    const sx=o.x,sh=o.h||40,sy=(o.y??o.row*46),sw=o.w;
     const overlapX=Math.max(0,Math.min(x+w,sx+sw)-Math.max(x,sx));
     const overlapY=Math.max(0,Math.min(y+h,sy+sh)-Math.max(y,sy));
     const gapX=Math.max(0,Math.max(x,sx)-Math.min(x+w,sx+sw));
@@ -838,7 +808,7 @@ function drawGlassNeighborLight(k,c,stg,live){
   ctx.restore();
 }
 function drawKey(k,v,s,c,fx,stg,live){
-  const x=k.x,y=k.row*46,w=k.w,h=k.h||40;
+  const x=k.x,y=(k.y??k.row*46),w=k.w,h=k.h||40;
   const scaleStrength=stScale(stg);
   const labelStrength=stLabel(stg);
   const eased=v*v*(3-2*v);
@@ -846,9 +816,11 @@ function drawKey(k,v,s,c,fx,stg,live){
   const labelPower=clamp01(eased*labelStrength);
   ctx.save();
   if(fx.microScale&&v>0){const ms=1+0.024*scalePower;ctx.translate(x+w*.5,y+h*.5);ctx.scale(ms,ms);ctx.translate(-x-w*.5,-y-h*.5);}
-  const sp=getSprite(w,h,v,s,c,fx,stg);ctx.drawImage(sp,x-SPRITE_PAD,y-SPRITE_PAD);
-  if(fx.glassRimLight)drawGlassNeighborLight(k,c,stg,live);
-  const lbl=getLabelSprite(w,h,k.label||'',labelPower,!!fx.labelContrast,s.labelStyle||{});ctx.drawImage(lbl,x-(lbl.width-w)*.5,y-(lbl.height-h)*.5);
+  const nw=k.notchW||0,ny=k.notchY||0;
+  const sp=getSprite(w,h,v,s,c,fx,stg,nw,ny);ctx.drawImage(sp,x-SPRITE_PAD,y-SPRITE_PAD);
+  if(fx.glassRimLight){ctx.save();if(nw){keyPath(ctx,x,y,w,h,7,nw,ny);ctx.clip();}drawGlassNeighborLight(k,c,stg,live);ctx.restore();}
+  const lw=w-nw,lx=x+nw;
+  const lbl=getLabelSprite(lw,h,k.label||'',labelPower,!!fx.labelContrast,s.labelStyle||{});ctx.drawImage(lbl,lx-(lbl.width-lw)*.5,y-(lbl.height-h)*.5);
   ctx.restore();
 }
 function drawBloomAura(k,v,c,stg){
@@ -858,7 +830,7 @@ function drawBloomAura(k,v,c,stg){
   const eased=v*v*(3-2*v);
   const power=clamp01(eased*bloomStrength);
   if(power<=0)return;
-  const x=k.x,y=k.row*46,w=k.w,h=k.h||40;
+  const x=k.x,y=(k.y??k.row*46),w=k.w,h=k.h||40;
   const tone=Math.min(1,bloomStrength/2.04);
   const radius=h*(1.52+Math.min(2.70,bloomStrength*.55))*(0.84+0.16*power);
   const count=Math.max(1,Math.min(9,Math.ceil(w/(h*.72))));
@@ -908,7 +880,7 @@ function render(){
   const s=latest;
   let live=[],lit=[],fx={},stg={},settings={},c={r:73,g:196,b:255};
   if(s&&s.keys){
-    const lk=s.keys.map(k=>k.hid+','+k.row+','+k.x+','+k.w+','+(k.h||40)+','+(k.label||'')).join('|');
+    const lk=s.keys.map(k=>k.hid+','+(k.y??k.row*46)+','+k.x+','+k.w+','+(k.h||40)+','+(k.notchW||0)+','+(k.notchY||0)+','+(k.label||'')).join('|');
     let layoutMs=0;if(lk!==layoutKey){const ls=performance.now();layoutKey=lk;recalcLayout(s.keys);layoutMs=performance.now()-ls;perfLayout+=layoutMs*1000;redraw=true;}
     fx=s.effects||{};stg=s.strengths||{};settings=s.settings||{};c=accent(s);
     const label=s.labelStyle||{},lc=labelColor(label);
@@ -920,7 +892,7 @@ function render(){
     const baseResponse=1-(clamp01((stg.smoothing===undefined?15:stg.smoothing)/100)*.82);
     const response=fx.smoothing?1-Math.pow(1-baseResponse,dt/16.6667):1;
     for(const k of s.keys){
-      const id=k.hid+':'+k.row+':'+k.x;const target=clamp01(((settings.useRawDepth?k.raw:k.out)||0)/1000);
+      const id=k.hid+':'+(k.y??k.row*46)+':'+k.x;const target=clamp01(((settings.useRawDepth?k.raw:k.out)||0)/1000);
       const existed=displayed.has(id),last=existed?displayed.get(id):target;
       let v=fx.smoothing?last+(target-last)*response:target;
       if(Math.abs(target-v)<.0005)v=target;

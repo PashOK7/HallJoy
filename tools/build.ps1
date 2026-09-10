@@ -10,13 +10,12 @@ $hallJoyRoot = Join-Path $root 'src\HallJoyProject'
 $pluginBuild = Join-Path $pluginRoot 'tools\build_fixed_plugin.ps1'
 $soupPatch = Join-Path $pluginRoot 'tools\Apply-Soup-Madlions-Fix.ps1'
 $project = Join-Path $hallJoyRoot 'HallJoy\HallJoy.vcxproj'
-$runtime = Join-Path $hallJoyRoot 'runtime'
-$outDir = Join-Path $hallJoyRoot 'x64\MAD68ProRNative'
+$runtime = Join-Path $hallJoyRoot '..\..\build\runtime'
+$outDir = Join-Path $hallJoyRoot '..\..\build\bin\MAD68ProRNative\Release\x64'
 $targetName = 'HallJoy'
 $exe = Join-Path $outDir ($targetName + '.exe')
 $pdb = Join-Path $outDir ($targetName + '.pdb')
 $map = Join-Path $outDir ($targetName + '.map')
-$sendDir = Join-Path $root 'build\output'
 $releaseDir = Join-Path $root 'build\release'
 $dependencyLockPath = Join-Path $root 'tools\dependency-lock.json'
 $thirdPartyNoticesPath = Join-Path $root 'THIRD_PARTY_NOTICES.md'
@@ -28,6 +27,11 @@ $vigemSpec = $dependencyLock.binaryInputs.vigemClient
 $vigemLib = Join-Path $root ([string]$vigemSpec.path).Replace('/', '\')
 $vigemExpectedSize = [long]$vigemSpec.size
 $vigemExpectedSha256 = [string]$vigemSpec.sha256
+$vigemInstallerSpec = $dependencyLock.runtimeDependencies.vigemBus
+$vigemInstaller = Join-Path $root ([string]$vigemInstallerSpec.installerPath).Replace('/', '\')
+$vigemInstallerLicense = Join-Path (Split-Path -Parent $vigemInstaller) 'LICENSE'
+$vigemInstallerExpectedSize = [long]$vigemInstallerSpec.installerSize
+$vigemInstallerExpectedSha256 = [string]$vigemInstallerSpec.installerSha256
 
 $required = @(
     $dependencyLockPath,
@@ -45,6 +49,9 @@ $required = @(
     (Join-Path $pluginRoot 'halljoy_uap_poll_pacing.h'),
     (Join-Path $pluginRoot 'halljoy_plugin_telemetry.h'),
     (Join-Path $pluginRoot 'halljoy_dense_snapshot.h'),
+    (Join-Path $pluginRoot 'halljoy_analog_provider_v2_contract.h'),
+    (Join-Path $pluginRoot 'halljoy_uap_provider_v2.h'),
+    (Join-Path $pluginRoot 'halljoy_uap_provider_v2_projection.h'),
     (Join-Path $pluginRoot 'halljoy_native_hid_claim.h'),
     $project,
     (Join-Path $hallJoyRoot 'HallJoy\ui_paint_audit.h'),
@@ -68,6 +75,20 @@ $required = @(
     (Join-Path $hallJoyRoot 'HallJoy\aula_w669_protocol.h'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_routing.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\native_hid_interface_claim_registry.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\analog_provider_v2.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\analog_provider_v2.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\provider_v2_data_plane_layout.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\provider_v2_data_plane_layout.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\provider_v2_data_plane_windows.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\provider_v2_data_plane_windows.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\uap_parent_snapshot.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\uap_parent_snapshot.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\provider_v2_controller_shadow.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\provider_v2_controller_shadow.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\provider_v2_qualification_model.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\provider_v2_qualification_model.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\provider_v2_qualification_report.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\provider_v2_qualification_report.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_backend.h'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_backend_registry.h'),
     (Join-Path $hallJoyRoot 'HallJoy\native_analog_backend_registry.cpp'),
@@ -89,6 +110,9 @@ $required = @(
     (Join-Path $hallJoyRoot 'tests\native_backend_architecture_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\startup_wake_transaction_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\vigem_output_isolation_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\vigem_output_process_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\vigem_output_real_child_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\vigem_output_self_host_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\persistence_transaction_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\storage_migration_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\mouse_ipc_static_audit.py'),
@@ -100,6 +124,26 @@ $required = @(
     (Join-Path $hallJoyRoot 'tests\dependency_installer_removal_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\dependency_guidance_policy_test.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\dependency_guidance_policy.h'),
+    (Join-Path $hallJoyRoot 'tests\analog_provider_v2_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\analog_provider_v2_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\provider_v2_data_plane_layout_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\provider_v2_data_plane_windows_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\provider_v2_data_plane_layout_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\provider_v2_data_plane_windows_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\uap_provider_v2_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\uap_provider_v2_projection_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\uap_parent_snapshot_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\provider_v2_controller_shadow_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\provider_v2_controller_shadow_static_audit.py'),
+    (Join-Path $hallJoyRoot 'tests\provider_v2_qualification_model_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\provider_v2_qualification_static_audit.py'),
+    (Join-Path $hallJoyRoot 'HallJoy\configured_xusb_builder.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\configured_xusb_builder.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\virtual_controller_frame.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\xusb_output_adapter.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\xusb_output_adapter.cpp'),
+    (Join-Path $hallJoyRoot 'tests\configured_xusb_builder_test.cpp'),
+    (Join-Path $hallJoyRoot 'tests\configured_xusb_builder_static_audit.py'),
     (Join-Path $hallJoyRoot 'tests\native_analog_backend_contract_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\native_hid_interface_claim_test.cpp'),
     (Join-Path $hallJoyRoot 'tests\native_hid_interface_claim_static_audit.py'),
@@ -127,6 +171,8 @@ $required = @(
     (Join-Path $hallJoyRoot 'HallJoy\file_name_policy.cpp'),
     (Join-Path $root 'tools\new_native_backend.py'),
     (Join-Path $root 'tools\run_native_backend_checks.py'),
+    (Join-Path $root 'tools\build_provider_v2_qualification.ps1'),
+    (Join-Path $root 'tools\run_provider_v2_qualification_smoke.ps1'),
     (Join-Path $root 'tools\run_aula_win60he_sanitizers.py'),
     (Join-Path $root 'tools\run_protocol_fuzz_sanitizers.py'),
     (Join-Path $root 'tools\check_overlay_responsiveness.py'),
@@ -150,10 +196,31 @@ $required = @(
     (Join-Path $root 'docs\protocols\AULA_WIN60HE_MAX_PROTOCOL.md'),
     (Join-Path $root 'docs\stability\tests\V14-12A_AULA_WIN60HE_FIRMWARE_PROVEN_2026-08-01.txt'),
     (Join-Path $hallJoyRoot 'HallJoy\vigem_output_scheduler.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_output_shared.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_output_channel.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_output_channel.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_output_process_protocol.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_output_process_host.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_output_process_host.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_output_self_host_test.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_output_self_host_test.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_output_runtime.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_output_runtime.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_output_process_client.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_output_process_client.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\process_generation_supervisor.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\process_generation_supervisor.cpp'),
+    (Join-Path $hallJoyRoot 'HallJoy\protected_native_handle.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_child_transport.h'),
+    (Join-Path $hallJoyRoot 'HallJoy\vigem_child_transport.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\app.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\addressed_analog_backend.cpp'),
     (Join-Path $hallJoyRoot 'HallJoy\debug_log.cpp'),
-    $vigemLib
+    (Join-Path $root 'tools\run_vigem_output_self_host_test.ps1'),
+    (Join-Path $root 'tools\run_vigem_output_real_child_test.ps1'),
+    $vigemLib,
+    $vigemInstaller,
+    $vigemInstallerLicense
 )
 $missing = @($required | Where-Object { -not (Test-Path -LiteralPath $_) })
 if ($missing.Count -ne 0) {
@@ -226,6 +293,10 @@ $backendText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\backend
 $curveText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\backend_curve.cpp') -Raw
 $realtimeText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\realtime_loop.cpp') -Raw
 $outputSchedulerText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\vigem_output_scheduler.h') -Raw
+$vigemRuntimeText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\vigem_output_runtime.cpp') -Raw
+$vigemProcessClientText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\vigem_output_process_client.cpp') -Raw
+$vigemSupervisorText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\process_generation_supervisor.cpp') -Raw
+$vigemTransportText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\vigem_child_transport.cpp') -Raw
 $appText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\app.cpp') -Raw
 $mainText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\main.cpp') -Raw
 $addressedText = Get-Content -LiteralPath (Join-Path $hallJoyRoot 'HallJoy\addressed_analog_backend.cpp') -Raw
@@ -334,9 +405,18 @@ if ($madBackendText -notmatch 'PublishAnalogueChange' -or
     $backendText -notmatch 'PersistentFilteredValue' -or
     $backendText -notmatch 'BackendCurve_GetGeneration' -or
     $backendText -notmatch 'VigemOutputScheduler::Decision::DeferUntilDeadline' -or
-    $backendText -notmatch 'All analogue backends share the same scheduler' -or
+    $backendText -notmatch 'scheduler remains in realtime, but the complete snapshot' -or
     $backendText -notmatch 'Backend_GetNextOutputDeadlineQpc' -or
-    $backendText -notmatch 'Periodic duplicate keepalives add no' -or
+    $backendText -notmatch 'g_vigemOutputRuntime.TryPublish' -or
+    $backendText -notmatch 'const std::uint32_t validMask = \(1u << outputCount\) - 1u' -or
+    $backendText -match 'VigemOutputThreadProc|VigemOutputThreadBody|g_vigemOutputMailbox|Vigem_ReconnectThrottled' -or
+    $backendText -match 'vigem_target_x360_update|vigem_connect\(|vigem_alloc\(' -or
+    $vigemRuntimeText -notmatch 'OutputProcessSession session' -or
+    $vigemRuntimeText -notmatch 'accessAdmission' -or
+    $vigemRuntimeText -notmatch 'WaitForSessionLeases' -or
+    $vigemProcessClientText -notmatch 'PrepareOutputTermination' -or
+    $vigemSupervisorText -notmatch 'prepareTermination' -or
+    ([regex]::Matches($vigemTransportText, 'vigem_target_x360_update')).Count -ne 1 -or
     $backendText -match 'bypassing the generic 1 ms output limiter' -or
     $outputSchedulerText -notmatch 'The first changed report after an idle' -or
     $outputSchedulerText -notmatch 'newest report and become due at a fixed deadline' -or
@@ -388,11 +468,21 @@ if ($madBackendText -notmatch 'HALLJOY_BUILD_ID_W' -or
     throw 'MAD68 native v3.6 safety/freshness markers are missing.'
 }
 $rawInputRegistrationIndex = $appText.IndexOf('RegisterRawInputDevices(rid, 2')
-$rawInputPhaseIndex = $appText.IndexOf('NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRawInput)')
-$startupCommitIndex = $appText.IndexOf('g_backendReady = AppStartBackendDependents(rawInputRegistered')
-if ($rawInputRegistrationIndex -lt 0 -or $rawInputPhaseIndex -lt 0 -or
-    $startupCommitIndex -lt $rawInputRegistrationIndex) {
-    throw 'Regression guard failed: AfterRawInput native phase can start before target-scoped Raw Input registration.'
+$rawInputPublishedIndex = $appText.IndexOf('g_rawInputRegistered.store(rawInputRegistered')
+$startupFunctionIndex = $appText.IndexOf('static bool AppStartBackendDependents(bool rawInputRegistered')
+$startupFunctionEnd = $appText.IndexOf('static bool EngineRuntimeCloseAdmission', $startupFunctionIndex)
+$engineFreshStartIndex = $appText.IndexOf('static bool EngineRuntimeStartFreshGeneration')
+$enginePassesRawInputIndex = $appText.IndexOf('AppStartBackendDependents(g_rawInputRegistered.load', $engineFreshStartIndex)
+if ($rawInputRegistrationIndex -lt 0 -or $rawInputPublishedIndex -lt $rawInputRegistrationIndex -or
+    $startupFunctionIndex -lt 0 -or $startupFunctionEnd -le $startupFunctionIndex -or
+    $engineFreshStartIndex -lt 0 -or $enginePassesRawInputIndex -lt $engineFreshStartIndex) {
+    throw 'Regression guard failed: engine-owned startup no longer carries registered Raw Input into backend admission.'
+}
+$startupFunctionText = $appText.Substring($startupFunctionIndex, $startupFunctionEnd - $startupFunctionIndex)
+$rawInputGuardIndex = $startupFunctionText.IndexOf('if (!rawInputRegistered)')
+$rawInputPhaseIndex = $startupFunctionText.IndexOf('NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRawInput)')
+if ($rawInputGuardIndex -lt 0 -or $rawInputPhaseIndex -lt $rawInputGuardIndex) {
+    throw 'Regression guard failed: AfterRawInput native phase is not gated by confirmed Raw Input registration.'
 }
 $routingResetIndex = $appText.IndexOf('NativeAnalogBackends_Reset()')
 $routingPrepareIndex = $appText.IndexOf('NativeAnalogBackends_PrepareRouting()')
@@ -400,7 +490,7 @@ $backendInitIndex = $appText.IndexOf('Backend_Init()')
 $afterRealtimeIndex = $appText.IndexOf('NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRealtime)')
 if ($routingResetIndex -lt 0 -or $routingPrepareIndex -lt $routingResetIndex -or
     $backendInitIndex -lt $routingPrepareIndex -or $afterRealtimeIndex -lt 0 -or
-    $startupCommitIndex -lt $backendInitIndex -or
+    $backendInitIndex -lt $startupFunctionIndex -or
     $addressedText -notmatch 'NativeAnalogProtocol::Addressed09402' -or
     $addressedText -notmatch 'AddressedAnalog_GetNativeBackendDescriptor' -or
     $addressedText -notmatch 'RealtimeLoop_NotifyInputChanged' -or
@@ -418,6 +508,12 @@ Write-Host 'Running native backend static checks...' -ForegroundColor Cyan
 & python $nativeCheckRunner --require-compiler
 if ($LASTEXITCODE -ne 0) { throw "Native backend static checks failed: $LASTEXITCODE" }
 
+# A static audit cannot detect a loader which silently substitutes defaults.
+# Gate official releases on production-linked file roundtrips and write faults.
+# The helper uses a fresh test data root and forbids backend initialization.
+Write-Host 'Running production-linked settings/profile roundtrip tests...' -ForegroundColor Cyan
+& (Join-Path $root 'tools\run_profile_transaction_tests.ps1')
+
 $uiAudit = Join-Path $hallJoyRoot 'tests\pre_release_ui_static_audit.py'
 Write-Host 'Running pre-release UI static audit...' -ForegroundColor Cyan
 & python $uiAudit
@@ -432,13 +528,26 @@ $vigemHash = (Get-FileHash -LiteralPath $vigemLib -Algorithm SHA256).Hash
 if ($vigemInfo.Length -ne $vigemExpectedSize -or $vigemHash -ne $vigemExpectedSha256) {
     throw "ViGEmClient.lib preflight failed. Size=$($vigemInfo.Length), SHA-256=$vigemHash"
 }
+$vigemInstallerInfo = Get-Item -LiteralPath $vigemInstaller
+$vigemInstallerHash = (Get-FileHash -LiteralPath $vigemInstaller -Algorithm SHA256).Hash
+if ($vigemInstallerInfo.Length -ne $vigemInstallerExpectedSize -or
+    $vigemInstallerHash -ne $vigemInstallerExpectedSha256) {
+    throw "Embedded ViGEmBus installer preflight failed. Size=$($vigemInstallerInfo.Length), SHA-256=$vigemInstallerHash"
+}
+$vigemInstallerSignature = Get-AuthenticodeSignature -LiteralPath $vigemInstaller
+if ($vigemInstallerSignature.Status -ne 'Valid' -or
+    -not $vigemInstallerSignature.SignerCertificate -or
+    $vigemInstallerSignature.SignerCertificate.Subject -notmatch 'CN=Nefarius Software Solutions e\.U\.') {
+    throw "Embedded ViGEmBus installer signature is not the pinned publisher signature. Status=$($vigemInstallerSignature.Status)"
+}
+Write-Host "Embedded ViGEmBus installer: exact hash and Nefarius signature verified." -ForegroundColor DarkGray
 
 Write-Host 'Building the embedded UAP with capability-validated native routing...' -ForegroundColor Cyan
 & powershell -NoProfile -ExecutionPolicy Bypass -File $pluginBuild `
     -ExcludeMad68ProRNative -DependencyLock $dependencyLockPath
 if ($LASTEXITCODE -ne 0) { throw "Plugin build failed: $LASTEXITCODE" }
 
-$patchedHid = Join-Path $pluginRoot 'Soup\soup\hwHid.cpp'
+$patchedHid = Join-Path $root '.cache\uap\Soup\soup\hwHid.cpp'
 if (-not (Test-Path -LiteralPath $patchedHid -PathType Leaf)) {
     throw "Patched Soup hwHid.cpp was not found: $patchedHid"
 }
@@ -450,13 +559,28 @@ if ($preOpenIndex -lt 0 -or $createFileIndex -lt 0 -or $preOpenIndex -gt $create
 }
 Write-Host 'Verified: the isolated UAP skips only exact HID interface paths validated by a HallJoy native protocol before opening HID.' -ForegroundColor DarkGray
 
-$pluginOut = Join-Path $pluginRoot 'dist\universal-analog-plugin'
+$pluginOut = Join-Path $root 'build\bin\UAP\native\universal-analog-plugin'
 $abi0 = Join-Path $pluginOut 'abiv0.dll'
 $abi1 = Join-Path $pluginOut 'abiv1.dll'
 if (-not (Test-Path -LiteralPath $abi0) -or -not (Test-Path -LiteralPath $abi1)) {
     throw 'Universal Analog Plugin build did not produce abiv0.dll and abiv1.dll.'
 }
 $uapAbiCheck = Join-Path $root 'tools\check_private_uap_abi.py'
+try {
+    $activeHallJoy = @(
+        Get-CimInstance Win32_Process -Filter "Name='HallJoy.exe'" -ErrorAction Stop
+    )
+}
+catch {
+    throw 'Cannot prove an isolated physical-UAP session because HallJoy process enumeration failed.'
+}
+if ($activeHallJoy.Count -ne 0) {
+    $owners = ($activeHallJoy | ForEach-Object {
+        $path = if ($_.ExecutablePath) { [string]$_.ExecutablePath } else { '<unknown>' }
+        "PID=$($_.ProcessId) path=$path"
+    }) -join '; '
+    throw "Official build's physical-UAP runtime gate requires every HallJoy instance to be closed: $owners"
+}
 & python $uapAbiCheck $abi1
 if ($LASTEXITCODE -ne 0) { throw "Private UAP ABI runtime gate failed: $LASTEXITCODE" }
 New-Item -ItemType Directory -Path $runtime -Force | Out-Null
@@ -481,7 +605,7 @@ if (-not $msbuild) {
     throw 'MSBuild x64 was not found. Install Visual Studio 2022 with Desktop development with C++.'
 }
 
-if (Test-Path -LiteralPath $outDir) { Remove-Item -LiteralPath $outDir -Recurse -Force }
+# Rebuild owns compiler intermediates; never recursively erase adjacent runtime data.
 Write-Host "Building $targetName.exe with MAD68 + Hex80 + Addressed + Aula + Spark + Sayo + UAP..." -ForegroundColor Cyan
 $buildOutput = @(& $msbuild $project `
     '/t:Rebuild' `
@@ -494,7 +618,7 @@ $buildExitCode = $LASTEXITCODE
 $buildOutput | Out-Host
 if ($buildExitCode -ne 0) { throw "HallJoy build failed: $buildExitCode" }
 $productionWarnings = @($buildOutput | Where-Object { [string]$_ -match ': warning (?:C|LNK)\d+:' })
-$allowedProductionWarning = 'warning LNK4099:.*ViGEmClient\.pdb'
+$allowedProductionWarning = 'ViGEmClient\.lib\(ViGEmClient\.obj\)\s*: warning LNK4099:'
 $unexpectedWarnings = @($productionWarnings | Where-Object { [string]$_ -notmatch $allowedProductionWarning })
 if ($unexpectedWarnings.Count -ne 0) {
     $unexpectedWarnings | ForEach-Object { Write-Host $_ -ForegroundColor Red }
@@ -506,6 +630,14 @@ $productionWarningCodes = @($productionWarnings | ForEach-Object {
 $warningSummary = if ($productionWarningCodes.Count) { $productionWarningCodes -join ', ' } else { 'none' }
 Write-Host "Production warning baseline: allowed codes=$warningSummary; 0 unexpected." -ForegroundColor DarkGray
 if (-not (Test-Path -LiteralPath $exe)) { throw "Executable not produced: $exe" }
+
+$vigemSelfTest = Start-Process -FilePath $exe `
+    -ArgumentList '--halljoy-verify-embedded-vigem-installer' `
+    -WindowStyle Hidden -Wait -PassThru
+if ($vigemSelfTest.ExitCode -ne 0) {
+    throw "Linked embedded ViGEmBus resource verification failed: $($vigemSelfTest.ExitCode)"
+}
+Write-Host 'Linked embedded ViGEmBus resource/extraction/signature self-test: PASS.' -ForegroundColor DarkGray
 
 # All continuous telemetry must remain isolated to explicit tester builds.
 # Check the linked image, not only preprocessor settings, so an accidental
@@ -519,7 +651,8 @@ foreach ($forbiddenDiagnosticMarker in @(
     'matrix.activity',
     'matrix.session_summary',
     'matrix.coverage',
-    'ten_key_gate=1'
+    'ten_key_gate=1',
+    'HallJoyProviderV2Qualification.txt'
 )) {
     if ($productionWideStrings.Contains($forbiddenDiagnosticMarker)) {
         throw "Production image contains isolated Aula diagnostic telemetry: $forbiddenDiagnosticMarker"
@@ -528,59 +661,38 @@ foreach ($forbiddenDiagnosticMarker in @(
 if (-not $productionWideStrings.Contains('HallJoyCrash.txt')) {
     throw 'Production image is missing its crash-only report marker.'
 }
+foreach ($requiredVigemMarker in @(
+    'ViGEmBus_1.22.0_x64_x86_arm64.exe',
+    'Install ViGEmBus 1.22.0 (recommended)',
+    'No installer is downloaded at runtime.'
+)) {
+    if (-not $productionWideStrings.Contains($requiredVigemMarker)) {
+        throw "Production image is missing embedded ViGEm installer marker: $requiredVigemMarker"
+    }
+}
+# The SHA-256 is stored as 32 binary bytes in production, not as a diagnostic
+# string. The immediately preceding self-test hashes the exact linked RCDATA
+# resource and verifies Authenticode, so a textual hash marker is neither
+# expected nor used as an integrity oracle.
 $productionWideStrings = $null
 Write-Host 'Production continuous telemetry markers: absent; crash-only report retained.' -ForegroundColor DarkGray
 
+# One distribution directory. Preserve local runtime files if someone launches
+# HallJoy here; packaging must never erase user profiles or unknown files.
 $preservedRuntimeNames = @(
-    'settings.ini',
-    'bindings.ini',
-    'GlobalProfiles',
-    'Layouts',
-    'CurvePresets',
-    'HallJoy.portable'
+    'settings.ini', 'bindings.ini', 'settings.ini.pre-bundle.bak',
+    'GlobalProfiles', 'Layouts', 'CurvePresets', 'HallJoy.portable'
 )
-if (Test-Path -LiteralPath $sendDir) {
-    $resolvedSendDir = [IO.Path]::GetFullPath($sendDir).TrimEnd('\')
-    $expectedSendDir = [IO.Path]::GetFullPath((Join-Path $root 'build\output')).TrimEnd('\')
-    if (-not $resolvedSendDir.Equals($expectedSendDir, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Unsafe package cleanup target: $resolvedSendDir"
-    }
-    Get-ChildItem -LiteralPath $resolvedSendDir -Force | Where-Object {
-        $preservedRuntimeNames -notcontains $_.Name
-    } | ForEach-Object {
-        Remove-Item -LiteralPath $_.FullName -Recurse -Force
-    }
-} else {
-    New-Item -ItemType Directory -Path $sendDir -Force | Out-Null
-}
-Copy-Item -LiteralPath $exe -Destination $sendDir -Force
-Copy-Item -LiteralPath $dependencyLockPath -Destination $sendDir -Force
-Copy-Item -LiteralPath $thirdPartyNoticesPath -Destination $sendDir -Force
-
-$symbols = Join-Path $outDir 'LOCAL_SYMBOLS_DO_NOT_SEND'
-New-Item -ItemType Directory -Path $symbols -Force | Out-Null
-if (Test-Path -LiteralPath $pdb) { Copy-Item -LiteralPath $pdb -Destination $symbols -Force }
-if (Test-Path -LiteralPath $map) { Copy-Item -LiteralPath $map -Destination $symbols -Force }
-
-# Publish a clean, deterministic user-facing folder separately from the staging
-# directory, which may intentionally retain local portable test settings.
-$expectedReleaseDir = [IO.Path]::GetFullPath((Join-Path $root 'build\release')).TrimEnd('\')
-if (Test-Path -LiteralPath $releaseDir) {
-    $resolvedReleaseDir = [IO.Path]::GetFullPath($releaseDir).TrimEnd('\')
-    if (-not $resolvedReleaseDir.Equals($expectedReleaseDir, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Unsafe release cleanup target: $resolvedReleaseDir"
-    }
-    Get-ChildItem -LiteralPath $resolvedReleaseDir -Force | Remove-Item -Recurse -Force
-} else {
-    New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-}
-Copy-Item -LiteralPath (Join-Path $sendDir 'HallJoy.exe') -Destination $releaseDir -Force
+New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+Copy-Item -LiteralPath $exe -Destination $releaseDir -Force
+Copy-Item -LiteralPath $dependencyLockPath -Destination $releaseDir -Force
 Copy-Item -LiteralPath $thirdPartyNoticesPath -Destination $releaseDir -Force
 $releaseHash = Get-FileHash -LiteralPath (Join-Path $releaseDir 'HallJoy.exe') -Algorithm SHA256
 "$($releaseHash.Hash)  HallJoy.exe" | Set-Content -LiteralPath (Join-Path $releaseDir 'SHA256SUMS.txt') -Encoding ASCII
-
+# PDB/MAP stay beside their matching compiler output; no second symbol copy.
 Write-Host ''
 Write-Host 'Build completed:' -ForegroundColor Green
 Write-Host "  $(Join-Path $releaseDir ($targetName + '.exe'))" -ForegroundColor Green
 Write-Host "  SHA256 $($releaseHash.Hash)" -ForegroundColor Green
 Write-Host 'Final production profile: continuous telemetry is disabled; crash-only reporting is retained.' -ForegroundColor Green
+exit 0

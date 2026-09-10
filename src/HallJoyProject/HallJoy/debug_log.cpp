@@ -172,6 +172,19 @@ static std::wstring SanitizeDiagnosticText(const wchar_t* text)
     return out;
 }
 
+static bool KeepSingleLogDiagnosticLine(const std::wstring& line) noexcept
+{
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+    // The structured trace already owns application lifecycle evidence. Keep
+    // only the protocol family's supplementary plain diagnostics so unrelated
+    // Raw Input/Spark/device inventories cannot enter a GravaStar/Aula log.
+    return line.find(L"] [backend.aula_win60he") != std::wstring::npos;
+#else
+    (void)line;
+    return true;
+#endif
+}
+
 static void WriteUtf8Line(HANDLE hFile, const wchar_t* line)
 {
     if (!line || !*line || hFile == INVALID_HANDLE_VALUE) return;
@@ -241,8 +254,11 @@ static DWORD DebugLogWriterThreadBody()
             for (const auto& line : batch)
 #if defined(HALLJOY_SINGLE_LOG_DIAGNOSTIC)
             {
-                const std::wstring safeLine = SanitizeDiagnosticText(line.c_str());
-                StabilityTrace_AppendPlain(safeLine.c_str());
+                if (KeepSingleLogDiagnosticLine(line))
+                {
+                    const std::wstring safeLine = SanitizeDiagnosticText(line.c_str());
+                    StabilityTrace_AppendPlain(safeLine.c_str());
+                }
             }
 #else
                 WriteUtf8Line(hFile, line.c_str());

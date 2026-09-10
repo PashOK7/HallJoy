@@ -1,0 +1,97 @@
+HallJoy V14 F3 ViGEm production-route evidence
+Date: 2026-08-22
+Classification: local exact-EXE/process/ViGEmBus evidence; hardware pending
+
+Decision
+--------
+Selected one self-hosted child process as the sole production ViGEm owner.
+Rejected patching the legacy in-process worker because a blocked
+vigem_target_x360_update would remain inside HallJoy. Rejected a temporary
+dual runtime because it would admit overlapping owners and require a second
+migration.
+
+Source/result boundary
+----------------------
+- backend.cpp contains no direct ViGEm client/target/update call and no legacy
+  output thread, mailbox, closeable wake or reconnect owner.
+- realtime publishes only a complete configured-pad snapshot through the
+  bounded process channel.
+- publication admission closes before every planned child stop or force/reap;
+  any already-admitted producer drains after reap and before mapping reuse.
+- a replacement generation starts only after the predecessor is reaped.
+- child lifecycle identity remains valid after parent publication admission is
+  closed, allowing truthful neutral/remove/completed-stop acknowledgement.
+
+Executed gates
+--------------
+1. python tools/run_native_backend_checks.py
+   PASS: all static and portable C++ tests.
+   PROCESS_GENERATION_SUPERVISOR_TEST=PASS generations=1008
+   prepare_before_reap=1 overlap=0.
+
+2. tools/run_vigem_output_self_host_test.ps1 -SkipBuild
+   PASS: 9 exact-image fake generations; O3 stall/force/reap/replacement,
+   six O4 exit boundaries, qualified clean stop, zero survivor.
+
+3. tools/run_vigem_output_real_child_test.ps1 -SkipBuild
+   PASS: one exact-image real ViGEmBus child, four pads, real apply,
+   neutral=4, remove=4, PnP baseline restored, zero survivor.
+
+4. tools/run_analog_simulator.ps1 -SkipBuild -RunSeconds 8
+   PASS: common analogue pipeline reached the real isolated child, child
+   acknowledged an applied publication, clean neutral/remove and exit 0.
+
+5. Routed recovery scenarios, each RunSeconds=8
+   - InjectVigemUpdateStall: generation 1 progress-timeout/force/reap;
+     generation 2 ready; clean exit 0.
+   - InjectVigemOutputCppFault: generation 1 unexpected exit/reap;
+     generation 2 ready; clean exit 0.
+   - InjectVigemOutputInvalidThreadHandle: legacy handle-risk regression now
+     exercises process-owner replacement; clean exit 0.
+   - InjectVigemOutputWakeCloseUse: process-lifetime wake regression with
+     stalled predecessor, strict reap-before-replacement order; clean exit 0.
+   Every routed scenario records prepared=1, disabled=1, quiescent=1,
+   restart_safe=1 and child_survivors=0. The runner verifies strict ordering:
+   generation1.begin < generation1.end < generation2.begin <
+   generation2.ready < generation2.end < stop.complete.
+
+6. tools/run_vigem_output_self_host_test.ps1 -SkipBuild -RuntimeStress
+   PASS per run: publications_min=100000, generations=101,
+   topology_changes=50, disable_enable=10, survivors=0.
+   Twenty independent runs passed: publications_min=2000000,
+   generations=2020, topology_changes=1000, disable_enable=200. Every run
+   required sessionRebuildCount=0 and lastUnsafeGeneration=0.
+
+7. O5-discovered boundary regressions
+   - a report pad count must equal the configuration committed to the exact
+     active generation; mismatched boundary reports return Inactive for retry;
+   - pre-stop generation admission and post-reap producer drain are separate;
+     neutral/remove does not wait on a harmless preempted producer, while
+     mapping reuse/close still requires child reap and complete lease drain.
+
+8. Final python tools/run_native_backend_checks.py and tools/build.ps1
+   PASS: all static/portable C++ tests; MSVC Release x64, 0 errors, only the
+   allow-listed external LNK4099; embedded ViGEmBus hash/signature/self-test
+   PASS; production continuous telemetry absent.
+
+Exact simulator used for final routed scenarios
+-----------------------------------------------
+Path: src/HallJoyProject/x64/AnalogSimulator/HallJoyV14Simulator.exe
+Bytes: 8654336
+SHA-256: 14FFE00730DD939D1D74E6866FC9EF4439F98E0E5C2E457C77FB45FE930296E7
+
+Final local production build
+----------------------------
+Path: build/release/HallJoy.exe
+Bytes: 8518144
+SHA-256: DADFF635AD4681DA3B4D8EAF7CC97BADD5A30541D2075910CABDE81889269B37
+This is local qualification identity, not yet the immutable hardware candidate.
+
+Status
+------
+F3 code route and local routed O1/O2/stall gates: PASS.
+O5 exact-runtime stress gate: PASS locally, including 20 repeated runs.
+P0-005/P0-006 overall release status: HARDWARE_PENDING.
+Still required: long-duration active-input/resource soak and the same immutable
+final artifact on IROK MG75 Max and DrunkDeer G65. This evidence does not claim
+either physical keyboard gate.

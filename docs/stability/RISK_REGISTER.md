@@ -27,8 +27,8 @@ Status meanings:
 | `HJ-AUD-P1-010` | P1 | synchronous ViGEm update ran inside the realtime worker | `S12` | Verified | dedicated output owner, equivalence tests, and bounded driver-stall containment passed in V14-08B |
 | `HJ-AUD-P1-011` | P1 | mouse IPC misdetected whether a mapping was newly created | `S15` | Verified | immediate creation-disposition capture and preserve/validate self-test passed in V14-10A |
 | `HJ-AUD-P1-012` | P1 | named analogue-host IPC allowed same-session precreation/spoofing | `S15` | Verified | inherited-handle transport, owner/token schema, identity checks, and invalid-handle restart gate passed in V14-10B |
-| `HJ-AUD-P1-013` | P1 | built-in dependency installer had TOCTOU and supply-chain gaps | `S18` | Verified | automatic download/elevation removed; exact ViGEmBus 1.22.0 manual page pinned in V14-12F |
-| `HJ-AUD-P1-014` | P1 | dependency installation could freeze the UI indefinitely | `S18` | Verified | installer launch/wait paths removed; guidance policy and build regression passed in V14-12F |
+| `HJ-AUD-P1-013` | P1 | built-in dependency installer had TOCTOU and supply-chain gaps | `S18` | Verified | runtime download remains removed; D-049 embeds exact ViGEmBus 1.22.0 and validates size/SHA/signature on a read-only locked random path before explicit elevation |
+| `HJ-AUD-P1-014` | P1 | dependency installation could freeze the UI indefinitely | `S18` | Verified | D-049 uses a 20-minute message-pumped bound, truthful timeout/restart results and no force-kill; linked self-test/build regression passed |
 | `HJ-AUD-P1-015` | P1 | UAP C ABI leaked exceptions and used manual lock/unlock | `S10` | Verified | C ABI barrier, RAII tests, and no-manual-lock audit passed in V14-07C |
 | `HJ-AUD-P1-016` | P1 | UAP unload performed unbounded joins while holding the device mutex | `S10` | Verified | bounded joins moved outside the mutex; ABI unload and child containment passed in V14-07C |
 | `HJ-AUD-P2-001` | P2 | overlay served only one client synchronously | `S16` | Verified | fixed 16-client table, slow/parallel/limit gates, and active-client shutdown passed in V14-10D |

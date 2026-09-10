@@ -1,0 +1,77 @@
+HallJoy V14 R2-A/B1 AnalogProviderV2 foundation evidence
+Date: 2026-08-22
+
+Scope
+-----
+This package establishes the production-compiled semantic contract and portable
+negative gates before any UAP/native production route is migrated. It does not
+change protocol bytes, source arbitration, profiles, UI or hardware claims.
+
+Selected architecture
+---------------------
+- Versioned KeyIdentityV1 with distinct USB HID usage, UAP extended and
+  HallJoy semantic namespaces.
+- POD AnalogSnapshotHeaderV2/AnalogDeviceV2/AnalogSampleV2 contract.
+- Normalized float plus optional exact raw numerator/domain.
+- Independent provider/sample/value/ownership generations and timestamps.
+- Explicit complete/truncated state, capacity and required counts.
+- Full authoritative release-to-zero; changed-only state is not authoritative.
+- Staged UAP/native adapters followed by equivalence gates; no big-bang switch.
+
+Negative and boundary gates
+---------------------------
+PASS: USB keyboard usage 0xF0 and HallJoy semantic control 0xF0 are distinct.
+PASS: USB Menu 07:65, USB Consumer Play/Pause 0C:CD, UAP Fn 0x409 and UAP
+      OEM1 0x403 are distinct identities.
+PASS: invalid namespace/page/version combinations fail closed.
+PASS: adjacent raw 1/4095 and 2/4095 remain distinct even though legacy milli
+      quantization maps both to zero; exact numerator/domain are retained.
+PASS: legacy milli conversion carries an explicit LegacyQuantized flag.
+PASS: an owned, valid, fresh zero is accepted as authoritative release.
+PASS: complete 1/8/16/32-device snapshots validate.
+PASS: insufficient capacity cannot claim Complete; truncation is explicit.
+PASS: duplicate device identity and duplicate same-device/key samples fail;
+      the same key on two distinct devices is allowed.
+PASS: same-generation counters/timestamps cannot regress; sample-only progress
+      does not wake realtime; value/ownership/provider-generation change does.
+PASS: provider-generation wrap/regression fails closed.
+
+Commands and results
+--------------------
+python src\HallJoyProject\tests\analog_provider_v2_static_audit.py
+  ANALOG_PROVIDER_V2_STATIC_AUDIT=PASS
+
+python tools\run_native_backend_checks.py --require-compiler
+  native backend checks: all static and portable C++ tests passed
+
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\build.ps1
+  embedded dependency/hash/signature gates: PASS
+  MSVC Release x64: 0 errors
+  warning policy: 0 unexpected; external allow-listed ViGEmClient LNK4099 only
+  production continuous telemetry: absent
+
+Production compile artifact
+---------------------------
+Path: build\release\HallJoy.exe
+Bytes: 8,518,144
+SHA-256: A51E36B3B2A0E99B73D403D179D3FA28D448E53697D9FCD55C64F85409F1A51A
+
+Source identities
+-----------------
+analog_provider_v2.h:
+  4AA1840BD2D660AF6145241586818496467F3FC11C793054C501767827FD3934
+analog_provider_v2.cpp:
+  28CAFFD85FBE9947712A3811490C3C51857478A0382393FA4A20967803054546
+analog_provider_v2_test.cpp:
+  6F531FA1609F968A980F02DECE7E11D746CF84F2D64B1CFE5CD98A2B67033B93
+analog_provider_v2_static_audit.py:
+  BE99C91DBA051360DD355C8A435D65C56109DD3491094A4C8A7C723ECC153A21
+
+Honest boundary
+---------------
+The contract is linked but not consumed by Backend_Tick. Existing DrunkDeer,
+IROK, UAP and native runtime behavior is unchanged. P0-001/P1-011/P1-016/
+P1-017/P1-020/P1-021/P1-022 remain release blockers until adapters, production
+routing, persistence/UI/output, IPC and applicable hardware gates pass. This
+artifact was not promoted or delivered to a user. No Git/GitHub operation was
+performed.

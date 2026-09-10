@@ -126,9 +126,9 @@ def main() -> int:
             "wake event closes only after confirmed worker completion")
     require("return Mad68ProR_StopGeneration(generation);" in descriptor,
             "native registry receives the real MAD68 stop result")
-    require("nativeBackendsStopped" in app and
-            "component=native-analog dependent_cleanup_skipped=1" in app,
-            "application contains an incomplete MAD68 generation")
+    require("EngineRuntimeStopNativeProviders" in app and
+            "EngineRuntimeOwner_Stop()" in app,
+            "aggregate owner contains an incomplete MAD68 generation")
     require("#if defined(HALLJOY_ANALOG_SIMULATOR)" in worker and
             "--halljoy-test-mad68-stop-timeout" in mad,
             "runtime timeout injection is simulator-only")
@@ -137,13 +137,19 @@ def main() -> int:
     require("--halljoy-test-mad68-owner-stop-hang" in mad and
             "InjectMad68OwnerStopHang" in runner and "expected 4" in runner,
             "simulator runner verifies the application shutdown watchdog")
+    final_shutdown_start = main_source.find(
+        "const bool relaunchRequested = App_TakeRelaunchRequest()"
+    )
+    require(final_shutdown_start >= 0,
+            "application final shutdown transaction is explicit")
+    final_shutdown = main_source[final_shutdown_start:]
     require("ArmShutdownWatchdog()" in app and
-            app.index("ArmShutdownWatchdog()") < app.index("runStep(L\"overlay\"") and
+            app.index("ArmShutdownWatchdog()") < app.index("EngineRuntimeOwner_Stop()") and
             "shutdown.watchdog.armed" in app and
             "shutdown.watchdog.arm_failed" in app and
-            "App_DisarmShutdownWatchdog();" in main_source and
-            main_source.index("StabilityTrace_Shutdown(result);") <
-            main_source.index("App_DisarmShutdownWatchdog();"),
+            "App_DisarmShutdownWatchdog();" in final_shutdown and
+            final_shutdown.index("StabilityTrace_Shutdown(result);") <
+            final_shutdown.index("App_DisarmShutdownWatchdog();"),
             "application shutdown is protected through final logger teardown")
 
     print("MAD68_COOPERATIVE_SHUTDOWN_STATIC_AUDIT=PASS")

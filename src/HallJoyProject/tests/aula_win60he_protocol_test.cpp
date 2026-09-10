@@ -1,3 +1,4 @@
+#include "../HallJoy/analog_key_codes.h"
 #include "../HallJoy/aula_win60he_protocol.h"
 
 #include <algorithm>
@@ -70,6 +71,62 @@ std::vector<std::uint8_t> ActivePayload(
         payload[offset + 3u] = 0;
     }
     return payload;
+}
+
+void TestKnownUsbIdentityAdmission()
+{
+    static_assert(kKnownUsbIdentities.size() == 4u);
+    static_assert(IsKnownUsbIdentity(0x1CA2u, 0x1902u));
+    static_assert(IsKnownUsbIdentity(0x1CA5u, 0x2201u));
+    static_assert(IsKnownUsbIdentity(0x1CA5u, 0x2202u));
+    static_assert(IsKnownUsbIdentity(0x1CA2u, 0x2201u));
+    static_assert(!IsKnownUsbIdentity(0x1CA5u, 0x2203u));
+    static_assert(!IsKnownUsbIdentity(0xFFFFu, 0x2201u));
+
+    const auto* v75 = FindKnownUsbIdentity(0x1CA5u, 0x2201u);
+    const auto* v75Pro = FindKnownUsbIdentity(0x1CA5u, 0x2202u);
+    const auto* v75Lite = FindKnownUsbIdentity(0x1CA2u, 0x2201u);
+    assert(v75 && v75->boardId == 0x16052201u);
+    assert(v75Pro && v75Pro->boardId == 0x16052202u);
+    assert(v75Lite && v75Lite->boardId == 0x2E022201u);
+    assert(IsKnownUsbIdentityBoardCompatible(
+        0x1CA5u, 0x2201u, 0x16052201u));
+    assert(!IsKnownUsbIdentityBoardCompatible(
+        0x1CA5u, 0x2201u, 0x16052202u));
+    // An unknown branded sibling is decided by the later semantic family
+    // proof; this helper only pins boards for exact table entries.
+    assert(IsKnownUsbIdentityBoardCompatible(
+        0x1CA2u, 0x7777u, 0x12345678u));
+
+    assert(PathContainsKnownUsbIdentity(
+        LR"(\\?\hid#vid_1ca5&pid_2201&mi_03#7&abc#{guid})"));
+    assert(PathContainsKnownUsbIdentity(
+        LR"(\\?\HID#VID_1CA5&PID_2202&MI_03#7&ABC#{GUID})"));
+    assert(PathContainsKnownUsbIdentity(
+        LR"(\\?\hid#vid_1ca2&pid_2201#lite)"));
+    assert(PathContainsKnownUsbIdentity(
+        LR"(\\?\hid#vid_1ca2&pid_1902#aula)"));
+    assert(!PathContainsKnownUsbIdentity(
+        LR"(\\?\hid#vid_1ca5&pid_2203#unknown)"));
+    assert(!PathContainsKnownUsbIdentity(
+        LR"(\\?\hid#vid_1ca5&rev_0001&pid_2201#not-contiguous)"));
+    assert(!PathContainsKnownUsbIdentity(
+        LR"(\\?\hid#vid_1ca&pid_2201#truncated-vid)"));
+    assert(!PathContainsKnownUsbIdentity(L""));
+
+    std::uint16_t vendorId = 0;
+    std::uint16_t productId = 0;
+    assert(TryReadUsbIdentityFromPath(
+        LR"(\\?\HID#VID_1CA5&PID_2203&MI_03#unknown)",
+        &vendorId, &productId));
+    assert(vendorId == 0x1CA5u && productId == 0x2203u);
+    assert(!TryReadUsbIdentityFromPath(
+        LR"(\\?\hid#vid_1ca5&rev_0001&pid_2201#not-contiguous)",
+        &vendorId, &productId));
+    assert(vendorId == 0u && productId == 0u);
+    assert(!TryReadUsbIdentityFromPath(L"", &vendorId, &productId));
+    assert(!TryReadUsbIdentityFromPath(
+        LR"(\\?\hid#vid_1ca5&pid_2201)", nullptr, &productId));
 }
 
 void TestExactRequestVectors()
@@ -205,6 +262,31 @@ void TestSyncPrecisionAndDefaultMap()
     assert(DecodeSyncInfo(Parse(MakeResponse(
         kCommandSync, compatibleSyncPayload), kCommandSync), &sync));
     assert(!IsAula6x21FamilyFirmware(sync));
+
+    // Exact sync payload captured from the physical GravaStar Mercury V75
+    // (HallJoy (9).log). Its model/platform bytes 00/04/00 legitimately differ
+    // from Aula's C0/01/00, while its USB-correlated board is 16052201.
+    const std::array<std::uint8_t, kSyncPayloadBytes> observedV75{{
+        0x00, 0x01, 0x22, 0x05, 0x16, 0x00, 0x04, 0x00,
+        0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x10, 0x41, 0x70, 0x70, 0x20, 0x56, 0x31,
+        0x2E, 0x30, 0x2E, 0x38, 0x00, 0x00, 0xF1, 0xF7,
+        0x16, 0xFF, 0x10, 0x4A, 0x61, 0x6E, 0x20, 0x20,
+        0x34, 0x20, 0x36, 0x35, 0x39, 0x32, 0x35, 0x03,
+        0xFF, 0x07, 0x16, 0xFF,
+    }};
+    const std::vector<std::uint8_t> observedV75Payload(
+        observedV75.begin(), observedV75.end());
+    assert(DecodeSyncInfo(Parse(MakeResponse(
+        kCommandSync, observedV75Payload), kCommandSync), &sync));
+    assert(sync.boardId == 0x16052201u);
+    assert(!IsExpectedAulaWin60HeMaxFirmware(sync));
+    assert(!IsAula6x21FamilyFirmware(sync));
+    assert(IsExactKnownBoard6x21Firmware(sync, 0x16052201u));
+    assert(!IsExactKnownBoard6x21Firmware(sync, 0x16052202u));
+    assert(!IsExactKnownBoard6x21Firmware(sync, 0u));
+
     auto oversizedSyncPayload = syncPayload;
     oversizedSyncPayload.push_back(0);
     assert(!DecodeSyncInfo(Parse(MakeResponse(
@@ -283,7 +365,7 @@ void TestActiveFunctionCorrelationAndPublication()
     KeyFunctionMap functions{};
     assert(ApplyKeyFunctionBatch(
         ExpectedAulaWin60HeMaxDefaultMap(), batch, &functions));
-    KeyMap active{};
+    ActiveKeyMap active{};
     BuildPublishableActiveKeyMap(
         ExpectedAulaWin60HeMaxDefaultMap(), functions, &active);
     assert(active[1][0] == 0x52u);
@@ -342,17 +424,19 @@ void TestActiveFunctionCorrelationAndPublication()
     KeyFunctionMap semanticFunctions{};
     assert(ApplyKeyFunctionBatch(
         ExpectedAulaWin60HeMaxDefaultMap(), batch, &semanticFunctions));
-    KeyMap semanticMap{};
+    ActiveKeyMap semanticMap{};
     BuildPublishableActiveKeyMap(
         ExpectedAulaWin60HeMaxDefaultMap(), semanticFunctions, &semanticMap);
     assert(semanticMap[3][1] == 0x52u);
-    assert(semanticMap[3][2] == 0u);
+    assert(semanticMap[3][2] == halljoy::keycode::kFn);
     assert(semanticMap[3][3] == 0u);
+    assert(CountMappedKeyCodes(semanticMap) == 2u);
 
     assert(IsPublishableKeyFunction(0x0004u));
     assert(IsPublishableKeyFunction(0x00E7u));
     assert(!IsPublishableKeyFunction(0x0000u));
-    assert(!IsPublishableKeyFunction(0xF001u));
+    assert(IsPublishableKeyFunction(0xF001u));
+    assert(PublishedKeyCodeForFunction(0xF001u) == halljoy::keycode::kFn);
     assert(!IsPublishableKeyFunction(0x1234u));
 }
 
@@ -444,6 +528,7 @@ void TestFrameRejectionNormalizationAndFuzzSmoke()
 
 int main()
 {
+    TestKnownUsbIdentityAdmission();
     TestExactRequestVectors();
     TestExactWindowsHidEnvelope();
     TestSyncPrecisionAndDefaultMap();

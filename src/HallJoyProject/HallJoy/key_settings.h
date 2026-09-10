@@ -1,5 +1,8 @@
 // key_settings.h
 #pragma once
+#include "analog_key_codes.h"
+
+#include <array>
 #include <cstdint>
 #include <vector>
 #include <utility>
@@ -60,3 +63,9 @@ void KeySettings_SetOutputCap(uint16_t hid, float val);
 // for ini save/load
 void KeySettings_ClearAll();
 void KeySettings_Enumerate(std::vector<std::pair<uint16_t, KeyDeadzone>>& out);
+
+struct PreparedKeySettings {
+    std::array<KeyDeadzone, halljoy::keycode::kCount> values{};
+};
+PreparedKeySettings KeySettings_Prepare(const std::vector<std::pair<uint16_t, KeyDeadzone>>& values);
+void KeySettings_ApplyPrepared(PreparedKeySettings& values);

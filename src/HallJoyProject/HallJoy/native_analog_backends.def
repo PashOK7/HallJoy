@@ -1,13 +1,36 @@
 // Single built-in native protocol catalog.
 // Add one HALLJOY_NATIVE_BACKEND(...) line after implementing the descriptor
 // getter declared by the protocol module. Order is classification priority.
+// The AULA HERO84 diagnostic is deliberately a one-backend image: it must not
+// probe or start any unrelated native protocol while a tester has other HID
+// hardware attached.
+#if defined(HALLJOY_ROG_AZOTH96HE_DIAGNOSTIC)
+HALLJOY_NATIVE_BACKEND(RogAzoth96HeDiagnostic_GetNativeBackendDescriptor)
+#elif !defined(HALLJOY_AULA_HERO84HE_DIAGNOSTIC) && !defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC) && !defined(HALLJOY_TITAN68_TURBO_EXPERIMENTAL)
 HALLJOY_NATIVE_BACKEND(Mad68ProR_GetNativeBackendDescriptor)
 HALLJOY_NATIVE_BACKEND(Hex80_GetNativeBackendDescriptor)
 HALLJOY_NATIVE_BACKEND(AddressedAnalog_GetNativeBackendDescriptor)
+#if defined(HALLJOY_AULA_HERO84HE_EXPERIMENTAL)
+HALLJOY_NATIVE_BACKEND(AulaHero84He_GetNativeBackendDescriptor)
+#endif
 HALLJOY_NATIVE_BACKEND(AulaWin60He_GetNativeBackendDescriptor)
+#if defined(HALLJOY_IROK_ND75_EXPERIMENTAL)
+HALLJOY_NATIVE_BACKEND(IrokNd75_GetNativeBackendDescriptor)
+#endif
+#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+HALLJOY_NATIVE_BACKEND(DrunkDeer_GetNativeBackendDescriptor)
+#endif
+#if defined(HALLJOY_MCHOSE_ACE68_DIAGNOSTIC)
+HALLJOY_NATIVE_BACKEND(MchoseAce68Diagnostic_GetNativeBackendDescriptor)
+#endif
 HALLJOY_NATIVE_BACKEND(AulaW669_GetNativeBackendDescriptor)
 HALLJOY_NATIVE_BACKEND(BackendNative_GetSparkDescriptor)
 HALLJOY_NATIVE_BACKEND(BackendNative_GetSayoDescriptor)
 #if defined(HALLJOY_ANALOG_SIMULATOR)
 HALLJOY_NATIVE_BACKEND(AnalogSimulator_GetNativeBackendDescriptor)
+#endif
+#elif defined(HALLJOY_AULA_HERO84HE_DIAGNOSTIC)
+HALLJOY_NATIVE_BACKEND(AulaHero84HeDiagnostic_GetNativeBackendDescriptor)
+#elif defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC) || defined(HALLJOY_TITAN68_TURBO_EXPERIMENTAL)
+HALLJOY_NATIVE_BACKEND(Titan68TurboDiagnostic_GetNativeBackendDescriptor)
 #endif

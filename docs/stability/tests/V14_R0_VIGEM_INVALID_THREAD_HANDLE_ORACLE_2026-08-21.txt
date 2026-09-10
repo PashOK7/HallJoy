@@ -1,0 +1,49 @@
+HallJoy v1.4 R0 ViGEm invalid-thread-handle old-bug oracle
+Date: 2026-08-21 (Europe/Moscow)
+Scope: simulator-only deterministic reproduction against the pre-migration
+       production lifecycle path. No physical-device claim.
+
+Command:
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+  .\tools\run_analog_simulator.ps1
+  -InjectVigemOutputInvalidThreadHandle -RunSeconds 7
+
+Build result:
+  MSVC AnalogSimulator rebuild: PASS, 0 errors.
+  Only the existing allow-listed ViGEmClient LNK4099 warning was emitted.
+
+Runner result:
+  RED as required for the legacy implementation.
+  Actual process exit: 2.
+  Target-contract expected exit: 0.
+
+Exact trace identity:
+  Path: src/HallJoyProject/x64/AnalogSimulator/HallJoyStabilityTrace.log
+  Length: 22,312 bytes
+  SHA-256: 920F9586B5611AF480D74ED394A41E15FB5F199C40DBDF8B131AFFD66C497BEA
+
+Production-path evidence:
+  seq 38: simulator-only test.invalid_thread_handle.injected retained the raw
+          numeric handle after CloseHandle succeeded.
+  seq 39: watchdog.recover.begin observed alive=1 and has_thread=1.
+  seq 41: stop.timeout recorded wait=WAIT_FAILED (4294967295), win32=6
+          (ERROR_INVALID_HANDLE), handles_retained=1, restart_blocked=1.
+  seq 42: watchdog.recover.blocked entered poisoned state=6/error=8.
+  seq 43: the worker then published worker.exit, but the retained invalid
+          owner handle still prevented reaping and restart.
+  seq 46..95: every later watchdog attempt remained recovery-blocked.
+  seq 126: backend shutdown was blocked by vigem-output.
+  seq 128: application shutdown was poisoned.
+  seq 133: the valid final session.end recorded exit_code=2.
+
+Conclusion:
+  This is an exact old-bug oracle for HJ-V14-P0-006, not a standalone model.
+  The runner deliberately expects the target architecture's clean exit 0, so
+  the current code fails the gate. The gate may turn green only when the parent
+  supervisor can reap the failed output generation, start exactly one new
+  generation, continue output, and shut down with session.end exit_code=0.
+
+Privacy:
+  The trace is simulator-generated. It contains no user keyboard input or user
+  path copied into this evidence file.
+

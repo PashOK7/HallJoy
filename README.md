@@ -1,5 +1,12 @@
 # HallJoy
 
+**1.5.0** — [changes and known limitations](RELEASE_NOTES_v1.5.md).
+Support and keyboard requests: [HallJoy Discord](https://discord.gg/5FQ297yZh).
+
+2026-09-06: current build/layout contract: [project layout](docs/current/PROJECT_LAYOUT.md).
+One ordinary distribution: `build/release/HallJoy.exe`. Historical paths below
+must be interpreted through that document; they are not additional release outputs.
+
 HallJoy turns an analogue Hall Effect keyboard into a fully configurable virtual
 Xbox controller with low-latency analogue input. HallJoy includes:
 
@@ -12,7 +19,8 @@ Xbox controller with low-latency analogue input. HallJoy includes:
 - a live analogue keyboard preview and Gamepad Tester;
 - a browser-based Input Overlay for OBS;
 - multiple native protocols plus an embedded Universal Analog Plugin runtime;
-- safe reconnect handling and crash-only production diagnostics.
+- safe reconnect handling, automatic crash/missing-keyboard reports, and optional
+  continuous diagnostic logging (off by default).
 
 ## Video overview
 
@@ -37,11 +45,14 @@ file was written by chatgpt completely except for this paragraph 🙂
 
 1. Download `HallJoy.exe` from [GitHub Releases](https://github.com/PashOK7/HallJoy/releases)
    or build it from source.
-2. Run HallJoy. If ViGEmBus is missing, HallJoy will show the pinned official
-   [ViGEmBus 1.22.0 release](https://github.com/nefarius/ViGEmBus/releases/tag/v1.22.0)
-   and installation instructions. Install it once, then restart HallJoy.
-3. Close the keyboard's official or web configurator so it does not retain the
-   vendor HID interface.
+2. Run HallJoy. If ViGEmBus is missing, choose **Install ViGEmBus 1.22.0**.
+   HallJoy verifies and starts the official installer embedded in the same EXE;
+   no download, link copying, or browser is required. Approve the normal Windows
+   UAC prompt and complete the setup. HallJoy retries the virtual controller in
+   the same process; it asks for a restart only when Windows actually requires it.
+3. Close any connected keyboard web-driver tabs; they commonly conflict with
+   HallJoy. Desktop software such as Razer Synapse does not necessarily conflict
+   and can stay open if everything works.
 4. Select or create the matching keyboard layout.
 5. Assign controls on the **Remap** tab, tune curves and behavior in
    **Configuration**, and verify the result in **Gamepad Tester**.
@@ -49,7 +60,11 @@ file was written by chatgpt completely except for this paragraph 🙂
 You do not need to install the Wooting Analog SDK or Universal Analog Plugin.
 HallJoy carries its own verified private Universal Analog Plugin runtime and
 prepares it automatically without UAC. ViGEmBus is the only system-wide runtime
-dependency and is intentionally installed manually from its official release.
+dependency. Its pinned official 1.22.0 installer is embedded for one-click setup,
+with an exact SHA-256 and publisher-signature check before elevation. A separate
+button still opens the
+[official release page](https://github.com/nefarius/ViGEmBus/releases/tag/v1.22.0)
+for users who prefer manual installation.
 
 ## Compatible keyboards
 
@@ -57,58 +72,34 @@ If your model is not listed, that does not necessarily mean it is unsupported.
 HallJoy can identify some compatible devices from live protocol responses rather
 than a fixed model or PID table.
 
-### Native HallJoy support
+### Supported models
 
-These devices use HallJoy's native protocol backends where noted. Some models
-in a grouped brand row may use HallJoy's embedded Universal Analog Plugin
-runtime instead.
-
-| Brand | Models | Route and status |
+| Brand | Models | Notes |
 |---|---|---|
-| Aula | **Aula WIN 60 HE MAX**, **Aula WIN 60 HE**, **Aula WIN 68 HE**, **KP-TE153**, and compatible siblings | MAX uses the dynamic 6×21 backend. Standard/W669 reads the firmware product identity and selects an official 61-, 68-, or 69-key factory profile before applying the keyboard's live remap records. WIN 68 HE and KP-TE153 profiles are official-driver-derived but not yet physically validated by HallJoy. |
-| Irok/SparkLink | **Irok MG75 Max**, **Irok MG75 Pro**, and protocol-compatible models | MG75 Max is physically validated with sustained polling and reconnect tests. Not every Irok keyboard is compatible: **Irok MG75 v2 was physically tested and is not supported**. |
-| Redragon | Compatible magnetic-switch revisions of **K673RGB-M**, **K673WB-RGB-M**, **K580-M**, **K552-M (PT)**, **K552BGC-M**, **K552RGB-M SP**, **K556RGB-M**, **K556BP-RGB-M**, **K617RGB-M**, **K617RGB-MP (PT)**, **K618RGB-M**, **K686RGB-M**, **K686BG-RGB-M**, **K707-RGB-M**, **K721RGB-M**, **K721WRB-RGB-M**, **M82**, **M82 SE**, **RS82 RT** | **K673RGB-M is physically tested with HallJoy.** Compatible revisions of the other listed models appear in the same official analogue driver family and are expected to work, but have not yet been physically tested with HallJoy. |
-| MADLIONS | **MAD 68 Pro R**, **MAD60HE**, **MAD68HE**, **MAD68R** | MAD 68 Pro R uses native A0; the other listed models use the embedded Universal Analog Plugin runtime |
-| ATK | **ATK Hex80** | Native Hex80 `0x96`; a compatible PID is accepted only after valid GET responses |
-| SayoDevice | **O3C** | O3C has been tested; other SayoDevice products may work when they expose the same validated `0x22` depth protocol |
-| IPI / QBZ | **QBZ75** and compatible devices | Native Addressed Analog `09/94/02` after a dynamic capability proof |
-| Other brands using compatible protocols | Unlisted compatible models | HallJoy may recognize them only after a valid device-info and protocol proof; a brand name alone is never enough |
+| Aula | **WIN 60 HE MAX**, **WIN 60 HE**, **WIN 68 HE**, **KP-TE153** | — |
+| Irok | **MG75 Max**, **MG75 Pro** | **MG75 v2 is not supported.** |
+| Redragon | **K673RGB-M (BR firmware)** — confirmed working | Other compatible magnetic-switch models are expected to work but have not been physically tested with HallJoy. See the [extended compatibility list](SUPPORTED_HARDWARE.md#redragon-magnetic-switch-family). |
+| MADLIONS | **MAD 68 Pro R**, **MAD60HE**, **MAD68HE**, **MAD68R** | — |
+| ATK | **Hex80** | — |
+| SayoDevice | **O3C** | O3C is tested; other SayoDevice models may also work but are not confirmed. |
+| IPI / QBZ | **QBZ75** | — |
+| Razer | **Huntsman V2 Analog**, **Huntsman Mini Analog**, **Huntsman V3 Pro**, **Huntsman V3 Pro Mini**, **Huntsman V3 Pro Tenkeyless** | — |
+| Keychron | **Q1 HE**, **Q3 HE**, **Q5 HE**, **K2 HE**, **K4 HE ANSI** | Compatible custom firmware is required for the Keychron HE support described here. Stock K4 HE firmware is not supported for gaming. |
+| Lemokey | **P1 HE ANSI**, **P1 HE ISO** | — |
+| NuPhy | **Air60 HE**, **Air75 HE** | — |
+| DrunkDeer | **A75**, **A75 Pro**, **G60**, **G65**, **G75** | — |
+| Wooting | Analogue Wooting keyboards supported by the bundled runtime | — |
 
-The MADLIONS models are intentionally grouped into one public row. Their
-internal routes differ, but they belong to one supported brand from a user's
-perspective.
-
-### Support through embedded Universal Analog Plugin
-
-The pinned Universal Analog Plugin runtime bundled with HallJoy declares support
-for these models. No system-wide plugin installation is required. Not every
-hardware revision in this section has been tested by the HallJoy team on
-physical hardware.
-
-| Brand | Models |
-|---|---|
-| Razer | **Huntsman V2 Analog**; **Huntsman Mini Analog**; **Huntsman V3 Pro**; **Huntsman V3 Pro Mini**; **Huntsman V3 Pro Tenkeyless** |
-| Keychron | **Q1 HE**; **Q3 HE**; **Q5 HE**; **K2 HE**. **K4 HE ANSI** (`3434:0E40`) is physically validated and used daily by the HallJoy author with the custom full-report firmware. Stock K4 firmware is not supported for gaming because its per-key protocol introduces unacceptable sub-actuation latency. See [AnalogSense's full-report firmware page](https://analogsense.org/firmware/) for background and general flashing guidance; it does not currently provide the HallJoy K4 image. |
-| Lemokey | **P1 HE ANSI**; **P1 HE ISO** |
-| NuPhy | Analogue NuPhy keyboards; the decoder explicitly handles **Air60 HE** and **Air75 HE** |
-| DrunkDeer | The DrunkDeer family; the decoder includes **A75**, **G60**, **G65**, and **G75** |
-| Wooting | Analogue Wooting keyboards through the embedded build with Wooting device support |
+You do not need to install Universal Analog Plugin separately. Not every model
+or hardware revision has been physically tested with HallJoy. The
+[detailed compatibility reference](SUPPORTED_HARDWARE.md) records confirmed
+devices, firmware requirements, and untested variants.
 
 ### If your keyboard is not listed
 
-HallJoy will first try to match the device against one of its known safe protocol
-families. It accepts the interface only after a valid protocol proof; it never
-claims a random HID endpoint just because it looks similar.
-
-If automatic detection does not work, contact the author on Discord:
-**`pash.ok`**.
-
-Any of the following is usually enough to start adding support:
-
-- an open-source application that already reads analogue values from the keyboard;
-- an open SDK or protocol specification;
-- a firmware file;
-- an offline `.exe` updater or configurator that can be analysed.
+For an unlisted keyboard or a detection problem, see [Support](#support).
+A missing-keyboard diagnostic report is collected automatically; ordinary
+continuous logging does not need to be enabled.
 
 Some keyboards do not expose a separate analogue protocol at all: their firmware
 may never provide key travel to external applications. In that case, HallJoy
@@ -130,7 +121,7 @@ To add it to OBS:
 
 1. Open the **Input Overlay** tab in HallJoy.
 2. Click **Start server**.
-3. Click **Copy URL**.
+3. Copy the address using the URL field.
 4. Add a **Browser** source in OBS and paste the copied URL.
 5. Set the Browser Source size to match the proportions of your keyboard layout.
 
@@ -153,7 +144,14 @@ protocol used to obtain analogue values.
 
 HallJoy stores user data under `%LOCALAPPDATA%\HallJoy` by default:
 
-- `settings.ini` and `bindings.ini` contain the Default global profile;
+- `settings.ini` contains the Default global profile, including its bindings;
+  named profiles likewise store settings and bindings together in their
+  `.settings.ini` file, committed atomically. Existing legacy pairs with a
+  separate `bindings.ini` / `.bindings.ini` are read until their first successful
+  save. That save preserves the old settings as `.pre-bundle.bak` and leaves the
+  legacy bindings file untouched; subsequent loads use the combined file.
+  To roll back to an older executable, restore the legacy settings backup
+  together with its matching legacy bindings;
 - `GlobalProfiles\` contains additional profile settings and bindings;
 - `Layouts\` contains keyboard layout presets;
 - `CurvePresets\` contains response-curve presets.
@@ -168,18 +166,28 @@ files.
 
 If HallJoy starts but every analogue value remains at zero:
 
-1. Close the keyboard's official desktop configurator and every web-driver tab.
+1. Close connected web-driver tabs. If input is still missing, temporarily close
+   the desktop configurator to check for a conflict; closing it is not normally
+   required when HallJoy already works.
 2. Check the keyboard firmware and software mode. On some keyboards a vendor
    **Turbo**, performance, or compatibility mode can stop exposing the analogue
    interface used by external applications.
 3. Reconnect the keyboard, restart HallJoy, and inspect **Configuration** and
    **Gamepad Tester** for the detected route and live values.
-4. If the model still does not work, contact **`pash.ok`** on Discord with the
-   exact model, firmware version, and any available firmware or offline updater.
+4. If the problem persists, see [Support](#support).
 
 Do not manually install Wooting Analog SDK or Universal Analog Plugin as a
 troubleshooting step. HallJoy verifies and prepares its own private plugin
 runtime.
+
+## Support
+
+Join [HallJoy Discord](https://discord.gg/5FQ297yZh) for help, keyboard support
+requests, feedback, and updates. Use the [report template](docs/SUPPORT_REPORT.md)
+so the relevant information is collected in one place.
+
+Choose **Open HallJoy folder** in Global settings to find `HallJoy.log`.
+Attach it to your report; do not upload your entire data folder or personal text.
 
 ## License
 
@@ -195,6 +203,8 @@ and their licenses are listed in
 
 > **For most users, this is the end of the guide.** Everything below is intended
 > for developers, contributors, and advanced troubleshooting.
+
+
 
 ## Building from source
 
@@ -361,11 +371,10 @@ bars and green digital
 preview indicators are retained. Digital events are UI-only and do not drive
 analogue ViGEm controls.
 
-The production target creates no continuous per-key, latency, analog-host,
-Addressed trace, or general diagnostic files, and starts no permanent log writer.
-A lightweight unhandled-exception filter performs no normal-operation I/O and
-creates `HallJoyCrash.txt` only after a process crash. The silent MAD68 emergency
-A9 recovery watchdog remains enabled.
+Continuous diagnostic logging is off by default and can be enabled in Global
+settings. Crash and missing-keyboard reports remain automatic. Diagnostics are
+collected in `HallJoy.log`; see [Support](#support). The MAD68 emergency A9 recovery
+watchdog remains enabled.
 
 ## Limitations
 
@@ -387,8 +396,8 @@ A9 recovery watchdog remains enabled.
   W669 products can use a sufficiently explicit device map, but a stock unknown
   product whose firmware reports only “inherit factory layout” is rejected until
   its factory map is known; key count alone is not enough to map HID usages safely.
-- Keep the keyboard's official configurator closed while HallJoy owns its vendor
-  interface.
+- Connected web drivers commonly conflict with HallJoy. Desktop configurators
+  may coexist; close them only when troubleshooting a suspected conflict.
 - Redragon K673RGB-M is physically validated for early analogue travel, full
   scale, balanced release-to-zero, and multi-key streaming. Compatible
   magnetic-switch revisions of the other Redragon models named in the table

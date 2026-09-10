@@ -98,48 +98,49 @@ void DiagnosticMetrics::AddSample(
 }
 
 DiagnosticObservation DiagnosticMetrics::Observe(
-    const KeyMap& map,
+    const ActiveKeyMap& map,
     const TravelMatrix& travel,
     bool changed,
     std::uint64_t completedUs,
     std::uint32_t transactionUs) noexcept
 {
     DiagnosticObservation observation{};
-    std::array<std::uint16_t, 256> currentByHid{};
-    std::array<std::uint8_t, 256> rows{};
-    std::array<std::uint8_t, 256> columns{};
+    std::array<std::uint16_t, halljoy::keycode::kCount> currentByKeyCode{};
+    std::array<std::uint8_t, halljoy::keycode::kCount> rows{};
+    std::array<std::uint8_t, halljoy::keycode::kCount> columns{};
     for (std::size_t row = 0; row < kRows; ++row)
     {
         for (std::size_t column = 0; column < kColumns; ++column)
         {
-            const std::uint8_t hid = map[row][column];
-            if (!IsPublishableKeyboardUsage(hid)) continue;
+            const std::uint16_t keyCode = map[row][column];
+            if (!halljoy::keycode::IsSupported(keyCode)) continue;
             const std::uint16_t value = travel[row][column];
-            if (value > currentByHid[hid])
+            if (value > currentByKeyCode[keyCode])
             {
-                currentByHid[hid] = value;
-                rows[hid] = static_cast<std::uint8_t>(row);
-                columns[hid] = static_cast<std::uint8_t>(column);
+                currentByKeyCode[keyCode] = value;
+                rows[keyCode] = static_cast<std::uint8_t>(row);
+                columns[keyCode] = static_cast<std::uint8_t>(column);
             }
         }
     }
 
-    for (std::size_t hid = 1; hid < currentByHid.size(); ++hid)
+    for (std::size_t keyCode = 1; keyCode < currentByKeyCode.size(); ++keyCode)
     {
-        const std::uint16_t value = currentByHid[hid];
+        const std::uint16_t value = currentByKeyCode[keyCode];
         if (value == 0) continue;
         if (observation.activeCount < observation.active.size())
         {
             auto& active = observation.active[observation.activeCount++];
-            active.hid = static_cast<std::uint8_t>(hid);
-            active.row = rows[hid];
-            active.column = columns[hid];
+            active.keyCode = static_cast<std::uint16_t>(keyCode);
+            active.row = rows[keyCode];
+            active.column = columns[keyCode];
             active.travelUm = value;
         }
         UpdateMinimum(&observation.minimumPositiveUm, value);
         observation.maximumUm = std::max(observation.maximumUm, value);
-        if (maximumByHid_[hid] == 0) ++observedHids_;
-        maximumByHid_[hid] = std::max(maximumByHid_[hid], value);
+        if (maximumByKeyCode_[keyCode] == 0) ++observedHids_;
+        maximumByKeyCode_[keyCode] =
+            std::max(maximumByKeyCode_[keyCode], value);
     }
 
     const auto activeKeys = static_cast<std::uint32_t>(observation.activeCount);
@@ -188,9 +189,10 @@ DiagnosticWindow DiagnosticMetrics::Lifetime(std::uint64_t nowUs) const noexcept
     return result;
 }
 
-const std::array<std::uint16_t, 256>& DiagnosticMetrics::MaximumByHid() const noexcept
+const std::array<std::uint16_t, halljoy::keycode::kCount>&
+DiagnosticMetrics::MaximumByKeyCode() const noexcept
 {
-    return maximumByHid_;
+    return maximumByKeyCode_;
 }
 
 std::uint64_t DiagnosticMetrics::TotalUpdates() const noexcept

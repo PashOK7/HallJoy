@@ -15,6 +15,8 @@ deps = read("app_deps.cpp")
 backend_h = read("backend.h")
 project = read("HallJoy.vcxproj")
 runner = (repo / "tools" / "run_analog_simulator.ps1").read_text(encoding="utf-8-sig")
+private_guidance_body = deps.split("void ShowPrivateRuntimeGuidance", 1)[1].split(
+    "enum class VigemUserAction", 1)[0]
 
 checks = {
     "runtime falls back to versioned per-user storage":
@@ -31,8 +33,16 @@ checks = {
         "--halljoy-test-uap-exe-write-denied" in embedded,
     "verified absolute path is passed to child host":
         "EmbeddedAnalogStack_PrivatePluginPath()" in host and
-        "launch.privatePluginPath = argv[i + 7]" in host and
+        "launch.privatePluginPath = argv[i + 10]" in host and
         "LoadHostApi(api, launch.privatePluginPath)" in host,
+    "child rechecks the exact embedded image and holds it through load":
+        "EmbeddedAnalogStack_OpenVerifiedPrivatePlugin(" in host and
+        "HANDLE verifiedPluginLease = nullptr;" in host and
+        host.index("EmbeddedAnalogStack_OpenVerifiedPrivatePlugin(") <
+        host.index("LoadHostApi(api, launch.privatePluginPath)") and
+        "CloseHandle(verifiedPluginLease);" in host and
+        "ResourceEqualsFileLocked" in embedded and
+        "FILE_FLAG_OPEN_REPARSE_POINT" in embedded,
     "child path uses tested Windows argument quoting":
         "windows_command_line::QuoteArgument" in host and "windows_command_line.h" in project,
     "backend issues describe private runtime rather than system SDK":
@@ -45,8 +55,9 @@ checks = {
         "WootingAnalogPlugins" not in deps and
         "AnalogSense/universal-analog-plugin" not in deps,
     "private runtime recovery never invokes a system installer":
-        "never downloads, starts, or elevates an installer" in deps and
-        "AppDeps_ShowMissingDependencyGuidance" in deps,
+        "EmbeddedVigemInstaller_Run" not in private_guidance_body and
+        "if (!plan.showPinnedVigemRelease)" in deps and
+        "return InstallPinnedVigem(hInst, hwnd)" in deps,
     "runtime scenario can force and verify per-user fallback":
         "ForceUserUapRuntime" in runner and "location=user" in runner,
 }

@@ -11,7 +11,7 @@ Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
 $scenarioRunner = Join-Path $PSScriptRoot 'run_analog_simulator.ps1'
-$simulatorOutput = Join-Path $root 'src\HallJoyProject\x64\AnalogSimulator'
+$simulatorOutput = Join-Path $root 'build\bin\AnalogSimulator\Release\x64'
 $tracePath = Join-Path $simulatorOutput 'HallJoyStabilityTrace.log'
 if ([string]::IsNullOrWhiteSpace($EvidenceRoot)) {
     $stamp = [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')

@@ -306,7 +306,9 @@ void PremiumComboInternal::CloseDropDown(State* st, bool keepFocusOnCombo)
     if (!st) return;
 
     // close logically immediately
+    st->deleteConfirmation = -1;
     st->dropped = false;
+    st->scrollDragging = false;
     st->hotIndex = -1;
     st->scrollTop = 0;
     st->wheelRemainder = 0;

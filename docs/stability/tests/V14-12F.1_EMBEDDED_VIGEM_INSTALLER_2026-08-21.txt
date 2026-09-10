@@ -1,0 +1,68 @@
+HallJoy v1.4 - V14-12F.1 / D-049 embedded ViGEmBus installer evidence
+Date: 2026-08-21
+
+Purpose
+-------
+Restore the old one-click user experience without restoring its mutable
+runtime download, predictable temp path, TOCTOU window or infinite UI wait.
+V14-12F remains historical evidence for removing that old implementation; its
+manual-only recovery policy is superseded.
+
+Pinned dependency
+-----------------
+Version: ViGEmBus 1.22.0
+Installer: ViGEmBus_1.22.0_x64_x86_arm64.exe
+Size: 6,278,576 bytes
+SHA-256: 89220A7865076B342892F98865F3499FB7C4CFD673159E89D352C360FD014C6A
+Signer: Nefarius Software Solutions e.U.
+License: BSD-3-Clause retained in source and THIRD_PARTY_NOTICES.md
+
+Security and UX contract
+------------------------
+- Exact installer is linked as RCDATA; no end-user runtime download occurs.
+- Build checks source size, SHA-256 and valid Nefarius Authenticode.
+- Runtime checks embedded size/SHA before extraction.
+- Extraction uses a CSPRNG directory and CREATE_NEW file.
+- Bytes are flushed before the writer transitions through a path-retaining
+  bridge to a final read-only handle denying write/delete sharing.
+- Locked bytes are re-hashed and Authenticode is checked through the same
+  handle. A non-executing READ|EXECUTE open proves launch compatibility.
+- The same locked file is re-hashed immediately before explicit user-approved
+  runas. The lock remains held until installer completion.
+- Wait is message-pumped and bounded to 20 minutes. Timeout does not kill the
+  installer; cleanup is scheduled for reboot.
+- UI actions are explicit: Install, open official release, continue without
+  output. Ctrl+C/copy-error URL extraction is not required.
+- Successful install retries backend initialization in the same process;
+  restart-required and failure states are explicit.
+
+Executed gates
+--------------
+1. python tools/run_native_backend_checks.py --require-compiler
+   PASS: all current static and portable C++ gates.
+2. powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1
+   PASS: clean UAP and HallJoy Release x64 rebuild, zero errors, only the
+   allow-listed external ViGEmClient PDB warning.
+3. Exact linked HallJoy.exe command:
+   --halljoy-verify-embedded-vigem-installer
+   PASS / exit 0: extraction, exact hash, locked-handle Authenticode and
+   READ|EXECUTE compatibility; no elevation or installer execution.
+4. Temp cleanup comparison
+   PASS: zero new HallJoy-ViGEm-* directories.
+
+Artifact
+--------
+Path: build/release/HallJoy.exe
+Version: 1.4.1.0
+Size: 8,485,376 bytes
+SHA-256: 7EB42CF1687D0DB1FF16721875C5F36B502FD96D1EB1DEC686C3AC4EEA85AB6B
+Compiled, build/output and build/release copies are byte-identical.
+
+Evidence boundary
+-----------------
+ViGEmBus was already installed on this workstation. The actual missing-driver
+dialog, UAC consent and installer process were therefore not exercised by
+uninstalling/reinstalling a working system driver. The exact embedded bytes and
+complete non-elevating preparation/launch-compatibility path are verified.
+This does not claim new keyboard compatibility or close broader release risks.
+No git/GitHub operation was performed.

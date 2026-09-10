@@ -18,8 +18,9 @@ def require(condition: bool, message: str) -> None:
 runner = RUNNER.read_text(encoding="utf-8-sig")
 build = BUILD.read_text(encoding="utf-8-sig")
 
-require("[ValidateRange(1, 1440)]" in runner and "[int]$DurationMinutes = 60" in runner,
-        "soak duration is bounded to 1..1440 minutes and defaults to one hour")
+require("[Parameter(Mandatory = $true)]" in runner and "[ValidateRange(1, 1440)]" in runner and
+        "[int]$DurationMinutes," in runner and "[int]$DurationMinutes = 60" not in runner,
+        "resource-observation duration is explicit and bounded rather than an arbitrary default")
 require("[ValidateRange(1, 60)]" in runner and "[int]$SampleSeconds" in runner,
         "resource sampling interval is bounded to at most sixty seconds")
 require("[int]$ProgressMinutes = 5" in runner and "Soak progress:" in runner,
@@ -48,8 +49,15 @@ require("checkpoint.json" in runner and "Write-SoakCheckpoint" in runner and
 require('build\\evidence\\long-soak' in runner and '$output "long-soak' not in runner,
         "default soak evidence survives official build/output cleanup")
 require("state-before.json" in runner and "state-after.json" in runner and
-        "Get-ChangedStateFiles" in runner and "Get-FileHash" in runner,
-        "user-state file names and SHA-256 values are persisted and invariant")
+            "Get-ChangedStateFiles" in runner and "Get-FileHash" in runner,
+            "user-state file names and SHA-256 values are persisted and invariant")
+require("HallJoy.portable" in runner and "portable-isolated-copy" in runner and
+        "Copy-ProfileStateToPortableRuntime" in runner and
+        "isolated soak executable does not match" in runner,
+        "the output-capable soak uses a hash-verified portable copy and leaves live state invariant")
+require("verification_scope = 'resource-stability-window-only'" in runner and
+        "HallJoy resource-stability window: PASS" in runner,
+        "a passing duration window is explicitly scoped and cannot claim broad behavioral coverage")
 require("PostClose" in runner and "0x0010" in runner and "ShutdownTimeoutSeconds" in runner and
         "$process.ExitCode -ne 0" in runner and "Wait-NoHallJoyProcess" in runner,
         "soak ends by bounded graceful WM_CLOSE with exit zero and no survivor")

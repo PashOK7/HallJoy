@@ -4,13 +4,14 @@
 #include <cstdint>
 
 #include "native_analog_routing.h"
+#include "native_analog_snapshot_adapter.h"
 #include "worker_lifecycle.h"
 
 // Internal ABI for HallJoy native analogue protocol modules.
 // A new protocol implementation owns its USB/HID transport and publishes only
 // normalized [0..1000] values. The common backend owns curves, bindings, SOCD,
 // UI snapshots and ViGEm scheduling.
-static constexpr std::uint32_t kNativeAnalogBackendAbiVersion = 2;
+static constexpr std::uint32_t kNativeAnalogBackendAbiVersion = 3;
 static constexpr std::size_t kNativeAnalogBackendStatusChars = 160;
 
 enum class NativeAnalogStartPhase : std::uint8_t
@@ -33,6 +34,8 @@ enum NativeAnalogBackendFlags : std::uint32_t
 
 struct NativeAnalogBackendTelemetry
 {
+    // Zero unless the owning live session proved an exact catalog identity.
+    std::uint64_t verifiedLayoutToken = 0;
     bool present = false;
     bool connected = false;
     std::uint16_t vendorId = 0;
@@ -75,6 +78,11 @@ struct NativeAnalogBackendDescriptor
     bool (*ownsHid)(std::uint16_t hidUsage) = nullptr;
     std::uint16_t (*getMilli)(std::uint16_t hidUsage) = nullptr;
     void (*getTelemetry)(NativeAnalogBackendTelemetry* out) = nullptr;
+
+    // Optional V2 pull endpoint.  It preserves per-interface provenance and
+    // must not perform source arbitration; legacy getMilli remains available
+    // until RM-11 changes the consumer policy.
+    bool (*getSnapshotV2)(halljoy::native_analog_snapshot::OutputV1 output) = nullptr;
 };
 
 inline bool NativeAnalogBackendDescriptor_IsValid(const NativeAnalogBackendDescriptor& d)

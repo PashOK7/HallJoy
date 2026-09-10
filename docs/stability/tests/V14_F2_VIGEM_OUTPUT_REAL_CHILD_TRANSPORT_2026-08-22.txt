@@ -1,0 +1,158 @@
+HallJoy v1.4 F2 ViGEm output real-child transport evidence
+Date: 2026-08-22
+Machine scope: local Windows x64 workstation; ViGEmBus service running
+Package status: PASS for F2 real-child transport; production route NOT SWITCHED
+
+Decision and rollback
+---------------------
+Four implementations were compared before code in:
+  docs/v1.4/VIGEM_OUTPUT_REAL_CHILD_TRANSPORT_DESIGN_2026-08-22.md
+D-057 selects one child-owned fixed-capacity RAII transport with an immutable
+real SDK table and a deterministic fake table used only by the portable test.
+
+Hash-verified backups:
+  _backups/vigem_output_f2_pre_20260822_1118
+  _backups/vigem_output_f2_docs_pre_20260822_1145
+The current backend.cpp SHA-256 equals the pre-F2 backup:
+  2D798E1162AF9AEB9102490C18955DD129070764641BAAD51F86573660D38E19
+No Git/GitHub operation was used.
+
+Implemented contract
+--------------------
+- The existing 640-byte shared ABI names requestedPadCount in reserved control
+  capacity; configuration and Ready acknowledgement are generation-bound.
+- One VigemChildTransport owns one client and a fixed array of four targets.
+- Start validates 1..4 pads, connects, adds every target and explicitly submits
+  a neutral report to every target before Ready.
+- Apply acknowledges a complete shared snapshot only after every selected real
+  vigem_target_x360_update succeeds.
+- Stop visits every target for neutral, then every target for remove/free, then
+  disconnect/free. It keeps the first exact ViGEm phase/error while continuing
+  cleanup. Clean stop requires both complete neutral and complete removal.
+- A hung SDK call remains inside the already-proved process/job boundary.
+- Real mode is accepted by the exact early HallJoy output host. Simulator fake
+  modes remain simulator-only. Production self-test entry remains rejected.
+- backend.cpp was not changed and still owns the only normal production route.
+
+Portable/static gates
+---------------------
+Command:
+  python tools/run_native_backend_checks.py --require-compiler
+
+Selected results:
+  VIGEM_OUTPUT_REAL_CHILD_STATIC_AUDIT=PASS
+  VIGEM_OUTPUT_SELF_HOST_STATIC_AUDIT=PASS
+  VIGEM_CHILD_TRANSPORT_TEST=PASS pads=4 partial_start_edges=8
+    initial_neutral_edges=4 update_edges=4 neutral_edges=4 remove_edges=4
+  PROCESS_GENERATION_SUPERVISOR_TEST=PASS generations=1008
+    containment_before_resume=1 explicit_decoy_inherited=0 startup_timeout=1
+    progress_timeout=1 forced_stop=1 overlap=0
+  native backend checks: all static and portable C++ tests passed
+  FULL_NATIVE_EXIT=0
+
+The deterministic fake API matrix forces client allocation/connect, target
+allocation/add, explicit initial-neutral, report update, planned neutral and
+target removal failures. Every partial-start/stop case exhausts later cleanup
+and finishes with zero fake client/target object.
+
+MSVC exact builds
+-----------------
+Commands:
+  MSBuild HallJoy.vcxproj /t:Rebuild /p:Configuration=Release /p:Platform=x64
+    /p:HallJoyAnalogSimulator=true /m
+  MSBuild HallJoy.vcxproj /t:Rebuild /p:Configuration=Release /p:Platform=x64
+    /p:HallJoyMad68ProRNative=true /m
+
+Results:
+  Simulator: PASS, 0 errors, no unexpected warning
+  Production: PASS, 0 errors, no unexpected warning
+  Only the pre-existing allow-listed external ViGEmClient LNK4099 PDB warning
+  was emitted in either build.
+
+Final compile/test artifacts (not promoted, not delivered):
+  src/HallJoyProject/x64/AnalogSimulator/HallJoyV14Simulator.exe
+    bytes: 8649216
+    SHA-256: 922CE616A4FBD01ED59F2BDDD6441B8C70DF5311B7AE299EFC91391D83402174
+  src/HallJoyProject/x64/MAD68ProRNative/HallJoy.exe
+    bytes: 8500736
+    SHA-256: D4A5EA026EE7BD852DAEA91F20DBBAD00B632F5A7401C8F4A43A4782F703E147
+
+Exact-image fake regression
+---------------------------
+Command:
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File tools/run_vigem_output_self_host_test.ps1 -SkipBuild
+
+Result:
+  VIGEM_OUTPUT_SELF_HOST_EXACT_EXE=PASS generations=9 o3_reap_restart=1
+    o4_boundaries=6 clean_stop_qualified=1 survivors=0 bytes=8649216
+    sha256=922CE616A4FBD01ED59F2BDDD6441B8C70DF5311B7AE299EFC91391D83402174
+
+Exact-image real ViGEmBus gate
+------------------------------
+Command:
+  powershell -NoProfile -ExecutionPolicy Bypass
+    -File tools/run_vigem_output_real_child_test.ps1 -SkipBuild
+
+Precondition:
+  ViGEmBus service: Running
+  Present VID_045E/PID_028E PnP baseline entries: 3
+
+Result:
+  VIGEM_OUTPUT_REAL_CHILD_EXACT_EXE=PASS generations=1 pads=4 apply=1
+    neutral=4 remove=4 pnp_baseline=3 survivors=0 bytes=8649216
+    sha256=922CE616A4FBD01ED59F2BDDD6441B8C70DF5311B7AE299EFC91391D83402174
+
+The actual simulator image launched itself in the real early output-host mode,
+created four real Xbox 360 targets, reached Ready only after target add and
+explicit initial neutral, applied one complete non-neutral four-pad snapshot,
+acknowledged its exact sequence/checkpoint, neutralized and removed all four
+targets, reaped the child and returned the PnP set to the pre-run baseline.
+
+Production fail-closed checks
+-----------------------------
+  malformed --halljoy-vigem-output-host command: exit 60
+  --halljoy-test-vigem-output-real-child in production image: exit 91
+  live HallJoy output-host processes after all gates: 0
+
+Final source identities
+-----------------------
+  vigem_output_shared.h
+    5A5106366EB2042AA909F827E5308E4233B0D1F7E704AA34F2BF31C75138E48E
+  vigem_output_channel.h
+    F0B193038A74E125A98B320A12FE1FB01EC8B7254D1C4D8C8F3A299B91E7CDC0
+  vigem_output_channel.cpp
+    987BD1C893178453B8DD319C9F0308F7A40E722024618D2E4B7FC97D8BC331AD
+  vigem_child_transport.h
+    7FB15F03763CFFC5BB4B1E0D0A79A25A7E27AB798478182D8B8B702E916AFEBE
+  vigem_child_transport.cpp
+    6AB79D3818C96F2F5C9AEDAB4C23BEE857E021D4F77D2F38D9A6D71B34F77F07
+  vigem_output_process_client.h
+    DADBB3EA7FE3F931E3FA818F360E0C2F179DB8AC5203594A88AC2F5B8230A9E0
+  vigem_output_process_client.cpp
+    181000653FF5DE7F5E537C52598BBAF1E2DA2F67FD4A4E488D668CC6949B4F00
+  vigem_output_process_host.cpp
+    D70C2769C04E392C04CBDC7406692A7ADA870F89FDD4E573FD56DB5105C79390
+  vigem_output_process_protocol.h
+    844B7D4A8B0E83E1B6928D514F14B0838F752BAD37CBEAAA6900CDDD2DAAA11B
+  vigem_output_self_host_test.cpp
+    20BA8B73CFE880D9FBBD6794C49F9B15121CA941D99D5325463CA5B4C5F563FF
+  vigem_child_transport_test.cpp
+    CC409CADED97EAA115C519630856CF51B9EDDC5788A01697227B4F6965A887FF
+  vigem_output_real_child_static_audit.py
+    086F274DA91AEBE6E78E4D945571C5F262AA92C048CFC2952588F13C8E0D2468
+  run_vigem_output_real_child_test.ps1
+    064DA7237FCB6FA244D6340863E131E45B10BDB4C3D964954BC1AD9613807EF3
+  run_native_backend_checks.py
+    4E3FA3E1E6A2A096AA582A3614AFD760DE7AC7BAEA0DB3101E8E7C127F6280B7
+
+Honest boundary / next gate
+---------------------------
+F2 proves the real child transport but does not route normal HallJoy output to
+it. HJ-V14-P0-005 and HJ-V14-P0-006 remain open because realtime still publishes
+to the legacy closeable wake/thread worker. O1/O2 target runners remain MISSING.
+The next coherent package is F3: design and execute one atomic route switch to
+a dedicated parent owner thread using OutputProcessSession, remove the legacy
+worker/wake/mailbox/reconnect owner completely, and then run routed O1/O2/O5 and
+physical IROK/DrunkDeer recovery gates. No user artifact is produced by F2.
+

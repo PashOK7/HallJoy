@@ -34,6 +34,9 @@ def main() -> int:
     stability = read(HALL / "stability_trace.cpp")
     diagnostic_metrics_h = read(HALL / "aula_win60he_diagnostic_metrics.h")
     diagnostic_metrics = read(HALL / "aula_win60he_diagnostic_metrics.cpp")
+    protocol_test = read(TESTS / "aula_win60he_protocol_test.cpp")
+    end_to_end = read(TESTS / "aula_win60he_end_to_end_test.cpp")
+    analog_keys = read(HALL / "analog_key_codes.h")
     diagnostic_builder = read(REPO / "tools" / "build_aula_diagnostic.ps1")
     runner = read(REPO / "tools" / "run_native_backend_checks.py")
     simulator_runner = read(REPO / "tools" / "run_analog_simulator.ps1")
@@ -43,6 +46,15 @@ def main() -> int:
         "kAulaUsagePage = 0xFFA0", "kAulaUsage = 0x0001",
         "kWireReportBytes = 64", "kWindowsHidReportBytes = kWireReportBytes + 1u")),
         "USB identity and the 64/65-byte HID envelope are exact")
+    require(all(token in protocol_h for token in (
+        "kKnownUsbIdentities", "0x1CA5u, 0x2201u, 0x16052201u",
+        "0x1CA5u, 0x2202u, 0x16052202u",
+        "0x1CA2u, 0x2201u, 0x2E022201u",
+        "PathContainsKnownUsbIdentity", "TryReadUsbIdentityFromPath",
+        "IsKnownUsbIdentityBoardCompatible")) and
+        "PathContainsKnownUsbIdentity(detail->DevicePath)" in backend and
+        "IsKnownUsbIdentityBoardCompatible(" in backend,
+        "one exact USB/board registry admits all proven GravaStar V75 identities")
     require(all(token in protocol for token in (
         "0x35u + kFrameHead + payloadLength + command",
         "payload[payloadLength - 1u]", "ResponseCommand(requestCommand)")),
@@ -76,18 +88,35 @@ def main() -> int:
             "Fn0 map uses dynamically bounded correlated batches and two identical generations")
     require(all(token in protocol_h + protocol + client_h + client + backend for token in (
                 "CompatibilityProfile::ExactWin60HeMax",
+                "CompatibilityProfile::ExactKnownBoard6x21Family",
                 "CompatibilityProfile::Compatible6x21Family",
-                "IsAula6x21FamilyFirmware", "IsAula6x21FamilyPrecision",
+                "IsExactKnownBoard6x21Firmware", "IsAula6x21FamilyFirmware",
+                "ProbePolicyForSession", "expectedBoardId",
+                "IsAula6x21FamilyPrecision",
                 "IsAula6x21FamilyDefaultMap", "exactFirmware && exactPrecision",
                 "ContainsFamilyToken", "sparkplayjoy")) and
+            "aula_win60he::IsKnownUsbIdentity(" in backend and
             "candidate.attributes.VendorID == aula_win60he::kAulaVendorId" in backend,
-            "family discovery is brand-scoped and requires structural firmware, precision and dynamic-map proof")
+            "family discovery is exact-profile or brand-scoped and requires structural firmware, precision and dynamic-map proof")
+    require("HasStructured6x21SyncDescriptors" in protocol and
+            "sync.boardId == expectedBoardId" in protocol and
+            "sync.rawPayload[5] == 0xC0u" in protocol and
+            "0x16052201u" in protocol_test and
+            "0x00, 0x04, 0x00" in protocol_test and
+            "!IsAula6x21FamilyFirmware(sync)" in protocol_test and
+            "IsExactKnownBoard6x21Firmware(sync, 0x16052201u)" in protocol_test and
+            "TestObservedV75UsesExactKnownBoardPolicy" in end_to_end,
+            "physical V75 sync is accepted only by its exact USB-correlated board policy")
     require("std::uint16_t value" in protocol_h and
-            "IsPublishableKeyFunction(std::uint16_t function)" in protocol_h and
+            "using ActiveKeyMap" in protocol_h and
+            "PublishedKeyCodeForFunction(std::uint16_t function)" in protocol_h and
             "function <= 0x00FFu" in protocol and
-            "IsPublishableKeyboardUsage(static_cast<std::uint8_t>(function))" in protocol and
+            "function == 0xF001u" in protocol and
+            "halljoy::keycode::kFn" in protocol and
+            "kFn = 0x409" in analog_keys and
+            "halljoy::keycode::kCount" in client_h + backend + diagnostic_metrics_h and
             "hidUsage <= 0xE7u" in protocol,
-            "16-bit functions are filtered before publishing HID usages")
+            "16-bit functions preserve proven Fn while unknown vendor values remain filtered")
     require("BuildTravelRequest(std::uint8_t half)" in protocol and
             "kSelectorTravel, half, 0xFF, 0xFF" in protocol and
             "for (std::uint8_t half = 1; half <= 2; ++half)" in client and
@@ -120,23 +149,56 @@ def main() -> int:
             "sync.rawPayload[kSyncTrailerOffset] == 0xFFu" in protocol and
             "kResponseSync" in read(TESTS / "aula_win60he_oracle_fixtures.h"),
         "production parser pins the physically observed 60-byte sync descriptors")
-    require("probeOk && capability.compatibilityMismatchMask == 0" in backend and
+    require("const bool routeClaimed = probeOk &&" in backend and
+            "capability.compatibilityMismatchMask == 0 &&" in backend and
             "if (capability.compatibilityMismatchMask != 0)" in backend and
             "claim_blocked=1 publication_blocked=1" in backend and
             "client.CompatibilityMismatchMask() != 0" in backend and
             "runtime.semantic_mismatch" in backend,
         "relaxed diagnostic proof can never claim or publish an incompatible device")
+    require("IsDeterministicSemanticFailure" in backend and
+            "WaitForDeviceChangeAfterDeterministicRejection" in backend and
+            "retryOnlyAfterDeviceChange" in backend and
+            "UnexpectedFirmware" in backend and
+            "UnexpectedPrecision" in backend and
+            "UnexpectedDefaultMap" in backend and
+            "UnstableActiveMap" in backend and
+            "ImplausibleTravel" in backend,
+        "deterministic semantic rejection cannot loop the full HID proof on a timer")
     require(all(token in backend for token in (
         "diagnostic.enabled", "enumeration.candidate", "session.open_failed",
         "proof.outcome", "routing.not_claimed", "protocol.report",
         "serial_redacted", "matrix.first", "matrix.activity", "matrix.health",
         "matrix.session_summary", "matrix.coverage", "reconnect.success",
-        "protocol.cancelled")) and
+        "protocol.cancelled", "diagnostic.verdict", "conclusive=1",
+        "expected_profiles=1CA5:2201/16052201,1CA5:2202/16052202,1CA2:2201/2E022201",
+        "enumeration.family_usb", "enumeration.gravastar_brand",
+        "enum_errors=%u detail_errors=%u", "start.failed")) and
         all(token in diagnostic_metrics_h + diagnostic_metrics for token in (
             "kDiagnosticHealthWindowUs = 5'000'000ull", "RateMilliHz",
             "transactionBuckets", "activeBuckets", "firstTenPlus",
-            "MaximumByHid", "releaseToZeroTransitions")),
-        "aggressive trace measures polling rate, latency, multi-key activity, releases, coverage and reconnect")
+            "MaximumByKeyCode", "releaseToZeroTransitions")) and
+        "std::array<DiagnosticActiveValue, kMatrixPositions>" in diagnostic_metrics_h,
+        "aggressive trace measures all matrix positions including extended Fn, latency, releases, coverage and reconnect")
+    require(all(token in backend for token in (
+            "DiagnosticProgress::EnumerationStarted",
+            "DiagnosticProgress::KnownIdentitySeen",
+            "DiagnosticProgress::FingerprintCandidate",
+            "DiagnosticProgress::SessionOpened",
+            "DiagnosticProgress::CapabilityProved",
+            "DiagnosticProgress::RouteClaimed",
+            "DiagnosticProgress::MatrixObserved",
+            "DiagnosticFailure::MetadataFingerprint",
+            "DiagnosticFailure::CapabilityProof",
+            "DiagnosticFailure::SemanticMismatch",
+            "DiagnosticFailure::StartResources",
+            "DiagnosticFailure::StartThread",
+            "DiagnosticFailure::StopIncomplete")) and
+        "[component=aula-win60he][event=diagnostic.verdict]" in
+            read(REPO / "tools" / "run_gravastar_v75_diagnostic_smoke.ps1") and
+        "conclusive=1" in
+            read(REPO / "tools" / "run_gravastar_v75_diagnostic_smoke.ps1"),
+        "every diagnostic run ends with a tested analogue-or-log verdict")
     require("candidate.skip_dedicated_summary" in spark and
             "interval_ms=60000" in spark and
             'L"candidate.skip_dedicated"' not in spark,
@@ -192,10 +254,16 @@ def main() -> int:
             "NativeAnalogStartPhase::BeforeUap" in backend and
             "NativeAnalogBackendFlag_ReadOnlyProbe" in backend,
             "Aula is independently catalogued as a pre-UAP read-only backend")
-    require("SparkPathIsDedicatedAula(detail->DevicePath)" in spark and
-            spark.index("SparkPathIsDedicatedAula(detail->DevicePath)") <
+    require("SparkPathIsDedicated6x21(detail->DevicePath)" in spark and
+            "aula_win60he::PathContainsKnownUsbIdentity(path)" in spark and
+            spark.index("SparkPathIsDedicated6x21(detail->DevicePath)") <
             spark.index("HANDLE h = CreateFileW", spark.index("SparkTryOpenDevice")),
-            "Spark rejects the dedicated Aula VID/PID before opening or probing it")
+            "legacy Spark rejects every exact 6x21 identity before opening or probing it")
+    require(backend.count("NativeAnalogRouting_Claim(") >= 2 and
+            backend.count("session.candidate.attributes.VendorID") >= 3 and
+            backend.count("session.candidate.attributes.ProductID") >= 3 and
+            "NativeAnalogRouting_Claim(\n                aula_win60he::kAulaVendorId" not in backend,
+            "pre-UAP and worker claims retain the selected device VID/PID")
 
     require(all(token in backend for token in (
         "_beginthreadex", "RunWorkerEntryBarrier", "CancelIoEx",

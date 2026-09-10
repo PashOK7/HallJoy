@@ -1,0 +1,82 @@
+HallJoy V14 R1.1 ViGEm output Windows IPC contract evidence
+Date: 2026-08-22
+Scope: corrected shared ABI/data plane and real Windows parent/child proof
+Production routing: unchanged; legacy in-process worker remains sole ViGEm owner
+
+Why R1 was reopened
+-------------------
+The initial portable claimed-slot test was useful but insufficient for the
+final cross-process contract. R1.1 corrects three foundation issues before a
+supervisor is built:
+
+1. Windows shared-control transitions now use documented Win32 Interlocked
+   operations rather than relying on std::atomic_ref across processes.
+2. A publisher lease closes the disable-versus-in-flight-publication window;
+   the non-realtime supervisor can wait for publication quiescence before
+   retiring a generation.
+3. Child-written health fields are explicitly telemetry. Parent-authoritative
+   restart/lifecycle state is not writable by the child.
+
+Current source identities
+-------------------------
+vigem_output_shared.h
+  4205 bytes
+  1A3A33C7228AF9FCC4D9F9656C331C0415B1045DD973BBD550965D23B327C76F
+vigem_output_channel.h
+  2390 bytes
+  3DB10295C64BAB04EC53A5B0ED1849291D08727F2EC0F1C9DA2C01008B863771
+vigem_output_channel.cpp
+  10099 bytes
+  6489A10D3A986630183A84404C90D21A4164358F4EE5F803887761B3AB904064
+vigem_output_channel_test.cpp
+  7802 bytes
+  4A6312385C1B82D7E457C78F5FE5145367D2E24A8E934B32E6CE0E47B93C2481
+vigem_output_channel_process_test.cpp
+  10353 bytes
+  0AB78108D7933A2A2193FA6594091A79516FB195E28DC09EE3A31887FD206EE8
+vigem_output_process_static_audit.py
+  3761 bytes
+  EFF2415662B60E0BCA850DCC4BE0D70D2FD66E1DF5194CEBD7F7892AB749B1E8
+run_native_backend_checks.py
+  7463 bytes
+  F8FD5E0264138425D6426CD1BC5B92E89A5BC9098A4AF77AFA61BAADD5E2122C
+
+Windows process proof
+---------------------
+The production channel implementation is linked into a self-spawning Windows
+test executable. The parent creates unnamed inherited mapping/wake/stop
+objects. A first child receives a wrong nonce and exits with code 41 before
+touching the data plane. A valid child then consumes 100,000 complete four-pad
+snapshots and publishes the exact final applied sequence. The parent disables
+the generation, verifies publisher quiescence, requests stop, reaps the child
+and exits 0.
+
+Cross-process status and progress observations use Interlocked reads; the test
+does not create a C++ data race while proving the protocol. If a test-owned
+child misses its deadline, the harness terminates and reaps that exact process
+before closing IPC objects, preventing a leaked survivor from being hidden by
+an assertion.
+
+Validation result
+-----------------
+  python tools/run_native_backend_checks.py --require-compiler
+  Result: PASS, exit 0
+  Included: every static audit, all portable production-linked C++ tests and
+            vigem_output_channel_process on real Windows process boundaries.
+  Dedicated Windows process repetition before the final full run: 5/5 PASS;
+            each repetition exchanged 100,000 snapshots.
+  MSVC x64 AnalogSimulator build: PASS, 0 errors.
+  MSVC x64 production build: PASS, 0 errors.
+  Only warning: existing allow-listed external ViGEmClient LNK4099.
+
+Boundary
+--------
+This proves the ABI/data-plane foundation, not service recovery and not a
+release artifact. The proof fixture currently uses broad test-only inheritance;
+the production supervisor must use an explicit PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+a job object, hard deadlines and zero-overlap generation ownership. No user EXE
+was produced or distributed from this stage.
+
+Rollback checkpoint
+-------------------
+  _backups/vigem_output_r1_abi_contract_reopen_pre_20260822_0245

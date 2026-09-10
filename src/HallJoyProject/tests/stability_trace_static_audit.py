@@ -41,14 +41,14 @@ assert "WriteFile" not in write_formatted
 assert "FlushViewOfFile" not in write_formatted
 shutdown = source[source.index("void StabilityTrace_Shutdown"):source.index("void StabilityTrace_Write(")]
 assert "FlushViewOfFile(" not in shutdown
-assert "FlushFileBuffers(" not in shutdown
+assert "#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)\n        (void)FlushFileBuffers(file);\n#else" in shutdown
 assert 'ClCompile Include="stability_trace.cpp"' in project
 assert 'ClInclude Include="stability_trace.h"' in project
 assert "HallJoyStabilityTrace" in project
 assert "/p:HallJoyStabilityTrace=false" in build
 assert "/p:HallJoyStabilityTrace=true" not in build
-package_section = build[build.index("Copy-Item -LiteralPath $exe -Destination $sendDir -Force"):]
-assert "COLLECT_STABILITY_TRACE.cmd') -Destination $sendDir" not in package_section
+package_section = build[build.index("Copy-Item -LiteralPath $exe -Destination $releaseDir -Force"):]
+assert "COLLECT_STABILITY_TRACE.cmd') -Destination $releaseDir" not in package_section
 assert "HallJoyStabilityTrace.log is enabled" not in build
 assert "HallJoyCrash.txt" in build
 assert "#define DebugLog_Write(...) do { if constexpr (false)" in debug_header
@@ -130,5 +130,15 @@ with tempfile.TemporaryDirectory() as temp:
     verdict, failures, warnings, _ = module.analyze(
         module.parse_trace(transport_disconnect_path))
     assert verdict == "PASS", (verdict, failures, warnings)
+
+    classified = [
+        module.Event(1, "ERROR", "input", "stream.stale", {}, 1),
+        module.Event(2, "ERROR", "vigem-output", "producer.stalled", {}, 2),
+        module.Event(3, "ERROR", "persistence", "flush.open_failed", {}, 3),
+        module.Event(4, "ERROR", "backend", "init.rollback_incomplete", {}, 4),
+    ]
+    assert module.classify_failure_events(classified) == [
+        "INCOMPLETE", "INPUT_STALE", "OUTPUT_FAILED", "PRODUCER_STALLED", "STORAGE_FAILED"], \
+        module.classify_failure_events(classified)
 
 print("stability trace static audit: PASS")

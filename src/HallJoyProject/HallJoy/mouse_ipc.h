@@ -18,7 +18,11 @@ struct HallJoyMouseIpcShared
     volatile LONG blockMouseActive = 0; // HallJoy currently blocks in its own hook
     volatile LONG mouseToStickEnabled = 0;
     volatile LONG pauseByRShift = 0;    // temporary pause requested by user
-    volatile LONG heartbeat = 0;        // incremented periodically
+    // Publisher commits a state image by making this odd, writing the four
+    // state scalars, then making it even. Legacy peers may still use it as a
+    // monotonic heartbeat; coherent peers accept an equal even value before
+    // and after their scalar reads.
+    volatile LONG heartbeat = 0;
     volatile LONG asiHeartbeat = 0;     // incremented by ASI helper
     volatile LONG asiAttached = 0;      // 1 while ASI helper is alive
     // Kept at the former reserved1 offset so the v1 external ABI remains

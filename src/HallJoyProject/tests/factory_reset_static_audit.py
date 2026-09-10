@@ -40,6 +40,9 @@ require(factory, "moved.rbegin()", "partial moves roll back in reverse order")
 require(factory, "rollbackComplete", "rollback completion is reported truthfully")
 require(factory, "apply.rollback", "rollback result is written to stability evidence")
 require(factory, "apply.commit", "successful reset is written to stability evidence")
+require(factory, "resumingInterruptedReset", "interrupted reset has an explicit resume path")
+require(factory, "apply.resume", "interrupted reset resume is written to stability evidence")
+require(factory, "IsPlainEmptyDirectory", "resume accepts only empty recreated directories")
 require(factory, "#if defined(HALLJOY_ANALOG_SIMULATOR)", "fault injection is simulator-only")
 require(factory, "--halljoy-test-factory-reset-fail-after-three-moves", "runtime gate can force a partial-move rollback")
 
@@ -67,11 +70,15 @@ for marker, description in (
 ):
     require(main, marker, description)
 
+shutdown_start = main.find("const bool relaunchRequested = App_TakeRelaunchRequest()")
+if shutdown_start < 0:
+    raise SystemExit("FAIL: final relaunch transaction boundary is missing")
+shutdown = main[shutdown_start:]
 ordered = [
-    main.find("App_TakeRelaunchRequest()"),
-    main.find("StabilityTrace_Shutdown(result)"),
-    main.find("App_DisarmShutdownWatchdog()"),
-    main.find("App_RelaunchSelf()"),
+    shutdown.find("App_TakeRelaunchRequest()"),
+    shutdown.find("StabilityTrace_Shutdown(result)"),
+    shutdown.find("App_DisarmShutdownWatchdog()"),
+    shutdown.find("App_RelaunchSelf()"),
 ]
 if any(position < 0 for position in ordered) or ordered != sorted(ordered):
     raise SystemExit("FAIL: restart can race final shutdown/log teardown")

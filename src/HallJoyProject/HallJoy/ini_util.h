@@ -40,3 +40,8 @@ bool IniUtil_CopyExistingForUpdate(
 // - MoveFileEx(REPLACE_EXISTING | WRITE_THROUGH)
 // - Deletes tmp on failure
 bool IniUtil_AtomicReplace(const wchar_t* tmpPath, const wchar_t* dstPath);
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+// Scoped by the test caller; production builds have no mutable fault hook.
+void IniUtil_TestSetFailureStage(HallJoyPersistence::SaveStage stage) noexcept;
+#endif

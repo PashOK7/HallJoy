@@ -1,0 +1,43 @@
+// Generated exact identities; geometry and matrix verified offline.
+#pragma once
+namespace halljoy::layout_selection {
+struct Identity { unsigned pid, rows, columns; const wchar_t* name; };
+inline constexpr Identity kKeychronLayouts[] = {
+    {0x0E40,6,19,L"Keychron K4 HE ANSI - Imported"},
+    {0x0B10,6,15,L"Keychron Q1 HE ANSI - Imported"},
+    {0x0E20,6,16,L"Keychron K2 HE ANSI"},
+    {0x0B30,6,16,L"Keychron Q3 HE ANSI"},
+    {0x0B50,6,19,L"Keychron Q5 HE ANSI"},
+    {0x0E21,6,16,L"Keychron K2 HE ISO"},
+    {0x0E22,6,16,L"Keychron K2 HE JIS"},
+    {0x0E41,6,19,L"Keychron K4 HE ISO"},
+    {0x0E42,6,19,L"Keychron K4 HE JIS"},
+    {0x0E80,6,16,L"Keychron K8 HE ANSI"},
+    {0x0E81,6,16,L"Keychron K8 HE ISO"},
+    {0x0E82,6,16,L"Keychron K8 HE JIS"},
+    {0x0EA0,6,21,L"Keychron K10 HE ANSI"},
+    {0x0EA1,6,21,L"Keychron K10 HE ISO"},
+    {0x0B11,6,15,L"Keychron Q1 HE ISO"},
+    {0x0B12,6,15,L"Keychron Q1 HE JIS"},
+    {0x0B31,6,16,L"Keychron Q3 HE ISO"},
+    {0x0B32,6,16,L"Keychron Q3 HE JIS"},
+    {0x0B51,6,19,L"Keychron Q5 HE ISO"},
+    {0x0B52,6,19,L"Keychron Q5 HE JIS"},
+    {0x0B60,6,21,L"Keychron Q6 HE ANSI"},
+    {0x0B61,6,21,L"Keychron Q6 HE ISO"},
+    {0x0B62,6,21,L"Keychron Q6 HE JIS"},
+    {0x0BC0,6,19,L"Keychron Q12 HE ANSI"},
+    {0x0BC1,6,19,L"Keychron Q12 HE ISO"},
+    {0x1010,6,16,L"Keychron Q1 HE 8K ANSI"},
+    {0x1011,6,16,L"Keychron Q1 HE 8K ISO"},
+    {0x1012,6,16,L"Keychron Q1 HE 8K JIS"},
+    {0x1030,6,17,L"Keychron Q3 HE 8K ANSI"},
+    {0x1031,6,17,L"Keychron Q3 HE 8K ISO"},
+    {0x1032,6,18,L"Keychron Q3 HE 8K JIS"},
+    {0x1060,6,22,L"Keychron Q6 HE 8K ANSI"},
+    {0x1050,6,20,L"Keychron Q5 HE 8K ANSI"},
+    {0x0E30,6,16,L"Keychron K3 HE ANSI"},
+    {0x0E31,6,16,L"Keychron K3 HE ISO"},
+    {0x0E32,6,16,L"Keychron K3 HE JIS"},
+};
+}

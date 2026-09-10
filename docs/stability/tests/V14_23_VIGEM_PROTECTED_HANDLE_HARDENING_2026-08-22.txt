@@ -1,0 +1,84 @@
+HallJoy V14-23 protected ViGEm generation handle evidence
+Date: 2026-08-22
+
+PHYSICAL SOURCE
+
+Input file: C:\Users\PC\Downloads\HallJoy (10).log
+Size: 90,844 bytes
+Lines: 437
+SHA-256: 18A91FB5067595680B3922E76744208E14EAFF750C5C12ED29AC39070DD23556
+Integrity: no NUL; partial slice only (99.922-239.735 s, seq 573-1008),
+without session header, session.end or diagnostic.verdict.
+
+V75 INPUT RESULT
+
+- 28 matrix.health windows.
+- final lifetime_matrices=76773, lifetime_failed=0.
+- observed rate 308.504..342.054 Hz.
+- min positive travel as low as 108 um; maximum 3500 um.
+- press and authoritative release_zero transitions present.
+- max_active=2 proves simultaneous analogue publication.
+- observed_hids reached 9; this run was not full key-coverage qualification.
+
+VIGEM OUTPUT FAILURE IN THE SUPERSEDED BUILD
+
+- 46 publication.applied records before failure.
+- At elapsed_ms=135641, generation 1 ended outcome=10 (ReapFailed),
+  win32_or_vigem=6 (ERROR_INVALID_HANDLE), forced=0, prepared=1,
+  disabled=1, quiescent=1, restart_safe=0, child_pid=87008.
+- Owner exited restart_safe=0.
+- 218 watchdog.session_rebuild.begin attempts followed; they became
+  ERROR_BUSY while independent V75 input continued to 76,773 matrices.
+- Superseded diagnostic SHA-256 E71EDB6BA9734F6019F5C22EAF48ED6DD299EA91D1F00E4D564705D66312C3D5
+  is DO NOT DISTRIBUTE.
+
+SELECTED CORRECTION
+
+- Non-copyable ProtectedNativeHandle is the sole process/job owner.
+- Adoption sets HANDLE_FLAG_PROTECT_FROM_CLOSE.
+- Accepted generation verifies both protection flags and GetProcessId identity.
+- Only confirmed terminal owner close removes protection.
+- generation.end now records process_protected, job_protected,
+  process_identity and ownership_error.
+- Unsafe session Stop/Start recovery emits one watchdog.recovery_blocked event
+  and later watchdog ticks do not retry or flood the log.
+
+AUTOMATED RESULTS
+
+- process_generation_supervisor_static_audit.py: PASS.
+- vigem_output_process_static_audit.py: PASS.
+- complete tools/run_native_backend_checks.py --require-compiler: PASS.
+- process supervisor executable: PASS, 1008 generations, protected process/job
+  handles, PID identity, containment before resume, zero overlap/survivor.
+- exact self-host executable: PASS, 9 generations, six lifecycle boundaries,
+  no survivor.
+- exact real ViGEm child: PASS, four-pad apply/neutral/remove, PnP restored,
+  no survivor.
+- exact runtime stress: PASS, >=100000 publications, 101 generations,
+  50 topology changes, 10 disable/enable cycles, no survivor.
+- production startup/shutdown smoke: PASS, no continuous log/crash artifact.
+- GravaStar diagnostic startup/privacy/WM_CLOSE smoke: PASS, exit 0,
+  complete log, no survivor.
+
+EXACT LOCAL ARTIFACTS
+
+Diagnostic:
+  C:\github\_halljoy_latest_20260817\HallJoy-main\build\gravastar-v75-diagnostic\HallJoy.exe
+  8,683,008 bytes
+  SHA-256 2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B
+
+Production (local, not promoted):
+  C:\github\_halljoy_latest_20260817\HallJoy-main\build\release\HallJoy.exe
+  8,529,408 bytes
+  SHA-256 B2C87A69F45EFBB046913B5B1DA4F7AB2D97AD33A3C0CC1494D91D06649238C0
+
+Simulator used by exact output gates:
+  8,666,624 bytes
+  SHA-256 3EC7DAC5520841E64E5B33699A95E772F47F739299A5F4F74DFF03F5705E7A1D
+
+REMAINING HARDWARE GATE
+
+Run the exact corrected diagnostic long enough to cross the former failure
+time while confirming uninterrupted virtual controller output, then perform
+one unplug/reconnect cycle. P0-006 and V75 reconnect remain HARDWARE_PENDING
+until that exact-artifact result is returned.

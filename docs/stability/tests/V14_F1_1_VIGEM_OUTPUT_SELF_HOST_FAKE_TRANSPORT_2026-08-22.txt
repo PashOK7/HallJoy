@@ -1,0 +1,126 @@
+HallJoy v1.4 F1.1 exact-EXE ViGEm-output self-host fake-transport evidence
+Date: 2026-08-22
+Scope: local architecture/IPC/lifecycle proof only; no Git/GitHub, no user delivery
+
+DECISION
+- Compared separate helper EXE, UAP-host graft, raw test-only wiring and a
+  reusable same-image output session before production edits.
+- D-056 selects the same HallJoy image, an early child dispatch, a persistent
+  output IPC session and the already-proved generic process supervisor.
+- Real ViGEm remains forbidden in this package. backend.cpp was not changed and
+  remains the sole production ViGEm caller.
+
+IMPLEMENTED CONTRACT
+- First wWinMain branch: --halljoy-vigem-output-host.
+- Exact child grammar: executable plus host token, owner PID, nonce, output
+  generation, mapping handle, wake handle, child-stop handle, owner-process
+  handle and transport mode.
+- IPC objects are unnamed and the inherited allowlist contains exactly mapping,
+  wake, child stop and owner process.
+- Child validates fixed ABI, nonce, active generation, owner PID/handle identity
+  and job containment before publishing Starting/Ready.
+- Mapping and wake are process-lifetime session resources across child
+  generations. Realtime-style publication remains bounded; wake failure is a
+  typed result.
+- childTelemetrySequence and childGeneration use reserved health capacity. The
+  shared ABI remains exactly 640 bytes. Parent accepts only a stable even
+  transaction; a separated replacement repairs an odd killed-writer sequence.
+- Generic PlannedStop is not sufficient. Clean output stop also requires the
+  matching completedStopGeneration, neutral acknowledgement and target-removal
+  acknowledgement.
+- Stable post-reap generation telemetry resolves Ready-versus-process-exit
+  polling order without increasing polling delay.
+
+PORTABLE/STATIC GATES
+Command: python tools/run_native_backend_checks.py --require-compiler
+Result: PASS, exit 0.
+- All existing static and portable C++ checks passed.
+- New telemetry concurrency test completed 100000 child health updates and
+  preserved the applied-publication/checkpoint relation in every accepted
+  snapshot.
+- Wrong generation/PID writes, odd transaction rejection and replacement repair
+  passed.
+- Prior F1 process owner again completed 1008 generations with containment,
+  explicit-decoy exclusion, no overlap and no survivor.
+- F1.1 static audit proves early dispatch, exact handle list, simulator-only
+  fake behavior, bounded publication, output stop qualification, project/runner
+  integration, no new ViGEm call and no backend route switch.
+
+EXACT HALLJOY IMAGE GATE
+Command: powershell -NoProfile -ExecutionPolicy Bypass -File
+  tools/run_vigem_output_self_host_test.ps1 -SkipBuild
+Result:
+  VIGEM_OUTPUT_SELF_HOST_EXACT_EXE=PASS generations=9
+  o3_reap_restart=1 o4_boundaries=6 clean_stop_qualified=1 survivors=0
+
+Nine sequential generations on one persistent session:
+1. normal Ready, complete four-pad apply, neutral/remove/completed stop;
+2. exit before Ready;
+3. exit immediately after committed Ready;
+4. exit before snapshot read;
+5. exit during fake update after consuming the snapshot;
+6. exit after publication/checkpoint acknowledgement;
+7. exit during planned neutral, reaped but classified IncompletePlannedStop;
+8. progress stall after Ready, forced and reaped at the hard boundary;
+9. clean replacement, no overlap, exact acknowledgement of the newest of three
+   complete four-pad publications rather than stale generation data.
+
+Every returned child PID was non-live/signalled before replacement. Final WMI
+enumeration: live_output_hosts=0.
+
+MSVC RELEASE X64
+- Simulator build: PASS, 0 errors, no new warnings; only allow-listed external
+  ViGEmClient LNK4099.
+  src/HallJoyProject/x64/AnalogSimulator/HallJoyV14Simulator.exe
+  bytes=8634368
+  sha256=F29E803225DDB2462FA570114AD202F3448F31DC08E4A8AFEF89D7B456783051
+- Production build: PASS, 0 errors, no new warnings; only allow-listed external
+  ViGEmClient LNK4099.
+  src/HallJoyProject/x64/MAD68ProRNative/HallJoy.exe
+  bytes=8487424
+  sha256=4780C488EF2A2280F85611FF5310A3A7105B3275DF35DDD5326948F8ED7B988F
+- Production malformed host token exits 60 before normal startup.
+- Production simulator-only exact suite token exits 91 before normal startup.
+
+SOURCE IDENTITIES
+- vigem_output_shared.h
+  763121C5392D489C3A3E19A54A3CF7540DF2B80E5639FE058790E50E292E8CE3
+- vigem_output_channel.h
+  7B5EBDB3552DC5CDAF08DFF4B8AEAC951F66A0F3FF777CA8D6424FAAE824336C
+- vigem_output_channel.cpp
+  37674646419FA8D5477D1A1D7EF5D26DA288791F8CFFBE1138ECBDBFBAE7531C
+- vigem_output_process_protocol.h
+  DCB2070A500426BC858EFF28AE28D76565285A10B64A2E7AD5019855C348DEFA
+- vigem_output_process_client.h
+  31103B3E0CC107E99431829D8018F7EA143AA2EF8392378434C045A156F6501F
+- vigem_output_process_client.cpp
+  0BDF52ED10DEFACEBA3F85B64568DACFB1E6A699EEFC58D850331984B7262872
+- vigem_output_process_host.h
+  A36A4EF91A465A6A886DA326FD2D72765C0AE33F319DFB7D71D026ABE94B5A5B
+- vigem_output_process_host.cpp
+  A37BD72B1F66E1853B8BB086CBA6090B67839A3D75527BD4B0C18B2CCD477053
+- vigem_output_self_host_test.h
+  F0E72577AD9BC14140542F8BD9243A9D6C321D82D395C3D618D3DA497A98DBFF
+- vigem_output_self_host_test.cpp
+  3D6A5E8142786A8C8B05664423D05784523679B0EE20397FBF7668468D0FBB02
+- vigem_output_telemetry_test.cpp
+  2160E2C5737F2DA050E5F59A3654BBA13D511CCD83534090C501D62EEF01A247
+- vigem_output_self_host_static_audit.py
+  52109D54673A9A626600813CD78142ECB46C1815F7D4CC3D927A2FA9F20367FA
+- run_vigem_output_self_host_test.ps1
+  704FC22538B167BB6E356BA6DC71845BA62B2587F6E4CE47BDE47D5DF9AE84F0
+
+ROLLBACK
+- _backups/vigem_output_f1_1_pre_20260822_1345
+- _backups/vigem_output_f1_1_docs_pre_20260822_1420
+Both checkpoints were verified file-by-file with SHA-256 at creation.
+
+BOUNDARY / NEXT GATE
+- F1.1 is PASS only for exact-image fake transport and lifecycle composition.
+- HJ-V14-P0-005 and HJ-V14-P0-006 remain open/OLD_BUG_CONFIRMED because the
+  production route still uses the legacy in-process output worker.
+- F2 must replace only the fake child transport with real ViGEm client/target
+  create, update, neutral and removal under this same session and stop contract.
+- O5 stress, atomic production route switch, legacy owner removal, long soak and
+  exact physical IROK/DrunkDeer qualification remain required.
+- Neither compiled EXE was promoted or sent to a user.

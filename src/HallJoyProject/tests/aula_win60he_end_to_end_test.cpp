@@ -226,6 +226,31 @@ public:
         }
     }
 
+    void SetObservedV75Profile()
+    {
+        compatibleFamily_ = true;
+        observedV75_ = true;
+        precisionUm_ = 5u;
+        minimumTravelUm_ = 5u;
+        maximumTravelUm_ = 3500u;
+        constexpr KeyMap observedMap{{
+            {{0x29,0x3A,0x3B,0x3C,0x3D,0x3E,0x3F,0x40,0x41,0x42,0x43,0x44,0x45,0,0,0,0,0,0,0,0}},
+            {{0x35,0x1E,0x1F,0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,0x2D,0x2E,0x2A,0x4C,0,0,0,0,0,0}},
+            {{0x2B,0x14,0x1A,0x08,0x15,0x17,0x1C,0x18,0x0C,0x12,0x13,0x2F,0x30,0x31,0x4B,0,0,0,0,0,0}},
+            {{0x39,0x04,0x16,0x07,0x09,0x0A,0x0B,0x0D,0x0E,0x0F,0x33,0x34,0,0x28,0x4E,0,0,0,0,0,0}},
+            {{0xE1,0,0x1D,0x1B,0x06,0x19,0x05,0x11,0x10,0x36,0x37,0x38,0,0xE5,0x52,0,0,0,0,0,0}},
+            {{0xE0,0xE3,0xE2,0,0,0,0x2C,0,0,0,0xE6,0x01,0x50,0x51,0x4F,0,0,0,0,0,0}},
+        }};
+        defaultMap_ = observedMap;
+        activeFunctions_.fill(0);
+        for (const auto& row : defaultMap_)
+            for (const auto key : row)
+                if (key != 0u)
+                    activeFunctions_[key] = key == 0x01u
+                        ? 0xF001u
+                        : static_cast<std::uint16_t>(key);
+    }
+
     void DuplicateCompatibleFactoryKey()
     {
         defaultMap_[0][1] = defaultMap_[0][0];
@@ -272,7 +297,23 @@ private:
             constexpr char serial[] = "AULA-WIN60-TEST";
             std::copy_n(serial, sizeof(serial) - 1u,
                 payload.begin() + kSyncSerialOffset);
-            if (compatibleFamily_)
+            if (observedV75_)
+            {
+                constexpr std::array<std::uint8_t, kSyncPayloadBytes> observedV75{{
+                    0x00,0x01,0x22,0x05,0x16,0x00,0x04,0x00,
+                    0x10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                    0,0x10,0x41,0x70,0x70,0x20,0x56,0x31,
+                    0x2E,0x30,0x2E,0x38,0,0,0xF1,0xF7,
+                    0x16,0xFF,0x10,0x4A,0x61,0x6E,0x20,0x20,
+                    0x34,0x20,0x36,0x35,0x39,0x32,0x35,0x03,
+                    0xFF,0x07,0x16,0xFF,
+                }};
+                std::copy(observedV75.begin(), observedV75.end(), payload.begin());
+                constexpr char v75Serial[] = "GV75-UNIT-TEST";
+                std::copy_n(v75Serial, sizeof(v75Serial) - 1u,
+                    payload.begin() + kSyncSerialOffset);
+            }
+            else if (compatibleFamily_)
             {
                 payload[1] = 0x34u;
                 payload[2] = 0x12u;
@@ -502,6 +543,7 @@ private:
     bool returnSwappedHalves_ = false;
     bool physicalExtendedSync_ = true;
     bool compatibleFamily_ = false;
+    bool observedV75_ = false;
     std::uint16_t precisionUm_ = kExpectedPrecisionUm;
     std::uint16_t minimumTravelUm_ = kExpectedMinimumTravelUm;
     std::uint16_t maximumTravelUm_ = kExpectedMaximumTravelUm;
@@ -576,9 +618,9 @@ void TestCleanProbePollStatusAndRelease()
     assert(transport.WriteCount() == kCapabilityTransactions);
     assert(proof.physicalKeyPositions == kExpectedPhysicalKeyPositions);
     assert(proof.defaultMappedKeys == kExpectedPublishableDefaultKeys);
-    assert(proof.mappedKeys == kExpectedPublishableDefaultKeys);
+    assert(proof.mappedKeys == kExpectedPhysicalKeyPositions);
     assert(proof.defaultKeyMap == ExpectedAulaWin60HeMaxDefaultMap());
-    assert(proof.keyMap[5][12] == 0u);
+    assert(proof.keyMap[5][12] == halljoy::keycode::kFn);
 
     TravelMatrix travel{};
     assert(client.ReadTravelMatrix(proof, &travel, &failure));
@@ -635,12 +677,12 @@ void TestCompatibleFamilyProfileUsesDynamicMapAndPrecision()
     CapabilityProof proof{};
     Failure failure{};
     assert(client.Probe(&proof, &failure,
-        CompatibilityProfile::Compatible6x21Family));
+        CompatibilityPolicy{CompatibilityProfile::Compatible6x21Family, 0u}));
     assert(failure.stage == FailureStage::None);
     assert(proof.profile == CompatibilityProfile::Compatible6x21Family);
     assert(proof.physicalKeyPositions == 84u);
     assert(proof.defaultMappedKeys == 81u);
-    assert(proof.mappedKeys == 81u);
+    assert(proof.mappedKeys == 82u);
     assert(proof.precision.precisionUm == 20u);
     assert(proof.precision.minimumTravelUm == 20u);
     assert(proof.precision.maximumTravelUm == 4000u);
@@ -656,6 +698,54 @@ void TestCompatibleFamilyProfileUsesDynamicMapAndPrecision()
     BuildHidMilliSnapshot(
         proof.keyMap, travel, proof.precision.maximumTravelUm, &snapshot);
     assert(snapshot.milli[0x04u] == 500u);
+}
+
+void TestObservedV75UsesExactKnownBoardPolicy()
+{
+    FirmwareShapedTransport transport;
+    transport.SetObservedV75Profile();
+    transport.SetTravel(4u, 6u, 1750u);
+    Client client(transport);
+    CapabilityProof proof{};
+    Failure failure{};
+    assert(client.Probe(&proof, &failure, CompatibilityPolicy{
+        CompatibilityProfile::ExactKnownBoard6x21Family, 0x16052201u}));
+    assert(failure.stage == FailureStage::None);
+    assert(proof.compatibilityMismatchMask == 0u);
+    assert(proof.profile == CompatibilityProfile::ExactKnownBoard6x21Family);
+    assert(proof.sync.boardId == 0x16052201u);
+    assert(proof.physicalKeyPositions == 79u);
+    assert(proof.defaultMappedKeys == 78u);
+    assert(proof.mappedKeys == 79u);
+    assert(proof.keyMap[5][11] == halljoy::keycode::kFn);
+    assert(proof.precision.precisionUm == 5u);
+    assert(proof.precision.minimumTravelUm == 5u);
+    assert(proof.precision.maximumTravelUm == 3500u);
+
+    TravelMatrix travel{};
+    assert(client.ReadTravelMatrix(proof, &travel, &failure));
+    SnapshotResult snapshot{};
+    BuildHidMilliSnapshot(
+        proof.keyMap, travel, proof.precision.maximumTravelUm, &snapshot);
+    assert(snapshot.milli[0x05u] == 500u);
+
+    FirmwareShapedTransport wrongBoardTransport;
+    wrongBoardTransport.SetObservedV75Profile();
+    Client wrongBoardClient(wrongBoardTransport);
+    CapabilityProof wrongBoardProof{};
+    Failure wrongBoardFailure{};
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+    assert(wrongBoardClient.Probe(&wrongBoardProof, &wrongBoardFailure,
+        CompatibilityPolicy{
+            CompatibilityProfile::ExactKnownBoard6x21Family, 0x16052202u}));
+    assert((wrongBoardProof.compatibilityMismatchMask &
+        CapabilityMismatch_Firmware) != 0u);
+#else
+    assert(!wrongBoardClient.Probe(&wrongBoardProof, &wrongBoardFailure,
+        CompatibilityPolicy{
+            CompatibilityProfile::ExactKnownBoard6x21Family, 0x16052202u}));
+    assert(wrongBoardFailure.stage == FailureStage::UnexpectedFirmware);
+#endif
 }
 
 #if !defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
@@ -681,7 +771,7 @@ void TestCompatibleFamilyRejectsAmbiguousDefaultMap()
     CapabilityProof proof{};
     Failure failure{};
     assert(!client.Probe(&proof, &failure,
-        CompatibilityProfile::Compatible6x21Family));
+        CompatibilityPolicy{CompatibilityProfile::Compatible6x21Family, 0u}));
     assert(!client.IsUsable());
 }
 
@@ -801,11 +891,11 @@ void TestRuntimeActiveMapRefresh()
     assert(!client.IsUsable());
 }
 
-void TestDisabledAndInternalActiveFunctionsAreNotPublished()
+void TestDisabledAndFnActiveFunctionsArePublishedSafely()
 {
     FirmwareShapedTransport transport;
     transport.SetActiveFunction(0x04u, 0x0052u); // physical A -> Up Arrow
-    transport.SetActiveFunction(0x16u, 0xF001u); // physical S -> internal function
+    transport.SetActiveFunction(0x16u, 0xF001u); // physical S -> Fn
     transport.SetActiveFunction(0x07u, 0x0000u); // physical D -> disabled
     transport.SetTravel(3u, 1u, 1700u);
     transport.SetTravel(3u, 2u, 3400u);
@@ -816,7 +906,7 @@ void TestDisabledAndInternalActiveFunctionsAreNotPublished()
     Failure failure{};
     assert(client.Probe(&proof, &failure));
     assert(proof.keyMap[3][1] == 0x52u);
-    assert(proof.keyMap[3][2] == 0u);
+    assert(proof.keyMap[3][2] == halljoy::keycode::kFn);
     assert(proof.keyMap[3][3] == 0u);
 
     TravelMatrix travel{};
@@ -828,7 +918,8 @@ void TestDisabledAndInternalActiveFunctionsAreNotPublished()
     assert(snapshot.milli[0x04u] == 0u);
     assert(snapshot.milli[0x16u] == 0u);
     assert(snapshot.milli[0x07u] == 0u);
-    assert(snapshot.activeKeys == 1u);
+    assert(snapshot.milli[halljoy::keycode::kFn] == 1000u);
+    assert(snapshot.activeKeys == 2u);
 }
 
 void TestProtocolCannotAuthenticateHalfIdentity()
@@ -910,6 +1001,7 @@ int main()
 #endif
     TestEveryTransactionFlushesAndStaleInputIsDiscarded();
     TestCompatibleFamilyProfileUsesDynamicMapAndPrecision();
+    TestObservedV75UsesExactKnownBoardPolicy();
 #if !defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
     TestCompatibleFamilyIsNotAcceptedByExactProfile();
 #endif
@@ -920,7 +1012,7 @@ int main()
 #endif
     TestStatusFailurePoisonsSession();
     TestRuntimeActiveMapRefresh();
-    TestDisabledAndInternalActiveFunctionsAreNotPublished();
+    TestDisabledAndFnActiveFunctionsArePublishedSafely();
     TestProtocolCannotAuthenticateHalfIdentity();
     TestDuplicateActiveUsageUsesMaximumPhysicalTravel();
     TestRandomFirmwareShapedMatricesRoundTrip();

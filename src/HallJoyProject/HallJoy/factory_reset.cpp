@@ -49,6 +49,27 @@ namespace
             (attributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0;
     }
 
+    bool IsPlainEmptyDirectory(const std::wstring& path)
+    {
+        if (!IsPlainDirectory(path)) return false;
+        WIN32_FIND_DATAW entry{};
+        const std::wstring pattern = JoinPath(path, L"*");
+        HANDLE find = FindFirstFileW(pattern.c_str(), &entry);
+        if (find == INVALID_HANDLE_VALUE)
+            return GetLastError() == ERROR_FILE_NOT_FOUND;
+        do
+        {
+            if (wcscmp(entry.cFileName, L".") != 0 && wcscmp(entry.cFileName, L"..") != 0)
+            {
+                FindClose(find);
+                return false;
+            }
+        } while (FindNextFileW(find, &entry));
+        const DWORD error = GetLastError();
+        FindClose(find);
+        return error == ERROR_NO_MORE_FILES;
+    }
+
     bool EnsurePlainDirectory(const std::wstring& path, DWORD* errorOut)
     {
         DWORD attributes = GetFileAttributesW(path.c_str());
@@ -265,24 +286,46 @@ FactoryResetApplyResult FactoryReset_ApplyPending()
     }
 
     const std::wstring backupRoot = JoinPath(backupParent, backupLeaf);
-    if (GetFileAttributesW(backupRoot.c_str()) != INVALID_FILE_ATTRIBUTES)
+    const DWORD backupAttributes = GetFileAttributesW(backupRoot.c_str());
+    const bool resumingInterruptedReset = backupAttributes != INVALID_FILE_ATTRIBUTES;
+    if (resumingInterruptedReset)
     {
-        result.status = FactoryResetApplyStatus::Failed;
-        result.nativeError = ERROR_ALREADY_EXISTS;
-        return result;
+        // A request marker owns this exact random leaf. If the process died
+        // after one or more write-through moves, preserving and completing
+        // that evidence is safer than reporting ERROR_ALREADY_EXISTS forever.
+        if (!IsPlainDirectory(backupRoot))
+        {
+            result.status = FactoryResetApplyStatus::Failed;
+            result.nativeError = ERROR_INVALID_DATA;
+            result.rollbackComplete = false;
+            result.backupRoot = backupRoot;
+            return result;
+        }
+        StabilityTrace_Write(L"WARN", L"factory-reset", L"apply.resume",
+            L"backup=%ls", backupRoot.c_str());
     }
-    if (!CreateDirectoryW(backupRoot.c_str(), nullptr))
+    else
     {
-        result.status = FactoryResetApplyStatus::Failed;
-        result.nativeError = GetLastError();
-        return result;
-    }
-    if (!IsPlainDirectory(backupRoot))
-    {
-        RemoveDirectoryW(backupRoot.c_str());
-        result.status = FactoryResetApplyStatus::Failed;
-        result.nativeError = ERROR_INVALID_DATA;
-        return result;
+        const DWORD backupError = GetLastError();
+        if (backupError != ERROR_FILE_NOT_FOUND && backupError != ERROR_PATH_NOT_FOUND)
+        {
+            result.status = FactoryResetApplyStatus::Failed;
+            result.nativeError = backupError;
+            return result;
+        }
+        if (!CreateDirectoryW(backupRoot.c_str(), nullptr))
+        {
+            result.status = FactoryResetApplyStatus::Failed;
+            result.nativeError = GetLastError();
+            return result;
+        }
+        if (!IsPlainDirectory(backupRoot))
+        {
+            RemoveDirectoryW(backupRoot.c_str());
+            result.status = FactoryResetApplyStatus::Failed;
+            result.nativeError = ERROR_INVALID_DATA;
+            return result;
+        }
     }
 
     std::vector<size_t> moved;
@@ -290,6 +333,52 @@ FactoryResetApplyResult FactoryReset_ApplyPending()
     {
         const auto& target = kResetTargets[index];
         const std::wstring source = JoinPath(root, target.leaf);
+        const std::wstring destination = JoinPath(backupRoot, target.leaf);
+        const DWORD destinationAttributes = GetFileAttributesW(destination.c_str());
+        if (destinationAttributes != INVALID_FILE_ATTRIBUTES)
+        {
+            const bool destinationIsDirectory =
+                (destinationAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+            if (destinationIsDirectory != target.directory ||
+                (destinationAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
+            {
+                SetFirstError(&firstError, ERROR_INVALID_DATA);
+                break;
+            }
+
+            const DWORD sourceAttributes = GetFileAttributesW(source.c_str());
+            const DWORD sourceError = sourceAttributes == INVALID_FILE_ATTRIBUTES
+                ? GetLastError() : ERROR_SUCCESS;
+            if (target.directory)
+            {
+                if (sourceAttributes != INVALID_FILE_ATTRIBUTES &&
+                    !IsPlainEmptyDirectory(source))
+                {
+                    SetFirstError(&firstError, ERROR_INVALID_DATA);
+                    break;
+                }
+                if (sourceAttributes == INVALID_FILE_ATTRIBUTES &&
+                    sourceError != ERROR_FILE_NOT_FOUND && sourceError != ERROR_PATH_NOT_FOUND)
+                {
+                    SetFirstError(&firstError, sourceError);
+                    break;
+                }
+            }
+            else if (sourceAttributes != INVALID_FILE_ATTRIBUTES ||
+                (sourceError != ERROR_FILE_NOT_FOUND && sourceError != ERROR_PATH_NOT_FOUND))
+            {
+                SetFirstError(&firstError, ERROR_INVALID_DATA);
+                break;
+            }
+            // This target was durably moved by the interrupted attempt.
+            continue;
+        }
+        const DWORD destinationError = GetLastError();
+        if (destinationError != ERROR_FILE_NOT_FOUND && destinationError != ERROR_PATH_NOT_FOUND)
+        {
+            SetFirstError(&firstError, destinationError);
+            break;
+        }
         const DWORD attributes = GetFileAttributesW(source.c_str());
         if (attributes == INVALID_FILE_ATTRIBUTES)
         {
@@ -306,7 +395,6 @@ FactoryResetApplyResult FactoryReset_ApplyPending()
             break;
         }
 
-        const std::wstring destination = JoinPath(backupRoot, target.leaf);
         if (!MoveFileExW(source.c_str(), destination.c_str(), MOVEFILE_WRITE_THROUGH))
         {
             SetFirstError(&firstError, GetLastError());
@@ -340,8 +428,15 @@ FactoryResetApplyResult FactoryReset_ApplyPending()
     if (firstError != ERROR_SUCCESS)
     {
         DWORD rollbackError = ERROR_SUCCESS;
-        bool rollbackComplete = true;
-        for (auto iterator = createdDirectories.rbegin(); iterator != createdDirectories.rend(); ++iterator)
+        bool rollbackComplete = !resumingInterruptedReset;
+        if (resumingInterruptedReset)
+        {
+            // Never undo a prior interrupted generation based on an incomplete
+            // later attempt. Keep its marker and backup tree for a safe retry.
+            SetFirstError(&rollbackError, firstError);
+        }
+        for (auto iterator = createdDirectories.rbegin();
+             !resumingInterruptedReset && iterator != createdDirectories.rend(); ++iterator)
         {
             if (!RemoveDirectoryW(iterator->c_str()))
             {
@@ -353,19 +448,22 @@ FactoryResetApplyResult FactoryReset_ApplyPending()
                 }
             }
         }
-        rollbackComplete = RollBackMoves(moved, root, backupRoot, &rollbackError) && rollbackComplete;
-        if (!RemoveDirectoryW(backupRoot.c_str()))
+        if (!resumingInterruptedReset)
         {
-            const DWORD error = GetLastError();
-            if (error != ERROR_PATH_NOT_FOUND && error != ERROR_DIR_NOT_EMPTY)
+            rollbackComplete = RollBackMoves(moved, root, backupRoot, &rollbackError) && rollbackComplete;
+            if (!RemoveDirectoryW(backupRoot.c_str()))
             {
-                rollbackComplete = false;
-                SetFirstError(&rollbackError, error);
-            }
-            if (error == ERROR_DIR_NOT_EMPTY)
-            {
-                rollbackComplete = false;
-                SetFirstError(&rollbackError, error);
+                const DWORD error = GetLastError();
+                if (error != ERROR_PATH_NOT_FOUND && error != ERROR_DIR_NOT_EMPTY)
+                {
+                    rollbackComplete = false;
+                    SetFirstError(&rollbackError, error);
+                }
+                if (error == ERROR_DIR_NOT_EMPTY)
+                {
+                    rollbackComplete = false;
+                    SetFirstError(&rollbackError, error);
+                }
             }
         }
         result.status = FactoryResetApplyStatus::Failed;

@@ -1,5 +1,78 @@
 # HallJoy v1.4 roadmap
 
+## 2026-09-06 — Owner clarification: preserve automatic Sayo letter mapping
+
+The owner requires automatic user-configured letters with no manual assignment,
+setup wizard or mandatory confirmation, and reports no complaints about current
+behavior. This supersedes earlier blanket prohibitions on Sayo letter learning:
+physical depth remains measured independently; automatic letter association is
+intentional. RM-03 now preserves it and tests ambiguous correlation (addedCount==1
+already guards multiple new HID keys in one report; cross-report candidates need
+review). No per-press activation-threshold delay was established. Treat stale-depth
+fallback separately according to its intended digital/analog contract. Do not
+remove Sayo, replace letters with physical-only controls, or label learning itself
+P0. Reconcile old HJ-V14-P0-003 subclaims rather than copying its blanket verdict.
+See FULL_AUDIT_EXECUTION_ROADMAP_2026-09-06.md v1.1, section 0, for other potential
+intent traps: fallback/shadow removal, single-instance, async save, process
+isolation and release scope. Proposed rewrites require Purpose/compatibility
+review and evidence; product behavior changes require an explicit product decision.
+Only documentation changed in this clarification; no new runtime PASS is claimed.
+
+
+## 2026-09-06 — Full audit execution roadmap (planning, not qualification)
+
+New detailed execution entry point:
+[FULL_AUDIT_EXECUTION_ROADMAP_2026-09-06.md](FULL_AUDIT_EXECUTION_ROADMAP_2026-09-06.md).
+It contains 37 packages / 185 steps, 17 protocol-family review cards, dependencies,
+negative checks and acceptance criteria, plus 234-file inventory with review depth
+and hashes. All implementation tasks start TODO; historical P0/P1 and release gates
+remain authoritative until reconciled with current source/evidence. Current reads
+confirm Sayo digital-derived mapping and the SparkLink row-freshness gap; first
+packages after RM-00/01 are RM-03/04/05. Native contract, containment and host DLL
+trust also require dedicated work. Production files and EXE were not changed;
+no runtime/input/controller/hardware tests ran for this audit. A comprehensive
+roadmap is not a claim of a completed line-by-line or hardware audit.
+
+
+## 2026-09-05 — Profile audit remediation (D-079)
+
+The eight findings F-01–F-08 in INDEPENDENT_CODE_AUDIT_2026-09-05.md are
+implemented in source: bounded layout parsing; prepare-before-switch and guarded
+active deletion; strict bindings validation without mutation on failure; complete
+1033-key CSV parsing; checked numeric conversion; staged settings/bindings commit
+behind a nonblocking realtime reader gate; and one atomic settings+bindings INI.
+Legacy pairs remain readable. First bundled save preserves the old settings as
+`.pre-bundle.bak` and leaves the old bindings file untouched. Older executables
+require restoring the matching legacy pair; see README storage instructions.
+
+A further startup/shutdown defect was found during validation: final shutdown
+saved partial defaults after a rejected profile load. Autosave is now enabled
+only after successful initialization. The file-only rejected-startup probe
+checks exit code 1 and byte-identical settings and bindings after final shutdown.
+
+Evidence: production-linked file/memory tests pass layout bounds, malformed
+profiles, full CSV domain, legacy migration, switch/delete failure, 100 concurrent
+profile loads with zero mixed reads, and all five atomic-save failure stages.
+The test runner is `tools/run_profile_transaction_tests.ps1`; its explicit modes
+exit before Backend_Init and never produce gamepad reports. The unified native
+checks and ordinary MSVC build also pass; final artifact identity is recorded in
+the remediation evidence directory and handoff after packaging.
+
+Limits: the earlier storage migration simulator passed migration, replay and five
+migration failure stages, but its portable-mode run exited on rejected existing
+profile data. That full runtime suite is NOT qualified by this change. Synthetic
+WASD mixed with live hardware first exposed an oracle contamination issue; the
+optional simulator-only isolated input mode addresses its source selection, but
+still emits gamepad reports. User is playing CS: do not run input/controller
+simulation (including this isolated mode). Hardware/ViGEm validation and the full
+portable runtime rerun remain pending. A separate fresh, marker-selected portable
+file-only startup probe passed (exit 0 before backend/window creation); its log is
+included in the remediation evidence. Existing protocol/release blockers remain
+open. The root-level HallJoy.exe is not the new build.
+
+Backups: `.analysis/backups/profile_audit_fixes_20260905_175549` (sources/docs)
+and `.analysis/backups/profile_fixes_artifacts_20260905_181448` (build artifacts).
+
 ## Release objective
 
 v1.4 combines the mature user interface and self-contained dependency lessons
@@ -9,12 +82,24 @@ Wooting Analog SDK installation.
 
 The word "final" is not used before every release gate in this roadmap passes.
 
+All future stable releases are additionally blocked by
+`CORRECTNESS_RELEASE_BLOCKERS.md`. Historical qualification of v1.4.1 does not
+close defects discovered by the later UAP/native/end-to-end audits.
+`RELEASE_READINESS_MEGA_AUDIT_2026-08-21.md` is the single execution order that
+joins those audits without replacing their detailed evidence.
+
 ## Package rules
 
+- Every implementation package follows `ENGINEERING_WORKING_METHOD.md`.
+- Before production edits, compare a local root correction, staged migration
+  and clean redesign/rewrite. Choose the best end-state architecture by
+  correctness, latency, liveness, ownership, testability and migration risk;
+  smallest diff and fastest completion are not deciding criteria.
 - One package addresses one coherent risk area.
 - Protocol bytes, mappings, timing, lifecycle, and UI changes are not mixed
   without characterization tests.
-- Every package has a local rollback commit.
+- Every package has a verified local backup/rollback checkpoint; this workspace
+  uses no Git/GitHub operations.
 - Every package updates the authoritative v1.4 documentation.
 - Static audits supplement behavioral tests; they do not replace them.
 - No push, merge to `main`, tag, or GitHub Release occurs without explicit
@@ -37,6 +122,131 @@ The word "final" is not used before every release gate in this roadmap passes.
 | `V14-10` | IPC and overlay security/correctness | Verified | ACL, spoofing, framing, overflow, origin, concurrency and shutdown tests |
 | `V14-11` | UAP pacing, identity, modularization and measured performance | Verified | D-022 production-code gates for pacing, identity, snapshot lifetime and exact interface ownership; no unsupported hardware claim |
 | `V14-12` | Release qualification, Aula integration and hardware matrix | In progress | Clean package, 8-24h soak, reconnect cycles and required device-owner gates |
+| `V14-18` | Experimental IROK ND75 M484/X86HERGB native route | Paused after corrective stabilization; owner validation pending | Exact identity/capability proof, official 6x22 map, local gates and diagnostic package PASS; physical polarity/range/release/hotplug evidence required; excluded from production |
+| `V14-19` | Mandatory UAP/native/common-pipeline correctness roadmap | Release blocker; static audits plus IROK physical follow-up complete, fixes pending | Every P0/P1 in `CORRECTNESS_RELEASE_BLOCKERS.md` closed by root-cause fix, regressions, end-to-end XUSB proof and applicable representative hardware evidence |
+| `V14-20` | Remove artificial precision, capacity and throughput limits | Release blocker; R2 raw/float foundation and honest UAP V2 capture-window capacity PASS, negotiated capacity/production migration pending | Preserve source precision to the output boundary, one snapshot per generation/tick, no unchanged wake storm, honest variable device capacity, capability-driven rates and physical UAP/native/ViGEm performance evidence |
+| `V14-21` | Unified input-provider architecture and versioned IPC V2 | Release blocker; same-generation transport, parent tick capture, neutral mapping, live shadow and representative physical configured-output equality PASS; explicit route/process migration pending | Common UAP/native provider contract, direct immutable snapshot data plane, separated control/health planes, full key identity, explicit capacity, native process containment, config generations and all architecture audit gates |
+| `V14-22` | Test/evidence trust and regression oracle overhaul | Release blocker; audit complete, implementation pending | Machine-readable risk/test manifest, old-bug negative oracles for every P0/P1, no anti-fix contracts, production-linked tests, healthy all-parser sanitizer matrix, exact-artifact release gate and current evidence index |
+| `V14-23` | Concurrency, lifecycle, resource ownership and hard liveness bounds | Release blocker; ViGEm P0 implementation/local O5 complete, other lifecycle and physical gates pending | Eliminate ViGEm/tracked-list races and invalid-handle recovery poison, generation-bind ready/fault/completion, remove HID lifecycle from realtime, make cancelled-I/O/shutdown deadlines hard, publish coherent provider/config/health snapshots and pass exact-EXE contention/fault gates |
+| `V14-24` | Global HallJoy pause and HID lease transfer | Release blocker; static audit complete, implementation pending | One authoritative HallJoy owner, neutralize and disable all output before bounded provider stop, release every HID/child/hook/virtual target, remain safely paused for a web driver, then re-enumerate and re-prove from a new generation on explicit resume |
+| `V14-25` | Trust boundaries, executable authenticity and diagnostic privacy | Release blocker; static audit complete, implementation pending | Exact embedded UAP identity in the child, no signed proxy DLL load, bounded transactional external documents, privacy-safe support artifacts, authenticated final EXE provenance, provider security containment and exact-binary mitigation/security gates |
+
+## Release-blocking package: V14-23
+
+The complete design and evidence requirements are in
+`CONCURRENCY_LIFECYCLE_OWNERSHIP_AUDIT.md`. Implementation order is mandatory:
+
+1. add old-bug negative oracles through `V14-22`;
+2. correct ViGEm wake and tracked-list resource/snapshot ownership;
+3. add generation-tagged worker ready and terminal acknowledgement;
+4. move SparkLink/Sayo discovery, proof, Stop and join out of realtime;
+5. use the `V14-21` provider-process boundary for truly bounded native HID I/O;
+6. pre-provision shutdown containment and publish coherent provider/config/
+   health generations;
+7. run portable race models, Windows contention/fault tests, exact final-EXE
+   shutdown/recovery gates and applicable hardware latency/reconnect regressions.
+
+Physical addendum from the 2026-08-21 IROK candidate is release-blocking:
+
+- ViGEm output stopped after `WAIT_FAILED/ERROR_INVALID_HANDLE` on the worker
+  thread handle; 161 watchdog retries remained restart-blocked while SparkLink
+  completed `279189/279189` routes. This is `HJ-V14-P0-006`.
+- The later corrected GravaStar V75 run reopened the same ownership class in
+  F3: the parent-owned child-process handle failed with error 6 after 135.6 s,
+  output froze, and 218 session rebuild attempts remained blocked while the
+  6x21 input backend reached 76,773 matrices with zero failures. The corrected
+  owner now kernel-protects process/job handles and the watchdog fails closed
+  once; exact corrected-artifact physical continuity is still mandatory.
+- A second 160-second run kept ViGEm alive and completed `421858/421858` Spark
+  routes, but `sayo stop.lock_timeout` poisoned native shutdown. This is
+  `HJ-V14-P1-038`.
+- SparkLink's global success/freshness can independently hide one permanently
+  failed row and stale values. This is `HJ-V14-P1-039` under V14-19/V14-23.
+- The stable 1.4 EXE is the mandatory A/B reference, not a source-level fix:
+  the available output-worker section is line-for-line identical.
+
+The complete cross-package order, hardware matrix and final exact-artifact gate
+are normative in `RELEASE_READINESS_MEGA_AUDIT_2026-08-21.md`.
+
+R0 architecture selection for `P0-005/006` is recorded in
+`VIGEM_OUTPUT_PROCESS_ARCHITECTURE_2026-08-21.md`. The selected end state is a
+self-hosted ViGEm output process with a bounded shared latest-value data plane,
+process-lifetime publisher wake object and one parent supervisor owning every
+child/job handle. This replaces, rather than runs alongside, the legacy
+in-process output worker. O1 now deterministically proves stale wake close/use,
+including a silent successful signal of a foreign rebound event object. O2
+deterministically reproduces the exact legacy invalid-thread-handle poison.
+Both legacy oracles remain RED, while their F3 target contracts now pass.
+Corrected R1.1 provides the
+production-linked fixed POD ABI, Win32 Interlocked claimed-slot channel,
+publisher quiescence and a real 100,000-snapshot Windows process proof;
+production routing is deliberately unchanged. `RISK_TEST_MANIFEST_V1.json` now
+fail-closes all 38 scoped unresolved/partial P0/P1 risks and distinguishes
+old-bug, target and IPC foundation gates. F1 now adds the reusable generic
+generation owner: child suspended, explicit handles, job assignment before
+resume, typed ready/progress/stop deadlines and confirmed reap. One owner passed
+1,008 real Windows child generations with no overlap or survivor. F1.1 now also
+passes the exact `HallJoyV14Simulator.exe --halljoy-vigem-output-host` boundary:
+one persistent session completed nine normal/fault generations, O3 force/reap/
+replacement acknowledged the newest complete four-pad value, all six O4 exit
+boundaries were truthful, and planned exit without neutral/target-removal
+acknowledgement was rejected. F2 now also passes the real transport boundary:
+one fixed-capacity RAII owner connects to the installed ViGEmBus, adds and
+explicitly neutralizes four targets before Ready, applies an exact four-pad
+snapshot, then neutralizes/removes all four and restores the PnP baseline. Its
+fake API matrix exhausts 8 partial-add, 4 initial-neutral, 4 update, 4 stop-
+neutral and 4 removal failure edges. The ABI remains 640 bytes. Production
+routing foundation. F3 subsequently replaced the legacy owner atomically with
+one production `OutputRuntime`; there was no intermediate dual-owner build.
+Routed O1/O2, normal, child-exit and stalled-child gates pass. Exact local O5
+passes 20 independent runs with at least 2,000,000 publications, 2,020 child
+generations, 1,000 topology changes, 200 disable/enable cycles and zero unsafe
+generation, rebuild, overlap or survivor. `P0-005/006` remain hardware-pending
+until long-duration active-input soak and one immutable final artifact pass the
+IROK MG75 Max and DrunkDeer G65 scenarios.
+
+An atomic `HANDLE`, independently atomic snapshot fields, a longer timeout or
+another `g_running` flag do not complete this package.
+
+## Release-blocking package: V14-24
+
+The complete design and evidence requirements are in
+`GLOBAL_PAUSE_DEVICE_LEASE_AUDIT.md`. The global runtime switch is a lifecycle
+transaction, not a UI boolean:
+
+1. prohibit new provider generations and HID opens;
+2. neutralize keyboard, mouse and every XUSB target;
+3. stop UAP/native providers and release all HID ownership;
+4. remove virtual targets and input blocking only after neutral publication;
+5. remain paused until an explicit resume request;
+6. re-enumerate, re-route and re-prove every device in a new generation;
+7. prevent a second ordinary HallJoy process from creating another engine;
+8. pass fake-exclusive-owner, 1000-cycle, pending-I/O, reset/PID-change and
+   representative physical web-driver gates.
+
+Shared `CreateFileW` flags, browser-process detection or an unverified UI flag
+do not complete this package.
+
+## Release-blocking package: V14-25
+
+The complete evidence and implementation requirements are in
+`TRUST_SECURITY_BOUNDARY_AUDIT.md`. Required order:
+
+1. add old-bug oracles for forged host/DLL, DLL swap, unbounded layout,
+   diagnostic disclosure/log injection and artifact authenticity;
+2. make the child independently accept only the exact embedded plugin and a
+   proven HallJoy owner under a safe loader/runtime-directory contract;
+3. bound every external document before allocation and use parse/validate/
+   immutable-commit semantics;
+4. centralize structured privacy redaction and require explicit consent for raw
+   input diagnostics;
+5. close `HJ-V14-P1-023` as a capability-minimized provider security boundary,
+   not merely a crash-contained child;
+6. sign and attest the exact already-qualified artifact, then verify PE
+   mitigations, signature, embedded resource, SBOM and provenance.
+
+ABI export checks, an adjacent checksum, a job object or loopback binding alone
+do not establish an executable trust boundary.
 
 ## Completed package: V14-00
 
@@ -494,6 +704,11 @@ qualification and the hardware matrix.
   ViGEmBus 1.22.0 release page. Version, URL and `manual-only` policy are pinned
   in the central dependency lock and matched to the production constant by
   static gates. S18 is Verified; no physical-device claim is inferred.
+- 2026-08-21 supersession: the V14-12F security finding remains valid, but its
+  manual-only recovery is replaced by D-049. The exact official installer is
+  embedded and hash/signature checked, with no runtime network access, a locked
+  random extraction path, explicit user-approved elevation and bounded
+  message-pumped waiting. The official page remains a direct fallback.
 - `V14-12G/S20` completes the pre-qualification build/documentation package.
   Current project guides use only shipped commands and the canonical
   `build/output/HallJoy.exe`; the stale Addressed validator now checks the
@@ -922,3 +1137,264 @@ v1.4 can be tagged only when:
   tester README from production packaging.
 - Release identity `1.4.1.0`, full production qualification, and a three-file
   public package are complete.
+
+### V14-18 IROK ND75 owner-validation candidate
+
+- Recover the exact `0416:7372`, `FF1B:0091`, report-ID-1 M484 transport from
+  the official signed IROK package and updater without executing firmware tools.
+- Keep ND75 separate from W669: host analogue control uses `29/18`, while
+  capability replies and one-byte live events use device opcode `21`.
+- Derive the exact 81-position `6x22` matrix map and subscription mask from the
+  official `KeyInfo_X86HERGB.config`; pin the map with FNV-1a-64
+  `4BEF9FCF48E36C37`.
+- Admit only the complete USB/HID plus `M484/X86HERGB` firmware identity and
+  read-only `21/04` capability response. No PID-only or model-name fallback.
+- Allow only identity query, read-only capability query, RAM subscription and
+  matching unsubscribe. No calibration, remap, lighting, profile or firmware
+  command is implemented.
+- Keep the backend behind `HALLJOY_IROK_ND75_EXPERIMENTAL`; the normal v1.4.1
+  production profile is unchanged until physical evidence passes.
+- Portable/static native gate, MSVC diagnostic build, linked-marker audit,
+  package hash and isolated no-device startup/shutdown smoke pass locally.
+- Owner hardware gate remains open for raw range/polarity, smooth travel,
+  release-to-zero, representative key-map coverage, simultaneous input,
+  unplug/reconnect and clean exit.
+
+### V14-19 GravaStar Mercury V75 native 6x21 admission
+
+- Status: **Implemented / physical analogue stream proven; reconnect and corrected ViGEm continuity pending**.
+- Recovered the V75, V75 Pro and V75 Lite application firmware without
+  executing the unsigned updater and independently proved the same direct
+  SparkPlayJoy framed 6x21 analogue protocol in ARM and RISC-V variants.
+- Reused one 6x21 engine. A bounded USB/board table admits only the three proven
+  GravaStar identities before the unchanged full read-only semantic proof;
+  legacy SparkLink excludes the same exact table before HID open.
+- Preserved the live firmware map and scale. `F001` publishes through the
+  existing extended analogue Fn code `0x409`, Menu remains `0065`, and unknown
+  vendor functions fail closed. No UAP, hard-coded layout, digital correlation
+  or activation-depth-dependent fallback was added.
+- Full native/static/portable tests, 250,000 parser-fuzz iterations, official
+  MSVC Release x64 and the dedicated single-file diagnostic build pass. The
+  exact diagnostic artifact also passes an isolated startup/privacy/WM_CLOSE
+  smoke: private roots, raw device paths and unrelated hardware inventories are
+  rejected from the one-file log at its final sink.
+- The diagnostic now has a fail-closed outcome contract rather than relying on
+  a human to reconstruct scattered events. Every normal or failed run emits one
+  `diagnostic.verdict` with the deepest completed proof stage, first material
+  failure, exact/safely observed identity, protocol stage and matrix count. A
+  proven stream returns `analog_stream`; every other outcome explicitly says
+  `send_log`. Family VID or GravaStar-branded mismatches are observed without
+  opening an unknown interface or relaxing production admission.
+- The first physical V75 trace proved the Windows endpoint (`1CA5:2201`,
+  `FFA0:0001`, 65-byte input/output), board `16052201`, App `V1.0.8`, 5 um
+  precision, 3500 um range, the complete 79-position live map (78 mapped by
+  default), `F001` Fn, Menu/navigation data and direct non-zero travel replies.
+  It also exposed a HallJoy admission defect: the exact V75 was incorrectly
+  required to repeat Aula-only sync bytes `C0/01/00`, so every otherwise valid
+  proof ended with firmware mismatch bit `00000001` and analogue publication
+  never began.
+- Exact known boards now use exact USB identity plus their exact board ID and
+  the complete structured live proof; the broader unknown-family profile keeps
+  the stricter Aula signature. Deterministic semantic rejection now waits for
+  an actual device change instead of repeating the full HID proof once per
+  second. A regression replays the physical V75 sync/map/Fn/scale/travel data.
+- The corrected physical run proves actual matrix publication, smooth partial
+  travel, release-to-zero, two simultaneous keys and sustained 308-342 Hz
+  polling with zero matrix failures. It also reopened `HJ-V14-P0-006` when the
+  isolated ViGEm child-process handle became invalid after 135.6 seconds.
+- Remaining hardware gates are unplug/reconnect and a long run of the newly
+  protected ViGEm owner with uninterrupted output. The user is not asked to
+  rebuild the map: it is read directly from the keyboard.
+
+### 2026-08-23 R2-B2f live read-only configured Provider V2 shadow
+
+- Status: **implementation and local qualification PASS; physical equality and
+  promotion pending**.
+- Project the V2 plane from the same parent transaction with explicit key
+  identity and owned-zero semantics; do not infer keys from digital events.
+- Share native reads, bindings, curves and mouse input between qualified and
+  shadow paths, while keeping independent stateful conflict history.
+- Compare the full neutral controller frame and retain bounded field-level
+  telemetry. Invalid evidence must skip and resynchronize rather than alter
+  production.
+- Publish only the qualified dense result. No V2 frame reaches XUSB/ViGEm in
+  this checkpoint.
+- Next gate: expose or capture the bounded counters in an explicit diagnostic
+  qualification run, prove sustained zero mismatch on representative UAP
+  hardware, then make a separate route-promotion decision.
+
+### 2026-08-23 R2-B2g fail-closed Provider V2 physical qualification
+
+- Status: **implementation, local exact-artifact gates and representative
+  physical configured-output equality PASS; route promotion not selected**.
+- A dedicated ordinary-lifecycle build writes one transactional summary beside
+  the EXE. Startup first replaces stale evidence with flushed `INCOMPLETE`;
+  only normal shutdown finalizes it. Crash/poison paths cannot finalize PASS.
+- Evidence is monotonic across the process and rejects backend reinitialisation,
+  repeated ticks masquerading as new UAP generations, digital fallback, curve
+  mutation, excessive unavailability, insufficient generations/activity and any
+  field mismatch. Duration is informational, not a verdict threshold.
+- Activation requires Provider V2 raw ownership at >=0.5 travel plus a
+  non-neutral mapped shadow field. Release stays latched until raw bindings and
+  the shadow field are neutral; partial return cannot pass. Mouse, native input
+  and Windows keydown cannot satisfy this alone. Four pads times seven fields
+  are tracked independently.
+- Two physical schema-1 reports from exact EXE `0357A68E...4DE9A8BB`
+  aggregate to 43,879 matched frames, 10,777 unique generations and union masks
+  configured/activated/released `0x7E`, with zero mismatches/skips. The second
+  run independently proves both LT and RT. Representative equality is PASS.
+- The arbitrary 60-second cliff was removed. Schema 2 records duration only for
+  context; stability remains a separate purpose-built soak/reconnect/fault gate.
+- Schema-2 short smoke: 2,039 matched reports, 504 unique generations, zero
+  mismatches/skips and expected `INCOMPLETE` after 2,547 ms solely because no
+  configured field was exercised. Transaction temporary file was absent.
+- Qualification artifact: 8,653,312 bytes, SHA-256
+  `60C2E205C61CF6F61EE6216DB46A825121A34975924D35D2C9A96FC85473ED71`.
+- Ordinary release: 8,644,608 bytes, SHA-256
+  `9E7FD20D41E441AF50D42A12FB9C44AEDB917C29D5A69FB4CA0778678DC63166`;
+  exact V2 dual capture and ten-second lifecycle smoke PASS, and the
+  qualification filename/report is absent.
+- Next gate: compare the qualified dense rollback and Provider V2 promotion
+  strategies, then make an explicit route-promotion decision. Physical equality
+  evidence does not switch the route automatically or replace separate
+  long-duration stability qualification.
+
+### 2026-08-23 R2-B2h negotiated-capacity UAP producer
+
+- Status: **implementation and all local exact-artifact gates PASS; fixed IPC
+  and route promotion intentionally pending**.
+- Promotion alternatives were compared before code. Immediate selection keeps a
+  known hidden capacity defect; raising 8 to another constant only moves the
+  cliff; a producer/IPC/route big-bang combines too many ownership boundaries.
+  D-072 selects a staged producer, split data plane, then route switch.
+- Provider V2 now queries exact registry demand and captures the complete owner
+  generation into reusable caller-provided storage grown before all registry and
+  device locks. Reverse lock release, all-exit owner-reference clearing, bounded
+  topology retry and explicit resource-ceiling rejection are enforced.
+- Portable evidence captures 12 owners completely and builds an authoritative
+  12-device/60-sample generation. The existing 2-of-12 oracle remains and must
+  report truncation rather than completeness.
+- Exact DLL ABI sizing uses zero-capacity demand for both Provider V2 and dual
+  buffers and reports `negotiated_capacity=1`; same-generation compatibility
+  equivalence remains PASS.
+- Full static/portable/native suite, official MSVC Release x64, embedded
+  dependency checks, exact dual capture and ten-second lifecycle smoke pass.
+  Release: 8,650,240 bytes, SHA-256
+  `15E6DADC75B367ABAA031BF5B239EC6DCD88A528AD8E797B5D9CAAE70FFE4509`.
+- Production remains on dense compatibility. The current all-access
+  `SharedState` still has eight device slots; R2-B2i must replace that data path
+  with a separately owned, capacity-negotiated, parent-read-only Provider V2
+  plane. R2-B2j may then select V2 and remove dense runtime fallback.
+- R2-B2i design is selected in
+  `UAP_PROVIDER_V2_SPLIT_DATA_PLANE_DESIGN_2026-08-23.md`: a parent-owned mapping
+  with a read-only parent payload view, child-writable double-buffered slots,
+  exact capacity negotiation and generation-bound replacement after the old
+  child is reaped. Implementation is staged B2i-a layout/oracles, B2i-b Windows
+  ownership/resize lifecycle and B2i-c live-shadow migration/removal of fixed V2
+  payload arrays. Production selection remains forbidden until R2-B2j.
+
+### 2026-08-23 R2-B2i-a split Provider V2 data-plane layout
+
+- Status: **portable layout/oracles and exact local build PASS; live Windows IPC
+  intentionally pending**.
+- Added a production-compiled but unreachable checked mapping contract: fixed
+  header, two 64-byte-aligned commit slots, exact device/sample capacities,
+  generation/nonce/transaction binding and semantic Provider V2 validation.
+- Portable old-bug evidence proves a complete 12-device/60-sample snapshot and
+  deterministic layout at 0, 1, 8, 12, 32 and policy-limit capacities. Overflow,
+  malformed offsets/strides, odd/uncommitted publication, stale identity, false
+  completeness and truncation all fail closed.
+- A separate static guard proves production `backend.cpp` does not reference the
+  new plane and the fixed `SharedState` arrays still remain. No keyboard route,
+  analogue behavior, IPC handle rights or user-visible artifact was changed.
+- Full static/portable/native suite, official MSVC Release x64, exact private-UAP
+  ABI, embedded ViGEm checks, exact EXE dual capture and startup/shutdown smoke
+  pass. Local checkpoint image: 8,650,240 bytes, SHA-256
+  `920CBFB75229F9820FFB20C30CC11A3ED6940EEEA16D66E23E926099F087F5FE`;
+  it is not promoted or requested from a user.
+- Next: R2-B2i-b adds the separately inherited Windows mapping, parent read-only
+  payload view, child-writable view and bounded zero-capacity/resize/restart
+  lifecycle while dense production remains selected. R2-B2i-c then migrates the
+  live shadow and removes fixed V2 payload arrays.
+- D-075 prevents the new route from remaining unused until release. After all
+  B2i-c live-plane gates pass, the normal local engineering build selects V2
+  output with fail-closed neutralization and no automatic dense fallback. The
+  old route stays compiled and tested, selectable only by an explicit immutable
+  build property for a separately named emergency/user-test artifact. Switching
+  now is forbidden because it would still exercise V2 through fixed
+  `SharedState`, not the new data plane.
+- R2-B2j remains the later user-release promotion/removal decision, not the first
+  time Provider V2 drives controller output. This gives the owner ordinary local
+  play time on the real route before any user depends on it.
+
+### 2026-08-23 R2-B2i-b Windows Provider V2 plane checkpoint
+
+- Status: **complete/PASS**.
+- The separately owned variable mapping is live in the analog-host supervisor
+  but remains a parallel, production-unselected path. The parent has a read-only
+  view, the isolated child alone inherits a writable handle, and the parent
+  closes its transient writer capability immediately after launch.
+- Zero-capacity demand, exact growth, generation-bound restart and child-reaped-
+  before-replace rules are implemented. Shrink reuses sufficient allocation;
+  malformed, stale, torn, forged and excessive inputs fail closed.
+- A real Windows self-host regression proves explicit handle-list inheritance,
+  invalid numeric handle rejection, termination on an odd commit, reader-held
+  resize exclusion, six topology generations and zero surviving child/writer.
+  The complete static/portable/native suite exits 0.
+- The first exact EXE exposed and localized a read-only-view AV: an Interlocked
+  compare-exchange used as a read attempted a write. The capture now uses an
+  aligned volatile load with barriers; MSVC Release x64 rebuild is 8,662,528
+  bytes, SHA-256
+  `6F28B367A31170ADD172A53B142A5BFFE19C865A733212F4EBEA655BB91B014C`.
+- Physical UAP tests are now fail-closed when any HallJoy is already running,
+  including the leaf private-ABI checker and production smoke. This prevents a
+  second host from contaminating Keychron's four unnumbered `A9 31` response
+  packets. No user process was stopped, no product singleton was introduced and
+  no HID open policy changed.
+- The isolated exact physical gate passes on the final packaged image: initial
+  zero capacity, at least one controlled restart, parent read-only proof and a
+  coherent authoritative commit. Official private-ABI/build gates and sequential
+  ten-second production smoke pass; final size is 8,662,528 bytes, SHA-256
+  `1EAAFAD31C19AE9C3DC75D37E6081BD0120CB156DCBA9C5C95719D6A6F0F4EFF`,
+  with no continuous/crash log or process survivor.
+- Next: B2i-c migrates the live shadow and removes fixed V2 payload arrays. Do
+  not switch the engineering route before all B2i-c gates pass.
+
+Evidence:
+`docs/stability/tests/V14_R2_B2I_B_PROVIDER_V2_WINDOWS_PLANE_2026-08-23.txt`.
+
+## Mandatory non-release-blocking program: LAB virtual firmware/HID testbed
+
+- Status: **planned and mandatory; not a blocker for the next HallJoy release**.
+- Purpose: build a reusable Windows testbed that presents exact virtual keyboard
+  HID identities to an unmodified HallJoy and can execute the strongest available
+  evidence level for each hash-pinned firmware: trace replay, protocol model,
+  selected original machine-code slices, or optional reset-to-main board
+  emulation.
+- The program is tracked in
+  `FIRMWARE_VIRTUAL_HID_TESTBED_ROADMAP_2026-08-23.md`. It remains separate from
+  production HallJoy admission and cannot introduce a diagnostic-only fallback,
+  digital-key correlation, guessed layout/protocol behavior or a virtual-hardware
+  compatibility claim.
+- `LAB-01`: firmware catalog, provenance/hash manifest, profile schema and
+  evidence-level contract; adapt the existing M484 instruction-level research
+  without treating its generic profiles as ND75 proof.
+- `LAB-02`: minimal Windows VHF transport driver plus bounded user-mode control
+  plane; exact HID descriptors/identity, output-report delivery, input report
+  submission, disconnect/reconnect and fault injection.
+- `LAB-03`: exact `X86HERGB` ND75 hybrid vertical slice from synthetic raw Hall
+  sample through original firmware code to its 64-byte report.
+- `LAB-04`: deterministic HallJoy scenario runner for full matrix/depth,
+  simultaneous input, release, rate, malformed traffic, stall and reconnect,
+  with reports that state the evidence level and never upgrade it implicitly.
+- `LAB-05`: reusable MCU/family packs and automated fail-closed firmware intake;
+  onboard further M484, STM32, RISC-V or other families only after their required
+  memory/peripheral/protocol profile is proved.
+- `LAB-06`: optional incremental reset-to-main emulation for questions that a
+  selected executable slice cannot answer. Full-board emulation is an extension
+  of the same profile/core/transport architecture, not a rewrite prerequisite.
+- Scheduling rule: release-blocking `R0..R8` work keeps priority. Small isolated
+  LAB packages may proceed in parallel when they do not change a release route,
+  invalidate current evidence or delay a named blocker. The program may be
+  deferred, but it must not be silently removed or marked complete by simulator-
+  only success.

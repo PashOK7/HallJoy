@@ -160,9 +160,10 @@ def main() -> int:
     descriptor = function_body(source, "const NativeAnalogBackendDescriptor& AddressedAnalog_GetNativeBackendDescriptor()")
     require("return AddressedAnalog_StopGeneration(generation);" in descriptor,
             "native registry receives the real Addressed stop result")
-    require("nativeBackendsStopped" in app and
-            "component=native-analog dependent_cleanup_skipped=1" in app,
-            "application contains an incomplete Addressed generation before dependent teardown")
+    require("EngineRuntimeStopNativeProviders" in app and
+            "NativeAnalogBackends_StopAll()" in app and
+            "EngineRuntimeOwner_Stop()" in app,
+            "aggregate owner contains an incomplete Addressed generation before dependent teardown")
     require("#if defined(HALLJOY_ANALOG_SIMULATOR)" in worker_body and
             "--halljoy-test-addressed-stop-timeout" in source,
             "runtime timeout injection is simulator-only")

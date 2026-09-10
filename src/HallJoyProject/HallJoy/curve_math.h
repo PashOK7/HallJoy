@@ -51,7 +51,9 @@ namespace CurveMath
         float w2 = 1.0f; // [0..1]
     };
 
-    inline float Clamp01(float v) { return std::clamp(v, 0.0f, 1.0f); }
+    inline float Clamp01(float v) {
+        return std::isfinite(v) ? std::clamp(v, 0.0f, 1.0f) : 0.0f;
+    }
     inline float Lerp(float a, float b, float t) { return a + (b - a) * t; }
 
     // Map [0..1] user weight into a rational Bezier weight.

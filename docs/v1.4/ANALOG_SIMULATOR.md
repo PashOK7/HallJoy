@@ -27,12 +27,30 @@ The runner:
    `--halljoy-simulate-analog=script`;
 3. exercises ramp, hold, release, opposing axes, diagonal, disconnect,
    reconnect, source fault, and recovery;
-4. verifies common-pipeline reports, accepted ViGEm changes, graceful shutdown,
-   and absence of remaining processes;
+4. verifies common-pipeline reports, child-acknowledged publication through the
+   isolated production ViGEm route, qualified neutral/remove shutdown, and
+   absence of remaining processes;
 5. rejects missing trace evidence or any `ERROR` event.
 
 `-SkipBuild` reuses the existing simulator executable. `-RunSeconds` must be at
 least 7 so every deterministic phase runs.
+
+The legacy ViGEm regression switch names are retained so old commands remain
+reproducible, but their target assertions follow the F3 architecture. The
+runner can inject a child exit or a child that stops making progress, then
+requires publication disable/quiescence, predecessor reap, exactly one Ready
+replacement, clean final neutral/remove, exit 0 and zero survivor:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\run_analog_simulator.ps1 `
+  -InjectVigemUpdateStall -RunSeconds 8
+```
+
+The same routed recovery contract is exposed by
+`-InjectVigemOutputCppFault`, `-InjectVigemOutputInvalidThreadHandle` and
+`-InjectVigemOutputWakeCloseUse`. These are process/lifecycle fault injections,
+not physical driver or keyboard evidence.
 
 The SparkLink service-stop regression is available as a simulator-only
 lifecycle injection:
@@ -79,3 +97,13 @@ unavailable keyboard's protocol or physical input works.
   not persist them.
 - Simulator PASS is common-pipeline evidence only and cannot close a hardware
   gate.
+
+## Isolated synthetic input (2026-09-05)
+
+Use `-IsolateSyntheticInput` when testing the scripted pipeline on a workstation
+with real analog hardware attached. This opt-in owns the four synthetic WASD
+keys even in scripted disconnect/fault phases, so a physical UAP/native key
+cannot override the required zero. Curves, report construction and the isolated
+ViGEm transport are unchanged. The ordinary simulator still tests aggregation
+with real sources; an isolated run is explicitly not multi-device aggregation
+or hardware evidence. Storage-migration tests select the isolated mode.

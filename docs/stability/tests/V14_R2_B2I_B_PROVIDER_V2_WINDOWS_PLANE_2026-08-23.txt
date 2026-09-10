@@ -1,0 +1,105 @@
+HallJoy v1.4 R2-B2i-b Windows Provider V2 plane evidence
+Date: 2026-08-23
+
+STATUS
+Implementation and deterministic Windows gates: PASS.
+Exact isolated physical-UAP zero-capacity/restart gate: PASS.
+Production route: unchanged dense compatibility.
+
+SELECTED ARCHITECTURE
+- Parent-owned variable section per plane generation.
+- Parent retains only a non-inheritable FILE_MAP_READ handle and view.
+- Child alone inherits one read/write section handle through
+  PROC_THREAD_ATTRIBUTE_HANDLE_LIST.
+- Parent closes its transient writer handle immediately after CreateProcessW.
+- Child publishes into two independently committed slots.
+- Capacity replacement occurs only after the prior child is fully reaped.
+- Shrink reuses sufficient allocation; growth creates a new generation.
+
+REJECTED ALTERNATIVES
+- Larger fixed arrays: move the capacity cliff and retain excessive rights.
+- Resizable monolithic SharedState: Windows mappings do not resize in place and
+  control/health/payload lifetime remains coupled.
+- Pipe/RPC per snapshot: extra copy, queue/backpressure and wake boundary.
+- Product singleton or immediate exclusive HID: broader compatibility changes
+  are not justified by a physical-test isolation defect.
+- Digital-key correlation/relearning: forbidden activation-depth delay and a
+  protocol error would be hidden.
+
+WINDOWS PROCESS REGRESSION
+Command:
+  python tools/run_native_backend_checks.py --require-compiler
+Final result: exit 0; all static and portable C++ tests passed.
+
+Required marker:
+  PROVIDER_V2_WINDOWS_PROCESS_TEST=PASS explicit_handle_list=1
+  parent_read_only=1 invalid_handle_rejected=1 odd_publish_rejected=1
+  reader_resize_blocked=1 topology_generations=6 surviving_writer=0
+  surviving_child=0
+
+The test uses real CreateProcessW and the production ParentPlaneOwner and
+ChildPlaneWriter. It repeats invalid-handle launch after process-creation warmup,
+terminates a child with an odd slot sequence, holds a reader across retire,
+publishes 1/8/12/32/8/1 device generations and verifies stable process-handle
+count plus no surviving child or writer capability. Excessive demand is
+rejected.
+
+READ-ONLY FAILURE FOUND AND CORRECTED
+The first exact EXE reached the new plane and then failed with 0xC0000005 in
+AnalogHostClient_CaptureProviderV2PlaneHeader. The commit recheck used
+InterlockedCompareExchange64 as if it were a read. That API is a
+read-modify-write and faults on the deliberately read-only parent view. The
+recheck now performs one aligned volatile read between memory barriers. The
+static audit rejects the former const-cast/RMW pattern, and the real Windows
+process regression captures through the read-only view.
+
+MSVC CHECKPOINT
+Configuration: Release|x64, HallJoyMad68ProRNative=true,
+HallJoyStabilityTrace=false.
+Result: 0 errors; one existing allow-listed ViGEmClient LNK4099.
+Local non-packaged image:
+  src/HallJoyProject/x64/MAD68ProRNative/HallJoy.exe
+  size=8662528
+  sha256=6F28B367A31170ADD172A53B142A5BFFE19C865A733212F4EBEA655BB91B014C
+
+OFFICIAL FINAL ARTIFACT
+Command:
+  powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1
+Result: PASS complete rebuild, private UAP ABI runtime gate and embedded ViGEm
+verification; 0 errors and one existing allow-listed ViGEmClient LNK4099.
+Packaged image:
+  build/release/HallJoy.exe
+  size=8662528
+  sha256=1EAAFAD31C19AE9C3DC75D37E6081BD0120CB156DCBA9C5C95719D6A6F0F4EFF
+
+PHYSICAL TEST ISOLATION INCIDENT
+Three HallJoy processes from C:\github\HallJoy_v1.4\build\release\HallJoy.exe
+were active and were not terminated or modified. The Keychron custom full-matrix
+path sends A9 31 and reads four packets with the same command/subcommand and no
+visible request token or part index. Its named mutex serializes requests, but
+separate open HID handles can still retain response packets;
+discardStaleReports() does not prove a quiet/drained transaction boundary. This
+is a strong implementation/protocol inference consistent with the observed
+stable matrix shift, not an on-wire capture.
+
+The leaf private-UAP ABI checker, official build runtime gate, exact EXE
+dual-capture runner and production smoke now enumerate HallJoy processes and
+fail closed before opening UAP hardware. Enumeration failure also fails. A live
+guard test rejected active PIDs 71004, 81816 and 81016 before DLL load. Static,
+portable and synthetic Windows-process tests remain usable concurrently.
+
+EXACT PHYSICAL FINAL-IMAGE GATE
+With every other HallJoy instance closed, both the direct candidate and the
+official packaged image passed:
+- initial zero-capacity demand;
+- one controlled child restart;
+- parent read-only proof;
+- one non-empty authoritative coherent Provider V2 commit;
+- clean shutdown and zero surviving child.
+
+The final packaged image also passed a sequential 10-second production
+startup/shutdown smoke. No continuous diagnostic log, crash report or surviving
+HallJoy process remained.
+
+B2i-b is complete. B2i-c remains pending and no engineering or user route is
+switched by this checkpoint.

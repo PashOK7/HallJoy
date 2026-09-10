@@ -1,6 +1,7 @@
 #include "worker_exception_barrier.h"
 #include "worker_join_policy.h"
 #include "sparklink_hotplug_age.h"
+#include "sparklink_row_freshness.h"
 
 #include <chrono>
 #include <mutex>
@@ -14,6 +15,11 @@ static constexpr int kSparkMaxRows = 8;
 static constexpr int kSparkColsPerRow = 21;
 static constexpr ULONGLONG kSparkReconnectIntervalMs = 2000;
 static constexpr ULONGLONG kSparkNoPacketRestartMs = 1800;
+static constexpr UINT kSparkRouteTransactionTimeoutMs = 250;
+static constexpr UINT kSparkMaxSafePollIntervalMs = 20;
+static constexpr ULONGLONG kSparkRowFreshnessMs =
+    static_cast<ULONGLONG>(kSparkMaxRows) *
+    (kSparkRouteTransactionTimeoutMs + kSparkMaxSafePollIntervalMs);
 static constexpr uint16_t kSparkObservedRouteRawDefault = 3500;
 static constexpr UINT kSparkMinRoutePollIntervalMs = 1;
 
@@ -23,12 +29,16 @@ static HANDLE                     g_sparkStopEvent = nullptr;
 static std::atomic<bool>          g_sparkConnected{ false };
 static std::atomic<uint16_t>      g_sparkConnectedVid{ 0 };
 static std::atomic<uint16_t>      g_sparkConnectedPid{ 0 };
+static std::atomic<uint64_t>      g_sparkExactInterfaceId{ 0 };
+static std::atomic<uint64_t>      g_sparkPublicationSequence{ 0 };
 static std::atomic<ULONGLONG>     g_sparkLastPacketMs{ 0 };
 static ULONGLONG                  g_sparkLastReconnectTryMs = 0;
 static std::array<std::atomic<uint16_t>, 256> g_sparkAnalogMilli{};
 static std::array<std::atomic<uint16_t>, 256> g_sparkObservedRouteRaw{};
+static std::array<std::array<std::atomic<uint16_t>, 256>, kSparkMaxRows> g_sparkRowHidMilli{};
 static std::array<std::atomic<uint8_t>, kSparkMaxRows * kSparkColsPerRow> g_sparkRowColToHid{};
 static std::array<std::atomic<uint8_t>, kSparkMaxRows> g_sparkRowActive{};
+static std::array<std::atomic<bool>, kSparkMaxRows> g_sparkRowFresh{};
 static std::atomic<int>           g_sparkRowCount{ 0 };
 static uint16_t                   g_sparkInputReportLen = (uint16_t)kSparkPayloadSize;
 static uint16_t                   g_sparkOutputReportLen = (uint16_t)kSparkPayloadSize;
@@ -71,16 +81,35 @@ static bool SparkServiceAllowsStart() noexcept
 
 static constexpr size_t kSparkFastReportBytes = 1024;
 
+// One Spark worker is the sole writer.  The V2 pull adapter uses this sequence
+// to copy a whole published state without putting a lock in the realtime path.
+// Odd means a layout/freshness/value transition is in progress.
+static void SparkPublicationBegin() noexcept
+{
+    g_sparkPublicationSequence.fetch_add(1u, std::memory_order_acq_rel);
+}
+
+static void SparkPublicationEnd() noexcept
+{
+    g_sparkPublicationSequence.fetch_add(1u, std::memory_order_release);
+}
+
 static void Spark_ResetKeyState()
 {
+    SparkPublicationBegin();
     for (auto& m : g_sparkAnalogMilli)
         m.store(0, std::memory_order_relaxed);
     for (auto& r : g_sparkObservedRouteRaw)
         r.store(kSparkObservedRouteRawDefault, std::memory_order_relaxed);
+    for (auto& row : g_sparkRowHidMilli)
+        for (auto& value : row)
+            value.store(0, std::memory_order_relaxed);
     for (auto& c : g_sparkRowColToHid)
         c.store(0, std::memory_order_relaxed);
     for (auto& r : g_sparkRowActive)
         r.store(0, std::memory_order_relaxed);
+    for (auto& fresh : g_sparkRowFresh)
+        fresh.store(false, std::memory_order_relaxed);
     g_sparkRowCount.store(0, std::memory_order_relaxed);
     g_sparkLastPacketMs.store(0, std::memory_order_relaxed);
     g_sparkLastActiveLogMs.store(0, std::memory_order_relaxed);
@@ -100,10 +129,12 @@ static void Spark_ResetKeyState()
     for (auto& rowMs : g_sparkRowLastOkMs)
         rowMs.store(0, std::memory_order_relaxed);
     g_sparkLastTelemetryLogMs.store(0, std::memory_order_relaxed);
+    SparkPublicationEnd();
 }
 
 static bool SparkReleasePublishedInput() noexcept
 {
+    SparkPublicationBegin();
     bool releasedAny = false;
     for (auto& m : g_sparkAnalogMilli)
     {
@@ -120,6 +151,7 @@ static bool SparkReleasePublishedInput() noexcept
         g_sparkInputNotifySeq.fetch_add(1u, std::memory_order_relaxed);
         RealtimeLoop_NotifyInputChanged();
     }
+    SparkPublicationEnd();
     return releasedAny;
 }
 
@@ -197,6 +229,99 @@ static void SparkRecordRouteResult(uint8_t row, bool ok, ULONGLONG nowMs)
     }
     g_sparkAvgRouteIntervalUs.store(avg, std::memory_order_relaxed);
     SparkAtomicMax(g_sparkMaxRouteIntervalUs, intervalUs);
+}
+
+static uint16_t SparkNormalizeRouteToMilli(uint16_t hid, uint16_t routeRaw);
+
+static bool SparkRowFresh(uint8_t row, ULONGLONG nowMs, int effectiveRows)
+{
+    return row < kSparkMaxRows && row < effectiveRows &&
+        g_sparkRowActive[(size_t)row].load(std::memory_order_relaxed) != 0 &&
+        g_sparkRowFresh[(size_t)row].load(std::memory_order_relaxed) &&
+        halljoy::sparklink::IsRowFresh(nowMs,
+            g_sparkRowLastOkMs[(size_t)row].load(std::memory_order_relaxed),
+            kSparkRowFreshnessMs);
+}
+
+static bool SparkRecomputePublishedHid(uint8_t hid, ULONGLONG nowMs, int effectiveRows)
+{
+    if (hid == 0) return false;
+    uint16_t aggregate = 0;
+    for (int row = 0; row < effectiveRows; ++row)
+    {
+        if (!SparkRowFresh((uint8_t)row, nowMs, effectiveRows))
+            continue;
+        aggregate = std::max(aggregate,
+            g_sparkRowHidMilli[(size_t)row][hid].load(std::memory_order_relaxed));
+    }
+    return g_sparkAnalogMilli[hid].exchange(aggregate, std::memory_order_relaxed) != aggregate;
+}
+
+static bool SparkRecomputeRowHids(uint8_t row, ULONGLONG nowMs, int effectiveRows)
+{
+    if (row >= kSparkMaxRows) return false;
+    std::array<bool, 256> seen{};
+    bool changed = false;
+    for (int col = 0; col < kSparkColsPerRow; ++col)
+    {
+        const uint8_t hid = g_sparkRowColToHid[(size_t)row * kSparkColsPerRow + (size_t)col]
+            .load(std::memory_order_relaxed);
+        if (hid != 0 && !seen[hid])
+        {
+            seen[hid] = true;
+            changed = SparkRecomputePublishedHid(hid, nowMs, effectiveRows) || changed;
+        }
+    }
+    return changed;
+}
+
+static bool SparkReconcileRowFreshness(ULONGLONG nowMs, int effectiveRows)
+{
+    SparkPublicationBegin();
+    bool changed = false;
+    for (int row = 0; row < kSparkMaxRows; ++row)
+    {
+        const bool eligible = row < effectiveRows &&
+            g_sparkRowActive[(size_t)row].load(std::memory_order_relaxed) != 0;
+        if (eligible && SparkRowFresh((uint8_t)row, nowMs, effectiveRows))
+            continue;
+        if (g_sparkRowFresh[(size_t)row].exchange(false, std::memory_order_relaxed))
+        {
+            g_sparkRowLastOkMs[(size_t)row].store(0, std::memory_order_relaxed);
+            changed = SparkRecomputeRowHids((uint8_t)row, nowMs, effectiveRows) || changed;
+        }
+    }
+    SparkPublicationEnd();
+    return changed;
+}
+
+static bool SparkCommitRouteRow(uint8_t row,
+    const std::array<uint16_t, kSparkColsPerRow>& route,
+    ULONGLONG nowMs, int effectiveRows)
+{
+    if (row >= kSparkMaxRows) return false;
+    SparkPublicationBegin();
+    std::array<uint16_t, 256> rowValues{};
+    std::array<bool, 256> touched{};
+    for (int col = 0; col < kSparkColsPerRow; ++col)
+    {
+        const uint8_t hid = g_sparkRowColToHid[(size_t)row * kSparkColsPerRow + (size_t)col]
+            .load(std::memory_order_relaxed);
+        if (hid == 0) continue;
+        touched[hid] = true;
+        rowValues[hid] = std::max(rowValues[hid],
+            SparkNormalizeRouteToMilli(hid, route[(size_t)col]));
+    }
+    for (uint16_t hid = 1; hid < 256; ++hid)
+        if (touched[hid])
+            g_sparkRowHidMilli[(size_t)row][hid].store(rowValues[hid], std::memory_order_relaxed);
+    g_sparkRowFresh[(size_t)row].store(true, std::memory_order_relaxed);
+    bool changed = false;
+    for (uint16_t hid = 1; hid < 256; ++hid)
+        if (touched[hid])
+            changed = SparkRecomputePublishedHid((uint8_t)hid, nowMs, effectiveRows) || changed;
+    SparkPublicationEnd();
+    return changed;
 }
 
 static void SparkRecordRouteTxTime(uint32_t txUs)
@@ -329,25 +454,16 @@ static int SparkUsageSupportScore(uint16_t usagePage, uint16_t usage)
     return 0;
 }
 
-// A legacy Spark interface and Aula both use FFA0:0001, so usage metadata is
-// not a family discriminator. Keep immutable, audited VID/PID ownership ahead
-// of any Spark CreateFile/probe. This is classification only: if Aula rejects
-// the device, the path remains unclaimed and available to UAP.
-static bool SparkPathIsDedicatedAula(const wchar_t* path)
+// The legacy Spark row protocol and the SparkPlayJoy 6x21 family both use
+// FFA0:0001, so usage metadata is not a discriminator. Keep the single shared
+// table of firmware/physically proven 6x21 identities ahead of every legacy
+// Spark CreateFile/probe. This is classification only: if the 6x21 backend
+// rejects the semantic proof, the path remains unclaimed and available to UAP.
+static bool SparkPathIsDedicated6x21(const wchar_t* path)
 {
     if (!path || !*path)
         return false;
-    wchar_t vid[16]{};
-    wchar_t pid[16]{};
-    _snwprintf_s(vid, _countof(vid), _TRUNCATE, L"vid_%04x",
-        static_cast<unsigned>(aula_win60he::kAulaVendorId));
-    _snwprintf_s(pid, _countof(pid), _TRUNCATE, L"pid_%04x",
-        static_cast<unsigned>(aula_win60he::kAulaProductId));
-    std::wstring normalized(path);
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-        [](wchar_t ch) { return static_cast<wchar_t>(std::towlower(ch)); });
-    return normalized.find(vid) != std::wstring::npos &&
-        normalized.find(pid) != std::wstring::npos;
+    return aula_win60he::PathContainsKnownUsbIdentity(path);
 }
 
 static bool SparkReadCaps(HANDLE h, uint16_t* inLen, uint16_t* outLen, uint16_t* usagePage, uint16_t* usage)
@@ -666,7 +782,7 @@ static bool SparkQueryRouteRow(uint8_t row, std::array<uint16_t, kSparkColsPerRo
     uint8_t req[kSparkPayloadSize]{};
     uint8_t rsp[kSparkPayloadSize]{};
     SparkFillPacket({ 0x04, 0x03, 0x01, row }, req);
-    if (!SparkTransact(req, rsp, 250, 0x04, 0x03, 0x01, row))
+    if (!SparkTransact(req, rsp, kSparkRouteTransactionTimeoutMs, 0x04, 0x03, 0x01, row))
         return false;
 
     for (int col = 0; col < kSparkColsPerRow; ++col)
@@ -783,6 +899,7 @@ static uint16_t SparkNormalizeRouteToMilli(uint16_t hid, uint16_t routeRaw)
 
 static void SparkDiscoverLayout()
 {
+    SparkPublicationBegin();
     for (auto& c : g_sparkRowColToHid)
         c.store(0, std::memory_order_relaxed);
     for (auto& r : g_sparkRowActive)
@@ -827,6 +944,7 @@ static void SparkDiscoverLayout()
 
     int rowCount = (highestActiveRow >= 0) ? (highestActiveRow + 1) : 0;
     g_sparkRowCount.store(rowCount, std::memory_order_relaxed);
+    SparkPublicationEnd();
     DebugLog_Write(L"[backend.spark] layout rows=%d", rowCount);
     SparkLogLayoutSummary();
 }
@@ -864,7 +982,7 @@ static HANDLE SparkTryOpenDevice(
     uint16_t bestReadOnlyVid = 0;
     uint16_t bestReadOnlyPid = 0;
     uint16_t bestReadOnlyUsagePage = 0;
-    uint32_t dedicatedAulaSkipped = 0;
+    uint32_t dedicated6x21Skipped = 0;
 
     for (DWORD idx = 0;; ++idx)
     {
@@ -895,9 +1013,9 @@ static HANDLE SparkTryOpenDevice(
         if (NativeAnalogRouting_ProtocolHasClaims(NativeAnalogProtocol::SparkLink) &&
             !routedToSpark)
             continue;
-        if (!routedToSpark && SparkPathIsDedicatedAula(detail->DevicePath))
+        if (!routedToSpark && SparkPathIsDedicated6x21(detail->DevicePath))
         {
-            ++dedicatedAulaSkipped;
+            ++dedicated6x21Skipped;
             continue;
         }
 
@@ -1001,10 +1119,10 @@ static HANDLE SparkTryOpenDevice(
         }
     }
 
-    if (dedicatedAulaSkipped != 0)
+    if (dedicated6x21Skipped != 0)
     {
         const std::uint64_t total = g_sparkDedicatedSkipTotal.fetch_add(
-            dedicatedAulaSkipped, std::memory_order_relaxed) + dedicatedAulaSkipped;
+            dedicated6x21Skipped, std::memory_order_relaxed) + dedicated6x21Skipped;
         const ULONGLONG nowMs = GetTickCount64();
         ULONGLONG lastLogMs = g_sparkLastDedicatedSkipLogMs.load(std::memory_order_relaxed);
         if (lastLogMs == 0 || nowMs - lastLogMs >= 60'000u)
@@ -1013,10 +1131,9 @@ static HANDLE SparkTryOpenDevice(
                     lastLogMs, nowMs, std::memory_order_relaxed))
             {
                 StabilityTrace_Write(L"INFO", L"spark", L"candidate.skip_dedicated_summary",
-                    L"owner=aula-win60he vid=0x%04X pid=0x%04X pre_open=1 interfaces=%u cumulative=%llu interval_ms=60000",
-                    static_cast<unsigned>(aula_win60he::kAulaVendorId),
-                    static_cast<unsigned>(aula_win60he::kAulaProductId),
-                    static_cast<unsigned>(dedicatedAulaSkipped),
+                    L"owner=sparkplayjoy-6x21 exact_profiles=%u pre_open=1 interfaces=%u cumulative=%llu interval_ms=60000",
+                    static_cast<unsigned>(aula_win60he::kKnownUsbIdentities.size()),
+                    static_cast<unsigned>(dedicated6x21Skipped),
                     static_cast<unsigned long long>(total));
             }
         }
@@ -1112,7 +1229,7 @@ static DWORD SparkPollThreadProcImpl()
             rowCount = std::min(rowCount, std::clamp((int)rowLimit, 1, kSparkMaxRows));
         bool attemptedRow = false;
         bool rowOk = false;
-        bool inputChanged = false;
+        bool inputChanged = SparkReconcileRowFreshness(GetTickCount64(), rowCount);
         if (false)
         {
             std::array<uint8_t, kSparkMaxRows> rows{};
@@ -1146,17 +1263,7 @@ static DWORD SparkPollThreadProcImpl()
                     continue;
 
                 rowOk = true;
-                bool rowChanged = false;
-                for (int col = 0; col < kSparkColsPerRow; ++col)
-                {
-                    uint8_t hid = g_sparkRowColToHid[(size_t)row * kSparkColsPerRow + (size_t)col].load(std::memory_order_relaxed);
-                    if (hid == 0)
-                        continue;
-                    uint16_t milli = SparkNormalizeRouteToMilli(hid, routes[(size_t)row][(size_t)col]);
-                    uint16_t previous = g_sparkAnalogMilli[hid].exchange(milli, std::memory_order_relaxed);
-                    if (previous != milli)
-                        rowChanged = true;
-                }
+                const bool rowChanged = SparkCommitRouteRow(row, routes[(size_t)row], nowRouteMs, rowCount);
                 if (rowChanged)
                 {
                     g_sparkChangedRowSeq.fetch_add(1u, std::memory_order_relaxed);
@@ -1193,17 +1300,7 @@ static DWORD SparkPollThreadProcImpl()
 
                 rowOk = true;
                 SparkRecordRouteResult(row, true, nowRouteMs);
-                bool rowChanged = false;
-                for (int col = 0; col < kSparkColsPerRow; ++col)
-                {
-                    uint8_t hid = g_sparkRowColToHid[(size_t)row * kSparkColsPerRow + (size_t)col].load(std::memory_order_relaxed);
-                    if (hid == 0)
-                        continue;
-                    uint16_t milli = SparkNormalizeRouteToMilli(hid, route[(size_t)col]);
-                    uint16_t previous = g_sparkAnalogMilli[hid].exchange(milli, std::memory_order_relaxed);
-                    if (previous != milli)
-                        rowChanged = true;
-                }
+                const bool rowChanged = SparkCommitRouteRow(row, route, nowRouteMs, rowCount);
                 if (rowChanged)
                 {
                     g_sparkChangedRowSeq.fetch_add(1u, std::memory_order_relaxed);
@@ -1446,6 +1543,7 @@ static halljoy::lifecycle::StopResult SparkStopLocked()
     g_sparkWriteCapable.store(false, std::memory_order_release);
     g_sparkConnectedVid.store(0, std::memory_order_relaxed);
     g_sparkConnectedPid.store(0, std::memory_order_relaxed);
+    g_sparkExactInterfaceId.store(0, std::memory_order_relaxed);
     g_sparkUsagePage.store(0, std::memory_order_relaxed);
     g_sparkLastActiveLogMs.store(0, std::memory_order_relaxed);
     if (hadResources)
@@ -1634,6 +1732,8 @@ static bool SparkStart()
         (void)SparkStopLocked();
         return false;
     }
+    g_sparkExactInterfaceId.store(
+        halljoy::native_hid::FingerprintWide(path).hash, std::memory_order_relaxed);
 
     if (g_sparkWorkerExited.load(std::memory_order_acquire))
     {

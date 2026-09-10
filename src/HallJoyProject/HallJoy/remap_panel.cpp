@@ -20,6 +20,9 @@
 #pragma comment(lib, "Comctl32.lib")
 
 #include "remap_panel.h"
+#include "remap_hint_motion.h"
+#include "analog_key_codes.h"
+#include "key_shape_win.h"
 #include "profile_ini.h"
 #include "keyboard_ui.h"
 #include "keyboard_ui_internal.h"
@@ -46,6 +49,7 @@ static constexpr int ICON_GAP_Y = 6;
 static constexpr int ICON_COLS = 13;
 
 static constexpr UINT_PTR DRAG_ANIM_TIMER_ID = 9009;
+static constexpr UINT_PTR BIND_HINT_TIMER_ID = 9010;
 static constexpr int REMAP_ID_ADD_GAMEPAD = 1901;
 static constexpr int REMAP_ID_REMOVE_GAMEPAD_BASE = 3000;
 static constexpr int REMAP_ICON_ID_BASE = 2100;
@@ -105,7 +109,7 @@ static UINT GetAnimIntervalMs()
 
 static void InvalidateHidKey(uint16_t hid)
 {
-    if (hid == 0 || hid >= 256) return;
+    if (!halljoy::keycode::IsSupported(hid)) return;
     if (g_btnByHid[hid])
         InvalidateRect(g_btnByHid[hid], nullptr, FALSE);
 }
@@ -181,6 +185,7 @@ struct CachedGlyph
 };
 
 static std::unordered_map<uint64_t, CachedGlyph> g_iconCache;
+static constexpr size_t kIconCacheMaxEntries = 256;
 
 static uint64_t MakeIconKey(int iconIdx, int size, bool pressed, int styleVariant)
 {
@@ -214,6 +219,15 @@ static void IconCache_Clear()
     for (auto& kv : g_iconCache)
         Icon_Free(kv.second);
     g_iconCache.clear();
+}
+
+static void IconCache_EvictOneIfFull()
+{
+    if (g_iconCache.size() < kIconCacheMaxEntries)
+        return;
+    auto oldest = g_iconCache.begin();
+    Icon_Free(oldest->second);
+    g_iconCache.erase(oldest);
 }
 
 static CachedGlyph* Icon_GetOrCreate(int iconIdx, int size, bool pressed, float padRatio, int styleVariant)
@@ -255,6 +269,7 @@ static CachedGlyph* Icon_GetOrCreate(int iconIdx, int size, bool pressed, float 
     RECT rc{ 0,0,size,size };
     RemapIcons_DrawGlyphAA(cg.dc, rc, iconIdx, pressed, padRatio, styleVariant);
 
+    IconCache_EvictOneIfFull();
     auto [insIt, ok] = g_iconCache.emplace(key, cg);
     if (!ok)
     {
@@ -301,6 +316,13 @@ struct RemapPanelState
     int pressedItem = 0;
 
     bool dragging = false;
+    // Visual-only owner of the ghost while no real drag/post-animation runs.
+    bool hintActive = false;
+    ULONGLONG hintStarted = 0;
+    HWND hintKey = nullptr;
+    RECT hintKeyRect{}, hintPanelRect{};
+    POINT hintSource{}, hintTarget{};
+    BYTE hintAlpha = 255;
     BindAction dragAction{};
     int dragPadIndex = 0;
     int dragIconIdx = 0;
@@ -520,7 +542,7 @@ static void Ghost_UpdateLayered(RemapPanelState* st, int x, int y)
 {
     if (!st || !st->hGhost || !st->ghostMemDC) return;
 
-    BYTE alpha = 255;
+    BYTE alpha = st->hintActive ? st->hintAlpha : 255;
 
     HDC screen = GetDC(nullptr);
     POINT ptPos{ x, y };
@@ -1142,6 +1164,13 @@ static bool FindNearestKey(RemapPanelState* st, POINT ptScreen, int thresholdPx,
         RECT rc{};
         GetWindowRect(w, &rc);
         int d2 = DistSqPointToRect(ptScreen, rc);
+        const auto shape = KeyShape_Get(w);
+        const int notchW = shape.x, notchY = shape.y;
+        if (notchW) {
+            RECT top = rc; top.bottom = top.top + notchY;
+            RECT leg = rc; leg.left += notchW;
+            d2 = std::min(DistSqPointToRect(ptScreen, top), DistSqPointToRect(ptScreen, leg));
+        }
         if (d2 < best)
         {
             best = d2;
@@ -2051,6 +2080,111 @@ static void ApplyBindingNow(HWND hWnd, RemapPanelState* st, uint16_t newHid, boo
 }
 
 // ---------------- Icon subclass (start drag) ----------------
+static bool Remap_HasAnyBindings()
+{
+    // Query storage, not the visible layout: hidden keys and inactive pads count.
+    for (int pad = 0; pad < BINDINGS_MAX_GAMEPADS; ++pad)
+    {
+        for (int axis = 0; axis <= (int)Axis::RY; ++axis)
+        {
+            const auto binding = Bindings_GetAxisForPad(pad, (Axis)axis);
+            if (binding.minusHid || binding.plusHid) return true;
+        }
+        for (int trigger = 0; trigger <= (int)Trigger::RT; ++trigger)
+            if (Bindings_GetTriggerForPad(pad, (Trigger)trigger)) return true;
+        for (int button = 0; button <= (int)GameButton::DpadRight; ++button)
+            if (Bindings_GetButtonForPad(pad, (GameButton)button)) return true;
+    }
+    return false;
+}
+
+static void Remap_StopBindingHint(HWND panel, RemapPanelState* st)
+{
+    if (!st || !st->hintActive) return;
+    st->hintActive = false;
+    st->hintKey = nullptr;
+    KillTimer(panel, BIND_HINT_TIMER_ID);
+    Ghost_Hide(st);
+}
+
+static void Remap_TickBindingHint(HWND panel, RemapPanelState* st)
+{
+    if (!st || !st->hintActive) return;
+    RECT keyRect{}, panelRect{};
+    GetWindowRect(panel, &panelRect);
+    GetWindowRect(st->hintKey, &keyRect);
+    const ULONGLONG elapsed = GetTickCount64() - st->hintStarted;
+    const auto frame = halljoy::remap_hint::FrameAt(elapsed);
+    const HWND capture = GetCapture();
+    // Repeated preview clicks temporarily capture the mouse. They must neither
+    // cancel this sequence nor let their subsequent mouse-up restart it.
+    const bool previewCapture = capture && GetParent(capture) == st->hKeyboardHost &&
+        KeyboardUI_HasHid((uint16_t)GetWindowLongPtrW(capture, GWLP_USERDATA));
+    if (frame.finished || !IsWindowVisible(panel) || !IsWindowVisible(st->hintKey) ||
+        GetForegroundWindow() != GetAncestor(panel, GA_ROOT) || (capture && !previewCapture) ||
+        !EqualRect(&keyRect, &st->hintKeyRect) || !EqualRect(&panelRect, &st->hintPanelRect) ||
+        st->dragging || st->postMode != RemapPostAnimMode::None || Remap_HasAnyBindings())
+    {
+        Remap_StopBindingHint(panel, st);
+        return;
+    }
+    // Fade in at the real palette slot, ease to the key, hold, then fade out.
+    const float eased = frame.progress;
+    st->hintAlpha = (BYTE)(220.0f * frame.opacity);
+    Ghost_ShowFullAt(st,
+        st->hintSource.x + (st->hintTarget.x - st->hintSource.x) * eased - st->ghostW * 0.5f,
+        st->hintSource.y + (st->hintTarget.y - st->hintSource.y) * eased - st->ghostH * 0.5f);
+}
+
+void RemapPanel_ShowBindingHint(HWND panel)
+{
+    if (!panel || !IsWindowVisible(panel)) return;
+    auto* st = (RemapPanelState*)GetWindowLongPtrW(panel, GWLP_USERDATA);
+    if (!st || st->hintActive || st->dragging || st->postMode != RemapPostAnimMode::None ||
+        GetCapture() || Remap_HasAnyBindings()) return;
+    // Fixed teaching example, never an apparent assignment to the clicked key.
+    HWND key = nullptr;
+    BuildKeyCache(st);
+    for (HWND candidate : st->keyBtns)
+        if ((uint16_t)GetWindowLongPtrW(candidate, GWLP_USERDATA) == 0x1A) // HID W
+        {
+            key = candidate;
+            break;
+        }
+    if (!key) return; // Custom layouts without W have no valid demonstration.
+    RECT viewport{};
+    GetClientRect(panel, &viewport);
+    // Only demonstrate from a fully visible palette icon; never scroll the UI.
+    for (int icon = 0; icon < st->iconsPerPack * st->gamepadPacks; ++icon)
+    {
+        if (RemapIcons_Get(icon % st->iconsPerPack).action != BindAction::Axis_LY_Plus) continue;
+        RECT source = Remap_IconRectContent(panel, st, icon);
+        OffsetRect(&source, 0, -st->scrollY);
+        if (source.top < viewport.top || source.bottom > viewport.bottom ||
+            source.left < viewport.left || source.right > viewport.right - S(panel, 22)) continue;
+        st->hintSource = POINT{ (source.left + source.right) / 2, (source.top + source.bottom) / 2 };
+        ClientToScreen(panel, &st->hintSource);
+        GetWindowRect(key, &st->hintKeyRect);
+        GetWindowRect(panel, &st->hintPanelRect);
+        st->hintTarget = POINT{ (st->hintKeyRect.left + st->hintKeyRect.right) / 2,
+            (st->hintKeyRect.top + st->hintKeyRect.bottom) / 2 };
+        st->dragIconIdx = icon % st->iconsPerPack;
+        st->dragPadIndex = icon / st->iconsPerPack;
+        Ghost_EnsureCreated(st, (HINSTANCE)GetWindowLongPtrW(panel, GWLP_HINSTANCE), GetAncestor(panel, GA_ROOT));
+        if (!st->hGhost || !Ghost_EnsureSurfaceAndResetCache(st)) return;
+        st->hintActive = true;
+        st->hintKey = key;
+        st->hintStarted = GetTickCount64();
+        if (!SetTimer(panel, BIND_HINT_TIMER_ID, 16, nullptr))
+        {
+            Remap_StopBindingHint(panel, st);
+            return;
+        }
+        Remap_TickBindingHint(panel, st);
+        return;
+    }
+}
+
 static LRESULT CALLBACK IconSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, LPARAM lParam,
     UINT_PTR, DWORD_PTR dwRefData)
 {
@@ -2060,6 +2194,7 @@ static LRESULT CALLBACK IconSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, LPA
         auto* st = (RemapPanelState*)GetWindowLongPtrW(hPanel, GWLP_USERDATA);
         if (st)
         {
+            Remap_StopBindingHint(hPanel, st);
             if (st->postMode != RemapPostAnimMode::None)
                 StopAllPanelAnim_Immediate(hPanel, st);
 
@@ -2128,6 +2263,8 @@ static LRESULT CALLBACK IconSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, LPA
 static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     auto* st = (RemapPanelState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+    if (msg == WM_MOUSEWHEEL || msg == WM_VSCROLL || msg == WM_CANCELMODE)
+        Remap_StopBindingHint(hWnd, st);
 
     switch (msg)
     {
@@ -2161,14 +2298,21 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
     }
 
     case WM_APP_REMAP_APPLY_SETTINGS:
+        Remap_StopBindingHint(hWnd, st);
         if (st) ApplyRemapSizing(hWnd, st);
         return 0;
 
     case WM_SIZE:
+        Remap_StopBindingHint(hWnd, st);
         if (st) ApplyRemapSizing(hWnd, st);
         return 0;
 
+    case WM_SHOWWINDOW:
+        if (!wParam) Remap_StopBindingHint(hWnd, st);
+        break;
+
     case WM_LBUTTONDOWN:
+        Remap_StopBindingHint(hWnd, st);
         if (st && !st->dragging)
         {
             POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
@@ -2378,6 +2522,11 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         return 0;
 
     case WM_TIMER:
+        if (wParam == BIND_HINT_TIMER_ID)
+        {
+            Remap_TickBindingHint(hWnd, st);
+            return 0;
+        }
         if (wParam == DRAG_ANIM_TIMER_ID && st)
         {
             PanelAnimTick(hWnd, st);
@@ -2473,6 +2622,7 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         return 0;
 
     case WM_DESTROY:
+        Remap_StopBindingHint(hWnd, st);
         KeyboardUI_SetDragHoverHid(0);
         if (st)
         {
@@ -2550,4 +2700,3 @@ HWND RemapPanel_Create(HWND hParent, HINSTANCE hInst, HWND hKeyboardHost)
 }
 
 void RemapPanel_SetSelectedHid(uint16_t) {}
-

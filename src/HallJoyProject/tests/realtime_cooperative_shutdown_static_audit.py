@@ -33,6 +33,7 @@ def main() -> int:
     realtime = (HALL / "realtime_loop.cpp").read_text(encoding="utf-8-sig")
     header = (HALL / "realtime_loop.h").read_text(encoding="utf-8-sig")
     app = (HALL / "app.cpp").read_text(encoding="utf-8-sig")
+    transaction = (HALL / "engine_runtime_transaction.h").read_text(encoding="utf-8-sig")
     main_cpp = (HALL / "main.cpp").read_text(encoding="utf-8-sig")
     runner = (ROOT.parents[1] / "tools" / "run_native_backend_checks.py").read_text(encoding="utf-8")
     simulator_runner = (ROOT.parents[1] / "tools" / "run_analog_simulator.ps1").read_text(encoding="utf-8")
@@ -56,10 +57,12 @@ def main() -> int:
             "worker owns MMCSS, timer and multimedia-period cleanup")
     require("Backend_Tick();" in thread_body,
             "realtime algorithm remains in the worker body")
-    require("realtimeStop.RestartSafe()" in app and
-            app.index("realtimeStop.RestartSafe()") < app.index("Backend_Shutdown();", app.index("realtimeStop.RestartSafe()")),
+    require("EngineRuntimeStopRealtime" in app and
+            "EngineRuntimeReleaseBackendLeases" in app and
+            transaction.index("operations.StopRealtime(nativeError)") <
+            transaction.index("operations.ReleaseBackendLeases(nativeError)"),
             "backend teardown is guarded by confirmed realtime join")
-    require("stopped.RestartSafe()" in app,
+    require("EngineRuntimeOwner_Stop()" in app and "!ownerStop.RestartSafe()" in app,
             "watchdog blocks restart after an incomplete stop")
     require("App_RequiresImmediateProcessExit()" in main_cpp and "TerminateProcess" in main_cpp,
             "poisoned process exit skips unsafe CRT teardown")

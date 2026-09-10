@@ -31,12 +31,25 @@ static std::atomic<uint32_t> g_inDzPacked{ PackDz(80, 900) };
 // Polling/UI
 static std::atomic<UINT> g_pollMs{ 1 };
 static std::atomic<UINT> g_uiRefreshMs{ 1 };
+static std::atomic<bool> g_diagnosticLogging{ false };
+bool Settings_GetDiagnosticLogging() { return g_diagnosticLogging.load(std::memory_order_relaxed); }
+void Settings_SetDiagnosticLogging(bool enabled) { g_diagnosticLogging.store(enabled, std::memory_order_relaxed); }
 static std::atomic<int> g_virtualGamepadCount{ 1 };
 static std::atomic<bool> g_virtualGamepadsEnabled{ true };
 static std::atomic<int> g_mainWinW{ 821 };
 static std::atomic<int> g_mainWinH{ 832 };
 static std::atomic<int> g_mainWinX{ std::numeric_limits<int>::min() };
 static std::atomic<int> g_mainWinY{ std::numeric_limits<int>::min() };
+static std::atomic<int> g_mainWinVersion{0}, g_mainWinDpi{0};
+static std::atomic<bool> g_mainWinMaximized{false};
+void Settings_SetMainWindowPlacementMeta(int version, int dpi, bool maximized) {
+    g_mainWinVersion.store(version == 2 ? 2 : 0);
+    g_mainWinDpi.store(dpi >= 48 && dpi <= 768 ? dpi : 0);
+    g_mainWinMaximized.store(maximized);
+}
+int Settings_GetMainWindowPlacementVersion() { return g_mainWinVersion.load(); }
+int Settings_GetMainWindowDpi() { return g_mainWinDpi.load(); }
+bool Settings_GetMainWindowMaximized() { return g_mainWinMaximized.load(); }
 
 // Global curve endpoints (Y)
 static std::atomic<int> g_globalAntiDzM{ 0 };
@@ -65,6 +78,8 @@ static std::atomic<bool> g_snappyJoystick{ false };
 static std::atomic<bool> g_lastKeyPriority{ false };
 static std::atomic<int> g_lastKeyPrioritySensitivityM{ 120 }; // 0.120 default
 static std::atomic<bool> g_blockBoundKeys{ false };
+static std::atomic<bool> g_blockKeysAllowAltTab{ true };
+static std::atomic<UINT> g_blockKeysHotkey{ 0 };
 static std::atomic<bool> g_blockMouseInput{ false };
 static std::atomic<bool> g_digitalFallbackInput{ false };
 static std::atomic<UINT> g_sparkPollMode{ SettingsSparkPollMode_MaxBurst };
@@ -333,6 +348,11 @@ void Settings_SetBlockBoundKeys(bool on)
 {
     g_blockBoundKeys.store(on, std::memory_order_release);
 }
+
+bool Settings_GetBlockKeysAllowAltTab() { return g_blockKeysAllowAltTab.load(std::memory_order_acquire); }
+void Settings_SetBlockKeysAllowAltTab(bool on) { g_blockKeysAllowAltTab.store(on, std::memory_order_release); }
+UINT Settings_GetBlockKeysHotkey() { return g_blockKeysHotkey.load(std::memory_order_acquire); }
+void Settings_SetBlockKeysHotkey(UINT chord) { g_blockKeysHotkey.store(chord, std::memory_order_release); }
 
 bool Settings_GetBlockBoundKeys()
 {

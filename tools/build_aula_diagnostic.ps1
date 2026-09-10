@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param()
+param(
+    [ValidateSet('aula-diagnostic', 'gravastar-v75-diagnostic')]
+    [string]$PackageName = 'aula-diagnostic'
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -7,14 +10,19 @@ Set-StrictMode -Version Latest
 $repo = Split-Path -Parent $PSScriptRoot
 $projectRoot = Join-Path $repo 'src\HallJoyProject'
 $project = Join-Path $projectRoot 'HallJoy\HallJoy.vcxproj'
-$compiled = Join-Path $projectRoot 'x64\AulaAggressiveTrace\HallJoy.exe'
-$package = Join-Path $repo 'build\aula-diagnostic'
-$expectedPackage = [IO.Path]::GetFullPath((Join-Path $repo 'build\aula-diagnostic')).TrimEnd('\')
+$compiled = Join-Path $projectRoot '..\..\build\bin\AulaAggressiveTrace\Release\x64\HallJoy.exe'
+$package = Join-Path $repo (Join-Path 'build\packages' $PackageName)
+$expectedPackage = [IO.Path]::GetFullPath((Join-Path $repo (Join-Path 'build\packages' $PackageName))).TrimEnd('\')
+$diagnosticLabel = if ($PackageName -eq 'gravastar-v75-diagnostic') {
+    'GravaStar Mercury V75 family'
+} else {
+    'Aula / SparkPlayJoy 6x21 family'
+}
 
 foreach ($required in @(
     $project,
-    (Join-Path $projectRoot 'runtime\universal_analog_abiv0.dll'),
-    (Join-Path $projectRoot 'runtime\universal_analog_abiv1.dll')
+    (Join-Path $projectRoot '..\..\build\runtime\universal_analog_abiv0.dll'),
+    (Join-Path $projectRoot '..\..\build\runtime\universal_analog_abiv1.dll')
 )) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
         throw "Required diagnostic input is missing: $required"
@@ -41,7 +49,7 @@ $buildExitCode = $LASTEXITCODE
 $buildOutput | Out-Host
 if ($buildExitCode -ne 0) { throw "Aula diagnostic build failed: $buildExitCode" }
 $warnings = @($buildOutput | Where-Object { [string]$_ -match ': warning (?:C|LNK)\d+:' })
-$unexpected = @($warnings | Where-Object { [string]$_ -notmatch 'warning LNK4099:.*ViGEmClient\.pdb' })
+$unexpected = @($warnings | Where-Object { [string]$_ -notmatch 'ViGEmClient\.lib\(ViGEmClient\.obj\)\s*: warning LNK4099:' })
 if ($unexpected.Count -ne 0) {
     $unexpected | ForEach-Object { Write-Host $_ -ForegroundColor Red }
     throw 'Unexpected diagnostic compiler/linker warnings were emitted.'
@@ -98,6 +106,6 @@ if (Test-Path -LiteralPath $package) {
 Copy-Item -LiteralPath $compiled -Destination (Join-Path $package 'HallJoy.exe') -Force
 
 $hash = Get-FileHash -LiteralPath (Join-Path $package 'HallJoy.exe') -Algorithm SHA256
-Write-Host "Single-file Aula diagnostic: $(Join-Path $package 'HallJoy.exe')" -ForegroundColor Green
+Write-Host "Single-file $diagnosticLabel diagnostic: $(Join-Path $package 'HallJoy.exe')" -ForegroundColor Green
 Write-Host "HallJoy.exe SHA256: $($hash.Hash)" -ForegroundColor Green
-Write-Host 'Telemetry schema: Aula diagnostic v2 (5 s health, activity/10-key/coverage/reconnect).' -ForegroundColor Green
+Write-Host 'Telemetry schema: SparkPlayJoy 6x21 diagnostic v2 (5 s health, activity/10-key/coverage/reconnect).' -ForegroundColor Green

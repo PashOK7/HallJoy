@@ -1,13 +1,7 @@
-HallJoy Madlions SafeHID V6 runtime stack
+# Document moved
 
-Embedded into HallJoyMadlionsSafeHID.exe:
-- runtime/universal_analog_abiv1.dll
-  Built from abiv1-pluswooting.sun after applying the SafeHID V6 Soup fork.
-  Extracted at runtime as HallJoyUniversalAnalogHost.dll.
+Canonical document: [BUNDLED_ANALOG_STACK.txt](../../docs/archive/source-v6/BUNDLED_ANALOG_STACK.txt).
 
-Not loaded by this executable:
-- wooting_analog_sdk.dll
-- system-installed WootingAnalogPlugins
-
-The Wooting SDK header remains in third_party only for public enum/result/type
-definitions used by the existing HallJoy backend interface.
+Moved on 2026-09-06. This redirect preserves existing references; edit the
+canonical document only. Current paths and build rules:
+[project layout](../../docs/current/PROJECT_LAYOUT.md).

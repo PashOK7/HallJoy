@@ -7,6 +7,7 @@
 #include "macros.hpp" // COUNT
 #include "MemoryRefReader.hpp"
 #include "NamedMutex.hpp"
+#include "../../halljoy_drunkdeer_maps.h"
 #if SOUP_WINDOWS
 #include "Process.hpp"
 #endif
@@ -322,7 +323,7 @@ NAMESPACE_SOUP
 	AnalogueKeyboard::AnalogueKeyboard(std::string&& name, hwHid&& hid, bool has_ctx_key)
 		: name(std::move(name)), hid(std::move(hid)), has_ctx_key(has_ctx_key)
 	{
-		memset(&madlions, 0, sizeof(madlions)); // HallJoy: zero the complete analogue-keyboard state union
+		memset(&nuphy, 0, sizeof(nuphy)); // HallJoy: zero through the largest complete analogue-keyboard state member
 	}
 
 	std::vector<AnalogueKeyboard> AnalogueKeyboard::getAll(bool include_no_permission)
@@ -795,12 +796,32 @@ NAMESPACE_SOUP
 			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
 			, 64);
 		hid.discardStaleReports();
-		hid.sendReport(std::move(buf));
+		const bool request_sent = hid.sendReport(std::move(buf));
 
-		Buffer b0 = hid.receiveReport();
-		Buffer b1 = hid.receiveReport();
-		Buffer b2 = hid.receiveReport();
-		SOUP_IF_UNLIKELY (b0.empty() || b1.empty() || b2.empty())
+		Buffer b0{};
+		Buffer b1{};
+		Buffer b2{};
+		if (request_sent)
+		{
+			b0 = hid.receiveReport();
+			b1 = hid.receiveReport();
+			b2 = hid.receiveReport();
+		}
+		const Buffer<>* chunks[3]{};
+		bool valid_frame = request_sent;
+		for (const Buffer<>* report : { &b0, &b1, &b2 })
+		{
+			if (report->size() != 64 || report->at(0) != 0x04 ||
+				report->at(1) != 0xb7 || report->at(4) >= 3 ||
+				chunks[report->at(4)] != nullptr)
+			{
+				valid_frame = false;
+				break;
+			}
+			chunks[report->at(4)] = report;
+		}
+		SOUP_IF_UNLIKELY (!valid_frame || chunks[0] == nullptr ||
+			chunks[1] == nullptr || chunks[2] == nullptr)
 		{
 			disconnected = true;
 		}
@@ -808,9 +829,10 @@ NAMESPACE_SOUP
 		{
 			Buffer combined;
 			combined.reserve((64 - 5) * 3);
-			combined.append(b0.data() + 5, b0.size() - 5);
-			combined.append(b1.data() + 5, b1.size() - 5);
-			combined.append(b2.data() + 5, b2.size() - 5);
+			for (const Buffer<>* chunk : chunks)
+			{
+				combined.append(chunk->data() + 5, 64 - 5);
+			}
 
 #define DRUNKDEER_KEY(key, row, column) { \
 constexpr auto i = (row * 21) + column; \
@@ -820,6 +842,24 @@ if (combined[i]) \
 } \
 }
 
+			const auto model = static_cast<halljoy::drunkdeer_identity::Model>(drunkdeer_model);
+			if (const auto* map = halljoy::drunkdeer_identity::TrackingMap(model))
+			{
+				for (size_t i = 0; i < map->size(); ++i)
+				{
+					const auto code = (*map)[i];
+					if (!code || !combined[i]) continue;
+					const Key key = code == 0x409 ? KEY_FN : code == 0x403 ? KEY_OEM_1
+						: hid_scancode_to_soup_key(static_cast<uint8_t>(code));
+					if (key != KEY_NONE)
+						keys.emplace_back(ActiveKey{key, static_cast<float>(combined[i]) / 40.0f});
+				}
+			}
+			else
+			{
+			// Compatibility only: preserve the previously shipped decoder if the
+			// optional identity query fails. It does NOT establish an exact model
+			// and never authorizes automatic layout selection.
 			DRUNKDEER_KEY(KEY_ESCAPE, 0, 0);
 			DRUNKDEER_KEY(KEY_F1, 0, 2);
 			DRUNKDEER_KEY(KEY_F2, 0, 3);
@@ -907,6 +947,7 @@ if (combined[i]) \
 			DRUNKDEER_KEY(KEY_ARROW_LEFT, 5, 14);
 			DRUNKDEER_KEY(KEY_ARROW_DOWN, 5, 15);
 			DRUNKDEER_KEY(KEY_ARROW_RIGHT, 5, 16);
+			}
 		}
 
 #if SOUP_WINDOWS
@@ -929,9 +970,9 @@ if (combined[i]) \
 			memset(data, 0, sizeof(data));
 			data[1] = 0xa9; // KC_HE
 			data[2] = 0x01; // AMC_GET_VERSION
-			hid.sendReport(data, sizeof(data));
-			const auto report = safeReceiveReport(hid, data[1], data[2]);
-			SOUP_IF_UNLIKELY (report.empty())
+			const bool request_sent = hid.sendReport(data, sizeof(data));
+			const auto report = request_sent ? safeReceiveReport(hid, data[1], data[2]) : Buffer<>();
+			SOUP_IF_UNLIKELY (report.size() < 3)
 			{
 				disconnected = true;
 			}
@@ -956,17 +997,20 @@ if (combined[i]) \
 			data[1] = 0xa9; // KC_HE
 			data[2] = 0x31; // AMC_GET_REALTIME_TRAVEL_ALL
 			hid.discardStaleReports();
-			hid.sendReport(data, sizeof(data));
-			Buffer b0 = safeReceiveReport(hid, data[1], data[2]);
-			Buffer b1 = safeReceiveReport(hid, data[1], data[2]);
-			Buffer b2 = safeReceiveReport(hid, data[1], data[2]);
-			Buffer b3 = safeReceiveReport(hid, data[1], data[2]);
+			const bool request_sent = hid.sendReport(data, sizeof(data));
+			Buffer b0 = request_sent ? safeReceiveReport(hid, data[1], data[2]) : Buffer<>();
+			Buffer b1 = request_sent ? safeReceiveReport(hid, data[1], data[2]) : Buffer<>();
+			Buffer b2 = request_sent ? safeReceiveReport(hid, data[1], data[2]) : Buffer<>();
+			Buffer b3 = request_sent ? safeReceiveReport(hid, data[1], data[2]) : Buffer<>();
 			/*std::cout << string::bin2hex(b0.toString(), true) << std::endl;
 			std::cout << string::bin2hex(b1.toString(), true) << std::endl;
 			std::cout << string::bin2hex(b2.toString(), true) << std::endl;
 			std::cout << string::bin2hex(b3.toString(), true) << std::endl;
 			std::cout << std::endl;*/
-			SOUP_IF_UNLIKELY (b0.empty() || b1.empty() || b2.empty() || b3.empty())
+			// The firmware ABI emits four untagged 32-byte A9/31 reports. A
+			// matching command/subcommand alone cannot make a truncated frame a
+			// valid matrix fragment; each contributes exactly 30 travel bytes.
+			SOUP_IF_UNLIKELY (b0.size() != 32 || b1.size() != 32 || b2.size() != 32 || b3.size() != 32)
 			{
 				disconnected = true;
 			}
@@ -974,10 +1018,10 @@ if (combined[i]) \
 			{
 				Buffer combined;
 				combined.reserve((32 - 2) * 4);
-				combined.append(b0.data() + 2, b0.size() - 2);
-				combined.append(b1.data() + 2, b1.size() - 2);
-				combined.append(b2.data() + 2, b2.size() - 2);
-				combined.append(b3.data() + 2, b3.size() - 2);
+				combined.append(b0.data() + 2, 32 - 2);
+				combined.append(b1.data() + 2, 32 - 2);
+				combined.append(b2.data() + 2, 32 - 2);
+				combined.append(b3.data() + 2, 32 - 2);
 				for (uint8_t i = 0; i != layout_get_size(keychron.layout); ++i)
 				{
 					/*if (combined[i] >= 5)
@@ -1029,14 +1073,15 @@ if (combined[i]) \
 					data[3] = layout_index_to_row(keychron.layout, i);
 					data[4] = layout_index_to_col(keychron.layout, i);
 					hid.discardStaleReports();
-					hid.sendReport(data, sizeof(data));
-					const auto report = safeReceiveReport(hid, data[1], data[2]);
-					SOUP_IF_UNLIKELY (report.empty())
+					const bool request_sent = hid.sendReport(data, sizeof(data));
+					const auto report = request_sent ? safeReceiveReport(hid, data[1], data[2]) : Buffer<>();
+					const auto travel_index = keychron.am_version >= 4 ? 6u : 3u;
+					SOUP_IF_UNLIKELY (report.size() <= travel_index)
 					{
 						disconnected = true;
 						break;
 					}
-					keychron.buffer[sk] = report.at(keychron.am_version >= 4 ? 6 : 3);
+					keychron.buffer[sk] = report.at(travel_index);
 
 #if SOUP_DIGITALKEYBOARD_AVAILABLE && SOUP_WINDOWS
 					if (!dkbd_okay && keychron.buffer[sk] >= 235)
@@ -1082,57 +1127,66 @@ if (combined[i]) \
 		}
 		else
 		{
-			MemoryRefReader r(report);
-			uint8_t type; r.u8(type);
-			if (type == 0xA0)
+			const auto full_scale = (hid.product_id == 0x6120 || hid.product_id == 0xFEE0)
+				? 1600u : 800u;
+			bool valid_report = true;
+			if (report[0] == 0xA0)
 			{
-				r.skip(1); // unknown, seems to be 0x10 in most cases
-				uint16_t scancode; r.u16_be(scancode);
-				uint16_t value; r.u16_be(value); // fvalue * 800
-				r.skip(2); // (u16_be) fvalue * x where x seems to depend on the maximum key travel set in NuphyIO
-
-				Key sk;
-				SOUP_IF_UNLIKELY ((scancode >> 8) != 0)
+				// A0 is an eight-byte record: type, unknown byte, BE16 scancode,
+				// BE16 travel, then a separate untrusted BE16 vendor field.
+				if (report.size() < 8)
 				{
-					switch (scancode)
-					{
-					default: sk = KEY_NONE; break;
-					case 0x100: sk = KEY_LCTRL; break;
-					case 0x200: sk = KEY_LSHIFT; break;
-					case 0x400: sk = KEY_LALT; break;
-					case 0x800: sk = KEY_LMETA; break;
-					case 0x1000: sk = KEY_RCTRL; break;
-					case 0x2000: sk = KEY_RSHIFT; break;
-					case 0x4000: sk = KEY_RALT; break;
-					case 0x8000: sk = KEY_RMETA; break; // not observed, but highly likely
-					case 0xff05: sk = KEY_FN; break;
-					}
+					valid_report = false;
 				}
 				else
 				{
-					sk = hid_scancode_to_soup_key(static_cast<uint8_t>(scancode));
-				}
+					const uint16_t scancode = static_cast<uint16_t>(report[2] << 8) | report[3];
+					const uint16_t value = static_cast<uint16_t>(report[4] << 8) | report[5];
 
-				SOUP_IF_LIKELY (sk != KEY_NONE)
-				{
-					if (hid.product_id == 0x6120 || hid.product_id == 0xFEE0) // NuPhy Air75/60 HE
+					Key sk;
+					SOUP_IF_UNLIKELY ((scancode >> 8) != 0)
 					{
-						nuphy.buffer[sk] = static_cast<uint8_t>(static_cast<float>(value) / 1600.0f * 255.0);
+						switch (scancode)
+						{
+						default: sk = KEY_NONE; break;
+						case 0x100: sk = KEY_LCTRL; break;
+						case 0x200: sk = KEY_LSHIFT; break;
+						case 0x400: sk = KEY_LALT; break;
+						case 0x800: sk = KEY_LMETA; break;
+						case 0x1000: sk = KEY_RCTRL; break;
+						case 0x2000: sk = KEY_RSHIFT; break;
+						case 0x4000: sk = KEY_RALT; break;
+						case 0x8000: sk = KEY_RMETA; break; // not observed, but highly likely
+						case 0xff05: sk = KEY_FN; break;
+						}
 					}
-					else // Others
+					else
 					{
-						nuphy.buffer[sk] = static_cast<uint8_t>(static_cast<float>(value) / 800.0f * 255.0);
+						sk = hid_scancode_to_soup_key(static_cast<uint8_t>(scancode));
 					}
-				}
+
+					if (value > full_scale)
+					{
+						valid_report = false;
+					}
+					else if (sk != KEY_NONE)
+					{
+						nuphy.buffer[sk] = value;
+					}
+					}
 			}
 
-			for (uint8_t i = 0; i != NUM_KEYS; ++i)
+			if (!valid_report)
+			{
+				disconnected = true;
+			}
+			else for (uint8_t i = 0; i != NUM_KEYS; ++i)
 			{
 				if (nuphy.buffer[i] != 0)
 				{
 					keys.emplace_back(ActiveKey{
 						static_cast<Key>(i),
-						static_cast<float>(nuphy.buffer[i]) / 255.0f
+						static_cast<float>(nuphy.buffer[i]) / static_cast<float>(full_scale)
 					});
 				}
 			}
@@ -1183,6 +1237,7 @@ if (combined[i]) \
 
 		uint8_t report[33];
 		memset(report, 0, sizeof(report));
+		madlions.consecutive_failed_reports = 0;
 		report[1] = 0x02;
 		report[2] = 0x96;
 		report[3] = 0x1C;
@@ -1243,9 +1298,11 @@ if (combined[i]) \
 #if SOUP_WINDOWS
 				halljoy_plugin_transport_error(13u); // ERROR_INVALID_DATA
 #endif
-				if (madlions.consecutive_failed_reports != 0xff)
+				const auto failure_slot = static_cast<uint8_t>(offset >> 2);
+				madlions.consecutive_failed_reports = 1;
+				if (madlions.failed_reports[failure_slot] != 0xff)
 				{
-					++madlions.consecutive_failed_reports;
+					++madlions.failed_reports[failure_slot];
 				}
 
 				for (uint8_t i = 0; i != 4; ++i)
@@ -1266,13 +1323,13 @@ if (combined[i]) \
 				// read_full_buffer returns an error and the supervisor starts a
 				// completely fresh process/handle. A single transient timeout is
 				// tolerated without interrupting gameplay.
-				if (madlions.consecutive_failed_reports >= 8)
+				if (madlions.failed_reports[failure_slot] >= 8)
 				{
 					disconnected = true;
 				}
 				break;
 			}
-			madlions.consecutive_failed_reports = 0;
+			madlions.failed_reports[static_cast<uint8_t>(offset >> 2)] = 0;
 			halljoy_plugin_checkpoint(360); // madlions_parse
 
 			for (uint8_t i = 0; i != 4; ++i)

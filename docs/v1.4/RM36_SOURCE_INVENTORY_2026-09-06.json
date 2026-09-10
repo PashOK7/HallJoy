@@ -1,0 +1,4247 @@
+{
+  "schema": 1,
+  "scope": "project translation units, resource/header entries, tools and test sources",
+  "limits": "SOURCE_GATE_COVERED is not physical keyboard, firmware, signing or release qualification",
+  "records": [
+    {
+      "path": "src/HallJoyProject/HallJoy/addressed_analog_backend.cpp",
+      "sha256": "144B7D40A5F7FFD5A3BC8F8A60018C1BA146EA17D45E7C74FC16089AFDBCA53F",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/addressed_analog_backend.h",
+      "sha256": "10275BA90505D69FE06C3BA0D7A4C44899E196B27B6AA8E28421EED0D6C74457",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/addressed_poll_scheduler.cpp",
+      "sha256": "CE66D7BA5DD068DA28D05E7C4935DEC901360879196E1C211302607906E79CCD",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/addressed_poll_scheduler.h",
+      "sha256": "971073C9C48AE3F6E08CAFDF33EE6E083322731D21D08111BC05156C7B75BA05",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/analog_host_client.cpp",
+      "sha256": "4EB54DBE9F9C651E6ED08C6A44A599D4C71A33D33B0010269F219758F316BF86",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/analog_host_client.h",
+      "sha256": "00A89389B915C6371D96CFF29B5A25EF955CA5FA7958E1683A880E5C84923FC6",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/analog_host_shared.h",
+      "sha256": "DF06AE174BAA9584498F88DE6E607759816D8072C7DAEB4C4848D2394E55F2BF",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/analog_provider_v2.cpp",
+      "sha256": "28CAFFD85FBE9947712A3811490C3C51857478A0382393FA4A20967803054546",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/analog_provider_v2.h",
+      "sha256": "0132C5D6A958C61B1B63953BFF8DA63AF4E2FAF9935E7FEE5E244824CD29432A",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/analog_simulator_backend.cpp",
+      "sha256": "F88C5CB4F107FA03787B44A3EC4D648791ABCBDD11E98048AC6D73B49569978B",
+      "reachable_build": "ordinary-excluded-opt-in",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/analog_simulator_backend.h",
+      "sha256": "F384F243FCAE4C52BEAFC314FAA1ECD8224EE3CC75156481A75948C83672E559",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/analog_simulator_model.cpp",
+      "sha256": "61811D1621F548490A73A65C76F0D8C58F87EBFB3B16CD5DD476BFA171B686B9",
+      "reachable_build": "ordinary-excluded-opt-in",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/analog_simulator_model.h",
+      "sha256": "3269525EF49BBEE462EDA8572E25D8CFE23446401FF361E40D0992C1D62A2BF1",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/app.cpp",
+      "sha256": "4ECA25A77BE0FEF56A1CB43856E55AD23B8A78B35E03FD72343E5446E72F9D04",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/app.h",
+      "sha256": "4099CD7AE7E5442F86545575EC95FE370F6E52A2F0C753D339831145250059F5",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/app_deps.cpp",
+      "sha256": "D92EB884353659B9378B09F4E4A12E38EA62A907799C8A33C155883F30E0B6B7",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/app_deps.h",
+      "sha256": "89DEDE69CC67F6E3387136401B5B56925724D351B82448BCB28254D291030AE7",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/app_paths.cpp",
+      "sha256": "2FF503B50F04F0C580065C6F4C5BC83C1B3220DD6E4EB2C88792B1400DF72704",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/app_paths.h",
+      "sha256": "8DFA614BA2FB0EF5FE633986F3BD20A9230DC833A25449709A9FD5BDAA7980D4",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_hero84he_backend.cpp",
+      "sha256": "05C37F22A5B5644C4EF8007140C40210FC4CB67709D65009AC8381A0D0723E4C",
+      "reachable_build": "ordinary-excluded-opt-in",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_hero84he_backend.h",
+      "sha256": "EAF4C8B6F94EB8C7F7485658F633AA244A9A1C4EA134D4077928CAFCEBD2E0DF",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_hero84he_diagnostic_backend.cpp",
+      "sha256": "D64A028FFC9547A984581CD0793CA6760736B78077EF7D99CA7AF5E1221CAC6E",
+      "reachable_build": "ordinary-excluded-opt-in",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_hero84he_diagnostic_backend.h",
+      "sha256": "A17C591CA1D9807F8D631F0FDEE05716904CB71DFAED448AB50B476DB722A075",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_hero84he_diagnostic_protocol.cpp",
+      "sha256": "33818EEA04E6617944D24F97D07AEB940171E078B734E697043E51C3684655B8",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_hero84he_diagnostic_protocol.h",
+      "sha256": "1263EA97F8E923987C9DE6E5214B70CBC1B1FB164C19F8A7EEBB2769FC446218",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_w669_backend.cpp",
+      "sha256": "7FABC1F957F9BBA45DC50E9A5EE9B5EA2200EA140BFBAD6DA6A6DB206FE39F50",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_w669_backend.h",
+      "sha256": "3CF2195ADF293C6DEDCF49D68546E241BD1CB4A4C599DFC711B1A51A392AEC0D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_w669_protocol.cpp",
+      "sha256": "41AB84464AF82B9BA484C708B037BC3A73FB6C93DCE403C0ABBBFFAA3CBD8C8D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_w669_protocol.h",
+      "sha256": "BA56D5164C293392F3A002E03BDA25DE09651D8124FCB780862EF9AF4A0A214D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_win60he_backend.cpp",
+      "sha256": "E0AAC81768BEF16F8C4F7E0617E94879FC22BCCF1088EB37F985B2C0978D6DCC",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_win60he_backend.h",
+      "sha256": "E3877213656B06F845A1AFE886E05A79992F2651BD3FD98AF90C21855F724D79",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_win60he_client.cpp",
+      "sha256": "E3512AD628AD15F5D2C6272855209833536B63335316F6317ED6E0AE1EB0DA51",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_win60he_client.h",
+      "sha256": "360493CE95E63F71FF2A5058FFBDD8C1FD5DA0A308BBF1F48B1720AE03DAB173",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_win60he_diagnostic_metrics.cpp",
+      "sha256": "15A37FF66ACFDCBAF11BC9FF05BD7D87A4A7E632F4FB9C2F9BDFEA0C5672AD90",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_win60he_diagnostic_metrics.h",
+      "sha256": "DE1972F0A798483169FDA0351E5BFABE582958AAA96B625A00A74D127F43CB6F",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_win60he_protocol.cpp",
+      "sha256": "AE697709D68BFF5A606AEAE1C38539E29EE92A635E3F24AD3776AD32F0E027C0",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_win60he_protocol.h",
+      "sha256": "CC34775CE21FBD6BA8F550F9FCA773AE00DA008EA8A813BD6058A44E7EA4173E",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_win60he_session_policy.cpp",
+      "sha256": "2152BC78E6AF5A652D7FD17B7AAA6A5B017BB2632645B3B98AC011CE4F4413F8",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/aula_win60he_session_policy.h",
+      "sha256": "9A33C977D015AEBEB3948CAFC662B70300AD2B1F056EC077E87A6CA489B41055",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/backend.cpp",
+      "sha256": "C805E758324D831EF9A44ED6A023CF4DF26E6BC5FD964CE8FC239FB30FF91EA8",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/backend.h",
+      "sha256": "73EB5C7E9E63536F071113662BB6A8E9CC5295AC8DD52F320599DCD8837FD374",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/backend_curve.cpp",
+      "sha256": "949234039620718F931BAEB604DDFF955F7D5FD6FD13087D31EF9849536E8F38",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/backend_curve.h",
+      "sha256": "6C3721B8044ED46C47AF9AF2F17E10296D0241F5660DA2E932A5D31B743002D9",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/backend_sayo.inc",
+      "sha256": "C532522A6481179EBBABA70BF3EDAC1930A497999A33909A30374AF77B5BC478",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/backend_sparklink.inc",
+      "sha256": "327D3DF84FD6063B3330A5912F71C42B9B32F1987E247A57149B0CED9951DB69",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/binding_actions.cpp",
+      "sha256": "2B914E2A7B948E6B5160027B11C337763E8969B81A2D0FF632750C68175226D7",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/binding_actions.h",
+      "sha256": "8DEF706149E939740B55967236B868D988FEB107214A3382F5FF478EF93D3943",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/bindings.cpp",
+      "sha256": "AFA67B918339E694F24B74F08F325DC13E58B600428F1BB4F76B0A750D7043D0",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/bindings.h",
+      "sha256": "ED35072F75A40798543AB31ABE74F7828EF21DDD9519F4BD77EAF2C28B781E7D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/bounded_ini.h",
+      "sha256": "9604CB4EC0714A50CB695657EA97C7334BCAEA5FE45E7122DFC502FA46AAD05A",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/configured_xusb_builder.cpp",
+      "sha256": "13C33F190E1B9204D3DE04F43196B240ED05D03BEFE06677BE8F0186091D8357",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/configured_xusb_builder.h",
+      "sha256": "E6D2FFFDEE714066ABAF8E0C00A90B4E485DA1B5FBABD3C7B62804ADCFA77326",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/curve_clipboard.h",
+      "sha256": "A1518DA1CC77EA3A7691E55BC732D4EF1F0163E458CC8D61389D00344BCEBAEE",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/curve_math.cpp",
+      "sha256": "53FFCCE9262FCB4246D81412AC87F3107CCF9B9F13B12C2716C6F09A0A63AA7C",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/curve_math.h",
+      "sha256": "B9534D4D3CC58027F9A1E79309C46D520131D55796B3D23A5BC7BEB574252919",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/custom_page_controls.cpp",
+      "sha256": "4060D8A3FF176105E8CD1033EDCEF4CC7CBA9087D557B16622CE1582534EC88D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/custom_page_controls.h",
+      "sha256": "D93F80E58A136C7C9919B69EC5D80A2FE32D8BFDD602841C44F875AAECC1B2D1",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/custom_page_surface.cpp",
+      "sha256": "DF58FC85E55B5953BF2B7E57C3992C00BDC49FDF6DF0978FBBDBD53269F235BF",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/custom_page_surface.h",
+      "sha256": "720B1181DB475A6232D272BBF730F6C2FF9DED76C8DB8715F19A919E622E3F1E",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/debug_log.cpp",
+      "sha256": "24524C217C93AD091F51B8572AC70CAF0D31E044DDBC344F25F41D77145FA18A",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/debug_log.h",
+      "sha256": "D434EA214B287805274C0088889E20157BA0010BD1C3B326BCE4A4227AB452C2",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/dependency_guidance_policy.h",
+      "sha256": "E717F80731AE6BFABC181FBF3D9875894B1F86B396B260D9A5C790D571A1ACAF",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/drunkdeer_backend.cpp",
+      "sha256": "470634D794D1915AF5F7C3BDF98783105D70AE2DC09DC96975F4628DAE0553F4",
+      "reachable_build": "ordinary-excluded-opt-in",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/drunkdeer_backend.h",
+      "sha256": "D3701D14CE3559A34FD6DACBE7E65F566C264842835E7D1F9EFE84E4DF27675F",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/drunkdeer_catalog_layouts.h",
+      "sha256": "CD59186447B8C5F36FAE1C25EE2EA2C5D50123AF1471AA8E05DC137C42DECF8A",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/drunkdeer_protocol.cpp",
+      "sha256": "95E507D56CF556AAF4E53B46C0AD849D961444BDC18440EF9FCF94A80ABCFE5D",
+      "reachable_build": "ordinary-excluded-opt-in",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/drunkdeer_protocol.h",
+      "sha256": "B2760BC9CC082333382946333E232D1CD2CE652F94559E195979FED6D83B1063",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/embedded_analog_stack.cpp",
+      "sha256": "462CA92049846AB7F162E25AA1E485959ACD8D6B8963615A1028C62CFBC67178",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/embedded_analog_stack.h",
+      "sha256": "5AA757466B36329D3DF31C0AA6B630A5AF975F1E753DE534336FF7B6300C998A",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/embedded_vigem_installer.cpp",
+      "sha256": "832676D9613831A36EBA332A8E7A4039531B7D01E3263AE4965353D155CFC47D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/embedded_vigem_installer.h",
+      "sha256": "B191FEA48F78410D0AD0BAC6BC43280AF388D0C7A6DF526A20E8DD925D5ED5BB",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/engine_runtime_owner.cpp",
+      "sha256": "45BFE5816F6E6E418DE999367D70EB4C8087D96142CDA5D9AC4BAA55B3D71632",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/engine_runtime_owner.h",
+      "sha256": "94C4B2AE2DE5F3B7797F6FD502F94F452D6668A30150C745F1E6054C02D47B21",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/engine_runtime_transaction.h",
+      "sha256": "8783E29D0B3B2B70C9C1FA13E54F27E895EE86CB90B4B285BCA0137E16AB883D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/engine_runtime_ui_bridge.cpp",
+      "sha256": "24E22961DCFCF4C439881703D30B307EA203B2ADDFD2B0308A044AA34446EB43",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/engine_runtime_ui_bridge.h",
+      "sha256": "C93E5CA48FF7334F9B5C0FA11C12A44B7B3D275C9BA4940C187719C9B6721E08",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/factory_reset.cpp",
+      "sha256": "CD4FF814998704A3257B5FAB196620F5EB64BC2DAF2F01529D7A1D0737936612",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/factory_reset.h",
+      "sha256": "C860F437550A5A1799D6E2244E39753A3DA05354F46AD885499F914DE34C94C9",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/file_name_policy.cpp",
+      "sha256": "0117BEA7500AEFF0474024690ACE2C1CA0C9E8256311C4AA9464951580FA1AEE",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/file_name_policy.h",
+      "sha256": "C6E3E1466451EF484F631909187A2473DAF486FB29ED50C0E716BA8ED4CFC0C1",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/first_run_layout.h",
+      "sha256": "DBBEBE735114DAAE14348ADD5501D123C0C0872C0E604DF2A6C46A7B8C8833C5",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/framework.h",
+      "sha256": "325BBF4FBDDD2DAAF5110D091481E76C7E5EC6E32645B08797611F0E0A3D7896",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/gamepad_render.cpp",
+      "sha256": "51042D8D69B8CAC443B392BE6EDA99B80199C507218D7124BF3BE89F130278DF",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/gamepad_render.h",
+      "sha256": "EAB73B83818C8512FD7E82332675E8FBB4D2D9DA76CE23FE03A4A0900183F2B8",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/global_profiles.cpp",
+      "sha256": "53C359D31D464300FED6FC216AC9A7C66B7E7112C65A79DB6230D4ADB6D78AC6",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/global_profiles.h",
+      "sha256": "EE659050E1B5612FBD4E88F0974E576728F19BCBB65EEEA359C184E28F662EFC",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/HallJoy.h",
+      "sha256": "005051C1E7E6305D567E92B02A84A198201D3479F924B9FF9F49410B67664231",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/HallJoy.rc",
+      "sha256": "0AF3AC34F1BF6C19E24ADE1C3BEB257829A7235F705CFBABBED3E7F8AC516EA2",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/hex80_backend.cpp",
+      "sha256": "D8966E2698412F87F7D9ABCF3407712E197E29793A887C3201F56938419697E7",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/hex80_backend.h",
+      "sha256": "336AE4348558B3D3ECFD4C824B7E4F1ECFADC5F44E7D66FD94E72F876807FA25",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/hex80_protocol.cpp",
+      "sha256": "3C756F032A875C6A04B7E5D8B2DC1D179CE7959B7682565F8997021B9288E3EF",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/hex80_protocol.h",
+      "sha256": "BD3828CD58BE9134EDDC4DD1FABBFB5C07ED6AE7A604B6E0695B34DB00886729",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/hid_io_operation.h",
+      "sha256": "B6187F7F6BA22EA8BA4AC1D59C205BD639B775CB5474F799D98A40F3BF671C83",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/imported_layouts.h",
+      "sha256": "ABFEEEBAD98243851DFE7939C2BF4D636E1520DFDD2BBB3A731CFBC09934E347",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/ini_util.cpp",
+      "sha256": "6546414D8AC0C71A91F7B919BD8F59162A36E089B5E8CA8A7F1049332D4A5D11",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/ini_util.h",
+      "sha256": "BA5C6507F91AA97115D8A24815651990F71FB996643671C80A84770864FB3303",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/instance_guard.cpp",
+      "sha256": "F31CE2F8842C9F9A5809014B772F7E75FDBCEA2391E5FB4255A5C709CFC50894",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/instance_guard.h",
+      "sha256": "C7659ACC9E8437C3EE6B8A4B5DDA7D80E5595D8ED533604C6DFC0ACA4E1E9CF4",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/irok_nd75_backend.cpp",
+      "sha256": "2B07D565E6716AD0D3C661D9956183791262E6FA3FF84E97B097A3524E9F27CD",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/irok_nd75_backend.h",
+      "sha256": "810769BEED5DC100A9E11149A3426547D7D288438FBE75700E3ECCDFF7853312",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/irok_nd75_protocol.cpp",
+      "sha256": "9630342FAE90F0A80699A6CF1DB5ABEAADB6D5EA3F31689720117D9D07F2141B",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/irok_nd75_protocol.h",
+      "sha256": "7C5ED0A25017EB017F17B593EE1F9F7C91EE7B39E76A66885AFAE42ACD981289",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/key_settings.cpp",
+      "sha256": "4BA21B85AD3287FBCD713627EA215A454C756832F24C531486A4CE96203EDCC8",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/key_settings.h",
+      "sha256": "9DDD1A8DBB9681F64ACF9F85759267CD4DB0D13134E0BEC161DBF0070ADC51F0",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/key_shape_win.h",
+      "sha256": "E455F188C6C6DC9FDF94BF66FD4DD5C6E7AF3FE216F85744776FECEA38884C7B",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_bind_panel.cpp",
+      "sha256": "C4A81FDB1F3293788E3F504EB3CDE987DF0844253D8A36D9AD1911ABEF49F306",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_bind_panel.h",
+      "sha256": "587B73120E31E59D80C62CFE62FF1D903F76CF054CE33BC549B48BC6244D9E69",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_keysettings_panel.cpp",
+      "sha256": "B611C1243D95D7F302BFBBD8E4C67B02C102FEC27205B781B3863ED2C3CFBC55",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_keysettings_panel.h",
+      "sha256": "F91BEF84F5113F11D65A0DDCBD4549C13B6F05B47EFD5ABEC5FCFE59E93D1882",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_keysettings_panel_graph.cpp",
+      "sha256": "AD01F4CC23BE692A717AA98D6A5237E362BA0372DD71DC64C1EA02BF61D7A28C",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_keysettings_panel_internal.h",
+      "sha256": "C52817A9E43DCD5F31DE91131A5D94304EAEEE842FC33EB667A9A99D0EBDABC5",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_keysettings_panel_logic.cpp",
+      "sha256": "BA9EE7D8FC6A1309E9C0622A3A4A760A07CCCC1F33BC2D68639EE4270490C72D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_keysettings_panel_style.cpp",
+      "sha256": "5D2E8FF2D719EAE59E321609C2A1C49F30BE94DE08C32EA20E02BD61DC26E004",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_layout.cpp",
+      "sha256": "8F607CB3830DE50AB8361A890B23BFD87719584E6D6B7AC674DB793844D8F2E8",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_layout.h",
+      "sha256": "938A9F33BC64C16A5F96BD3406280B31E8BE48DF12E49AB623EE6F8E417CEF93",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_page_main.cpp",
+      "sha256": "3065A6423F4AF6B83D5BFED7BD10266D34C3B67F9B5F7C45F7F1E07F293464E8",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_profiles.cpp",
+      "sha256": "91AF4DEAEF2DDDE9F0829D58C183FA52068D331D8F7AA0ADD9F73F835C6466D0",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_profiles.h",
+      "sha256": "C78D8F3F6E4A1DF01ED69806414A96390AA37AFD52F007BC409FCF8EB8A88931",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_render.cpp",
+      "sha256": "34A071B0E9AC6309EEDCBEA4BAAE1BFE759897462020B06D7330A687219BB167",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_render.h",
+      "sha256": "5E5793A3B5A2737D9F737E30E21AB70004E9EF335EDEA0296EEE8AFB48E03D3A",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_subpages.cpp",
+      "sha256": "22EA475AE2584923508D04D499C896D01435287828055B098A7A8EC3EF2223EB",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_support_status.cpp",
+      "sha256": "2D080D5CAF35FCF3ECFCB72EABCFCD3F1473ABE48D2C7EB87B074F2B1F253FBC",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_ui.cpp",
+      "sha256": "38E9DAB85633FA44F33CF6A4AD7F877C9DA4B658A307DC811079810C7EA94C74",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_ui.h",
+      "sha256": "410A8DD8BE4BBFF9E7C61DC64DF8BA9C94C18D89BFCEB41799EBC95768D4BE6B",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_ui_internal.h",
+      "sha256": "C243D673605C34A0EA321A8692D28101B11FD8B67DFF3F132D0872B88476F689",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keyboard_ui_state.h",
+      "sha256": "EC0EC332F289A72F33317B0E85AEAFE082A0BB42D0D683534A4ADE3189F22DDF",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keychron_catalog_layouts.h",
+      "sha256": "D5B906D67650CEDE404E26E904612CC8B493273707FD6872457EA34173F3919D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keychron_catalog_presets.h",
+      "sha256": "08F19B3E4195A3644829C6262AECF67C48B8E6645C242EAB099D146896CD9815",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/keychron_layout_identities.h",
+      "sha256": "C4D5AF53100BF67803DC07DA9197F31DE12E346FA201DA427314818BAD46BF58",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/latest_value_mailbox.h",
+      "sha256": "2F3063DEAAF9C746081DBB8258B2982C4D90137823BDE6B0DC6CC54ECB12CBB3",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/layout_editor_model.h",
+      "sha256": "8B583B52DE4379BB52F0675E323AE908530D354F5DADF1200D3A8043551A95AC",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/layout_picker.h",
+      "sha256": "9A48A4ADC347758C00DC48D68C33EA6E25614C85FAFA2DE7528BE20D5BB17767",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/layout_sort.h",
+      "sha256": "1B983E92C5D0C8B821EFD7A4D6DD9836ED4E63B8983783AB385F16E33E55832E",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/lemokey_catalog_layouts.h",
+      "sha256": "EE2C80AE691F0A21638755FB1820CD22BF785F5C3DAD0AB53DE37A8EE20530B2",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mad68pr_backend.cpp",
+      "sha256": "65E2C91C0C5A01E953BAAA1621646051A16AB96B92E5984789EE2CA347D4C679",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mad68pr_backend.h",
+      "sha256": "8877F12794E2CF830AC8CBDA4508556BA94F7CDA55ECBA55E10DFCA1DD4896FF",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mad68pr_protocol.cpp",
+      "sha256": "11FA0B8EF349350AF131C9ECBF2861E1766551F705B285B886F6EEE4E3DFC7EC",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mad68pr_protocol.h",
+      "sha256": "0557F34DF8A97E770FD9CBB5A239748B907530EAB4AFB947A22B2E4D9E5E6FF7",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/main.cpp",
+      "sha256": "741BCB71A7E606E46FBB8D494BE9FB1ED4AFE2D1801644539B93BF5A43C564D8",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/main_keyboard_input.h",
+      "sha256": "25D8ADDEE668F8ED7E7D72780B9177F6CC0430FEF2BBB89C7D23E0DA4C6FDC29",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mchose_ace68_diagnostic_backend.cpp",
+      "sha256": "22F21FB78931A3C29F0B186CE247A6F5B948A3622ABBD46F0667B914BA130B45",
+      "reachable_build": "ordinary-excluded-opt-in",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mchose_ace68_diagnostic_backend.h",
+      "sha256": "E30412A2C96EB99D07B54AE2594C657F48A1E39DEE2E34AECB93AB30ED5EECB8",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/monotonic_time.h",
+      "sha256": "DB06E5A2AF6D6E186264536381EFB920E43BD02E2690F4008696856B24709059",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mouse_ipc.cpp",
+      "sha256": "C5103C7A24A902832E2BA33EBB411D6BF0FDCAA5D55AF4D6190F2590FF80B103",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/mouse_ipc.h",
+      "sha256": "5ABC61E084F08C2906DCC3438F1D5218FEB63A5D47F1BF80E0530B0DBB59FD04",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_backend.h",
+      "sha256": "6381F25629DDAB2E5EF51FD78CFC96D5EDC79F335BFA9CF85B71E9944A47E939",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_backend_registry.cpp",
+      "sha256": "C1559B0B0C2A581479F570176F022A3123658B77CBDC6710E9DB8C1245BB6CE8",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_backend_registry.h",
+      "sha256": "65326A0C90AEA0BB8310343F877FB76529C0BAD77B98F31BA275529CB18FC398",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_backends.def",
+      "sha256": "E14A1EF1FAE889C3248737616C83AF837642E13D3DA95F12B97EAA66AADB9D87",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_routing.cpp",
+      "sha256": "50CB13649D10C931724B3F3B6568FDD759C685AAA90D80277EDF9A8B64B6BFB3",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_routing.h",
+      "sha256": "939A9B8C2EBC6F65A98935692AB433AFD3D593B2FDA638EAF949CFA59610771C",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_snapshot_adapter.cpp",
+      "sha256": "C6CB5167D339E224E45B4BB783FB36462BA6B3C41DF894E20AE43D3DA33DCBBA",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_analog_snapshot_adapter.h",
+      "sha256": "6BF47D72E1FBAB0511372FFCD3A70E8F0AD625F4F699EACA48BF5F7C6D23B4A3",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/native_backend_lifecycle_registry.h",
+      "sha256": "883888E46CE60C0B34C1AA98E26A45A1F6AE10F9A85D6F9578C7A53463816576",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/overlay_server.cpp",
+      "sha256": "6E7AC55EF394C035D0EB88EC15D62E93D0FC3174BD5BA3E944F2971F0BFF5398",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/overlay_server.h",
+      "sha256": "16B19F326ABF3251BBE010BE73185B44B7F651ACA30F8864E9F1A84478EA1EDB",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/overlay_text_edit.h",
+      "sha256": "A404ED58CB3B5A4F384DE40B36E3AC9BFCCA1ABCE26239E58506EB3CEFBB299C",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/premium_combo.h",
+      "sha256": "CE97BAEF6A4B475DA5D11B716CBCD3F92949F4E0795E6F143AE060E6D00E1788",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/premium_combo_anim.cpp",
+      "sha256": "872E7D066F6666ECA5183738FEAB44354E482C20ED3243336E0A172F866AB0D6",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/premium_combo_core.cpp",
+      "sha256": "1D927FE303EEA7E5751DF69D795DF17A0280C92A139E7B54E48FF090AD3FF263",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/premium_combo_internal.h",
+      "sha256": "BD8CDEE800555729E7D591DF48FD1819F63B22CF4D08C13F7E2A74F5BF8752FE",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/premium_combo_logic.cpp",
+      "sha256": "01811C1119B51DDF336537A75275DD825F8127047CCB097B205720D4F4A8922D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/premium_combo_paint.cpp",
+      "sha256": "CDD4A2E2A645BF071A6C5742D9890CD33BFFF605C82EB8371CF614761D60BCB8",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/process_generation_supervisor.cpp",
+      "sha256": "A5BFCB3EE2BD86FCBF6A439D8A9FB83DE4A3E43B9ABE0E31B79F3FB320A275AD",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/process_generation_supervisor.h",
+      "sha256": "271C72961073D3C7E082D024F3B101F466451414CFCE7E23F5A2C2E38C3F428E",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/profile_ini.cpp",
+      "sha256": "22BBD15591447D729C58F6E1B2704E0F11D38DF58ED1805FA4578F0BAA89BAFB",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/profile_ini.h",
+      "sha256": "E91617622C914E3E4F5D941E6CE58B1D169457C446807BC44EEB9BE018804486",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/profile_runtime_gate.h",
+      "sha256": "271CD2F1B86A4495754F6D4F3CA8DEF4056169AF12DF553D57D3C31308B85456",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/protected_native_handle.h",
+      "sha256": "B083DC5A59E2B3810879513C4E9534BB3257EEC2F084867190168A296041F41F",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/provider_v2_controller_shadow.cpp",
+      "sha256": "0BE904AD9BDC9D583E377E6B7B8366F32CBDD1B78B185C1DC1D73F31B7008EC3",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/provider_v2_controller_shadow.h",
+      "sha256": "F2CCAE1DCF5424DBDA44A4A1769E9CA5D18D7AFB55E2FA115EB14549F0B16687",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/provider_v2_data_plane_layout.cpp",
+      "sha256": "351850611E9F38E366475FE30F20529F0B0C99944F1CA31CC4576E54740975A1",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/provider_v2_data_plane_layout.h",
+      "sha256": "1EC83F2E17BFB704DFF7D74A1F697ED32D68F29B2D3F7F44D7C4BC44E5F19DD5",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/provider_v2_data_plane_windows.cpp",
+      "sha256": "EE62E310928EB2B16942F178410D422FE7DD6B35B6D0CE07FA4F6BF5A5849FDE",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/provider_v2_data_plane_windows.h",
+      "sha256": "872331A4E6208984BA21118D5C0F4C66AE9D92FC479C233D39764B53F2DB2C30",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/provider_v2_qualification_model.cpp",
+      "sha256": "5FC40132B44D1676BC10DFC7377D710D802E67DB3CA92FB927B8CD51F1163BD6",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/provider_v2_qualification_model.h",
+      "sha256": "A2C5CC123C6544F75A3E5619D54665944D7143F26289E6FA0FEFE32BCDE511CF",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/provider_v2_qualification_report.cpp",
+      "sha256": "C009153A68D41EDDD21AA91D197048AAA2E88900F8487CEC93FBEEDD22C3549B",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/provider_v2_qualification_report.h",
+      "sha256": "81F39FD4A1EA80D1950E2E030521E3DFF8BD018D01F55E061BBB64BCE74B7B4E",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/provider_v2_snapshot_broker.cpp",
+      "sha256": "689B163B92DD58A06AAF288F35009B2D57220428F5785153310091BD50F60E2B",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/provider_v2_snapshot_broker.h",
+      "sha256": "0FA6D6FDDBE4841DE95F887FFEA0D2275342B69254F7A0E8F8E6362F5F298656",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/raw_input_packet_size.h",
+      "sha256": "0F47F18B116CE84CCCE21226A1CAB05F725DC95F3B8EE3224939295A961A5FA0",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/realtime_loop.cpp",
+      "sha256": "7CA3C0CE40A1D6D8037DFD0FDFBBF0C1402DD4244D0DEFB5021F001C747491B9",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/realtime_loop.h",
+      "sha256": "43E72C39D99B743974E9FF79963E3C8221E9A684D0905C41DC571F3A46A0404D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_abxy.cpp",
+      "sha256": "E1090A6C6905EBA1F90CAB7011C0A80B2F95A812362D86EF1E75E6D4D9D89DFC",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_abxy.h",
+      "sha256": "972E55E44E076C5F374A7076E78A97CD8368F6A275F397CA6CD3090E1798AFBF",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_bumpers.cpp",
+      "sha256": "00DE2C1B30310AEC8F4E60BAF51787248B2572A30DABE65C8E41E899D1812A10",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_bumpers.h",
+      "sha256": "28C93328BA21BEFDF4F6F03BAC1C9476D7C6CF276CD6D66CB7ED1E67C59972B1",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_dpad.cpp",
+      "sha256": "14BD222F672648E09F3A8CA36DAB5ACFDA741C8FBABBD18CCF7ED63BB605E77A",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_dpad.h",
+      "sha256": "D54C0D37E8BAB9DF73304AA1B2E34972444EE2035727D7EEAFD1E066F3CA11A4",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_guide.cpp",
+      "sha256": "2AD57F8715E152F22973EAB4E819F8CF13DA085B485116D385BD73F42B91D2A6",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_guide.h",
+      "sha256": "DA96819C7F18B9582777BA3AFDE96EF0AB2E28BD9479C08B57CA789B7F68C68C",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_hint_motion.h",
+      "sha256": "47D139606C68BC3DC0DD3641DF733D446087B818E4AECD8AF16547E94000ADC8",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_icons.cpp",
+      "sha256": "98780EC92EC390B9E2D9E28A410E2FCB37A653CE896D3F3C33EABED7231666FA",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_icons.h",
+      "sha256": "8CE4D1A37286CA0446AA90B91DE0A4E3E0C3B0085F7F50FBF9369278F3CF4517",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_panel.cpp",
+      "sha256": "6BFD4B8D758D6C40A66864D0146E1A49FD075E2873369F73BC6212779FE7BABE",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_panel.h",
+      "sha256": "6C4CD9800F0FD18344DE245F39001EBA15FFC006C2F61581498446AA2FEABEB4",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_startselect.cpp",
+      "sha256": "8F9EAC1E62688E9A8F71ED228E912363920FA48EE58E941551CC5BBA646EC469",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_startselect.h",
+      "sha256": "1A5CE3457624325564289C5FEB8CEE2B063B60273A84A211990C492B6197F8E9",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_sticks.cpp",
+      "sha256": "A06A999F61F1D76579C522115AE396F4FE5FD3705853B276EE5ACDCB3B8DB58B",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_sticks.h",
+      "sha256": "A480D4E7C2307A1D9ED6B160A2E5B3A5EA7AF81B43136C46D749AFB5C1A4AB2D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_triggers.cpp",
+      "sha256": "7BAD83636DD24B3D16A3201B61DBBAE2CFB0C6C6DB0BEEB103C9372E3B797958",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/remap_triggers.h",
+      "sha256": "4F011303947B2DFBE15F5671E3D13B7A06F7817CD71402653A31E4409064038C",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/Resource.h",
+      "sha256": "739249F5013EE06546C565B478DFBA1BB9A6D886E01C190A2BB03D942DCF20CE",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/rog_azoth96he_diagnostic_backend.cpp",
+      "sha256": "35F3017B6699E27D3FEA41DFFD054BA3BA7365D16F5E209F004D725B6CC54AB1",
+      "reachable_build": "ordinary-excluded-opt-in",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/rog_azoth96he_diagnostic_backend.h",
+      "sha256": "2C342237F60B0A7523D07AF2B2F3539369622A1EF5B20260F731714CAEA91F49",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/runtime_command_state.h",
+      "sha256": "DCBAD759DB03844283196073F16C9469018D8CF754F8D733C2C67F4C77A079FD",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/runtime_supervisor.cpp",
+      "sha256": "BD93AA004ABE2174220AF0AF33E100CE55CBF80BEFAB0880FE24AF703C2E0037",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/runtime_supervisor.h",
+      "sha256": "93A8850BF7DAF27989F07B1C36890FE0DB8F94512D1BE7967774FCF950EF0D48",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/saturating_int.h",
+      "sha256": "9381FE1338950B39BBD88733185CEA8527278F9AE76CB63FAA47EAD3C8E46C82",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/sayo_letter_matcher.h",
+      "sha256": "3FE8C8F01F05D1C0475A3824BD76B1B55A58102B4CD05B9BC1932D36F5165932",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/settings.cpp",
+      "sha256": "D6860A6618F0BBD44F428C1EE246D54B24F8AC648A368517452EB263FD41D7AE",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/settings.h",
+      "sha256": "F99A95BABCB872901D05C0116E6D3B56A5705BA32C8CFEE0A9117C45ED54FEDB",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/settings_ini.cpp",
+      "sha256": "33BFBD7FC251A28713730C9238413E6D9FCD40F0C49AC574ADBD612CCD6982FB",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/settings_ini.h",
+      "sha256": "6E9CE42AF9FD089CDD658B509BCD0CF2A2325895624C08D5E62898413BBFF72E",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/sparklink_hotplug_age.h",
+      "sha256": "5CE631B765C233B33CF7366BEAB19249A1D40AEBFD5C981489C2E6B092905933",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/sparklink_row_freshness.h",
+      "sha256": "A1BC9B0EF3584F04350F9C4E1C3FA8497A30CB08C4DE291C1565BE28BD4AE17D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/stability_trace.cpp",
+      "sha256": "4964B68593B4F00E47C7354D811DDF574C6996700AA3DA2DEF4DA062579E72F6",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/stability_trace.h",
+      "sha256": "2F7B5C7FB3503C3B9C11DC022BF76EA7CD2305583FEDAC199BABE45B47E608AF",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/support_log.cpp",
+      "sha256": "9D6A23C923044CE678FEAC54D8FA4DAA9DA9BE977B80AB0CA3A291CE7A11FAE6",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/tab_dark.h",
+      "sha256": "F9B780C3646F43E18D16A9DB2A2463E18FC7B0285E4C75C3CE7ADC4157967109",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/targetver.h",
+      "sha256": "A81336C05E2659E95984B2B3B4FE64A689F2F966467257284E11C3C6A2B121F1",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/titan68_turbo_diagnostic_backend.cpp",
+      "sha256": "53C6336AEAE1C630F8C6AFB446D3BA1F4E491AAD956492F5D548F7BB020F09F2",
+      "reachable_build": "ordinary-excluded-opt-in",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/transactional_file_store.h",
+      "sha256": "5F2F4926339CBCB97A5300C50BD22E5EFF6BA88DDAE4EFD803B45FDE05D177ED",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/uap_parent_snapshot.cpp",
+      "sha256": "BF99FC34C2767D5DCD212DAFF0441E40EA3197B9CDF7CD9853EA63A8A1682BA0",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/uap_parent_snapshot.h",
+      "sha256": "83419FE74B31DA31ED67FD365E3A38FC9A8D17EBB333B2F6D86A33361DB23C33",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/ui_paint_audit.h",
+      "sha256": "D45C2C0985C4CAF84E083613033F656B86D2B3FD577D3F924CB228AB1CDB060B",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/ui_theme.cpp",
+      "sha256": "D2A5630A00251D603F43C6C2596A3675E24826B2ED9F7F742578337C70971E01",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/ui_theme.h",
+      "sha256": "B7C11EE35D01288B3BEDC05D7394198069C68A3C4CE500D128635CC9CAE5D013",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/version.h",
+      "sha256": "8FAD9199AB6D5E306DD7EE8372D04E5BBFE5E0867B518AA8323C37A159128853",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_child_transport.cpp",
+      "sha256": "6AB79D3818C96F2F5C9AEDAB4C23BEE857E021D4F77D2F38D9A6D71B34F77F07",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_child_transport.h",
+      "sha256": "7FB15F03763CFFC5BB4B1E0D0A79A25A7E27AB798478182D8B8B702E916AFEBE",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_channel.cpp",
+      "sha256": "2BD80FB7DEED2DAD9677C4A305BE842189AF89B42D9F51D0B9D8EBDF01C039CB",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_channel.h",
+      "sha256": "33365AC3FB26F954E4FF022623365C4FCFFFB23551484C63A386E1617EEE6640",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_process_client.cpp",
+      "sha256": "31D9E57C840C66E9E87AA7E6C783C52728536A9A08533600C8F7CE096C113363",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_process_client.h",
+      "sha256": "A9BAD40F1846E2ADC0D8912282EF6DBDEC956FFD159949C95D673D8602F98E9F",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_process_host.cpp",
+      "sha256": "3504E60281E4DA8A27EA102BA0A493D967C17EBF628B599CB66FB606868396BB",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_process_host.h",
+      "sha256": "A36A4EF91A465A6A886DA326FD2D72765C0AE33F319DFB7D71D026ABE94B5A5B",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_process_protocol.h",
+      "sha256": "0A6A4D887217B66F4DC02FCDF720E3AA4CFA609875109C6D60444BBA5BDE46AB",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_producer_lease.h",
+      "sha256": "35CF64478DC16A74AAA37C34981DCB43F3F141C2BC966331ADA37192D0ADFD85",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_runtime.cpp",
+      "sha256": "5A9B230939E6F9AE74CDBFE74B4363006822FC90CAAAD9879DCBAB89F2EBDB2E",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_runtime.h",
+      "sha256": "A4730643502724843A5556CE4CB55FB3B6FDD3E35914BA770A17F1174D0BC916",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_scheduler.h",
+      "sha256": "C744D38F58F2279D3BCF769C41A6B70D7BE30FAF48C728F57658C98EA6AC6E4D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_self_host_test.cpp",
+      "sha256": "4AC2CE8EFBE9FB477A314A64606ACDD2E1105C9E5870668D012BBF1FDAE0FEDE",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_self_host_test.h",
+      "sha256": "F0E72577AD9BC14140542F8BD9243A9D6C321D82D395C3D618D3DA497A98DBFF",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/vigem_output_shared.h",
+      "sha256": "DD0D20F9DBBEC4B9D9180CB5692E87805F4FD5EAD00CB6412276788484B3CA12",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/virtual_controller_frame.h",
+      "sha256": "0F5FE44CF2444D35761AA349DA5067F358CA66E528B9B02EA18280812B089D71",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/win_util.cpp",
+      "sha256": "6C787917A1F288B073AC22A4026DD752F1E967D95961AC4F1B3F1B39B0B88AA2",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/win_util.h",
+      "sha256": "DBC2FF3EAB6AF90722F13F945AE31461C30068B852BC23FB6225E3FC57223C2D",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/window_placement_policy.h",
+      "sha256": "142ABDBA5CFB4A0C114C217741DA8D4B8A5F554EBEDD391E808BD89F8CFF6219",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/window_placement_windows.h",
+      "sha256": "8817AD71ADF16DB1DB3999331326695338F5A0FF447BA841E3B130848FC5FA90",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/windows_command_line.h",
+      "sha256": "D531A212867153ED8AD158E8C6071E5AE507D20C636DF69A577EFEA57828067F",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/worker_exception_barrier.h",
+      "sha256": "291977752F51CA054A3021B7EA7493C0D02A3A51931E739C266B7916DD9DB6AE",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/worker_join_policy.h",
+      "sha256": "6EAD031C095F7BA037269D8E19E2CC8A57B459706FECF92C3161C80CA51B46C8",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/worker_lifecycle.h",
+      "sha256": "04E80CAB20D0558295DB4342E4FA623A0794184F850BEDE1250EB163073C44E1",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/worker_primitives.h",
+      "sha256": "4427D3CBEA9E08DFB03F106E4ADF774CABA8A5F622AA24A5BB0B4324AE7BCF19",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/xusb_output_adapter.cpp",
+      "sha256": "DC8580653F4C8A720BCC277EAC4FE097D541717426840AAB8DA93DA3AE686343",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/HallJoy/xusb_output_adapter.h",
+      "sha256": "BD9C402982DF3D70E19FB57791B63856CE472AAA434DAAB60DCF38670395775E",
+      "reachable_build": "ordinary-compiled",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/addressed_exception_boundary_static_audit.py",
+      "sha256": "0554E4C482219DF71C8D2CCDF33190199A50967774172AB6E9D52A14ECD32BBC",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/addressed_poll_scheduler_test.cpp",
+      "sha256": "6CCA542C29AC44BD305008105773D9D64E698950443F76BF8CA52FBE19F9D3A0",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/analog_host_generation_static_audit.py",
+      "sha256": "09DFE60828C554E5B837BD9C68B6D5ED23BAF4C5D173B1C1DB0A4853904D6DBB",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/analog_host_ipc_static_audit.py",
+      "sha256": "2AE24594C483E90126F8D15A2364E8568DCB2050A15205CA0410F31436A76EF2",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/analog_provider_v2_static_audit.py",
+      "sha256": "B36B34D5BCBC0432B9026D8F4002D6BF84F37580C2A7187F00B0D30EC0EC05B0",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/analog_provider_v2_test.cpp",
+      "sha256": "6F531FA1609F968A980F02DECE7E11D746CF84F2D64B1CFE5CD98A2B67033B93",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/analog_simulator_model_test.cpp",
+      "sha256": "E9633D05138CB043E275CC735888D85AA9E873B8086B6F86BEA496E9865CC1D3",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/analog_simulator_static_audit.py",
+      "sha256": "C53DE93A3D202AC982821FFE82809D49DAEE341A9D42C855594CC3A9A8A8E551",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/aula_hero84he_backend_static_audit.py",
+      "sha256": "E20AB678C816F6EA8CB64CAD24F98AFE81F27DBD6340899B8140A5BD4C6ADE7D",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/aula_hero84he_diagnostic_protocol_test.cpp",
+      "sha256": "355885A38150881885BCA75F983CFA468445093267D0458193EF1AA134B5245E",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/aula_hero84he_diagnostic_static_audit.py",
+      "sha256": "AA0120AB07A12F9E7E7C6157DC184C9EBEF9C42573A1BBC4B5A88B4D2BCB1732",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/aula_w669_backend_static_audit.py",
+      "sha256": "486499E729E704CEC861EBF11DD93C3286E71C69C5996E4A91C65B309C5EFFA3",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/aula_w669_protocol_test.cpp",
+      "sha256": "2F27B6698A656B35F27B6B1F50CF0BB5D9D193264D09C48B88D0A3F3AD0F3319",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/aula_win60he_backend_static_audit.py",
+      "sha256": "E9CDB02F49FF3969793F6630B7CFABC85BA4BB0BC2CFC978F061387C9E6B8A81",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/aula_win60he_diagnostic_metrics_test.cpp",
+      "sha256": "696C1524D0AE0085A546002EAB361EDA638876A7762FDAB1123DD0F517048D3A",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/aula_win60he_end_to_end_test.cpp",
+      "sha256": "3756B63806E9B4528622E66B8C3AC3F7D7482E811B80EC66A08CD094A945B63D",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/aula_win60he_oracle_fixtures.h",
+      "sha256": "152384DB7948083B63872E4F2E47BE5892FDC3DC1464CB629618F2207339C5E6",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/aula_win60he_oracle_test.cpp",
+      "sha256": "D127D298362496B3FE52AEDDC402291E37794BB3EDEF33EC584B33F8B12BDAD4",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/aula_win60he_protocol_test.cpp",
+      "sha256": "0B02896F677BBE8C07F1B0E6CF556D23EAAE028DFFC35BFAD385292DC4D1CDAA",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/aula_win60he_session_policy_test.cpp",
+      "sha256": "360E8E54A425C065C3EB84F8FDD4C476529B20BF0521C4B536703259522972C3",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/block_keys_hotkey_windows_test.cpp",
+      "sha256": "AF1E26637F4C2771BBBE2CFA0F8116C932BA5DBC4699812EAFA063638A9ED60E",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/block_keys_policy_test.cpp",
+      "sha256": "EBD87ADB7AFAFB70917F0F4CC4BFD93983843AC49D8DD66B2F3D062A45E4BC2E",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/bounded_ini_numeric_static_audit.py",
+      "sha256": "D090E101D188AF9CC20E09126E343697EC3BEFC0741D4BBC0EB1C19931B55176",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/bounded_ini_numeric_test.cpp",
+      "sha256": "0445F555DB82A8024A7E09006FEAC349B74972DD80B5894C540C88FF6ACBAE48",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/build_exit_contract_static_audit.py",
+      "sha256": "4FB6ACACADD815DFA09FD4E563D1D9A5A7A88A3E0B22B0B9D67888170E70E976",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/configured_xusb_builder_static_audit.py",
+      "sha256": "6359310F07A7BDB990427017FEB138CD05CFB4C3335793C6590F751DC1C8807D",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/configured_xusb_builder_test.cpp",
+      "sha256": "1906773E08F9F4513C27AE8AB3565EF367766D9379A694AFB8D6DAC9E571B2A5",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/curve_finiteness_static_audit.py",
+      "sha256": "8346CFD4F8A40A0FD3377A9D75AAABDD0999D6C9EF3E48F3E8996338DF7D2D06",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/curve_math_test.cpp",
+      "sha256": "D677AADF0493F3100F1A7AE5C710661F722B729A8B03886AA0BC5423D219F149",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/dependency_guidance_policy_test.cpp",
+      "sha256": "FB3BAE0D413A082A2C3E0C77991404E150000C13F9FACC3AE84B60C496920887",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/dependency_installer_removal_static_audit.py",
+      "sha256": "6FD7F98B3F52A6790C2B8DCA694BACE07309B6767B5586D82E159556667CFEDD",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/dependency_lock_static_audit.py",
+      "sha256": "3371E7636430ACBF9854128CF6DB6C623529901407CF7E2A81F176DBAD0249B6",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/diagnostic_logger_static_audit.py",
+      "sha256": "8DF83E6716D00B3307F4EA906B20DDD41467A708D95229D6F1738685A7FEC4A0",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/digital_keyboard_state_test.cpp",
+      "sha256": "984D97B044992F6A73BF8270AD41665CF8712F450BC5907B634039FC4CF8D010",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/drunkdeer_diagnostic_static_audit.py",
+      "sha256": "8186A3ADD05D4FF77B8B761BDCD22B21598A7A6811720342676A1111A45F335B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/drunkdeer_identity_test.cpp",
+      "sha256": "6D293BF328659A4E58B80A1073323F12EE7CA288EEC603F57DC7E53F27E7091B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/drunkdeer_log_matrix_analyzer_audit.py",
+      "sha256": "6439F7E3A2FFE8A08602F5532CC4C79A9C9A66ED6551F35EB19CDCA9663BB044",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/drunkdeer_protocol_test.cpp",
+      "sha256": "84FCC933765FDEF51682763730C7EC1B766BC0D12CA74823B5902C7426751CA0",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/engine_runtime_notification_windows_test.cpp",
+      "sha256": "00FC8BDA88609BEF930262EA008C2D866C8FFFE8C6186216AB468DAC1D1D0BD3",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/engine_runtime_owner_static_audit.py",
+      "sha256": "8487F097A2806955693EBB92A580A06FC51189514EE42ED1F84334909351AD0C",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/engine_runtime_transaction_test.cpp",
+      "sha256": "30B291F447CD77C9C69843600BE8E7BBE193C59EA25D6274F8C55CDDC9A1ADB5",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/engine_runtime_ui_bridge_static_audit.py",
+      "sha256": "A66FF6841E91097F742D3CEC631907640DC7FFEDAA584F017E06B52C0A2AE8EC",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/exception_barrier_static_audit.py",
+      "sha256": "D7AC63863C29D3C123878F133E227F5595194345CA83A173C93D026CF6C18DD4",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/extended_key_bindings_test.cpp",
+      "sha256": "A98C62FD4BCCA682664855310E44A1000DF79DB2FBD2A7CC6C1CC66354BA4EA4",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/extended_key_code_static_audit.py",
+      "sha256": "6F2A56C46D7C20DFA1BA49995F7DA2E06424E2CBF8998AEAFC56D875ED3F6992",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/factory_reset_static_audit.py",
+      "sha256": "6F050B45C74454F443D011D2F6E1E86FD5446D78642BAAF3233249B413F15D5E",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/final_production_static_audit.py",
+      "sha256": "5FE406AAFC2B1E9C8413B690DAA84A9DEB8E312D4BBF516441E34A79859DF28A",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/hex80_cooperative_shutdown_static_audit.py",
+      "sha256": "5C58D64673EF4C87F8265401EABA0FA3A2BFF4DC5CAA144EEC374C4A39FE1D4F",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/hex80_protocol_test.cpp",
+      "sha256": "2950A6D8678C9ED5B47ADFFDD48322D36A6AB1FC458394D6AB2B03A8FF029D48",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/hex80_routing_static_audit.py",
+      "sha256": "DF43E6278A20B26D75689428F795C522E90CD5C0BC1FCF43A8009009ACC45FF8",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/hid_io_operation_lifecycle_test.cpp",
+      "sha256": "F942E31C70608DF53F24701DC0E9AC27FD72140A134A535BB6FE9D2899EE8977",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/input_pipeline_profile_static_audit.py",
+      "sha256": "05418F9DA279FF614CB97C050CC488025E8D82B652B278CC78BA23F4579E08AD",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/input_privilege_warning_test.cpp",
+      "sha256": "FF1B2E183197BC0A233F10C4C75D93EB65AA2415D9355E86D08666BF442EE6AE",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/input_wake_sequence_test.cpp",
+      "sha256": "58C576BB40A89FB28F114638CDE586054AA88F714C80BB21A2B363E967A6488B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/instance_guard_static_audit.py",
+      "sha256": "A95D509FBECA32C9BE69B28BAF0823BDFDA08ABA2B83822B8F4A558BCBA9B943",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/instance_guard_windows_test.cpp",
+      "sha256": "FB8BE63A68E3D6F0CFEEF9B75C193588CB03264AC93872FBE481D50D50958863",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/irok_nd75_backend_static_audit.py",
+      "sha256": "42B4803F8119CAA7B000C582B32A4292A8C13DC824551D328A7605964E1B13B0",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/irok_nd75_protocol_test.cpp",
+      "sha256": "97CF078AAD60525A10846F8ECEF9377BF60F0E901FEBEF6F311BE8F8D8A87D45",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/key_settings_domain_static_audit.py",
+      "sha256": "829F0597A33778368A705EB5318071CC0C25C708C514AD9930C762BC594A13CA",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/key_settings_domain_test.cpp",
+      "sha256": "1E5174126DBE2C07AA4A291C5AE6FB9890CA2DC6F3A141A86903402E53EBB370",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/keyboard_shutdown_matrix_static_audit.py",
+      "sha256": "3ABEBD33A3124BEE57A2C14D5A86BA213AB9080349BBF663D13C4ECDD82FD1A6",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/keyboard_support_status_static_audit.py",
+      "sha256": "21665DFDEACC3AF602D3181B95B96860E94DA777967C7C9A8F99F86F6B3F6CFD",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/keyboard_support_status_test.cpp",
+      "sha256": "7F06773522D1CB9697D04AF7A4E50DF91A1E7F3785505CCC45D116E0010CB1C6",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/keychron_k4he_static_audit.py",
+      "sha256": "C74924D8B76C7580272529424C535F9B29EFE9992E2237A28D7D523D296F2EC5",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/latest_value_mailbox_test.cpp",
+      "sha256": "908E73670DB0F047025B9600C15118D0C121C4A78390628A4B7A31318F08C689",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/layout_editor_model_test.cpp",
+      "sha256": "68FF64C25B4FE55A69EEC0D11D83D9B313BC4FA88725C99B135138F129DC1892",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/layout_editor_overlay_static_audit.py",
+      "sha256": "0437FB401E196F79DBF474510A766E775F1C42854EF1E200B98A0A8AE84E56FF",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/layout_identity_test.cpp",
+      "sha256": "CC90C78EC35F4A356CD9B8DF71E86E97E77C41BC78B0304DB2011F9847F5F891",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/layout_sort_test.cpp",
+      "sha256": "ABE2EEB5B01B66330E60ADFDD673F8230A6AAECD43EF195C6325FB75DADB6E20",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/lifecycle_scaffolding_static_audit.py",
+      "sha256": "8ABBD82709548C044BB795E762CD76576D25132A1E3E9431AC157CF3BA097A38",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/long_soak_runner_static_audit.py",
+      "sha256": "98840829F272D1F7916C9A3EF95D7C06363891B2C3C274F5471C2D82BBE61D94",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68_cooperative_shutdown_static_audit.py",
+      "sha256": "6DA20D37E597B9A5E380F2A227D1C6D218BDE223916FA76E8B165405CAE46A22",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_a8_a9_state_verify.py",
+      "sha256": "8D024D2DEE04ED2FA014194A0B14027A6426CC3BDDB0E3C53215C08E0E629B26",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_halljoy_route_audit.py",
+      "sha256": "7481A919C019D65E54D6954C28511761760F0C1E40F13E950C260D7D617E5BB1",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_hardware_log_verify.py",
+      "sha256": "C0681455B76AA33477BC575A5B54565D5F036AF3A532FC819F974DF049AC15D4",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_hardware_timing_verify.py",
+      "sha256": "59712204D1B15626D6E6F02A6DA3820BC04C2564E54FE9D18D98BE870CB08F09",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_log_analyze.py",
+      "sha256": "3B8677C0DBE8F587FC9F16526A537EF9DAFC9D9861AA6C8F4A9E0CD415D25EBF",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_protocol_test.cpp",
+      "sha256": "48F75B5FCF7C52CF16681D0A55A3E05C7549319A270EE3D11E01FBAA73357FF1",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mad68pr_static_safety_audit.py",
+      "sha256": "03A64D9CC6704ED4FDEAF43EF1319531CE5BBB36986C20908D0C5D6DB4F4D60F",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/main_keyboard_input_static_audit.py",
+      "sha256": "616EBE9871B59DA0DAF8F9CC6272F6C2202229DFC6B2FC83D12DF86EB1E4A91C",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mchose_ace68_diagnostic_static_audit.py",
+      "sha256": "CCFE8254CE2B0244924D69A9AB797D49959973F64337EEDB9FB263E5BA032574",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/mouse_ipc_static_audit.py",
+      "sha256": "957EF27AB883C75AACA0FC72122D6446A8FB3EAE66A92262579D45FFD008D3B5",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/native_analog_backend_contract_test.cpp",
+      "sha256": "3C2E048903A4AC3D1E3640B0DE4FAACA08CF50DF4756C6AF428068CE79C5B55F",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/native_analog_snapshot_adapter_test.cpp",
+      "sha256": "B0F2A7AD764391141E01C1847B1F297A6D57406A23986B627072415D49C11078",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/native_analog_snapshot_static_audit.py",
+      "sha256": "872C0A39E4BAF7190D947789B7C7E7F4C7547C09A502D8C9D23F6CEC0B2F4C8C",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/native_backend_architecture_static_audit.py",
+      "sha256": "07895B16A0CF100AB5A26C57F3918F3A2E6F2C29BFCD882E3AB5AA5ED64AEF7F",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/native_backend_lifecycle_registry_test.cpp",
+      "sha256": "FFC76ABA058594C785ED07CD703768367A8FAAAC2D11BFF42E43F10AE59A0D14",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/native_hid_interface_claim_static_audit.py",
+      "sha256": "B47984B4AD7D1267379D25898C959722ED2C3C3E68BFB687F4B14846450E9ACF",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/native_hid_interface_claim_test.cpp",
+      "sha256": "56BA06FF57F6605BDDA2448839E0C4BFBB7414A8F225D211D7052E5B79E34E92",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/native_worker_exception_barrier_static_audit.py",
+      "sha256": "F2A71F6C85445016B227BAD6BE40BBAB04C1DCE4815CAAF4F9BE6B4FB6657DA6",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/nuphy_uap_static_audit.py",
+      "sha256": "2A1D8E3F64CFB763DCD8E99752F7F8E371853A0ED23AB906D335DB0B45F8AC3A",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/overlay_concurrency_origin_static_audit.py",
+      "sha256": "0AD79F301BC4A93410C8EA10C4E8692464B912234CD34F96369D526A1085B2E7",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/overlay_cooperative_shutdown_static_audit.py",
+      "sha256": "D98AFA22845588D50C15D5271F2EA0E2EF975BF407C3E57CD3986CA4181FA844",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/overlay_http_framing_static_audit.py",
+      "sha256": "63CB00BE09600A6E1205948C1F6757952442312CECF68E7089F68239731EEEE9",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/overlay_render_efficiency_static_audit.py",
+      "sha256": "715AAF45F3B49AFF081841E4303033AE668BCCF0AE47B028F732ACD86B9934D8",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/overlay_text_edit_static_audit.py",
+      "sha256": "DA81BCAEFD776E496F802B98193AEA6A4FA7330C9CF2244476D7CC12817D1C0D",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/overlay_text_edit_test.cpp",
+      "sha256": "72B1CAC97CA2B2F0F99A04437754BA042DDE782E75678F3662F1565B01A5C150",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/overlay_toolbar_static_audit.py",
+      "sha256": "AE8C7287B81F910DEE62E58F35D8A6BE3A830B5DBAA767F4DD5A9B6F2DC17F6B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/persistence_transaction_static_audit.py",
+      "sha256": "3E8E7C6B454785094ABF281F7299C5ED8AB0FA28F0ED5FD0BB1B007125142493",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/persistence_ui_owner_static_audit.py",
+      "sha256": "C806C3C0A251DC2C3F3579DF2ACBBC2A16B9D9FDC8613641362942E73AC6CAA2",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/plugin_preopen_patch_contract_audit.py",
+      "sha256": "A7DB269C0674D1F5423B3211FC3AEE1187D759195889253216D733AA78749DA5",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/pre_release_ui_static_audit.py",
+      "sha256": "E8613496022023DE618EF65E30235D6BF57221431BA514F922A12C2C5CFBB7F3",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/prerelease_hardening_static_audit.py",
+      "sha256": "B383E50D1269E6681C496805DFF484CA9C5692E21BF18BE5527E5684704FD9BB",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/private_uap_abi_safety_static_audit.py",
+      "sha256": "EB906AF93491DF6AF59B42CBF497289D6FAE5B15AB514A45156703BA4901FA8B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/private_uap_runtime_static_audit.py",
+      "sha256": "3D864F6658626AA370B23826A1554AF20161CAEF131A917119D0F371B65A2481",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/process_generation_supervisor_static_audit.py",
+      "sha256": "B4E89C4477C3510652DD4FF52D46A2D2D9793E6C550B6A557424AE47ADEB22E8",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/process_generation_supervisor_test.cpp",
+      "sha256": "BC12D1BD891E4EA6C7B20368260F4802368A167C23AB807129D40F800EB0FD04",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/profile_file_only_static_audit.py",
+      "sha256": "4E519C085CA39941057691B35BA0BC79D1F3B361B5F572A4FC91E2E7FB912D0D",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/profile_loader_windows_test.cpp",
+      "sha256": "801B5AEEFF5328B84391256500692DDCF47714D7EC9BB9FB306DBFDDBD25199F",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/profile_runtime_gate_static_audit.py",
+      "sha256": "5F0B64CF6E268CF937069A861F10592F41CDF6B5C56EF08D7DC58046477697FA",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/profile_runtime_gate_test.cpp",
+      "sha256": "7DDAB867485561A8CCD29D1CE983C8BCEEABA095A0EB5CA5AC6D396806CFCAFA",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/profile_transaction_windows_test.cpp",
+      "sha256": "0E7624D450A3574A03DA6B8FD9B56BF5C1A9B9910BD3FE7BF228A39486DBE427",
+      "reachable_build": "ordinary-excluded-opt-in",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/protocol_family_routing_static_audit.py",
+      "sha256": "F3DD726CFDBC4148F119B588B937EE9EB4697834DEA5549856F87807E18E446F",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/protocol_parser_fuzz_smoke_test.cpp",
+      "sha256": "EAAE5464B429EA04E4BD73964ACC3C500B00908AA026AF9459454CA93927E12E",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/provider_v2_controller_shadow_static_audit.py",
+      "sha256": "76B0CBEED8812C077C4DD70346ECC5014F89E62F35A1707039CE01C82758B796",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/provider_v2_controller_shadow_test.cpp",
+      "sha256": "AE8D7CD99E0F0D61F0453466BA485D57D22D451E7D4421FBC1DE8225F36B3747",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/provider_v2_data_plane_layout_static_audit.py",
+      "sha256": "D02662993D5FA613A5F8F04A4A81AD24616499B9569D503B01F7AA6F96317E38",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/provider_v2_data_plane_layout_test.cpp",
+      "sha256": "1F185F9EB7B9E3CB2A3C27ACAF8716AFC59A052487E17144506E9401081A20DC",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/provider_v2_data_plane_windows_static_audit.py",
+      "sha256": "9E3DD5A8ECD19CB2C6512BB0610672621C673244F6C1F3A15DBB5C8135B25EA0",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/provider_v2_data_plane_windows_test.cpp",
+      "sha256": "D2B4657DA870D89F198D749A0A04325FCDAFD8DF42C0D8C5604BA187C9354E21",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/provider_v2_qualification_model_test.cpp",
+      "sha256": "CA12A6EE945DF02E7EA48CC247C9EAA11E28377EC9530D058EE743E6ACDE4343",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/provider_v2_qualification_static_audit.py",
+      "sha256": "DC9DDAEF693EEABD0B5CA1ED1D270FA4937D046B488B4EB58C74EF3F42DF7465",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/provider_v2_snapshot_broker_static_audit.py",
+      "sha256": "9DE7D3FE2CC6326AA68F423B212C2CD8B75AADCC028718CD8228A0F42E58F253",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/provider_v2_snapshot_broker_test.cpp",
+      "sha256": "004B621186C3A3CC699A6C8217D972C3750047898B77A2397B2778642DD71AC6",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/publication_generation_test.cpp",
+      "sha256": "70EF97CA374D9B2D1B33EED14FC20F2F7FE2A16D59535A1E484397B53AFA901D",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/raw_input_packet_size_test.cpp",
+      "sha256": "2926D7AA36BD068D48025BA648429F7646CA99798DE2580FB7278B22646402F5",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/realtime_cooperative_shutdown_static_audit.py",
+      "sha256": "1303D750AC84009F5FF5BDDDF2C1745A26C34ABA603BA29BE44AAA8EC036FD13",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/release_qualification_runner_static_audit.py",
+      "sha256": "E12EDF9F2F0FAFB07B60452CA9B69D12765230B5FDCF7766A60D6E43EF677C1D",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/remap_hint_motion_test.cpp",
+      "sha256": "48EC1CAB06E239ADB6603B221DEFCC9645EAC48A2C3DA8BB31702AE75207BD67",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/remap_hint_static_audit.py",
+      "sha256": "DDD1E48057F29662FA534CCA7DB1BC7B18186C2F28406B2D8F42880F5D07664B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/resource_ownership_static_audit.py",
+      "sha256": "1E591086F219A7B0E9699103663AA11A507B43A01BBF480D52512F84A979F60C",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/risk_test_manifest_static_audit.py",
+      "sha256": "2493E87D2A059E1370BDBB686AC7DCFD1AD36C587A606DFD45D4D1D7530B3E50",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/rog_azoth96he_diagnostic_static_audit.py",
+      "sha256": "E52389E78CC8EBAF8FE6CD6A1471B3B46F22256B566C6F00296F9026DE6DC060",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/runtime_admission_static_audit.py",
+      "sha256": "A4FF53B3F09DB6E3D4B0B27DA70E98EA048636632BC722A04D5CB1062FBFB443",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/runtime_arithmetic_static_audit.py",
+      "sha256": "708984AE3A54E757EF6508A4197D2A67C9AA1AEDAAAEC298A5CDEB1E73FDF034",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/runtime_arithmetic_test.cpp",
+      "sha256": "9DA705DEED38566C8D0AC525FBE9ACE83E29285D8300B46FCAC969EC5B148030",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/runtime_command_state_test.cpp",
+      "sha256": "2676FDF7C894CD06106879CCB1D0521EBF99986145BEE12D69784F38A4242322",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/runtime_pause_ui_static_audit.py",
+      "sha256": "72A7F2920D55B6DB50C7FF9779BB20A6E3B363DE8B06D8F9357C5BC1F6A9EF1B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/runtime_supervisor_static_audit.py",
+      "sha256": "7C05636191297BB24F400E7EE1A050EFE32AEA645C862935BCE7BBC280195A8A",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/s20_build_docs_static_audit.py",
+      "sha256": "2961820F833DD9A40959FB6193DC1DA2791F3ECDA1DD1CFBFBB2BD33102C316A",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/sanitizer_health_control_test.cpp",
+      "sha256": "4A2CDCCFA8EE9CC8FAF28238A715A2152F94E2E3C1E76C666450AFB22CA0219B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/sanitizer_health_static_audit.py",
+      "sha256": "59D212A68712728434CBFA8357CF01A91A9D4FCA3B5C285D2FEA88688C60D348",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/sayo_cooperative_shutdown_static_audit.py",
+      "sha256": "9E29222A29BC7F4D52D9C617D7E60818F352BBA50EC83EA5F121F31A9590D417",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/sayo_exception_boundary_static_audit.py",
+      "sha256": "74254A83EB5C726E5336E63AC1C1B7EA0C207E5E2B162ADF5B798F3F62D79B92",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/sayo_letter_matcher_test.cpp",
+      "sha256": "425B3C4379E10F698FD30BB5CB7837B3B0F7281E2B54A31449BD688C877A1147",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/sayo_letter_matching_static_audit.py",
+      "sha256": "39E0241E2E7F74F7D5B0B20647CD80A1FDEA696A1FA86DF6859365EC5531CE89",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/source_encoding_static_audit.py",
+      "sha256": "D25F0924C0C5B09D65EC20BF6F2AF1D297DBAA6885A9CEFC2710F4351717468B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/sparklink_cooperative_shutdown_static_audit.py",
+      "sha256": "AD0095B905AC51BC9920F2A7C68D245D62985FF027DB9672BB36AFD95DC6F86E",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/sparklink_exception_boundary_static_audit.py",
+      "sha256": "5736B9270A22E091F02027BB5F0725ED27E42205AAE5DD2AAE705A685006AF3B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/sparklink_hotplug_age_static_audit.py",
+      "sha256": "E0C2690E9228E2D523946DF14F7A0EC8EE05F2DED65B68994682C969B3965B2F",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/sparklink_hotplug_age_test.cpp",
+      "sha256": "52BA557C2CDF2FA308755F358171161EB39BA419B117D573F93834DDC856D73D",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/sparklink_row_freshness_static_audit.py",
+      "sha256": "9B131B684AED592592C55F52D3417057D2051032C544CE4F5AF2E710F02F7586",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/sparklink_row_freshness_test.cpp",
+      "sha256": "75C6B1D6C9771DAAFCB4B300B8748D874918B0DBFC4F7AC749B6BD35F67C59E6",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/stability_trace_static_audit.py",
+      "sha256": "7CA5D15ABB49C07EEFDA0257533261082E738D218E9652437C951242AEAFD7D0",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/startup_wake_transaction_static_audit.py",
+      "sha256": "9D0E317E2E62E638BF8E1C403EC635ED02DAEB41B5555A5753D5D2B7BF185B27",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/storage_migration_static_audit.py",
+      "sha256": "4994911B48092F36849CD465780424B75E4BA1A60BA8C548F526BA2B5C153764",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/support_log_static_audit.py",
+      "sha256": "0C2B35B698CB49A5CFCE5EBF7E3C97680B514AD83B90E19B879821FD7EF9E6FB",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/support_log_windows_test.cpp",
+      "sha256": "FD736721F570177786CE82DFDCAFD024FE8CB3A289877ADBC91A4BB1DBB611F1",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/test_execution_coverage_static_audit.py",
+      "sha256": "3EE4FFB3137D4EDF042B1D0956C06C3060AF83E04B7DA8FBD2823AFFEFE06CD7",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/titan68_turbo_diagnostic_static_audit.py",
+      "sha256": "8DD70A679AC63865CABD6A2F493E8DCD9A1026693FD58D5585A64E1841F39E44",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/titan68_turbo_experimental_static_audit.py",
+      "sha256": "AFDE9468F8971A10919A7638B1D0CB0B718EFB445423A51A32F53B695FBBF918",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/titan68_turbo_trace_analyzer_test.py",
+      "sha256": "041CFEDF1AAA6699C653792D29B68405BB04202440FC244677706BD91D5FBE52",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/transactional_file_store_test.cpp",
+      "sha256": "D42CD84F4F999D43396DDB1E98E61EF9D97E010963CCA764C077BA43FAA877E3",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/uap_cabi_guard_test.cpp",
+      "sha256": "6E197515AA2DDDAC843DB353818CD966BAB660DD068888C3AF4D01D67EA50E49",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/uap_device_identity_static_audit.py",
+      "sha256": "35EB2A8F24C3063D7B0EA82E2CC9CD940AF28E645E74A762A49B56819AAFE7C5",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/uap_device_identity_test.cpp",
+      "sha256": "CD2BC8626847519315D6652A8611A0CD6D1135CBADDFA513AA8B58D2EB339376",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/uap_hid_receive_event_static_audit.py",
+      "sha256": "9C6E346E0AFC9F1CE3413612BC74615492581E349232745EE760419BEA0E90D7",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/uap_parent_snapshot_test.cpp",
+      "sha256": "D6C361798FA54CCD64EF2E93C10FC28660DF98A7AB9D78F0CF42DA8CA49AEF2D",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/uap_poll_pacing_static_audit.py",
+      "sha256": "5EA44593E149DE7D4FAC8AC5C7E0288D59AF3A1F7ACF8AD5EE467024C9E0A3DA",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/uap_poll_pacing_test.cpp",
+      "sha256": "052DC797C8FC231ED6ED47C42544E623DFB63C4FE9F2C1243FBE7B2BBB66C44C",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/uap_provider_v2_projection_test.cpp",
+      "sha256": "CFA0875E638267D5B7E4B7975E7F9126ACB7A872E662774D55950C418E4912EF",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/uap_provider_v2_static_audit.py",
+      "sha256": "A986FF24C9D9D86314DAB6CFFC28033DEE2266B44761179DF36B4413CF7E6FC2",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/uap_snapshot_pinning_static_audit.py",
+      "sha256": "48C4B3AD83EC1BD7668CAFDEC65EB380A815A75A1D02B7DF0778E52F5AC769FC",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/uap_snapshot_pinning_test.cpp",
+      "sha256": "042C1F94E3B7E5F7E3617B08DE3A96F0FBFC5738CA5A6672EEF597675B3112AB",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/universal_native_routing_static_audit.py",
+      "sha256": "31093EB9C59B880951218E012F5A6E9B6E45EED3ED6C2CA0510833B8B8E26C70",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/version_identity_static_audit.py",
+      "sha256": "55C04E386CFF4224A337C30477035F02BB24B340AC58FE087F35034812377B74",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/vigem_child_transport_test.cpp",
+      "sha256": "CC409CADED97EAA115C519630856CF51B9EDDC5788A01697227B4F6965A887FF",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/vigem_output_channel_process_test.cpp",
+      "sha256": "FBBA208DC13DA3ACED5D160AE8968680A464C2D73B58F4C4CFE9E803A1E82373",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/vigem_output_channel_test.cpp",
+      "sha256": "94A7EB578B8E7251DA2E0BCC413B3317F28A8E0E493463E9D1564D92B53FA22C",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/vigem_output_isolation_static_audit.py",
+      "sha256": "711448D30CE720C2C38D7280E92FC566E4CF1D016F3927A11FB77E016CA91092",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/vigem_output_process_static_audit.py",
+      "sha256": "AEC6EF45BD03A2275D684D9175730DF19C0E637CD90CCFDE29A497C528063A4B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/vigem_output_producer_freshness_static_audit.py",
+      "sha256": "6664271C8D00E0D9898028B766909594B7558D9945E4EB154908D803340CE2AC",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/vigem_output_producer_lease_test.cpp",
+      "sha256": "B1E05711AFAC45682DB02C20CE92C2B409FB8F483DFD39AABB6F8C3330E7881B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/vigem_output_real_child_static_audit.py",
+      "sha256": "418D930BC0A853C8D7DC3B06EA1671B9BDB548DD75FBB5EAE83111417DEEA8C2",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/vigem_output_scheduler_test.cpp",
+      "sha256": "9F64C81AC5D19B34BFFBA51F6928420F5C8E45D3CA126BCA7F0D63A15B2689C4",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/vigem_output_self_host_static_audit.py",
+      "sha256": "893FA8BDB83BFD45336C96F891F58B64729BAF2163EEA7EADBDD95381B837458",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/vigem_output_telemetry_test.cpp",
+      "sha256": "D6857D91E8697883B5FA788D0CCA59689A334708F452FA6306741E21E0E30D92",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/wasd_only_layout_static_audit.py",
+      "sha256": "8CCEF860D6370042C85C5714946702C459C4936A7B29DAAFC2EE73CEEAA52807",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/window_placement_static_audit.py",
+      "sha256": "E727C61C0323C46695257759896C6FD489DA2CEB117C52271D47B06B4D13F6F0",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/window_placement_test.cpp",
+      "sha256": "A439BCA0651D043F5BAA21090FE2A80CB4867386E0AF46097774A83646D5711B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/windows_command_line_test.cpp",
+      "sha256": "30B59AF3346834FAAD7B49E61E01E7F59C9A1440799DD4FE9EAA7871179F4AAE",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/worker_exception_barrier_test.cpp",
+      "sha256": "3A2ED2AE70BC7F41FA2B577AB34252421F72688568B363F8CABE0531672B7987",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/worker_join_policy_test.cpp",
+      "sha256": "D467648742E72523E567CFA1F13D8E9490A514D92D67F62E446ABFF9FF4EC844",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/worker_lifecycle_test.cpp",
+      "sha256": "DCBAA653A607C8A3B7D5453891C5EE7BD8332B67391BA90B5D589C7D83D35A9E",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "src/HallJoyProject/tests/worker_primitives_test.cpp",
+      "sha256": "BA929322703F692F6A61E7F19ABA1652874FAE2929D9DF9D3529C4FEAEFD628B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/analyze_drunkdeer_matrix_log.py",
+      "sha256": "B962D8C1E49D677C085AA274DFE8904E2D30DB49A2BE637D1DBBDF23BDAA2286",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/analyze_stability_trace.py",
+      "sha256": "0B36AE68AF157A7B8866AB0C85FB5800C6A9B0170C9ACF73DD884B3EE9042146",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/analyze_titan68_turbo_trace.py",
+      "sha256": "E2736E28477FA0CF3036DDBBAF892BA641933BE68E24F91CEC6D4049D6A4EDAE",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/attackshark_x68he_recon.py",
+      "sha256": "EDE072E17786247255487CE54619401DD51939B1E637EC3C8955A99235467EA4",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/audit_drunkdeer_layouts.py",
+      "sha256": "930D7A9C81414F870E83D0830ABF780CB0B5E15EE729772BF5A51BE90320C2A5",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/build.ps1",
+      "sha256": "BFF395DE0FF1B4B3F7EF4FB3C8BAFC114E6D84A73EB60E0F9D28F1A6153882E6",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/build_aula_diagnostic.ps1",
+      "sha256": "3CF8C658767A86FDF428B34B427E555C774AFF2AF581B7B5E7E2AA6CA4AF6256",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/build_aula_hero84he_diagnostic.ps1",
+      "sha256": "9F3D09C1C9F50B57BB82F3CB25D266272883C49DE3BA74F6F3C942CD05469A3A",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/build_drunkdeer_diagnostic.ps1",
+      "sha256": "E4073456F9520F00CF7617CC470BA8C448235CB44841100A9582C8B542B83E85",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/build_drunkdeer_layouts.py",
+      "sha256": "3B1C476D77165735AFE1F59EE3B8E6C1BFE1D4A919DFBF396A13C26F18675DFC",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/build_gravastar_v75_diagnostic.ps1",
+      "sha256": "07D62FCEA5C75CE7D800EE16DB5DFAFF6BB0F3651A13B53E350F03A54CE2A29C",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/build_irok_nd75_diagnostic.ps1",
+      "sha256": "9DC2A2BE0B3D0DFC8C2F341B29E7E12B13CDDF8B80467D8EBEA64C17BA5D0644",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/build_keychron_layouts.py",
+      "sha256": "1F2E9AA80452BEEA3EEE8D27FE50D834F0FD354ADE02BD925426AD1552FC4452",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/build_lemokey_layouts.py",
+      "sha256": "0CFD1D409B054940B4289503CB7D5BF947FF50A93FD70E6F00C153D74DE77B6C",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/build_mchose_ace68_diagnostic.ps1",
+      "sha256": "BBA2B370542D8E731A764A83153A7D876A0CE6563C7FA64C5C19DCD547BF8115",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/build_provider_v2_qualification.ps1",
+      "sha256": "7450F38D4A4A16F66DACD4ED43CBEC75C071C365044397947CFC4681AA142565",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/build_titan68_turbo_diagnostic.ps1",
+      "sha256": "00CA4805B1CDAFA2FD38D3D37A7E0C940A8D068DBCD42C8F13A562EFE1E335C3",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/build_titan68_turbo_experimental.ps1",
+      "sha256": "4B0C0856E79DF9E7CBFD4E555277700C57EB0AD5196ACA384C61C8A3BB9F798D",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/check_drunkdeer_uap_maps.py",
+      "sha256": "252E5B527B2DD16D2159ABB1A9DFB2255331FEAA8A8709CEEB943B1683404CC1",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/check_experiment_ledger.py",
+      "sha256": "9E95F411D4D078E78B1D7F08BC8C6D94B40C649FCF039C8BAE66909C4017C902",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/check_overlay_concurrency_origin.py",
+      "sha256": "8F6BF27731587722F8B79A1C3AF2DFC4D9558C08B78EF6B2172DECBBA9AD730C",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/check_overlay_http_framing.py",
+      "sha256": "CFDD252848F1BDF83BC3FE7C7543E69C41D0F1988E1BF3573221F7989EBB0100",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/check_overlay_responsiveness.py",
+      "sha256": "FA88428A8206DAC6C4EF0D319CE1A3DE73CA1EB38A0A2A34CFA58C85C568DA7C",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/check_private_uap_abi.py",
+      "sha256": "5EA82110309A754CFAA23ECCB2B9C744E645402373845DF5EF37B95EB3EA785A",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/check_project_layout.py",
+      "sha256": "7884A5403B2F5E429E8217EF42BFF74A217972F2F481D98922D8CEA6AFA4B3A6",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/check_rm36_risk_reconciliation.py",
+      "sha256": "4036416D5C530C9C8379438F03B967B60881F4A63691420818BF2CB0C56A7255",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/collect_stability_trace.ps1",
+      "sha256": "08913367D6A7CE54F705AEB11684BBC39CCC460B2A63E9E110553BF7F68F9DEA",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/consolidate_legacy_migrations.py",
+      "sha256": "C82D210EDE956E9796BF342C01DB0CF865DC8DB678CD287C708E739708D59E11",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/drunkdeer_layout_source.py",
+      "sha256": "A00F6339102CB47CB0683199111DB2EC36C9483563D191FA7AB8979CA8186E85",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/extract_panchip_dfu_payload.ps1",
+      "sha256": "CE9687F9BD40BCF58788ED134DC1E5B34769BD24DD8E3546578FE837638A67AA",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/fuzz_overlay_http.py",
+      "sha256": "A977A8CF7F774FDD56B1DA6DC625EB6F27442541E868886A9DC284DF1B7EE7DA",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/generate_rm36_source_inventory.py",
+      "sha256": "83A3C3FAB6089D5ECA280F3B2E7352278FDFCD1043B9C37DEE48C6B5C69FF510",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/keychron_catalog_fetch.py",
+      "sha256": "B5BA63F540B41CCCDA45543D9333A7AE3FC0E893A0EAB8EE80EBBEB0E20C4376",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/keychron_firmware_keymap.py",
+      "sha256": "B313D39A6C8E7A736DBDD70037055645E1219FCE9B4762BD57C1E713F8FE3368",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/keychron_layout_firmware_fetch.py",
+      "sha256": "37E1E7E071E83CF4AEC847C3AEF284EF290F21220DA6527568A3A76008F5C6D2",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/keychron_qmk_fetch.py",
+      "sha256": "281755E661B9A819FE8E4F6FF8D5DA5D2D1C14BCA7B807231F406F2805F0C83D",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/layout_aula_max.py",
+      "sha256": "8A16903D6F0A64E75DB49A4184F252245111998D13A551DE99C5B9580D7A039A",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/layout_aula_w669.py",
+      "sha256": "40DB24D067D3CF33CA0D8AB62B000E9E0CAD689CC23E231BB460B12C4B2960AD",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/layout_import.py",
+      "sha256": "5AD11AE0E7C831305A8467B145D91733AA1638588B1113B4BBC1A2AB29541B68",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/layout_pipeline.py",
+      "sha256": "C195A9664927ABA16BBFAA34DB5F60BEE4DB0CEAF333F45CC60BBF5D3C95FDD1",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/layout_redragon_w669.py",
+      "sha256": "7064EC65C84B7375AC08CE701A3F5A153A469CBCB33ADF1ECC71C179AEFDCE6A",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/layout_reviewed_report.py",
+      "sha256": "5B7C6FF5EC3A85878F9BC0309E60B3D4A06CAEA9E7F3193EAD9F933A00A522C8",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/new_native_backend.py",
+      "sha256": "8C3A2E00F5FF650FCB224378AB41B546C4F602935656325A51C99664217BFF50",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/package_release.ps1",
+      "sha256": "703EA6829B74A3E91884AF9ABAE0F1778FE678F76E4340E1C0D3D3CC6B8868FE",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/prepare_final_layout_batch.py",
+      "sha256": "A58AF9A848B72ACA1BB39395F2CC2A07EF11A46AE47EACC93182D124A7A9985F",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_analog_simulator.ps1",
+      "sha256": "82D173789AAA1879D5F505BCF9152E0774F61DB5BA6451D640C59840D09EF7DA",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_aula_win60he_sanitizers.py",
+      "sha256": "868E68176EAD0BFDBD2F9ECAC6BAC19AAB00DC4E4DA18E4B2032020EF8FA2E78",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_drunkdeer_abnormal_exit_log_test.ps1",
+      "sha256": "525C449CAAF520C351059813BA8B80AA8C10D343C91F73879D89297EA12BEBB3",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_drunkdeer_diagnostic_smoke.ps1",
+      "sha256": "7B78B5FF56FCC297C314049A53A83F5D7D5404834B9D9373269F64B785829683",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_drunkdeer_log_growth_test.ps1",
+      "sha256": "5C1C5450139300001969088223080C3182A31C4FD2B557A8CEFDC7F5DCC52C2B",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_factory_reset_test.ps1",
+      "sha256": "0EE340CC055F0D9746E12292F3A9587F4E69C21CD4D4ADC34ECEDFC0064A899E",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_gravastar_v75_diagnostic_smoke.ps1",
+      "sha256": "92FB1556ED190C5CAE120F1799179E7CF97C824E3901EE2CD72DE582B34D431E",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_input_pipeline_profile.ps1",
+      "sha256": "68A7C6CD890B29D8975F66B7B43DFF01B4F2046F0FC47D27019FD3A8A4DC9897",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_irok_nd75_smoke.ps1",
+      "sha256": "03E1E127B8DFD3FE94F7B059BAFFC26A3FB9DAB41D039FEF122948A5CF06AEBB",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_keyboard_shutdown_matrix.ps1",
+      "sha256": "E0697B3BFE2665E4FEA060915D68EFE81274C76584DB233ED52A7FE13156573D",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_long_soak.ps1",
+      "sha256": "35A4E848EDE5AF980097E694A5898E715175EB4035A7DF8AC3BAE7ED59D50A8E",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_native_backend_checks.py",
+      "sha256": "87BE29D74E3404F44714898C0AB8965813060ACE865B49C03A7F17805FB62832",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_production_smoke.ps1",
+      "sha256": "3825B4522EBC30B244126C0D016C77ECD7F3D362AC546D6E0A7F7948702383C8",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_profile_transaction_tests.ps1",
+      "sha256": "0F72595253A30B01BE68969CFA0C0DCDD087887786C6C486304C304686C17A11",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_protocol_fuzz_sanitizers.py",
+      "sha256": "4143B1EF0474D41139D2FEDB3BF4E4B414A20912B99C07CC9A6E181E31EFF773",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_provider_v2_qualification_smoke.ps1",
+      "sha256": "F6E4EAE0DCB106AB7834E7140612A82505C576A64F3196A7E74C253D645EF217",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_release_qualification.ps1",
+      "sha256": "5DFA1272F79F8A754296CAC9F4CEAB8181DEF2B0C4DE026EF47CE486F94965DD",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_storage_migration_test.ps1",
+      "sha256": "BD6360C3672C058C470A384A18B2F1A12A5D8E8D3F26F37AFC6B5427E5DAB2DD",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_uap_provider_v2_dual_capture_smoke.ps1",
+      "sha256": "81B23A9994660ACAFCA1ECAC52FFE9D717A69EB68CF3A79890B33E192FE6A61F",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_ui_scroll_stress.ps1",
+      "sha256": "43E8AE507A05ED5E152A5DFAB6680F56AB54D3DA86369BFA930011C0A5F24C4F",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_vigem_output_real_child_test.ps1",
+      "sha256": "85FCA382C60642C3180297B3264F8DC29DFF5286E7E10AA74378083C6C965308",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/run_vigem_output_self_host_test.ps1",
+      "sha256": "F390076E2244E6D6DE795C29B09404265AC383CB32AE9BBF9EC406FFAD815635",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/sanitizer_health.py",
+      "sha256": "9904B5F7087E1900078E365C64FF5AC78BC635500862219B485BC4CF6A3A942A",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/test_block_keys_group.py",
+      "sha256": "3EACAB9E0ABB08B830CAFD361428EBA52E27B419909CA0722C71469F6ACCA385",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/test_migration_clutter.py",
+      "sha256": "B65897B84A82E802BC21658F8D54317F4C4A90A349EE7C50DC61C6A87B2DD7FC",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/tests/test_compound_overlay.py",
+      "sha256": "72F17F15DEA1AC391ED35DA18FFEB305946DDA89D4F06F8982C855E685498B1F",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/tests/test_drunkdeer_layouts.py",
+      "sha256": "84628B242942B5E27C8197E48E6DD90FA279C66BFE11C31E7C3A74A9B877951A",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/tests/test_drunkdeer_source.py",
+      "sha256": "CBE4793190FEC96D89631FF2D517FC3964DA101B556BEFAB2494C2A7898335BF",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/tests/test_keychron_catalog.py",
+      "sha256": "E7F09BE9590514C9627079B96F450EC42C5E010559595978677AA1A302CE6E76",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/tests/test_layout_import.py",
+      "sha256": "FA2A992D2AC4D7E029987775BE364FDB041AD84B2268BFFD2769111D40A354DE",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/tests/test_layout_pipeline.py",
+      "sha256": "8082EE59D1449B9045FAC5D6232C9F414DEE43E8C30853E2E50CBE5415E17DD5",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    },
+    {
+      "path": "tools/tests/test_lemokey_layouts.py",
+      "sha256": "5333693F39CBD993F4FF5BE84A248E3B470338824D55BBA0E7E7DAA0BCF23824",
+      "reachable_build": "tool-or-test",
+      "reviewer": "RM-36 source-gate reconciliation",
+      "review_date": "2026-09-10",
+      "outcome": "SOURCE_GATE_COVERED"
+    }
+  ]
+}

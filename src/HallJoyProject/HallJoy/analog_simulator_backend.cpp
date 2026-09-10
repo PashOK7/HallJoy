@@ -37,13 +37,13 @@ std::atomic<unsigned> g_phase{static_cast<unsigned>(Phase::Neutral)};
 std::atomic<std::uint64_t> g_updates{0};
 std::thread g_worker;
 
-bool HasExactArgument() noexcept
+bool HasExactArgument(const wchar_t* argument = kActivationArgument) noexcept
 {
     const wchar_t* command = GetCommandLineW();
-    const std::size_t length = std::size(kActivationArgument) - 1;
-    for (const wchar_t* match = wcsstr(command, kActivationArgument);
+    const std::size_t length = wcslen(argument);
+    for (const wchar_t* match = wcsstr(command, argument);
          match;
-         match = wcsstr(match + 1, kActivationArgument))
+         match = wcsstr(match + 1, argument))
     {
         const bool leftBoundary = match == command || match[-1] == L' ' || match[-1] == L'\t' ||
             match[-1] == L'"';
@@ -208,6 +208,18 @@ void GetTelemetry(NativeAnalogBackendTelemetry* out)
         L"SIMULATED / NOT HARDWARE | script:%s",
         PhaseName(static_cast<Phase>(g_phase.load(std::memory_order_acquire))));
 }
+}
+
+bool AnalogSimulator_ReadIsolated(std::uint16_t hid, NativeAnalogReadResult& out) noexcept {
+    static const bool isolated = HasExactArgument(L"--halljoy-test-isolated-synthetic-input");
+    if (!isolated || !g_enabled.load(std::memory_order_acquire)) return false;
+    if (hid != halljoy::analog_simulator::kHidW && hid != halljoy::analog_simulator::kHidA &&
+        hid != halljoy::analog_simulator::kHidS && hid != halljoy::analog_simulator::kHidD) return false;
+    out = {};
+    out.owned = true; // Ownership survives a scripted disconnect; released value is authoritative.
+    out.connected = IsConnected();
+    out.milli = GetMilli(hid);
+    return true;
 }
 
 halljoy::analog_simulator::Phase AnalogSimulator_GetCurrentPhase() noexcept

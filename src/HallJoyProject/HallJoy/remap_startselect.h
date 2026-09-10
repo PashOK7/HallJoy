@@ -5,10 +5,10 @@
 
 #include "binding_actions.h"
 
-// Рисует иконку Start или Select(Back) в стиле "пиктограмма вместо текста".
-// Полностью рисует glyph (фон/рамку + пиктограмму), чтобы не затрагивать остальную систему.
+// Р РёСЃСѓРµС‚ РёРєРѕРЅРєСѓ Start РёР»Рё Select(Back) РІ СЃС‚РёР»Рµ "РїРёРєС‚РѕРіСЂР°РјРјР° РІРјРµСЃС‚Рѕ С‚РµРєСЃС‚Р°".
+// РџРѕР»РЅРѕСЃС‚СЊСЋ СЂРёСЃСѓРµС‚ glyph (С„РѕРЅ/СЂР°РјРєСѓ + РїРёРєС‚РѕРіСЂР°РјРјСѓ), С‡С‚РѕР±С‹ РЅРµ Р·Р°С‚СЂР°РіРёРІР°С‚СЊ РѕСЃС‚Р°Р»СЊРЅСѓСЋ СЃРёСЃС‚РµРјСѓ.
 //
-// action должен быть BindAction::Btn_Start или BindAction::Btn_Back.
+// action РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ BindAction::Btn_Start РёР»Рё BindAction::Btn_Back.
 void RemapStartSelect_DrawGlyphAA(HDC hdc, const RECT& rc,
     BindAction action,
     COLORREF baseColor,

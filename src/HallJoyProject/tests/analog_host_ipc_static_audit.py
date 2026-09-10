@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static gate for V14-10B analog-host IPC capability transport."""
+"""Static gate for V14-10B/B2i-b analog-host IPC capability transport."""
 
 from pathlib import Path
 
@@ -43,7 +43,9 @@ require(host, "EXTENDED_STARTUPINFO_PRESENT", "extended process startup is enabl
 require(host, "command.data(), nullptr, nullptr, TRUE", "CreateProcess enables explicit handle inheritance")
 require(host, "BCryptGenRandom(", "launch generation token uses the system CSPRNG")
 
-require(shared, "kVersion = 10", "shared schema version records the transport change")
+require(shared, "kVersion = 15", "shared schema version records fixed-payload removal")
+require(shared, "providerV2PlaneDualCoherent", "shared schema independently labels the variable-plane dual capture")
+require(shared, "providerV2PlaneStatus", "shared schema carries only bounded V2-plane control state")
 require(shared, "volatile LONG ownerPid", "shared schema binds the owner PID")
 require(shared, "volatile LONG64 launchNonce", "shared schema binds the launch generation token")
 require(host, "GetHandleInformation(mapping", "child rejects a non-inherited mapping handle")
@@ -51,6 +53,8 @@ require(host, "GetProcessId(ownerProcess) != launch.ownerPid", "child validates 
 require(host, "shared->launchNonce", "child validates the mapping generation token")
 require(host, "child.identity_rejected", "parent rejects a ready status from the wrong child PID")
 require(host, "transport=inherited_handles named_objects=0 handle_list=1 owner_handle=1 generation_bound=1", "runtime publishes the IPC policy")
+require(host, "g_client.providerPlane.InheritableWriterHandle()", "child receives the explicit V2-plane writer capability")
+require(host, "g_client.providerPlane.CloseWriterHandleInParent()", "parent drops its writer capability after child launch")
 
 require(host, "--halljoy-test-analog-host-ipc-handle-rejection", "simulator has an invalid-handle injection")
 require(host, "ipc.handle_rejected", "supervisor records invalid-handle rejection")

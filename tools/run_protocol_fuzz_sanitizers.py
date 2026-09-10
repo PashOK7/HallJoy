@@ -9,6 +9,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from sanitizer_health import require_address_sanitizer_health
+
 
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
@@ -33,13 +35,13 @@ def main() -> int:
         f"detect_leaks={'0' if os.name == 'nt' else '1'}:halt_on_error=1:strict_string_checks=1")
     environment["UBSAN_OPTIONS"] = "halt_on_error=1:print_stacktrace=1"
 
-    with tempfile.TemporaryDirectory(prefix="halljoy-protocol-fuzz-") as temporary:
+    build_temp = root / "build" / "obj" / "portable-tests"
+    build_temp.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="halljoy-protocol-fuzz-", dir=build_temp) as temporary:
         output = Path(temporary)
         if os.name == "nt":
             shutil.copy2(asan_dll, output / asan_dll.name)
-        executable = output / ("protocol-fuzz.exe" if os.name == "nt" else "protocol-fuzz")
-        command = [
-            clang,
+        sanitizer_flags = [
             "-std=c++20",
             "-O1",
             "-g",
@@ -49,6 +51,19 @@ def main() -> int:
             "-pedantic",
             "-fno-omit-frame-pointer",
             "-fsanitize=address,undefined",
+        ]
+        require_address_sanitizer_health(
+            root=root,
+            tests=tests,
+            output=output,
+            clang=clang,
+            environment=environment,
+            compile_prefix=sanitizer_flags,
+        )
+        executable = output / ("protocol-fuzz.exe" if os.name == "nt" else "protocol-fuzz")
+        command = [
+            clang,
+            *sanitizer_flags,
             f"-I{hall}",
             str(tests / "protocol_parser_fuzz_smoke_test.cpp"),
             str(hall / "aula_win60he_protocol.cpp"),

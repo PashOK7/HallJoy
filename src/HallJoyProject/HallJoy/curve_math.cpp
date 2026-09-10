@@ -4,6 +4,16 @@
 
 namespace CurveMath
 {
+    static Curve01 SanitizeCurve(Curve01 c)
+    {
+        c.x0 = Clamp01(c.x0); c.y0 = Clamp01(c.y0);
+        c.x1 = Clamp01(c.x1); c.y1 = Clamp01(c.y1);
+        c.x2 = Clamp01(c.x2); c.y2 = Clamp01(c.y2);
+        c.x3 = Clamp01(c.x3); c.y3 = Clamp01(c.y3);
+        c.w1 = Clamp01(c.w1); c.w2 = Clamp01(c.w2);
+        return c;
+    }
+
     static inline float Bernstein0(float t) { float u = 1.0f - t; return u * u * u; }
     static inline float Bernstein1(float t) { float u = 1.0f - t; return 3.0f * u * u * t; }
     static inline float Bernstein2(float t) { float u = 1.0f - t; return 3.0f * u * t * t; }
@@ -65,9 +75,10 @@ namespace CurveMath
 
     Vec2 EvalRationalBezier(const Curve01& c, float t01)
     {
-        const float rw1 = Weight01ToRational(c.w1);
-        const float rw2 = Weight01ToRational(c.w2);
-        return EvalRationalBezierRaw(c, t01, rw1, rw2);
+        const Curve01 safe = SanitizeCurve(c);
+        const float rw1 = Weight01ToRational(safe.w1);
+        const float rw2 = Weight01ToRational(safe.w2);
+        return EvalRationalBezierRaw(safe, t01, rw1, rw2);
     }
 
     float EvalRationalX(const Curve01& c, float t01)
@@ -82,9 +93,12 @@ namespace CurveMath
 
     float EvalRationalYForX(const Curve01& c, float x01, int iters)
     {
+        const Curve01 safe = SanitizeCurve(c);
         x01 = Clamp01(x01);
-        const float rw1 = Weight01ToRational(c.w1);
-        const float rw2 = Weight01ToRational(c.w2);
+        if (x01 <= safe.x0) return safe.y0;
+        if (x01 >= safe.x3) return safe.y3;
+        const float rw1 = Weight01ToRational(safe.w1);
+        const float rw2 = Weight01ToRational(safe.w2);
 
         // Binary search for t in [0..1] such that x(t) ~= x01
         float lo = 0.0f;
@@ -96,14 +110,14 @@ namespace CurveMath
         for (int i = 0; i < iters; ++i)
         {
             float mid = 0.5f * (lo + hi);
-            float xm = EvalRationalXRawUnchecked(c, mid, rw1, rw2);
+            float xm = EvalRationalXRawUnchecked(safe, mid, rw1, rw2);
 
             if (xm < x01) lo = mid;
             else          hi = mid;
         }
 
         float t = 0.5f * (lo + hi);
-        float y = EvalRationalYRawUnchecked(c, t, rw1, rw2);
+        float y = EvalRationalYRawUnchecked(safe, t, rw1, rw2);
 
         return Clamp01(y);
     }

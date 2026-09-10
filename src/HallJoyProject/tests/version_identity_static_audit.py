@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import sys
+import re
 
 repo = Path(__file__).resolve().parents[3]
 hall = repo / "src" / "HallJoyProject" / "HallJoy"
@@ -20,9 +21,19 @@ build_cmd = read(repo / "BUILD.cmd")
 collector = read(repo / "tools" / "collect_stability_trace.ps1")
 
 active_text = "\n".join((version, resource, backend, readme, build, project, build_cmd, collector))
+parts = [re.search(r'^#define HALLJOY_VERSION_' + part + r' (\d+)$', version, re.M)
+         for part in ('MAJOR', 'MINOR', 'PATCH', 'BUILD')]
+numbers = [m.group(1) for m in parts if m]
+public = '.'.join(numbers[:3])
+full = '.'.join(numbers)
 checks = {
-    "version tuple is 1.4.1.0": "#define HALLJOY_VERSION_TUPLE 1,4,1,0" in version,
-    "public version is 1.4.1": '#define HALLJOY_VERSION_STRING "1.4.1"' in version,
+    "version tuple matches all four numeric components": len(numbers) == 4 and
+        '#define HALLJOY_VERSION_TUPLE ' + ','.join(numbers) in version,
+    "all public version strings match numeric components": len(numbers) == 4 and all(s in version for s in (
+        f'#define HALLJOY_VERSION_STRING "{public}"',
+        f'#define HALLJOY_VERSION_STRING_FULL "{full}"',
+        f'#define HALLJOY_VERSION_WSTRING L"{public}"',
+        f'#define HALLJOY_ABOUT_VERSION_STRING "HallJoy, Version {public}"')),
     "runtime build ID is centralized": "HALLJOY_BUILD_ID_W" in version and "HALLJOY_BUILD_ID_W" in backend,
     "file version uses the central tuple": "FILEVERSION HALLJOY_VERSION_TUPLE" in resource,
     "product version uses the central tuple": "PRODUCTVERSION HALLJOY_VERSION_TUPLE" in resource,

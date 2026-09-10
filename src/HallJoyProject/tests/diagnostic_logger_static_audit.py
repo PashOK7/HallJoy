@@ -6,6 +6,7 @@ root = Path(__file__).resolve().parents[1]
 source = root / 'HallJoy' / 'debug_log.cpp'
 text = source.read_text(encoding='utf-8-sig')
 main_text = (root / 'HallJoy' / 'main.cpp').read_text(encoding='utf-8-sig')
+trace_text = (root / 'HallJoy' / 'stability_trace.cpp').read_text(encoding='utf-8-sig')
 
 writer_start = text.index('static DWORD DebugLogWriterThreadBody()')
 writer_end = text.index('\nstatic void DebugLogWriterOnFault', writer_start)
@@ -34,6 +35,18 @@ checks = {
     'main skips CRT cleanup after logger poison': 'process_exit.log_poisoned' in main_text and 'TerminateProcess' in main_text,
     'all main shutdown paths inspect the logger result': '(void)DebugLog_Shutdown()' not in main_text and 'ShutdownDebugLogSafely()' in main_text,
     'ordinary production release logging remains disabled': '#if defined(NDEBUG) && !defined(HALLJOY_DIAGNOSTIC) && !defined(HALLJOY_ANALOG_SIMULATOR)' in text,
+    'single-log Aula diagnostics reject unrelated plain device inventory':
+        'KeepSingleLogDiagnosticLine' in writer and
+        'backend.aula_win60he' in text and
+        'if (KeepSingleLogDiagnosticLine(line))' in writer,
+    'all diagnostics redact private roots at the final trace sink':
+        '#if defined(HALLJOY_DIAGNOSTIC)' in trace_text and
+        'tokens.userProfile' in trace_text and
+        'tokens.applicationDirectory' in trace_text and
+        'tokens.temporaryDirectory' in trace_text,
+    'all diagnostics redact raw SetupAPI and Raw Input paths at the final sink':
+        "position[2] != L'?' && position[2] != L'.'" in trace_text and
+        'StabilityTrace_AppendPlain' in trace_text,
 }
 failed = [name for name, ok in checks.items() if not ok]
 for name, ok in checks.items():

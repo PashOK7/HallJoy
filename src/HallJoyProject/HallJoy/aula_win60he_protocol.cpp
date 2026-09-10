@@ -1,5 +1,7 @@
 #include "aula_win60he_protocol.h"
 
+#include "analog_key_codes.h"
+
 #include <algorithm>
 #include <cstring>
 
@@ -410,11 +412,10 @@ bool IsExpectedAulaWin60HeMaxFirmware(const SyncInfo& sync) noexcept
         sync.rawPayload[kSyncTrailerOffset] == 0xFFu;
 }
 
-bool IsAula6x21FamilyFirmware(const SyncInfo& sync) noexcept
+namespace
 {
-    // The product/board bytes and build descriptor may legitimately vary
-    // between models. Keep the invariant framing produced by the proven
-    // SparkPlayJoy 6x21 platform and require meaningful descriptor text.
+bool HasStructured6x21SyncDescriptors(const SyncInfo& sync) noexcept
+{
     const auto printableAscii = [](const char* text, std::size_t bytes) noexcept {
         bool meaningful = false;
         for (std::size_t index = 0; index < bytes; ++index)
@@ -431,9 +432,6 @@ bool IsAula6x21FamilyFirmware(const SyncInfo& sync) noexcept
 
     return sync.rawPayload[0] == 0u &&
         sync.boardId != 0u &&
-        sync.rawPayload[5] == 0xC0u &&
-        sync.rawPayload[6] == 0x01u &&
-        sync.rawPayload[7] == 0x00u &&
         sync.rawPayload[kSyncSerialLengthOffset] == kSyncDescriptorBytes &&
         sync.rawPayload[kSyncAppLengthOffset] == kSyncDescriptorBytes &&
         sync.rawPayload[kSyncBuildLengthOffset] == kSyncDescriptorBytes &&
@@ -443,6 +441,30 @@ bool IsAula6x21FamilyFirmware(const SyncInfo& sync) noexcept
         sync.appVersion[4] == 'V' &&
         printableAscii(sync.appVersion.data(), kSyncAppVersionBytes) &&
         printableAscii(sync.buildLabel.data(), kSyncBuildLabelBytes);
+}
+}
+
+bool IsExactKnownBoard6x21Firmware(
+    const SyncInfo& sync,
+    std::uint32_t expectedBoardId) noexcept
+{
+    // Exact USB identity is checked by discovery and the board is independently
+    // returned by command 01. Bytes 5..7 are platform/model fields, not a
+    // protocol signature: the physical V75 reports 00/04/00 while Aula reports
+    // C0/01/00. Do not pin unknown semantics across exact known models.
+    return expectedBoardId != 0u && sync.boardId == expectedBoardId &&
+        HasStructured6x21SyncDescriptors(sync);
+}
+
+bool IsAula6x21FamilyFirmware(const SyncInfo& sync) noexcept
+{
+    // Unknown brand-scoped siblings do not have an exact USB/board tuple. Keep
+    // the narrower physically observed Aula platform bytes for that route; the
+    // known-board policy above is the only path that omits them.
+    return HasStructured6x21SyncDescriptors(sync) &&
+        sync.rawPayload[5] == 0xC0u &&
+        sync.rawPayload[6] == 0x01u &&
+        sync.rawPayload[7] == 0x00u;
 }
 
 bool IsAula6x21FamilyPrecision(const PrecisionStroke& precision) noexcept
@@ -484,8 +506,20 @@ bool IsPublishableKeyboardUsage(std::uint8_t hidUsage) noexcept
 
 bool IsPublishableKeyFunction(std::uint16_t function) noexcept
 {
-    return function <= 0x00FFu &&
-        IsPublishableKeyboardUsage(static_cast<std::uint8_t>(function));
+    return PublishedKeyCodeForFunction(function) != 0;
+}
+
+std::uint16_t PublishedKeyCodeForFunction(std::uint16_t function) noexcept
+{
+    if (function <= 0x00FFu &&
+        IsPublishableKeyboardUsage(static_cast<std::uint8_t>(function)))
+        return function;
+    // SparkPlayJoy's 16-bit base-layer function F001 is the physical Fn
+    // control. Preserve it in HallJoy's established extended key domain; do
+    // not truncate it into the unrelated byte-sized HID usage 01.
+    if (function == 0xF001u)
+        return halljoy::keycode::kFn;
+    return 0;
 }
 
 std::size_t CountMappedHids(const KeyMap& map) noexcept
@@ -495,6 +529,20 @@ std::size_t CountMappedHids(const KeyMap& map) noexcept
         for (const auto hid : row)
             if (IsPublishableKeyboardUsage(hid))
                 seen[hid] = true;
+    return static_cast<std::size_t>(std::count(seen.begin(), seen.end(), true));
+}
+
+std::size_t CountMappedKeyCodes(const ActiveKeyMap& map) noexcept
+{
+    std::array<bool, halljoy::keycode::kCount> seen{};
+    for (const auto& row : map)
+    {
+        for (const auto keyCode : row)
+        {
+            if (halljoy::keycode::IsSupported(keyCode))
+                seen[keyCode] = true;
+        }
+    }
     return static_cast<std::size_t>(std::count(seen.begin(), seen.end(), true));
 }
 
@@ -529,7 +577,7 @@ bool ApplyKeyFunctionBatch(
 void BuildPublishableActiveKeyMap(
     const KeyMap& defaultMap,
     const KeyFunctionMap& functions,
-    KeyMap* out) noexcept
+    ActiveKeyMap* out) noexcept
 {
     if (!out)
         return;
@@ -540,9 +588,8 @@ void BuildPublishableActiveKeyMap(
         {
             if (defaultMap[row][column] == 0)
                 continue;
-            const auto function = functions[row][column];
-            if (IsPublishableKeyFunction(function))
-                (*out)[row][column] = static_cast<std::uint8_t>(function);
+            (*out)[row][column] =
+                PublishedKeyCodeForFunction(functions[row][column]);
         }
     }
 }

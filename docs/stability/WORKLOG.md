@@ -178,3 +178,16 @@ A targeted two-minute production run completed 464,905/464,905 routes with zero
 stale/reconnect, survivor, or state mutation. Because the correction was narrow,
 deterministic, and fully covered, the already completed hour and 1000-cycle gate
 were not repeated blindly; external hardware gates remained independent.
+
+## August 21, 2026: D-049 safe embedded ViGEmBus recovery
+
+V14-12F remains the historical rejection of mutable runtime downloads,
+predictable temp extraction and infinite installer waits. Its manual-only UX is
+superseded. HallJoy now embeds the exact official ViGEmBus 1.22.0 installer and
+offers explicit one-click setup with no runtime network access. Size/SHA,
+Nefarius Authenticode, random `CREATE_NEW` extraction, read-only locking,
+post-lock/pre-elevation hashes, executable-open compatibility and bounded
+message-pumped waiting are enforced by source/build gates and an exact linked
+resource self-test. Final artifact: 8,485,376 bytes, SHA-256
+`7EB42CF1687D0DB1FF16721875C5F36B502FD96D1EB1DEC686C3AC4EEA85AB6B`.
+The actual UAC install was not run because ViGEmBus was already installed.

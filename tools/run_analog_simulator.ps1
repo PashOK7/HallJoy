@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [switch]$SkipBuild,
+    [switch]$IsolateSyntheticInput,
     [switch]$ForceUserUapRuntime,
     [switch]$StartOverlay,
     [switch]$InjectRealtimeStopTimeout,
@@ -26,6 +27,8 @@ param(
     [switch]$InjectNativePhaseStartFailure,
     [switch]$InjectVigemUpdateStall,
     [switch]$InjectVigemOutputCppFault,
+    [switch]$InjectVigemOutputInvalidThreadHandle,
+    [switch]$InjectVigemOutputWakeCloseUse,
     [switch]$InjectOverlayWorkerCppFault,
     [ValidateSet('prepare', 'write', 'flush', 'validate', 'replace')]
     [string]$InjectPersistenceFailure,
@@ -34,7 +37,7 @@ param(
     [switch]$RequireStorageMigration,
     [switch]$RequireStorageMigrationFailure,
     [switch]$UsePortableStorage,
-    [ValidateRange(7, 120)]
+    [ValidateRange(8, 120)]
     [int]$RunSeconds = 8
 )
 
@@ -65,6 +68,8 @@ $injectionCount = @(
     $InjectNativePhaseStartFailure.IsPresent,
     $InjectVigemUpdateStall.IsPresent,
     $InjectVigemOutputCppFault.IsPresent,
+    $InjectVigemOutputInvalidThreadHandle.IsPresent,
+    $InjectVigemOutputWakeCloseUse.IsPresent,
     $InjectOverlayWorkerCppFault.IsPresent,
     -not [string]::IsNullOrEmpty($InjectPersistenceFailure)
 ).Where({ $_ }).Count
@@ -88,7 +93,7 @@ if ($RequireStorageMigrationFailure -and ($RequireStorageMigration -or $UsePorta
 
 $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root 'src\HallJoyProject\HallJoy\HallJoy.vcxproj'
-$output = Join-Path $root 'src\HallJoyProject\x64\AnalogSimulator'
+$output = Join-Path $root 'build\bin\AnalogSimulator\Release\x64'
 $exe = Join-Path $output 'HallJoyV14Simulator.exe'
 $trace = Join-Path $output 'HallJoyStabilityTrace.log'
 
@@ -163,6 +168,12 @@ if ($UsePortableStorage) {
     $StorageLegacyRoot = [IO.Path]::GetFullPath($StorageLegacyRoot)
     New-Item -ItemType Directory -Path $effectiveDataRoot,$StorageLegacyRoot -Force | Out-Null
 }
+$portableMarker = Join-Path $output 'HallJoy.portable'
+$createdPortableMarker = $false
+if ($UsePortableStorage -and -not (Test-Path -LiteralPath $portableMarker)) {
+    [IO.File]::WriteAllText($portableMarker, "HallJoy portable test`r`n", [Text.UTF8Encoding]::new($false))
+    $createdPortableMarker = $true
+}
 $persistenceSettings = Join-Path $effectiveDataRoot 'settings.ini'
 $persistenceProbePaths = @()
 $persistenceHashesBefore = @{}
@@ -203,6 +214,9 @@ $arguments = @(
 )
 if (-not $UsePortableStorage) {
     $arguments += @('--halljoy-test-data-root', $effectiveDataRoot, '--halljoy-test-legacy-root', $StorageLegacyRoot)
+}
+if ($IsolateSyntheticInput) {
+    $arguments += '--halljoy-test-isolated-synthetic-input'
 }
 if ($ForceUserUapRuntime) {
     $arguments += '--halljoy-test-uap-exe-write-denied'
@@ -275,6 +289,12 @@ if ($InjectVigemUpdateStall) {
 }
 if ($InjectVigemOutputCppFault) {
     $arguments += '--halljoy-test-vigem-output-cpp-fault'
+}
+if ($InjectVigemOutputInvalidThreadHandle) {
+    $arguments += '--halljoy-test-vigem-output-invalid-thread-handle'
+}
+if ($InjectVigemOutputWakeCloseUse) {
+    $arguments += '--halljoy-test-vigem-output-wake-close-use'
 }
 if ($InjectOverlayWorkerCppFault) {
     $arguments += @('--halljoy-test-overlay-worker-cpp-fault', '--overlay-server', '--port', '18765')
@@ -354,7 +374,11 @@ try {
         if ([HallJoySimulatorWindow]::PostClose([uint32]$process.Id) -gt 0) { $closeAccepted = $true }
         if ($process.WaitForExit(250)) { break }
     } while ([DateTime]::UtcNow -lt $closeDeadline)
-    if (-not $closeAccepted) {
+    # A deliberately failed storage migration returns before the main window
+    # exists.  Its expected non-zero exit and trace are checked below, so a
+    # missing WM_CLOSE target is evidence of the intended early-startup path.
+    $expectedEarlyStorageExit = $RequireStorageMigrationFailure -and $process.HasExited
+    if (-not $closeAccepted -and -not $expectedEarlyStorageExit) {
         throw 'Simulator did not expose a window that accepted graceful close.'
     }
     if (-not $process.HasExited) {
@@ -401,6 +425,9 @@ finally {
         if ($probePath -and (Test-Path -LiteralPath $probePath)) {
             Remove-Item -LiteralPath $probePath -Force
         }
+    }
+    if ($createdPortableMarker -and (Test-Path -LiteralPath $portableMarker)) {
+        Remove-Item -LiteralPath $portableMarker -Force
     }
 }
 
@@ -464,11 +491,17 @@ if ($InjectRealtimeStartFailure -and $process.ExitCode -ne 0) {
 if ($InjectNativePhaseStartFailure -and $process.ExitCode -ne 0) {
     throw "Native-phase-start-failure simulator exited with code $($process.ExitCode), expected 0."
 }
-if ($InjectVigemUpdateStall -and $process.ExitCode -ne 2) {
-    throw "ViGEm-update-stall simulator exited with code $($process.ExitCode), expected 2."
+if ($InjectVigemUpdateStall -and $process.ExitCode -ne 0) {
+    throw "Isolated ViGEm-update-stall recovery exited with code $($process.ExitCode), expected 0."
 }
 if ($InjectVigemOutputCppFault -and $process.ExitCode -ne 0) {
     throw "ViGEm-output-fault simulator exited with code $($process.ExitCode), expected 0."
+}
+if ($InjectVigemOutputInvalidThreadHandle -and $process.ExitCode -ne 0) {
+    throw "ViGEm invalid-thread-handle recovery exited with code $($process.ExitCode), expected 0."
+}
+if ($InjectVigemOutputWakeCloseUse -and $process.ExitCode -ne 0) {
+    throw "ViGEm wake close/use recovery exited with code $($process.ExitCode), expected 0."
 }
 if ($InjectOverlayWorkerCppFault -and $process.ExitCode -ne 0) {
     throw "Overlay-worker-fault simulator exited with code $($process.ExitCode), expected 0."
@@ -642,13 +675,39 @@ $required = if ($RequireStorageMigrationFailure) { @(
     'restart=1',
     '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
     '[component=main][event=session.end] exit_code=0'
+) } elseif ($InjectVigemOutputWakeCloseUse) { @(
+    '[component=vigem-output][event=generation.begin] generation=1 pads=1 revision=1 mode=8 previous=0',
+    '[component=vigem-output][event=generation.end] generation=1 outcome=5 win32_or_vigem=1460 forced=1 prepared=1 disabled=1 quiescent=1',
+    'restart_safe=1',
+    '[component=vigem-output][event=generation.begin] generation=2 pads=1 revision=1 mode=1 previous=1',
+    '[component=vigem-output][event=generation.ready] generation=2',
+    '[component=vigem-output][event=generation.route_ready] generation=2 previous=1 newest_snapshot_requested=1',
+    '[component=vigem-output][event=generation.end] generation=2 outcome=0',
+    'neutral=1 removed=1 restart_safe=1',
+    '[component=vigem-output][event=stop.complete] owner_joined=1 session_leases=0 child_survivors=0',
+    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1 vigem_output_joined=1',
+    '[component=main][event=session.end] exit_code=0'
+) } elseif ($InjectVigemOutputInvalidThreadHandle) { @(
+    '[component=vigem-output][event=generation.begin] generation=1 pads=1 revision=1 mode=3 previous=0',
+    '[component=vigem-output][event=generation.end] generation=1 outcome=3 win32_or_vigem=0 forced=0 prepared=1 disabled=1 quiescent=1',
+    'restart_safe=1',
+    '[component=vigem-output][event=generation.begin] generation=2 pads=1 revision=1 mode=1 previous=1',
+    '[component=vigem-output][event=generation.ready] generation=2',
+    '[component=vigem-output][event=generation.end] generation=2 outcome=0',
+    'neutral=1 removed=1 restart_safe=1',
+    '[component=vigem-output][event=stop.complete] owner_joined=1 session_leases=0 child_survivors=0',
+    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1 vigem_output_joined=1',
+    '[component=main][event=session.end] exit_code=0'
 ) } elseif ($InjectVigemOutputCppFault) { @(
-    '[component=vigem-output][event=test.cpp_fault.injected] simulator_only=1',
-    '[component=vigem-output][event=worker.fault] kind=1 restart_blocked=1',
-    '[component=vigem-output][event=watchdog.recover.begin]',
-    '[component=vigem-output][event=stop.end]',
-    '[component=vigem-output][event=watchdog.recover.end] restart_safe=1',
-    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1',
+    '[component=vigem-output][event=generation.begin] generation=1 pads=1 revision=1 mode=3 previous=0',
+    '[component=vigem-output][event=generation.end] generation=1 outcome=3 win32_or_vigem=0 forced=0 prepared=1 disabled=1 quiescent=1',
+    'restart_safe=1',
+    '[component=vigem-output][event=generation.begin] generation=2 pads=1 revision=1 mode=1 previous=1',
+    '[component=vigem-output][event=generation.ready] generation=2',
+    '[component=vigem-output][event=generation.end] generation=2 outcome=0',
+    'neutral=1 removed=1 restart_safe=1',
+    '[component=vigem-output][event=stop.complete] owner_joined=1 session_leases=0 child_survivors=0',
+    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1 vigem_output_joined=1',
     '[component=main][event=session.end] exit_code=0'
 ) } elseif ($InjectOverlayWorkerCppFault) { @(
     '[component=overlay][event=test.cpp_fault.injected] simulator_only=1',
@@ -657,14 +716,18 @@ $required = if ($RequireStorageMigrationFailure) { @(
     'fault_kind=1 restart_safe=1',
     '[component=main][event=session.end] exit_code=0'
 ) } elseif ($InjectVigemUpdateStall) { @(
-    '[component=vigem-output][event=test.update_stall.injected] simulator_only=1',
-    '[component=analog-simulator][event=stop]',
-    '[component=realtime][event=stop.end]',
-    '[component=vigem-output][event=stop.timeout]',
-    'handles_retained=1 restart_blocked=1',
-    '[component=backend][event=shutdown.blocked] component=vigem-output dependent_cleanup_skipped=1',
-    '[component=app][event=shutdown.poisoned] component=backend',
-    '[component=main][event=process_exit.poisoned] exit_code=2 crt_cleanup_skipped=1'
+    '[component=vigem-output][event=generation.begin] generation=1 pads=1 revision=1 mode=8 previous=0',
+    '[component=vigem-output][event=generation.end] generation=1 outcome=5 win32_or_vigem=1460 forced=1 prepared=1 disabled=1 quiescent=1',
+    'restart_safe=1',
+    '[component=vigem-output][event=generation.begin] generation=2 pads=1 revision=1 mode=1 previous=1',
+    '[component=vigem-output][event=generation.ready] generation=2',
+    '[component=vigem-output][event=generation.route_ready] generation=2 previous=1 newest_snapshot_requested=1',
+    '[component=vigem-output][event=generation.end] generation=2 outcome=0',
+    'neutral=1 removed=1 restart_safe=1',
+    '[component=vigem-output][event=owner.exit] restart_safe=1 completed_generation=2 restarts=1',
+    '[component=vigem-output][event=stop.complete] owner_joined=1 session_leases=0 child_survivors=0',
+    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1 vigem_output_joined=1',
+    '[component=main][event=session.end] exit_code=0'
 ) } elseif ($InjectRealtimeStartFailure) { @(
     '[component=realtime][event=test.start_failure.injected] simulator_only=1',
     '[component=app][event=startup.rollback.begin] failed_stage=realtime',
@@ -698,11 +761,15 @@ $required = if ($RequireStorageMigrationFailure) { @(
     '[event=pipeline-report.observed] phase=disconnected lx=0 ly=0',
     '[event=pipeline-report.observed] phase=post-reconnect-input',
     '[event=pipeline-report.observed] phase=source-fault lx=0 ly=0',
-    '[event=vigem-report.accepted] state=non-neutral',
-    '[event=vigem-report.accepted] state=neutral-after-input',
+    '[component=vigem-output][event=owner.start] process_isolated=1 process_lifetime_wake=1',
+    '[component=vigem-output][event=generation.begin] generation=1 pads=1 revision=1 mode=0 previous=0',
+    '[component=vigem-output][event=generation.ready] generation=1',
+    '[component=vigem-output][event=publication.applied] generation=1 sequence=',
     '[component=analog-simulator][event=stop]',
-    '[component=vigem][event=init.ok]',
-    '[component=backend][event=shutdown.end]'
+    '[component=vigem-output][event=generation.end] generation=1 outcome=0',
+    'neutral=1 removed=1 restart_safe=1',
+    '[component=vigem-output][event=stop.complete] owner_joined=1 session_leases=0 child_survivors=0',
+    '[component=backend][event=shutdown.end] native_joined=1 analog_host_joined=1 vigem_output_joined=1'
 ) }
 $missing = @($required | Where-Object { -not $traceText.Contains($_) })
 $storageRequired = @()
@@ -743,6 +810,32 @@ if ($StartOverlay) {
 }
 if ($ForceUserUapRuntime -and -not $traceText.Contains('[component=embedded-uap][event=prepare.ok] location=user exact_resource_match=1 system_sdk_required=0')) {
     $missing += 'verified per-user private UAP fallback'
+}
+$vigemRecoveryScenario = $InjectVigemUpdateStall -or
+    $InjectVigemOutputCppFault -or
+    $InjectVigemOutputInvalidThreadHandle -or
+    $InjectVigemOutputWakeCloseUse
+if ($vigemRecoveryScenario) {
+    $generationOneBegin = $traceText.IndexOf(
+        '[component=vigem-output][event=generation.begin] generation=1')
+    $generationOneEnd = $traceText.IndexOf(
+        '[component=vigem-output][event=generation.end] generation=1')
+    $generationTwoBegin = $traceText.IndexOf(
+        '[component=vigem-output][event=generation.begin] generation=2')
+    $generationTwoReady = $traceText.IndexOf(
+        '[component=vigem-output][event=generation.ready] generation=2')
+    $generationTwoEnd = $traceText.IndexOf(
+        '[component=vigem-output][event=generation.end] generation=2')
+    $stopComplete = $traceText.IndexOf(
+        '[component=vigem-output][event=stop.complete]')
+    if ($generationOneBegin -lt 0 -or
+        $generationOneBegin -ge $generationOneEnd -or
+        $generationOneEnd -ge $generationTwoBegin -or
+        $generationTwoBegin -ge $generationTwoReady -or
+        $generationTwoReady -ge $generationTwoEnd -or
+        $generationTwoEnd -ge $stopComplete) {
+        $missing += 'strict non-overlapping ViGEm generation/recovery/stop order'
+    }
 }
 if ($missing.Count -ne 0) {
     throw "Simulator trace is incomplete. Missing: $($missing -join ', ')"
@@ -853,9 +946,13 @@ if ($RequireStorageMigrationFailure) {
 } elseif ($InjectNativePhaseStartFailure) {
     Write-Host 'HallJoy native-phase reverse rollback scenario: PASS' -ForegroundColor Green
 } elseif ($InjectVigemUpdateStall) {
-    Write-Host 'HallJoy ViGEm stalled-driver containment scenario: PASS' -ForegroundColor Green
+    Write-Host 'HallJoy isolated ViGEm stall/reap/recovery scenario: PASS' -ForegroundColor Green
 } elseif ($InjectVigemOutputCppFault) {
-    Write-Host 'HallJoy ViGEm output-worker recovery scenario: PASS' -ForegroundColor Green
+    Write-Host 'HallJoy ViGEm child-exit recovery scenario: PASS' -ForegroundColor Green
+} elseif ($InjectVigemOutputInvalidThreadHandle) {
+    Write-Host 'HallJoy ViGEm owner-handle regression scenario: PASS' -ForegroundColor Green
+} elseif ($InjectVigemOutputWakeCloseUse) {
+    Write-Host 'HallJoy process-lifetime wake ownership scenario: PASS' -ForegroundColor Green
 } elseif ($InjectOverlayWorkerCppFault) {
     Write-Host 'HallJoy overlay worker recovery scenario: PASS' -ForegroundColor Green
 } elseif ($StartOverlay) {

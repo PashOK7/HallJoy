@@ -1,0 +1,15 @@
+{
+  "0,14": {
+    "vendorProductId": 875825936,
+    "token": "KC_MUTE",
+    "exclude": true,
+    "reason": "Knob push: Q1 UAP matrix uses KEY_NONE; no published analogue key code"
+  },
+  "5,10": {
+    "vendorProductId": 875825936,
+    "token": "FN_WIN",
+    "hid": 1033,
+    "label": "Fn",
+    "reason": "Q1 UAP KEY_FN -> 0x409 in mapToWootingKey"
+  }
+}

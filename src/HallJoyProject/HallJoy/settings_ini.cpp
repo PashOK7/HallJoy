@@ -1,4 +1,5 @@
 // settings_ini.cpp
+#include "block_keys_policy.h"
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
@@ -19,6 +20,9 @@
 #include "keyboard_layout.h"
 #include "global_profiles.h"
 #include "overlay_server.h"
+#include "bounded_ini.h"
+#include "profile_ini.h"
+#include "profile_runtime_gate.h"
 
 static float ClampF(float v, float lo, float hi)
 {
@@ -38,7 +42,11 @@ static bool IniWriteFloat1000(const wchar_t* section, const wchar_t* key, float 
 static float IniReadFloat1000(const wchar_t* section, const wchar_t* key, float def, const wchar_t* path)
 {
     int defI = (int)lroundf(def * 1000.0f);
-    int iv = GetPrivateProfileIntW(section, key, defI, path);
+    std::int32_t iv = defI;
+    if (!halljoy::ini::ReadSigned(path, section, key,
+            std::numeric_limits<std::int32_t>::min(),
+            std::numeric_limits<std::int32_t>::max(), defI, iv))
+        iv = defI;
     return (float)iv / 1000.0f;
 }
 
@@ -51,7 +59,11 @@ static bool IniWriteU32(const wchar_t* section, const wchar_t* key, UINT v, cons
 
 static UINT IniReadU32(const wchar_t* section, const wchar_t* key, UINT def, const wchar_t* path)
 {
-    return (UINT)GetPrivateProfileIntW(section, key, (int)def, path);
+    std::uint32_t value = def;
+    if (!halljoy::ini::ReadUnsigned(path, section, key,
+            std::numeric_limits<std::uint32_t>::max(), def, value))
+        value = def;
+    return static_cast<UINT>(value);
 }
 
 static bool IniWriteI32(const wchar_t* section, const wchar_t* key, int v, const wchar_t* path)
@@ -63,11 +75,12 @@ static bool IniWriteI32(const wchar_t* section, const wchar_t* key, int v, const
 
 static int IniReadI32(const wchar_t* section, const wchar_t* key, int def, const wchar_t* path)
 {
-    wchar_t buf[64]{};
-    GetPrivateProfileStringW(section, key, L"", buf, (DWORD)_countof(buf), path);
-    if (buf[0] == 0)
-        return def;
-    return _wtoi(buf);
+    std::int32_t value = def;
+    if (!halljoy::ini::ReadSigned(path, section, key,
+            std::numeric_limits<std::int32_t>::min(),
+            std::numeric_limits<std::int32_t>::max(), def, value))
+        value = def;
+    return static_cast<int>(value);
 }
 
 static int OverlayClampStrengthPercent(int value)
@@ -98,6 +111,8 @@ static bool OverlaySettingsIni_SaveToSettingsIni(const wchar_t* path)
 {
     bool ok = true;
     ok &= IniWriteI32(L"InputOverlay", L"StrengthScaleVersion", 5, path);
+    ok &= WritePrivateProfileStringW(L"InputOverlay", L"LayoutPresetName",
+        KeyboardLayout_GetOverlayPresetName(), path) != FALSE;
     ok &= IniWriteI32(L"InputOverlay", L"AutoStart", OverlayServer_GetAutoStart() ? 1 : 0, path);
     ok &= IniWriteI32(L"InputOverlay", L"UseRawDepth", OverlayServer_GetUseRawDepth() ? 1 : 0, path);
     ok &= IniWriteU32(L"InputOverlay", L"Port", OverlayServer_GetConfiguredPort(), path);
@@ -236,12 +251,17 @@ static bool KeySettingsIni_SaveToSettingsIni(const wchar_t* path)
     return ok;
 }
 
-static void KeySettingsIni_LoadFromSettingsIni(const wchar_t* path)
+static bool KeySettingsIni_Prepare(const wchar_t* path, PreparedKeySettings& prepared)
 {
-    KeySettings_ClearAll();
+    std::vector<std::pair<uint16_t, KeyDeadzone>> values;
 
     std::vector<std::wstring> keys;
-    if (!ReadSectionKeys(L"KeyDeadzone", path, keys)) return;
+    if (!ReadSectionKeys(L"KeyDeadzone", path, keys)) {
+        wchar_t probe[4]{};
+        if (GetPrivateProfileSectionW(L"KeyDeadzone", probe, 4, path) != 0) return false;
+        prepared = KeySettings_Prepare(values);
+        return true;
+    }
 
     std::unordered_set<uint16_t> hids;
     hids.reserve(keys.size());
@@ -250,9 +270,12 @@ static void KeySettingsIni_LoadFromSettingsIni(const wchar_t* path)
     {
         size_t us = k.find(L'_');
         std::wstring prefix = (us == std::wstring::npos) ? k : k.substr(0, us);
-        int hidI = _wtoi(prefix.c_str());
-        if (hidI > 0 && hidI <= 65535)
-            hids.insert((uint16_t)hidI);
+        std::uint32_t hidI = 0, value = 0;
+        std::wstring numeric;
+        if (us == std::wstring::npos || !halljoy::ini::Unsigned(prefix, 65535, hidI) || !hidI ||
+            !halljoy::ini::Read(path, L"KeyDeadzone", k.c_str(), numeric) ||
+            !halljoy::ini::Unsigned(numeric, INT_MAX, value)) return false;
+        hids.insert(static_cast<uint16_t>(hidI));
     }
 
     for (uint16_t hid : hids)
@@ -279,23 +302,23 @@ static void KeySettingsIni_LoadFromSettingsIni(const wchar_t* path)
         swprintf_s(kC1W, L"%u_C1W", (unsigned)hid);
         swprintf_s(kC2W, L"%u_C2W", (unsigned)hid);
 
-        int use = GetPrivateProfileIntW(L"KeyDeadzone", kUse, 0, path);
-        int inv = GetPrivateProfileIntW(L"KeyDeadzone", kInv, 0, path);
-        int mode = GetPrivateProfileIntW(L"KeyDeadzone", kMode, 0, path);
+        int use = IniReadI32(L"KeyDeadzone", kUse, 0, path);
+        int inv = IniReadI32(L"KeyDeadzone", kInv, 0, path);
+        int mode = IniReadI32(L"KeyDeadzone", kMode, 0, path);
 
-        int lowM = GetPrivateProfileIntW(L"KeyDeadzone", kLow, 80, path);
-        int higM = GetPrivateProfileIntW(L"KeyDeadzone", kHigh, 900, path);
+        int lowM = IniReadI32(L"KeyDeadzone", kLow, 80, path);
+        int higM = IniReadI32(L"KeyDeadzone", kHigh, 900, path);
 
-        int adzM = GetPrivateProfileIntW(L"KeyDeadzone", kADZ, 0, path);
-        int capM = GetPrivateProfileIntW(L"KeyDeadzone", kCap, 1000, path);
+        int adzM = IniReadI32(L"KeyDeadzone", kADZ, 0, path);
+        int capM = IniReadI32(L"KeyDeadzone", kCap, 1000, path);
 
-        int c1x = GetPrivateProfileIntW(L"KeyDeadzone", kC1X, 380, path);
-        int c1y = GetPrivateProfileIntW(L"KeyDeadzone", kC1Y, 330, path);
-        int c2x = GetPrivateProfileIntW(L"KeyDeadzone", kC2X, 680, path);
-        int c2y = GetPrivateProfileIntW(L"KeyDeadzone", kC2Y, 660, path);
+        int c1x = IniReadI32(L"KeyDeadzone", kC1X, 380, path);
+        int c1y = IniReadI32(L"KeyDeadzone", kC1Y, 330, path);
+        int c2x = IniReadI32(L"KeyDeadzone", kC2X, 680, path);
+        int c2y = IniReadI32(L"KeyDeadzone", kC2Y, 660, path);
 
-        int c1w = GetPrivateProfileIntW(L"KeyDeadzone", kC1W, 1000, path);
-        int c2w = GetPrivateProfileIntW(L"KeyDeadzone", kC2W, 1000, path);
+        int c1w = IniReadI32(L"KeyDeadzone", kC1W, 1000, path);
+        int c2w = IniReadI32(L"KeyDeadzone", kC2W, 1000, path);
 
         KeyDeadzone ks;
         ks.useUnique = (use != 0);
@@ -315,18 +338,68 @@ static void KeySettingsIni_LoadFromSettingsIni(const wchar_t* path)
         ks.cp1_w = ClampF((float)c1w / 1000.0f, 0.0f, 1.0f);
         ks.cp2_w = ClampF((float)c2w / 1000.0f, 0.0f, 1.0f);
 
-        KeySettings_Set(hid, ks);
+        values.emplace_back(hid, ks);
     }
+    prepared = KeySettings_Prepare(values);
+    return true;
 }
 
-static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loadLayout, bool loadActiveProfileKey)
+static bool ValidateProfileNumbers(const wchar_t* path, bool complete)
+{
+    const auto validate = [&](const wchar_t* section, std::initializer_list<const wchar_t*> names) {
+        for (const auto* name : names) {
+            std::wstring text;
+            if (!halljoy::ini::Read(path, section, name, text)) return false;
+            if (text.empty()) { if (complete) return false; else continue; }
+            std::uint32_t value = 0;
+            if (!halljoy::ini::Unsigned(text, INT_MAX, value)) return false;
+        }
+        return true;
+    };
+    return validate(L"Main", {L"PollingMs", L"UIRefreshMs", L"VirtualGamepads",
+        L"VirtualGamepadsEnabled", L"DigitalFallbackInput", L"SparkPollMode", L"SparkRowLimit",
+        L"MouseToStickEnabled", L"MouseToStickTarget", L"MouseToStickSensitivity",
+        L"MouseToStickAggressiveness", L"MouseToStickMaxOffset", L"MouseToStickFollowSpeed"}) &&
+        validate(L"Input", {L"DeadzoneLow", L"DeadzoneHigh", L"AntiDeadzone", L"OutputCap",
+        L"Cp1X", L"Cp1Y", L"Cp2X", L"Cp2Y", L"Cp1W", L"Cp2W", L"CurveMode",
+        L"Invert", L"SnappyJoystick", L"LastKeyPriority", L"LastKeyPrioritySensitivity",
+        L"BlockBoundKeys", L"BlockMouseInput"});
+}
+
+static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loadLayout, bool loadActiveProfileKey,
+    std::function<void()>* preparedApply = nullptr)
 {
     if (!path) return false;
 
-    DWORD attr = GetFileAttributesW(path);
-    if (attr == INVALID_FILE_ATTRIBUTES) return false;
+    halljoy::ini::ReadFile inputFile(path);
+    if (!inputFile) return false;
+    std::wstring schema, kind, bundle;
+    if (!halljoy::ini::Read(path, L"HallJoyPersistence", L"SchemaVersion", schema) ||
+        !halljoy::ini::Read(path, L"HallJoyPersistence", L"Kind", kind) ||
+        !halljoy::ini::Read(path, L"HallJoyProfile", L"BundleVersion", bundle)) return false;
+    if ((!schema.empty() || !kind.empty()) &&
+        (schema != L"1" || (kind != L"Settings" && kind != L"ProfileSettings"))) return false;
+    if (!bundle.empty() && (bundle != L"1" || schema != L"1")) return false;
+    std::wstring pollingProof, deadzoneProof;
+    if (!halljoy::ini::Read(path, L"Main", L"PollingMs", pollingProof) ||
+        !halljoy::ini::Read(path, L"Input", L"DeadzoneLow", deadzoneProof) ||
+        (pollingProof.empty() && deadzoneProof.empty())) return false;
+    PreparedKeySettings preparedKeys;
+    if (!ValidateProfileNumbers(path, !bundle.empty()) || !KeySettingsIni_Prepare(path, preparedKeys)) return false;
 
     const bool profileOnly = (!loadWindow && !loadLayout && !loadActiveProfileKey);
+    // Optional application preference, never part of a gameplay profile schema.
+    std::uint32_t diagnosticLogging = 0, blockAllowAltTab = 1, blockHotkey = 0;
+    if (!profileOnly) {
+        std::wstring text;
+        if (!halljoy::ini::Read(path, L"Main", L"DiagnosticLogging", text) ||
+            (!text.empty() && !halljoy::ini::Unsigned(text, 1, diagnosticLogging))) return false;
+        if (!halljoy::ini::Read(path, L"Main", L"BlockKeysAllowAltTab", text) ||
+            (!text.empty() && !halljoy::ini::Unsigned(text, 1, blockAllowAltTab))) return false;
+        if (!halljoy::ini::Read(path, L"Main", L"BlockKeysHotkey", text) ||
+            (!text.empty() && !halljoy::ini::Unsigned(text, 4095, blockHotkey)) ||
+            !halljoy::block_keys::ValidShortcut(blockHotkey)) return false;
+    }
 
     // For profile loading, never inherit current runtime values for missing keys.
     // Profile must be self-contained; missing values fall back to stable defaults.
@@ -394,24 +467,24 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     float c2w = IniReadFloat1000(L"Input", L"Cp2W", c2wDef, path);
 
     UINT curveMode = IniReadU32(L"Input", L"CurveMode", curveModeDef, path);
-    int invert = GetPrivateProfileIntW(L"Input", L"Invert", invertDef, path);
-    int snappy = GetPrivateProfileIntW(L"Input", L"SnappyJoystick", snappyDef, path);
-    int lastKeyPriority = GetPrivateProfileIntW(L"Input", L"LastKeyPriority", lkpDef, path);
+    int invert = IniReadI32(L"Input", L"Invert", invertDef, path);
+    int snappy = IniReadI32(L"Input", L"SnappyJoystick", snappyDef, path);
+    int lastKeyPriority = IniReadI32(L"Input", L"LastKeyPriority", lkpDef, path);
     float lastKeyPrioritySensitivity = IniReadFloat1000(
         L"Input", L"LastKeyPrioritySensitivity",
         lkpSensDef, path);
-    int blockBoundKeys = GetPrivateProfileIntW(L"Input", L"BlockBoundKeys", blockDef, path);
-    int blockMouseInput = GetPrivateProfileIntW(L"Input", L"BlockMouseInput", blockMouseDef, path);
+    int blockBoundKeys = IniReadI32(L"Input", L"BlockBoundKeys", blockDef, path);
+    int blockMouseInput = IniReadI32(L"Input", L"BlockMouseInput", blockMouseDef, path);
 
     UINT poll = IniReadU32(L"Main", L"PollingMs", pollDef, path);
     UINT uiMs = IniReadU32(L"Main", L"UIRefreshMs", uiDef, path);
-    int vpadCount = GetPrivateProfileIntW(L"Main", L"VirtualGamepads", padsDef, path);
-    int vpadEnabled = GetPrivateProfileIntW(L"Main", L"VirtualGamepadsEnabled", padsEnabledDef, path);
-    int digitalFallbackInput = GetPrivateProfileIntW(L"Main", L"DigitalFallbackInput", fallbackDef, path);
+    int vpadCount = IniReadI32(L"Main", L"VirtualGamepads", padsDef, path);
+    int vpadEnabled = IniReadI32(L"Main", L"VirtualGamepadsEnabled", padsEnabledDef, path);
+    int digitalFallbackInput = IniReadI32(L"Main", L"DigitalFallbackInput", fallbackDef, path);
     UINT sparkPollMode = IniReadU32(L"Main", L"SparkPollMode", sparkPollModeDef, path);
     UINT sparkRowLimit = IniReadU32(L"Main", L"SparkRowLimit", sparkRowLimitDef, path);
-    int mouseToStickEnabled = GetPrivateProfileIntW(L"Main", L"MouseToStickEnabled", mouseToStickEnabledDef, path);
-    int mouseToStickTarget = GetPrivateProfileIntW(L"Main", L"MouseToStickTarget", mouseToStickTargetDef, path);
+    int mouseToStickEnabled = IniReadI32(L"Main", L"MouseToStickEnabled", mouseToStickEnabledDef, path);
+    int mouseToStickTarget = IniReadI32(L"Main", L"MouseToStickTarget", mouseToStickTargetDef, path);
     float mouseToStickSensitivity = IniReadFloat1000(L"Main", L"MouseToStickSensitivity", mouseToStickSensDef, path);
     float mouseToStickAggressiveness = IniReadFloat1000(L"Main", L"MouseToStickAggressiveness", mouseToStickAggDef, path);
     float mouseToStickMaxOffset = IniReadFloat1000(L"Main", L"MouseToStickMaxOffset", mouseToStickMaxOffsetDef, path);
@@ -436,9 +509,9 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     UINT overlayLabelColor = overlayLabelColorDef;
     if (!profileOnly)
     {
-        int overlayStrengthScaleVersion = GetPrivateProfileIntW(L"InputOverlay", L"StrengthScaleVersion", 0, path);
-        overlayAutoStart = GetPrivateProfileIntW(L"InputOverlay", L"AutoStart", overlayAutoStartDef, path);
-        overlayUseRawDepth = GetPrivateProfileIntW(L"InputOverlay", L"UseRawDepth", overlayUseRawDepthDef, path);
+        int overlayStrengthScaleVersion = IniReadI32(L"InputOverlay", L"StrengthScaleVersion", 0, path);
+        overlayAutoStart = IniReadI32(L"InputOverlay", L"AutoStart", overlayAutoStartDef, path);
+        overlayUseRawDepth = IniReadI32(L"InputOverlay", L"UseRawDepth", overlayUseRawDepthDef, path);
         overlayPort = IniReadU32(L"InputOverlay", L"Port", overlayPortDef, path);
         overlayFillDirection = IniReadU32(L"InputOverlay", L"FillDirection", overlayFillDirectionDef, path);
         overlayEffects = IniReadU32(L"InputOverlay", L"EffectFlags", overlayEffectsDef, path);
@@ -482,14 +555,19 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     int winH = Settings_GetMainWindowHeightPx();
     int winX = std::numeric_limits<int>::min();
     int winY = std::numeric_limits<int>::min();
+    int winVersion = 0, winDpi = 0, winMaximized = 0;
     if (loadWindow)
     {
-        winW = GetPrivateProfileIntW(L"Window", L"Width", Settings_GetMainWindowWidthPx(), path);
-        winH = GetPrivateProfileIntW(L"Window", L"Height", Settings_GetMainWindowHeightPx(), path);
+        winW = IniReadI32(L"Window", L"Width", Settings_GetMainWindowWidthPx(), path);
+        winH = IniReadI32(L"Window", L"Height", Settings_GetMainWindowHeightPx(), path);
         winX = IniReadI32(L"Window", L"PosX", std::numeric_limits<int>::min(), path);
         winY = IniReadI32(L"Window", L"PosY", std::numeric_limits<int>::min(), path);
+        winVersion = IniReadI32(L"Window", L"PlacementVersion", 0, path);
+        winDpi = IniReadI32(L"Window", L"Dpi", 0, path);
+        winMaximized = IniReadI32(L"Window", L"Maximized", 0, path);
     }
 
+    auto apply = [=, keys = std::move(preparedKeys)]() mutable {
     Settings_SetInputDeadzoneLow(low);
     Settings_SetInputDeadzoneHigh(high);
 
@@ -528,6 +606,13 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     if (!profileOnly)
     {
         OverlayServer_SetAutoStart(overlayAutoStart != 0);
+        wchar_t overlayLayoutName[260]{};
+        GetPrivateProfileStringW(L"InputOverlay", L"LayoutPresetName", L"",
+            overlayLayoutName, (DWORD)_countof(overlayLayoutName), path);
+        KeyboardLayout_SetOverlayPresetName(overlayLayoutName);
+        Settings_SetDiagnosticLogging(diagnosticLogging != 0);
+        Settings_SetBlockKeysAllowAltTab(blockAllowAltTab != 0);
+        Settings_SetBlockKeysHotkey(blockHotkey);
         OverlayServer_SetUseRawDepth(overlayUseRawDepth != 0);
         OverlayServer_SetConfiguredPort((uint16_t)std::clamp<UINT>(overlayPort, 1u, 65535u));
         OverlayServer_SetFillDirection(overlayFillDirection == (UINT)OverlayFillDirection::TopDown
@@ -554,14 +639,22 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
         Settings_SetMainWindowHeightPx(winH);
         Settings_SetMainWindowPosXPx(winX);
         Settings_SetMainWindowPosYPx(winY);
+        Settings_SetMainWindowPlacementMeta(winVersion, winDpi, winMaximized == 1);
     }
 
-    if (loadActiveProfileKey)
-        GlobalProfiles_InitFromSettingsIni(path);
-
-    KeySettingsIni_LoadFromSettingsIni(path);
-    if (loadLayout)
-        KeyboardLayout_LoadFromIni(path);
+    KeySettings_ApplyPrepared(keys);
+    };
+    if (preparedApply) {
+        *preparedApply = std::move(apply);
+        return true;
+    }
+    {
+        halljoy::profile_runtime::CommitLease commit;
+        if (!commit) return false;
+        apply();
+    }
+    if (loadActiveProfileKey) GlobalProfiles_InitFromSettingsIni(path);
+    if (loadLayout) KeyboardLayout_LoadFromIni(path);
     return true;
 }
 
@@ -577,6 +670,21 @@ bool SettingsIni_LoadProfile(const wchar_t* path)
 
 // Writes ONLY application settings (settings.ini).
 // Curve presets are stored separately by KeyboardProfiles (CurvePresets folder).
+static bool SettingsIni_WriteWindow(const wchar_t* tmpPath)
+{
+    bool ok = IniWriteI32(L"Window", L"Width", Settings_GetMainWindowWidthPx(), tmpPath);
+    ok &= IniWriteI32(L"Window", L"Height", Settings_GetMainWindowHeightPx(), tmpPath);
+    const int x = Settings_GetMainWindowPosXPx(), y = Settings_GetMainWindowPosYPx();
+    if (x != std::numeric_limits<int>::min()) ok &= IniWriteI32(L"Window", L"PosX", x, tmpPath);
+    else ok &= WritePrivateProfileStringW(L"Window", L"PosX", nullptr, tmpPath) != FALSE;
+    if (y != std::numeric_limits<int>::min()) ok &= IniWriteI32(L"Window", L"PosY", y, tmpPath);
+    else ok &= WritePrivateProfileStringW(L"Window", L"PosY", nullptr, tmpPath) != FALSE;
+    ok &= IniWriteI32(L"Window", L"PlacementVersion", Settings_GetMainWindowPlacementVersion(), tmpPath);
+    ok &= IniWriteI32(L"Window", L"Dpi", Settings_GetMainWindowDpi(), tmpPath);
+    ok &= IniWriteI32(L"Window", L"Maximized", Settings_GetMainWindowMaximized() ? 1 : 0, tmpPath);
+    return ok;
+}
+
 static bool SettingsIni_Save_Internal(
     const wchar_t* tmpPath,
     bool saveWindow,
@@ -636,23 +744,16 @@ static bool SettingsIni_Save_Internal(
 
     if (saveWindow)
     {
-        ok &= IniWriteI32(L"Window", L"Width", std::max(0, Settings_GetMainWindowWidthPx()), tmpPath);
-        ok &= IniWriteI32(L"Window", L"Height", std::max(0, Settings_GetMainWindowHeightPx()), tmpPath);
-        const int winX = Settings_GetMainWindowPosXPx();
-        const int winY = Settings_GetMainWindowPosYPx();
-        if (winX == std::numeric_limits<int>::min())
-            ok &= WritePrivateProfileStringW(L"Window", L"PosX", nullptr, tmpPath) != FALSE;
-        else
-            ok &= IniWriteI32(L"Window", L"PosX", winX, tmpPath);
-        if (winY == std::numeric_limits<int>::min())
-            ok &= WritePrivateProfileStringW(L"Window", L"PosY", nullptr, tmpPath) != FALSE;
-        else
-            ok &= IniWriteI32(L"Window", L"PosY", winY, tmpPath);
+        ok &= IniWriteI32(L"Main", L"DiagnosticLogging", Settings_GetDiagnosticLogging() ? 1 : 0, tmpPath);
+        ok &= IniWriteI32(L"Main", L"BlockKeysAllowAltTab", Settings_GetBlockKeysAllowAltTab() ? 1 : 0, tmpPath);
+        ok &= IniWriteI32(L"Main", L"BlockKeysHotkey", Settings_GetBlockKeysHotkey(), tmpPath);
+        ok &= SettingsIni_WriteWindow(tmpPath);
     }
 
     ok &= KeySettingsIni_SaveToSettingsIni(tmpPath);
     if (saveLayout)
         ok &= KeyboardLayout_SaveToIni(tmpPath);
+    ok &= Profile_WriteBindingsSections(tmpPath);
     return ok;
 }
 
@@ -663,6 +764,7 @@ namespace
         FullSettings,
         ProfileSettings,
         OverlayUpdate,
+        WindowUpdate,
     };
 
     struct SettingsTransactionContext
@@ -680,7 +782,12 @@ namespace
     {
         auto* context = static_cast<SettingsTransactionContext*>(rawContext);
         bool ok = false;
-        if (context->kind == SettingsTransactionKind::OverlayUpdate)
+        if (context->kind == SettingsTransactionKind::WindowUpdate)
+        {
+            if (!IniUtil_CopyExistingForUpdate(context->destinationPath, temporaryPath, errorOut)) return false;
+            ok = SettingsIni_WriteWindow(temporaryPath);
+        }
+        else if (context->kind == SettingsTransactionKind::OverlayUpdate)
         {
             if (!IniUtil_CopyExistingForUpdate(context->destinationPath, temporaryPath, errorOut))
                 return false;
@@ -721,6 +828,21 @@ namespace
     bool SettingsTransactionValidate(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
     {
         auto* context = static_cast<SettingsTransactionContext*>(rawContext);
+        if (context->kind == SettingsTransactionKind::WindowUpdate) {
+            const wchar_t* names[] = {L"Width", L"Height", L"PosX", L"PosY", L"PlacementVersion", L"Dpi", L"Maximized"};
+            const int values[] = {Settings_GetMainWindowWidthPx(), Settings_GetMainWindowHeightPx(),
+                Settings_GetMainWindowPosXPx(), Settings_GetMainWindowPosYPx(), Settings_GetMainWindowPlacementVersion(),
+                Settings_GetMainWindowDpi(), Settings_GetMainWindowMaximized() ? 1 : 0};
+            bool valid = true;
+            for (size_t i = 0; i < _countof(names); ++i) {
+                wchar_t expected[32]{};
+                if (values[i] == std::numeric_limits<int>::min()) wcscpy_s(expected, L"{missing}");
+                else swprintf_s(expected, L"%d", values[i]);
+                valid &= ReadExpectedIniValue(temporaryPath, L"Window", names[i], expected);
+            }
+            if (!valid && errorOut) *errorOut = ERROR_INVALID_DATA;
+            return valid;
+        }
         bool ok = ReadExpectedIniValue(temporaryPath, L"HallJoyPersistence", L"SchemaVersion", L"1") &&
             ReadExpectedIniValue(
                 temporaryPath,
@@ -742,6 +864,8 @@ namespace
             GetPrivateProfileStringW(L"Main", L"PollingMs", L"{missing}", polling, (DWORD)_countof(polling), temporaryPath);
             GetPrivateProfileStringW(L"Input", L"DeadzoneLow", L"{missing}", deadzone, (DWORD)_countof(deadzone), temporaryPath);
             ok &= wcscmp(polling, L"{missing}") != 0 && wcscmp(deadzone, L"{missing}") != 0;
+            BindingsSnapshot bindings;
+            ok &= Profile_PrepareIni(temporaryPath, bindings);
         }
 
         if (!ok && errorOut) *errorOut = ERROR_INVALID_DATA;
@@ -751,6 +875,17 @@ namespace
     bool SaveSettingsTransaction(const wchar_t* path, SettingsTransactionKind kind, const wchar_t* displayKind)
     {
         if (!path || !*path) return false;
+        // Preserve the readable legacy document before its first bundle commit.
+        // Legacy bindings remain untouched beside it; no rollback needs an older EXE.
+        if (kind != SettingsTransactionKind::OverlayUpdate && kind != SettingsTransactionKind::WindowUpdate &&
+            GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES && !halljoy::ini::HasBundle(path)) {
+            const std::wstring backup = std::wstring(path) + L".pre-bundle.bak";
+            if (!CopyFileW(path, backup.c_str(), TRUE) && GetLastError() != ERROR_FILE_EXISTS) {
+                IniUtil_ReportSaveFailure(displayKind, path,
+                    {HallJoyPersistence::SaveStage::Prepare, GetLastError()});
+                return false;
+            }
+        }
         SettingsTransactionContext context{ path, kind };
         const auto result = IniUtil_SaveAtomic(path, SettingsTransactionWrite, SettingsTransactionValidate, &context);
         if (!result.Succeeded())
@@ -775,4 +910,15 @@ bool SettingsIni_SaveProfile(const wchar_t* path)
 bool SettingsIni_SaveOverlay(const wchar_t* path)
 {
     return SaveSettingsTransaction(path, SettingsTransactionKind::OverlayUpdate, L"overlay settings");
+}
+
+bool SettingsIni_SaveWindow(const wchar_t* path)
+{
+    // Never turn a missing base file into a geometry-only profile.
+    if (!path || GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) return false;
+    return SaveSettingsTransaction(path, SettingsTransactionKind::WindowUpdate, L"window position");
+}
+
+bool SettingsIni_PrepareProfile(const wchar_t* path, std::function<void()>& apply) {
+    return SettingsIni_Load_Core(path, false, false, false, &apply);
 }

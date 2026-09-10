@@ -95,9 +95,9 @@ def main() -> int:
             "wake event closes only after confirmed worker completion")
     require("return Hex80_StopGeneration(generation);" in descriptor,
             "native registry receives the real Hex80 stop result")
-    require("nativeBackendsStopped" in app and
-            "component=native-analog dependent_cleanup_skipped=1" in app,
-            "application contains an incomplete Hex80 generation")
+    require("EngineRuntimeStopNativeProviders" in app and
+            "EngineRuntimeOwner_Stop()" in app,
+            "aggregate owner contains an incomplete Hex80 generation")
     require("#if defined(HALLJOY_ANALOG_SIMULATOR)" in worker and
             "--halljoy-test-hex80-stop-timeout" in hex80,
             "runtime timeout injection is simulator-only")

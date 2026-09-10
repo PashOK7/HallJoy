@@ -12,60 +12,20 @@
 #endif
 
 #include "profile_ini.h"
+#include "analog_key_codes.h"
 #include "bindings.h"
 #include "ini_util.h"
+#include "bounded_ini.h"
+#include "profile_runtime_gate.h"
 
 // -----------------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------------
-static uint16_t ReadU16(const wchar_t* section, const wchar_t* key, uint16_t def, const wchar_t* path)
-{
-    return (uint16_t)GetPrivateProfileIntW(section, key, def, path);
-}
-
-static bool IsSep(wchar_t c)
-{
-    return (c == L',' || c == L';' || c == L' ' || c == L'\t' || c == L'\r' || c == L'\n');
-}
-
-static void ParseHidList256(const wchar_t* s, std::vector<uint16_t>& out)
-{
-    out.clear();
-    if (!s) return;
-
-    const wchar_t* p = s;
-    while (*p)
-    {
-        while (*p && IsSep(*p)) ++p;
-        if (!*p) break;
-
-        wchar_t* end = nullptr;
-
-        // FIX: base=0 allows "0x.." as well as decimal
-        unsigned long v = wcstoul(p, &end, 0);
-
-        if (end == p)
-        {
-            ++p;
-            continue;
-        }
-
-        if (v > 0 && v < 256)
-            out.push_back((uint16_t)v);
-
-        p = end;
-    }
-
-    // remove duplicates
-    std::sort(out.begin(), out.end());
-    out.erase(std::unique(out.begin(), out.end()), out.end());
-}
-
 static std::wstring MaskToCsvForPad(int padIndex, GameButton b)
 {
     std::wstring s;
 
-    for (int chunk = 0; chunk < 4; ++chunk)
+    for (int chunk = 0; chunk < Bindings_GetButtonMaskChunkCount(); ++chunk)
     {
         uint64_t bits = Bindings_GetButtonMaskChunkForPad(padIndex, b, chunk);
         if (!bits) continue;
@@ -196,9 +156,12 @@ namespace
         GetPrivateProfileStringW(L"General", L"Pads", L"{missing}", pads, (DWORD)_countof(pads), temporaryPath);
         GetPrivateProfileStringW(L"Pad1_Axes", L"LX_Minus", L"{missing}", firstAxis, (DWORD)_countof(firstAxis), temporaryPath);
 
-        const bool ok = wcscmp(schema, L"1") == 0 &&
+        BindingsSnapshot parsed;
+        std::uint32_t parsedPads = 0;
+        const bool ok = Profile_PrepareIni(temporaryPath, parsed) && wcscmp(schema, L"1") == 0 &&
             wcscmp(kind, L"Bindings") == 0 &&
-            _wtoi(pads) == BINDINGS_MAX_GAMEPADS &&
+            halljoy::ini::Unsigned(pads, BINDINGS_MAX_GAMEPADS, parsedPads) &&
+            parsedPads == BINDINGS_MAX_GAMEPADS &&
             wcscmp(firstAxis, L"{missing}") != 0;
         if (!ok && errorOut) *errorOut = ERROR_INVALID_DATA;
         return ok;
@@ -217,97 +180,117 @@ bool Profile_SaveIni(const wchar_t* path)
     return true;
 }
 
-static void LoadButtonCsvForPad(int padIndex, const wchar_t* section, GameButton b, const wchar_t* keyName, const wchar_t* path)
-{
-    wchar_t buf[2048]{};
-    DWORD n = GetPrivateProfileStringW(section, keyName, L"", buf, (DWORD)(sizeof(buf) / sizeof(buf[0])), path);
 
-    if (n == 0 || buf[0] == 0)
-        return;
-
-    std::vector<uint16_t> hids;
-    ParseHidList256(buf, hids);
-    for (uint16_t hid : hids)
-        Bindings_AddButtonHidForPad(padIndex, b, hid);
+namespace {
+constexpr const wchar_t* kAxes[] = {L"LX", L"LY", L"RX", L"RY"};
+constexpr const wchar_t* kButtons[] = {L"A", L"B", L"X", L"Y", L"LB", L"RB",
+    L"Back", L"Start", L"Guide", L"LS", L"RS", L"DpadUp", L"DpadDown", L"DpadLeft", L"DpadRight"};
+bool ReadCode(const wchar_t* path, const wchar_t* section, const wchar_t* key,
+    uint16_t& code, bool required, bool& recognized) {
+    std::wstring value;
+    if (!halljoy::ini::Read(path, section, key, value)) return false;
+    if (value.empty()) { code = 0; return !required; }
+    recognized = true;
+    std::uint32_t parsed = 0;
+    if (!halljoy::ini::Unsigned(value, static_cast<std::uint32_t>(halljoy::keycode::kCount - 1), parsed))
+        return false;
+    code = static_cast<uint16_t>(parsed); return true;
 }
-
-// NEW: full reset of axes/triggers + button masks (HID<256)
-static void ResetAllBindingsBeforeLoad()
-{
-    // Axes/triggers could contain HID>=256; clear those explicitly for each pad.
-    for (int pad = 0; pad < BINDINGS_MAX_GAMEPADS; ++pad)
-    {
-        Bindings_SetAxisMinusForPad(pad, Axis::LX, 0); Bindings_SetAxisPlusForPad(pad, Axis::LX, 0);
-        Bindings_SetAxisMinusForPad(pad, Axis::LY, 0); Bindings_SetAxisPlusForPad(pad, Axis::LY, 0);
-        Bindings_SetAxisMinusForPad(pad, Axis::RX, 0); Bindings_SetAxisPlusForPad(pad, Axis::RX, 0);
-        Bindings_SetAxisMinusForPad(pad, Axis::RY, 0); Bindings_SetAxisPlusForPad(pad, Axis::RY, 0);
-
-        Bindings_SetTriggerForPad(pad, Trigger::LT, 0);
-        Bindings_SetTriggerForPad(pad, Trigger::RT, 0);
+bool ParseCodes(const std::wstring& text,
+    std::array<uint64_t, halljoy::keycode::kMaskChunkCount>& mask) {
+    std::size_t pos = 0;
+    while (pos < text.size()) {
+        const auto begin = text.find_first_not_of(L",; \t\r\n", pos);
+        if (begin == std::wstring::npos) break;
+        auto end = text.find_first_of(L",; \t\r\n", begin);
+        if (end == std::wstring::npos) end = text.size();
+        std::uint32_t code = 0;
+        if (!halljoy::ini::Unsigned(std::wstring_view(text).substr(begin, end-begin),
+                static_cast<std::uint32_t>(halljoy::keycode::kCount - 1), code) || !code)
+            return false;
+        mask[code / 64] |= uint64_t{1} << (code % 64);
+        pos = end;
     }
-
-    // Clear button masks + any axis/trigger references for HID<256 (fast enough, only 255 ops)
-    for (uint16_t hid = 1; hid < 256; ++hid)
-        Bindings_ClearHid(hid);
-}
-
-static void LoadPadBindingsFromSections(int padIndex, const wchar_t* axesSection, const wchar_t* triggersSection, const wchar_t* buttonsSection, const wchar_t* path)
-{
-    auto rAxis = [&](Axis a, const wchar_t* name)
-        {
-            std::wstring k1 = std::wstring(name) + L"_Minus";
-            std::wstring k2 = std::wstring(name) + L"_Plus";
-            uint16_t minusHid = ReadU16(axesSection, k1.c_str(), 0, path);
-            uint16_t plusHid = ReadU16(axesSection, k2.c_str(), 0, path);
-            Bindings_SetAxisMinusForPad(padIndex, a, minusHid);
-            Bindings_SetAxisPlusForPad(padIndex, a, plusHid);
-        };
-
-    rAxis(Axis::LX, L"LX");
-    rAxis(Axis::LY, L"LY");
-    rAxis(Axis::RX, L"RX");
-    rAxis(Axis::RY, L"RY");
-
-    Bindings_SetTriggerForPad(padIndex, Trigger::LT, ReadU16(triggersSection, L"LT", 0, path));
-    Bindings_SetTriggerForPad(padIndex, Trigger::RT, ReadU16(triggersSection, L"RT", 0, path));
-
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::A, L"A", path);
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::B, L"B", path);
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::X, L"X", path);
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::Y, L"Y", path);
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::LB, L"LB", path);
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::RB, L"RB", path);
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::Back, L"Back", path);
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::Start, L"Start", path);
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::Guide, L"Guide", path);
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::LS, L"LS", path);
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::RS, L"RS", path);
-
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::DpadUp, L"DpadUp", path);
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::DpadDown, L"DpadDown", path);
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::DpadLeft, L"DpadLeft", path);
-    LoadButtonCsvForPad(padIndex, buttonsSection, GameButton::DpadRight, L"DpadRight", path);
-}
-
-bool Profile_LoadIni(const wchar_t* path)
-{
-    if (!path) return false;
-
-    DWORD attr = GetFileAttributesW(path);
-    if (attr == INVALID_FILE_ATTRIBUTES) return false;
-
-    ResetAllBindingsBeforeLoad();
-
-    for (int pad = 0; pad < BINDINGS_MAX_GAMEPADS; ++pad)
-    {
-        wchar_t secAxes[32]{};
-        wchar_t secTriggers[32]{};
-        wchar_t secButtons[32]{};
-        swprintf_s(secAxes, L"Pad%d_Axes", pad + 1);
-        swprintf_s(secTriggers, L"Pad%d_Triggers", pad + 1);
-        swprintf_s(secButtons, L"Pad%d_Buttons", pad + 1);
-        LoadPadBindingsFromSections(pad, secAxes, secTriggers, secButtons, path);
-    }
-
     return true;
+}
+}
+
+bool Profile_PrepareIni(const wchar_t* path, BindingsSnapshot& out) {
+    halljoy::ini::ReadFile file(path);
+    if (!file) return false;
+    std::wstring schema, kind, bundle;
+    if (!halljoy::ini::Read(path, L"HallJoyPersistence", L"SchemaVersion", schema) ||
+        !halljoy::ini::Read(path, L"HallJoyPersistence", L"Kind", kind) ||
+        !halljoy::ini::Read(path, L"HallJoyProfile", L"BundleVersion", bundle)) return false;
+    const bool bundled = !bundle.empty();
+    if (bundled && bundle != L"1") return false;
+    if (!schema.empty() || !kind.empty()) {
+        if (schema != L"1" || (bundled ? (kind != L"Settings" && kind != L"ProfileSettings")
+            : kind != L"Bindings")) return false;
+    } else if (bundled) return false;
+    BindingsSnapshot candidate{};
+    bool recognized = false;
+    for (int p=0; p<BINDINGS_MAX_GAMEPADS; ++p) {
+        const auto prefix = L"Pad" + std::to_wstring(p+1);
+        const auto axes = prefix + L"_Axes", triggers = prefix + L"_Triggers", buttons = prefix + L"_Buttons";
+        for (const auto* section : {axes.c_str(), triggers.c_str(), buttons.c_str()}) {
+            wchar_t probe[4]{};
+            const bool present = GetPrivateProfileSectionW(section, probe, 4, path) > 0;
+            if (bundled && !present) return false;
+        }
+        for (int a=0; a<4; ++a) {
+            if (!ReadCode(path, axes.c_str(), (std::wstring(kAxes[a])+L"_Minus").c_str(), candidate.axes[p][a].minusHid, bundled, recognized) ||
+                !ReadCode(path, axes.c_str(), (std::wstring(kAxes[a])+L"_Plus").c_str(), candidate.axes[p][a].plusHid, bundled, recognized)) return false;
+        }
+        if (!ReadCode(path, triggers.c_str(), L"LT", candidate.triggers[p][0], bundled, recognized) ||
+            !ReadCode(path, triggers.c_str(), L"RT", candidate.triggers[p][1], bundled, recognized)) return false;
+        for (int b=0; b<15; ++b) {
+            wchar_t presence[32]{};
+            GetPrivateProfileStringW(buttons.c_str(), kButtons[b], L"{missing}", presence, 32, path);
+            const bool present = wcscmp(presence, L"{missing}") != 0;
+            if (bundled && !present) return false;
+            recognized |= present;
+            std::wstring codes;
+            if (!halljoy::ini::Read(path, buttons.c_str(), kButtons[b], codes) ||
+                !ParseCodes(codes, candidate.buttons[p][b])) return false;
+        }
+    }
+    if (!recognized) return false;
+    out = candidate;
+    return true;
+}
+
+bool Profile_LoadIni(const wchar_t* path) {
+    BindingsSnapshot candidate{};
+    if (!Profile_PrepareIni(path, candidate)) return false;
+    halljoy::profile_runtime::CommitLease commit;
+    if (!commit) return false;
+    Bindings_Apply(candidate);
+    return true;
+}
+
+// Writes into the caller-owned temporary settings file: one atomic replacement
+// commits settings and bindings together. Never truncates or replaces the file.
+bool Profile_WriteBindingsSections(const wchar_t* path) {
+    bool ok = WritePrivateProfileStringW(L"HallJoyProfile", L"BundleVersion", L"1", path) != FALSE;
+    const auto pads = std::to_wstring(BINDINGS_MAX_GAMEPADS);
+    ok &= WritePrivateProfileStringW(L"General", L"Pads", pads.c_str(), path) != FALSE;
+    for (int p=0; p<BINDINGS_MAX_GAMEPADS; ++p) {
+        const auto prefix = L"Pad" + std::to_wstring(p+1);
+        const auto axes = prefix + L"_Axes", triggers = prefix + L"_Triggers", buttons = prefix + L"_Buttons";
+        for (int a=0; a<4; ++a) {
+            const auto binding = Bindings_GetAxisForPad(p, static_cast<Axis>(a));
+            ok &= WritePrivateProfileStringW(axes.c_str(), (std::wstring(kAxes[a])+L"_Minus").c_str(),
+                std::to_wstring(binding.minusHid).c_str(), path) != FALSE;
+            ok &= WritePrivateProfileStringW(axes.c_str(), (std::wstring(kAxes[a])+L"_Plus").c_str(),
+                std::to_wstring(binding.plusHid).c_str(), path) != FALSE;
+        }
+        for (int t=0; t<2; ++t)
+            ok &= WritePrivateProfileStringW(triggers.c_str(), t == 0 ? L"LT" : L"RT",
+                std::to_wstring(Bindings_GetTriggerForPad(p, static_cast<Trigger>(t))).c_str(), path) != FALSE;
+        for (int b=0; b<15; ++b)
+            ok &= WritePrivateProfileStringW(buttons.c_str(), kButtons[b],
+                MaskToCsvForPad(p, static_cast<GameButton>(b)).c_str(), path) != FALSE;
+    }
+    return ok;
 }

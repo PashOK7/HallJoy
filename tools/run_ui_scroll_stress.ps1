@@ -13,7 +13,7 @@ Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($ExePath)) {
-    $ExePath = Join-Path $root 'build\output\HallJoy.exe'
+    $ExePath = Join-Path $root 'build\release\HallJoy.exe'
 }
 $ExePath = [IO.Path]::GetFullPath($ExePath)
 if (-not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {

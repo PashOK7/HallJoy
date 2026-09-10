@@ -7,7 +7,7 @@
 int main()
 {
     using namespace aula_win60he;
-    KeyMap map{};
+    ActiveKeyMap map{};
     TravelMatrix travel{};
     for (std::size_t index = 0; index < 12; ++index)
         map[index / kColumns][index % kColumns] = static_cast<std::uint8_t>(4u + index);
@@ -22,7 +22,7 @@ int main()
     auto one = metrics.Observe(map, travel, true, 1'004'000u, 1'100u);
     assert(one.activeCount == 1);
     assert(one.firstNonzero && one.newActiveMaximum && !one.firstTenPlus);
-    assert(one.active[0].hid == 4 && one.active[0].travelUm == 500);
+    assert(one.active[0].keyCode == 4 && one.active[0].travelUm == 500);
 
     for (std::size_t index = 0; index < 10; ++index)
         travel[index / kColumns][index % kColumns] = static_cast<std::uint16_t>(100u + index * 100u);
@@ -54,8 +54,18 @@ int main()
     assert(lifetime.transactionBuckets[1] == 1);
     assert(lifetime.transactionBuckets[2] == 1);
     assert(lifetime.transactionBuckets[3] == 1);
-    assert(metrics.MaximumByHid()[4] == 500);
-    assert(metrics.MaximumByHid()[13] == 1000);
+    assert(metrics.MaximumByKeyCode()[4] == 500);
+    assert(metrics.MaximumByKeyCode()[13] == 1000);
+
+    DiagnosticMetrics extendedMetrics;
+    extendedMetrics.Begin(2'000'000u);
+    map[0][12] = halljoy::keycode::kFn;
+    travel[0][12] = 777;
+    const auto extended = extendedMetrics.Observe(
+        map, travel, true, 2'002'000u, 1'000u);
+    assert(extended.activeCount == 1u);
+    assert(extended.active[0].keyCode == halljoy::keycode::kFn);
+    assert(extendedMetrics.MaximumByKeyCode()[halljoy::keycode::kFn] == 777u);
 
     assert(!metrics.WindowReady(5'999'999u));
     assert(metrics.WindowReady(6'000'000u));

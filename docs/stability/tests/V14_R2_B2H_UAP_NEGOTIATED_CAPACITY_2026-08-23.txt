@@ -1,0 +1,66 @@
+HallJoy v1.4.1 R2-B2h - negotiated-capacity UAP producer evidence
+Date: 2026-08-23
+
+Scope
+-----
+This package removes the private Provider V2 producer's fixed eight-owner
+capture window. It does not change the production output route and does not
+claim that the existing fixed SharedState IPC has been replaced.
+
+Selected design
+---------------
+- Query exact registry owner demand before acquiring registry/device locks.
+- Grow reusable caller-owned pin/projection/lock storage before locks.
+- Pin one complete ownership generation into caller-provided storage.
+- Acquire the complete device lock set and release it in reverse order.
+- Clear every retained shared owner reference on every exit.
+- Retry bounded topology movement; reject resource-ceiling violations and
+  repeated instability without truncating the authoritative capture.
+- Caller output capacity controls copied output only, never producer capture
+  capability.
+
+Focused and unified gates
+-------------------------
+- Static/native suite: PASS.
+- UAP_SNAPSHOT_PINNING_TEST=PASS coherent_reads=50000
+  lifetime_cycles=100000 blocked_removal=1 exact_destruction=1
+  required_count=1 negotiated_capacity=12 lease_clears_refs=1
+- UAP_PROVIDER_V2_PROJECTION_TEST=PASS devices=2 samples=10
+  ordinary_hid_equivalence=1 special_keys_retained=1 release_zero=1
+  hidden_truncation_rejected=1 negotiated_12_devices=1
+- PRIVATE_UAP_ABI_RUNTIME=PASS abi=1 initial_devices=1
+  provider_v2_devices=1 provider_v2_samples=127 dual_view_devices=1
+  dual_view_samples=127 dual_view_equivalent=1 negotiated_capacity=1
+- Full official static/portable/native checks: PASS.
+
+Official build and exact-artifact gates
+---------------------------------------
+- MSVC Release x64: PASS, 0 errors; only allow-listed external ViGEmClient
+  LNK4099 warning.
+- Embedded ViGEmBus resource/extraction/signature self-test: PASS.
+- Exact private UAP build/runtime ABI: PASS.
+- UAP_PROVIDER_V2_EXACT_EXE_DUAL_CAPTURE=PASS.
+- Production startup/shutdown smoke (10 seconds): PASS.
+- Continuous diagnostic logs: none; crash report: none.
+- Release artifact: 8,650,240 bytes.
+- Release SHA-256:
+  15E6DADC75B367ABAA031BF5B239EC6DCD88A528AD8E797B5D9CAAE70FFE4509
+
+Protected artifact
+------------------
+- GravaStar V75 diagnostic remains unchanged at 8,683,008 bytes.
+- SHA-256:
+  2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B
+
+Boundary and next gate
+----------------------
+The UAP producer can now capture more than eight owners coherently, but the
+current monolithic analog-host SharedState is still an eight-slot transport.
+Production therefore remains on the already-qualified dense compatibility
+route. R2-B2i must add a separately owned, capacity-negotiated, parent-read-only
+Provider V2 data plane and qualify its resize/topology/restart/fault lifecycle.
+Only R2-B2j may select Provider V2 output and remove the dense runtime fallback.
+
+Backup
+------
+.analysis/backups/r2_b2h_negotiated_uap_pre_20260823_1210

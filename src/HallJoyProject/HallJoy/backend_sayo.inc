@@ -1,6 +1,7 @@
 #include "worker_join_policy.h"
 #include "worker_exception_barrier.h"
 #include "monotonic_time.h"
+#include "sayo_letter_matcher.h"
 
 #include <chrono>
 #include <mutex>
@@ -42,8 +43,8 @@ static std::array<std::atomic<uint16_t>, 256> g_sayoAnalogMilli{};
 static std::array<std::atomic<uint8_t>, 16>   g_sayoIndexToHid{};
 static std::array<std::atomic<uint8_t>, 16>   g_sayoIndexDown{};
 static std::array<std::atomic<uint8_t>, 256>  g_sayoKeyboardDown{};
-static std::atomic<uint8_t>       g_sayoPendingIndex{ 0xFF };
-static std::atomic<ULONGLONG>     g_sayoPendingIndexMs{ 0 };
+static std::mutex                  g_sayoMappingMutex;
+static halljoy::sayo::SayoLetterMatcher g_sayoLetterMatcher;
 static std::atomic<ULONGLONG>     g_sayoLastDepthMs{ 0 };
 static std::atomic<uint64_t>      g_sayoLastDepthUs{ 0 };
 static std::atomic<uint32_t>      g_sayoAvgDepthIntervalUs{ 0 };
@@ -93,8 +94,10 @@ static void Sayo_ResetKeyState()
         d.store(0, std::memory_order_relaxed);
     for (auto& d : g_sayoKeyboardDown)
         d.store(0, std::memory_order_relaxed);
-    g_sayoPendingIndex.store(0xFF, std::memory_order_relaxed);
-    g_sayoPendingIndexMs.store(0, std::memory_order_relaxed);
+    {
+        const std::lock_guard<std::mutex> mappingLock(g_sayoMappingMutex);
+        g_sayoLetterMatcher.Reset();
+    }
     g_sayoLastDepthMs.store(0, std::memory_order_relaxed);
     g_sayoLastDepthUs.store(0, std::memory_order_relaxed);
     g_sayoAvgDepthIntervalUs.store(0, std::memory_order_relaxed);
@@ -186,10 +189,9 @@ static void SayoSetIndexState(uint8_t index, bool down, ULONGLONG nowMs)
     {
         g_sayoAnalogMilli[mappedHid].store(1000, std::memory_order_relaxed);
     }
-    if (down)
     {
-        g_sayoPendingIndex.store(index, std::memory_order_relaxed);
-        g_sayoPendingIndexMs.store(nowMs, std::memory_order_relaxed);
+        const std::lock_guard<std::mutex> mappingLock(g_sayoMappingMutex);
+        g_sayoLetterMatcher.ObservePhysicalEdge(index, down, nowMs);
     }
     DebugLog_Write(
         L"[backend.sayo] edge index=%u hid=%u down=%d",
@@ -209,30 +211,31 @@ static void SayoParseKeyboardReport(const uint8_t* data, DWORD len, ULONGLONG no
     int addedCount = 0;
     DWORD keyStart = (data[0] == 0x00 && len >= 9) ? 3u : 2u;
     DWORD keyEnd = (data[0] == 0x00 && len >= 9) ? 9u : 8u;
-    for (DWORD i = keyStart; i < len && i < keyEnd; ++i)
+    uint8_t pending = halljoy::sayo::SayoLetterMatcher::kNoCandidate;
     {
-        uint8_t hid = data[i];
-        if (hid == 0)
-            continue;
-
-        current[hid] = true;
-        if (g_sayoKeyboardDown[hid].load(std::memory_order_relaxed) == 0)
+        const std::lock_guard<std::mutex> mappingLock(g_sayoMappingMutex);
+        for (DWORD i = keyStart; i < len && i < keyEnd; ++i)
         {
-            addedHid = hid;
-            ++addedCount;
+            uint8_t hid = data[i];
+            if (hid == 0)
+                continue;
+
+            current[hid] = true;
+            if (g_sayoKeyboardDown[hid].load(std::memory_order_relaxed) == 0)
+            {
+                addedHid = hid;
+                ++addedCount;
+            }
         }
+        for (uint16_t hid = 0; hid < 256; ++hid)
+            g_sayoKeyboardDown[hid].store(current[hid] ? 1 : 0, std::memory_order_relaxed);
+        if (addedCount == 1 && addedHid != 0)
+            pending = g_sayoLetterMatcher.TakeUniqueCandidate(nowMs, kSayoKeyboardMatchWindowMs);
+        else
+            g_sayoLetterMatcher.Expire(nowMs, kSayoKeyboardMatchWindowMs);
     }
 
-    for (uint16_t hid = 0; hid < 256; ++hid)
-        g_sayoKeyboardDown[hid].store(current[hid] ? 1 : 0, std::memory_order_relaxed);
-
-    uint8_t pending = g_sayoPendingIndex.load(std::memory_order_relaxed);
-    ULONGLONG pendingMs = g_sayoPendingIndexMs.load(std::memory_order_relaxed);
-    if (pending < g_sayoIndexToHid.size() &&
-        pendingMs != 0 && nowMs >= pendingMs &&
-        nowMs - pendingMs <= kSayoKeyboardMatchWindowMs &&
-        addedCount == 1 &&
-        addedHid != 0)
+    if (pending < g_sayoIndexToHid.size())
     {
         uint8_t oldHid = g_sayoIndexToHid[pending].exchange(addedHid, std::memory_order_relaxed);
         if (oldHid != 0 && oldHid != addedHid)
@@ -242,7 +245,6 @@ static void SayoParseKeyboardReport(const uint8_t* data, DWORD len, ULONGLONG no
             halljoy::monotonic_time::SaturatingAgeMs(nowMs, lastDepth) <= kSayoDepthFreshMs;
         if (!depthFresh && g_sayoIndexDown[pending].load(std::memory_order_relaxed) != 0)
             g_sayoAnalogMilli[addedHid].store(1000, std::memory_order_relaxed);
-        g_sayoPendingIndex.store(0xFF, std::memory_order_relaxed);
         DebugLog_Write(
             L"[backend.sayo] mapped pending index=%u hid=%u from keyboard add",
             (unsigned)pending,

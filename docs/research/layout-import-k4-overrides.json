@@ -1,0 +1,16 @@
+{
+  "0,18": {
+    "vendorProductId": 875826752,
+    "token": "RGB_MOD",
+    "hid": 1028,
+    "label": "RGB",
+    "reason": "K4 UAP KEY_OEM_2 -> 0x404 in mapToWootingKey"
+  },
+  "5,11": {
+    "vendorProductId": 875826752,
+    "token": "FN_WIN",
+    "hid": 1033,
+    "label": "Fn",
+    "reason": "K4 UAP KEY_FN -> 0x409 in mapToWootingKey"
+  }
+}

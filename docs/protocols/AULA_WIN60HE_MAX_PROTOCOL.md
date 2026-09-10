@@ -7,6 +7,11 @@ Physical validation covers the exact WIN 60 HE MAX identity; compatible sibling
 models may be accepted by live proof but remain physically unvalidated until
 tested on their own hardware.
 
+Firmware-proven exact candidates additionally include GravaStar Mercury V75
+`1CA5:2201 / 16052201`, V75 Pro `1CA5:2202 / 16052202`, and V75 Lite
+`1CA2:2201 / 2E022201`. Their HallJoy implementation and compiler gates pass,
+but physical HID/runtime validation is still pending.
+
 ## Physically proven identity
 
 - USB VID/PID: `1CA2:1902`.
@@ -21,10 +26,12 @@ tested on their own hardware.
 
 ## Family admission contract
 
-Discovery never probes arbitrary HID interfaces. A candidate must first expose
-either Aula VID `1CA2` in its interface path or an Aula/SparkPlayJoy brand token
-through SetupAPI. Only then may HallJoy open a metadata handle and require the
-exact `FFA0:0001`, 65-byte input/output transport shape.
+Discovery never probes arbitrary HID interfaces. A candidate must first match
+the bounded exact USB/board registry above, expose Aula VID `1CA2`, or carry an
+Aula/SparkPlayJoy brand token through SetupAPI. Only then may HallJoy open a
+metadata handle and require the exact `FFA0:0001`, 65-byte input/output
+transport shape. An exact USB profile must also return its corresponding board
+ID during the later full proof.
 
 The live exclusive-session proof accepts a sibling only when all of these are
 true: a structurally valid 60-byte `App V...` sync descriptor; plausible positive
@@ -71,10 +78,12 @@ final short request repeats its final real key as padding, and every returned
 key/layout field is correlated with the request.
 Two complete generations must be identical before publication.
 
-Function values remain 16-bit through decoding. Only keyboard functions
-`0004..00E7` are published; values such as the physical Fn marker `F001`, macro
-codes and vendor/internal functions are never truncated into HID usages. Only
-Fn0/base-layer publication is implemented.
+Function values remain 16-bit through decoding. Keyboard functions
+`0004..00E7` retain their USB usages, including Menu `0065`; the proven physical
+Fn marker `F001` maps to HallJoy's existing extended analogue Fn code `0x409`.
+Unknown vendor/internal and macro functions are never truncated into HID
+usages. Only Fn0/base-layer publication is implemented, and no digital key
+event participates in mapping or publication.
 
 ## Travel matrix
 

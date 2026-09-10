@@ -18,6 +18,7 @@ namespace HallJoyPluginTelemetry
         DeviceFlag_UnthrottledWorker = 1u << 4,
         DeviceFlag_DuplicateSafeId = 1u << 5,
         DeviceFlag_DeadlinePacedWorker = 1u << 6,
+        DeviceFlag_VerifiedModel = 1u << 7,
     };
 
     // Optional ABI exported by UniversalAnalogPluginFixed and consumed only by

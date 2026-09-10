@@ -1,5 +1,9 @@
 UNIVERSAL ANALOG PLUGIN - HALLJOY MADLIONS SAFEHID V6
 
+2026-09-06: current build/layout contract: [PROJECT_LAYOUT.md](../../docs/current/PROJECT_LAYOUT.md).
+One ordinary distribution: `build/release/HallJoy.exe`. Historical paths below
+must be interpreted through that document; they are not additional release outputs.
+
 Run the build from the root of the complete archive:
 
   powershell -NoProfile -ExecutionPolicy Bypass -File .\build_all.ps1

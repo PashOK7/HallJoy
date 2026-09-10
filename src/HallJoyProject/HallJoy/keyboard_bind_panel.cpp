@@ -8,9 +8,11 @@
 #include "keyboard_bind_panel.h"
 #include "bindings.h"
 #include "profile_ini.h"
+#include "global_profiles.h"
 #include "win_util.h"
 #include "app_paths.h"
 #include "binding_actions.h"
+#include "keyboard_ui.h"
 
 // Scaling shortcut
 static int S(HWND hwnd, int px) { return WinUtil_ScalePx(hwnd, px); }
@@ -134,14 +136,16 @@ bool BindPanel_HandleCommand(HWND parent, WPARAM wParam, LPARAM)
     if (id == ID_BIND)
     {
         BindingActions_Apply(GetSelectedAction(), g_selectedHid);
-        Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str()); // autosave
+        if (!KeyboardUI_SaveBindingsAfterUserChange(parent))
+            return true;
         InvalidateRect(parent, nullptr, FALSE);
         return true;
     }
     if (id == ID_CLEAR)
     {
         Bindings_ClearHid(g_selectedHid);
-        Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str()); // autosave
+        if (!KeyboardUI_SaveBindingsAfterUserChange(parent))
+            return true;
         InvalidateRect(parent, nullptr, FALSE);
         return true;
     }

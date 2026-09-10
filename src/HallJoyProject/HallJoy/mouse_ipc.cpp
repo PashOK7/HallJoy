@@ -18,6 +18,7 @@ namespace
         return InterlockedCompareExchange(value, 0, 0);
     }
 
+#if defined(HALLJOY_ANALOG_SIMULATOR)
     void CloseMapping(HANDLE& mapping, HallJoyMouseIpcShared*& shared) noexcept
     {
         if (shared)
@@ -31,6 +32,7 @@ namespace
             mapping = nullptr;
         }
     }
+#endif
 
     bool OpenPublisherMapping(
         const wchar_t* name,
@@ -155,10 +157,16 @@ void MouseIpc_PublishState(bool blockMouseWanted, bool blockMouseActive, bool mo
 {
     if (!g_mouseIpc) return;
 
+    // Keep the fixed v1 ABI while providing a stable multi-scalar capture
+    // boundary. An old ASI observes the same monotonic heartbeat it always
+    // did; a coherent reader rejects an odd/inconsistent capture.
+    InterlockedIncrement(&g_mouseIpc->heartbeat);
+    MemoryBarrier();
     InterlockedExchange(&g_mouseIpc->blockMouseWanted, blockMouseWanted ? 1 : 0);
     InterlockedExchange(&g_mouseIpc->blockMouseActive, blockMouseActive ? 1 : 0);
     InterlockedExchange(&g_mouseIpc->mouseToStickEnabled, mouseToStickEnabled ? 1 : 0);
     InterlockedExchange(&g_mouseIpc->pauseByRShift, pauseByRShift ? 1 : 0);
+    MemoryBarrier();
     InterlockedIncrement(&g_mouseIpc->heartbeat);
 }
 

@@ -234,7 +234,7 @@ def run_origin_and_concurrency(address: tuple[str, int], port: int, deadline_ms:
             expect_code(status, 503)
             if headers.get("connection", "").lower() != "close":
                 raise RuntimeError("client-limit 503 did not require connection close")
-        except ConnectionResetError:
+        except (ConnectionResetError, ConnectionAbortedError):
             # Winsock may reset a saturated connection because the accept worker
             # intentionally does not block to consume attacker-controlled input.
             elapsed_ms = (time.perf_counter() - rejection_started) * 1000.0

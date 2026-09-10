@@ -13,7 +13,7 @@
 namespace HallJoyAnalogHost
 {
     constexpr std::uint32_t kMagic = 0x39414A48u; // "HJA9"
-    constexpr std::uint32_t kVersion = 10;
+    constexpr std::uint32_t kVersion = 15;
     constexpr std::uint32_t kMaxKeys = HallJoyDenseSnapshot::kKeyCount;
     constexpr std::uint32_t kMaxDevices = HallJoyPluginTelemetry::kMaxDevices;
 
@@ -24,6 +24,15 @@ namespace HallJoyAnalogHost
         Status_Ready = 2,
         Status_Error = 3,
         Status_Restarting = 4,
+    };
+
+    enum ProviderPlaneStatus : LONG
+    {
+        ProviderPlane_Unavailable = 0,
+        ProviderPlane_Mapped = 1,
+        ProviderPlane_Committed = 2,
+        ProviderPlane_ResizeRequested = 3,
+        ProviderPlane_Error = 4,
     };
 
     enum Checkpoint : LONG
@@ -96,6 +105,25 @@ namespace HallJoyAnalogHost
         volatile LONG transportError;
         volatile LONG denseDeviceCount;
         volatile LONG denseActiveKeyCount;
+        volatile LONG providerV2DualFailureCount;
+
+        // B2i bounded control/health plane for the separately owned variable
+        // Provider V2 mapping. Payload bytes never live in these fields.
+        // True only when the child obtained dense and variable Provider V2
+        // views from one pinned plugin capture and full-cell comparison passed.
+        volatile LONG providerV2PlaneDualCoherent;
+        volatile LONG providerV2PlaneStatus;
+        volatile LONG providerV2PlaneDeviceCapacity;
+        volatile LONG providerV2PlaneSampleCapacity;
+        volatile LONG providerV2PlaneRequiredDeviceCount;
+        volatile LONG providerV2PlaneRequiredSampleCount;
+        volatile LONG providerV2PlaneCommittedSlot;
+        volatile LONG providerV2PlaneFailureCount;
+        volatile LONG providerV2PlaneParentReadOnly;
+
+        alignas(8) volatile LONG64 providerV2PlaneGeneration;
+        alignas(8) volatile LONG64 providerV2PlaneMappingBytes;
+        alignas(8) volatile LONG64 providerV2PlaneTransactionToken;
 
         alignas(8) volatile LONG64 heartbeatTickMs;
         alignas(8) volatile LONG64 lastPublishTickMs;
@@ -118,6 +146,7 @@ namespace HallJoyAnalogHost
         // sparse-list scan or a 16-active-key ceiling.
         float denseValues[kMaxKeys];
         HallJoyDenseSnapshot::DeviceV1 denseDevices[kMaxDevices];
+
     };
 
     static_assert(sizeof(float) == 4, "Shared protocol requires IEEE-754 32-bit float");

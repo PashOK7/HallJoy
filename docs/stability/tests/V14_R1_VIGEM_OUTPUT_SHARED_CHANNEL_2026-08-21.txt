@@ -1,0 +1,59 @@
+HallJoy v1.4 R1 ViGEm output shared-channel evidence
+Date: 2026-08-21 (Europe/Moscow)
+Scope: stage 2 shared ABI/data-plane implementation. Production output routing
+       remains on the legacy worker; this is not a release artifact.
+
+Implemented production-linked files:
+  vigem_output_shared.h
+    SHA-256 ABC2F1571F1A04767F31E3A6F92BC05C918FC11153E25C10486EC76A9C06CF79
+  vigem_output_channel.h
+    SHA-256 ED8BF957F3D0CFA93D9C9E41EFA19F49F1A8DD12011E0267C6E15AA386C0643B
+  vigem_output_channel.cpp
+    SHA-256 6CF03D87C28BC0F46CBBFD14E9606BD38F6E56BA241A6D2DE668A066006DF1C1
+  vigem_output_channel_test.cpp
+    SHA-256 F904E94AAB6790C45D9DFE3F9BAFAE52B21752BBCEE74671C345AC0FE2A6DCF9
+  vigem_output_process_static_audit.py
+    SHA-256 5D69FC63DA7CFBEFED3CB65D84B03E94F4C5C7142E3C0AED30B0227DBCA1F414
+
+ABI result:
+  SharedStateV1 is standard-layout, trivially copyable, 64-byte aligned and
+  exactly 640 bytes. It contains no pointer, HANDLE, STL container or ViGEm SDK
+  type. XusbReportV1 is exactly 12 bytes and has explicit fixed-width fields.
+
+Concurrency contract:
+  Three 128-byte slots use atomic Empty/Writing/Ready/Reading ownership.
+  Payload bytes are accessed only while exclusively owned. Realtime publication
+  performs a bounded scan and contains no wait, sleep, mutex or condition
+  variable. A delayed child causes latest-value coalescing by reclaiming Ready,
+  never a Reading slot. Child reads reject stale output generations.
+
+Design correction:
+  The proposed plain-payload seqlock was rejected before production use because
+  sequence validation can detect a collision but does not remove the formal C++
+  data race caused by concurrent non-atomic payload reads and writes. Claimed
+  slots preserve complete snapshots without that undefined behaviour.
+
+Validation:
+  - dedicated Clang C++20 test: PASS five consecutive runs;
+  - each run: 100,000 accepted concurrent four-pad publications plus delayed
+    consumer, stale-generation, held-reading-slot, ABI and malformed-input cases;
+  - unified native static + portable C++ suite: PASS;
+  - MSVC 17.14 Release x64 production target: PASS, 0 errors;
+  - warning baseline: one existing allow-listed ViGEmClient LNK4099 only.
+
+Compile-only artifact:
+  src/HallJoyProject/x64/MAD68ProRNative/HallJoy.exe
+  Size: 8,485,376 bytes
+  SHA-256: 908D34E893CD6A24B279A98A57712979039BD148351397E211FCE6C3AA14F512
+  This file was not copied to build/output or build/release and must not be sent
+  to users as a fixed build: the new channel is linked but not routed yet.
+
+Rollback:
+  _backups/vigem_output_r1_shared_channel_pre_20260822_0030
+  _backups/vigem_output_r1_shared_channel_docs_pre_20260822_0110
+
+Next gate:
+  self-host child dispatch with fake transport and inherited-handle/nonce/process
+  tests. The production routing switch remains forbidden until child supervisor,
+  hard-stall reap and no-overlap generation tests pass.
+

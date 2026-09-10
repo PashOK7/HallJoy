@@ -42,6 +42,7 @@ int main()
     assert(NativeAnalogBackendDescriptor_IsValid(valid));
     assert(valid.ownsHid(0x1A));
     assert(valid.getMilli(0x1A) == 500);
+    assert(valid.getSnapshotV2 == nullptr);
 
     auto invalid = valid;
     invalid.id = "";

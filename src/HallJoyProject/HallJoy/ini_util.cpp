@@ -8,6 +8,11 @@
 #include "ini_util.h"
 #include "stability_trace.h"
 
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+static thread_local HallJoyPersistence::SaveStage g_testFailureStage = HallJoyPersistence::SaveStage::None;
+void IniUtil_TestSetFailureStage(HallJoyPersistence::SaveStage stage) noexcept { g_testFailureStage = stage; }
+#endif
+
 namespace
 {
     std::atomic<unsigned long long> g_tempSequence{ 0 };
@@ -21,6 +26,7 @@ namespace
 #if defined(HALLJOY_ANALOG_SIMULATOR)
     bool ShouldInjectFailure(HallJoyPersistence::SaveStage stage) noexcept
     {
+        if (stage != HallJoyPersistence::SaveStage::None && stage == g_testFailureStage) return true;
         const wchar_t* commandLine = GetCommandLineW();
         if (!commandLine) return false;
 

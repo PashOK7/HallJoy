@@ -1,0 +1,42 @@
+HallJoy V14 R2-B2c configured XUSB builder foundation evidence
+Date: 2026-08-22
+Scope: intermediate local foundation; V2 shadow not yet active; not promoted
+
+Architecture
+- Double-calling the previous mutable report builder was rejected.
+- Raw-only comparison and a duplicated shadow builder were rejected.
+- One production builder accepts immutable configuration/input plus explicit
+  caller-owned SOCD/Last Key Priority state.
+- Qualified and future shadow paths own separate state.
+- Builder performs no provider/settings/bindings/mouse acquisition and no I/O.
+
+Behavioral gate
+  CONFIGURED_XUSB_BUILDER_TEST=PASS all_fields=1 explicit_state=1 paired_equivalence=1 divergence_localized=1
+- Covers button mask, triggers, four axes, Fn, thresholds, mouse merge, Snappy,
+  Last Key Priority analog retrigger and independent paired state.
+
+Unified checks
+- tools/run_native_backend_checks.py --require-compiler
+  result: all static and portable C++ tests passed.
+- tools/build.ps1
+  result: exact UAP ABI PASS; MSVC Release x64 0 errors; only allow-listed
+  external ViGEmClient LNK4099.
+
+Runtime gates
+  UAP_PROVIDER_V2_EXACT_EXE_DUAL_CAPTURE=PASS sha256=35714CD31518CC853DD4484259C4F8BF32C450FD20A9F7F465AFD3DF38AEAD05
+  HallJoy production startup/shutdown smoke: PASS
+  Continuous diagnostic logs: none; crash report: none
+
+Artifacts
+- build/release/HallJoy.exe
+  size=8536576
+  sha256=35714CD31518CC853DD4484259C4F8BF32C450FD20A9F7F465AFD3DF38AEAD05
+- build/gravastar-v75-diagnostic/HallJoy.exe (unchanged)
+  size=8683008
+  sha256=2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B
+
+Boundary
+- Qualified production reports use the shared builder once per pad.
+- No Provider V2 shadow report is built or sent in this checkpoint.
+- Next gate must capture dense+V2 together, share native/config/curve/mouse
+  inputs, keep independent state, compare every field and never submit shadow.

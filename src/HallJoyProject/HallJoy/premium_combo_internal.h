@@ -142,6 +142,7 @@ namespace PremiumComboInternal
 
         std::vector<std::wstring> items;
         int curSel = -1;
+        int deleteConfirmation = -1;
 
         // NEW: placeholder drawn when curSel == -1 (closed state only)
         std::wstring placeholderText;
@@ -166,6 +167,8 @@ namespace PremiumComboInternal
         // Scroll
         int scrollTop = 0;             // index of first visible item in popup
         int wheelRemainder = 0;        // high-resolution wheel delta accumulator
+        bool scrollDragging = false;
+        int scrollGrabOffset = 0;
 
         // Capture-based dropdown (robust close on outside click)
         bool captureActive = false;
@@ -281,6 +284,10 @@ namespace PremiumComboInternal
     void EnsureIndexVisible(State* st, int idx);
     bool ScrollPopupWheel(State* st, int wheelDelta);
     void ClampPopupToMonitor(RECT& r);
+    struct ScrollGeometry { RECT lane{}, track{}, thumb{}; int travel = 0; };
+    bool GetScrollGeometry(State* st, ScrollGeometry& g);
+    bool ScrollMouseDown(State* st, POINT screen);
+    void ScrollMouseMove(State* st, POINT screen);
 
     // ---------------------------------------------------------------------
     // Extra icon / item button geometry + hit-testing

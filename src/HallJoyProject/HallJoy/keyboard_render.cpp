@@ -18,6 +18,9 @@
 #pragma comment(lib, "Msimg32.lib")
 
 #include "keyboard_render.h"
+#include "key_shape_win.h"
+#include "analog_key_codes.h"
+#include "digital_keyboard_state.h"
 #include "backend.h"
 #include "settings.h"
 #include "ui_theme.h"
@@ -59,13 +62,13 @@ static inline COLORREF LerpColor(COLORREF a, COLORREF b, float t)
 // ---------------- selection glow anim (UI thread only) ----------------
 enum SelAnimMode : uint8_t { SEL_NONE = 0, SEL_IN = 1, SEL_OUT = 2 };
 
-static std::array<uint8_t, 256> g_selLast{};
-static std::array<uint8_t, 256> g_selMode{};
-static std::array<DWORD, 256>   g_selStartTick{};
+static std::array<uint8_t, halljoy::keycode::kCount> g_selLast{};
+static std::array<uint8_t, halljoy::keycode::kCount> g_selMode{};
+static std::array<DWORD, halljoy::keycode::kCount>   g_selStartTick{};
 
 static void SelAnim_Notify(uint16_t hid, bool selected, DWORD now)
 {
-    if (hid == 0 || hid >= 256) return;
+    if (!halljoy::keycode::IsSupported(hid)) return;
 
     uint8_t prev = g_selLast[hid];
     uint8_t cur = selected ? 1u : 0u;
@@ -86,7 +89,7 @@ static void SelAnim_Notify(uint16_t hid, bool selected, DWORD now)
 
 static float SelAnim_GetT(uint16_t hid, bool selected, DWORD now)
 {
-    if (hid == 0 || hid >= 256) return selected ? 1.0f : 0.0f;
+    if (!halljoy::keycode::IsSupported(hid)) return selected ? 1.0f : 0.0f;
 
     constexpr DWORD IN_MS = 80;
     constexpr DWORD OUT_MS = 170;
@@ -117,16 +120,16 @@ static float SelAnim_GetT(uint16_t hid, bool selected, DWORD now)
 // ---------------- gear anim (UI thread only) ----------------
 enum GearAnimMode : uint8_t { GEAR_NONE = 0, GEAR_APPEAR = 1, GEAR_DISAPPEAR = 2 };
 
-static std::array<uint8_t, 256>  g_lastOverride{};
-static std::array<uint8_t, 256>  g_gearMode{};
-static std::array<DWORD, 256>    g_gearStartTick{};
+static std::array<uint8_t, halljoy::keycode::kCount>  g_lastOverride{};
+static std::array<uint8_t, halljoy::keycode::kCount>  g_gearMode{};
+static std::array<DWORD, halljoy::keycode::kCount>    g_gearStartTick{};
 
 // NEW: current selected HID (from UI) so renderer can run "gear wow spin" only while editing that key
 static uint16_t g_renderSelectedHid = 0;
 
 static void GearAnim_NotifyOverrideState(uint16_t hid, bool overrideOn, DWORD now)
 {
-    if (hid == 0 || hid >= 256) return;
+    if (!halljoy::keycode::IsSupported(hid)) return;
 
     uint8_t prev = g_lastOverride[hid];
     uint8_t cur = overrideOn ? 1u : 0u;
@@ -146,13 +149,13 @@ static void GearAnim_NotifyOverrideState(uint16_t hid, bool overrideOn, DWORD no
 }
 
 // ---------------- IMPACT FLASH ANIM (NEW) ----------------
-static std::array<bool, 256>  g_impactWasFull{}; // was value >= 0.999f last frame?
-static std::array<DWORD, 256> g_impactStartTick{};
-static std::array<bool, 256>  g_impactActive{};
+static std::array<bool, halljoy::keycode::kCount>  g_impactWasFull{};
+static std::array<DWORD, halljoy::keycode::kCount> g_impactStartTick{};
+static std::array<bool, halljoy::keycode::kCount>  g_impactActive{};
 
 static void ImpactAnim_NotifyValue(uint16_t hid, float v01, DWORD now)
 {
-    if (hid == 0 || hid >= 256) return;
+    if (!halljoy::keycode::IsSupported(hid)) return;
 
     bool isFull = (v01 >= 0.999f);
     bool wasFull = g_impactWasFull[hid];
@@ -169,7 +172,7 @@ static void ImpactAnim_NotifyValue(uint16_t hid, float v01, DWORD now)
 
 static float ImpactAnim_GetAlpha(uint16_t hid, DWORD now)
 {
-    if (hid == 0 || hid >= 256) return 0.0f;
+    if (!halljoy::keycode::IsSupported(hid)) return 0.0f;
     if (!g_impactActive[hid]) return 0.0f;
 
     constexpr DWORD FLASH_MS = 250;
@@ -243,7 +246,7 @@ static void GearSpin_Clear()
 
 static void GearSpin_Start(uint16_t hid, DWORD now)
 {
-    if (!hid || hid >= 256) return;
+    if (!halljoy::keycode::IsSupported(hid)) return;
 
     if (g_gspin.hid != hid)
     {
@@ -334,83 +337,18 @@ static void GearSpin_Tick(DWORD now)
 
 static float GearSpin_GetAngle(uint16_t hid)
 {
-    if (hid == 0 || hid >= 256) return 0.0f;
+    if (!halljoy::keycode::IsSupported(hid)) return 0.0f;
     if (g_gspin.hid != hid) return 0.0f;
     if (g_gspin.phase == GSPIN_NONE) return 0.0f;
     return g_gspin.angle;
 }
 
 // ---------------- digital (Windows keydown) state ----------------
-static std::array<uint8_t, 256> g_digLast{};
-
-static int VkFromHid(uint16_t hid)
-{
-    if (hid >= 4 && hid <= 29) return 'A' + (int)hid - 4;
-    if (hid >= 30 && hid <= 38) return '1' + (int)hid - 30;
-    if (hid == 39) return '0';
-
-    switch (hid)
-    {
-    case 41: return VK_ESCAPE;
-    case 42: return VK_BACK;
-    case 43: return VK_TAB;
-    case 44: return VK_SPACE;
-    case 40: return VK_RETURN;
-
-    case 53: return VK_OEM_3;
-    case 45: return VK_OEM_MINUS;
-    case 46: return VK_OEM_PLUS;
-    case 47: return VK_OEM_4;
-    case 48: return VK_OEM_6;
-    case 49: return VK_OEM_5;
-    case 51: return VK_OEM_1;
-    case 52: return VK_OEM_7;
-    case 54: return VK_OEM_COMMA;
-    case 55: return VK_OEM_PERIOD;
-    case 56: return VK_OEM_2;
-
-    case 58: return VK_F1;
-    case 59: return VK_F2;
-    case 60: return VK_F3;
-    case 61: return VK_F4;
-    case 62: return VK_F5;
-    case 63: return VK_F6;
-    case 64: return VK_F7;
-    case 65: return VK_F8;
-    case 66: return VK_F9;
-    case 67: return VK_F10;
-    case 68: return VK_F11;
-    case 69: return VK_F12;
-
-    case 74: return VK_HOME;
-    case 75: return VK_PRIOR;
-    case 76: return VK_DELETE;
-    case 77: return VK_END;
-    case 78: return VK_NEXT;
-
-    case 80: return VK_LEFT;
-    case 79: return VK_RIGHT;
-    case 81: return VK_DOWN;
-    case 82: return VK_UP;
-
-    case 224: return VK_LCONTROL;
-    case 225: return VK_LSHIFT;
-    case 226: return VK_LMENU;
-    case 227: return VK_LWIN;
-    case 229: return VK_RSHIFT;
-    case 230: return VK_RMENU;
-
-    case 57: return VK_CAPITAL;
-
-    default: return 0;
-    }
-}
+static std::array<uint8_t, halljoy::keycode::kCount> g_digLast{};
 
 static bool IsDigitalDownByHid(uint16_t hid)
 {
-    int vk = VkFromHid(hid);
-    if (!vk) return false;
-    return (GetAsyncKeyState(vk) & 0x8000) != 0;
+    return halljoy::digital_keyboard::state.IsDown(hid);
 }
 
 // ------------------------------------------------
@@ -418,6 +356,7 @@ static bool IsDigitalDownByHid(uint16_t hid)
 int KeyboardRender_GetAnimatingHids(uint16_t* outHids, int cap)
 {
     if (!outHids || cap <= 0) return 0;
+    halljoy::digital_keyboard::state.Advance(GetTickCount64());
 
     DWORD now = GetTickCount();
 
@@ -449,7 +388,7 @@ int KeyboardRender_GetAnimatingHids(uint16_t* outHids, int cap)
             if (n < cap) outHids[n++] = hid;
         };
 
-    for (uint16_t hid = 1; hid < 256; ++hid)
+    for (uint16_t hid = 1; hid < halljoy::keycode::kCount; ++hid)
     {
         // digital state changes
         {
@@ -462,6 +401,9 @@ int KeyboardRender_GetAnimatingHids(uint16_t* outHids, int cap)
             }
         }
 
+        if (!halljoy::keycode::IsStandardHid(hid) &&
+            hid != halljoy::keycode::kOem1 && hid != halljoy::keycode::kFn)
+            continue;
         // gear state (fast-path)
         bool overrideOn = KeySettings_GetUseUnique(hid);
         GearAnim_NotifyOverrideState(hid, overrideOn, now);
@@ -519,7 +461,7 @@ int KeyboardRender_GetAnimatingHids(uint16_t* outHids, int cap)
 float KeyboardRender_ReadAnalog01(uint16_t hid)
 {
     if (hid == 0) return 0.0f;
-    if (hid < 256)
+    if (halljoy::keycode::IsSupported(hid))
         return (float)BackendUI_GetAnalogMilli(hid) / 1000.0f;
     return 0.0f;
 }
@@ -658,6 +600,7 @@ struct CachedGlyph
 };
 
 static std::unordered_map<uint64_t, CachedGlyph> g_glyphCache;
+static constexpr size_t kGlyphCacheMaxEntries = 256;
 
 static uint64_t MakeGlyphKey(int iconIdx, int size, int styleVariant)
 {
@@ -686,6 +629,15 @@ static void Glyph_Free(CachedGlyph& g)
     }
     g.bits = nullptr;
     g.size = 0;
+}
+
+static void GlyphCache_EvictOneIfFull()
+{
+    if (g_glyphCache.size() < kGlyphCacheMaxEntries)
+        return;
+    auto oldest = g_glyphCache.begin();
+    Glyph_Free(oldest->second);
+    g_glyphCache.erase(oldest);
 }
 
 static CachedGlyph* Glyph_GetOrCreate(int iconIdx, int size, int styleVariant)
@@ -727,6 +679,7 @@ static CachedGlyph* Glyph_GetOrCreate(int iconIdx, int size, int styleVariant)
     RECT rc{ 0, 0, size, size };
     RemapIcons_DrawGlyphAA(cg.dc, rc, iconIdx, false, 0.075f, styleVariant);
 
+    GlyphCache_EvictOneIfFull();
     auto [insIt, ok] = g_glyphCache.emplace(key, cg);
     if (!ok)
     {
@@ -874,7 +827,7 @@ static void DrawOverrideGearMarkerAA(HWND hwndForDpi, HDC hdc, const RECT& inner
     float scale = 1.0f;
     float ang = 0.0f;
 
-    if (hid < 256)
+    if (halljoy::keycode::IsSupported(hid))
     {
         uint8_t mode = g_gearMode[hid];
         if (mode != GEAR_NONE)
@@ -966,7 +919,15 @@ static void DrawOverrideGearMarkerAA(HWND hwndForDpi, HDC hdc, const RECT& inner
     g.DrawEllipse(&pen, cx - R_hole, cy - R_hole, R_hole * 2.0f, R_hole * 2.0f);
 }
 
-static void DrawSelectionGlowAA(HDC hdc, const RECT& rc, float t)
+static void CompoundPath(GraphicsPath& path, const RECT& rc, POINT notch)
+{
+    const auto contour = KeyShape_Points(rc,notch);
+    Point points[6];
+    for (int i=0;i<6;++i) points[i]=Point(contour[i].x,contour[i].y);
+    path.AddPolygon(points,6);
+}
+
+static void DrawSelectionGlowAA(HDC hdc, const RECT& rc, POINT notch, float t)
 {
     t = Clamp01(t);
     if (t <= 0.001f) return;
@@ -992,9 +953,17 @@ static void DrawSelectionGlowAA(HDC hdc, const RECT& rc, float t)
     Pen p1(c1, 4.0f); p1.SetLineJoin(LineJoinRound);
     Pen p2(c2, 2.0f); p2.SetLineJoin(LineJoinRound);
 
-    g.DrawRectangle(&p0, r);
-    g.DrawRectangle(&p1, r);
-    g.DrawRectangle(&p2, r);
+    if (notch.x) {
+        RECT border=rc; --border.right; --border.bottom;
+        GraphicsPath contour; CompoundPath(contour,border,notch);
+        g.DrawPath(&p0,&contour);
+        g.DrawPath(&p1,&contour);
+        g.DrawPath(&p2,&contour);
+    } else {
+        g.DrawRectangle(&p0, r);
+        g.DrawRectangle(&p1, r);
+        g.DrawRectangle(&p2, r);
+    }
 }
 
 static void DrawDigitalIndicatorAA(HWND hwndForDpi, HDC hdc, const RECT& innerKeyRect)
@@ -1029,6 +998,8 @@ static void DrawKey_Impl(const DRAWITEMSTRUCT* dis, uint16_t hid, bool selected,
     HDC hdc = dis->hDC;
     RECT rc = dis->rcItem;
 
+    const POINT notch = KeyShape_Get(hBtn);
+
     const bool disabled = (dis->itemState & ODS_DISABLED) != 0;
 
     uint16_t actualHid = (uint16_t)GetWindowLongPtrW(hBtn, GWLP_USERDATA);
@@ -1045,7 +1016,7 @@ static void DrawKey_Impl(const DRAWITEMSTRUCT* dis, uint16_t hid, bool selected,
 
     // 1. Selection anim
     float selT = 0.0f;
-    if (isRealKeyActual && actualHid < 256)
+    if (isRealKeyActual && halljoy::keycode::IsSupported(actualHid))
     {
         SelAnim_Notify(actualHid, selected, now);
         selT = SelAnim_GetT(actualHid, selected, now);
@@ -1053,7 +1024,7 @@ static void DrawKey_Impl(const DRAWITEMSTRUCT* dis, uint16_t hid, bool selected,
 
     // 2. Impact flash anim
     float flashAlpha = 0.0f;
-    if (isRealKeyForAnalogAndIcon && actualHid < 256)
+    if (isRealKeyForAnalogAndIcon && halljoy::keycode::IsSupported(actualHid))
     {
         ImpactAnim_NotifyValue(actualHid, v01, now);
         flashAlpha = ImpactAnim_GetAlpha(actualHid, now);
@@ -1062,7 +1033,7 @@ static void DrawKey_Impl(const DRAWITEMSTRUCT* dis, uint16_t hid, bool selected,
     FillRect(hdc, &rc, UiTheme::Brush_ControlBg());
 
     if (selT > 0.0f)
-        DrawSelectionGlowAA(hdc, rc, selT);
+        DrawSelectionGlowAA(hdc, rc, notch, selT);
 
     {
         COLORREF base = UiTheme::Color_Border();
@@ -1072,13 +1043,27 @@ static void DrawKey_Impl(const DRAWITEMSTRUCT* dis, uint16_t hid, bool selected,
         HGDIOBJ oldPen = SelectObject(hdc, GetStockObject(DC_PEN));
         HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
         SetDCPenColor(hdc, c);
-        Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
+        if (!notch.x) Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
         SelectObject(hdc, oldBrush);
         SelectObject(hdc, oldPen);
     }
 
     RECT inner = rc;
     InflateRect(&inner, -3, -3);
+
+    // Inset the entire contour, including the concave corner. Window clipping
+    // alone removes the hole but leaves the analogue fill flush with its edge.
+    int shapeDC = 0;
+    if (notch.x) {
+        const int inset = KeyShape_InnerInset(rc,notch);
+        inner = rc; InflateRect(&inner,-inset,-inset);
+        const auto contour = KeyShape_Points(inner,POINT{notch.x,notch.y-2*inset});
+        shapeDC = SaveDC(hdc);
+        if (shapeDC && BeginPath(hdc)) {
+            Polygon(hdc,contour.data(),(int)contour.size());
+            EndPath(hdc); SelectClipPath(hdc,RGN_AND);
+        }
+    }
 
     {
         static HBRUSH b = CreateSolidBrush(KEY_INNER_BG);
@@ -1103,6 +1088,15 @@ static void DrawKey_Impl(const DRAWITEMSTRUCT* dis, uint16_t hid, bool selected,
                 Graphics g(hdc);
                 g.SetCompositingQuality(CompositingQualityHighQuality);
 
+                // GDI+ does not inherit the GDI SelectClipPath on this memory
+                // DC. Every effect must explicitly use the same inner contour.
+                if (notch.x) {
+                    const int inset=KeyShape_InnerInset(rc,notch);
+                    GraphicsPath contour;
+                    CompoundPath(contour,inner,POINT{notch.x,notch.y-2*inset});
+                    g.SetClip(&contour,CombineModeIntersect);
+                }
+
                 const int alpha = std::clamp(static_cast<int>(flashAlpha * 200.0f), 0, 255);
                 Color cTop(static_cast<BYTE>(alpha), 255, 255, 255);
                 Color cBot(0, 255, 255, 255);
@@ -1114,7 +1108,19 @@ static void DrawKey_Impl(const DRAWITEMSTRUCT* dis, uint16_t hid, bool selected,
         }
     }
 
+    if (shapeDC) RestoreDC(hdc,shapeDC);
     RECT iconArea = rc;
+    if (notch.x) {
+        RECT border = rc; --border.right; --border.bottom;
+        const auto points = KeyShape_Points(border, notch);
+        HGDIOBJ pen = SelectObject(hdc, GetStockObject(DC_PEN));
+        HGDIOBJ brush = SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
+        SetDCPenColor(hdc, selected ? RGB(255,170,90) : UiTheme::Color_Border());
+        Polygon(hdc, points.data(), (int)points.size());
+        SelectObject(hdc, brush); SelectObject(hdc, pen);
+        inner.left += notch.x;
+        iconArea.left += notch.x;
+    }
     InflateRect(&iconArea, -1, -1);
 
     bool bound = false;
@@ -1130,13 +1136,14 @@ static void DrawKey_Impl(const DRAWITEMSTRUCT* dis, uint16_t hid, bool selected,
         DrawKeyLabelTextAA(hdc, inner, text, c);
     }
 
-    if (isRealKeyForAnalogAndIcon && isRealKeyActual && actualHid < 256)
+    if (isRealKeyForAnalogAndIcon && isRealKeyActual &&
+        halljoy::keycode::IsStandardHid(actualHid))
     {
         if (IsDigitalDownByHid(actualHid))
             DrawDigitalIndicatorAA(hBtn, hdc, inner);
     }
 
-    if (isRealKeyActual && actualHid < 256)
+    if (isRealKeyActual && halljoy::keycode::IsSupported(actualHid))
     {
         bool overrideOn = KeySettings_GetUseUnique(actualHid);
         GearAnim_NotifyOverrideState(actualHid, overrideOn, now);
@@ -1157,6 +1164,16 @@ void KeyboardRender_DrawKey(const DRAWITEMSTRUCT* dis, uint16_t hid, bool select
         return;
 
     HDC outDC = dis->hDC;
+    // Owner-draw DCs (including retained/offscreen targets) need not carry the
+    // HWND region. Exclude the missing corner at the final destination, not
+    // only from the analogue interior. This also protects direct-draw fallback.
+    const POINT notch = KeyShape_Get(dis->hwndItem);
+    struct RestoreOutputClip {
+        HDC dc; int saved;
+        ~RestoreOutputClip() { if (saved) RestoreDC(dc,saved); }
+    } clip{outDC,notch.x ? SaveDC(outDC) : 0};
+    if (notch.x && (!clip.saved || ExcludeClipRect(outDC,rc.left,rc.top+notch.y,
+        rc.left+notch.x,rc.bottom) == ERROR)) return;
     HDC memDC = CreateCompatibleDC(outDC);
     if (!memDC)
     {
@@ -1189,7 +1206,7 @@ void KeyboardRender_DrawKey(const DRAWITEMSTRUCT* dis, uint16_t hid, bool select
 
 void KeyboardRender_NotifySelectedHid(uint16_t hid)
 {
-    if (hid >= 256) hid = 0;
+    if (!halljoy::keycode::IsSupported(hid)) hid = 0;
 
     g_renderSelectedHid = hid;
 
@@ -1202,7 +1219,7 @@ void KeyboardRender_NotifySelectedHid(uint16_t hid)
 
 void KeyboardRender_OnGearClicked(uint16_t hid)
 {
-    if (hid == 0 || hid >= 256) return;
+    if (!halljoy::keycode::IsSupported(hid)) return;
 
     // Only meaningful if Override is enabled (gear visible as "override marker")
     if (!KeySettings_GetUseUnique(hid)) return;

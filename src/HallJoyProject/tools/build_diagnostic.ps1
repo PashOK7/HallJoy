@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 $msbuild = "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe"
 $project = Join-Path $repo "HallJoy\HallJoy.vcxproj"
-$exe = Join-Path $repo "x64\Diagnostic\HallJoyDiagnostic.exe"
+$exe = Join-Path $repo "..\..\build\bin\Diagnostic\Release\x64\HallJoyDiagnostic.exe"
 
 if (-not (Test-Path -LiteralPath $msbuild)) {
     throw "MSBuild not found: $msbuild"

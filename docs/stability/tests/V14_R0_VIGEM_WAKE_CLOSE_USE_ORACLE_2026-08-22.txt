@@ -1,0 +1,61 @@
+HallJoy V14 R0 ViGEm wake close/use old-bug oracle
+Date: 2026-08-22
+Risk: HJ-V14-P0-005
+Classification: deterministic legacy production-path RED oracle
+
+Purpose
+-------
+Prove the exact legacy ownership violation before replacing the in-process
+ViGEm output worker. The simulator-only injection does not model a second
+algorithm: it pauses the real realtime publisher after it has copied the real
+legacy wake HANDLE, then the real UI-owner recovery path executes
+VigemOutput_Stop -> close -> Vigem_Create -> VigemOutput_Start. The publisher
+resumes only after replacement resources exist.
+
+Final retained trace identity
+-----------------------------
+Path at capture time:
+  src/HallJoyProject/x64/AnalogSimulator/HallJoyStabilityTrace.log
+Length: 23242 bytes
+SHA-256: F2841B91FAA774AF8D788A8D6CF5B365C74BE05D050580508F38FC27919F727D
+Process exit: 0 (clean session.end; this does not make the stale use safe)
+
+Observed ownership sequence
+---------------------------
+1. Generation 1 wake was created as handle 0x284; its output thread was 0x27C.
+2. The realtime publisher copied wake 0x284 and paused before SetEvent.
+3. The UI owner joined generation 1, then successfully closed thread 0x27C and
+   wake 0x284.
+4. Generation 2 created wake 0x29C and reused thread handle value 0x27C.
+5. The paused publisher called SetEvent on stale generation-1 value 0x284.
+6. SetEvent returned success even though 0x284 was not HallJoy's current wake
+   object (replacement_is_current_wake=0). The stale numeric value had already
+   been rebound to an event object (stale_value_rebound_to_event=1).
+
+This is stronger than an ERROR_INVALID_HANDLE observation: the legacy race can
+silently signal a foreign event object and report success. Therefore checking
+SetEvent's return value, making the HANDLE atomic, or accepting a clean process
+exit cannot repair the ownership contract.
+
+Reproducibility
+---------------
+Four consecutive forced-interleaving runs reproduced the target violation.
+Trace SHA-256 values:
+  ED480B02CA45E4B43A1BB82115A5F489E71DB70F0FB04087A7FA35CF82395CB9
+  8B71E8411809AF640DA6CD8FEA7F80328193A487864253DCB3DC68017694BC8A
+  E6C1F8C011F80D666588DF9E4B93A6BBBC1B7A1F2D28F3F1032FAC5841EC191A
+  F2841B91FAA774AF8D788A8D6CF5B365C74BE05D050580508F38FC27919F727D
+
+Target contract and current verdict
+-----------------------------------
+The target process architecture keeps the parent publisher wake alive across
+all child generations and rejects publication after its output generation is
+disabled. The runner requires target-safe and stale-generation-rejected
+markers. The legacy implementation intentionally fails those requirements, so
+the O1 gate remains RED until the production route is switched to the new
+supervisor/channel and the same oracle becomes PASS.
+
+Privacy
+-------
+This evidence contains no HID path, serial number, username, absolute user
+path, key-travel sequence, or physical-device identifier.

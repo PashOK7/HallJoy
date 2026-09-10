@@ -6,7 +6,11 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include "support_log.h"
+#include "engine_runtime_owner.h"
+#include "community_links.h"
 #include <commctrl.h>
+#include <shellapi.h>
 
 #include <cstdint>
 #include <vector>
@@ -19,12 +23,16 @@
 #include "keyboard_ui_internal.h"
 
 #include "keyboard_layout.h"
+#include "key_shape_win.h"
+#include "analog_key_codes.h"
 #include "keyboard_render.h"
 #include "backend.h"
 #include "bindings.h"
 #include "profile_ini.h"
 #include "remap_panel.h"
 #include "keyboard_keysettings_panel.h"
+#include "keyboard_support_status.h"
+#include "custom_page_controls.h"
 
 #include "win_util.h"
 #include "app_paths.h"
@@ -41,6 +49,14 @@
 #pragma comment(lib, "Comctl32.lib")
 
 static constexpr UINT WM_APP_SYNC_MOUSE_SLOTS = WM_APP + 360;
+static constexpr UINT WM_APP_ANALOG_SOURCE_STATUS_CHANGED = WM_APP + 361;
+static constexpr int kSupportBannerHeightPx = 100;
+// Mouse settings currently work poorly and are disabled in the UI.
+// Keep the implementation as a foundation for future fixes; do not delete it.
+static constexpr bool kMouseSettingsPageEnabled = false;
+
+static HWND g_hSupportBanner = nullptr;
+static HWND g_hPausePreview = nullptr;
 
 // Scaling shortcut
 static int S(HWND hwnd, int px) { return WinUtil_ScalePx(hwnd, px); }
@@ -67,13 +83,257 @@ static bool MouseSlotsShouldBeVisible()
 
 static void ComputeMousePanelRect(HWND hWnd, RECT& outRc);
 
+// Version 3 / EC-M QR for kDiscordInviteUrl; DrawSupportQr adds four quiet modules.
+static constexpr const char* kDiscordQrRows[] = {
+    "11111110101100000000101111111", "10000010010110001111001000001", "10111010010101011100001011101", "10111010111000111000101011101", "10111010101001101101001011101", "10000010100011110011101000001", "11111110101010101010101111111", "00000000111010100111100000000", "10001011111001111111111111001", "10110000111110000001001111111", "01100011001001110010100010001", "00010100010101011110100101011", "01110011110111000101010000010", "10000100110111101100111111111", "10001111011110001100111011101", "01000101001010100111110100011", "11110110100101111000110100010", "10010101000010000100101111011", "00011111011001110000101000101", "00100100101001011101111110011", "11001010011001000101111111001", "00000000110011101111100010001", "11111110110110001101101011101", "10000010011100100101100010011", "10111010111111111011111111011", "10111010011000000110000000010", "10111010011011010011010001111", "10000010000011111000100101011", "11111110111000000000101111010",
+};
+enum class SupportBannerAction { None, Join, Copy };
+struct SupportBannerLayout { RECT title{}, body{}, join{}, copy{}, qr{}; };
+static SupportBannerAction g_supportBannerHot = SupportBannerAction::None;
+static SupportBannerAction g_supportBannerPressed = SupportBannerAction::None;
+static constexpr wchar_t kSupportPrompt[] = L"Want to help add support for your analogue keyboard?";
+
+static HFONT SupportBanner_Font(HWND hwnd, bool heading)
+{
+    // Scalable counterpart of the MS Sans Serif GUI font used by HallJoy's
+    // native controls. Do not introduce a separate Segoe UI family here.
+    return CreateFontW(-S(hwnd, heading ? 24 : 16), 0, 0, 0,
+        heading ? FW_BOLD : FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+        OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+        DEFAULT_PITCH | FF_DONTCARE, L"Microsoft Sans Serif");
+}
+
+static SupportBannerLayout SupportBanner_GetLayout(HWND hWnd, const RECT& rc)
+{
+    const int pad = S(hWnd, 16), gap = S(hWnd, 10);
+    const int qrSize = S(hWnd, 94);
+    SupportBannerLayout result{};
+    const int qrTop = (rc.bottom - qrSize) / 2;
+    result.qr = { rc.right - S(hWnd, 10) - qrSize, qrTop, rc.right - S(hWnd, 10), qrTop + qrSize };
+    const int textRight = result.qr.left - pad;
+    result.title = { pad, S(hWnd, 9), textRight, S(hWnd, 40) };
+    const int joinW = S(hWnd, 112), copyW = S(hWnd, 88);
+    HDC dc = GetDC(hWnd);
+    HFONT heading = SupportBanner_Font(hWnd, true);
+    HGDIOBJ previous = heading ? SelectObject(dc, heading) : nullptr;
+    TEXTMETRICW metrics{};
+    GetTextMetricsW(dc, &metrics);
+    // Reserve the complete ascent/descent plus breathing room, independently
+    // of the font mapper and DPI. Never clip descenders to a fixed row height.
+    result.title.bottom = result.title.top + metrics.tmHeight + S(hWnd, 4);
+    if (previous) SelectObject(dc, previous);
+    if (heading) DeleteObject(heading);
+    HFONT font = SupportBanner_Font(hWnd, false);
+    HGDIOBJ old = font ? SelectObject(dc, font) : nullptr;
+    SIZE measured{};
+    GetTextExtentPoint32W(dc, kSupportPrompt, _countof(kSupportPrompt) - 1, &measured);
+    if (old) SelectObject(dc, old);
+    if (font) DeleteObject(font);
+    ReleaseDC(hWnd, dc);
+    const bool inlineButtons = pad + measured.cx + gap + joinW + gap + copyW <= textRight;
+    const int bodyTop = std::max(S(hWnd, inlineButtons ? 51 : 39), static_cast<int>(result.title.bottom));
+    result.body = { pad, bodyTop, textRight, bodyTop + S(hWnd, inlineButtons ? 32 : 21) };
+    const int buttonX = inlineButtons ? pad + measured.cx + gap : pad;
+    const int buttonY = inlineButtons ? bodyTop : std::max(S(hWnd, 62), static_cast<int>(result.body.bottom) + S(hWnd, 2));
+    result.join = { buttonX, buttonY, buttonX + joinW, buttonY + S(hWnd, 32) };
+    result.copy = { result.join.right + gap, buttonY, result.join.right + gap + copyW, result.join.bottom };
+    if (inlineButtons) result.body.right = result.join.left - gap;
+    return result;
+}
+
+static SupportBannerAction SupportBanner_HitTest(const SupportBannerLayout& layout, POINT point)
+{
+    if (PtInRect(&layout.join, point)) return SupportBannerAction::Join;
+    if (PtInRect(&layout.copy, point)) return SupportBannerAction::Copy;
+    return SupportBannerAction::None;
+}
+
+static bool SupportBanner_CopyInvite(HWND hWnd)
+{
+    if (!OpenClipboard(hWnd)) return false;
+    bool copied = false;
+    if (EmptyClipboard())
+    {
+        HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, sizeof(kDiscordInviteUrl));
+        if (memory)
+        {
+            void* destination = GlobalLock(memory);
+            if (destination)
+            {
+                memcpy(destination, kDiscordInviteUrl, sizeof(kDiscordInviteUrl));
+                GlobalUnlock(memory);
+                if (SetClipboardData(CF_UNICODETEXT, memory)) { copied = true; memory = nullptr; }
+            }
+            if (memory) GlobalFree(memory);
+        }
+    }
+    CloseClipboard();
+    return copied;
+}
+
+static void DrawSupportQr(Gdiplus::Graphics& g, HWND hWnd, const RECT& tile)
+{
+    // Warm rose paper and burgundy ink match the card. Keep the required
+    // quiet zone, without an extra decorative frame or padding.
+    CustomPage_DrawRoundRect(g, tile, RGB(239, 209, 216), RGB(239, 209, 216), (float)S(hWnd, 5));
+    constexpr int kModules = 29, kQuiet = 4;
+    // Snap every boundary to a pixel instead of rounding the module size down:
+    // the code fills its tile at every DPI, with no blur or gaps between cells.
+    constexpr int total = kModules + kQuiet * 2;
+    const int size = static_cast<int>(tile.right - tile.left);
+    const auto edge = [size](int module) { return MulDiv(module, size, total); };
+    Gdiplus::SolidBrush ink(Gdiplus::Color(255, 73, 31, 43));
+    const auto smoothing = g.GetSmoothingMode();
+    g.SetSmoothingMode(Gdiplus::SmoothingModeNone);
+    for (int y = 0; y < kModules; ++y)
+        for (int x = 0; x < kModules; ++x)
+            if (kDiscordQrRows[y][x] == '1')
+            {
+                const int left = edge(x + kQuiet), top = edge(y + kQuiet);
+                g.FillRectangle(&ink, static_cast<int>(tile.left) + left, static_cast<int>(tile.top) + top,
+                    edge(x + kQuiet + 1) - left, edge(y + kQuiet + 1) - top);
+            }
+    g.SetSmoothingMode(smoothing);
+}
+
+static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    if (msg == WM_ERASEBKGND) return 1;
+    if (msg == WM_SIZE)
+    {
+        InvalidateRect(hWnd, nullptr, FALSE);
+        return 0;
+    }
+    if (msg == WM_PAINT)
+    {
+        PAINTSTRUCT ps{};
+        HDC screen = BeginPaint(hWnd, &ps);
+        RECT rc{};
+        GetClientRect(hWnd, &rc);
+        // Compose the full card offscreen. Hover paints cannot expose the
+        // cleared background between the QR and text drawing operations.
+        HDC hdc = CreateCompatibleDC(screen);
+        HBITMAP bitmap = CreateCompatibleBitmap(screen, std::max(1L, rc.right), std::max(1L, rc.bottom));
+        if (!hdc || !bitmap)
+        {
+            if (bitmap) DeleteObject(bitmap);
+            if (hdc) DeleteDC(hdc);
+            EndPaint(hWnd, &ps);
+            return 0;
+        }
+        HGDIOBJ oldBitmap = SelectObject(hdc, bitmap);
+        {
+        const SupportBannerLayout layout = SupportBanner_GetLayout(hWnd, rc);
+        FillRect(hdc, &rc, UiTheme::Brush_PanelBg());
+        const int saved = SaveDC(hdc);
+        HFONT headingFont = SupportBanner_Font(hWnd, true);
+        HFONT bodyFont = SupportBanner_Font(hWnd, false);
+        SelectObject(hdc, headingFont ? headingFont : GetStockObject(SYSTEM_FONT));
+        Gdiplus::Graphics g(hdc);
+        g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+        CustomPage_DrawRoundRect(g, rc, RGB(51, 30, 35), RGB(118, 61, 72),
+            (float)S(hWnd, 8));
+        RECT accent{S(hWnd, 1), S(hWnd, 13), S(hWnd, 4), rc.bottom - S(hWnd, 13)};
+        CustomPage_DrawRoundRect(g, accent, RGB(214, 103, 122), RGB(214, 103, 122), 1.0f);
+        CustomPage_DrawText(hdc, L"No supported analogue keyboard detected", layout.title,
+            RGB(245, 164, 182), DT_LEFT | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
+
+        SelectObject(hdc, bodyFont ? bodyFont : GetStockObject(SYSTEM_FONT));
+        CustomPage_DrawText(hdc, kSupportPrompt, layout.body, UiTheme::Color_Text(),
+            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        CustomPage_DrawButton(g, hdc, layout.join, L"Join Discord",
+            g_supportBannerHot == SupportBannerAction::Join, g_supportBannerPressed == SupportBannerAction::Join, true);
+        CustomPage_DrawButton(g, hdc, layout.copy, L"Copy link",
+            g_supportBannerHot == SupportBannerAction::Copy, g_supportBannerPressed == SupportBannerAction::Copy, true);
+        SelectObject(hdc, GetStockObject(SYSTEM_FONT));
+        DrawSupportQr(g, hWnd, layout.qr);
+        RestoreDC(hdc, saved);
+        if (headingFont) DeleteObject(headingFont);
+        if (bodyFont) DeleteObject(bodyFont);
+        }
+        BitBlt(screen, ps.rcPaint.left, ps.rcPaint.top,
+            ps.rcPaint.right - ps.rcPaint.left, ps.rcPaint.bottom - ps.rcPaint.top,
+            hdc, ps.rcPaint.left, ps.rcPaint.top, SRCCOPY);
+        SelectObject(hdc, oldBitmap);
+        DeleteObject(bitmap);
+        DeleteDC(hdc);
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+    if (msg == WM_MOUSEMOVE)
+    {
+        RECT rc{}; GetClientRect(hWnd, &rc);
+        const POINT point{ static_cast<LONG>(static_cast<short>(LOWORD(lParam))),
+            static_cast<LONG>(static_cast<short>(HIWORD(lParam))) };
+        const auto hot = SupportBanner_HitTest(SupportBanner_GetLayout(hWnd, rc), point);
+        if (hot != g_supportBannerHot) { g_supportBannerHot = hot; InvalidateRect(hWnd, nullptr, FALSE); }
+        TRACKMOUSEEVENT track{ sizeof(track), TME_LEAVE, hWnd, 0 };
+        TrackMouseEvent(&track);
+        return 0;
+    }
+    if (msg == WM_CAPTURECHANGED || msg == WM_CANCELMODE || msg == WM_SHOWWINDOW)
+    {
+        g_supportBannerPressed = SupportBannerAction::None;
+        g_supportBannerHot = SupportBannerAction::None;
+        if (msg == WM_CANCELMODE && GetCapture() == hWnd) ReleaseCapture();
+        InvalidateRect(hWnd, nullptr, FALSE);
+    }
+    if (msg == WM_MOUSELEAVE)
+    {
+        g_supportBannerHot = g_supportBannerPressed = SupportBannerAction::None;
+        InvalidateRect(hWnd, nullptr, FALSE);
+        return 0;
+    }
+    if (msg == WM_SETCURSOR)
+    {
+        POINT point{}; GetCursorPos(&point); ScreenToClient(hWnd, &point);
+        RECT rc{}; GetClientRect(hWnd, &rc);
+        const auto hit = SupportBanner_HitTest(SupportBanner_GetLayout(hWnd, rc), point);
+        SetCursor(LoadCursorW(nullptr, hit == SupportBannerAction::None ? IDC_ARROW : IDC_HAND));
+        return TRUE;
+    }
+    if (msg == WM_LBUTTONDOWN)
+    {
+        RECT rc{}; GetClientRect(hWnd, &rc);
+        g_supportBannerPressed = SupportBanner_HitTest(SupportBanner_GetLayout(hWnd, rc),
+            { static_cast<LONG>(static_cast<short>(LOWORD(lParam))), static_cast<LONG>(static_cast<short>(HIWORD(lParam))) });
+        if (g_supportBannerPressed != SupportBannerAction::None) { SetCapture(hWnd); InvalidateRect(hWnd, nullptr, FALSE); }
+        return 0;
+    }
+    if (msg == WM_LBUTTONUP)
+    {
+        const auto pressed = g_supportBannerPressed;
+        g_supportBannerPressed = SupportBannerAction::None;
+        if (GetCapture() == hWnd) ReleaseCapture();
+        RECT rc{}; GetClientRect(hWnd, &rc);
+        const auto hit = SupportBanner_HitTest(SupportBanner_GetLayout(hWnd, rc),
+            { static_cast<LONG>(static_cast<short>(LOWORD(lParam))), static_cast<LONG>(static_cast<short>(HIWORD(lParam))) });
+        InvalidateRect(hWnd, nullptr, FALSE);
+        if (pressed == hit && hit != SupportBannerAction::None)
+        {
+            if (hit == SupportBannerAction::Copy)
+            {
+                if (!SupportBanner_CopyInvite(hWnd))
+                    MessageBoxW(hWnd, L"Could not copy the Discord invite. Please try again.", L"HallJoy", MB_ICONWARNING);
+            }
+            else if (reinterpret_cast<INT_PTR>(ShellExecuteW(hWnd, L"open", kDiscordInviteUrl,
+                nullptr, nullptr, SW_SHOWNORMAL)) <= 32)
+            {
+                MessageBoxW(hWnd, L"Could not open the Discord invite. Please copy the link instead.", L"HallJoy", MB_ICONWARNING);
+            }
+        }
+        return 0;
+    }
+    return DefWindowProcW(hWnd, msg, wParam, lParam);
+}
+
 static void RefreshTrackedHids()
 {
     std::vector<uint16_t> tracked;
     tracked.reserve(g_hids.size() + _countof(kMouseSlotHids));
     for (uint16_t hid : g_hids)
     {
-        if (hid == 0 || hid >= 256) continue;
+        if (!halljoy::keycode::IsSupported(hid)) continue;
         if (MouseBind_IsPseudoHid(hid)) continue;
         tracked.push_back(hid);
     }
@@ -104,7 +364,7 @@ static void ComputeKeyboardViewMetrics(HWND hWnd, KeyboardViewMetrics& out)
     for (int i = 0; i < n; ++i)
     {
         maxX = std::max(maxX, keys[i].x + std::max(KEYBOARD_KEY_MIN_DIM, keys[i].w));
-        int bottom = keys[i].row * KEYBOARD_ROW_PITCH_Y + std::max(KEYBOARD_KEY_MIN_DIM, keys[i].h);
+        int bottom = KeyboardLayout_KeyY(keys[i]) + std::max(KEYBOARD_KEY_MIN_DIM, keys[i].h);
         if (bottom > maxBottom) maxBottom = bottom;
     }
 
@@ -185,7 +445,7 @@ static void DestroyMouseButtons()
     g_mouseButtons.clear();
     for (uint16_t hid : kMouseSlotHids)
     {
-        if (hid < 256)
+        if (halljoy::keycode::IsSupported(hid))
             g_btnByHid[hid] = nullptr;
     }
     g_mouseSlotsVisible = false;
@@ -218,7 +478,7 @@ static void EnsureMouseButtons(HWND hWnd)
         SetWindowLongPtrW(b, GWLP_USERDATA, (LONG_PTR)hid);
         SetWindowSubclass(b, KeyBtnSubclassProc, 1, (DWORD_PTR)hid);
         g_mouseButtons.push_back(b);
-        if (hid < 256)
+        if (halljoy::keycode::IsSupported(hid))
             g_btnByHid[hid] = b;
     }
     g_mouseSlotsVisible = true;
@@ -295,7 +555,7 @@ static bool SyncMouseButtonsVisibility(HWND hWnd)
         for (int i = 0; i < (int)g_mouseButtons.size() && i < (int)_countof(kMouseSlotHids); ++i)
         {
             uint16_t hid = kMouseSlotHids[i];
-            if (hid < 256)
+            if (halljoy::keycode::IsSupported(hid))
                 g_btnByHid[hid] = g_mouseButtons[i];
         }
         g_mouseSlotsVisible = true;
@@ -308,6 +568,164 @@ static int KeyboardBottomPx(HWND hWnd)
     KeyboardViewMetrics m{};
     ComputeKeyboardViewMetrics(hWnd, m);
     return m.offsetY + m.scaledH;
+}
+
+struct PausePreviewState {
+    halljoy::runtime_command::State state = halljoy::runtime_command::State::Active;
+    bool shown = false, hot = false, pressed = false, pending = false, timer = false;
+    ULONGLONG epoch = 0;
+    HFONT heading = nullptr, body = nullptr;
+};
+
+static bool PausePreview_CanResume(const PausePreviewState& state) {
+    return state.state == halljoy::runtime_command::State::Paused && !state.pending;
+}
+static RECT PausePreview_Button(HWND hwnd) {
+    RECT rc{}; GetClientRect(hwnd, &rc);
+    const int right = rc.right - S(hwnd, 18);
+    const int width = std::min(S(hwnd, 104), std::max(0, (int)rc.right / 3));
+    const int height = std::min(S(hwnd, 32), std::max(0, (int)rc.bottom - S(hwnd, 28)));
+    return {right - width, (rc.bottom - height) / 2, right, (rc.bottom + height) / 2};
+}
+static void PausePreview_Timer(HWND hwnd, PausePreviewState& state) {
+    const bool animate = state.shown && state.state == halljoy::runtime_command::State::Paused &&
+        !state.pending && IsWindowVisible(hwnd) && !IsIconic(GetAncestor(hwnd, GA_ROOT));
+    if (animate && !state.timer) {
+        state.epoch = GetTickCount64();
+        state.timer = SetTimer(hwnd, 1, 33, nullptr) != 0;
+    } else if (!animate && state.timer) { KillTimer(hwnd, 1); state.timer = false; }
+}
+static void PausePreview_Apply(HWND hwnd, PausePreviewState& state,
+    const halljoy::runtime_command::SnapshotV1& snapshot) {
+    using halljoy::runtime_command::State;
+    state.state = snapshot.state;
+    if (snapshot.state == State::Active) state.shown = false;
+    else if (snapshot.state == State::Paused && snapshot.commandGeneration > 0) state.shown = true;
+    // Do not flash "Paused" during startup; retain an existing card through resume/fault.
+    state.pending = false; state.pressed = false; state.hot = false;
+    if (GetCapture() == hwnd) ReleaseCapture();
+    ShowWindow(hwnd, state.shown ? SW_SHOWNOACTIVATE : SW_HIDE);
+    PausePreview_Timer(hwnd, state);
+    InvalidateRect(hwnd, nullptr, FALSE);
+}
+static LRESULT CALLBACK PausePreviewProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    auto* state = reinterpret_cast<PausePreviewState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    if (msg == WM_CREATE) {
+        state = new PausePreviewState;
+        state->heading = SupportBanner_Font(hwnd, true);
+        state->body = SupportBanner_Font(hwnd, false);
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
+        return 0;
+    }
+    if (!state) return DefWindowProcW(hwnd, msg, wp, lp);
+    if (msg == WM_ERASEBKGND) return 1;
+    if (msg == WM_SIZE) {
+        RECT rc{}; GetClientRect(hwnd, &rc);
+        HRGN region = CreateRoundRectRgn(0, 0, rc.right + 1, rc.bottom + 1, S(hwnd, 20), S(hwnd, 20));
+        if (region && !SetWindowRgn(hwnd, region, FALSE)) DeleteObject(region);
+        InvalidateRect(hwnd, nullptr, FALSE); return 0;
+    }
+    if (msg == WM_DPICHANGED_AFTERPARENT) {
+        DeleteObject(state->heading); DeleteObject(state->body);
+        state->heading = SupportBanner_Font(hwnd, true); state->body = SupportBanner_Font(hwnd, false);
+        InvalidateRect(hwnd, nullptr, FALSE); return 0;
+    }
+    if (msg == WM_SHOWWINDOW) {
+        if (!wp && state->timer) { KillTimer(hwnd, 1); state->timer = false; }
+        else PausePreview_Timer(hwnd, *state);
+    }
+    if (msg == WM_TIMER && wp == 1) {
+        PausePreview_Timer(hwnd, *state);
+        if (state->timer) InvalidateRect(hwnd, nullptr, FALSE);
+        return 0;
+    }
+    if (msg == WM_PAINT) {
+        PausePreview_Timer(hwnd, *state);
+        PAINTSTRUCT ps{}; HDC screen = BeginPaint(hwnd, &ps);
+        RECT rc{}; GetClientRect(hwnd, &rc);
+        HDC dc = CreateCompatibleDC(screen);
+        HBITMAP bitmap = CreateCompatibleBitmap(screen, std::max(1L, rc.right), std::max(1L, rc.bottom));
+        if (!dc || !bitmap) {
+            if (bitmap) DeleteObject(bitmap); if (dc) DeleteDC(dc);
+            EndPaint(hwnd, &ps); return 0;
+        }
+        HGDIOBJ old = SelectObject(dc, bitmap);
+        {
+            Gdiplus::Graphics g(dc); g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+            g.Clear(Gdiplus::Color(255, 26, 26, 26));
+            const double phase = (GetTickCount64() - state->epoch) % 2400 / 2400.0;
+            const double pulse = state->timer ? (1.0 - std::cos(phase * 6.283185307179586)) * 0.5 : 0.0;
+            const COLORREF accent = RGB(222, 167, 82);
+            RECT panel = rc; InflateRect(&panel, -S(hwnd, 8), -S(hwnd, 8));
+            for (int spread = 6; spread >= 1; --spread) {
+                RECT halo = panel; InflateRect(&halo, S(hwnd, spread), S(hwnd, spread));
+                CustomPage_DrawRoundRect(g, halo, accent, accent, (float)S(hwnd, 8 + spread),
+                    (BYTE)(5 + pulse * (spread > 3 ? 8 : 15)));
+            }
+            CustomPage_DrawRoundRect(g, panel, RGB(40, 33, 24), accent, (float)S(hwnd, 8));
+            const RECT button = PausePreview_Button(hwnd);
+            const bool fault = state->state == halljoy::runtime_command::State::PauseFaulted;
+            RECT title{ S(hwnd, 20), S(hwnd, 14), button.left - S(hwnd, 12), rc.bottom / 2 + S(hwnd, 6) };
+            SelectObject(dc, state->heading ? state->heading : GetStockObject(SYSTEM_FONT));
+            CustomPage_DrawText(dc, fault ? L"Restart required" : PausePreview_CanResume(*state) ? L"HallJoy is paused" : L"Resuming…",
+                title, RGB(250, 219, 166), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+            RECT detail{ title.left, title.bottom, title.right, rc.bottom - S(hwnd, 14) };
+            SelectObject(dc, state->body ? state->body : GetStockObject(SYSTEM_FONT));
+            CustomPage_DrawText(dc, fault ? L"Devices could not be restored" : L"Input processing is stopped", detail,
+                UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+            CustomPage_DrawButton(g, dc, button, L"Resume", state->hot, state->pressed, PausePreview_CanResume(*state));
+        }
+        BitBlt(screen, 0, 0, rc.right, rc.bottom, dc, 0, 0, SRCCOPY);
+        SelectObject(dc, old); DeleteObject(bitmap); DeleteDC(dc); EndPaint(hwnd, &ps); return 0;
+    }
+    if (msg == WM_MOUSEMOVE || msg == WM_LBUTTONDOWN || msg == WM_LBUTTONUP) {
+        const POINT p{(short)LOWORD(lp), (short)HIWORD(lp)};
+        const RECT button = PausePreview_Button(hwnd);
+        const bool hit = PausePreview_CanResume(*state) && PtInRect(&button, p);
+        if (msg == WM_MOUSEMOVE) {
+            if (state->hot != hit) { state->hot = hit; InvalidateRect(hwnd, nullptr, FALSE); }
+            TRACKMOUSEEVENT track{sizeof(track), TME_LEAVE, hwnd, 0}; TrackMouseEvent(&track);
+        } else if (msg == WM_LBUTTONDOWN && hit) {
+            state->pressed = true; SetCapture(hwnd); InvalidateRect(hwnd, nullptr, FALSE);
+        } else if (msg == WM_LBUTTONUP) {
+            const bool activate = state->pressed && hit;
+            state->pressed = false;
+            if (GetCapture() == hwnd) ReleaseCapture();
+            if (activate) state->pending = PostMessageW(GetAncestor(hwnd, GA_ROOT), WM_APP + 363, 0, 0) != FALSE;
+            PausePreview_Timer(hwnd, *state); InvalidateRect(hwnd, nullptr, FALSE);
+        }
+        return 0;
+    }
+    if (msg == WM_MOUSELEAVE || msg == WM_CAPTURECHANGED || msg == WM_CANCELMODE) {
+        state->hot = false; state->pressed = false; InvalidateRect(hwnd, nullptr, FALSE); return 0;
+    }
+    // No native button focus/default-key behaviour: Resume accepts mouse input only.
+    if (msg == WM_KEYDOWN || msg == WM_KEYUP || msg == WM_CHAR || msg == WM_SYSKEYDOWN || msg == WM_SYSCHAR) return 0;
+    if (msg == WM_NCDESTROY) {
+        KillTimer(hwnd, 1); DeleteObject(state->heading); DeleteObject(state->body);
+        delete state; SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp);
+}
+static void SyncPausePreview(HWND parent, bool stateChanged = false) {
+    if (!g_hPausePreview) {
+        WNDCLASSW wc{}; wc.hInstance = GetModuleHandleW(nullptr);
+        wc.lpfnWndProc = PausePreviewProc; wc.lpszClassName = L"HallJoyPausePreview";
+        wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+        RegisterClassW(&wc);
+        g_hPausePreview = CreateWindowExW(WS_EX_NOACTIVATE, wc.lpszClassName, L"", WS_CHILD | WS_CLIPSIBLINGS,
+            0, 0, 1, 1, parent, nullptr, wc.hInstance, nullptr);
+        stateChanged = true;
+    }
+    if (!g_hPausePreview) return;
+    auto* state = reinterpret_cast<PausePreviewState*>(GetWindowLongPtrW(g_hPausePreview, GWLP_USERDATA));
+    KeyboardViewMetrics m{}; ComputeKeyboardViewMetrics(parent, m);
+    const int width = std::min(S(parent, 440), m.scaledW);
+    const int height = std::min(S(parent, 96), m.scaledH);
+    SetWindowPos(g_hPausePreview, HWND_TOP, m.offsetX + (m.scaledW - width) / 2,
+        m.offsetY + (m.scaledH - height) / 2, width, height, SWP_NOACTIVATE);
+    if (stateChanged) PausePreview_Apply(g_hPausePreview, *state, halljoy::engine_runtime::EngineRuntimeOwner_Snapshot());
+    else PausePreview_Timer(g_hPausePreview, *state);
 }
 
 static void LayoutKeyboardButtons(HWND hWnd)
@@ -329,7 +747,7 @@ static void LayoutKeyboardButtons(HWND hWnd)
 
         const auto& k = keys[i];
         int baseX = S(hWnd, KEYBOARD_MARGIN_X + k.x);
-        int baseY = S(hWnd, KEYBOARD_MARGIN_Y + k.row * KEYBOARD_ROW_PITCH_Y);
+        int baseY = S(hWnd, KEYBOARD_MARGIN_Y + KeyboardLayout_KeyY(k));
         int baseW = S(hWnd, std::max(KEYBOARD_KEY_MIN_DIM, k.w));
         int baseH = S(hWnd, std::max(KEYBOARD_KEY_MIN_DIM, k.h));
 
@@ -343,6 +761,7 @@ static void LayoutKeyboardButtons(HWND hWnd)
         MapWindowPoints(nullptr, hWnd, (LPPOINT)&cur, 2);
         int cw = cur.right - cur.left;
         int ch = cur.bottom - cur.top;
+        KeyShape_Set(b, k, pw, ph);
         if (cur.left == px && cur.top == py && cw == pw && ch == ph)
             continue;
 
@@ -363,6 +782,8 @@ static void LayoutKeyboardButtons(HWND hWnd)
 
     if (hdwp)
         EndDeferWindowPos(hdwp);
+
+    SyncPausePreview(hWnd);
 
     if (anyChanged)
     {
@@ -392,7 +813,7 @@ static void RebuildKeyboardButtons(HWND hWnd)
         SetWindowSubclass(b, KeyBtnSubclassProc, 1, (DWORD_PTR)k.hid);
         g_keyButtons.push_back(b);
 
-        if (k.hid != 0 && k.hid < 256)
+        if (halljoy::keycode::IsSupported(k.hid))
         {
             g_btnByHid[k.hid] = b;
             g_hids.push_back((uint16_t)k.hid);
@@ -406,20 +827,21 @@ static void RebuildKeyboardButtons(HWND hWnd)
     RefreshTrackedHids();
     LayoutKeyboardButtons(hWnd);
 
-    if (keepSelected >= 256 || g_btnByHid[keepSelected] == nullptr)
+    if (!halljoy::keycode::IsSupported(keepSelected) ||
+        g_btnByHid[keepSelected] == nullptr)
         keepSelected = 0;
     SetSelectedHid(keepSelected);
 }
 
 static HWND GetBtnForHid(uint16_t hid)
 {
-    if (hid == 0 || hid >= 256) return nullptr;
+    if (!halljoy::keycode::IsSupported(hid)) return nullptr;
     return g_btnByHid[hid];
 }
 
 static void InvalidateKeyByHid(uint16_t hid)
 {
-    if (hid == 0 || hid >= 256) return;
+    if (!halljoy::keycode::IsSupported(hid)) return;
     if (HWND b = g_btnByHid[hid])
         InvalidateRect(b, nullptr, FALSE);
 }
@@ -467,7 +889,22 @@ static void ResizeSubUi(HWND hWnd)
 
     int kbBottom = KeyboardBottomPx(hWnd);
     int x = S(hWnd, 12);
-    int y = kbBottom + S(hWnd, 12);
+    const auto supportStatus = halljoy::keyboard_support::GetStatusSnapshot();
+    const bool showBanner = supportStatus.searchCompleted && !supportStatus.analogSourceConnected;
+    static bool previousBanner = false;
+    if (showBanner && !previousBanner) SupportLog_ReportMissingSource();
+    previousBanner = showBanner;
+    const int bannerY = kbBottom + S(hWnd, 8);
+    if (g_hSupportBanner)
+    {
+        ShowWindow(g_hSupportBanner, showBanner ? SW_SHOW : SW_HIDE);
+        if (showBanner)
+        {
+            SetWindowPos(g_hSupportBanner, nullptr, x, bannerY, (rc.right - rc.left) - S(hWnd, 24),
+                S(hWnd, kSupportBannerHeightPx), SWP_NOZORDER);
+        }
+    }
+    int y = showBanner ? bannerY + S(hWnd, kSupportBannerHeightPx + 8) : kbBottom + S(hWnd, 12);
 
     int w = (rc.right - rc.left) - S(hWnd, 24);
     int h = (rc.bottom - rc.top) - y - S(hWnd, 12);
@@ -1758,10 +2195,32 @@ static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, L
 {
     uint16_t hid = (uint16_t)dwRefData;
 
+    // Own the complete paint lifecycle. Native owner-draw BUTTON still clears
+    // its rectangular background before WM_DRAWITEM (notably WM_PRINTCLIENT).
+    // That destroys neighbour pixels before the compound renderer can clip.
+    // Retain native input/capture semantics, but never invoke its paint path.
+    if (msg == WM_ERASEBKGND) return 1;
+    if (msg == WM_PAINT || msg == WM_PRINTCLIENT) {
+        PAINTSTRUCT ps{};
+        HDC dc = msg == WM_PAINT ? BeginPaint(hBtn,&ps) : reinterpret_cast<HDC>(wParam);
+        if (dc) {
+            DRAWITEMSTRUCT item{};
+            item.CtlType=ODT_BUTTON; item.CtlID=GetDlgCtrlID(hBtn);
+            item.itemAction=ODA_DRAWENTIRE; item.hwndItem=hBtn; item.hDC=dc;
+            GetClientRect(hBtn,&item.rcItem);
+            if (!IsWindowEnabled(hBtn)) item.itemState|=ODS_DISABLED;
+            if (SendMessageW(hBtn,BM_GETSTATE,0,0)&BST_PUSHED) item.itemState|=ODS_SELECTED;
+            SendMessageW(GetParent(hBtn),WM_DRAWITEM,item.CtlID,reinterpret_cast<LPARAM>(&item));
+        }
+        if (msg == WM_PAINT) EndPaint(hBtn,&ps);
+        return 0;
+    }
+
     // Premium UX: hand cursor over the gear marker (override indicator)
     if (msg == WM_SETCURSOR)
     {
-        if (g_activeSubTab == 1 && hid != 0 && hid < 256 && !MouseBind_IsPseudoHid(hid))
+        if (g_activeSubTab == 1 && halljoy::keycode::IsSupported(hid) &&
+            !MouseBind_IsPseudoHid(hid))
         {
             if (KeySettings_GetUseUnique(hid))
             {
@@ -1821,6 +2280,18 @@ static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, L
         return 0;
     }
 
+    if (msg == WM_LBUTTONUP && g_activeSubTab == 0 && !MouseBind_IsPseudoHid(hid))
+    {
+        // The native button must release capture before the visual-only hint starts.
+        const LRESULT result = DefSubclassProc(hBtn, msg, wParam, lParam);
+        RECT client{};
+        GetClientRect(hBtn, &client);
+        const POINT releasedAt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+        if (PtInRect(&client, releasedAt))
+            RemapPanel_ShowBindingHint(g_hPageRemap);
+        return result;
+    }
+
     if (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONDBLCLK)
     {
         POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
@@ -1832,7 +2303,7 @@ static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, L
         // Configuration tab (premium): if Override is enabled for this key,
         // ANY click on the key reliably triggers wow-spin.
         // This removes the "sometimes works" feeling caused by tiny gear hitbox.
-        if (g_activeSubTab == 1 && hid != 0 && hid < 256)
+        if (g_activeSubTab == 1 && halljoy::keycode::IsSupported(hid))
         {
             if (!MouseBind_IsPseudoHid(hid) && KeySettings_GetUseUnique(hid))
             {
@@ -1853,6 +2324,92 @@ static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, L
     return DefSubclassProc(hBtn, msg, wParam, lParam);
 }
 
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool KeyboardUI_TestPausePreview()
+{
+    // Called from the existing private-desktop suite, never the user's desktop.
+    WNDCLASSW wc{}; wc.hInstance = GetModuleHandleW(nullptr);
+    wc.lpfnWndProc = PausePreviewProc; wc.lpszClassName = L"HallJoyPausePreview";
+    RegisterClassW(&wc);
+    HWND host = CreateWindowW(L"STATIC", L"", WS_OVERLAPPEDWINDOW, 0, 0, 500, 250, nullptr, nullptr, wc.hInstance, nullptr);
+    HWND card = CreateWindowW(wc.lpszClassName, L"", WS_CHILD, 0, 0, 440, 96, host, nullptr, wc.hInstance, nullptr);
+    if (!host || !card) { if (host) DestroyWindow(host); return false; }
+    auto* state = reinterpret_cast<PausePreviewState*>(GetWindowLongPtrW(card, GWLP_USERDATA));
+    using halljoy::runtime_command::State;
+    halljoy::runtime_command::SnapshotV1 snapshot{};
+    PausePreview_Apply(card, *state, snapshot);
+    bool ok = !state->shown && !state->timer; // Initial owner Paused is not a user pause.
+    ShowWindow(host, SW_SHOWNOACTIVATE);
+    snapshot.commandGeneration = 2; snapshot.state = State::Paused;
+    PausePreview_Apply(card, *state, snapshot); UpdateWindow(card);
+    ok &= state->shown && state->timer && PausePreview_CanResume(*state);
+    SendMessageW(card, WM_KEYDOWN, VK_RETURN, 0); SendMessageW(card, WM_CHAR, VK_SPACE, 0);
+    MSG message{}; ok &= !PeekMessageW(&message, host, WM_APP + 363, WM_APP + 363, PM_REMOVE);
+    const RECT button = PausePreview_Button(card);
+    const LPARAM center = MAKELPARAM((button.left + button.right) / 2, (button.top + button.bottom) / 2);
+    SendMessageW(card, WM_LBUTTONDOWN, MK_LBUTTON, center);
+    SendMessageW(card, WM_CANCELMODE, 0, 0);
+    SendMessageW(card, WM_LBUTTONUP, 0, center);
+    ok &= !state->pending;
+    for (int i = 0; i < 2; ++i) {
+        SendMessageW(card, WM_LBUTTONDOWN, MK_LBUTTON, center);
+        SendMessageW(card, WM_LBUTTONUP, 0, center);
+    }
+    ok &= state->pending && !state->timer && !PausePreview_CanResume(*state);
+    ok &= PeekMessageW(&message, host, WM_APP + 363, WM_APP + 363, PM_REMOVE) != FALSE;
+    ok &= !PeekMessageW(&message, host, WM_APP + 363, WM_APP + 363, PM_REMOVE);
+    snapshot.state = State::ResumeRequested; PausePreview_Apply(card, *state, snapshot);
+    ok &= state->shown && !state->timer && !PausePreview_CanResume(*state);
+    snapshot.state = State::PauseFaulted; PausePreview_Apply(card, *state, snapshot);
+    ok &= state->shown && !PausePreview_CanResume(*state);
+    snapshot.state = State::Active; PausePreview_Apply(card, *state, snapshot);
+    ok &= !state->shown && !state->timer && !IsWindowVisible(card);
+    ShowWindow(host, SW_HIDE); snapshot.state = State::Paused; PausePreview_Apply(card, *state, snapshot);
+    ok &= !state->timer;
+    DestroyWindow(host);
+    return ok;
+}
+
+bool KeyboardUI_TestCompoundButtonPaint()
+{
+    WNDCLASSW wc{}; wc.hInstance=GetModuleHandleW(nullptr);
+    wc.lpszClassName=L"HallJoyCompoundPaintTest";
+    wc.lpfnWndProc=[](HWND w,UINT m,WPARAM a,LPARAM b)->LRESULT {
+        if (m==WM_DRAWITEM) {
+            auto* item=reinterpret_cast<DRAWITEMSTRUCT*>(b);
+            KeyboardRender_DrawKey(item,40,false,0.0f); return TRUE;
+        }
+        return DefWindowProcW(w,m,a,b);
+    };
+    RegisterClassW(&wc);
+    HWND host=CreateWindowW(wc.lpszClassName,L"",WS_OVERLAPPED,0,0,300,300,nullptr,nullptr,wc.hInstance,nullptr);
+    HWND key=CreateWindowW(L"BUTTON",L"Enter",WS_CHILD|BS_OWNERDRAW,0,0,10,10,host,nullptr,wc.hInstance,nullptr);
+    SetWindowLongPtrW(key,GWLP_USERDATA,40);
+    SetWindowSubclass(key,KeyBtnSubclassProc,1,40);
+    HDC screen=GetDC(host), dc=CreateCompatibleDC(screen);
+    HBITMAP bitmap=CreateCompatibleBitmap(screen,264,344);
+    auto old=SelectObject(dc,bitmap); ReleaseDC(host,screen);
+    HBRUSH sentinel=CreateSolidBrush(RGB(217,23,171));
+    KeyDef definition{}; definition.w=66;definition.h=86;definition.notchW=12;definition.notchY=40;
+    bool ok=host&&key&&dc&&bitmap;
+    for (int scale : {1,4,2,1}) {
+        KeyDef rectangular=definition; rectangular.notchW=rectangular.notchY=0;
+        KeyShape_Set(key,rectangular,66*scale,86*scale);
+        KeyShape_Set(key,definition,66*scale,86*scale);
+        SetWindowPos(key,nullptr,0,0,66*scale,86*scale,SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOREDRAW);
+        RECT all{0,0,264,344}; FillRect(dc,&all,sentinel);
+        SendMessageW(key,WM_ERASEBKGND,(WPARAM)dc,0);
+        SendMessageW(key,WM_PRINTCLIENT,(WPARAM)dc,PRF_CLIENT|PRF_ERASEBKGND);
+        for(int y=40*scale;y<86*scale;++y) for(int x=0;x<12*scale;++x)
+            ok &= GetPixel(dc,x,y)==RGB(217,23,171);
+        ok &= GetPixel(dc,30*scale,20*scale)!=RGB(217,23,171);
+    }
+    DeleteObject(sentinel);SelectObject(dc,old);DeleteObject(bitmap);DeleteDC(dc);
+    DestroyWindow(host);UnregisterClassW(wc.lpszClassName,wc.hInstance);
+    return ok;
+}
+#endif
+
 static HPEN PenDropHover()
 {
     static HPEN p = CreatePen(PS_SOLID, 3, RGB(60, 200, 120));
@@ -1862,13 +2419,24 @@ static HPEN PenDropHover()
 static void DrawDropHoverOutline(const DRAWITEMSTRUCT* dis)
 {
     RECT rc = dis->rcItem;
-    InflateRect(&rc, -2, -2);
+    const POINT notch=KeyShape_Get(dis->hwndItem);
+    const int inset=notch.x ? std::min(2,KeyShape_InnerInset(rc,notch)) : 2;
+    InflateRect(&rc, -inset, -inset);
 
     HDC hdc = dis->hDC;
     HGDIOBJ oldPen = SelectObject(hdc, PenDropHover());
     HGDIOBJ oldBrush = SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
 
-    Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
+    if (notch.x) {
+        const auto points=KeyShape_Points(rc,POINT{notch.x,notch.y-2*inset});
+        const int saved=SaveDC(hdc);
+        if (saved) {
+            ExcludeClipRect(hdc,dis->rcItem.left,dis->rcItem.top+notch.y,
+                dis->rcItem.left+notch.x,dis->rcItem.bottom);
+            Polygon(hdc,points.data(),(int)points.size());
+            RestoreDC(hdc,saved);
+        }
+    } else Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
 
     SelectObject(hdc, oldBrush);
     SelectObject(hdc, oldPen);
@@ -1933,6 +2501,21 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 
         RebuildKeyboardButtons(hWnd);
 
+        static bool supportBannerRegistered = false;
+        if (!supportBannerRegistered)
+        {
+            WNDCLASSW wc{};
+            wc.lpfnWndProc = SupportBannerProc;
+            wc.hInstance = hInst;
+            wc.lpszClassName = L"HallJoyKeyboardSupportBanner";
+            wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+            wc.hbrBackground = nullptr;
+            RegisterClassW(&wc);
+            supportBannerRegistered = true;
+        }
+        g_hSupportBanner = CreateWindowW(L"HallJoyKeyboardSupportBanner", L"",
+            WS_CHILD | WS_CLIPSIBLINGS, 0, 0, 100, 100, hWnd, nullptr, hInst, nullptr);
+
         g_hSubTab = CreateWindowW(WC_TABCONTROLW, L"",
             WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
             0, 0, 100, 100,
@@ -1959,8 +2542,11 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         tie.pszText = (LPWSTR)L"Input Overlay";
         TabCtrl_InsertItem(g_hSubTab, 4, &tie);
 
-        tie.pszText = (LPWSTR)L"Mouse settings";
-        TabCtrl_InsertItem(g_hSubTab, 5, &tie);
+        if (kMouseSettingsPageEnabled)
+        {
+            tie.pszText = (LPWSTR)L"Mouse settings";
+            TabCtrl_InsertItem(g_hSubTab, 5, &tie);
+        }
 
         g_hPageRemap = RemapPanel_Create(g_hSubTab, hInst, hWnd);
 
@@ -2016,6 +2602,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
             wc.lpfnWndProc = KeyboardSubpages_InputOverlayPageProc;
             wc.hInstance = hInst;
             wc.lpszClassName = L"KeyboardSubInputOverlayPage";
+            wc.style = CS_DBLCLKS;
             wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
             wc.hbrBackground = nullptr;
             RegisterClassW(&wc);
@@ -2024,20 +2611,23 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         g_hPageInputOverlay = CreateWindowW(L"KeyboardSubInputOverlayPage", L"",
             WS_CHILD | WS_CLIPCHILDREN, 0, 0, 100, 100, g_hSubTab, nullptr, hInst, nullptr);
 
-        static bool mouseReg = false;
-        if (!mouseReg)
+        if (kMouseSettingsPageEnabled)
         {
-            WNDCLASSW wc{};
-            wc.lpfnWndProc = KeyboardSubpages_MouseSettingsPageProc;
-            wc.hInstance = hInst;
-            wc.lpszClassName = L"KeyboardSubMouseSettingsPage";
-            wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-            wc.hbrBackground = nullptr;
-            RegisterClassW(&wc);
-            mouseReg = true;
+            static bool mouseReg = false;
+            if (!mouseReg)
+            {
+                WNDCLASSW wc{};
+                wc.lpfnWndProc = KeyboardSubpages_MouseSettingsPageProc;
+                wc.hInstance = hInst;
+                wc.lpszClassName = L"KeyboardSubMouseSettingsPage";
+                wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+                wc.hbrBackground = nullptr;
+                RegisterClassW(&wc);
+                mouseReg = true;
+            }
+            g_hPageMouse = CreateWindowW(L"KeyboardSubMouseSettingsPage", L"",
+                WS_CHILD | WS_CLIPCHILDREN, 0, 0, 100, 100, g_hSubTab, nullptr, hInst, nullptr);
         }
-        g_hPageMouse = CreateWindowW(L"KeyboardSubMouseSettingsPage", L"",
-            WS_CHILD | WS_CLIPCHILDREN, 0, 0, 100, 100, g_hSubTab, nullptr, hInst, nullptr);
 
         ResizeSubUi(hWnd);
         TabCtrl_SetCurSel(g_hSubTab, 0);
@@ -2073,6 +2663,15 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         }
         return 0;
     }
+
+    case WM_APP + 362:
+        SyncPausePreview(hWnd, true);
+        return 0;
+
+    case WM_APP_ANALOG_SOURCE_STATUS_CHANGED:
+        ResizeSubUi(hWnd);
+        InvalidateRect(hWnd, nullptr, FALSE);
+        return 0;
 
     case WM_NOTIFY:
         if (g_hSubTab && ((LPNMHDR)lParam)->hwndFrom == g_hSubTab && ((LPNMHDR)lParam)->code == TCN_SELCHANGE)
@@ -2281,6 +2880,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         return 0;
 
     case WM_APP_KEYBOARD_LAYOUT_CHANGED:
+        if (g_hPageGlobal) PostMessageW(g_hPageGlobal, WM_APP_KEYBOARD_LAYOUT_CHANGED, 0, 0);
         // Rebuild visible keyboard immediately when layout preset changes from subpages.
         KeyDrag_Stop();
         if (g_kdel.running) KeyDel_Stop();
@@ -2334,6 +2934,8 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
     }
 
     case WM_DESTROY:
+        g_hSupportBanner = nullptr;
+        g_hPausePreview = nullptr; // The child destroys its timer/fonts with the parent.
         KeyDrag_Stop();
         DestroyMouseButtons();
         DestroyKeyboardButtons();

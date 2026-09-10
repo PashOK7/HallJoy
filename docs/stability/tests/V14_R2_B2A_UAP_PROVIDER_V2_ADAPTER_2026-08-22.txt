@@ -1,0 +1,47 @@
+HallJoy v1.4 R2-B2a UAP Provider V2 adapter evidence
+Date: 2026-08-22
+
+Scope
+- Read-only full-key UAP V2 export, isolated shared publication and parent capture.
+- Production-linked legacy ordinary-HID projection and honest capacity behavior.
+- No Backend_Tick or controller-output route switch.
+
+Portable/compiler gates
+- UAP_PROVIDER_V2_PROJECTION_TEST=PASS devices=2 samples=10 ordinary_hid_equivalence=1 special_keys_retained=1 release_zero=1 hidden_truncation_rejected=1
+- UAP_SNAPSHOT_PINNING_TEST=PASS coherent_reads=50000 lifetime_cycles=100000 blocked_removal=1 exact_destruction=1 required_count=1
+- UAP_PROVIDER_V2_STATIC_AUDIT=PASS
+- UAP_SNAPSHOT_PINNING_STATIC_AUDIT=PASS
+- native backend checks: all static and portable C++ tests passed
+
+Exact freshly built private ABI1 runtime
+- PRIVATE_UAP_ABI_RUNTIME=PASS
+- ABI: 1
+- initial_devices: 1
+- provider_v2_devices: 1
+- provider_v2_samples: 127
+- Header/device/sample sizes, provider/sample/value/ownership generations,
+  completeness/capacity, namespaces, unique identities and finite [0,1] values: PASS
+- V2 before initialise and after bounded unload: rejected/PASS
+- Production ABI1 DLL: 264704 bytes
+- SHA-256: 5DD236DFC84772D7F07FB123CCF435EFB02E5CE00ABB889F6137C252EE1C39B3
+
+Official build and exact production smoke
+- Pinned Sun/Soup/UAP rebuild: PASS
+- Embedded ViGEmBus hash/signature/resource self-test: PASS
+- MSVC Release x64: 0 errors; only allow-listed external ViGEmClient LNK4099
+- Production startup/WM_CLOSE: PASS
+- Continuous diagnostic logs: none
+- Crash report: none
+- HallJoy.exe: 8529920 bytes
+- SHA-256: 34F062D7770110F1FD72A45AF10206628BFD8673CA33791C530FD022C4CB91B5
+
+Open boundary
+- The child still obtains legacy dense and V2 through separate export calls.
+- This evidence does not claim same-generation configured-XUSB equivalence.
+- Next gate: one immutable generation, actual bindings/curves/report-builder
+  shadow, every XUSB field equal, no shadow publication.
+
+Artifact status
+- Local qualification only; not promoted or delivered.
+- Existing V75 hardware candidate was not rebuilt or overwritten.
+- No Git/GitHub operation occurred.

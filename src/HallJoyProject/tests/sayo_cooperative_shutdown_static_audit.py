@@ -67,8 +67,8 @@ def main() -> int:
             "outer registry remains running for later hotplug readers")
     require("const auto stopped = SayoStop();" in backend and "stopped.RestartSafe()" in backend,
             "descriptor forwards truthful completion to the registry")
-    require("nativeBackendsStopped" in app and "component=native-analog dependent_cleanup_skipped=1" in app,
-            "application blocks dependent teardown after Sayo poison")
+    require("EngineRuntimeStopNativeProviders" in app and "EngineRuntimeOwner_Stop()" in app,
+            "aggregate owner blocks dependent teardown after Sayo poison")
     require("#if defined(HALLJOY_ANALOG_SIMULATOR)" in reader and
             "--halljoy-test-sayo-stop-timeout" in reader,
             "runtime timeout injection is simulator-only")

@@ -23,6 +23,8 @@ require("catch (...)" in guard and "noexcept" in guard,
         "portable C ABI guard contains every C++ exception")
 require("class LockGuard final" in guard and "~LockGuard() noexcept" in guard,
         "recursive mutex ownership is exception-safe RAII")
+require("class LockSet final" in guard and "~LockSet() noexcept" in guard,
+        "multi-device snapshot locking is exception-safe RAII")
 require(".lock()" not in uap and ".unlock()" not in uap,
         "plugin implementation has no manual mutex ownership")
 require(uap.count("halljoy::uap::CAbiInvoke") >= 9,

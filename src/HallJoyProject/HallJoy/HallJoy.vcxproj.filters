@@ -30,6 +30,9 @@
     <ClCompile Include="app_deps.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="embedded_vigem_installer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="app_paths.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -91,6 +94,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="keyboard_layout.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="keyboard_support_status.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="keyboard_page_main.cpp">
@@ -168,16 +174,56 @@
     <ClCompile Include="aula_w669_protocol.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="irok_nd75_backend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="irok_nd75_protocol.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="drunkdeer_backend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mchose_ace68_diagnostic_backend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="titan68_turbo_diagnostic_backend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="drunkdeer_protocol.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="native_analog_routing.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="addressed_poll_scheduler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\tests\profile_transaction_windows_test.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="profile_ini.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="realtime_loop.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vigem_child_transport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vigem_output_channel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vigem_output_process_client.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vigem_output_runtime.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vigem_output_process_host.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vigem_output_self_host_test.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="process_generation_supervisor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="remap_abxy.cpp">
@@ -222,8 +268,10 @@
     <ClCompile Include="win_util.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-  <ClCompile Include="native_analog_backend_registry.cpp"><Filter>Source Files</Filter></ClCompile></ItemGroup>
+  <ClCompile Include="analog_provider_v2.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="provider_v2_data_plane_layout.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="provider_v2_data_plane_windows.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="provider_v2_snapshot_broker.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="uap_parent_snapshot.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="provider_v2_controller_shadow.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="provider_v2_qualification_model.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="provider_v2_qualification_report.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="configured_xusb_builder.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="xusb_output_adapter.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="native_analog_backend_registry.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="runtime_supervisor.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="engine_runtime_owner.cpp"><Filter>Source Files</Filter></ClCompile><ClCompile Include="engine_runtime_ui_bridge.cpp"><Filter>Source Files</Filter></ClCompile></ItemGroup>
   <ItemGroup>
+    <ClInclude Include="bounded_ini.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="profile_runtime_gate.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="app.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -245,6 +293,9 @@
     <ClInclude Include="dependency_guidance_policy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="embedded_vigem_installer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="app_paths.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -263,6 +314,9 @@
     <ClInclude Include="sparklink_hotplug_age.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="sparklink_row_freshness.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="monotonic_time.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -270,6 +324,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="backend_sayo.inc">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sayo_letter_matcher.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="backend_curve.h">
@@ -326,7 +383,40 @@
     <ClInclude Include="keyboard_keysettings_panel_internal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="layout_picker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="keyboard_layout.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="keychron_catalog_layouts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="key_shape_win.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main_keyboard_input.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="layout_sort.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="keychron_catalog_presets.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lemokey_catalog_layouts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="drunkdeer_catalog_layouts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="generated\layout_pipeline\*.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="generated\layout_pipeline\*.inc">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="keychron_layout_identities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="keyboard_profiles.h">
@@ -395,6 +485,27 @@
     <ClInclude Include="aula_w669_protocol.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="irok_nd75_backend.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="irok_nd75_protocol.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="drunkdeer_backend.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="mchose_ace68_diagnostic_backend.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="titan68_turbo_diagnostic_backend.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="drunkdeer_protocol.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="raw_input_packet_size.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="native_analog_routing.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -413,6 +524,39 @@
     <ClInclude Include="vigem_output_scheduler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="vigem_child_transport.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vigem_output_shared.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vigem_output_producer_lease.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vigem_output_channel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vigem_output_process_protocol.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vigem_output_process_client.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vigem_output_runtime.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vigem_output_process_host.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vigem_output_self_host_test.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="process_generation_supervisor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="protected_native_handle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="remap_abxy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -429,6 +573,21 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="remap_panel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="remap_hint_motion.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="window_placement_policy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="window_placement_windows.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="overlay_text_edit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="layout_editor_model.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="remap_startselect.h">
@@ -488,7 +647,10 @@
     <ClInclude Include="windows_command_line.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-  <ClInclude Include="native_analog_backend.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="native_analog_backend_registry.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="native_analog_backends.def"><Filter>Header Files</Filter></ClInclude></ItemGroup>
+  <ClInclude Include="analog_provider_v2.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="provider_v2_data_plane_layout.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="provider_v2_data_plane_windows.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="provider_v2_snapshot_broker.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="uap_parent_snapshot.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="provider_v2_controller_shadow.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="provider_v2_qualification_model.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="provider_v2_qualification_report.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="configured_xusb_builder.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="virtual_controller_frame.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="xusb_output_adapter.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="native_analog_backend.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="native_analog_backend_registry.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="native_analog_backends.def"><Filter>Header Files</Filter></ClInclude><ClInclude Include="runtime_supervisor.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="engine_runtime_owner.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="engine_runtime_ui_bridge.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="engine_runtime_transaction.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="runtime_command_state.h"><Filter>Header Files</Filter></ClInclude><ClInclude Include="instance_guard.h"><Filter>Header Files</Filter></ClInclude></ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="instance_guard.cpp"><Filter>Source Files</Filter></ClCompile>
+  </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="HallJoy.rc">
       <Filter>Resource Files</Filter>

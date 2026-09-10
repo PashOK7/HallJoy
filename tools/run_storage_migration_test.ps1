@@ -1,17 +1,17 @@
 [CmdletBinding()]
 param(
-    [ValidateRange(7, 30)]
-    [int]$RunSeconds = 7
+    [ValidateRange(8, 30)]
+    [int]$RunSeconds = 8
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
-$output = Join-Path $root 'src\HallJoyProject\x64\AnalogSimulator'
+$output = Join-Path $root 'build\bin\AnalogSimulator\Release\x64'
 $runner = Join-Path $root 'tools\run_analog_simulator.ps1'
 $trace = Join-Path $output 'HallJoyStabilityTrace.log'
-$runsRoot = Join-Path $output 'StorageMigrationRuns'
+$runsRoot = Join-Path ([IO.Path]::GetTempPath()) 'HallJoyStorageMigrationRuns'
 $runRoot = Join-Path $runsRoot ([Guid]::NewGuid().ToString('N'))
 $legacy = Join-Path $runRoot 'legacy'
 $target = Join-Path $runRoot 'local'
@@ -19,8 +19,8 @@ $target = Join-Path $runRoot 'local'
 New-Item -ItemType Directory -Path $legacy,$target -Force | Out-Null
 $decomposedCafe = "Cafe$([char]0x0301)"
 $fixtures = [ordered]@{
-    'settings.ini' = "[Main]`r`nActiveGlobalProfile=Default`r`n"
-    'bindings.ini' = "HALLJOY_MIGRATION_BINDINGS`r`n"
+    'settings.ini' = "[Main]`r`nPollingMs=1`r`nActiveGlobalProfile=Default`r`n"
+    'bindings.ini' = "[Pad1_Axes]`r`nLX_Plus=7`r`n"
     'GlobalProfiles\Café.settings.ini' = "[Profile]`r`nName=Café`r`n"
     'GlobalProfiles\Café.bindings.ini' = "HALLJOY_MIGRATION_PROFILE_BINDINGS`r`n"
     'Layouts\Legacy Collision.ini' = "LEGACY_LAYOUT_SOURCE`r`n"
@@ -47,7 +47,7 @@ foreach ($relative in $fixtures.Keys) {
 }
 
 & powershell -NoProfile -ExecutionPolicy Bypass -File $runner `
-    -SkipBuild `
+    -SkipBuild -IsolateSyntheticInput `
     -StorageDataRoot $target `
     -StorageLegacyRoot $legacy `
     -RequireStorageMigration `
@@ -70,6 +70,10 @@ if ($backupRoots.Count -ne 1) {
 }
 foreach ($relative in $fixtures.Keys) {
     $backupPath = Join-Path $backupRoots[0].FullName $relative
+    if ($relative -eq $collisionRelative) {
+        if (Test-Path -LiteralPath $backupPath) { throw 'Skipped destination produced a redundant backup.' }
+        continue
+    }
     if (-not (Test-Path -LiteralPath $backupPath -PathType Leaf)) {
         throw "Migration backup is missing: $relative"
     }
@@ -78,7 +82,7 @@ foreach ($relative in $fixtures.Keys) {
     }
 }
 
-$markers = @(Get-ChildItem -LiteralPath $target -File -Filter '.migration-from-exe-*.ini')
+$markers = @(Get-ChildItem -LiteralPath (Join-Path $target '.internal') -File -Filter 'migrations.ini')
 if ($markers.Count -ne 1) {
     throw "Expected one completed migration marker, found $($markers.Count)."
 }
@@ -93,7 +97,7 @@ if ($temps.Count -ne 0) {
 
 # A second launch must consume the marker and skip the one-time migration.
 & powershell -NoProfile -ExecutionPolicy Bypass -File $runner `
-    -SkipBuild `
+    -SkipBuild -IsolateSyntheticInput `
     -StorageDataRoot $target `
     -StorageLegacyRoot $legacy `
     -RunSeconds $RunSeconds
@@ -117,7 +121,7 @@ foreach ($stage in @('prepare', 'write', 'flush', 'validate', 'replace')) {
     $faultSourceHash = (Get-FileHash -LiteralPath $faultSource -Algorithm SHA256).Hash
 
     & powershell -NoProfile -ExecutionPolicy Bypass -File $runner `
-        -SkipBuild `
+        -SkipBuild -IsolateSyntheticInput `
         -StorageDataRoot $faultTarget `
         -StorageLegacyRoot $faultLegacy `
         -RequireStorageMigrationFailure `
@@ -145,7 +149,7 @@ if ($createdPortableMarker) {
 }
 try {
     & powershell -NoProfile -ExecutionPolicy Bypass -File $runner `
-        -SkipBuild `
+        -SkipBuild -IsolateSyntheticInput `
         -UsePortableStorage `
         -RunSeconds $RunSeconds
     if ($LASTEXITCODE -ne 0) { throw "Portable-mode simulator failed: $LASTEXITCODE" }

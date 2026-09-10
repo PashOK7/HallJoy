@@ -1,5 +1,6 @@
 #pragma once
 
+#include "analog_key_codes.h"
 #include "aula_win60he_protocol.h"
 
 #include <array>
@@ -83,7 +84,7 @@ struct TraceSink
 struct ActiveMapSnapshot
 {
     KeyFunctionMap functions{};
-    KeyMap keyMap{};
+    ActiveKeyMap keyMap{};
     std::size_t mappedKeys = 0;
 };
 
@@ -94,7 +95,7 @@ struct CapabilityProof
     PrecisionStroke precision{};
     KeyMap defaultKeyMap{};
     KeyFunctionMap activeFunctions{};
-    KeyMap keyMap{};
+    ActiveKeyMap keyMap{};
     std::size_t physicalKeyPositions = 0;
     std::size_t defaultMappedKeys = 0;
     std::size_t mappedKeys = 0;
@@ -113,7 +114,8 @@ enum CapabilityMismatch : std::uint32_t
     CapabilityMismatch_TravelPlausibility = 1u << 4,
 };
 
-using HidMilliSnapshot = std::array<std::uint16_t, 256>;
+using HidMilliSnapshot =
+    std::array<std::uint16_t, halljoy::keycode::kCount>;
 struct SnapshotResult
 {
     HidMilliSnapshot milli{};
@@ -128,7 +130,7 @@ public:
     bool Probe(
         CapabilityProof* out,
         Failure* failure = nullptr,
-        CompatibilityProfile profile = CompatibilityProfile::ExactWin60HeMax);
+        CompatibilityPolicy policy = {});
     bool ReadActiveMap(
         const KeyMap& defaultKeyMap,
         ActiveMapSnapshot* out,
@@ -196,7 +198,7 @@ bool TravelValuesPlausible(
     std::uint8_t firstMatrixRow,
     const PrecisionStroke& precision) noexcept;
 void BuildHidMilliSnapshot(
-    const KeyMap& activeMap,
+    const ActiveKeyMap& activeMap,
     const TravelMatrix& travel,
     std::uint16_t maximumTravelUm,
     SnapshotResult* out) noexcept;

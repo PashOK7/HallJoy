@@ -21,7 +21,7 @@ checks = {
     'MAD68 descriptor is in central catalog': 'Mad68ProR_GetNativeBackendDescriptor' in catalog,
     'MAD68 value enters common raw path': 'NativeAnalogBackends_ReadMilli(hidKeycode)' in backend,
     'MAD68 enters multi-device max arbitration': 'result.milli = std::max' in registry,
-    'UAP stays available for other analogue keyboards': 'cache.wootingReady && modeCode != 0' in backend,
+    'UAP stays available for other analogue keyboards': 'cache.wootingReady && (modeCode != 0 ||' in backend and 'cache.hasAuthoritativeProviderV2' in backend,
     'digital fallback stays blocked for native-owned HID': 'cache.allowFallback && !native.owned' in backend,
     'native UAP child excludes only capability-validated exact interfaces': 'halljoy_uap_native_hid_excluded' in uap_main and 'HALLJOY_UAP_NATIVE_HID_PATHS' in uap_main and 'UAP_EXCLUDE_HALLJOY_NATIVE=1' in uap_native_sun,
     'normal UAP target remains unchanged': 'UAP_EXCLUDE_HALLJOY_NATIVE=1' not in uap_standard_sun,
@@ -34,10 +34,14 @@ checks = {
     'realtime curve path consumes common raw': 'float raw = ReadRaw01Cached(hidKeycode, cache);' in backend,
     'UI publication receives filtered analog': 'g_uiAnalogM[hid].store(newV' in backend,
     'blue keyboard render consumes standard UI analog': 'BackendUI_GetAnalogMilli(hid)' in render,
-    'ViGEm report builder consumes filtered analog': 'static XUSB_REPORT BuildReportForPad' in backend and 'ReadFiltered01Cached' in backend,
+    'ViGEm report builder consumes filtered analog': (
+        'static PadFramePair BuildReportFramesForPad' in backend and
+        'ReadFilteredPair' in backend and
+        'ToLegacyXusbReport(frames.qualified)' in backend),
     'ViGEm update receives built report': (
-        'batch.reports[index] = report' in backend and
-        'vigem_target_x360_update(g_client, pad, batch.reports' in backend),
+        'outputReports[index] = ToOutputReport(report)' in backend and
+        'g_vigemOutputRuntime.TryPublish' in backend and
+        'vigem_target_x360_update' not in backend),
     'routing and lifecycle use central manager': (
         'NativeAnalogBackends_PrepareRouting()' in app
         and 'NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRawInput)' in app

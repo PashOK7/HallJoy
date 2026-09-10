@@ -6,19 +6,14 @@
 #include <atomic>
 #include <shared_mutex>
 #include <mutex>
-#include <unordered_map>
 #include <cmath>
 #include <cstdint>
-#include <thread>
 
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64))
-#include <intrin.h>
-#endif
-
-// Data storage
-// Fast path: HID < 256
-static std::array<KeyDeadzone, 256> g_fastData{};
-static std::shared_mutex g_fastMutex;
+// The complete supported semantic domain is compact (0x001..0x409), so all
+// keys use the same prepared table. This deliberately excludes arbitrary
+// 16-bit values and preserves the distinct UAP Fn/OEM identities.
+static std::array<KeyDeadzone, halljoy::keycode::kCount> g_data{};
+static std::shared_mutex g_dataMutex;
 
 struct FastSnapshot
 {
@@ -38,20 +33,7 @@ struct FastSnapshot
     std::atomic<int16_t> cp2wM{ 1000 };
 };
 
-static std::array<FastSnapshot, 256> g_fastSnapshot{};
-
-// Slow path: HID >= 256
-static std::unordered_map<uint16_t, KeyDeadzone> g_mapData;
-static std::shared_mutex g_mapMutex;
-
-static inline void CpuRelax()
-{
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64))
-    _mm_pause();
-#else
-    std::this_thread::yield();
-#endif
-}
+static std::array<FastSnapshot, halljoy::keycode::kCount> g_snapshot{};
 
 static int16_t ToMilli(float v)
 {
@@ -64,9 +46,9 @@ static float FromMilli(int16_t m)
     return (float)std::clamp((int)m, 0, 1000) / 1000.0f;
 }
 
-static void FastSnapshotStore(uint16_t hid, const KeyDeadzone& s)
+static void SnapshotStore(uint16_t hid, const KeyDeadzone& s)
 {
-    FastSnapshot& snap = g_fastSnapshot[hid];
+    FastSnapshot& snap = g_snapshot[hid];
     snap.seq.fetch_add(1u, std::memory_order_acq_rel); // odd => writer in progress
 
     snap.useUnique.store(s.useUnique ? 1u : 0u, std::memory_order_relaxed);
@@ -87,17 +69,16 @@ static void FastSnapshotStore(uint16_t hid, const KeyDeadzone& s)
     snap.seq.fetch_add(1u, std::memory_order_release); // even => stable
 }
 
-static KeyDeadzone FastSnapshotLoad(uint16_t hid)
+static KeyDeadzone SnapshotLoad(uint16_t hid)
 {
     KeyDeadzone out{};
-    FastSnapshot& snap = g_fastSnapshot[hid];
+    FastSnapshot& snap = g_snapshot[hid];
 
-    for (;;)
+    for (unsigned attempt = 0; attempt < 3u; ++attempt)
     {
         uint32_t s1 = snap.seq.load(std::memory_order_acquire);
         if (s1 & 1u)
         {
-            CpuRelax();
             continue;
         }
 
@@ -120,8 +101,26 @@ static KeyDeadzone FastSnapshotLoad(uint16_t hid)
         if (s1 == s2)
             return out;
 
-        CpuRelax();
     }
+
+    // Every field is atomic, so this bounded fallback cannot race in the C++
+    // sense. It is reached only while a direct UI writer is continuously
+    // changing this one key; profile transactions remain excluded by their
+    // outer commit gate.
+    out.useUnique = snap.useUnique.load(std::memory_order_acquire) != 0;
+    out.invert = snap.invert.load(std::memory_order_relaxed) != 0;
+    out.curveMode = static_cast<uint8_t>(snap.curveMode.load(std::memory_order_relaxed));
+    out.low = FromMilli(snap.lowM.load(std::memory_order_relaxed));
+    out.high = FromMilli(snap.highM.load(std::memory_order_relaxed));
+    out.antiDeadzone = FromMilli(snap.antiDeadzoneM.load(std::memory_order_relaxed));
+    out.outputCap = FromMilli(snap.outputCapM.load(std::memory_order_relaxed));
+    out.cp1_x = FromMilli(snap.cp1xM.load(std::memory_order_relaxed));
+    out.cp1_y = FromMilli(snap.cp1yM.load(std::memory_order_relaxed));
+    out.cp2_x = FromMilli(snap.cp2xM.load(std::memory_order_relaxed));
+    out.cp2_y = FromMilli(snap.cp2yM.load(std::memory_order_relaxed));
+    out.cp1_w = FromMilli(snap.cp1wM.load(std::memory_order_relaxed));
+    out.cp2_w = FromMilli(snap.cp2wM.load(std::memory_order_relaxed));
+    return out;
 }
 
 static KeyDeadzone Normalize(KeyDeadzone s)
@@ -180,59 +179,25 @@ static KeyDeadzone Normalize(KeyDeadzone s)
 
 void KeySettings_Set(uint16_t hid, const KeyDeadzone& in)
 {
-    if (!hid) return;
+    if (!halljoy::keycode::IsSupported(hid)) return;
     KeyDeadzone norm = Normalize(in);
 
-    if (hid < 256)
-    {
-        std::unique_lock lock(g_fastMutex);
-        g_fastData[hid] = norm;
-        FastSnapshotStore(hid, norm);
-        BackendCurve_Invalidate();
-        return;
-    }
-
-    {
-        std::unique_lock lock(g_mapMutex);
-        g_mapData[hid] = norm;
-    }
+    std::unique_lock lock(g_dataMutex);
+    g_data[hid] = norm;
+    SnapshotStore(hid, norm);
     BackendCurve_Invalidate();
 }
 
 KeyDeadzone KeySettings_Get(uint16_t hid)
 {
     KeyDeadzone def;
-    if (!hid) return def;
-
-    if (hid < 256)
-    {
-        return FastSnapshotLoad(hid);
-    }
-
-    {
-        std::shared_lock lock(g_mapMutex);
-        auto it = g_mapData.find(hid);
-        if (it == g_mapData.end()) return def;
-        return it->second;
-    }
+    return halljoy::keycode::IsSupported(hid) ? SnapshotLoad(hid) : def;
 }
 
 bool KeySettings_GetUseUnique(uint16_t hid)
 {
-    if (!hid) return false;
-
-    if (hid < 256)
-    {
-        return g_fastSnapshot[hid].useUnique.load(std::memory_order_acquire) != 0;
-    }
-
-    // HID >= 256: slow path
-    {
-        std::shared_lock lock(g_mapMutex);
-        auto it = g_mapData.find(hid);
-        if (it == g_mapData.end()) return false;
-        return it->second.useUnique;
-    }
+    return halljoy::keycode::IsSupported(hid) &&
+        g_snapshot[hid].useUnique.load(std::memory_order_acquire) != 0;
 }
 
 void KeySettings_SetUseUnique(uint16_t hid, bool on)
@@ -273,16 +238,12 @@ void KeySettings_SetOutputCap(uint16_t hid, float val)
 void KeySettings_ClearAll()
 {
     {
-        std::unique_lock lock(g_fastMutex);
-        for (uint16_t hid = 0; hid < 256; ++hid)
+        std::unique_lock lock(g_dataMutex);
+        for (std::size_t hid = 0; hid < halljoy::keycode::kCount; ++hid)
         {
-            g_fastData[hid] = KeyDeadzone{};
-            FastSnapshotStore(hid, g_fastData[hid]);
+            g_data[hid] = KeyDeadzone{};
+            SnapshotStore(static_cast<uint16_t>(hid), g_data[hid]);
         }
-    }
-    {
-        std::unique_lock lock(g_mapMutex);
-        g_mapData.clear();
     }
     BackendCurve_Invalidate();
 }
@@ -321,25 +282,34 @@ void KeySettings_Enumerate(std::vector<std::pair<uint16_t, KeyDeadzone>>& out)
 {
     out.clear();
 
-    // HID < 256
     {
-        std::shared_lock lock(g_fastMutex);
-        for (uint16_t hid = 1; hid < 256; ++hid)
+        std::shared_lock lock(g_dataMutex);
+        for (std::size_t index = 1; index < halljoy::keycode::kCount; ++index)
         {
-            const auto& d = g_fastData[hid];
+            const auto& d = g_data[index];
 
             // IMPORTANT:
             // - if useUnique=true -> always save
             // - else save only if it deviates from defaults (rare, but safe)
             if (d.useUnique || !IsDefaultLike(d))
-                out.emplace_back(hid, d);
+                out.emplace_back(static_cast<uint16_t>(index), d);
         }
     }
+}
 
-    // HID >= 256
-    {
-        std::shared_lock lock(g_mapMutex);
-        for (const auto& [hid, d] : g_mapData)
-            out.emplace_back(hid, d);
+PreparedKeySettings KeySettings_Prepare(const std::vector<std::pair<uint16_t, KeyDeadzone>>& values) {
+    PreparedKeySettings result;
+    for (const auto& [hid, value] : values) {
+        if (halljoy::keycode::IsSupported(hid)) result.values[hid] = Normalize(value);
     }
+    return result;
+}
+void KeySettings_ApplyPrepared(PreparedKeySettings& values) {
+    // The caller holds a profile commit lease; no controller reader is active.
+    // All allocation occurred in Prepare. Swapping leaves retired data with caller.
+    std::unique_lock lock(g_dataMutex);
+    g_data = values.values;
+    for (std::size_t hid = 0; hid < halljoy::keycode::kCount; ++hid)
+        SnapshotStore(static_cast<uint16_t>(hid), g_data[hid]);
+    BackendCurve_Invalidate();
 }

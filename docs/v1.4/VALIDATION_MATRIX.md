@@ -1,5 +1,78 @@
 # HallJoy v1.4 validation matrix
 
+## 2026-09-06 — Owner clarification: preserve automatic Sayo letter mapping
+
+The owner requires automatic user-configured letters with no manual assignment,
+setup wizard or mandatory confirmation, and reports no complaints about current
+behavior. This supersedes earlier blanket prohibitions on Sayo letter learning:
+physical depth remains measured independently; automatic letter association is
+intentional. RM-03 now preserves it and tests ambiguous correlation (addedCount==1
+already guards multiple new HID keys in one report; cross-report candidates need
+review). No per-press activation-threshold delay was established. Treat stale-depth
+fallback separately according to its intended digital/analog contract. Do not
+remove Sayo, replace letters with physical-only controls, or label learning itself
+P0. Reconcile old HJ-V14-P0-003 subclaims rather than copying its blanket verdict.
+See FULL_AUDIT_EXECUTION_ROADMAP_2026-09-06.md v1.1, section 0, for other potential
+intent traps: fallback/shadow removal, single-instance, async save, process
+isolation and release scope. Proposed rewrites require Purpose/compatibility
+review and evidence; product behavior changes require an explicit product decision.
+Only documentation changed in this clarification; no new runtime PASS is claimed.
+
+
+## 2026-09-06 — Full audit execution roadmap (planning, not qualification)
+
+New detailed execution entry point:
+[FULL_AUDIT_EXECUTION_ROADMAP_2026-09-06.md](FULL_AUDIT_EXECUTION_ROADMAP_2026-09-06.md).
+It contains 37 packages / 185 steps, 17 protocol-family review cards, dependencies,
+negative checks and acceptance criteria, plus 234-file inventory with review depth
+and hashes. All implementation tasks start TODO; historical P0/P1 and release gates
+remain authoritative until reconciled with current source/evidence. Current reads
+confirm Sayo digital-derived mapping and the SparkLink row-freshness gap; first
+packages after RM-00/01 are RM-03/04/05. Native contract, containment and host DLL
+trust also require dedicated work. Production files and EXE were not changed;
+no runtime/input/controller/hardware tests ran for this audit. A comprehensive
+roadmap is not a claim of a completed line-by-line or hardware audit.
+
+
+## 2026-09-05 — Profile audit remediation (D-079)
+
+The eight findings F-01–F-08 in INDEPENDENT_CODE_AUDIT_2026-09-05.md are
+implemented in source: bounded layout parsing; prepare-before-switch and guarded
+active deletion; strict bindings validation without mutation on failure; complete
+1033-key CSV parsing; checked numeric conversion; staged settings/bindings commit
+behind a nonblocking realtime reader gate; and one atomic settings+bindings INI.
+Legacy pairs remain readable. First bundled save preserves the old settings as
+`.pre-bundle.bak` and leaves the old bindings file untouched. Older executables
+require restoring the matching legacy pair; see README storage instructions.
+
+A further startup/shutdown defect was found during validation: final shutdown
+saved partial defaults after a rejected profile load. Autosave is now enabled
+only after successful initialization. The file-only rejected-startup probe
+checks exit code 1 and byte-identical settings and bindings after final shutdown.
+
+Evidence: production-linked file/memory tests pass layout bounds, malformed
+profiles, full CSV domain, legacy migration, switch/delete failure, 100 concurrent
+profile loads with zero mixed reads, and all five atomic-save failure stages.
+The test runner is `tools/run_profile_transaction_tests.ps1`; its explicit modes
+exit before Backend_Init and never produce gamepad reports. The unified native
+checks and ordinary MSVC build also pass; final artifact identity is recorded in
+the remediation evidence directory and handoff after packaging.
+
+Limits: the earlier storage migration simulator passed migration, replay and five
+migration failure stages, but its portable-mode run exited on rejected existing
+profile data. That full runtime suite is NOT qualified by this change. Synthetic
+WASD mixed with live hardware first exposed an oracle contamination issue; the
+optional simulator-only isolated input mode addresses its source selection, but
+still emits gamepad reports. User is playing CS: do not run input/controller
+simulation (including this isolated mode). Hardware/ViGEm validation and the full
+portable runtime rerun remain pending. A separate fresh, marker-selected portable
+file-only startup probe passed (exit 0 before backend/window creation); its log is
+included in the remediation evidence. Existing protocol/release blockers remain
+open. The root-level HallJoy.exe is not the new build.
+
+Backups: `.analysis/backups/profile_audit_fixes_20260905_175549` (sources/docs)
+and `.analysis/backups/profile_fixes_artifacts_20260905_181448` (build artifacts).
+
 ## Gate definitions
 
 | Gate | Purpose | Minimum evidence |
@@ -2725,3 +2798,672 @@ stock firmware remains unsupported for gaming**.
   unchanged executable hash, and no log or crash report, PASS;
 - final unsigned candidate SHA-256:
   `B21060D0FE5676A6301DDB2EEB0412DFBF5EDC4850BAD575B82045905FDE4243`.
+
+### V14-18 IROK ND75 experimental owner build
+
+- official artifact static analysis: PASS, exact `0416:7372`, `FF1B:0091`,
+  M484/X86HERGB identity and asymmetric `29` host / `21` device protocol;
+- official Qt profile extraction: PASS, exact `6x22`, 81 publishable-position
+  map, FNV-1a-64 `4BEF9FCF48E36C37`, exact 22-byte subscription mask;
+- ND75 protocol fixture/fuzz-smoke test: PASS with Clang C++20 and no warnings;
+- ND75 admission/lifecycle static audit: PASS;
+- complete `tools/run_native_backend_checks.py --require-compiler`: PASS,
+  including all existing native backend audits and portable tests;
+- pinned private UAP bootstrap: PASS, both native-exclusion ABI DLLs rebuilt;
+- MSVC `Release|x64` diagnostic profile: PASS, zero errors and only the
+  allow-listed external ViGEm `LNK4099` missing-PDB warning;
+- linked-image marker audit: PASS for exact identity, hotplug, raw telemetry,
+  range, coverage, summary and cancellation markers;
+- isolated five-second no-device smoke: PASS, `WM_CLOSE`, exit code zero,
+  stable executable hash, fault-free ND75 worker exit and no child process;
+- final test EXE: 2,333,696 bytes, FileVersion/ProductVersion `1.4.1.0`,
+  SHA-256 `AEC283C6C5D0F158462BEC703975FC71B0C665F8B6C692FBE5644313D06BDE84`;
+- final ZIP: three expected files, 1,209,903 bytes, SHA-256
+  `0F3430B200B9C674344D8E7C09A6DD6BEE2B3D95BEC923A6AD0F58C583ACD6A5`;
+- physical ND75 hardware gate: **PENDING OWNER**. Required: identity response,
+  subscription acceptance, raw `0..40` confirmation, direction, smooth travel,
+  release-to-zero, representative map, four-key input, unplug/reconnect and
+  clean shutdown;
+- build is experimental and compile-time excluded from production v1.4.1.
+
+### V14-18A IROK corrective stabilization and pause
+
+- mandatory asymmetric capability proof: PASS; the `V1.*` soft fallback is
+  absent and admission/live reopen both require decoded `21/04`;
+- stop during proof: PASS static/compile; every opened proof/live session owns
+  the registered cancellable handle and proof loops observe the stop request;
+- disconnect/reconnect policy: PASS portable/static; known device-loss errors
+  end immediately, unknown non-timeout errors end after three attempts, input
+  is neutralized and the worker returns to discovery;
+- long-uptime event telemetry conversion: PASS static review; QPC conversion
+  uses quotient/remainder arithmetic without whole-counter multiplication;
+- complete `tools/run_native_backend_checks.py --require-compiler`: PASS;
+- MSVC diagnostic rebuild: PASS with zero errors and only allow-listed external
+  ViGEm `LNK4099`;
+- exact rebuilt EXE: 2,335,744 bytes, FileVersion/ProductVersion `1.4.1.0`,
+  SHA-256 `E73921F163A1C599C9B70CCDDF43BEC67D8637C50C3C0B337633E730916AE223`;
+- exact rebuilt ZIP: three expected entries, 1,210,772 bytes, SHA-256
+  `9C0300447639F83C095370FC0380B86120013626DAF65C31F14471AC7FF1BB55`;
+- exact rebuilt no-device smoke: PASS, graceful `WM_CLOSE`, exit zero, stable
+  executable hash and no surviving child process;
+- previous `AEC283...` / `0F3430...` evidence: superseded;
+- physical ND75 gate: **PENDING OWNER**; development is paused and the backend
+  remains excluded from the production release.
+
+### Stable production rebuild after V14-18A
+
+- complete official `tools/build.ps1` pipeline: PASS;
+- all native/static/portable C++20, documentation, dependency and private-UAP
+  ABI gates: PASS;
+- MSVC production `Release|x64`: PASS, zero errors and only allow-listed
+  external ViGEm `LNK4099`;
+- production hardware families: MAD68, Hex80, Addressed, Aula MAX/W669,
+  SparkLink, Sayo and private UAP/Wooting routing;
+- experimental IROK flag/catalog entry: absent from production, PASS;
+- linked-image IROK backend/raw/fallback markers: absent, PASS;
+- release package: exactly `HallJoy.exe`, `SHA256SUMS.txt`, and
+  `THIRD_PARTY_NOTICES.md`, PASS;
+- final unsigned EXE: 2,189,824 bytes, FileVersion/ProductVersion `1.4.1.0`,
+  SHA-256 `A66C00DEEFDF9FD408E9511A8C66A541FBFAF040719DA06049EF96B16028B906`;
+- checksum consistency: PASS;
+- independent startup/shutdown smoke: PASS, graceful `WM_CLOSE`, exit zero,
+  stable hash, no continuous/crash logs and no surviving process;
+- production overlay runtime gate: PASS, 0.4 ms responsiveness, framing,
+  origin/concurrency/client-limit checks and 2,000 HTTP fuzz cases with zero
+  timeouts, followed by clean shutdown.
+
+## 2026-08-20 test/evidence trust audit baseline
+
+Scope: audit of the current gates themselves. This section records baseline
+execution only; it does not reclassify any open protocol/architecture P0/P1 as
+closed and does not qualify a new production artifact.
+
+| Command/check | Result | Evidence boundary |
+|---|---|---|
+| `python tools\run_native_backend_checks.py --require-compiler` | PASS: 59 static audits, 34 C++ executables | proves the current portable baseline, including legacy contracts; it is not a complete behavioral oracle for the open audits |
+| `python tools\run_protocol_fuzz_sanitizers.py` | PASS: 250000 iterations, 61998 accepted | sanitizer-linked parser coverage is limited to Aula MAX, Hex80 and MAD68PR |
+| `python tools\run_aula_win60he_sanitizers.py` | PASS: 6 executables | Aula-focused only; no cross-family claim |
+| Windows sanitizer stderr review | OPEN | `interception_win: unhandled instruction` was emitted; exact impact is unknown because no mandatory known-bad health control exists |
+| official `tools/build.ps1`/CI invocation review | FAIL as a future release-qualification contract | sanitizer, production smoke, fault, soak, migration/reset, hardware shutdown and exact-artifact qualification runners are not executed |
+| P0/P1 oracle mapping | COMPLETE as static audit | missing behavioral/negative/hardware evidence is listed in `TEST_EVIDENCE_TRUST_AUDIT.md` |
+| four targeted documentation/release static audits after edits | PASS | confirms the current text gates still pass; does not upgrade filename/token checks to runtime evidence |
+
+New open risks: `HJ-V14-P1-024` through `HJ-V14-P1-027` and
+`HJ-V14-P2-016` through `HJ-V14-P2-017`. Required package: `V14-22`.
+
+No source, test contract or build script was changed. No new HallJoy EXE was
+built, packaged or physically qualified by this audit.
+
+## 2026-08-20 concurrency/lifecycle/ownership audit
+
+Scope: static production-wiring audit only. Existing green primitive/static
+tests were classified by their actual evidence boundary; they were not rerun
+and do not close the new risks.
+
+| Invariant/check | Audit result | Evidence boundary / missing gate |
+|---|---|---|
+| ViGEm wake resource lifetime during watchdog restart | FAIL, `HJ-V14-P0-005` | plain handle is read by realtime while UI recovery can close/recreate it; needs close/use/reuse runtime stress and exact-EXE recovery |
+| Desktop tracked-HID publication | FAIL, `HJ-V14-P1-028` | atomic count does not protect the plain array from an already-started reader; needs coherent snapshot interleaving and race-detector gate |
+| Worker ready/fault/completion truth | FAIL, `HJ-V14-P1-029` | lifecycle primitive tests pass in isolation, but production never calls `MarkFaulted`; native registry can retain `Running` after worker exit |
+| No provider lifecycle work in realtime | FAIL, `HJ-V14-P1-030` | `Backend_Tick` directly calls Spark/Sayo Start/Stop/discovery/proof/join; needs injected-slow-operation tick bound and second-provider continuity |
+| Native HID hard operation deadline | FAIL, `HJ-V14-P1-031` | `CancelAndDrain` safely retains OVERLAPPED resources but waits indefinitely; existing test explicitly proves blocking drain, not liveness |
+| Process-wide shutdown deadline under resource exhaustion | FAIL, `HJ-V14-P1-032` | watchdog event/thread are allocated at shutdown and arm failure only logs; needs allocation failure and per-stage hang process tests |
+| Coherent provider/config/health state | FAIL/PARTIAL, `HJ-V14-P2-018` plus existing P1 risks | independent atomics allow mixed generations; simultaneous Sayo completions can store stale live count; needs immutable generation snapshots and barrier tests |
+| Lock-order / UI synchronous-call review | no confirmed cycle in reviewed main paths | static result only; unbounded nested waits remain dependent on the process watchdog |
+| Existing ownership strengths | PASS in narrow static/model scope | reverse rollback, poison-on-incomplete-join, output mailbox, wake sequence, overlay socket cancellation and pinned layout snapshot must be preserved |
+| Documentation/build-contract consistency after audit edits | PASS: four targeted static audits | `s20_build_docs`, `release_qualification_runner`, `pre_release_ui` and `prerelease_hardening`; source-token evidence only, no runtime upgrade |
+
+New required package: `V14-23`. No production/test/build source was changed, no
+EXE was built and no physical hardware claim was made.
+
+## 2026-08-20 DrunkDeer diagnostic schema 2 correction
+
+Scope: correction and qualification of the temporary DrunkDeer evidence
+collector after the first physical log exposed defects in diagnostic schema 1.
+This is not a production UAP change and does not claim a G65 layout.
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Old user log classification | REJECTED: 1,048,576-byte preallocated file, only 44,471 used bytes, NUL tail, no usable digital edges/finalizer; SHA-256 `CAF36C82D966C3FD9021CDFB451924060CAF49DEC527B2F27631527AB3410B2A` | proves diagnostic schema 1 was invalid, not that the G65 lacks analog data |
+| 40-byte x64 RAWKEYBOARD regression | PASS | type-specific payload bounds accept 40 bytes and reject truncation; removes the `sizeof(RAWINPUT)==48` false rejection |
+| DrunkDeer stream protocol tests | PASS | exact start/stop commands, `04 B7` envelope, chunk 0/1/2, duplicate/missing/impossible/out-of-order/restart behavior, full 177-byte payload and first 126 matrix bytes |
+| Static diagnostic contract | SUPERSEDED BY PHYSICAL EVIDENCE | schema-2 logging and payload framing passed, but the one-start continuous-stream cadence was disproved by firmware 0012 |
+| Complete native backend checks with compiler required | PASS | all current static and portable C++ gates completed before final MSVC build |
+| MSVC `Release|x64` DrunkDeer diagnostic rebuild | PASS | zero errors; only allow-listed external ViGEm missing-PDB warning; linked marker audit passed |
+| Exact delivered/compiled artifact equality | PASS | both files are 2,355,200 bytes and SHA-256 `D8026D41FD88C512121AD3F8C45FA36C3CB99D3446F44B81932BA52F0EE6A4DC` |
+| No-device graceful-close smoke | PASS | `WM_CLOSE` accepted, exit code zero, required window/shutdown/session sequence present, hash stable |
+| Direct-append growth test | PASS: 3,169,458 bytes | no 1-MiB/2-MiB ceiling and no NUL tail |
+| Forced-exit durability test | PASS: 21,371 retained bytes | already flushed schema-2 lines survive hard termination, end in CRLF, contain no false `session.end` and no NUL tail |
+| Reported missing analog on physical G65 | **ROOT CAUSE IDENTIFIED BY USER**: keyboard Turbo mode was enabled and disables analog output | explains total analog absence; it does not explain the independently reproduced key permutation after Turbo was disabled |
+| Exact physical G65 matrix qualification | 45 direct raw-offset/HID pairs from 68 physical positions; Fn/Menu are not byte USB HID usages | sufficient to reject the common UAP map and anchor every populated G65 row; remaining positions follow official geometry and existing Soup/UAP extended codes |
+
+The rejected diagnostic v1 EXE is preserved outside delivery under `_backups`
+with SHA-256
+`36BB0D79A4E25E64B2B34C79D6ABA15DA43A190BC1AB4D8445AA3F41BB47356B`.
+
+## 2026-08-20 DrunkDeer physical schema-2 result and diagnostic v3
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Physical log integrity | PASS: 643,197 bytes, 2,693 lines, zero NUL, CRLF-complete, `session.end`; SHA-256 `5F62728C403572D76112C3FAFAC42D846AEB3CE56EFF79285A01AC40E721FFD2` | logging/shutdown correction is physically validated |
+| Physical command cadence | FAIL for diagnostic v2 | 72 proofs and 71 runtime sessions in 74 s; every runtime session had `successful=1 failed=3 last_win32=258`, proving one frame per `B6 03 01` rather than a continuous stream |
+| Digital evidence | PASS: 66 press, 68 release | 40-byte RAWKEYBOARD correction is physically validated |
+| Esc identity | PASS: HID `0029` -> offset 21 `(1,0)`, raw up to `40` | current UAP publishes this cell as Backquote `0035` |
+| Right Shift identity | PASS: HID `00E5` -> offset 96 `(4,12)`, raw `40` | current UAP leaves this cell empty |
+| Right Alt identity | PASS: HID `00E6` -> offset 114 `(5,9)`, raw `40` | current UAP leaves this cell empty |
+| Down identity | PASS: HID `0051` -> offset 118 `(5,13)`, raw `40/32` | current UAP map leaves this cell empty |
+| Right identity | PASS: HID `004F` -> offset 119 `(5,14)`, raw `17/11` 16 ms after release | current UAP publishes this cell as Left `0050`; original permutation is confirmed |
+| Up identity | PASS: HID `0052` -> offset 97 `(4,13)`, raw `40` | current UAP publishes this cell as Right Shift `00E5` |
+| Left identity | NOT CAPTURED | no one-shot request landed inside the 734-ms digital hold; v3 dense polling is required |
+| Corrected direct offline coverage of sparse v2 log | 45 stable, 0 conflict, 0 ambiguous, 17 no-sample across 62 distinct HIDs | supersedes defective broad episode-overlap result `20/1/32/9`; absent frames are not falsely presented as measurements |
+| Runtime digital dependency | ABSENT | correlator code removed; Raw Input is logger-only and `ProcessMatrix` publishes solely through the compiled map |
+| Offline matrix analyser | PASS self-test/static audit | runs after exit and labels evidence only; production uses the static model map from the beginning of travel |
+| G65 PID map selection | PASS | exact PID `2382` selects `g65_full_static_v2`; other DrunkDeer PIDs retain the explicitly unverified diagnostic fallback |
+| G65 complete key table | PASS portable/static | all 68 physical positions are unique: 66 USB HID usages plus Fn `0x409` and Menu/Fn2 `0x403`; regression fixes all 45 physically measured pairs plus official `Delete/End/PgUp/PgDn`, compressed right Shift/arrows and bottom row geometry |
+| G65 layer keys | PASS portable/static/physical | raw `(5,10)` Fn and `(5,11)` Menu/Fn2 publish established Soup/UAP extended codes through native state, curves, bindings, profile, UI and overlay; physical log `(4)` records raw `2..40` for both, with no fabricated byte HID and no digital dependency |
+| Diagnostic v2 artifact | REJECTED/SUPERSEDED: SHA-256 `D8026D41FD88C512121AD3F8C45FA36C3CB99D3446F44B81932BA52F0EE6A4DC` | durable logger remains valid, transport cadence does not |
+| Diagnostic transaction | PASS static/compile: persistent HID, mutex-held `FlushQueue -> B6 03 01 -> B7[0..2]` for every frame, one stop at close | exactly restores the UAP cadence physically indicated by the log; realtime rate still needs hardware |
+| Transient transport stability | PASS portable/static/MSVC | retry on the same handle; reopen only on definitive disconnect or after 12 consecutive transient failures; stale nonzero state neutralized after 350 ms without reconnect |
+| Transport observability | PASS static/binary marker | `transport.retry`, `transport.recovered`, `transport.stale_neutralized`, `transport.reopen_required` and session recovery counters distinguish lag, recovery, disconnect and normal shutdown |
+| Complete compiler-required native gates | PASS | includes the negative static oracle rejecting one-start continuous-stream wiring |
+| MSVC `Release|x64` v3 | PASS: zero errors, only allow-listed ViGEm LNK4099 | linked per-frame transaction markers present |
+| current DrunkDeer exact artifact | 2,361,856 bytes, SHA-256 `AF602E45CFA14AB9905CBA76223D2F8D09C355DF56707E7A38C4D7DC1F8462D8` | version 1.4.1.0; compiled and delivered files match; A75/G65/WASD preset markers linked |
+| current DrunkDeer graceful-close / growth / hard-kill gates | PASS / PASS 3,169,450 bytes / PASS 23,198 bytes | no-device lifecycle and durable logging only |
+| keyboard-layout default | PASS static/binary | `DrunkDeer A75 Pro` remains preset zero and the default selected by `ActivatePreset(0)` |
+| optional keyboard layouts | PASS static/binary | `DrunkDeer G65 ANSI` remains selectable; `WASD Only` contains exactly W/A/S/D with fixed HID usages and geometry |
+| layout/backend isolation | PASS static | the compact WASD presentation does not filter or gate the complete native analogue snapshot |
+| corrected G65 physical behavior/rate gate | **PASS FOR TESTED PATH** | user reports correct behavior; log `(4)` SHA-256 `9BA60C932A71C9D488D9F8113779324E302FF6935B8979423265C3447CD7C21A`, 4,825,760 bytes, 26,686 complete lines, no NUL; Fn/Menu and all arrows independently reached raw 40 |
+| corrected G65 physical transport/rate | PASS | 19,052 requests, 19,051 successful frames, 0 failures/retries/reopens/stale-neutralizations/order defects; mean 249.4 Hz across 15 rollups, range 244.4–250.0 Hz, worst interval 6,001 us |
+| corrected G65 physical coverage boundary | 47/68 mapped positions changed | Fn/Menu/arrows directly confirmed; Delete/End/PgUp/PgDn were not pressed in this session, so their evidence remains static/geometry rather than physical log `(4)` |
+| final physical shutdown | **FAIL, INDEPENDENT OF DRUNKDEER** | DrunkDeer stopped cleanly, then ViGEm output-worker exceeded its 3 s join bound; `shutdown.poisoned`, valid `session.end exit_code=2`, no `shutdown.complete`; not user error |
+
+## V14-12F.1 / D-049 embedded ViGEm installer evidence
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Historical V14-12F | RETAINED/SUPERSEDED IN PART | rejection of mutable `latest`, predictable temp and infinite wait remains valid; manual-only UX is superseded |
+| Installer identity | PASS | official ViGEmBus 1.22.0, 6,278,576 bytes, SHA-256 `89220A7865076B342892F98865F3499FB7C4CFD673159E89D352C360FD014C6A`; build requires valid Nefarius signature |
+| Runtime network | ABSENT | no `latest`, URLDownloadToFile, WinHTTP or dynamic asset resolution; exact installer is RCDATA |
+| Extraction/TOCTOU | PASS static/runtime self-test | CSPRNG directory, `CREATE_NEW`, flushed bytes, path-retaining bridge, final read-only no-write/no-delete lock, post-lock SHA and WinTrust through same handle |
+| Launch compatibility | PASS runtime self-test | locked file can also be opened `GENERIC_READ | GENERIC_EXECUTE`; exact file is re-hashed immediately before `runas` |
+| UI/wait behavior | PASS compile/static | explicit Install / official page / continue actions; no Ctrl+C workflow; 20-minute message-pumped wait, no forced kill, explicit restart/failure outcomes |
+| Backend recovery | PASS compile/static | successful setup retries ViGEm initialization in the same HallJoy process |
+| Full native/compiler gate | PASS | all static and portable C++ gates passed in the final official build |
+| Final official MSVC build | PASS | zero errors; only allow-listed external ViGEmClient PDB warning; linked resource self-test passed |
+| Exact artifact | PASS | all three copies 8,485,376 bytes, version 1.4.1.0, SHA-256 `7EB42CF1687D0DB1FF16721875C5F36B502FD96D1EB1DEC686C3AC4EEA85AB6B` |
+| Cleanup | PASS | release self-test exit 0 and zero new `HallJoy-ViGEm-*` temp leftovers |
+| Physical install boundary | NOT RUN | ViGEmBus already installed locally; no UAC/reinstall was triggered and no physical keyboard claim is inferred |
+
+Evidence: `docs/stability/tests/V14-12F.1_EMBEDDED_VIGEM_INSTALLER_2026-08-21.txt`.
+
+## 2026-08-21 IROK freeze forensics and release-readiness roadmap
+
+Scope: read-only analysis of the two latest physical IROK runs, their exit
+sidecars, the owner-confirmed stable A/B artifact and the current source. No
+production fix or new EXE was produced.
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Previous physical log identity | 146,608 bytes, SHA-256 `8F2D1F275BA681A662F2DC86BE42B3F42C64953FEB9FE2F03734E57B3E422737` | exact failing run |
+| Current physical log identity | 104,363 bytes, SHA-256 `FF8E7360299528182C522A627F8F2770FE17189BE0014265539EE59EF529A290` | exact second run |
+| Freeze input path | PASS: SparkLink `279189/279189`, `route_fail=0`, 6,530 changed rows | input remained live; does not validate output |
+| Freeze output path | **FAIL/P0**: ViGEm thread wait `WAIT_FAILED`, Win32 6, worker normal exit, 161 recovery attempts restart-blocked | `HJ-V14-P0-006`; root cause not yet fixed |
+| Hook correlation | keyboard hook removed 235 ms before first output failure | forced-interleaving input, not causation claim |
+| Second-run input/output | PASS for 160 s: SparkLink `421858/421858`, no ViGEm watchdog recovery | intermittent output defect remains open |
+| Second-run shutdown | **FAIL/P1**: `sayo stop.lock_timeout`, native shutdown poisoned, exit 2 | `HJ-V14-P1-038` |
+| Crash sidecar classification | synthetic watchdog report; no vectored/unhandled-exception evidence | must not be counted as an application exception crash |
+| Stable A/B | owner reports SHA-256 `B21060D0...DE4243` fully working on IROK | runtime baseline only |
+| Source boundary | stable/current `VigemOutput_Wake` through `Backend_EnsureOutputWorkerRunning` line-for-line identical | rejects blind output-worker rollback as proof |
+| Spark per-row audit | **OPEN/P1**: global success/freshness can mask one permanently failed row | `HJ-V14-P1-039`; not triggered in these zero-failure logs |
+| Unified release plan | `RELEASE_READINESS_MEGA_AUDIT_2026-08-21.md` added and linked from blockers/roadmap/risk/README | documentation/ordering only |
+
+Evidence details:
+`docs/stability/tests/V14_RELEASE_READINESS_IROK_FREEZE_FORENSICS_2026-08-21.txt`.
+
+Required next gate is R0 old-bug oracle creation, then R1 ViGEm
+generation-owned resource/recovery correction. Asking the user for another
+unfocused full-keyboard collection does not close any current blocker.
+
+## 2026-08-21 R0 ViGEm invalid-thread-handle old-bug oracle
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Simulator-only injection wiring | PASS | compiled only under `HALLJOY_ANALOG_SIMULATOR`; normal production command line cannot activate it |
+| Production-path reproduction | **RED/EXPECTED** | closed retained thread handle produced `WAIT_FAILED`, Win32 6, poisoned lifecycle and blocked every recovery attempt |
+| Shutdown truthfulness | PASS for evidence | backend reported blocked cleanup, application reported `shutdown.poisoned`, and valid `session.end` recorded exit 2 |
+| Target-contract gate | **FAIL until R1** | runner expects recovery markers and exit 0; current legacy path exits 2 before marker validation |
+| Static audit | PASS | production-linked injection and future-success expectations are both required |
+| Trace identity | PRESERVED | 22,312 bytes, SHA-256 `920F9586B5611AF480D74ED394A41E15FB5F199C40DBDF8B131AFFD66C497BEA` |
+
+Evidence:
+`docs/stability/tests/V14_R0_VIGEM_INVALID_THREAD_HANDLE_ORACLE_2026-08-21.txt`.
+This closes R0 O2 characterization only. It does not close `HJ-V14-P0-006` and
+does not qualify a release artifact.
+
+## 2026-08-21 R1 ViGEm output shared ABI/channel
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Fixed shared ABI | PASS | standard-layout/trivially-copyable 640-byte `SharedStateV1`; 12-byte SDK-independent XUSB report; no handles or pointers in shared memory |
+| Payload race freedom | PASS by design + stress | exclusive atomic slot states; only `Writing` and `Reading` owners access payload; no plain-data seqlock |
+| Realtime bound | PASS static/runtime | bounded three-slot scan; no wait/sleep/mutex; contention returns immediately and a later tick publishes the newer complete snapshot |
+| Generation isolation | PASS | inactive publication fails; overlapping begin fails; stale child generation cannot consume replacement snapshots |
+| Dedicated contention gate | PASS x5 | 500,000 total accepted four-pad snapshots across five 100,000-publication runs, with complete-report and monotonicity checks |
+| Unified native suite | PASS | every static audit and portable C++ test, including the production channel implementation |
+| MSVC Release x64 compile/link | PASS | 0 errors; one existing allow-listed ViGEmClient LNK4099 warning |
+| Production routing | NOT SWITCHED | legacy output worker remains sole ViGEm caller until fake-child, supervisor, hard-stall reap and no-overlap gates pass |
+
+Evidence:
+`docs/stability/tests/V14_R1_VIGEM_OUTPUT_SHARED_CHANNEL_2026-08-21.txt`.
+The compile-only EXE is not a user delivery and does not close either P0.
+
+## 2026-08-22 R0/R1.1 ViGEm ownership and Windows IPC foundation
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| O1 exact legacy interleaving | **RED/EXPECTED x4** | real publisher paused after copying wake; real owner ran Stop/close/Create/Start |
+| O1 silent wrong-object use | PROVED | stale handle was not the new HallJoy wake, but `SetEvent` succeeded after the numeric value rebound to a foreign event |
+| O1 target contract | MISSING/RED | process-lifetime wake and stale-generation rejection are not routed yet |
+| O2 exact legacy invalid handle | **RED/EXPECTED** | `WAIT_FAILED/ERROR_INVALID_HANDLE`, poison, blocked recovery and exit 2 retained |
+| Windows shared atomics | PASS | production channel uses documented Interlocked transitions; portable fallback remains testable |
+| Disable/publication race | PASS foundation | publisher lease plus non-realtime quiescence check; realtime remains bounded and nonwaiting |
+| Parent/child ownership split | PASS foundation | child health is telemetry; parent lifecycle/restart state is not child-writable |
+| Real Windows process channel | PASS | wrong nonce exits 41; valid child consumes 100,000 complete four-pad snapshots and is reaped |
+| Process-test survivor policy | PASS | timeout terminates and reaps the exact test-owned child before IPC teardown |
+| Full native compiler suite | PASS | `python tools/run_native_backend_checks.py --require-compiler`, exit 0 |
+| Risk/test manifest | PASS, release BLOCKED | 38 scoped unresolved/partial P0/P1 entries, distinct old-bug/target/IPC/supervisor gates; missing work cannot become an implicit PASS |
+| Production routing | NOT SWITCHED | legacy worker remains the sole ViGEm caller; no user EXE was delivered |
+
+Evidence:
+`docs/stability/tests/V14_R0_VIGEM_WAKE_CLOSE_USE_ORACLE_2026-08-22.txt` and
+`docs/stability/tests/V14_R1_1_VIGEM_OUTPUT_WINDOWS_IPC_CONTRACT_2026-08-22.txt`.
+
+## 2026-08-22 F1 generic process-generation supervisor
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Alternatives | PASS | reuse-as-is, immediate analog-host migration and clean common owner compared before code; option C selected |
+| Containment order | PASS | `CREATE_SUSPENDED -> AssignProcessToJobObject -> ResumeThread`; fake child reports job membership at entry |
+| Handle inheritance | PASS | explicit handle list; omitted inheritable decoy event remains unsignalled in parent |
+| Typed lifecycle | PASS | normal stop, exit-before-ready, startup timeout, progress timeout, ignored stop, post-ready exit, wrong generation and child fault |
+| Natural launch failures | PASS | non-inheritable handle and missing executable do not poison the next generation |
+| Generation stress | PASS | same owner completed 1,008 total children including 1,000 sequential replacements; max overlap one |
+| Zero survivors | PASS | every returned PID is non-live/signalled before replacement; final process enumeration found zero fake children |
+| Full native suite | PASS | all static and production-linked C++ tests, required compiler, exit 0 |
+| MSVC production | PASS | Release x64 `HallJoyMad68ProRNative=true`, 0 errors, only allow-listed ViGEmClient LNK4099 |
+| MSVC simulator | PASS | Release x64 `HallJoyAnalogSimulator=true`, 0 errors, only allow-listed ViGEmClient LNK4099 |
+| Production route | NOT SWITCHED | common module is linked but unused by backend; legacy worker remains sole ViGEm owner |
+
+Evidence:
+`docs/stability/tests/V14_F1_PROCESS_GENERATION_SUPERVISOR_2026-08-22.txt`.
+
+## 2026-08-22 F1.1 exact HallJoy self-host fake transport
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Alternatives | PASS | helper EXE, UAP-host graft, raw test wiring and reusable same-image output session compared before code; option D selected in D-056 |
+| Early exact-image dispatch | PASS static/runtime | output host is first in `wWinMain`; simulator launches its own exact image; malformed production host command exits 60 before normal startup |
+| Session IPC ownership | PASS | persistent unnamed 640-byte mapping, auto-reset wake, manual-reset child stop and owner-process handle; exact four-handle allowlist composes F1 containment |
+| Child telemetry transaction | PASS portable x100,000 | generation and odd/even transaction sequence consume reserved space without ABI growth; stable reads preserve applied-sequence/checkpoint relation |
+| Odd killed-writer recovery | PASS | parent rejects odd telemetry; separated replacement is the sole writer and repairs the transaction before publishing generation 2 |
+| Realtime publication boundary | PASS static | bounded R1.1 publish plus `SetEvent`; no wait/resource lifecycle; wake failure is typed rather than hidden |
+| Normal apply/stop | PASS exact EXE | complete four-pad checkpoint and publication sequence acknowledged; neutral, target removal and matching completed-stop generation qualify success |
+| O4 six boundaries | PASS exact EXE | exit before ready, after ready, before read, during update, after acknowledgement and during planned neutral are distinguished truthfully |
+| Ready/exit polling race | PASS | stable post-reap generation telemetry upgrades a missed polled Ready from `ExitBeforeReady` to truthful `UnexpectedExit` |
+| Incomplete neutral | PASS negative | generic supervisor reaps the process as planned stop, output layer rejects it as `IncompletePlannedStop` |
+| O3 stall/recovery | PASS exact EXE | no-progress child force-killed/reaped; replacement starts without overlap and acknowledges the newest of three complete four-pad publications |
+| Zero survivors | PASS | all nine child PIDs reaped; exact runner and final process enumeration report zero output hosts |
+| Fake/production separation | PASS | fake transport/fault behavior is simulator-only; production session rejects non-Real mode and production self-test exits 91 |
+| Full native suite | PASS | all static/portable tests, including 100,000 telemetry transactions and the prior 1,008-generation F1 test, exit 0 |
+| MSVC simulator | PASS | 8,634,368 bytes, SHA-256 `F29E803225DDB2462FA570114AD202F3448F31DC08E4A8AFEF89D7B456783051`; 0 errors, only allow-listed LNK4099 |
+| MSVC production | PASS compile-only | 8,487,424 bytes, SHA-256 `4780C488EF2A2280F85611FF5310A3A7105B3275DF35DDD5326948F8ED7B988F`; 0 errors, only allow-listed LNK4099 |
+| Real ViGEm transport | NOT STARTED | no new module calls ViGEm; fake behavior does not qualify driver create/update/neutral/remove |
+| Production route | NOT SWITCHED | `backend.cpp` unchanged; legacy worker remains the sole ViGEm owner; no user EXE delivered |
+
+Evidence:
+`docs/stability/tests/V14_F1_1_VIGEM_OUTPUT_SELF_HOST_FAKE_TRANSPORT_2026-08-22.txt`.
+
+Next gate: F2 moves real ViGEm client/target ownership into this child without
+changing the proved entry, session, shared channel or clean-stop contract. O5,
+the atomic route switch and physical exact-artifact qualification remain later
+release blockers.
+
+## 2026-08-22 F2 exact HallJoy real-child ViGEm transport
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Alternatives | PASS | inline calls, legacy transplant, premature shared extraction and child-only RAII transport compared before code; option D selected in D-057 |
+| Shared configuration | PASS | generation-bound `requestedPadCount` and applied configuration acknowledgement use reserved control/health fields; ABI remains exactly 640 bytes |
+| Transport ownership | PASS | one client plus fixed four-target array; no raw target/client value crosses IPC; real SDK table is immutable |
+| Explicit initial state | PASS | every added target receives a real neutral update before child publishes `Ready` |
+| Exhaustive fake API matrix | PASS | 8 partial target allocate/add, 4 initial-neutral, 4 report update, 4 planned-neutral and 4 target-removal failure edges; later cleanup always attempted; zero fake object remains |
+| Real exact-image create/update | PASS | actual `HallJoyV14Simulator.exe` child created four X360 targets and acknowledged the exact sequence/checkpoint of one complete nonneutral four-pad snapshot |
+| Real planned stop | PASS | all four real targets neutralized and removed; matching generation completed; child reaped; PnP set returned to the 3-entry pre-run baseline; zero survivor |
+| F1.1 regression | PASS | all nine fake exact-image generations, six O4 boundaries and O3 force/reap/replacement remain green |
+| Generic supervisor regression | PASS | 1,008 generations, containment before resume, no decoy inheritance, overlap or survivor |
+| Full native suite | PASS | all static and portable C++20 tests; transport stable result `partial_start_edges=8 initial_neutral_edges=4 update_edges=4 neutral_edges=4 remove_edges=4` |
+| MSVC simulator | PASS | 8,649,216 bytes, SHA-256 `922CE616A4FBD01ED59F2BDDD6441B8C70DF5311B7AE299EFC91391D83402174`; 0 errors, only allow-listed external LNK4099 |
+| MSVC production | PASS compile-only | 8,500,736 bytes, SHA-256 `D4A5EA026EE7BD852DAEA91F20DBBAD00B632F5A7401C8F4A43A4782F703E147`; 0 errors, only allow-listed external LNK4099 |
+| Production fail closed | PASS | malformed internal host exits 60; production-only invocation of simulator real-child suite exits 91 |
+| Production route | **NOT SWITCHED** | `backend.cpp` hash equals pre-F2 backup; legacy wake/thread/mailbox remain the normal owner; P0-005/006 and O1/O2 target gates remain open |
+| User artifact/hardware request | NONE | neither compile artifact promoted or delivered; the real-driver gate used only the local installed ViGEmBus |
+
+Evidence:
+`docs/stability/tests/V14_F2_VIGEM_OUTPUT_REAL_CHILD_TRANSPORT_2026-08-22.txt`
+(7,270 bytes, SHA-256
+`E92CE44F8BC77B20AA2EA6E323CE99C15E694159D53E720BB14F467F1BC9C130`).
+
+Next gate: F3 must be designed before code and switch normal production output
+atomically to a dedicated parent owner of `OutputProcessSession` while deleting
+the legacy worker/wake/mailbox/reconnect owner in the same rollback package.
+Only after routed O1/O2/O5 and physical exact-artifact tests may P0-005/006 be
+closed.
+
+## 2026-08-22 F3/O5 production route and generation-bound runtime stress
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Production route | PASS local | one child-owned ViGEm route; legacy in-process worker/wake/mailbox removed |
+| Topology boundary | PASS | publication must match active child generation and configured pad count before and after lease/slot acquisition |
+| Stop/resource boundaries | PASS | admission closes before stop/force; child is reaped before bounded drain of an already-admitted publisher and resource reuse |
+| Exact local O5 | PASS x20 | at least 2,000,000 complete publications, 2,020 generations, 1,000 topology changes and 200 disable/enable cycles |
+| Recovery safety | PASS | zero session rebuild, unsafe generation, child overlap or survivor in all 20 O5 runs |
+| Exact fake/real children | PASS | nine-generation fake lifecycle and real four-pad apply/neutral/remove retain zero survivor |
+| Routed scenarios | PASS | normal, update stall, C++ child fault, invalid-thread-handle oracle and wake-close/use oracle all exit 0 |
+| Native/full build | PASS | all static/portable/compiler checks; Release x64 0 errors, allow-listed external LNK4099 only |
+| Local production artifact | PASS, not promoted | 8,518,144 bytes, SHA-256 `DADFF635AD4681DA3B4D8EAF7CC97BADD5A30541D2075910CABDE81889269B37` |
+| Release/hardware status | **HARDWARE_PENDING** | long active-input soak and the same immutable final candidate on IROK MG75 Max and DrunkDeer G65 remain mandatory |
+
+Evidence:
+`docs/stability/tests/V14_F3_VIGEM_OUTPUT_PRODUCTION_ROUTE_2026-08-22.txt`.
+
+## 2026-08-22 R2-A/B1 AnalogProviderV2 semantic foundation
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Alternatives/decision | PASS | D-060 selects staged versioned adapters over numeric growth, big-bang replacement or realtime string/UUID identity |
+| Full key identity | PASS foundation | USB keyboard/consumer, UAP extended and HallJoy semantic namespaces; equal numeric codes do not collide |
+| Fn/Menu/media/OEM | PASS foundation | UAP `0x409`/`0x403`, USB `07:65` and Consumer `0C:CD` are distinct; production surfaces not migrated |
+| Precision | PASS foundation | float plus raw numerator/domain; adjacent `1/4095` and `2/4095` survive before output quantization |
+| Release/ownership | PASS foundation | owned/valid/fresh zero is authoritative; duplicate same-device/key rejected |
+| Capacity | PASS foundation | complete 1/8/16/32-device models; truncated snapshot cannot claim complete |
+| Generation/wake | PASS foundation | provider/sample/value/ownership generations; sample-only progress does not wake realtime |
+| Unified native checks | PASS | all static and portable C++20 tests |
+| MSVC Release x64 | PASS | 0 errors, 0 unexpected warnings; external allow-listed LNK4099 only |
+| Local compile artifact | PASS, not promoted | 8,518,144 bytes; SHA-256 `A51E36B3B2A0E99B73D403D179D3FA28D448E53697D9FCD55C64F85409F1A51A` |
+| Production routing | **UNCHANGED / PENDING** | `Backend_Tick`, UAP/native adapters, profiles/UI/output and live IPC remain legacy |
+
+Evidence:
+`docs/stability/tests/V14_R2_ANALOG_PROVIDER_V2_FOUNDATION_2026-08-22.txt`.
+
+## 2026-08-22 V14-19 GravaStar Mercury V75 family
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Firmware recovery | PASS static | unsigned wrapper was not executed; three application images identify V75 `1CA5:2201/16052201`, Pro `1CA5:2202/16052202`, Lite `1CA2:2201/2E022201` |
+| Independent protocol proof | PASS static | ARM V75/Pro and RV32 Lite implement sync, order-25 scale, dynamic default/active map and two 63-value travel halves on `FFA0:0001` |
+| Admission/routing | PASS | exact table, board correlation, full semantic proof, exact-path claim and legacy Spark pre-open exclusion; positives and nearby negatives covered |
+| Extended keys | PASS automated | 16-bit map; `F001 -> 0x409`, Menu `0065`, unknown vendor functions filtered; no digital-event dependency |
+| Matrix capacity | PASS automated | full 126 physical positions and common extended key-code domain; no former 60-position diagnostic truncation |
+| Targeted protocol/oracle/end-to-end/metrics | PASS | all dedicated 6x21 tests pass |
+| Parser fuzz | PASS | 250,000 iterations, 61,998 accepted valid/mutated inputs, no failure |
+| Unified native suite | PASS on final source | all static and portable C++20 tests; the corrected pre-signalled supervisor oracle passed five standalone 1,008-generation repetitions and the official full run, with no overlap or survivor |
+| Official MSVC production | PASS | 0 errors, only allow-listed external ViGEmClient LNK4099; embedded ViGEmBus verification and production diagnostic-marker exclusion pass |
+| Returned physical V75 trace | PASS transport/protocol; FAIL old publication gate | `HallJoy (9).log`, 177,916 bytes/553 lines/4.969 s: `1CA5:2201`, `FFA0:0001`, 65/65 reports, board `16052201`, App `V1.0.8`, 5/5/3500 um, physical/default/live map 79/78/79 including `F001`, valid direct travel; every proof was otherwise `ok=1` but old code set firmware mismatch `00000001` because V75 sync bytes `00/04/00` were tested as Aula `C0/01/00` |
+| Physical-packet regression | PASS | exact returned 60-byte V75 sync is rejected by the generic family predicate, accepted only by exact expected board `16052201`, rejected for wrong/zero board; end-to-end fake transport replays the physical map/scale/Fn/travel and reaches mismatch mask zero |
+| Deterministic rejection lifecycle | PASS automated | firmware/scale/map/travel semantic failures wait for an actual device-change event and cannot repeat proof once per timer tick; transport/claim transients retain bounded retry |
+| Production artifact | PASS compile/package, corrected V75 path not yet hardware-qualified | 8,527,872 bytes; SHA-256 `3837CB510B64A3E2C9685BB2A7188DC8B47CD305B8DD6A5F1F34FB749A9D0F2D` |
+| Dedicated diagnostic | PASS compile/package | one `HallJoy.exe`, 8,680,960 bytes; SHA-256 `E71EDB6BA9734F6019F5C22EAF48ED6DD299EA91D1F00E4D564705D66312C3D5`; exact-known-board policy, schema-v2 matrix/rate/coverage/reconnect markers and mandatory conclusive-verdict contract linked |
+| Conclusive result coverage | PASS automated | one `diagnostic.verdict` reports `conclusive=1`, `result`, `action`, progress/failure, discovery/candidate/identity evidence, last open/protocol error and matrix count; every non-stream result says `send_log`; unknown identities are never opened or published |
+| Exact diagnostic startup/privacy/shutdown smoke | PASS | copied exact corrected artifact to an isolated directory; hidden startup, accepted `WM_CLOSE`, exit code 0, complete lifecycle through `session.end` and `diagnostic.verdict`, no NUL, no process survivor, unchanged hash, and no private root/raw device path/unrelated inventory in the 19,438-byte log |
+| Superseded privacy-safe diagnostic | DO NOT DISTRIBUTE | former SHA-256 `8FEB8E942FE1FF067716B9D421B8981F7A89C25A4A161DA184FA72CEC352BD50` passed privacy smoke but lacked the mandatory single conclusive verdict and was replaced |
+| Rejected diagnostic artifact | DO NOT DISTRIBUTE | former SHA-256 `29E123B25A529CFDBFB3E456476FA9307C46D8CFD326EE94DE3A88E8846F3A19` leaked local/raw device paths during isolated acceptance and was superseded |
+| Physical V75 support | **PARTIAL** | physical Windows HID shape, exact board/App, scale, complete live map/Fn and direct travel are proven; corrected build still needs one closed run proving analogue publication, smooth/released/simultaneous input, sustained polling and reconnect |
+
+Research evidence:
+`docs/research/GRAVASTAR_MERCURY_V75_FIRMWARE_STATIC_ANALYSIS_2026-08-22.md`.
+
+## 2026-08-22 V14-23 protected ViGEm generation handles after physical V75
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Returned `HallJoy (10).log` integrity | PARTIAL FILE / CONCLUSIVE CONTENT | 90,844 bytes, 437 lines, SHA-256 `18A91FB5067595680B3922E76744208E14EAFF750C5C12ED29AC39070DD23556`; slice begins at 99.922 s/seq 573 and ends at 239.735 s/seq 1008, with no NUL but no session header, handled `session.end` or `diagnostic.verdict` |
+| Corrected physical V75 analogue stream | PASS | 28 five-second health windows; final lifetime 76,773 matrices, zero failed; 308.5-342.1 Hz; 108-3500 um observed range, press/release-to-zero transitions and maximum two simultaneous active keys; nine distinct HIDs observed in the returned slice |
+| ViGEm output continuity in old corrected diagnostic | **FAIL/P0** | 46 applied publications followed by generation 1 `ReapFailed`, Win32 6 at 135.641 s; process child PID 87008 became restart-unsafe; 218 `watchdog.session_rebuild.begin` attempts then failed with `ERROR_BUSY` while input matrices remained healthy |
+| Root-class correction | PASS code/local | `ProtectedNativeHandle` applies `HANDLE_FLAG_PROTECT_FROM_CLOSE` to both process and job objects, retains sole-owner close, verifies protection plus `GetProcessId`, and emits ownership fields on every generation end |
+| Illicit-close/owner regression | PASS | Windows intentionally calls `CloseHandle` through the protected raw value; kernel rejects it with error 6, the object remains waitable/protected, and only owner `Close` succeeds |
+| Generation supervisor | PASS | 1,008 real child generations; containment before resume, explicit inheritance, startup/progress/forced-stop/exit faults, protected process+job ownership, PID match, zero overlap and zero survivor |
+| Unsafe watchdog policy | PASS code/static | terminally unsafe Stop/Start failure emits one complete `watchdog.recovery_blocked` record and blocks subsequent attempts; the old every-tick retry message/path is absent |
+| Complete native/static/portable suite | PASS | all production-linked audits and C++ tests, including 250,000 parser-fuzz iterations |
+| Exact simulator self-host | PASS | nine lifecycle/fault generations, six boundary exits, no survivor; 8,666,624 bytes, SHA-256 `3EC7DAC5520841E64E5B33699A95E772F47F739299A5F4F74DFF03F5705E7A1D` |
+| Exact real ViGEm child | PASS | four targets applied, neutralized and removed; PnP baseline restored, no survivor |
+| Exact runtime stress | PASS | 100,000+ publications, 101 generations, 50 topology changes, 10 disable/enable cycles, no survivor |
+| New V75 diagnostic build/smoke | PASS local, hardware pending | 8,683,008 bytes, SHA-256 `2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B`; MSVC 0 errors, only exact external ViGEmClient LNK4099; isolated startup/privacy/WM_CLOSE exit 0, complete log |
+| New production build/smoke | PASS local, not promoted | 8,529,408 bytes, SHA-256 `B2C87A69F45EFBB046913B5B1DA4F7AB2D97AD33A3C0CC1494D91D06649238C0`; embedded ViGEmBus/UAP identity gates pass, no continuous log or crash artifact |
+| Physical closure | **PENDING** | old `E71ED...` V75 diagnostic is DO NOT DISTRIBUTE; require one long exact `2C5A1E05...` run with uninterrupted virtual output plus unplug/reconnect before closing `HJ-V14-P0-006` and V75 reconnect |
+
+Evidence: `docs/stability/tests/V14_23_VIGEM_PROTECTED_HANDLE_HARDENING_2026-08-22.txt`.
+
+## 2026-08-22 R2-B2a read-only UAP Provider V2 adapter
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Full-key worker retention | PASS | Soup-key array is stored before the 256-code compatibility projection; USB keyboard/consumer and UAP extended identities survive |
+| Read-only route | PASS | private V2 export, isolated IPC V11 copy and validated parent capture are linked; `Backend_Tick` does not consume the capture |
+| Ordinary-HID compatibility projection | PASS deterministic | two devices, max merge, USB Menu and zero release exactly equal the legacy ordinary-HID vector; Consumer/Fn remain separately namespaced |
+| Hidden truncation negative | PASS | oversized caller buffers cannot hide a 2-of-12 pinned capture; effective device/sample capacity is 2/10, required count is 12/60 and `Truncated` is mandatory |
+| Malformed input | PASS | duplicate key identity and non-finite source value fail before publication |
+| Pinned-owner lifetime | PASS | 50,000 coherent reads, 100,000 lifetime cycles, blocked removal and exact destruction; original registry `required_count` retained |
+| Exact built ABI1 V2 export | PASS physical local | active DLL returned one device/127 samples; ABI sizes, generations, unique identities, namespaces, values and capacity/completeness valid; inactive calls rejected before init and after unload |
+| Unified compiler-required suite | PASS | all static and portable C++20 checks, including production-linked projection and pinning tests |
+| Official Release x64 | PASS | pinned UAP rebuild, exact ABI, embedded ViGEmBus/signature and MSVC gates; 0 errors, only allow-listed external LNK4099 |
+| Production startup/shutdown | PASS | exact local release accepted WM_CLOSE; no continuous diagnostic log or crash report |
+| Local production artifact | PASS, not promoted | 8,529,920 bytes; SHA-256 `34F062D7770110F1FD72A45AF10206628BFD8673CA33791C530FD022C4CB91B5` |
+| Final old/new XUSB equivalence | **PENDING** | legacy dense and V2 are still separate child export calls; require one immutable generation and actual configured report-builder shadow before route switch |
+
+Evidence:
+`docs/stability/tests/V14_R2_B2A_UAP_PROVIDER_V2_ADAPTER_2026-08-22.txt`.
+
+## 2026-08-22 R2-B2b same-generation UAP dual capture
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Alternatives/decision | PASS | D-066 rejects counter-retry and premature route replacement; selects one pinned dual export plus legacy fallback |
+| Initial-data negative oracle | PASS / defect found | first exact ABI run rejected false-fresh topology with generation/timestamp zero; export now waits for a real acquisition |
+| Same-generation DLL view | PASS physical local | exact ABI1 returned one device/127 samples and all 256 dense values independently reconstructed from V2 were equal |
+| Child validation/publication | PASS | dual metadata, values, active count and ordinary-HID projection validated before one IPC V12 publication; failure invalidates V2 and preserves legacy route only |
+| Parent capture boundary | PASS | parent requires the explicit dual-coherent label and rejects an unlabeled V2 snapshot |
+| Exact production-image capture | PASS physical local | hidden bounded self-test used the actual child/IPC/parent and accepted only coherent authoritative non-empty capture |
+| Unified compiler-required suite | PASS | full static/portable/native suite, including corrected transaction-scoped shutdown audits |
+| Official Release x64 | PASS | 0 errors, only allow-listed external ViGEmClient LNK4099; embedded ViGEmBus and private UAP gates pass |
+| Production startup/shutdown | PASS | exact release accepted WM_CLOSE; no continuous log, crash report or new exact-image survivor |
+| Local production artifact | PASS, not promoted | 8,535,552 bytes; SHA-256 `CE26D65EFBF0DBB354B36AF8FC6BDD13B7C29F369775957545003462C18987F2` |
+| Active V75 diagnostic | UNCHANGED | 8,683,008 bytes; SHA-256 `2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B` |
+| Configured XUSB shadow | **PENDING** | run actual bindings, curves and every XUSB field without submitting shadow output; `Backend_Tick` remains legacy |
+
+Evidence:
+`docs/stability/tests/V14_R2_B2B_UAP_SAME_GENERATION_DUAL_CAPTURE_2026-08-22.txt`.
+
+## 2026-08-22 R2-B2c configured XUSB builder foundation
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Alternatives/decision | PASS | D-067 rejects double-call mutable state, raw-only comparison and duplicated builders; selects one explicit-state production component |
+| Complete XUSB domain | PASS | button mask, two triggers and four axes are constructed and compared field-by-field |
+| Side-effect boundary | PASS | builder cannot read providers/settings/bindings, acquire mouse, allocate, wait or submit ViGEm output |
+| Stateful behavior | PASS | independent qualified/shadow state; Snappy/LKP edge and analog retrigger sequence covered |
+| Configured surfaces | PASS foundation | axes, triggers, multi-key buttons, Fn, mouse merge and thresholds covered by production-linked test |
+| Qualified route migration | PASS code/local | existing `BuildReportForPad` captures current inputs and calls the shared builder once; output publication remains legacy |
+| Unified native suite | PASS | all static and portable C++20 tests, including paired equality and localized divergence |
+| Official Release x64 | PASS | 0 errors, only allow-listed external ViGEmClient LNK4099 |
+| Exact UAP capture after refactor | PASS | exact rebuilt image still captures coherent non-empty V2 through child/IPC/parent |
+| Production startup/shutdown | PASS | no continuous log, crash report or exact-image survivor |
+| Local production artifact | PASS, not promoted | 8,536,576 bytes; SHA-256 `35714CD31518CC853DD4484259C4F8BF32C450FD20A9F7F465AFD3DF38AEAD05` |
+| Live V2 XUSB shadow | **PENDING** | same parent dual capture, shared native/config/curve/mouse inputs, separate state and bounded mismatch evidence still required |
+
+Evidence:
+`docs/stability/tests/V14_R2_B2C_CONFIGURED_XUSB_BUILDER_FOUNDATION_2026-08-22.txt`.
+
+## 2026-08-22 R2-B2d neutral controller frame and exact XUSB adapter
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Alternatives/decision | PASS | D-068 rejects Xbox-specific canonical mapping and a premature universal touch/motion graph; selects a versioned standard-controller frame plus output adapter |
+| Neutral mapping boundary | PASS | configured builder returns semantic buttons, two triggers and four sticks without XUSB masks or ViGEm access |
+| Exact XUSB adapter | PASS | one adapter owns every Xbox mask and conversion; full button mask, triggers and four axes match the pre-boundary output contract |
+| Future DS4 boundary | PASS architecture only | standard controls can receive another adapter later; no DS4 runtime, touch or motion support is claimed in this package |
+| Production route | UNCHANGED | XUSB remains the sole published target; Provider V2 shadow and route switch are not active |
+| Unified native suite | PASS | all static and portable C++20 tests; configured gate reports `neutral_frame=1 exact_xusb_adapter=1` |
+| Official Release x64 | PASS | 0 errors, only allow-listed external ViGEmClient LNK4099; embedded installer/hash/signature checks pass |
+| Exact UAP capture after boundary | PASS | `UAP_PROVIDER_V2_EXACT_EXE_DUAL_CAPTURE=PASS` on the exact rebuilt image |
+| Production startup/shutdown | PASS | ten-second exact release run accepted `WM_CLOSE`; no continuous log, crash report or survivor |
+| Local production artifact | PASS, not promoted | 8,536,576 bytes; SHA-256 `21DDA421768F4320744BD052F1C9D85AB3B3E2663CBDAEC04015FCB64D56948D` |
+| Active V75 diagnostic | UNCHANGED | 8,683,008 bytes; SHA-256 `2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B` |
+| Live Provider V2 comparison | **PENDING** | one parent dense+V2 capture, shared native/config/curve/mouse input, separate state and bounded field mismatch evidence required |
+
+Evidence:
+`docs/stability/tests/V14_R2_B2D_NEUTRAL_CONTROLLER_FRAME_2026-08-22.txt`.
+
+## 2026-08-22 R2-B2e one parent UAP tick capture
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Deeper defect audit | PASS / defect found | production per-key UAP reads were individually coherent but could mix adjacent analog-host publications in one controller frame |
+| Alternatives/decision | PASS | D-069 rejects counter matching, a V2-only side capture and premature V2 route replacement; selects one parent dense+V2 transaction |
+| Parent atomicity | PASS | publication metadata, aggregate dense, per-device dense and optional V2 are copied between one stable even `snapshotSequence` pair |
+| Qualified route | PASS code/local | all standard UAP values used by one tick come from the captured dense compatibility plane; Provider V2 is retained but not consumed by mapping |
+| Availability fallback | PASS | stable dense remains usable without V2; complete capture failure retains the old analogue per-key reader, with no digital correlation or learning |
+| Shared validation | PASS | child and parent share per-device dense/V2 validation; parent additionally checks finite range, active counts and exact aggregate max merge |
+| Negative regression | PASS | corrupt aggregate, corrupt per-device/V2 equality, NaN and dense-without-V2 cases are distinguished |
+| Unified native suite | PASS | all static and portable C++20 tests; `UAP_PARENT_SNAPSHOT_TEST=PASS one_publication=1 dense_fallback=1 aggregate_checked=1 dual_checked=1` |
+| Official Release x64 | PASS | 0 errors; only allow-listed external ViGEmClient LNK4099; exact private UAP and embedded installer gates pass |
+| Exact production-image capture | PASS physical local | real isolated child produces authoritative non-empty dense+V2 parent capture on the rebuilt EXE |
+| Production startup/shutdown | PASS | ten-second exact release run accepted `WM_CLOSE`; no continuous log, crash report or survivor |
+| Local production artifact | PASS, not promoted | 8,637,952 bytes; SHA-256 `C60CA71237663766354CC6E34B562BCE27E71A0DA446741C4BC969F8A13111DF` |
+| Active V75 diagnostic | UNCHANGED | 8,683,008 bytes; SHA-256 `2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B` |
+| Live configured V2 shadow | **PENDING** | build V2/native raw map from this exact capture, apply one curve/config/mouse snapshot and compare separate-state frames without publication |
+
+Evidence:
+`docs/stability/tests/V14_R2_B2E_PARENT_UAP_TICK_CAPTURE_2026-08-22.txt`.
+
+## 2026-08-23 R2-B2f live configured Provider V2 shadow
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Alternatives/decision | PASS | D-070 rejects immediate switching, raw-only comparison, duplicated mapping and digital correlation; selects a live read-only full-frame shadow |
+| V2 identity projection | PASS local | owned zero is preserved; USB keyboard page and supported UAP extended identities map explicitly; consumer/semantic identities do not alias |
+| Multi-device/native merge | PASS local | V2 devices merge by maximum; the same cached native read feeds both paths; native extended-key ownership remains authoritative |
+| Shared production inputs | PASS code/local | one binding/settings capture, curve definition/generation and mouse sample feed one mapping builder with distinct state |
+| Invalid evidence handling | PASS | unavailable/incoherent V2, digital fallback and curve mutation disqualify comparison and resynchronize shadow state |
+| Complete comparison | PASS local | button mask, both triggers and all four axes have exact comparison and separate bounded counters |
+| Output isolation | PASS static/code | only the qualified frame is passed to the XUSB adapter; shadow cannot reach ViGEm |
+| Production-linked portable test | PASS | `PROVIDER_V2_CONTROLLER_SHADOW_TEST=PASS identity_projection=1 owned_zero=1 multi_device_max=1 native_arbitration=1 all_fields=1` |
+| Unified native suite | PASS | complete static and portable checks, including parent snapshot and configured builder regressions |
+| Official Release x64 | PASS | 0 errors; only allow-listed external ViGEmClient LNK4099; embedded ViGEm and exact private-UAP gates pass |
+| Exact production-image capture | PASS physical local | `UAP_PROVIDER_V2_EXACT_EXE_DUAL_CAPTURE=PASS` through the real child/IPC/parent path |
+| Production startup/shutdown | PASS | sequential ten-second release smoke closed cleanly; no continuous log, crash report or survivor |
+| Local production artifact | PASS, not promoted | 8,643,584 bytes; SHA-256 `9D3376EF6247F73283140F27B472AB22FA74435F112E9B2B416901CC3E394F20` |
+| Active V75 diagnostic | UNCHANGED | 8,683,008 bytes; SHA-256 `2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B` |
+| Sustained physical zero mismatch | **PENDING** | in-memory counters exist but were not externally observed on representative UAP hardware; no route switch is authorized |
+
+Evidence:
+`docs/stability/tests/V14_R2_B2F_LIVE_PROVIDER_V2_SHADOW_2026-08-23.txt`.
+
+## 2026-08-23 R2-B2g fail-closed Provider V2 qualification evidence
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Alternatives/decision | PASS | D-071 rejects continuous logging, UI-only evidence, partial hidden backend and direct promotion from counters; selects one ordinary-lifecycle transactional report |
+| Stale/crash evidence | PASS static/runtime | startup deletes old final/temp and atomically writes flushed `INCOMPLETE`; only normal post-logger shutdown finalizes; poison exits leave no finalized verdict |
+| Lifetime integrity | PASS | exactly one backend init required; match/mismatch evidence is never reset; unchanged realtime ticks cannot impersonate unique UAP sample generations |
+| Physical coverage source | PASS static/code | activation requires Provider V2 raw >=0.5 plus non-neutral mapped shadow output; release is latched until raw and shadow are neutral; partial return, mouse/native or Windows digital alone cannot satisfy coverage |
+| Multi-pad coverage | PASS portable/code | 28 independent bits cover 4 pads x 7 fields; `PROVIDER_V2_QUALIFICATION_MODEL_TEST=PASS ... per_pad_coverage=1 ...` |
+| Fail-closed verdict | PASS portable | any mismatch is `FAIL`; idle/missing activity, partial travel/release, reset, fallback, mutation, unavailable or abnormal exit is `INCOMPLETE`; duration is informational; model reports `duration_informational=1 partial_travel_not_release=1` |
+| Realtime I/O isolation | PASS static | no qualification file operation occurs in `Backend_Tick`; report writes only at process begin/finalize |
+| Physical report 1 | PASS evidence component | exact schema-1 EXE; 35,744 matched frames, 8,776 unique generations, configured `0x7A`, activated/released `0x78`, zero mismatches/skips; only LT absent in this run |
+| Physical report 2 | PASS evidence component | exact same schema-1 EXE; 8,135 matched frames, 2,001 unique generations, configured `0x7E`, activated/released `0x26`, including LT and RT, zero mismatches/skips |
+| Aggregated physical equality | **PASS** | 43,879 matched frames, 10,777 unique generations, configured/activated/released union `0x7E`; all current field classes physically covered without runtime learning or digital correlation |
+| Duration policy | PASS corrected | the arbitrary 60-second equality cliff is removed; schema 2 writes `duration_is_informational=1`; stability remains a separate soak/reconnect/fault gate |
+| Short exact-artifact smoke | PASS | schema 2 finalized `INCOMPLETE`, 2,039 eligible/matched reports, 504 unique generations, 2,547 ms, zero mismatches/skips; only activation/release gaps `0x300`, no `.tmp` |
+| Qualification artifact | PASS | 8,653,312 bytes; SHA-256 `60C2E205C61CF6F61EE6216DB46A825121A34975924D35D2C9A96FC85473ED71` |
+| Unified native suite | PASS | all static and portable C++20 tests, including new qualification model/static gates |
+| Official Release x64 | PASS | 0 errors; only allow-listed external ViGEmClient LNK4099; embedded ViGEm/private-UAP gates pass |
+| Exact production V2 capture | PASS | `UAP_PROVIDER_V2_EXACT_EXE_DUAL_CAPTURE=PASS` for SHA-256 `9E7FD20D41E441AF50D42A12FB9C44AEDB917C29D5A69FB4CA0778678DC63166` |
+| Production startup/shutdown | PASS | sequential ten-second exact release smoke closes cleanly with no continuous/crash/qualification report or exact-path survivor |
+| Local production artifact | PASS, not promoted | 8,644,608 bytes; SHA-256 `9E7FD20D41E441AF50D42A12FB9C44AEDB917C29D5A69FB4CA0778678DC63166` |
+| Active V75 diagnostic | UNCHANGED | 8,683,008 bytes; SHA-256 `2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B` |
+| Route promotion | **PENDING explicit decision** | representative physical equality is complete; production still publishes dense compatibility output and no automatic switch is authorized |
+
+Evidence:
+`docs/stability/tests/V14_R2_B2G_PROVIDER_V2_QUALIFICATION_2026-08-23.txt`.
+
+## 2026-08-23 R2-B2h negotiated-capacity UAP producer evidence
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Alternatives/decision | PASS | D-072 rejects immediate route selection, a larger fixed constant and a producer/IPC/route big-bang; staged producer -> split data plane -> route selection chosen |
+| Fixed producer window | **CLOSED** | Provider V2 no longer instantiates fixed `PinOwners<kMaxDevices>`; exact registry demand drives reusable caller-owned storage |
+| Allocation/lock order | PASS static/code | owner/projection/mutex vectors grow before registry/device locks; no allocation is required inside either protected region |
+| Complete owner generation | PASS portable | `UAP_SNAPSHOT_PINNING_TEST=PASS ... negotiated_capacity=12 lease_clears_refs=1`; 12 owners captured and all retained references cleared |
+| Complete 12-device projection | PASS portable | `UAP_PROVIDER_V2_PROJECTION_TEST=PASS ... hidden_truncation_rejected=1 negotiated_12_devices=1` |
+| Topology/lifetime policy | PASS code/tests | ownership generation checked around pin/lock capture; bounded retry then fail closed; reverse lock release and exact removal lifetime retained |
+| Exact private DLL ABI | PASS | provider and dual buffers sized from zero-capacity demand; `PRIVATE_UAP_ABI_RUNTIME=PASS ... dual_view_equivalent=1 negotiated_capacity=1` |
+| Unified native suite | PASS | all static and portable C++20 tests pass, including the new negotiated-capacity guards |
+| Official Release x64 | PASS | 0 errors; only allow-listed external ViGEmClient LNK4099; embedded ViGEm/private-UAP gates pass |
+| Exact production V2 capture | PASS | `UAP_PROVIDER_V2_EXACT_EXE_DUAL_CAPTURE=PASS` for SHA-256 `15E6DADC75B367ABAA031BF5B239EC6DCD88A528AD8E797B5D9CAAE70FFE4509` |
+| Production startup/shutdown | PASS | sequential ten-second smoke closes cleanly with no continuous log or crash report |
+| Local production artifact | PASS, not promoted | 8,650,240 bytes; SHA-256 `15E6DADC75B367ABAA031BF5B239EC6DCD88A528AD8E797B5D9CAAE70FFE4509` |
+| Active V75 diagnostic | UNCHANGED | 8,683,008 bytes; SHA-256 `2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B` |
+| Variable Provider V2 IPC | **PENDING R2-B2i** | current monolithic `SharedState` remains fixed at 8; producer completion does not authorize a route switch |
+| Provider V2 production route | **PENDING R2-B2j** | production remains dense until the split data plane passes malformed/resize/topology/restart/fault gates |
+
+Evidence:
+`docs/stability/tests/V14_R2_B2H_UAP_NEGOTIATED_CAPACITY_2026-08-23.txt`.
+
+## 2026-08-23 R2-B2i-a split Provider V2 data-plane layout
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Alternatives/decision | PASS | D-074 rejects a larger constant, monolithic resizable all-access state and per-frame pipe/RPC; selects a separate parent-owned double-buffered mapping |
+| Checked layout domain | PASS portable | exact deterministic calculation/validation at 0, 1, 8, 12, 32 and defensive-limit capacities; overflow and over-ceiling demand fail closed |
+| Greater-than-eight oracle | PASS portable | complete authoritative 12-device/60-sample snapshot is accepted without a fixed producer/plane window |
+| Commit identity | PASS portable | mapping generation, launch nonce, transaction token and stable even nonzero sequence are mandatory |
+| Malformed/torn data | PASS portable | odd/uncommitted slot, stale identity, corrupt offset/stride, false complete/truncated and corrupt semantic snapshot are rejected |
+| Publication structure | PASS code/test | two independent 64-byte-aligned slots; 128-byte mapping header; checked local-layout equality before pointer arithmetic |
+| Production route isolation | PASS static | `backend.cpp` has no split-plane reference; fixed V2 arrays deliberately remain in `SharedState`, proving B2i-b/c are not falsely claimed |
+| Unified native suite | PASS | all repository static and portable C++20 checks pass with compiler required |
+| Official Release x64 | PASS | 0 errors; one allow-listed external ViGEmClient LNK4099; embedded ViGEm/private-UAP gates pass |
+| Exact private DLL ABI | PASS | `PRIVATE_UAP_ABI_RUNTIME=PASS ... dual_view_equivalent=1 negotiated_capacity=1` |
+| Exact production V2 capture | PASS | `UAP_PROVIDER_V2_EXACT_EXE_DUAL_CAPTURE=PASS` for SHA-256 `920CBFB75229F9820FFB20C30CC11A3ED6940EEEA16D66E23E926099F087F5FE` |
+| Production startup/shutdown | PASS | exact release startup/WM_CLOSE smoke closes cleanly; no continuous diagnostic log or crash report |
+| Local checkpoint artifact | PASS, not promoted | 8,650,240 bytes; SHA-256 `920CBFB75229F9820FFB20C30CC11A3ED6940EEEA16D66E23E926099F087F5FE` |
+| Windows split mapping | **PENDING R2-B2i-b** | no inherited payload handle, rights split, demand restart or resize lifecycle is claimed by B2i-a |
+| Live shadow migration | **PENDING R2-B2i-c** | fixed V2 payload arrays remain and dense production stays selected |
+| Provider V2 production route | **PENDING R2-B2j** | no user build or compatibility promotion is authorized by this checkpoint |
+
+Evidence:
+`docs/stability/tests/V14_R2_B2I_A_PROVIDER_V2_SPLIT_PLANE_LAYOUT_2026-08-23.txt`.
+
+## 2026-08-23 R2-B2i-b Windows Provider V2 data plane
+
+| Check | Result | Evidence boundary |
+|---|---|---|
+| Separate mapping ownership | PASS Windows process | parent has a non-inheritable read-only handle/view; child alone inherits read/write through the explicit handle list; parent write mapping is rejected |
+| Transient writer lifetime | PASS Windows process | parent closes its writer handle after child launch; reaped child leaves no writer capability |
+| Forged handle | PASS Windows process | numeric handle absent from the explicit inherited list is rejected before publication |
+| Crash during publication | PASS Windows process | child terminates after odd sequence; parent returns `UncommittedSlot` and never exposes partial payload |
+| Reader/resize race | PASS Windows process | live read lease makes zero-time retire fail with `ERROR_TIMEOUT`; replacement succeeds only after lease release |
+| Repeated topology | PASS Windows process | six real child generations publish capacities 1/8/12/32/8/1 with stable post-warmup handle count and no survivor |
+| Capacity policy | PASS portable/Windows | growth replaces exactly, shrink fits existing allocation and over-ceiling demand rejects |
+| Read-only capture regression | PASS code/process | write-requiring Interlocked RMW was removed after exact-EXE AV; aligned volatile recheck plus static guard and real read-only capture pass |
+| Unified native suite | PASS | `run_native_backend_checks.py --require-compiler` exits 0; `PROVIDER_V2_WINDOWS_PROCESS_TEST=PASS ... surviving_writer=0 surviving_child=0` |
+| Direct MSVC Release x64 | PASS compile | 0 errors; one existing allow-listed ViGEmClient LNK4099; pre-package image 8,662,528 bytes, SHA-256 `6F28B367A31170ADD172A53B142A5BFFE19C865A733212F4EBEA655BB91B014C` |
+| Concurrent physical-UAP prevention | PASS guard | official build, leaf ABI checker, exact dual-capture and production smoke refuse any active HallJoy before hardware open; active PID guard test rejected all three existing processes |
+| Official packaged Release x64 | PASS build/runtime | `tools/build.ps1` passed the complete rebuild, private UAP ABI runtime gate and embedded ViGEm verification; final image 8,662,528 bytes, SHA-256 `1EAAFAD31C19AE9C3DC75D37E6081BD0120CB156DCBA9C5C95719D6A6F0F4EFF` |
+| Exact zero-capacity/restart/commit | **PASS physical exact EXE** | with every other HallJoy closed, the final packaged image passed zero-capacity demand, one controlled restart, parent read-only proof, non-empty coherent commit, clean shutdown and zero surviving child |
+| Sequential production smoke | PASS exact EXE | 10-second normal startup/shutdown passed; no continuous diagnostic log, crash report or surviving HallJoy process |
+| Live shadow migration | **PENDING R2-B2i-c** | fixed V2 payload arrays remain in `SharedState`; `backend.cpp` does not consume the new plane |
+| Route selection | UNCHANGED | dense remains selected for engineering and user builds |
+
+Evidence:
+`docs/stability/tests/V14_R2_B2I_B_PROVIDER_V2_WINDOWS_PLANE_2026-08-23.txt`.

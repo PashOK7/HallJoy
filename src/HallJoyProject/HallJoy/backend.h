@@ -6,6 +6,7 @@
 #include <cstddef>
 
 #include "native_analog_backend.h"
+#include "analog_key_codes.h"
 
 #include <ViGEm/Client.h>
 
@@ -20,14 +21,25 @@ enum BackendInitIssue : uint32_t
 };
 
 bool Backend_Init();
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+// Process-local oracle for file-only profile tests. It records attempted entry
+// into Backend_Init while the command-line guard is active; it does not wrap
+// Win32 APIs or alter production transport code.
+uint32_t Backend_FileOnlyTestForbiddenInitAttempts() noexcept;
+#endif
 [[nodiscard]] bool Backend_Shutdown();
+// The sole engine-runtime owner closes this gate before pause/release. It
+// prevents input callbacks and topology notifications from reviving a stopped
+// generation; Backend_Init itself remains an owner-only operation.
+void Backend_SetRuntimeAdmission(bool admitted) noexcept;
+bool Backend_IsRuntimeAdmissionOpen() noexcept;
 // Allocation-free fail-safe publication used only when the realtime worker
 // crosses its top-level exception boundary.
 void Backend_ResetPublishedStateAfterRealtimeFault() noexcept;
 void Backend_Tick();
-// UI-owner watchdog: reap an unexpectedly completed ViGEm output generation,
+// Runtime-supervisor watchdog: reap an unexpectedly completed ViGEm output generation,
 // recreate its transport, and start a fresh worker. Healthy calls are cheap.
-bool Backend_EnsureOutputWorkerRunning();
+bool Backend_EnsureOutputRuntimeHealthy();
 // Realtime-thread deadline for the newest coalesced ViGEm report, in QPC ticks.
 // Zero means no output is pending.
 LONGLONG Backend_GetNextOutputDeadlineQpc();
@@ -43,11 +55,17 @@ SHORT Backend_GetLastRX();
 XUSB_REPORT Backend_GetLastReport();
 XUSB_REPORT Backend_GetLastReportForPad(int padIndex);
 
-// ---- UI snapshot API (HID < 256) ----
+// ---- UI snapshot API (ordinary HID + supported extended key codes) ----
 
 // UI tells backend which HID codes are present on the Main page (so backend doesn't depend on UI/layout)
 void BackendUI_SetTrackedHids(const uint16_t* hids, int count);
 void BackendUI_ClearTrackedHids();
+// Independent overlay subscription; empty means follow the main subscription.
+void BackendUI_SetOverlayTrackedHids(const uint16_t* hids, int count);
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool BackendUI_TestTrackedUnion();
+bool BackendUI_TestIsTracked(uint16_t hid);
+#endif
 
 // last analog value after curve/deadzones, milli-units [0..1000]
 uint16_t BackendUI_GetAnalogMilli(uint16_t hid);
@@ -62,7 +80,7 @@ void BackendUI_SetBindCapture(bool enable);
 bool BackendUI_ConsumeBindCapture(uint16_t* outHid, uint16_t* outRawMilli);
 
 // dirty bits: which HID values changed since last consume.
-// chunk: 0..3 for HID ranges [0..63], [64..127], [128..191], [192..255]
+// chunk: 0..halljoy::keycode::kMaskChunkCount-1.
 uint64_t BackendUI_ConsumeDirtyChunk(int chunk);
 
 // ---- Status / hotplug ----
@@ -80,6 +98,7 @@ static constexpr int kBackendMaxNativeProtocols = 16;
 
 struct BackendNativeProtocolTelemetry
 {
+    std::uint64_t verifiedLayoutToken = 0;
     bool present = false;
     bool connected = false;
     std::uint16_t protocol = 0;
@@ -116,6 +135,7 @@ enum BackendAnalogDeviceFlags : uint32_t
     BackendAnalogDeviceFlag_UnthrottledWorker = 1u << 4,
     BackendAnalogDeviceFlag_DuplicateSafeId = 1u << 5,
     BackendAnalogDeviceFlag_DeadlinePacedWorker = 1u << 6,
+    BackendAnalogDeviceFlag_VerifiedModel = 1u << 7,
 };
 
 struct BackendAnalogDeviceTelemetry
@@ -260,6 +280,24 @@ struct BackendAnalogTelemetry
     uint32_t pluginHostLastPublishAgeMs = 0;
     uint64_t pluginHostTotalPolls = 0;
     uint64_t pluginHostSuccessfulPolls = 0;
+    bool providerV2ShadowAvailable = false;
+    uint64_t providerV2ShadowEligibleTicks = 0;
+    uint64_t providerV2ShadowMatchedReports = 0;
+    uint64_t providerV2ShadowMismatchedReports = 0;
+    uint64_t providerV2ShadowUnavailableTicks = 0;
+    uint64_t providerV2ShadowDigitalFallbackTicks = 0;
+    uint64_t providerV2ShadowCurveMutationTicks = 0;
+    uint64_t providerV2ShadowFieldMismatches[7]{};
+    uint64_t providerV2ShadowBackendInitCount = 0;
+    uint64_t providerV2ShadowUniqueSampleGenerations = 0;
+    uint64_t providerV2ShadowFirstEligibleTickMs = 0;
+    uint64_t providerV2ShadowLastEligibleTickMs = 0;
+    uint32_t providerV2ShadowConfiguredFieldMask = 0;
+    uint32_t providerV2ShadowActivatedFieldMask = 0;
+    uint32_t providerV2ShadowReleasedFieldMask = 0;
+    uint32_t providerV2ShadowLastMismatchMask = 0;
+    uint32_t providerV2ShadowLastMismatchPad = 0;
+    uint64_t providerV2ShadowLastSampleGeneration = 0;
     int pluginDeviceCount = 0;
     BackendAnalogDeviceTelemetry pluginDevices[kBackendMaxAnalogDevices]{};
     uint32_t sdkPollHz10 = 0;             // configured HallJoy polling target * 10

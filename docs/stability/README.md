@@ -60,6 +60,11 @@ release-hardening packages that continued from it.
   user-state mutation.
 - V14-12F/S18 removed the automatic privileged dependency installer. Missing
   ViGEmBus now produces only pinned manual guidance for version 1.22.0.
+- D-049 (2026-08-21) supersedes only that manual-only recovery UX. HallJoy now
+  embeds the exact pinned installer and offers one-click, user-approved setup
+  with no runtime download, locked hash/signature verification and a bounded
+  message-pumped wait. V14-12F remains the historical record of the rejected
+  mutable `latest` implementation.
 - V14-12G/S20 aligned documented build instructions with the actual scripts,
   folded Addressed checks into the unified runner, removed Win32/x86, and built
   both x64 configurations under `/W4` with no unexpected warnings.

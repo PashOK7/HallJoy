@@ -65,3 +65,18 @@ third_party/UniversalAnalogPluginFixed/Sun/
 third_party/UniversalAnalogPluginFixed/.build-tools/
 third_party/UniversalAnalogPluginFixed/dist/
 third_party/UniversalAnalogPluginFixed/build/
+
+# Unified local build, dependency cache and preserved rollback archives
+/.local/
+/.cache/
+
+# Private scratch diagnostics and credentials are never publication inputs.
+/.analysis/
+.env
+.env.*
+*.pfx
+*.p12
+*.key
+
+# Pinned resource input, not a generated executable. Required by BUILD.cmd/CI.
+!src/HallJoyProject/third_party/ViGEmBus/ViGEmBus_1.22.0_x64_x86_arm64.exe

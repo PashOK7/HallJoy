@@ -6,10 +6,12 @@
 #include <vector>
 #include <cstdint>
 
+#include "analog_key_codes.h"
+
 // Internal shared state for keyboard UI modules.
 // Defined in keyboard_ui.cpp, used by keyboard_page_main.cpp and others.
 
-extern std::array<HWND, 256> g_btnByHid;
+extern std::array<HWND, halljoy::keycode::kCount> g_btnByHid;
 extern std::vector<uint16_t> g_hids;
 extern std::vector<HWND> g_keyButtons;
 

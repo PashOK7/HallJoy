@@ -1,5 +1,45 @@
 # HallJoy v1.4 decision log
 
+## 2026-09-06 — Unified build and archive layout (owner authorized)
+
+Observed: generated x64 trees occupy source directories; root EXE is stale and
+build/output duplicates build/release. Compared alternatives:
+(1) cleanup only: cheaper but scripts recreate disorder;
+(2) one build root, isolated variant/configuration/platform outputs, one release
+package and indexed archives: fixes recurrence with bounded changes;
+(3) move all source modules and rewrite the build system: broad include/test
+churn without demonstrated runtime benefit. Adopt (2), retaining device semantics.
+
+Contract: build/bin/<variant>/<configuration>/<platform>, build/obj with the
+same suffix, build/release as sole ordinary distribution, build/packages for
+named diagnostic distributions, build/evidence for runs. Dependency worktrees
+use .cache; rollback snapshots use .local/backups. Old outputs and unique
+evidence are archived with old/new paths and SHA-256; no age-based deletion.
+Full pre-change snapshot: .local/backups/structure_20260906_122303 (4712 files,
+all hashes verified). docs/current/PROJECT_LAYOUT.md will define current paths.
+Validate clean production and diagnostic compilation, without keyboard/gamepad
+runtime tests. Historical documents retain their dated evidence.
+
+
+## 2026-09-06 — Owner clarification: preserve automatic Sayo letter mapping
+
+The owner requires automatic user-configured letters with no manual assignment,
+setup wizard or mandatory confirmation, and reports no complaints about current
+behavior. This supersedes earlier blanket prohibitions on Sayo letter learning:
+physical depth remains measured independently; automatic letter association is
+intentional. RM-03 now preserves it and tests ambiguous correlation (addedCount==1
+already guards multiple new HID keys in one report; cross-report candidates need
+review). No per-press activation-threshold delay was established. Treat stale-depth
+fallback separately according to its intended digital/analog contract. Do not
+remove Sayo, replace letters with physical-only controls, or label learning itself
+P0. Reconcile old HJ-V14-P0-003 subclaims rather than copying its blanket verdict.
+See FULL_AUDIT_EXECUTION_ROADMAP_2026-09-06.md v1.1, section 0, for other potential
+intent traps: fallback/shadow removal, single-instance, async save, process
+isolation and release scope. Proposed rewrites require Purpose/compatibility
+review and evidence; product behavior changes require an explicit product decision.
+Only documentation changed in this clarification; no new runtime PASS is claimed.
+
+
 Decisions are append-only. A superseding decision references the old ID instead
 of silently rewriting it.
 
@@ -428,6 +468,10 @@ lifecycle package.
 
 ## D-028 - Remove privileged dependency installation from HallJoy
 
+Superseded for current production UX by D-049. Its rejection of mutable
+runtime downloads, predictable temporary paths and unbounded waits remains
+binding historical rationale.
+
 HallJoy must not download or elevate executable content. Missing ViGEmBus is a
 recoverable dependency diagnostic, not authority for the application to resolve
 a mutable `latest` asset, write it to a shared predictable temp location and
@@ -783,3 +827,1032 @@ transactions. Arbitrary HID interfaces are never metadata-opened or probed.
 Only the exact successfully proven interface path is claimed. A sibling passing
 this gate is protocol-compatible, not physically validated, until independent
 hardware evidence exists.
+
+## D-049 - Restore one-click ViGEm installation without runtime downloading
+
+Date: 2026-08-21
+
+Downloading was not itself the defect in the old installer. The unsafe parts
+were resolving a mutable `latest` executable at runtime, using a predictable
+temporary path across an elevation boundary, and waiting indefinitely on the
+UI thread. Replacing all installation with a copyable error message removed
+those risks but produced an unacceptable first-run experience.
+
+The accepted production path embeds the exact official ViGEmBus 1.22.0
+installer in `HallJoy.exe`; end users perform no network download. Source and
+build policy pin 6,278,576 bytes and SHA-256
+`89220A7865076B342892F98865F3499FB7C4CFD673159E89D352C360FD014C6A`.
+The build also requires a valid Nefarius Authenticode signer and executes a
+non-elevating self-test against the linked resource.
+
+At runtime HallJoy checks the resource before extraction, creates a CSPRNG-named
+directory and `CREATE_NEW` file, flushes it, transitions from the writer through
+a path-retaining bridge to a read-only lock, re-hashes the locked file, verifies
+Authenticode through that same handle, and probes read/execute compatibility.
+The file is re-hashed once more immediately before `runas`; write/delete sharing
+remains denied until setup exits. Elevation occurs only after the user chooses
+the explicit Install command. Waiting is message-pumped and limited to 20
+minutes; timeout never force-kills the installer and schedules cleanup at
+reboot. Successful setup retries ViGEm initialization in the same HallJoy
+process; restart-required and failure states are explicit. A fixed official
+release-page button remains a fallback. Runtime `latest` resolution and network
+download primitives remain forbidden.
+
+## D-050 - One release-readiness plan owns ordering and scope exclusion
+
+Date: 2026-08-21
+
+The existing family, pipeline, performance, architecture, evidence,
+concurrency, pause and security audits remain the detailed technical sources.
+`RELEASE_READINESS_MEGA_AUDIT_2026-08-21.md` is the single execution order and
+definition of done that joins them. It must not duplicate or silently redefine
+risk status; `RISK_REGISTER.md` remains the status ledger and
+`VALIDATION_MATRIX.md` remains the evidence ledger.
+
+An unverified production route can avoid blocking the general release only if
+compile/catalog/binary evidence proves that the route is absent and public docs
+make no support claim. A label such as `experimental` or `hardware pending`
+does not waive a reachable P0/P1. UI and device ledgers with stale pending
+labels must be reconciled against one exact final candidate instead of
+repeating broad audits already accepted by the owner.
+
+## D-051 - ViGEm output recovery owns resources by generation
+
+Date: 2026-08-21
+
+The physical IROK freeze proves that `alive`, a non-null stored `HANDLE` and a
+fault flag are not a coherent output-worker health contract. Thread and wake
+resources must be owned by one generation (or deliberately for process life),
+with ready, progress, terminal completion and one-owner reap. Publishers must
+pin that ownership before use; watchdog recovery must neutralize and either
+rebuild within a hard bound or terminate an isolated boundary. A poisoned
+generation may not make every future recovery impossible.
+
+The working v1.4 EXE remains a required A/B runtime oracle, but not an
+architectural rollback target: the available stable/current output-worker
+source section is line-for-line identical. Root-cause work must therefore trace
+handle provenance and forced interleavings rather than assume a SparkLink
+protocol regression.
+
+## D-052 - Architecture alternatives are evaluated before implementation
+
+Date: 2026-08-21
+
+Every release-roadmap implementation package follows
+`ENGINEERING_WORKING_METHOD.md`. Before changing production code, the package
+must define evidence, affected invariants and an old-bug oracle, then compare
+at least a local root correction, a staged architectural migration and a clean
+redesign/rewrite when those alternatives technically exist.
+
+The chosen option is the one with the strongest correctness, latency,
+liveness, resource ownership, data contract, testability, security and
+migration properties. A smaller diff, retained legacy implementation or faster
+short-term build is not preferred merely for being easier. Conversely, a
+big-bang rewrite is not preferred merely for being new: staged replacement is
+better when it reaches the same correct architecture with lower migration risk
+and preserves characterization evidence.
+
+Production work stops and returns to architecture comparison when a proposed
+fix needs another special case, cannot name one owner, waits for a digital edge
+to identify analog input, guesses protocol/layout/scale, hides stale state with
+retry/timeout, or cannot be proven through the production path. Deeper redesign
+is accepted when necessary; no artificial release deadline overrides this
+contract.
+
+## D-053 - ViGEm output moves to a supervised self-hosted process
+
+Date: 2026-08-21
+
+The local in-process repair, an in-process generation owner and a self-hosted
+output process were compared under D-052. A process-lifetime wake event and RAII
+would fix the known wake race, and an in-process generation object would make
+health/ownership coherent, but neither can safely terminate a synchronous
+`vigem_target_x360_update` that never returns. Killing such a thread would leave
+live stack/library/request state and is forbidden.
+
+The selected end state is the same `HallJoy.exe` in an internal ViGEm-output
+child mode. Realtime publishes one newest complete four-pad XUSB snapshot to a
+versioned bounded shared mapping and signals an event that remains alive across
+child generations. One parent supervisor owns all process/thread/job handles,
+deadlines and reap. The child exclusively owns ViGEm client, targets, updates,
+reconnect and destruction. A stalled child can be terminated and reaped as a
+whole process before exactly one replacement generation starts.
+
+The implementation is staged behind production-linked fake-transport and
+process-fault gates, but there may never be two simultaneous production ViGEm
+owners. The legacy thread remains the only production owner until the atomic
+routing switch, then is removed completely. Full contract, rejected options,
+old-bug oracles and rollback boundary are in
+`VIGEM_OUTPUT_PROCESS_ARCHITECTURE_2026-08-21.md`.
+
+## D-054 - Prove the Windows IPC contract and generic supervisor separately
+
+Date: 2026-08-22
+
+The first claimed-slot channel package was reopened before building a child.
+Portable `std::atomic_ref` stress alone is not the final Windows cross-process
+contract. Shared control and slot transitions now use documented Win32
+Interlocked operations on Windows, an in-flight publisher lease closes the
+disable-to-publication race, and child-written health is explicitly telemetry;
+restart count and authoritative lifecycle remain private to the parent.
+
+A real Windows parent/child executable now rejects a wrong nonce and exchanges
+100,000 complete four-pad snapshots through the production channel. This proves
+the data-plane primitive, but it intentionally does not prove production
+process ownership: its broad inheritance is test-only. The next package must
+first implement a reusable fake-child supervisor with an explicit inherited
+handle list, job containment, bounded startup/progress/stop, exact one-owner
+reap, no generation overlap and zero survivors. ViGEm create/update/destroy is
+added only after that lifecycle passes. This prevents driver/library behavior
+from obscuring defects in the more fundamental process-generation owner.
+
+## D-055 - Child containment is established before its first instruction
+
+Date: 2026-08-22
+
+F1 compares direct reuse of the analog-host supervisor, immediate extraction
+and migration of analog-host, and a new common process-generation primitive.
+Direct reuse is rejected because the existing loop is UAP-specific and starts
+the child before job assignment. Immediate analog-host migration is rejected
+for this package because it combines a qualified UAP route migration with an
+unproved ViGEm foundation.
+
+The selected implementation is a reusable owner and state machine proved first
+with a fake child. Every generation gets a private kill-on-close job. The child
+is created suspended with an explicit inherited-handle list, assigned to the
+job, and resumed only after containment succeeds. One owner retains process and
+job handles until confirmed reap; a reap failure blocks replacement. Generic
+startup, progress, planned-stop and hard-reap deadlines execute outside
+realtime. F1 contains no ViGEm calls and changes no production route.
+
+The complete comparison, negative fixtures, rollback boundary and acceptance
+gates are in `PROCESS_GENERATION_SUPERVISOR_DESIGN_2026-08-22.md`.
+
+## D-056 - Exact HallJoy self-host uses a reusable output session and qualified stop
+
+Date: 2026-08-22
+
+F1.1 compares a separate helper executable, grafting output service behavior
+onto the UAP analogue host, direct test-only wiring around the F1/R1.1
+primitives, and an early same-image child plus a reusable output-process
+session. A helper creates package/signature/version skew, the UAP graft mixes
+unrelated service ownership, and direct test wiring would be replaced rather
+than extended in F2.
+
+The selected implementation dispatches `--halljoy-vigem-output-host` at the
+first point in `wWinMain`. A narrow output session owns the process-lifetime
+unnamed mapping/wake/stop/owner objects, uses the F1 supervisor as the sole
+process/job owner, and adds output-specific protocol admission and completion
+above that generic lifecycle. Simulator-only fake transport and fault modes
+exercise this exact HallJoy image; `backend.cpp` remains on the legacy owner.
+
+A generic `PlannedStop` result is not an output success. The matching child
+generation must also acknowledge neutral application, target removal and
+`completedStopGeneration`; otherwise the output adapter reports an incomplete
+stop. The shared child-health plane gains an explicit generation and a
+transactional telemetry sequence within previously reserved space, preserving
+the 640-byte ABI while preventing stale or torn child observations from
+admitting a replacement.
+
+The complete alternatives, invariants, rollback boundary and exact-EXE O3/O4
+gates are in
+`VIGEM_OUTPUT_SELF_HOST_FAKE_TRANSPORT_DESIGN_2026-08-22.md`. No ViGEm call may
+move into the child until this fake-transport composition passes.
+
+## D-057 - Real ViGEm child uses one exhaustive RAII transport
+
+Date: 2026-08-22
+
+F2 compares inline SDK calls in the command host, transplanting the complete
+legacy worker, immediately sharing a newly extracted transport with both legacy
+and child routes, and a child-only RAII transport behind the proved F1.1
+session. Inline calls mix trust parsing with lifecycle, the transplant imports
+the obsolete wake/thread/poison model, and changing the legacy route now would
+break the atomic rollback and failure-attribution boundary.
+
+The selected child transport owns one ViGEm client and a fixed four-target
+array. Its planned stop attempts neutral on every added target, then removal
+and free on every target regardless of an earlier failure, and preserves the
+first exact SDK error and phase. Only complete neutral plus complete removal
+can acknowledge a clean stop. A default immutable API table calls the real SDK;
+deterministic tests inject a fake table solely to exhaust every failure edge.
+
+Pad count is immutable for a child generation. The parent writes it with a
+matching configuration generation into reserved shared-control capacity before
+launch; `Ready` acknowledges that configuration only after every target was
+added. The ABI remains 640 bytes and the command-line/handle contract does not
+grow. `backend.cpp` and production routing remain unchanged until the real-child
+gate passes and a later package performs one atomic owner switch.
+
+The complete comparison, invariants, gates and rollback boundary are in
+`VIGEM_OUTPUT_REAL_CHILD_TRANSPORT_DESIGN_2026-08-22.md`.
+
+## D-058 - F3 atomically replaces the in-process ViGEm owner
+
+Date: 2026-08-22
+
+F3 re-compared patching the legacy worker, introducing a temporary selectable
+second runtime, and routing production directly through the proved process
+session. Patching cannot bound a driver call blocked inside HallJoy. A dual
+runtime introduces an overlap state and duplicated lifecycle authority. The
+selected implementation removes the old owner in the same package that adds
+one production `OutputRuntime`; no configuration can reactivate both.
+
+The runtime owns one process-lifetime mapping/wake/stop session, one parent
+supervisor thread and immutable desired-configuration revisions. Realtime has
+only a bounded complete-snapshot publication entry. Every planned stop,
+configuration replacement, child exit and progress timeout disables parent
+publication before stopping/reaping the exact child, then drains already-
+admitted publisher leases before mapping reuse or replacement. Recovery uses a
+bounded backoff and cannot create a second owner from the UI watchdog.
+
+Publication admission and child lifecycle identity are deliberately distinct.
+Closing admission before stop must not revoke the already-contained child's
+right to report neutral application, target removal and terminal state. The
+immutable child generation/PID remains authoritative until reap; a successor
+cannot exist during that interval.
+
+Local process, real ViGEmBus, routed normal, child-exit and stalled-child gates
+pass with strict non-overlap and zero survivor. This completes the F3 code
+route, not the release risk. Exact local O5 is recorded by D-059; long active-
+input and exact final-artifact IROK/DrunkDeer qualification remain mandatory.
+
+## D-059 - ViGEm generation topology and stop/resource boundaries are distinct
+
+Date: 2026-08-22
+
+O5 compared pausing the whole analogue producer around every configuration,
+accepting arbitrary snapshot sizes and relying on the child to reject them, and
+binding publication shape to the exact active output generation. Pausing would
+add lifecycle latency to input; child rejection turns a normal settings race
+into a transport fault. The selected channel admits only the pad count committed
+to the active generation. A producer that crosses a count change returns
+immediately for retry; it never waits and never submits the wrong topology.
+
+The same stress separated two stop conditions that F3 had initially combined.
+Before child stop/force, the parent must close generation admission. After the
+child is reaped, it must drain any producer already inside its bounded lease
+before reusing or closing shared resources. Waiting for that harmless producer
+inside the child's neutral/remove deadline can falsely poison a fully clean
+stop; omitting the post-reap drain can close memory under a producer. The
+selected two-boundary ordering satisfies both without adding work to realtime.
+
+The exact same-image runtime gate publishes at least 100,000 changing snapshots
+across 101 generations, 50 pad-topology changes and 10 disable/enable cycles,
+then proves newest sequence/checkpoint equivalence and zero survivor. Twenty
+independent repetitions passed with no unsafe generation or session rebuild.
+This closes local O5 architecture qualification only; long-duration physical
+IROK/DrunkDeer qualification remains release-blocking.
+
+## D-060 - AnalogProviderV2 uses a versioned contract and staged migration
+
+Date: 2026-08-22
+
+R2 compares enlarging the current numeric arrays, replacing every input and
+profile surface in one big-bang rewrite, introducing a strict contract beside
+verified compatibility adapters, and using string/UUID identities in realtime.
+Array growth preserves collisions and milli quantization. A big bang loses
+failure attribution and hardware-safe rollback. Strings/UUIDs move allocation
+and registry ambiguity into the hot path.
+
+The selected staged route first introduces production-compiled POD types and a
+portable validator. `KeyIdentityV1` separates USB usage-page identity, Soup/UAP
+extended controls and HallJoy semantic inputs. `AnalogSnapshotV2` carries exact
+source ownership, independent provider/sample/value/ownership generations,
+freshness, explicit complete/truncated capacity, normalized float and optional
+raw numerator/domain. A complete zero sample is an authoritative release;
+changed-only lists are acceleration only.
+
+No provider or profile is switched in the foundation package. UAP and native
+read-only adapters come next and must pass old/new XUSB equivalence before a
+production route changes. Legacy milli is permitted only as an explicitly
+marked compatibility input with a removal gate; new providers may not publish
+through it. The full comparison and rollback boundary are in
+`ANALOG_PROVIDER_V2_FOUNDATION_DESIGN_2026-08-22.md`.
+
+## D-061 - UAP must export a full V2 snapshot before HallJoy can adapt it
+
+Date: 2026-08-22
+
+R2-B2 found that the existing UAP dense table is not merely awkward to adapt:
+both the plugin worker and isolated host discard historical codes above 255.
+Consequently Fn, DrunkDeer OEM1/Menu/Fn2 and consumer media values cannot reach
+an adapter built only in the parent process.
+
+The compared alternatives were enlarging the ambiguous numeric table, adding
+an extended side list, re-reading or digitally correlating special keys in the
+parent, and exporting the versioned provider contract directly from UAP.
+Numeric growth and a side list preserve two legacy domains; re-read duplicates
+hardware work; digital correlation adds activation-depth latency and cannot
+identify Fn reliably.
+
+The selected design retains values by Soup key before compatibility projection
+and exports one immutable per-device `AnalogProviderV2` snapshot. USB keyboard
+and consumer keys receive their real usage pages; Fn/OEM controls use the UAP
+namespace. The old 256-key ABI remains temporarily as a projection of the same
+worker acquisition. Layout proof stays false unless a model-specific capability
+map exists, so a provider-owned zero cell is not misrepresented as a printed
+physical key.
+
+R2-B2 adds only a read-only parallel path and comparison gates. `Backend_Tick`
+must remain on the qualified route until deterministic old/new output
+equivalence passes. Full alternatives and invariants are recorded in
+`UAP_PROVIDER_V2_SNAPSHOT_DESIGN_2026-08-22.md`.
+
+## D-062 - GravaStar V75 extends the proved 6x21 family by exact identity
+
+Date: 2026-08-22
+
+The V75 firmware audit compared five routes: copying the Aula backend under a
+GravaStar name, sending V75 to legacy SparkLink, broad GravaStar brand probing,
+hard-coding a recovered or digitally learned layout, and extending the existing
+SparkPlayJoy 6x21 engine with a bounded exact USB/board registry. A copy would
+duplicate transport and lifecycle ownership; legacy SparkLink is a different
+wire protocol; broad probing enlarges the HID attack/failure surface; a guessed
+or digital-event map either mislabels keys or adds activation-depth latency.
+
+The selected design adds only the three firmware-proven identities to the same
+registry used by 6x21 discovery and legacy pre-open exclusion. Exact identity
+permits a read-only probe but never a claim. The candidate must still prove
+usage/report shape, frame integrity, live scale, unique default map, two stable
+complete 16-bit active maps, plausible travel and its exact board ID before the
+interface path is claimed.
+
+The protocol's `F001` function maps directly to the already established HallJoy
+analogue Fn semantic `0x409`; USB Menu remains `0065`; all unknown vendor
+functions fail closed. This is matrix publication from the keyboard's own live
+map, not runtime learning and never digital correlation. The file/module name
+is left unchanged in this functional package to avoid a broad cosmetic rename;
+the user-facing descriptor identifies the SparkPlayJoy 6x21 Aula/GravaStar
+family. Physical support remains pending one bounded diagnostic run.
+
+The distributable diagnostic is also subject to a final-sink privacy gate,
+independent of which producer emitted a line. Private roots and raw SetupAPI or
+Raw Input device paths are redacted, and the one-file V75 bridge excludes
+unrelated subsystem inventories. Acceptance runs the exact packaged EXE in an
+isolated directory and requires a complete `session.end`, clean `WM_CLOSE`,
+unchanged hash and no surviving process before the artifact may be sent.
+
+The physical tester must also end with a machine-checkable answer. Offline
+inference from a long log was rejected because a missing early branch could
+again make the run useless; ad-hoc event expansion was rejected because it
+cannot prove completeness. The diagnostic build therefore owns monotonic
+progress and first-material-failure state and emits exactly one
+`diagnostic.verdict` on every handled exit. It reports either a received matrix
+stream or an explicit request to return the log, including the last identity,
+open error and protocol stage needed to make the next correction.
+
+This does not relax admission. Diagnostic enumeration may safely observe a
+different `1CA2`/`1CA5` VID/PID or GravaStar SetupAPI brand so the log can reveal
+a firmware identity change, but it never opens such an unknown interface. The
+ordinary production build retains the exact-profile and full read-only proof
+requirements and contains none of this continuous diagnostic telemetry.
+
+## D-063 - Exact known 6x21 boards and unknown family candidates use different compatibility policies
+
+Date: 2026-08-22
+
+The first physical V75 trace proved every live protocol stage but exposed an
+invalid assumption in D-062's implementation: the family firmware predicate
+treated Aula model bytes `C0/01/00` as universal. The V75 sync is structurally
+valid and reports its exact expected board `16052201`, but its corresponding
+bytes are `00/04/00`. Requiring both identities made the firmware proof reject
+the keyboard after already proving the stronger model-specific fact.
+
+Four corrections were compared: accept any structured 6x21 sync, special-case
+the three V75 bytes, remove the firmware predicate, or make the trust policy
+explicit. The explicit policy is selected. A VID/PID already present in the
+firmware-derived exact registry carries its exact expected nonzero board ID;
+the sync must match that board and the structured descriptor envelope, followed
+by the unchanged full framing/correlation/scale/map/stability/travel proof.
+An unknown family candidate has no such independent model correlation and must
+retain the narrower Aula `C0/01/00` signature. Thus physical firmware variation
+is admitted only where an equal or stronger exact identity exists.
+
+A semantic contradiction cannot become true merely because one second passed.
+After deterministic firmware, precision, map or travel rejection, the worker
+therefore waits for a real device-change notification or shutdown. Timed retry
+remains only for transient transport and claim failures. This prevents needless
+HID traffic, log growth and reconnect-like churn without hiding recoverable I/O
+failure or learning anything from Windows digital input.
+
+## D-064 - Critical child/job handles use kernel-enforced ownership
+
+Date: 2026-08-22
+
+The corrected physical V75 trace proved that moving ViGEm into a child removed
+the legacy output-thread handle but did not remove the underlying close/ownership
+class. After 135.6 seconds the supervisor's stored child-process handle returned
+`ERROR_INVALID_HANDLE`; the analogue backend continued normally while virtual
+output froze and the UI attempted 218 impossible session rebuilds.
+
+Four responses were compared. Keeping raw private handles and relying on code
+review cannot defend against an accidental numeric `CloseHandle`. Duplicating
+the process handle leaves two closeable slots and still cannot make ownership a
+kernel invariant. Reopening by PID after failure risks PID reuse, weaker access
+and an unprovable gap. Immediately restarting all of HallJoy contains damage but
+does not prevent the cause and loses user state.
+
+The selected design gives the sole generation owner a non-copyable protected
+handle type. Adoption sets `HANDLE_FLAG_PROTECT_FROM_CLOSE` on both child process
+and Job Object; every accepted generation records that protection and the
+process PID still match. Only the owner removes protection, and only when it is
+ready to close after a confirmed terminal state. Windows therefore rejects an
+accidental foreign close before the handle-table slot can be freed or rebound.
+
+Failure containment remains independent of prevention. If ownership, reap or
+session teardown is nevertheless unprovable, no replacement generation may
+overlap it. The UI emits one complete recovery-blocked event and requires a
+HallJoy restart instead of retrying forever. This fail-closed path is not the
+normal recovery mechanism; it is the truthful terminal fallback for a violated
+lifecycle invariant.
+
+## D-065 - UAP V2 capacity describes the captured generation, not caller memory
+
+Date: 2026-08-22
+
+The first R2-B2 implementation exposed a second truncation boundary. The UAP
+registry is dynamic, but the lock-safe pinned-owner transport currently retains
+at most eight device owners. Merely passing a larger destination buffer cannot
+make the ninth owner part of the captured generation. Reporting that caller
+buffer as snapshot capacity would therefore permit a truncated internal view to
+look complete or internally invalid.
+
+Three responses were compared: silently keep the first eight, dynamically
+allocate while holding the registry, or preserve the registry demand and report
+the effective immutable capture window. Silent truncation repeats the original
+bug. Allocation inside this ABI/lifecycle package enlarges exception and lock
+behavior before negotiated IPC exists. The selected staged response records the
+source registry's `required_count`, bounds copied devices/samples by the pinned
+generation, and reports that effective capacity even when the caller supplied a
+larger buffer. Validation then requires the `Truncated` flag exactly when demand
+exceeds captured capacity.
+
+This is an honest fail-closed bridge, not the final variable-capacity IPC. The
+read-only parent capture may observe and diagnose it, but production output
+remains on the legacy route. A later negotiated data-plane package removes the
+fixed window; before that switch, a same-generation shadow must prove the real
+configured XUSB reports equal field-for-field.
+
+## D-066 - UAP compatibility and V2 views come from one pinned acquisition
+
+Date: 2026-08-22
+
+R2-B2a left the legacy dense and V2 views as two child export calls. Retrying
+until counters match was rejected because it cannot prove one pinned owner set
+and can hide an ABA publication. Deriving legacy only from V2 and switching the
+route now was rejected because it removes the qualified compatibility fallback
+before configured output equivalence. Keeping separate calls was rejected as an
+invalid oracle.
+
+The selected private export pins device owners once, locks each device once and
+builds both views from that captured generation. It returns the namespaced V2
+samples and the ordinary-HID dense projection together. The exact DLL gate
+independently reconstructs all 256 dense cells from V2 for every captured device
+and requires equality, valid generations and finite normalized values.
+
+IPC V12 labels a provider snapshot coherent only after the child validates both
+views and their projection. The parent refuses a V2 capture without that label.
+A dual-contract failure invalidates only the new read-only path and increments
+telemetry; the child may use the old export solely to preserve the still-
+qualified production route. Digital input is never used for correlation,
+learning or fallback.
+
+The exact production image must prove a non-empty parent capture through the
+real isolated child. This closes acquisition/transport coherence only.
+`Backend_Tick` stays on the legacy route until the next package compares actual
+configured bindings, curves and every XUSB report field in read-only shadow.
+
+## D-067 - Configured XUSB comparison uses one explicit-state production builder
+
+Date: 2026-08-22
+
+Calling the old report builder twice was rejected because it mutated global
+Snappy Joystick/Last Key Priority and mouse state; the shadow call could affect
+the game or compare against a different state transition. Comparing only raw
+values was rejected because it omits bindings, curves, thresholds and report
+conversion. Copying the builder was rejected because two implementations can
+drift before a route switch.
+
+The selected design extracts one production-linked builder. It accepts an
+immutable per-tick binding/settings snapshot, already filtered input values and
+an already acquired mouse contribution. Stateful conflict behavior is explicit
+caller-owned data. Qualified and V2 shadow routes use distinct state objects but
+the same component and configuration value.
+
+The qualified route is migrated first and independently compiled/smoked before
+V2 shadow integration. The shadow report must never reach ViGEm. Missing,
+truncated or incoherent V2 evidence skips/fails the comparison and cannot alter
+qualified output. Full design and remaining gate are in
+`CONFIGURED_XUSB_SHADOW_DESIGN_2026-08-22.md`.
+
+## D-068 - Mapping emits a neutral controller frame; XUSB is an output adapter
+
+Date: 2026-08-22
+
+Keeping `XUSB_REPORT` as HallJoy's canonical mapped state was rejected because
+Xbox masks and naming would leak into every future output, including planned
+DualShock 4 support. Immediately introducing a universal graph for touch,
+motion, arbitrary axes and controller-specific extensions was also rejected:
+there is no current consumer or compatibility proof for that larger contract,
+and it would broaden the live Provider V2 migration unnecessarily.
+
+The selected boundary is a versioned internal `VirtualControllerFrameV1` for
+the standard controls HallJoy already produces: semantic buttons, two triggers
+and four sticks. The configured mapping builder returns that neutral value.
+`xusb_output_adapter` alone owns Xbox masks and conversion to the existing
+`XUSB_REPORT`; ViGEm publication remains unchanged and XUSB-only.
+
+V1 is not an IPC or persistence ABI and makes no DS4 support claim. A future
+DS4 adapter can map the shared standard controls without changing input mapping;
+touch, motion or output-specific extensions require an explicit later frame
+version. Exact adapter regressions must prove all current XUSB fields before and
+after this boundary. Provider V2 shadowing and any production route switch stay
+separate later gates.
+
+## D-069 - One parent transaction owns every UAP value used by a tick
+
+Date: 2026-08-22
+
+The production path could previously call the legacy per-key UAP reader for
+each binding. Every call was individually coherent, but the child could publish
+between calls, allowing one controller frame to mix adjacent generations.
+Reading dense and V2 separately then comparing counters was rejected because it
+retains an ABA window. Capturing V2 beside unchanged per-key qualified reads was
+rejected because it would create a false equivalence oracle. Switching output
+directly to V2 was rejected because configured equivalence is not yet proven.
+
+The selected API copies publication metadata, aggregate dense values,
+per-device dense values and optional Provider V2 beneath one shared sequence.
+The qualified UAP route consumes the captured dense compatibility plane for the
+whole tick. V2 remains read-only and unconsumed by mapping. A stable dense
+capture remains valid when V2 is absent; if the complete parent transaction is
+unavailable, the old analogue read is the availability fallback.
+
+The child and parent use one production validator for per-device dense/V2
+projection, and the parent additionally verifies the aggregate max merge and
+active counts. No digital event participates in correlation, learning or this
+fallback. Live shadow mapping, mismatch telemetry and route switching remain
+separate gates.
+
+## D-070 - Provider V2 is qualified by a live full-frame shadow, never by raw-only comparison
+
+Date: 2026-08-23
+
+Four implementations were reconsidered after the one-parent capture landed.
+Switching production directly to V2 was rejected because it removes the dense
+rollback oracle before real configured equality is observed. Comparing only raw
+or curved keys was rejected because it omits bindings, thresholds, SOCD/Last Key
+Priority, mouse merge and output fields. Copying the report builder was rejected
+because two implementations could drift. Learning V2 identities from later
+Windows keydown was rejected absolutely: it adds activation-depth latency and
+cannot represent Fn/Menu keys that may not emit an ordinary digital event.
+
+The selected route projects explicit V2 identities from the same immutable
+parent tick, merges the exact cached native ownership, applies one shared curve,
+configuration and mouse sample, and invokes the same neutral-frame builder with
+separate state. Owned zero is distinct from absence. Consumer/semantic
+namespaces are not aliased. A missing/incoherent V2 capture, digital fallback or
+curve-generation mutation makes the sample ineligible and resynchronizes shadow
+history from qualified history.
+
+All seven controller fields are compared. Bounded in-memory counters retain
+matches, mismatches, per-field totals and skip causes without continuous
+production logging. Only the qualified dense result crosses the XUSB adapter
+and ViGEm boundary. Implementation/local gates do not authorize route promotion:
+representative physical zero-mismatch evidence and a separate explicit switch
+decision remain required.
+
+## D-071 - Provider V2 promotion evidence is one fail-closed ordinary-lifecycle report
+
+Date: 2026-08-23
+
+Continuous production logging was rejected because it adds permanent I/O and
+does not define a trustworthy session verdict. UI-only counters were rejected
+because a screenshot has no durable session identity or finalization. A hidden
+partial-backend command was rejected because it would not exercise the normal
+HallJoy lifecycle and configured game path. Direct promotion from local shadow
+counters was rejected because idle ticks, repeated sample generations and a
+backend reset could otherwise look successful.
+
+The selected implementation is an opt-in ordinary HallJoy build. At startup it
+atomically replaces any old evidence with a flushed `INCOMPLETE` report. Only a
+normal application shutdown may finalize it. A crash or poisoned immediate exit
+therefore cannot leave a current-looking `PASS`. Process evidence is monotonic,
+requires exactly one backend generation, 1,000 eligible ticks/reports, 100
+unique UAP sample generations, bounded unavailability, no digital fallback/
+curve mutation and zero field mismatch. Elapsed duration is recorded but is not
+a verdict gate. The original 60-second threshold was removed: an arbitrary
+59.9/60.0-second cliff cannot prove either equality or stability. Stability is
+qualified separately by purpose-built soak, reconnect and fault tests, and no
+finite runtime is treated as proof against every later failure.
+
+Coverage is not inferred from final controller output alone: mouse or native
+input could activate that output without exercising UAP. Activation requires
+both Provider V2 raw ownership with at least half travel and a non-neutral mapped
+shadow field. Release is latched after activation and is accepted only when both
+the Provider V2 raw bindings and mapped field are neutral; partial return cannot
+count as release. The 28 pad/field slots remain independent. Windows digital
+input is absent from this path.
+Mismatch yields `FAIL`; missing proof yields `INCOMPLETE`; only complete evidence
+yields `PASS`.
+
+The dedicated image writes one bounded transactional text file and performs no
+file I/O from `Backend_Tick`. The ordinary release contains no report marker.
+Both images continue publishing only dense compatibility output; a physical
+qualification `PASS` permits a separate promotion decision but never switches
+the route automatically.
+
+Two finalized physical reports from the exact same schema-1 qualification EXE
+may be aggregated because each contains independent monotonic frame/generation
+history and fixed pad/field masks; this is offline evidence composition, not
+runtime learning. Their union covers every configured field (`0x7E`) through
+activation and release across 43,879 zero-mismatch frames and 10,777 unique
+generations. R2-B2g physical configured-output equality is therefore complete;
+route promotion remains a separate decision.
+
+## D-072 - Provider V2 promotion waits for a genuinely negotiated producer
+
+Date: 2026-08-23
+
+Physical configured-output equality closes mapping correctness, but it does not
+make the current eight-owner UAP capture complete. Four next steps were compared:
+immediate frame selection, enlarging the fixed constant, one big-bang producer/
+IPC/route rewrite, and a staged negotiated producer followed by a split data
+plane. Immediate selection preserves a known capacity defect. A larger constant
+only moves it. The big-bang destination is sound but combines too many ownership
+and rollback boundaries without an independently qualified producer.
+
+The selected R2-B2h package makes the existing zero-capacity demand plus exact-
+capacity request contract real. Reusable storage grows before registry/device
+locks; one complete owner generation is pinned, device locks are released in
+reverse order and every shared owner reference is cleared on all exits. Topology
+movement retries only within a small bound and otherwise fails closed. Caller
+capacity controls copied output but can no longer restrict which registry owners
+the producer is capable of capturing.
+
+This package deliberately does not promote output and does not claim the current
+monolithic eight-slot IPC is fixed. R2-B2i must negotiate a separately owned,
+parent-read-only Provider V2 data plane and prove its generation/resize/fault
+lifecycle. R2-B2j may then select Provider V2 and remove the dense runtime
+fallback. Full analysis and gates are in
+`UAP_PROVIDER_V2_NEGOTIATED_CAPACITY_DESIGN_2026-08-23.md`.
+
+## D-073 - The firmware testbed is layered, hash-pinned and outside production HallJoy
+
+Date: 2026-08-23
+
+Building one ND75-only scripted protocol mock was rejected because it would
+duplicate assumptions and would not extend to another firmware. Starting with a
+complete M484 board emulator was rejected because clocks, NVIC, USB, DMA,
+GPIO/ADC, flash and scheduler modelling would delay the HallJoy correctness
+roadmap before proving that those components answer a current question. Loading
+an arbitrary updater and guessing its behavior was rejected because a green test
+could then be weaker than the firmware evidence it claims to represent.
+
+The selected design separates scenario generation, synthetic Hall inputs,
+firmware execution, family/peripheral models, virtual HID transport and HallJoy
+result oracles. Every firmware profile pins the exact bytes and declares one
+evidence level: replay, protocol model, selected original machine code, or full
+reset-to-main emulation. Unknown instructions, memory, peripherals, descriptors,
+identity or protocol behavior fail closed. Digital Windows key events never
+select, learn or delay analogue identity.
+
+Windows VHF is a thin bounded transport only; firmware execution and test logic
+remain in user mode. HallJoy is tested unmodified through its ordinary HID path,
+and the testbed cannot relax production device admission. The architecture grows
+incrementally from the existing M484 instruction-level work to an exact ND75
+vertical slice, multi-firmware family packs and, only when justified, full-board
+emulation without discarding earlier profiles or scenarios.
+
+This program is mandatory long-term engineering work but is not a blocker for
+the next stable HallJoy release. Virtual evidence cannot replace final physical
+hardware qualification or establish unmodelled sensor, USB timing or board
+electrical behavior. The authoritative stages and gates are in
+`FIRMWARE_VIRTUAL_HID_TESTBED_ROADMAP_2026-08-23.md`.
+
+## D-074 - Provider V2 uses a separate parent-read-only double-buffered data plane
+
+Date: 2026-08-23
+
+R2-B2h proved that the producer can discover and capture the complete owner set,
+but the isolated-host `SharedState` still embeds eight dense devices and a fixed
+V2 payload. Increasing those constants was rejected because it only moves the
+capacity cliff. Replacing the whole control/dense/V2 mapping with one variable
+mapping was rejected because control and payload would still share all-access
+ownership and every topology resize would disturb unrelated lifecycle state. A
+pipe/RPC frame broker was rejected for the realtime payload because it adds
+another copy, queue/backpressure policy and wake boundary to every generation.
+
+The selected design keeps the bounded legacy control/dense mapping only through
+the migration and adds a separate variable-size Provider V2 section. The parent
+creates and owns the section, maps its payload `FILE_MAP_READ`, and passes the
+handle to the isolated child, which owns the writable view. Two fixed-capacity
+slots are laid out from overflow-checked negotiated device/sample counts. The
+child writes an inactive slot, validates the complete snapshot, then publishes a
+generation-bound commit. The parent copies only a matching stable slot into
+pre-sized caller-owned storage and rechecks both slot and dense transaction
+tokens. No parent write is required on the realtime read path.
+
+Initial zero-capacity discovery and later topology growth use the existing small
+control plane only to report required counts. The old child is stopped and reaped
+before the parent replaces the section and launches a new plane generation.
+Unknown sizes, overflow, defensive-ceiling excess, partial snapshots, generation
+mismatch or an unstable slot fail closed. Old payload bytes remain unreachable
+after invalidation because no current control commit names them; clearing a
+million-sample mapping in realtime is neither required nor allowed.
+
+Implementation is staged: B2i-a proves the portable layout, arithmetic and slot
+contract; B2i-b adds inherited-handle creation, read-only parent mapping,
+negotiation and restart/resize fault gates; B2i-c moves live shadow capture to the
+new plane and removes fixed Provider V2 payload arrays from `SharedState` and the
+fixed parent snapshot. Dense production output remains the rollback route for
+all B2i stages. Only the later explicit R2-B2j decision may select Provider V2
+and remove dense runtime fallback. Full invariants and gates are in
+`UAP_PROVIDER_V2_SPLIT_DATA_PLANE_DESIGN_2026-08-23.md`.
+
+## D-075 - Provider V2 becomes the local engineering route after B2i-c, before release promotion
+
+Date: 2026-08-23
+
+Keeping dense output selected until the release-promotion decision was
+reconsidered after B2i-a. It protects users, but it would also leave the new live
+transport and output route largely unexercised by ordinary local use. Selecting
+the current shadow immediately was rejected: today it still obtains Provider V2
+through the old fixed `SharedState`, so that would test the semantic builder but
+not the split mapping, rights, capacity or restart lifecycle that B2i is meant to
+replace. Waiting until B2j for the first actual output was also rejected because
+release qualification would then discover ordinary-use defects too late.
+
+After every B2i-c live-plane gate passes, the normal local engineering build
+selects Provider V2 output for the entire process lifetime. It never silently
+substitutes dense input when the V2 generation is missing or invalid: the
+affected Provider V2 source fails closed to neutral and exposes a bounded status
+reason. Independently valid native/mouse inputs remain governed by the common
+builder rather than being discarded merely because UAP is unavailable.
+
+The legacy dense route remains implemented, compiled and directly regression-
+tested, but is selected only by an explicit immutable build property for a
+clearly named emergency/user-test artifact. There is no UI switch, persisted
+setting or automatic runtime fallback that could hide V2 failures. Both routes
+must compile in ordinary checks, and exact route-identity tests must prove which
+one a produced artifact selected. The selector cannot change after startup, so
+stateful SOCD/LKP history is never transferred between routes at runtime.
+
+R2-B2j therefore becomes the decision to promote the already-used V2 route to a
+user release and retire dense runtime compatibility, not the first time V2 sends
+controller output. Until B2i-c is complete, ordinary and user builds continue to
+select dense output because the Windows plane is not yet the live shadow route.
+
+## D-076 - Physical UAP tests require process isolation; product HID policy is unchanged
+
+Date: 2026-08-23
+
+Running a second UAP/HallJoy instance beside an active HallJoy was previously
+allowed by several test paths. A named per-family transaction mutex prevents two
+writes from overlapping, but it does not make independently opened HID input
+queues transaction-private. Keychron custom full-matrix `A9 31` returns four
+packets carrying the same command/subcommand and no visible request token or
+part index. `discardStaleReports()` only establishes a pending overlapped read;
+it does not prove a quiet, fully drained transaction boundary. A second owner,
+especially one terminated during the response, can therefore leave another
+open handle able to assemble packets from different requests. This is the
+strongest code/protocol explanation for the observed stable down/right matrix
+shift; it is not promoted to captured on-wire proof without a trace.
+
+Three broader reactions were rejected. Restarting/relearning from Windows
+digital keys would introduce the forbidden activation-depth delay and hide a
+protocol error. Making every product HID open exclusive could break vendor
+configuration applications and needs separate compatibility evidence. Adding a
+global HallJoy singleton would change ordinary multi-instance product behavior
+to solve a test-runner problem.
+
+The selected immediate rule is fail-closed physical-test isolation. The leaf
+private-UAP ABI runtime check, official build runtime gate, exact dual-capture
+runner and ordinary production smoke enumerate HallJoy processes before any UAP
+hardware open and refuse to run if one exists; enumeration failure is also a
+failure. Static/native compilation and synthetic process tests remain usable in
+parallel. No running user process is terminated. Future firmware/protocol work
+may add a response transaction/part identity or prove an exclusive-open policy,
+but neither is silently inferred by the current checkpoint.
+
+## D-077 - Bridge-owned preallocated broker is the Provider V2 realtime boundary
+
+Date: 2026-08-23
+
+B2i-c must expose variable-capacity Provider V2 data to controller construction
+without allocating, waiting or retaining a mutable mapping pointer in
+`Backend_Tick`. Three smaller designs were rejected. A realtime SRW/vector copy
+can block or allocate during hotplug. A direct mapping view can be overwritten
+when the child reuses its inactive slot. Defensive-maximum fixed arrays waste a
+large permanent working set and merely replace one compile-time cliff with
+another.
+
+The selected boundary is a three-slot parent snapshot broker written only by the
+existing snapshot bridge. Every slot owns vectors sized outside realtime before
+the corresponding child generation becomes Ready. The bridge copies and fully
+validates one mapping commit, rechecks its transaction, then atomically publishes
+the completed broker slot. Realtime acquires a bounded nonblocking read lease;
+the writer never touches the published slot or a leased slot. If all alternate
+slots are busy, an intermediate generation is dropped rather than delaying the
+consumer.
+
+Resize first revokes broker publication, drains its writer and readers outside
+realtime, then replaces mapping and broker capacity before child launch. A drain
+or allocation failure fails V2 closed and follows the existing retained-resource
+poison policy. The child must also replace its separate fixed and dynamic V2
+queries with one dynamic dual capture after negotiation, placing the plane token
+inside the same legacy dense seqlock. This makes coherence structural rather
+than inferred from adjacent call timing.
+
+## D-078 - UAP hotplug restarts only the isolated child on a real device-change event
+
+Date: 2026-09-05
+
+The private UAP configurations deliberately define `UAP_DISABLE_HOTPLUG=1`.
+The disabled implementation is a repeated broad `discover_devices(false)` scan;
+restoring it would reintroduce unsolicited HID enumeration, racing device I/O and
+unbounded work independently of a real topology change. It must not be enabled.
+
+Three alternatives were considered for reconnect after `WM_DEVICECHANGE`:
+
+1. Enable the old periodic UAP scan. Rejected: it is polling, not an event
+   boundary, and restores the reason the flag was introduced.
+2. Add a mutable plugin control command which re-enumerates from inside a live
+   child. Rejected for this package: it extends the C ABI/control surface and
+   would make device discovery race the plugin's polling/unload ownership.
+3. Coalesce actual Windows device-change notifications into one request consumed
+   by the existing parent supervisor. Selected: the supervisor invalidates the
+   shared snapshot, terminates only its already job-contained child, waits for
+   confirmed reap, then launches a fresh child through the normal bounded
+   generation and negotiated-plane path.
+
+The request is a level-triggered atomic flag. It is accepted only while the
+client is live, is never observed by realtime, and has no timer or retry loop.
+The request is consumed by the supervisor rather than the UI `WM_DEVICECHANGE`
+handler; a storm coalesces to one restart per active child. During replacement
+the existing `Status_Restarting` neutral/fail-closed path remains authoritative.
+A reaped child reruns the plugin's ordinary startup enumeration, so an unplugged
+device disappears and a replugged device becomes visible without restarting
+HallJoy. Reap, job-assignment, plane-retire, or identity failures retain their
+existing poison/block semantics and never turn into an unbounded hotplug retry.
+
+## D-079 — Audited profile persistence and runtime commit (2026-09-05)
+
+Problem/evidence: independent audit F-01..F-08; production-linked loader probe
+accepts empty input, wraps 65543 to 7 and truncates 1033 assignments to 539.
+Invariants: malformed input never mutates runtime; settings and bindings have
+one durable commit; a controller tick cannot observe a partially applied profile.
+
+Option A: validate booleans and rollback two files. Rejected: crash between
+renames still mixes generations and does not solve concurrent tick reads.
+Option B: staged migration to one authoritative settings INI containing bindings,
+retaining legacy pair reads until first successful save; prepare all load data
+before a short runtime commit guard. Selected. File replacement remains the
+existing flushed/validated atomic adapter. Realtime only tries a read lease;
+it never waits on parsing, disk I/O or a writer. The UI drains existing tick
+readers before applying prepared memory state. A contended tick publishes no
+partial report. This preserves current getters while closing the whole-profile
+transaction boundary; all ordinary saves must include both halves.
+Option C: rewrite all settings/bindings/curve getters around immutable global
+snapshots and replace the file format. Rejected for this package: it changes
+every individual editor action and curve cache without improving disk atomicity
+over B; the staged read lease gives the required tick isolation with less
+compatibility risk. It remains a possible later simplification.
+
+Ownership/security: only UI commits profiles; parse budgets apply before
+allocation; no new device/network access. Prepare happens before runtime guard,
+including key-settings allocations. Readers cannot retain state across a commit.
+Legacy pair files are preserved as migration evidence, but once a bundle marker
+exists its bindings are authoritative; no silent fallback to an older sibling.
+Older executables require restoring the pre-change data backup when rolling back.
+Wrong/incomplete bundles fail closed. Window/layout/overlay remain global.
+Tests: old-bug oracles, malformed/wrong-kind/overflow/full-domain load tests,
+bundle single-replace failure stages, concurrent tick/commit test, unified
+source gate, MSVC build and isolated synthetic smoke. Physical claims unchanged.
+Rollback: hash-verified .analysis/backups/profile_audit_fixes_20260905_175549.
+Update owning audit, risk register, validation matrix, roadmap, worklog/handoff.
+
+D-079 validation follow-up: the migration script failed neutral/opposing oracles
+while the real UAP source continued publishing W near 1.0. This is source
+contamination, not a file-loader failure (all scripted phases ran). Alternatives:
+ask the owner to disconnect hardware; suppress neutral assertions; or explicitly
+isolate synthetic ownership in the simulator. Select the last, behind both
+HALLJOY_ANALOG_SIMULATOR and an opt-in test argument. WASD native synthetic values,
+including owned zero on disconnect, feed the unchanged curve/builder/output
+pipeline; physical UAP/native values do not compete for those four test keys.
+Normal builds and the default mixed-input simulator route remain unchanged.
+No assertion is weakened. Migration tests opt into the isolated source.
+
+D-079 completion note: startup autosave is disabled until profile preparation
+succeeds, including main's unconditional final shutdown. Production-linked
+file-only tests verify rejected-startup file hashes and exit before backend
+creation. A clean portable-marker file-only startup also passes. Full portable
+controller simulation remains pending: user requested no gameplay input while
+playing CS. The opt-in synthetic isolation mode still emits controller input
+and must not be used during this restriction.
+
+## D-080 - Preserve mouse IPC v1 and add an opt-in coherent capture boundary
+
+Date: 2026-09-06
+
+The named mouse bridge is a public ABI consumed by an external ASI, so resizing
+it or repurposing fields would require a coordinated release and would not
+repair old deployed helpers. The UI is its only state writer. We retain the
+40-byte v1 schema and make its existing publisher heartbeat an odd/even commit
+marker around the four related policy fields. A new reader can obtain a stable
+image by accepting only equal even values on both sides of its scalar reads;
+an old reader retains the same monotonic heartbeat it already understood.
+
+Replacing the mapping with a new named v2 object was rejected because it leaves
+old and new ASI sessions with split ownership during migration. A lock across
+the public mapping was rejected because the external reader cannot be forced
+to participate and producer latency must remain bounded. This marker is only a
+capture protocol; it does not assert that an unmodified ASI already uses it.
+
+## D-081 - Bound raw-input allocation before data retrieval
+
+Date: 2026-09-06
+
+`WM_INPUT` receives an untrusted size before the application has a typed
+mouse/keyboard payload. Allocating the thread-local receive vector immediately
+from that value makes malformed or unexpectedly large input an unbounded UI
+allocation point. The selected correction rejects a size above the Windows
+raw-input envelope cap before resize, then retains the existing second-call
+typed-size validation. The cap is deliberately 64 KiB: it is comfortably above
+the registered mouse/keyboard payloads while preventing a pathological request
+from retaining arbitrary memory in the UI thread.
+
+Rejecting all packets larger than `sizeof(RAWINPUT)` was rejected because raw
+input packet sizes differ by architecture/type and the existing typed-size
+validator intentionally supports valid compact keyboard packets. Moving raw
+input parsing to a worker was rejected because it changes message ordering,
+adds lifetime/queue ownership and does not improve the simple pre-allocation
+boundary. The hook/pass-through and backend-admission gates remain unchanged.
+
+## D-082 - Bound cached GDI glyph surfaces across DPI/style changes
+
+Date: 2026-09-06
+
+Keyboard-preview and Remap glyph caches own DC/bitmap pairs keyed by rendered
+size and style. Their old maps freed an entry on explicit panel cleanup but had
+no insertion bound, so repeated DPI/size/style changes could retain GDI objects
+for the life of a UI session. The selected correction keeps the fast cache but
+caps each independently owned cache at 256 entries, freeing one complete,
+deselected DC/bitmap pair before inserting a new key at capacity.
+
+Disabling the cache was rejected because repeated glyph rasterisation is a
+measured paint-path cost. A global cache manager was rejected because these two
+surfaces have independent lifecycle and render semantics. Eviction is safe
+because callers consume the returned cache entry before requesting another;
+the implementation never stores a cache pointer across a later lookup.
+
+## D-083 - Classify trace failure evidence without changing producer timing
+
+Date: 2026-09-06
+
+The stability analyzer already detects trace errors, sequence gaps and worker
+leaks, but reported only raw event names. Add deterministic post-capture
+categories for stale input, stalled producer, output failure, storage failure
+and incomplete shutdown. Classification uses the existing component/event names
+and does not add trace writes, polling or filesystem work to realtime code.
+
+Changing every producer to emit a second generic error event was rejected: it
+would obscure the first native failure and increase diagnostic traffic. A
+best-effort pattern matcher that suppresses unknown errors was rejected: unknown
+critical events must remain visible as raw failures. Categories are additive,
+deduplicated evidence labels, not a replacement for the original event.
+
+## D-084 - Freeze AULA HERO84 HE outside ordinary builds until a real tester returns
+
+Date: 2026-09-06
+
+The owner has confirmed that the only available AULA HERO84 HE user stopped
+responding, so the experimental implementation has no real-device evidence.
+Keep its code and its exact admission checks, but remove it from every ordinary
+catalog and ordinary image. The code may be enabled only by the named
+`HallJoyAulaHero84HeExperimental` build property, which produces a separately
+named trace-capable test executable for a future consenting owner.
+
+Leaving the descriptor in an ordinary image was rejected: an untested keyboard
+could be claimed automatically merely because it was connected. Deleting the
+implementation was rejected because it would discard audited protocol work and
+make a future evidence-led test needlessly start over. This is a release-scope
+freeze, not a statement that the device is unsupported forever; physical input,
+release, hotplug and log evidence remain required before a new scope decision.
+
+## D-085 - Preserve the tested Addressed Analog session command
+
+Date: 2026-09-06
+
+The owner confirmed that Addressed Analog is physically tested and working on
+real keyboards. The single `09 98 02` command at session start is established
+protocol behavior: it disables the legacy last-key diagnostic mode before the
+normal addressed `09 94 02` polling loop. Retain it unchanged.
+
+Removing it merely because its purpose was not repeated next to the call site
+would silently alter a working route and was rejected. The command stays behind
+the existing exact HID fingerprint and successful checksum/correlation proof;
+it is not generalized to devices that fail admission. Future code review must
+treat the historical protocol contract and this owner confirmation as evidence,
+not as permission to send additional commands.

@@ -6,6 +6,7 @@
 #include <atomic>
 #include <cmath>
 
+#include "analog_key_codes.h"
 #include "curve_math.h"
 #include "key_settings.h"
 #include "publication_generation.h"
@@ -27,7 +28,10 @@ struct CurveDef
 
 static halljoy::publication::Generation g_curveCacheGeneration;
 
-static float Clamp01(float v) { return std::clamp(v, 0.0f, 1.0f); }
+static float Clamp01(float v)
+{
+    return std::isfinite(v) ? std::clamp(v, 0.0f, 1.0f) : 0.0f;
+}
 
 static float ApplyCurve_LinearSegments(float x, const CurveDef& c)
 {
@@ -91,8 +95,8 @@ struct CurveThreadCache
     uint64_t stamp = 0;
     bool globalReady = false;
     CurveDef globalCurve{};
-    std::array<uint8_t, 256> hasCurve{};
-    std::array<CurveDef, 256> curves{};
+    std::array<uint8_t, halljoy::keycode::kCount> hasCurve{};
+    std::array<CurveDef, halljoy::keycode::kCount> curves{};
 };
 
 static CurveThreadCache& GetCurveThreadCache()
@@ -132,13 +136,13 @@ static CurveDef BuildGlobalCurveSnapshot()
 static CurveDef BuildCurveForHid(uint16_t hid)
 {
     CurveThreadCache& cache = GetCurveThreadCache();
-    if (hid < 256 && cache.hasCurve[hid] != 0)
+    if (halljoy::keycode::IsSupported(hid) && cache.hasCurve[hid] != 0)
         return cache.curves[hid];
 
     CurveDef c{};
-    if (KeySettings_GetUseUnique(hid))
+    const KeyDeadzone ks = KeySettings_Get(hid);
+    if (ks.useUnique)
     {
-        KeyDeadzone ks = KeySettings_Get(hid);
         c.invert = ks.invert;
         c.mode = (UINT)(ks.curveMode == 0 ? 0 : 1);
         c.x0 = ks.low;   c.y0 = ks.antiDeadzone;
@@ -159,12 +163,23 @@ static CurveDef BuildCurveForHid(uint16_t hid)
         c = cache.globalCurve;
     }
 
-    if (hid < 256)
+    if (halljoy::keycode::IsSupported(hid))
     {
         cache.curves[hid] = c;
         cache.hasCurve[hid] = 1u;
     }
     return c;
+}
+
+static float ApplyCurve(float x01Raw, const CurveDef& c)
+{
+    float x01 = Clamp01(x01Raw);
+    if (c.invert) x01 = 1.0f - x01;
+    if (x01 < c.x0) return 0.0f;
+    if (x01 > c.x3) return Clamp01(c.y3);
+
+    if (c.mode == 1) return ApplyCurve_LinearSegments(x01, c);
+    return ApplyCurve_SmoothRationalBezier(x01, c);
 }
 }
 
@@ -184,13 +199,16 @@ uint64_t BackendCurve_GetGeneration()
 
 float BackendCurve_ApplyByHid(uint16_t hid, float x01Raw)
 {
-    float x01 = Clamp01(x01Raw);
-    CurveDef c = BuildCurveForHid(hid);
+    return ApplyCurve(x01Raw, BuildCurveForHid(hid));
+}
 
-    if (c.invert) x01 = 1.0f - x01;
-    if (x01 < c.x0) return 0.0f;
-    if (x01 > c.x3) return Clamp01(c.y3);
-
-    if (c.mode == 1) return ApplyCurve_LinearSegments(x01, c);
-    return ApplyCurve_SmoothRationalBezier(x01, c);
+void BackendCurve_ApplyPairByHid(uint16_t hid,
+    float qualifiedRaw, float shadowRaw,
+    float* qualifiedFiltered, float* shadowFiltered)
+{
+    const CurveDef curve = BuildCurveForHid(hid);
+    if (qualifiedFiltered)
+        *qualifiedFiltered = ApplyCurve(qualifiedRaw, curve);
+    if (shadowFiltered)
+        *shadowFiltered = ApplyCurve(shadowRaw, curve);
 }

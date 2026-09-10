@@ -77,8 +77,8 @@ def main() -> int:
     require("SparkTickHotplug" in service_stop and "test.service_stop_probe" in service_stop and
             "--halljoy-test-spark-service-shutdown" in worker,
             "simulator probes reconnect after poller stop while service is closed")
-    require("nativeBackendsStopped" in app and "component=native-analog dependent_cleanup_skipped=1" in app,
-            "application blocks dependent teardown after native poison")
+    require("EngineRuntimeStopNativeProviders" in app and "EngineRuntimeOwner_Stop()" in app,
+            "aggregate owner blocks dependent teardown after native poison")
     require("#if defined(HALLJOY_ANALOG_SIMULATOR)" in worker and
             "--halljoy-test-spark-stop-timeout" in worker,
             "runtime timeout injection is simulator-only")

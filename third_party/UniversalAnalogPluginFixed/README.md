@@ -1,5 +1,9 @@
 # Universal Analog Plugin
 
+2026-09-06: current build/layout contract: [project layout](../../docs/current/PROJECT_LAYOUT.md).
+One ordinary distribution: `build/release/HallJoy.exe`. Historical paths below
+must be interpreted through that document; they are not additional release outputs.
+
 A plugin for the [Wooting Analog SDK](https://github.com/WootingKb/wooting-analog-sdk) that makes it support a wider range of keyboards.
 
 ## Setup

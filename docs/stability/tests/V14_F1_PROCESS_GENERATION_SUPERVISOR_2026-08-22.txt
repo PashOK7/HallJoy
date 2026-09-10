@@ -1,0 +1,111 @@
+HallJoy V14 F1 generic process-generation supervisor evidence
+Date: 2026-08-22
+Scope: production-linked generic owner/state machine with fake child
+Production ViGEm route: unchanged
+
+Architecture selection
+----------------------
+Three options were compared before code:
+
+1. Reuse analog-host supervisor as-is: rejected because it is UAP-specific and
+   starts the child before job assignment.
+2. Extract and migrate analog-host immediately: rejected for F1 because it
+   changes a qualified UAP route while the common primitive is still unproved.
+3. New reusable generation owner/state machine, proved against a fake child:
+   selected. It allows later adapters without mixing ViGEm or UAP behavior into
+   the ownership proof.
+
+The full comparison is retained in
+docs/v1.4/PROCESS_GENERATION_SUPERVISOR_DESIGN_2026-08-22.md.
+
+Production contract
+-------------------
+- one non-copyable owner retains process/job handles until confirmed reap;
+- per-generation job uses JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+- child creation uses CREATE_SUSPENDED and an explicit
+  PROC_THREAD_ATTRIBUTE_HANDLE_LIST;
+- AssignProcessToJobObject succeeds before ResumeThread, so application code
+  cannot execute outside the generation job;
+- ready/progress observations must match the expected PID and generation;
+- startup, progress, graceful-stop and hard-reap deadlines are distinct;
+- failed reap retains ownership and makes replacement restart-unsafe;
+- the module contains no ViGEm dependency and runs outside realtime.
+
+Fake-child Windows matrix
+-------------------------
+Result line:
+  PROCESS_GENERATION_SUPERVISOR_TEST=PASS generations=1008
+  containment_before_resume=1 explicit_decoy_inherited=0 startup_timeout=1
+  progress_timeout=1 forced_stop=1 overlap=0
+
+Covered cases:
+- normal ready/progress and cooperative planned stop;
+- exit before ready;
+- never ready -> startup timeout -> job termination/reap;
+- ready then no progress -> progress timeout -> job termination/reap;
+- ignore stop -> graceful deadline -> job termination/reap;
+- exit after ready with exact child exit 77;
+- wrong generation -> protocol violation -> termination/reap;
+- child-reported fatal error 0x2468 -> typed child fault -> termination/reap;
+- non-inheritable handle and missing executable fail launch without poisoning
+  the next generation;
+- an inheritable decoy event omitted from the explicit list remains unsignalled
+  even if the same numeric value is valid for an unrelated child object;
+- the same supervisor object runs 1,000 additional sequential generations;
+  every result is restart-safe, max active children is one, and each PID is
+  confirmed non-live before replacement.
+
+After the full suite, Win32 process enumeration found zero live fake children.
+
+Source identities
+-----------------
+process_generation_supervisor.h
+  3561 bytes
+  DEBD6D12B6C65B8B91DBEDE0BF73E04E3F40FD0965A8919FE53F77DB583C9A38
+process_generation_supervisor.cpp
+  16137 bytes
+  8075AE6ACCE970FAD14181F8FB142AAEFF11BD3F2F09801081EF892C4EFED49F
+process_generation_supervisor_test.cpp
+  13846 bytes
+  C919958A0493111535B7F817850A9F68EDC97938BDF61FB1CCBD280AF9E8510D
+process_generation_supervisor_static_audit.py
+  4207 bytes
+  24B2C015E2C528E275BA86B530A299D972DD875107744319251ABB68353A4465
+
+Note: these were captured immediately before the final documentation update.
+If documentation-only or audit-only hashes change, executable test semantics
+remain identified by the production header/source/test hashes above.
+
+Validation
+----------
+python tools/run_native_backend_checks.py --require-compiler
+  PASS, exit 0; includes the 1,008-generation Windows test and every existing
+  static/production-linked native test.
+
+MSVC 17.14 Release x64, HallJoyMad68ProRNative=true
+  PASS, 0 errors; only existing allow-listed external ViGEmClient LNK4099.
+  Compile-only HallJoy.exe: 8,485,888 bytes
+  SHA-256: 2B992AB8AAB0E85B5281BD90D4388D3085FC555FDBFAFD6B98E0FB4CE4BF2B8C
+
+MSVC 17.14 Release x64, HallJoyAnalogSimulator=true
+  PASS, 0 errors; only existing allow-listed external ViGEmClient LNK4099.
+  Compile-only HallJoyV14Simulator.exe: 8,604,672 bytes
+  SHA-256: 88D9EE10BBF504BB19FFBE7AE3220BCDE59F4E08E2951B927455AB6399C0D383
+
+Boundary / next gate
+--------------------
+These EXEs were not promoted or sent to users. The module compiles in
+production but is not routed from backend.cpp. F1 proves the generic primitive;
+it does not yet prove early HallJoy.exe self-host dispatch. The next package
+must add --halljoy-vigem-output-host with fake transport and exercise this same
+owner through the real HallJoy executable before any ViGEm call moves to child.
+
+Rollback
+--------
+_backups/process_generation_supervisor_f1_pre_20260822_1125
+_backups/process_generation_supervisor_f1_docs_pre_20260822_1215
+
+Privacy
+-------
+No HID path, device serial, user path, key sequence or physical-device
+identifier is present in this evidence.

@@ -18,6 +18,11 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalOptions>/utf-8 /we4828 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <!-- The bundled ViGEm client is an x64 /MT release library. Keep debug
@@ -45,35 +50,73 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <HallJoyBuildRoot>$(ProjectDir)..\..\..\build\</HallJoyBuildRoot>
+    <HallJoyBuildVariant>Standard</HallJoyBuildVariant>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(HallJoyDiagnostic)'=='true'">
     <TargetName>HallJoyDiagnostic</TargetName>
-    <OutDir>$(ProjectDir)..\x64\Diagnostic\</OutDir>
-    <IntDir>$(ProjectDir)..\x64\Diagnostic\obj\</IntDir>
+    <HallJoyBuildVariant>Diagnostic</HallJoyBuildVariant>
   </PropertyGroup>
   <PropertyGroup Condition="'$(HallJoyMadlionsDiagnostic)'=='true'">
     <TargetName>HallJoyMadlionsSafeHID</TargetName>
-    <OutDir>$(ProjectDir)..\x64\MadlionsDiagnostic\</OutDir>
-    <IntDir>$(ProjectDir)..\x64\MadlionsDiagnostic\obj\</IntDir>
+    <HallJoyBuildVariant>MadlionsDiagnostic</HallJoyBuildVariant>
   </PropertyGroup>
   <PropertyGroup Condition="'$(HallJoyMad68ProRNative)'=='true'">
     <TargetName>HallJoy</TargetName>
-    <OutDir>$(ProjectDir)..\x64\MAD68ProRNative\</OutDir>
-    <IntDir>$(ProjectDir)..\x64\MAD68ProRNative\obj\</IntDir>
+    <HallJoyBuildVariant>MAD68ProRNative</HallJoyBuildVariant>
   </PropertyGroup>
   <PropertyGroup Condition="'$(HallJoyAnalogSimulator)'=='true'">
     <TargetName>HallJoyV14Simulator</TargetName>
-    <OutDir>$(ProjectDir)..\x64\AnalogSimulator\</OutDir>
-    <IntDir>$(ProjectDir)..\x64\AnalogSimulator\obj\</IntDir>
+    <HallJoyBuildVariant>AnalogSimulator</HallJoyBuildVariant>
   </PropertyGroup>
   <PropertyGroup Condition="'$(HallJoyUiAudit)'=='true'">
     <TargetName>HallJoyUiAudit</TargetName>
-    <OutDir>$(ProjectDir)..\x64\UiAudit\</OutDir>
-    <IntDir>$(ProjectDir)..\x64\UiAudit\obj\</IntDir>
+    <HallJoyBuildVariant>UiAudit</HallJoyBuildVariant>
   </PropertyGroup>
   <PropertyGroup Condition="'$(HallJoyAulaAggressiveTrace)'=='true'">
     <TargetName>HallJoy</TargetName>
-    <OutDir>$(ProjectDir)..\x64\AulaAggressiveTrace\</OutDir>
-    <IntDir>$(ProjectDir)..\x64\AulaAggressiveTrace\obj\</IntDir>
+    <HallJoyBuildVariant>AulaAggressiveTrace</HallJoyBuildVariant>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyIrokNd75Diagnostic)'=='true'">
+    <TargetName>HallJoy-IROK-ND75-Test</TargetName>
+    <HallJoyBuildVariant>IrokNd75Diagnostic</HallJoyBuildVariant>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyDrunkDeerDiagnostic)'=='true'">
+    <TargetName>HallJoy-DrunkDeer-Diagnostic</TargetName>
+    <HallJoyBuildVariant>DrunkDeerDiagnostic</HallJoyBuildVariant>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyMchoseAce68Diagnostic)'=='true'">
+    <TargetName>HallJoy-MCHOSE-Ace68-Diagnostic</TargetName>
+    <HallJoyBuildVariant>MchoseAce68Diagnostic</HallJoyBuildVariant>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyRogAzoth96HeDiagnostic)'=='true'">
+    <TargetName>HallJoy-ROG-Azoth96HE-Diagnostic</TargetName>
+    <HallJoyBuildVariant>RogAzoth96HeDiagnostic</HallJoyBuildVariant>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyAulaHero84HeDiagnostic)'=='true'">
+    <TargetName>HallJoy-AULA-HERO84HE-Diagnostic</TargetName>
+    <HallJoyBuildVariant>AulaHero84HeDiagnostic</HallJoyBuildVariant>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyAulaHero84HeExperimental)'=='true'">
+    <TargetName>HallJoy-AULA-HERO84HE-Experimental</TargetName>
+    <HallJoyBuildVariant>AulaHero84HeExperimental</HallJoyBuildVariant>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyTitan68TurboDiagnostic)'=='true'">
+    <TargetName>HallJoy-Madlions-Titan68-Turbo-Diagnostic</TargetName>
+    <HallJoyBuildVariant>Titan68TurboDiagnostic</HallJoyBuildVariant>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyTitan68TurboExperimental)'=='true'">
+    <TargetName>HallJoy-Madlions-Titan68-Turbo-Experimental</TargetName>
+    <HallJoyBuildVariant>Titan68TurboExperimental</HallJoyBuildVariant>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyProviderV2Qualification)'=='true'">
+    <TargetName>HallJoy</TargetName>
+    <HallJoyBuildVariant>ProviderV2Qualification</HallJoyBuildVariant>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OutDir>$(HallJoyBuildRoot)bin\$(HallJoyBuildVariant)\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(HallJoyBuildRoot)obj\$(HallJoyBuildVariant)\$(Configuration)\$(Platform)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -93,7 +136,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\ViGEmClient\lib\release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;ws2_32.lib;dbghelp.lib;Synchronization.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;ws2_32.lib;dbghelp.lib;Advapi32.lib;Synchronization.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command />
@@ -118,7 +161,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)..\third_party\ViGEmClient\lib\release\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;ws2_32.lib;dbghelp.lib;Synchronization.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ViGEmClient.lib;setupapi.lib;ws2_32.lib;dbghelp.lib;Advapi32.lib;Synchronization.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>
@@ -172,6 +215,89 @@
       <PreprocessorDefinitions>HALLJOY_AULA_AGGRESSIVE_TRACE;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyIrokNd75Diagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_MAD68PR_NATIVE;HALLJOY_IROK_ND75_EXPERIMENTAL;HALLJOY_IROK_ND75_DIAGNOSTIC;HALLJOY_DIAGNOSTIC;HALLJOY_SINGLE_LOG_DIAGNOSTIC;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyDrunkDeerDiagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_MAD68PR_NATIVE;HALLJOY_DRUNKDEER_DIAGNOSTIC;HALLJOY_DIAGNOSTIC;HALLJOY_SINGLE_LOG_DIAGNOSTIC;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyMchoseAce68Diagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_MAD68PR_NATIVE;HALLJOY_MCHOSE_ACE68_DIAGNOSTIC;HALLJOY_DIAGNOSTIC;HALLJOY_SINGLE_LOG_DIAGNOSTIC;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyRogAzoth96HeDiagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_ROG_AZOTH96HE_DIAGNOSTIC;HALLJOY_DIAGNOSTIC;HALLJOY_SINGLE_LOG_DIAGNOSTIC;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyAulaHero84HeDiagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_AULA_HERO84HE_DIAGNOSTIC;HALLJOY_DIAGNOSTIC;HALLJOY_SINGLE_LOG_DIAGNOSTIC;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyAulaHero84HeExperimental)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_AULA_HERO84HE_EXPERIMENTAL;HALLJOY_PRODUCTION;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyTitan68TurboDiagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_TITAN68_TURBO_DIAGNOSTIC;HALLJOY_DIAGNOSTIC;HALLJOY_SINGLE_LOG_DIAGNOSTIC;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyTitan68TurboExperimental)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_TITAN68_TURBO_EXPERIMENTAL;HALLJOY_PRODUCTION;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyProviderV2Qualification)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_MAD68PR_NATIVE;HALLJOY_PRODUCTION;HALLJOY_PROVIDER_V2_QUALIFICATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
+    </Link>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(HallJoyUiAudit)'=='true'">
     <ClCompile>
       <PreprocessorDefinitions>HALLJOY_UI_AUDIT_TRACE;HALLJOY_DIAGNOSTIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -179,21 +305,26 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="app.h" />
+    <ClInclude Include="bounded_ini.h" />
+    <ClInclude Include="profile_runtime_gate.h" />
     <ClInclude Include="analog_host_client.h" />
     <ClInclude Include="analog_host_shared.h" />
     <ClInclude Include="analog_simulator_backend.h" />
     <ClInclude Include="analog_simulator_model.h" />
     <ClInclude Include="app_deps.h" />
     <ClInclude Include="dependency_guidance_policy.h" />
+    <ClInclude Include="embedded_vigem_installer.h" />
     <ClInclude Include="app_paths.h" />
     <ClInclude Include="factory_reset.h" />
     <ClInclude Include="file_name_policy.h" />
     <ClInclude Include="backend.h" />
     <ClInclude Include="backend_sparklink.inc" />
     <ClInclude Include="sparklink_hotplug_age.h" />
+    <ClInclude Include="sparklink_row_freshness.h" />
     <ClInclude Include="monotonic_time.h" />
     <ClInclude Include="saturating_int.h" />
     <ClInclude Include="backend_sayo.inc" />
+    <ClInclude Include="sayo_letter_matcher.h" />
     <ClInclude Include="backend_curve.h" />
     <ClInclude Include="bindings.h" />
     <ClInclude Include="binding_actions.h" />
@@ -213,6 +344,19 @@
     <ClInclude Include="keyboard_keysettings_panel.h" />
     <ClInclude Include="keyboard_keysettings_panel_internal.h" />
     <ClInclude Include="keyboard_layout.h" />
+    <ClInclude Include="layout_picker.h" />
+    <ClInclude Include="first_run_layout.h" />
+    <ClInclude Include="imported_layouts.h" />
+    <ClInclude Include="keychron_catalog_layouts.h" />
+    <ClInclude Include="key_shape_win.h" />
+    <ClInclude Include="main_keyboard_input.h" />
+    <ClInclude Include="layout_sort.h" />
+    <ClInclude Include="keychron_catalog_presets.h" />
+    <ClInclude Include="lemokey_catalog_layouts.h" />
+    <ClInclude Include="drunkdeer_catalog_layouts.h" />
+    <ClInclude Include="generated\layout_pipeline\*.h" />
+    <ClInclude Include="generated\layout_pipeline\*.inc" />
+    <ClInclude Include="keychron_layout_identities.h" />
     <ClInclude Include="keyboard_profiles.h" />
     <ClInclude Include="keyboard_render.h" />
     <ClInclude Include="keyboard_ui.h" />
@@ -236,17 +380,42 @@
     <ClInclude Include="aula_win60he_session_policy.h" />
     <ClInclude Include="aula_w669_backend.h" />
     <ClInclude Include="aula_w669_protocol.h" />
+    <ClInclude Include="irok_nd75_backend.h" />
+    <ClInclude Include="irok_nd75_protocol.h" />
+    <ClInclude Include="drunkdeer_backend.h" />
+    <ClInclude Include="drunkdeer_protocol.h" />
+    <ClInclude Include="mchose_ace68_diagnostic_backend.h" />
+    <ClInclude Include="aula_hero84he_backend.h" />
+    <ClInclude Include="aula_hero84he_diagnostic_backend.h" />
+    <ClInclude Include="aula_hero84he_diagnostic_protocol.h" />
+    <ClInclude Include="raw_input_packet_size.h" />
     <ClInclude Include="native_analog_routing.h" />
     <ClInclude Include="addressed_poll_scheduler.h" />
     <ClInclude Include="realtime_loop.h" />
     <ClInclude Include="latest_value_mailbox.h" />
     <ClInclude Include="vigem_output_scheduler.h" />
+    <ClInclude Include="vigem_child_transport.h" />
+    <ClInclude Include="vigem_output_shared.h" />
+    <ClInclude Include="vigem_output_producer_lease.h" />
+    <ClInclude Include="vigem_output_channel.h" />
+    <ClInclude Include="vigem_output_process_protocol.h" />
+    <ClInclude Include="vigem_output_process_client.h" />
+    <ClInclude Include="vigem_output_runtime.h" />
+    <ClInclude Include="vigem_output_process_host.h" />
+    <ClInclude Include="vigem_output_self_host_test.h" />
+    <ClInclude Include="process_generation_supervisor.h" />
+    <ClInclude Include="protected_native_handle.h" />
     <ClInclude Include="remap_abxy.h" />
     <ClInclude Include="remap_bumpers.h" />
     <ClInclude Include="remap_dpad.h" />
     <ClInclude Include="remap_guide.h" />
     <ClInclude Include="remap_icons.h" />
     <ClInclude Include="remap_panel.h" />
+    <ClInclude Include="remap_hint_motion.h" />
+    <ClInclude Include="window_placement_policy.h" />
+    <ClInclude Include="window_placement_windows.h" />
+    <ClInclude Include="overlay_text_edit.h" />
+    <ClInclude Include="layout_editor_model.h" />
     <ClInclude Include="remap_startselect.h" />
     <ClInclude Include="remap_sticks.h" />
     <ClInclude Include="remap_triggers.h" />
@@ -267,7 +436,10 @@
     <ClInclude Include="worker_primitives.h" />
     <ClInclude Include="worker_exception_barrier.h" />
     <ClInclude Include="windows_command_line.h" />
-  <ClInclude Include="native_analog_backend.h" /><ClInclude Include="native_analog_backend_registry.h" /><ClInclude Include="native_analog_backends.def" /></ItemGroup>
+  <ClInclude Include="analog_provider_v2.h" /><ClInclude Include="native_analog_snapshot_adapter.h" /><ClInclude Include="provider_v2_data_plane_layout.h" /><ClInclude Include="provider_v2_data_plane_windows.h" /><ClInclude Include="provider_v2_snapshot_broker.h" /><ClInclude Include="uap_parent_snapshot.h" /><ClInclude Include="provider_v2_controller_shadow.h" /><ClInclude Include="provider_v2_qualification_report.h" /><ClInclude Include="configured_xusb_builder.h" /><ClInclude Include="virtual_controller_frame.h" /><ClInclude Include="xusb_output_adapter.h" /><ClInclude Include="native_analog_backend.h" /><ClInclude Include="native_analog_backend_registry.h" /><ClInclude Include="native_analog_backends.def" /><ClInclude Include="rog_azoth96he_diagnostic_backend.h" /><ClInclude Include="runtime_supervisor.h" /><ClInclude Include="engine_runtime_owner.h" /><ClInclude Include="engine_runtime_ui_bridge.h" /><ClInclude Include="engine_runtime_transaction.h" /><ClInclude Include="runtime_command_state.h" /><ClInclude Include="instance_guard.h" /></ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="provider_v2_qualification_model.h" />
+  </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="HallJoy.rc" />
   </ItemGroup>
@@ -285,10 +457,12 @@
       <ExcludedFromBuild Condition="'$(HallJoyAnalogSimulator)'!='true'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="app_deps.cpp" />
+    <ClCompile Include="embedded_vigem_installer.cpp" />
     <ClCompile Include="app_paths.cpp" />
     <ClCompile Include="factory_reset.cpp" />
     <ClCompile Include="file_name_policy.cpp" />
     <ClCompile Include="backend.cpp" />
+    <ClCompile Include="uap_parent_snapshot.cpp" />
     <ClCompile Include="backend_curve.cpp" />
     <ClCompile Include="bindings.cpp" />
     <ClCompile Include="binding_actions.cpp" />
@@ -306,6 +480,7 @@
     <ClCompile Include="keyboard_keysettings_panel_logic.cpp" />
     <ClCompile Include="keyboard_keysettings_panel_style.cpp" />
     <ClCompile Include="keyboard_layout.cpp" />
+    <ClCompile Include="keyboard_support_status.cpp" />
     <ClCompile Include="keyboard_page_main.cpp" />
     <ClCompile Include="keyboard_profiles.cpp" />
     <ClCompile Include="keyboard_render.cpp" />
@@ -320,6 +495,9 @@
     <ClCompile Include="premium_combo_logic.cpp" />
     <ClCompile Include="premium_combo_paint.cpp" />
     <ClCompile Include="profile_ini.cpp" />
+    <ClCompile Include="..\tests\profile_transaction_windows_test.cpp">
+      <ExcludedFromBuild Condition="'$(HallJoyAnalogSimulator)'!='true'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="addressed_analog_backend.cpp" />
     <ClCompile Include="mad68pr_backend.cpp" />
     <ClCompile Include="mad68pr_protocol.cpp" />
@@ -332,9 +510,40 @@
     <ClCompile Include="aula_win60he_session_policy.cpp" />
     <ClCompile Include="aula_w669_backend.cpp" />
     <ClCompile Include="aula_w669_protocol.cpp" />
+    <ClCompile Include="irok_nd75_backend.cpp" />
+    <ClCompile Include="irok_nd75_protocol.cpp" />
+    <ClCompile Include="drunkdeer_backend.cpp">
+      <ExcludedFromBuild Condition="'$(HallJoyDrunkDeerDiagnostic)'!='true'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="mchose_ace68_diagnostic_backend.cpp">
+      <ExcludedFromBuild Condition="'$(HallJoyMchoseAce68Diagnostic)'!='true'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="rog_azoth96he_diagnostic_backend.cpp">
+      <ExcludedFromBuild Condition="'$(HallJoyRogAzoth96HeDiagnostic)'!='true'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="aula_hero84he_backend.cpp">
+      <ExcludedFromBuild Condition="'$(HallJoyAulaHero84HeExperimental)'!='true'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="aula_hero84he_diagnostic_backend.cpp">
+      <ExcludedFromBuild Condition="'$(HallJoyAulaHero84HeDiagnostic)'!='true'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="aula_hero84he_diagnostic_protocol.cpp" />
+    <ClCompile Include="titan68_turbo_diagnostic_backend.cpp">
+      <ExcludedFromBuild Condition="'$(HallJoyTitan68TurboDiagnostic)'!='true' and '$(HallJoyTitan68TurboExperimental)'!='true'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="drunkdeer_protocol.cpp">
+      <ExcludedFromBuild Condition="'$(HallJoyDrunkDeerDiagnostic)'!='true'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="native_analog_routing.cpp" />
     <ClCompile Include="addressed_poll_scheduler.cpp" />
     <ClCompile Include="realtime_loop.cpp" />
+    <ClCompile Include="vigem_child_transport.cpp" />
+    <ClCompile Include="vigem_output_channel.cpp" />
+    <ClCompile Include="vigem_output_process_client.cpp" />
+    <ClCompile Include="vigem_output_runtime.cpp" />
+    <ClCompile Include="vigem_output_process_host.cpp" />
+    <ClCompile Include="vigem_output_self_host_test.cpp" />
+    <ClCompile Include="process_generation_supervisor.cpp" />
     <ClCompile Include="remap_abxy.cpp" />
     <ClCompile Include="remap_bumpers.cpp" />
     <ClCompile Include="remap_dpad.cpp" />
@@ -345,12 +554,16 @@
     <ClCompile Include="remap_sticks.cpp" />
     <ClCompile Include="remap_triggers.cpp" />
     <ClCompile Include="settings.cpp" />
+    <ClCompile Include="support_log.cpp" />
     <ClCompile Include="stability_trace.cpp" />
     <ClCompile Include="settings_ini.cpp" />
     <ClCompile Include="ui_theme.cpp" />
     <ClCompile Include="win_util.cpp" />
-  <ClCompile Include="native_analog_backend_registry.cpp" /></ItemGroup>
+  <ClCompile Include="analog_provider_v2.cpp" /><ClCompile Include="native_analog_snapshot_adapter.cpp" /><ClCompile Include="provider_v2_data_plane_layout.cpp" /><ClCompile Include="provider_v2_data_plane_windows.cpp" /><ClCompile Include="provider_v2_snapshot_broker.cpp" /><ClCompile Include="provider_v2_controller_shadow.cpp" /><ClCompile Include="provider_v2_qualification_model.cpp" /><ClCompile Include="provider_v2_qualification_report.cpp" /><ClCompile Include="configured_xusb_builder.cpp" /><ClCompile Include="xusb_output_adapter.cpp" /><ClCompile Include="native_analog_backend_registry.cpp" /><ClCompile Include="runtime_supervisor.cpp" /><ClCompile Include="engine_runtime_owner.cpp" /><ClCompile Include="engine_runtime_ui_bridge.cpp" /><ClCompile Include="instance_guard.cpp" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="CheckSourceEncoding" BeforeTargets="ClCompile">
+    <Exec Command="py &quot;$(ProjectDir)..\tests\source_encoding_static_audit.py&quot;" />
+  </Target>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>

@@ -31,6 +31,7 @@ def function_body(source: str, signature: str) -> str:
 
 def main() -> int:
     host = (HALL / "analog_host_client.cpp").read_text(encoding="utf-8-sig")
+    host_h = (HALL / "analog_host_client.h").read_text(encoding="utf-8-sig")
     backend = (HALL / "backend.cpp").read_text(encoding="utf-8-sig")
     backend_h = (HALL / "backend.h").read_text(encoding="utf-8-sig")
     app = (HALL / "app.cpp").read_text(encoding="utf-8-sig")
@@ -103,6 +104,15 @@ def main() -> int:
             "process_handle_retained=1 restart_blocked=1" in supervisor_impl and
             "child.reaped_after_timeout" in supervisor_impl,
             "unconfirmed child exit retains ownership and forbids overlap")
+    require("AnalogHostClient_RequestDeviceRefresh" in host_h and
+            "deviceRefreshGeneration" in host and
+            "deviceRefreshGenerationAtLaunch" in supervisor_impl and
+            "child.device_refresh" in supervisor_impl and
+            "TerminateProcess(pi.hProcess" in supervisor_impl,
+            "real device changes request one supervisor-owned child replacement")
+    require("AnalogHostClient_RequestDeviceRefresh()" in backend and
+            "Backend_NotifyDeviceChange()" in backend,
+            "WM_DEVICECHANGE forwards UAP refresh without UI-thread enumeration")
     require("child.invalid_process_info" in supervisor_impl and
             "if (!pi.hProcess || !pi.hThread)" in supervisor_impl,
             "impossible incomplete CreateProcess postconditions fail defensively")
@@ -112,9 +122,10 @@ def main() -> int:
     require("[[nodiscard]] bool Backend_Shutdown();" in backend_h and
             "analog_host_joined=%d" in backend_stop,
             "backend shutdown reports analog-host completion")
-    require("backendStopped = Backend_Shutdown()" in app and
-            "component=backend dependency_join_incomplete=1" in app,
-            "application selects process containment after analog-host poison")
+    require("EngineRuntimeReleaseBackendLeases" in app and
+            "EngineRuntimeOwner_Stop()" in app and
+            "component=engine-runtime-owner" in app,
+            "aggregate owner selects process containment after analog-host poison")
     require("InjectAnalogHostBridgeStopTimeout" in runner and
             "InjectAnalogHostSupervisorStartFailure" in runner and
             "partial-start rollback scenario" in runner,

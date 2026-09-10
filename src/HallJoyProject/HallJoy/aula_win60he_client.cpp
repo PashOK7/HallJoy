@@ -255,7 +255,7 @@ bool Client::Transact(
 bool Client::Probe(
     CapabilityProof* out,
     Failure* failure,
-    CompatibilityProfile profile)
+    CompatibilityPolicy policy)
 {
     if (out) *out = CapabilityProof{};
     ClearFailure(failure);
@@ -269,7 +269,7 @@ bool Client::Probe(
     compatibilityMismatchMask_ = 0;
 
     CapabilityProof proof{};
-    proof.profile = profile;
+    proof.profile = policy.profile;
     ResponseStream stream{};
     std::size_t bytes = 0;
     FrameView frame{};
@@ -285,10 +285,20 @@ bool Client::Probe(
         return false;
     }
     const bool exactFirmware = IsExpectedAulaWin60HeMaxFirmware(proof.sync);
-    const bool firmwareCompatible =
-        profile == CompatibilityProfile::ExactWin60HeMax
-        ? exactFirmware
-        : IsAula6x21FamilyFirmware(proof.sync);
+    bool firmwareCompatible = false;
+    switch (policy.profile)
+    {
+    case CompatibilityProfile::ExactWin60HeMax:
+        firmwareCompatible = exactFirmware;
+        break;
+    case CompatibilityProfile::ExactKnownBoard6x21Family:
+        firmwareCompatible = IsExactKnownBoard6x21Firmware(
+            proof.sync, policy.expectedBoardId);
+        break;
+    case CompatibilityProfile::Compatible6x21Family:
+        firmwareCompatible = IsAula6x21FamilyFirmware(proof.sync);
+        break;
+    }
     if (!firmwareCompatible)
     {
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
@@ -314,7 +324,7 @@ bool Client::Probe(
     }
     const bool exactPrecision = IsExpectedAulaWin60HeMaxPrecision(proof.precision);
     const bool precisionCompatible =
-        profile == CompatibilityProfile::ExactWin60HeMax
+        policy.profile == CompatibilityProfile::ExactWin60HeMax
         ? exactPrecision
         : IsAula6x21FamilyPrecision(proof.precision);
     if (!precisionCompatible)
@@ -353,7 +363,7 @@ bool Client::Probe(
         proof.physicalKeyPositions == kExpectedPhysicalKeyPositions &&
         proof.defaultMappedKeys == kExpectedPublishableDefaultKeys;
     const bool defaultMapCompatible =
-        profile == CompatibilityProfile::ExactWin60HeMax
+        policy.profile == CompatibilityProfile::ExactWin60HeMax
         ? exactDefaultMap
         : IsAula6x21FamilyDefaultMap(proof.defaultKeyMap);
     if (!defaultMapCompatible)
@@ -382,7 +392,9 @@ bool Client::Probe(
     proof.compatibilityMismatchMask = compatibilityMismatchMask_;
     proof.profile = exactFirmware && exactPrecision && exactDefaultMap
         ? CompatibilityProfile::ExactWin60HeMax
-        : CompatibilityProfile::Compatible6x21Family;
+        : policy.profile == CompatibilityProfile::ExactKnownBoard6x21Family
+            ? CompatibilityProfile::ExactKnownBoard6x21Family
+            : CompatibilityProfile::Compatible6x21Family;
     *out = proof;
     return true;
 }
@@ -504,7 +516,7 @@ bool Client::ReadActiveMapGeneration(
 
     BuildPublishableActiveKeyMap(
         defaultKeyMap, snapshot.functions, &snapshot.keyMap);
-    snapshot.mappedKeys = CountMappedHids(snapshot.keyMap);
+    snapshot.mappedKeys = CountMappedKeyCodes(snapshot.keyMap);
     *out = snapshot;
     return true;
 }
@@ -626,7 +638,7 @@ bool TravelValuesPlausible(
 }
 
 void BuildHidMilliSnapshot(
-    const KeyMap& activeMap,
+    const ActiveKeyMap& activeMap,
     const TravelMatrix& travel,
     std::uint16_t maximumTravelUm,
     SnapshotResult* out) noexcept
@@ -639,12 +651,12 @@ void BuildHidMilliSnapshot(
     {
         for (std::size_t column = 0; column < kColumns; ++column)
         {
-            const std::uint8_t hid = activeMap[row][column];
-            if (!IsPublishableKeyboardUsage(hid))
+            const std::uint16_t keyCode = activeMap[row][column];
+            if (!halljoy::keycode::IsSupported(keyCode))
                 continue;
             const std::uint16_t milli = NormalizeTravelToMilli(
                 travel[row][column], maximumTravelUm);
-            out->milli[hid] = std::max(out->milli[hid], milli);
+            out->milli[keyCode] = std::max(out->milli[keyCode], milli);
         }
     }
 

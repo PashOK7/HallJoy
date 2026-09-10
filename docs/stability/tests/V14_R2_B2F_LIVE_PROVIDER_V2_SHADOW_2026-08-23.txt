@@ -1,0 +1,72 @@
+HallJoy v1.4 correctness evidence
+Package: R2-B2f live read-only configured Provider V2 shadow
+Date: 2026-08-23
+
+Scope
+- Add live Provider V2 configured-output evaluation without changing production
+  publication.
+- Compare the full neutral controller frame from one same-generation parent
+  capture and one shared configuration/curve/mouse snapshot.
+- Preserve the dense compatibility result as the only XUSB/ViGEm input.
+
+Selected architecture
+- Explicit V2 identity projection; owned zero is distinct from absent.
+- USB keyboard page and supported UAP extended identities only; no alias of
+  consumer or semantic namespaces.
+- Same cached native read in both paths; native extended-key ownership wins.
+- One production mapping builder, separate SOCD/LKP state.
+- Digital fallback never triggers, learns or supplies analogue shadow input.
+- Unavailable/incoherent V2, digital fallback and curve-generation mutation
+  skip comparison and resynchronize shadow state.
+- Seven exact controller fields compared with bounded in-memory counters.
+- Only the qualified frame crosses the XUSB adapter.
+
+Regression results
+PROVIDER_V2_CONTROLLER_SHADOW_TEST=PASS identity_projection=1 owned_zero=1 multi_device_max=1 native_arbitration=1 all_fields=1
+UAP_PARENT_SNAPSHOT_TEST=PASS one_publication=1 dense_fallback=1 aggregate_checked=1 dual_checked=1
+CONFIGURED_XUSB_BUILDER_TEST=PASS all_fields=1 explicit_state=1 paired_equivalence=1 divergence_localized=1 neutral_frame=1 exact_xusb_adapter=1
+Full static-only gate: PASS
+Full portable/native gate: PASS
+
+Official Release x64
+- Result: PASS
+- MSVC errors: 0
+- Unexpected warnings: 0
+- Allow-listed warning: external ViGEmClient LNK4099 only
+- Embedded ViGEm hash/signature self-test: PASS
+- Continuous production telemetry/logging: absent
+
+Exact production image
+- Path: build/release/HallJoy.exe
+- Size: 8,643,584 bytes
+- SHA-256: 9D3376EF6247F73283140F27B472AB22FA74435F112E9B2B416901CC3E394F20
+- UAP_PROVIDER_V2_EXACT_EXE_DUAL_CAPTURE=PASS
+- Sequential 10-second startup/WM_CLOSE smoke: PASS
+- Continuous log: absent
+- Crash report: absent
+- Remaining exact-image process: none
+
+Test-orchestration note
+- One earlier exact-capture invocation overlapped a separate production smoke
+  and therefore reported that other HallJoy process as a survivor.
+- HallJoy survivor count was independently checked as zero and the exact test
+  was rerun sequentially; it passed. This was a harness scheduling error, not a
+  product failure.
+
+Protected user diagnostic
+- Path: build/gravastar-v75-diagnostic/HallJoy.exe
+- Size: 8,683,008 bytes
+- SHA-256: 2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B
+- Status: unchanged; not executed, overwritten, terminated or promoted here.
+
+Backups
+- .analysis/backups/r2_provider_v2_shadow_pre_20260823_0115
+- .analysis/backups/r2_provider_v2_shadow_docs_pre_20260823_0230
+
+Promotion boundary
+- This artifact is local and not promoted or sent to a user.
+- Live shadow implementation/local qualification is PASS.
+- Sustained physical zero-mismatch evidence was not observed externally in this
+  package. Provider V2 remains unselected until a bounded evidence path records
+  representative UAP hardware and a separate promotion decision passes.
+- No Git/GitHub operation occurred.

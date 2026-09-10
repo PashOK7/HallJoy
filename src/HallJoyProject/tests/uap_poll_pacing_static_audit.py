@@ -32,6 +32,7 @@ def function_body(source: str, signature: str) -> str:
 
 def main() -> int:
     main_cpp = (PLUGIN / "main.cpp").read_text(encoding="utf-8-sig")
+    keyboard = (PLUGIN / "overlay" / "Soup" / "soup" / "AnalogueKeyboard.cpp").read_text(encoding="utf-8-sig")
     policy = (PLUGIN / "halljoy_uap_poll_pacing.h").read_text(encoding="utf-8-sig")
     telemetry = (PLUGIN / "halljoy_plugin_telemetry.h").read_text(encoding="utf-8-sig")
     backend = (ROOT / "HallJoy" / "backend.h").read_text(encoding="utf-8-sig")
@@ -62,7 +63,9 @@ def main() -> int:
             "PollPacingPolicy" in worker and "CompleteCycle" in worker,
             "deadline policy wraps only poll-device updates")
     require("std::this_thread::sleep_for" in worker and
-            "kbd.madlions.consecutive_failed_reports == 0" in worker,
+            "kbd.madlions.consecutive_failed_reports == 0" in worker and
+            "madlions.failed_reports[failure_slot]" in keyboard and
+            "madlions.failed_reports[static_cast<uint8_t>(offset >> 2)] = 0" in keyboard,
             "runtime applies microsecond waits and Madlions transient-error backoff")
     require("UAP_POLL_SLEEP_MS" not in main_cpp,
             "legacy additive polling sleep is absent from runtime source")

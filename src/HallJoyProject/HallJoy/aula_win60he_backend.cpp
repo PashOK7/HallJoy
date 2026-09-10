@@ -6,7 +6,9 @@
 #include <hidpi.h>
 
 #include "aula_win60he_backend.h"
+#include "generated/layout_pipeline/identities.h"
 
+#include "analog_key_codes.h"
 #include "debug_log.h"
 #include "hid_io_operation.h"
 #include "native_analog_routing.h"
@@ -24,6 +26,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
 #include <cwchar>
@@ -101,10 +104,14 @@ struct EnumerationResult
 {
     std::uint32_t attempt = 0;
     std::uint32_t hidInterfaces = 0;
-    std::uint32_t exactVidPidPaths = 0;
+    std::uint32_t knownIdentityPaths = 0;
+    std::uint32_t familyVendorPaths = 0;
+    std::uint32_t gravaStarBrandPaths = 0;
+    std::uint32_t interfaceEnumerationErrors = 0;
+    std::uint32_t interfaceDetailErrors = 0;
     std::uint32_t identityPrefilterRejected = 0;
     std::uint32_t metadataRejected = 0;
-    bool exactVidPidPathSeen = false;
+    bool knownIdentityPathSeen = false;
     std::vector<Candidate> candidates;
 };
 
@@ -158,6 +165,7 @@ std::atomic<bool> g_deviceChanged{ false };
 std::atomic<bool> g_candidatePresent{ false };
 std::atomic<bool> g_protocolPresent{ false };
 std::atomic<bool> g_connected{ false };
+std::atomic<std::uint64_t> g_verifiedLayoutToken{0};
 std::atomic<bool> g_ambiguousSelection{ false };
 std::atomic<bool> g_invalidEnumeration{ false };
 std::atomic<bool> g_retainedIdentityMissing{ false };
@@ -187,8 +195,8 @@ bool InjectStopTimeout() noexcept
 #endif
 }
 
-std::array<std::atomic<std::uint16_t>, 256> g_milli{};
-std::array<std::atomic<std::uint8_t>, 256> g_owned{};
+std::array<std::atomic<std::uint16_t>, halljoy::keycode::kCount> g_milli{};
+std::array<std::atomic<std::uint8_t>, halljoy::keycode::kCount> g_owned{};
 std::atomic<std::uint16_t> g_vendorId{ 0 };
 std::atomic<std::uint16_t> g_productId{ 0 };
 std::atomic<std::uint16_t> g_usagePage{ 0 };
@@ -203,6 +211,196 @@ std::atomic<std::uint64_t> g_failedUpdates{ 0 };
 std::atomic<std::uint64_t> g_lastMatrixUs{ 0 };
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
 std::atomic<std::uint64_t> g_diagnosticSessionSequence{ 0 };
+
+enum class DiagnosticProgress : std::uint32_t
+{
+    None = 0,
+    EnumerationStarted,
+    KnownIdentitySeen,
+    FingerprintCandidate,
+    SessionOpened,
+    CapabilityProved,
+    RouteClaimed,
+    MatrixObserved,
+};
+
+enum class DiagnosticFailure : std::uint32_t
+{
+    None = 0,
+    SetupApiEnumeration,
+    MetadataFingerprint,
+    InvalidEnumeration,
+    AmbiguousSelection,
+    RetainedIdentityMissing,
+    SessionOpen,
+    CapabilityProof,
+    SemanticMismatch,
+    RetainedProofMismatch,
+    ProbeResult,
+    RouteClaim,
+    ActiveMap,
+    Travel,
+    WorkerFault,
+    StartResources,
+    StartThread,
+    StopIncomplete,
+};
+
+std::atomic<DiagnosticProgress> g_diagnosticProgress{ DiagnosticProgress::None };
+std::atomic<DiagnosticFailure> g_diagnosticFailure{ DiagnosticFailure::None };
+std::atomic<std::uint32_t> g_diagnosticFamilyVendorPaths{ 0 };
+std::atomic<std::uint32_t> g_diagnosticGravaStarBrandPaths{ 0 };
+std::atomic<std::uint16_t> g_diagnosticLastSeenVendorId{ 0 };
+std::atomic<std::uint16_t> g_diagnosticLastSeenProductId{ 0 };
+std::atomic<std::uint32_t> g_diagnosticLastFailureStage{ 0 };
+std::atomic<std::uint32_t> g_diagnosticLastFailureCommand{ 0 };
+std::atomic<std::uint32_t> g_diagnosticLastFailureSelector{ 0 };
+std::atomic<std::uint32_t> g_diagnosticLastFailureIndex{ 0 };
+std::atomic<std::uint32_t> g_diagnosticLastMismatchMask{ 0 };
+std::atomic<std::uint32_t> g_diagnosticLastBoardId{ 0 };
+std::atomic<bool> g_diagnosticVerdictEmitted{ false };
+#endif
+
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+void AdvanceDiagnosticProgress(DiagnosticProgress progress) noexcept
+{
+    auto current = g_diagnosticProgress.load(std::memory_order_relaxed);
+    while (static_cast<std::uint32_t>(current) <
+            static_cast<std::uint32_t>(progress) &&
+        !g_diagnosticProgress.compare_exchange_weak(
+            current, progress, std::memory_order_relaxed))
+    {
+    }
+}
+
+void RecordDiagnosticFailure(DiagnosticFailure failure) noexcept
+{
+    g_diagnosticFailure.store(failure, std::memory_order_relaxed);
+}
+
+void RecordDiagnosticProtocolFailure(
+    const aula_win60he::Failure& failure) noexcept
+{
+    g_diagnosticLastFailureStage.store(
+        static_cast<std::uint32_t>(failure.stage), std::memory_order_relaxed);
+    g_diagnosticLastFailureCommand.store(failure.command, std::memory_order_relaxed);
+    g_diagnosticLastFailureSelector.store(failure.selector, std::memory_order_relaxed);
+    g_diagnosticLastFailureIndex.store(failure.index, std::memory_order_relaxed);
+}
+
+const wchar_t* DiagnosticProgressName(DiagnosticProgress progress) noexcept
+{
+    switch (progress)
+    {
+    case DiagnosticProgress::None: return L"none";
+    case DiagnosticProgress::EnumerationStarted: return L"enumeration";
+    case DiagnosticProgress::KnownIdentitySeen: return L"known_identity";
+    case DiagnosticProgress::FingerprintCandidate: return L"fingerprint";
+    case DiagnosticProgress::SessionOpened: return L"session_open";
+    case DiagnosticProgress::CapabilityProved: return L"capability_proof";
+    case DiagnosticProgress::RouteClaimed: return L"route_claim";
+    case DiagnosticProgress::MatrixObserved: return L"matrix";
+    }
+    return L"unknown";
+}
+
+const wchar_t* DiagnosticFailureName(DiagnosticFailure failure) noexcept
+{
+    switch (failure)
+    {
+    case DiagnosticFailure::None: return L"none";
+    case DiagnosticFailure::SetupApiEnumeration: return L"setupapi_enumeration";
+    case DiagnosticFailure::MetadataFingerprint: return L"metadata_fingerprint";
+    case DiagnosticFailure::InvalidEnumeration: return L"invalid_enumeration";
+    case DiagnosticFailure::AmbiguousSelection: return L"ambiguous_selection";
+    case DiagnosticFailure::RetainedIdentityMissing: return L"retained_identity_missing";
+    case DiagnosticFailure::SessionOpen: return L"session_open";
+    case DiagnosticFailure::CapabilityProof: return L"capability_proof";
+    case DiagnosticFailure::SemanticMismatch: return L"semantic_mismatch";
+    case DiagnosticFailure::RetainedProofMismatch: return L"retained_proof_mismatch";
+    case DiagnosticFailure::ProbeResult: return L"probe_result";
+    case DiagnosticFailure::RouteClaim: return L"route_claim";
+    case DiagnosticFailure::ActiveMap: return L"active_map";
+    case DiagnosticFailure::Travel: return L"travel";
+    case DiagnosticFailure::WorkerFault: return L"worker_fault";
+    case DiagnosticFailure::StartResources: return L"start_resources";
+    case DiagnosticFailure::StartThread: return L"start_thread";
+    case DiagnosticFailure::StopIncomplete: return L"stop_incomplete";
+    }
+    return L"unknown";
+}
+
+void ResetDiagnosticOutcome() noexcept
+{
+    g_diagnosticProgress.store(DiagnosticProgress::None, std::memory_order_relaxed);
+    g_diagnosticFailure.store(DiagnosticFailure::None, std::memory_order_relaxed);
+    g_diagnosticFamilyVendorPaths.store(0, std::memory_order_relaxed);
+    g_diagnosticGravaStarBrandPaths.store(0, std::memory_order_relaxed);
+    g_diagnosticLastSeenVendorId.store(0, std::memory_order_relaxed);
+    g_diagnosticLastSeenProductId.store(0, std::memory_order_relaxed);
+    g_diagnosticLastFailureStage.store(0, std::memory_order_relaxed);
+    g_diagnosticLastFailureCommand.store(0, std::memory_order_relaxed);
+    g_diagnosticLastFailureSelector.store(0, std::memory_order_relaxed);
+    g_diagnosticLastFailureIndex.store(0, std::memory_order_relaxed);
+    g_diagnosticLastMismatchMask.store(0, std::memory_order_relaxed);
+    g_diagnosticLastBoardId.store(0, std::memory_order_relaxed);
+    g_diagnosticVerdictEmitted.store(false, std::memory_order_relaxed);
+}
+
+void TraceDiagnosticVerdict() noexcept
+{
+    bool expected = false;
+    if (!g_diagnosticVerdictEmitted.compare_exchange_strong(
+            expected, true, std::memory_order_acq_rel))
+        return;
+
+    const auto progress = g_diagnosticProgress.load(std::memory_order_relaxed);
+    const auto failure = g_diagnosticFailure.load(std::memory_order_relaxed);
+    const std::uint64_t matrices =
+        g_successfulUpdates.load(std::memory_order_relaxed);
+    const wchar_t* result = L"no_matching_interface";
+    const wchar_t* action = L"send_log";
+    if (matrices != 0)
+    {
+        result = L"analog_stream";
+        action = L"analog_and_log";
+    }
+    else if (progress == DiagnosticProgress::RouteClaimed)
+    {
+        result = L"claimed_without_matrix";
+    }
+    else if (failure != DiagnosticFailure::None)
+    {
+        result = L"diagnostic_failure";
+    }
+    else if (g_diagnosticFamilyVendorPaths.load(std::memory_order_relaxed) != 0 ||
+        g_diagnosticGravaStarBrandPaths.load(std::memory_order_relaxed) != 0)
+    {
+        result = L"identity_not_admitted";
+    }
+
+    StabilityTrace_Write(L"INFO", L"aula-win60he", L"diagnostic.verdict",
+        L"conclusive=1 result=%ls action=%ls progress=%ls progress_code=%u failure=%ls failure_code=%u discovery_attempts=%u candidates=%u family_vendor_paths=%u gravastar_brand_paths=%u last_seen_vid=%04X last_seen_pid=%04X last_open_error=%u protocol_stage=%u command=%02X selector=%02X index=%u mismatch_mask=%08X board_id=%08X matrices=%llu failed_updates=%llu worker_fault=%u",
+        result, action, DiagnosticProgressName(progress),
+        static_cast<unsigned>(progress), DiagnosticFailureName(failure),
+        static_cast<unsigned>(failure),
+        g_discoveryAttempt.load(std::memory_order_relaxed),
+        g_candidateCount.load(std::memory_order_relaxed),
+        g_diagnosticFamilyVendorPaths.load(std::memory_order_relaxed),
+        g_diagnosticGravaStarBrandPaths.load(std::memory_order_relaxed),
+        static_cast<unsigned>(g_diagnosticLastSeenVendorId.load(std::memory_order_relaxed)),
+        static_cast<unsigned>(g_diagnosticLastSeenProductId.load(std::memory_order_relaxed)),
+        g_lastOpenError.load(std::memory_order_relaxed),
+        g_diagnosticLastFailureStage.load(std::memory_order_relaxed),
+        g_diagnosticLastFailureCommand.load(std::memory_order_relaxed),
+        g_diagnosticLastFailureSelector.load(std::memory_order_relaxed),
+        g_diagnosticLastFailureIndex.load(std::memory_order_relaxed),
+        g_diagnosticLastMismatchMask.load(std::memory_order_relaxed),
+        g_diagnosticLastBoardId.load(std::memory_order_relaxed),
+        static_cast<unsigned long long>(matrices),
+        static_cast<unsigned long long>(g_failedUpdates.load(std::memory_order_relaxed)),
+        static_cast<unsigned>(g_workerFaultKind.load(std::memory_order_relaxed)));
+}
 #endif
 
 std::uint64_t HashWideIdentity(const std::wstring& value) noexcept
@@ -353,8 +551,8 @@ void FormatActiveValues(
         const auto& active = observation.active[index];
         const int written = _snwprintf_s(
             out + position, outCount - position, _TRUNCATE,
-            index == 0 ? L"%02X@%u,%u:%u" : L",%02X@%u,%u:%u",
-            static_cast<unsigned>(active.hid),
+            index == 0 ? L"%03X@%u,%u:%u" : L",%03X@%u,%u:%u",
+            static_cast<unsigned>(active.keyCode),
             static_cast<unsigned>(active.row),
             static_cast<unsigned>(active.column),
             static_cast<unsigned>(active.travelUm));
@@ -416,20 +614,21 @@ void TraceDiagnosticCoverage(
 {
     wchar_t values[1536]{};
     std::size_t position = 0;
-    const auto& maxima = metrics.MaximumByHid();
-    for (std::size_t hid = 1; hid < maxima.size(); ++hid)
+    const auto& maxima = metrics.MaximumByKeyCode();
+    for (std::size_t keyCode = 1; keyCode < maxima.size(); ++keyCode)
     {
-        if (maxima[hid] == 0) continue;
+        if (maxima[keyCode] == 0) continue;
         const int written = _snwprintf_s(
             values + position, _countof(values) - position, _TRUNCATE,
-            position == 0 ? L"%02X:%u" : L",%02X:%u",
-            static_cast<unsigned>(hid), static_cast<unsigned>(maxima[hid]));
+            position == 0 ? L"%03X:%u" : L",%03X:%u",
+            static_cast<unsigned>(keyCode),
+            static_cast<unsigned>(maxima[keyCode]));
         if (written <= 0) break;
         position += static_cast<std::size_t>(written);
         if (position + 24u >= _countof(values)) break;
     }
     StabilityTrace_Write(L"INFO", L"aula-win60he", L"matrix.coverage",
-        L"session=%llu observed_hids=%u max_active=%u max_by_hid_um=%ls",
+        L"session=%llu observed_key_codes=%u max_active=%u max_by_key_code_um=%ls",
         static_cast<unsigned long long>(sessionId),
         static_cast<unsigned>(metrics.ObservedHids()),
         static_cast<unsigned>(metrics.MaximumActiveKeys()),
@@ -493,6 +692,9 @@ bool ContainsFamilyToken(const std::wstring& value)
 bool IsAulaFamilyIdentity(const Candidate& candidate)
 {
     const bool familyBrand =
+        aula_win60he::IsKnownUsbIdentity(
+            candidate.attributes.VendorID,
+            candidate.attributes.ProductID) ||
         candidate.attributes.VendorID == aula_win60he::kAulaVendorId ||
         ContainsFamilyToken(candidate.manufacturer) ||
         ContainsFamilyToken(candidate.product);
@@ -527,18 +729,6 @@ bool SameDevicePath(const wchar_t* left, const std::wstring& right) noexcept
     if (!left)
         return false;
     return EqualWindowsIdentity(std::wstring(left), right);
-}
-
-bool PathContainsExactVidPid(const wchar_t* path)
-{
-    if (!path)
-        return false;
-    std::wstring lower(path);
-    std::transform(lower.begin(), lower.end(), lower.begin(),
-        [](wchar_t value) {
-            return static_cast<wchar_t>(std::towlower(value));
-        });
-    return lower.find(L"vid_1ca2&pid_1902") != std::wstring::npos;
 }
 
 bool PathContainsAulaVendor(const wchar_t* path)
@@ -585,6 +775,26 @@ bool IsAulaFamilySetupIdentity(
         ContainsFamilyToken(ReadDeviceProperty(info, deviceInfo, SPDRP_FRIENDLYNAME)) ||
         ContainsFamilyToken(ReadDeviceProperty(info, deviceInfo, SPDRP_DEVICEDESC));
 }
+
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+bool IsGravaStarSetupIdentity(
+    HDEVINFO info,
+    SP_DEVINFO_DATA* deviceInfo)
+{
+    const auto containsGravaStar = [](const std::wstring& value) {
+        std::wstring lower(value);
+        std::transform(lower.begin(), lower.end(), lower.begin(),
+            [](wchar_t character) {
+                return static_cast<wchar_t>(std::towlower(character));
+            });
+        return lower.find(L"gravastar") != std::wstring::npos ||
+            lower.find(L"grava star") != std::wstring::npos;
+    };
+    return containsGravaStar(ReadDeviceProperty(info, deviceInfo, SPDRP_MFG)) ||
+        containsGravaStar(ReadDeviceProperty(info, deviceInfo, SPDRP_FRIENDLYNAME)) ||
+        containsGravaStar(ReadDeviceProperty(info, deviceInfo, SPDRP_DEVICEDESC));
+}
+#endif
 
 using HidStringReader = BOOLEAN(__stdcall*)(HANDLE, PVOID, ULONG);
 
@@ -712,6 +922,7 @@ EnumerationResult EnumerateCandidates()
     EnumerationResult result{};
     result.attempt = g_discoveryAttempt.fetch_add(1, std::memory_order_relaxed) + 1u;
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+    AdvanceDiagnosticProgress(DiagnosticProgress::EnumerationStarted);
     StabilityTrace_Write(L"INFO", L"aula-win60he", L"enumeration.begin",
         L"attempt=%u", result.attempt);
 #endif
@@ -720,7 +931,16 @@ EnumerationResult EnumerateCandidates()
     HDEVINFO info = SetupDiGetClassDevsW(
         &hidGuid, nullptr, nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
     if (info == INVALID_HANDLE_VALUE)
+    {
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        const DWORD error = GetLastError();
+        RecordDiagnosticFailure(DiagnosticFailure::SetupApiEnumeration);
+        StabilityTrace_Write(L"ERROR", L"aula-win60he", L"enumeration.error",
+            L"attempt=%u stage=class_devices native_error=%u",
+            result.attempt, static_cast<unsigned>(error));
+#endif
         return result;
+    }
 
     for (DWORD index = 0;; ++index)
     {
@@ -728,9 +948,11 @@ EnumerationResult EnumerateCandidates()
         interfaceData.cbSize = sizeof(interfaceData);
         if (!SetupDiEnumDeviceInterfaces(info, nullptr, &hidGuid, index, &interfaceData))
         {
-            if (GetLastError() == ERROR_NO_MORE_ITEMS)
+            const DWORD enumerationError = GetLastError();
+            if (enumerationError == ERROR_NO_MORE_ITEMS)
                 break;
-            continue;
+            ++result.interfaceEnumerationErrors;
+            break;
         }
         ++result.hidInterfaces;
 
@@ -738,7 +960,10 @@ EnumerationResult EnumerateCandidates()
         (void)SetupDiGetDeviceInterfaceDetailW(
             info, &interfaceData, nullptr, 0, &detailBytes, nullptr);
         if (detailBytes < sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W))
+        {
+            ++result.interfaceDetailErrors;
             continue;
+        }
 
         std::vector<std::uint8_t> storage(detailBytes, 0);
         auto* detail = reinterpret_cast<SP_DEVICE_INTERFACE_DETAIL_DATA_W*>(storage.data());
@@ -747,19 +972,61 @@ EnumerationResult EnumerateCandidates()
         deviceInfo.cbSize = sizeof(deviceInfo);
         if (!SetupDiGetDeviceInterfaceDetailW(
                 info, &interfaceData, detail, detailBytes, nullptr, &deviceInfo))
-            continue;
-
-        if (PathContainsExactVidPid(detail->DevicePath))
         {
-            result.exactVidPidPathSeen = true;
-            ++result.exactVidPidPaths;
+            ++result.interfaceDetailErrors;
+            continue;
+        }
+
+        const bool knownUsbIdentity =
+            aula_win60he::PathContainsKnownUsbIdentity(detail->DevicePath);
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        std::uint16_t pathVendorId = 0;
+        std::uint16_t pathProductId = 0;
+        const bool parsedUsbIdentity = aula_win60he::TryReadUsbIdentityFromPath(
+            detail->DevicePath, &pathVendorId, &pathProductId);
+        const bool familyVendorPath = parsedUsbIdentity &&
+            (pathVendorId == 0x1CA2u || pathVendorId == 0x1CA5u);
+        const bool gravaStarBrandPath = IsGravaStarSetupIdentity(info, &deviceInfo);
+        if (familyVendorPath)
+        {
+            ++result.familyVendorPaths;
+            g_diagnosticLastSeenVendorId.store(pathVendorId, std::memory_order_relaxed);
+            g_diagnosticLastSeenProductId.store(pathProductId, std::memory_order_relaxed);
+            StabilityTrace_Write(L"INFO", L"aula-win60he", L"enumeration.family_usb",
+                L"attempt=%u index=%u vid=%04X pid=%04X exact_known=%u path_redacted=1",
+                result.attempt, static_cast<unsigned>(index),
+                static_cast<unsigned>(pathVendorId),
+                static_cast<unsigned>(pathProductId),
+                static_cast<unsigned>(knownUsbIdentity));
+        }
+        if (gravaStarBrandPath)
+        {
+            ++result.gravaStarBrandPaths;
+            StabilityTrace_Write(L"INFO", L"aula-win60he", L"enumeration.gravastar_brand",
+                L"attempt=%u index=%u vid=%04X pid=%04X exact_known=%u path_redacted=1",
+                result.attempt, static_cast<unsigned>(index),
+                static_cast<unsigned>(pathVendorId),
+                static_cast<unsigned>(pathProductId),
+                static_cast<unsigned>(knownUsbIdentity));
+        }
+#endif
+
+        if (knownUsbIdentity)
+        {
+            result.knownIdentityPathSeen = true;
+            ++result.knownIdentityPaths;
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+            AdvanceDiagnosticProgress(DiagnosticProgress::KnownIdentitySeen);
+#endif
         }
 
         // Do not open every HID interface on the machine during periodic
-        // discovery. A family candidate must first have either Aula's VID or
-        // an Aula/SparkPlayJoy identity exposed by SetupAPI. The later HID
-        // shape check and full read-only wire proof remain mandatory.
-        if (!PathContainsAulaVendor(detail->DevicePath) &&
+        // discovery. A family candidate must first have a firmware-proven
+        // exact USB identity, Aula's VID, or an Aula/SparkPlayJoy identity
+        // exposed by SetupAPI. The later HID shape, exact known-board
+        // correlation and full read-only wire proof remain mandatory.
+        if (!knownUsbIdentity &&
+            !PathContainsAulaVendor(detail->DevicePath) &&
             !IsAulaFamilySetupIdentity(info, &deviceInfo))
         {
             ++result.identityPrefilterRejected;
@@ -811,8 +1078,14 @@ EnumerationResult EnumerateCandidates()
         if (!metadataOk)
         {
             ++result.metadataRejected;
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+            RecordDiagnosticFailure(DiagnosticFailure::MetadataFingerprint);
+#endif
             continue;
         }
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        AdvanceDiagnosticProgress(DiagnosticProgress::FingerprintCandidate);
+#endif
         result.candidates.push_back(std::move(candidate));
     }
 
@@ -824,9 +1097,18 @@ EnumerationResult EnumerateCandidates()
             return left.path < right.path;
         });
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+    if (result.interfaceEnumerationErrors != 0 ||
+        result.interfaceDetailErrors != 0)
+    {
+        RecordDiagnosticFailure(DiagnosticFailure::SetupApiEnumeration);
+    }
+    AtomicMaximum(g_diagnosticFamilyVendorPaths, result.familyVendorPaths);
+    AtomicMaximum(g_diagnosticGravaStarBrandPaths, result.gravaStarBrandPaths);
     StabilityTrace_Write(L"INFO", L"aula-win60he", L"enumeration.end",
-        L"attempt=%u hid_interfaces=%u exact_vid_pid_paths=%u identity_prefilter_rejected=%u fingerprint_candidates=%u metadata_rejected=%u",
-        result.attempt, result.hidInterfaces, result.exactVidPidPaths,
+        L"attempt=%u hid_interfaces=%u known_identity_paths=%u family_vendor_paths=%u gravastar_brand_paths=%u enum_errors=%u detail_errors=%u identity_prefilter_rejected=%u fingerprint_candidates=%u metadata_rejected=%u",
+        result.attempt, result.hidInterfaces, result.knownIdentityPaths,
+        result.familyVendorPaths, result.gravaStarBrandPaths,
+        result.interfaceEnumerationErrors, result.interfaceDetailErrors,
         result.identityPrefilterRejected,
         static_cast<unsigned>(result.candidates.size()), result.metadataRejected);
 #endif
@@ -882,6 +1164,12 @@ bool OpenSession(const Candidate& candidate, Session* out, DWORD* openError)
     if (!out || !IsFingerprint(candidate) || candidate.path.empty())
     {
         if (openError) *openError = ERROR_INVALID_PARAMETER;
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        RecordDiagnosticFailure(DiagnosticFailure::SessionOpen);
+        StabilityTrace_Write(L"WARN", L"aula-win60he", L"session.open_failed",
+            L"stage=invalid_candidate error=%u",
+            static_cast<unsigned>(ERROR_INVALID_PARAMETER));
+#endif
         return false;
     }
 
@@ -899,6 +1187,7 @@ bool OpenSession(const Candidate& candidate, Session* out, DWORD* openError)
     {
         if (openError) *openError = GetLastError();
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        RecordDiagnosticFailure(DiagnosticFailure::SessionOpen);
         StabilityTrace_Write(L"WARN", L"aula-win60he", L"session.open_failed",
             L"stage=exclusive_open error=%u path_hash=%016llX",
             static_cast<unsigned>(openError ? *openError : GetLastError()),
@@ -916,6 +1205,7 @@ bool OpenSession(const Candidate& candidate, Session* out, DWORD* openError)
     {
         if (openError) *openError = ERROR_INVALID_DATA;
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        RecordDiagnosticFailure(DiagnosticFailure::SessionOpen);
         StabilityTrace_Write(L"WARN", L"aula-win60he", L"session.open_failed",
             L"stage=identity_recheck error=%u path_hash=%016llX enumerated_instance_hash=%016llX opened_instance_hash=%016llX",
             static_cast<unsigned>(ERROR_INVALID_DATA),
@@ -936,6 +1226,7 @@ bool OpenSession(const Candidate& candidate, Session* out, DWORD* openError)
     {
         if (openError) *openError = ERROR_INVALID_DATA;
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        RecordDiagnosticFailure(DiagnosticFailure::SessionOpen);
         StabilityTrace_Write(L"WARN", L"aula-win60he", L"session.open_failed",
             L"stage=exclusive_metadata error=%u vid=%04X pid=%04X usage_page=%04X usage=%04X in_bytes=%u out_bytes=%u",
             static_cast<unsigned>(ERROR_INVALID_DATA),
@@ -951,6 +1242,7 @@ bool OpenSession(const Candidate& candidate, Session* out, DWORD* openError)
     if (!EnsureInputQueueCapacity(session.handle.value, openError))
     {
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        RecordDiagnosticFailure(DiagnosticFailure::SessionOpen);
         StabilityTrace_Write(L"WARN", L"aula-win60he", L"session.open_failed",
             L"stage=input_queue error=%u",
             static_cast<unsigned>(openError ? *openError : ERROR_GEN_FAILURE));
@@ -958,15 +1250,29 @@ bool OpenSession(const Candidate& candidate, Session* out, DWORD* openError)
         return false;
     }
 
+    DWORD eventError = ERROR_SUCCESS;
     session.readEvent = ScopedHandle(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (!session.readEvent)
+        eventError = GetLastError();
     session.writeEvent = ScopedHandle(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (!session.writeEvent && eventError == ERROR_SUCCESS)
+        eventError = GetLastError();
     if (!session)
     {
-        if (openError) *openError = GetLastError();
+        if (openError) *openError = eventError;
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        RecordDiagnosticFailure(DiagnosticFailure::SessionOpen);
+        StabilityTrace_Write(L"WARN", L"aula-win60he", L"session.open_failed",
+            L"stage=io_events error=%u read_event=%u write_event=%u",
+            static_cast<unsigned>(eventError),
+            static_cast<unsigned>(static_cast<bool>(session.readEvent)),
+            static_cast<unsigned>(static_cast<bool>(session.writeEvent)));
+#endif
         return false;
     }
 
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+    AdvanceDiagnosticProgress(DiagnosticProgress::SessionOpened);
     StabilityTrace_Write(L"INFO", L"aula-win60he", L"session.opened",
         L"path_hash=%016llX instance_hash=%016llX vid=%04X pid=%04X usage_page=%04X usage=%04X in_bytes=%u out_bytes=%u",
         static_cast<unsigned long long>(HashWideIdentity(session.candidate.path)),
@@ -1208,6 +1514,28 @@ aula_win60he::TraceSink MakeTraceSink(ClientTraceContext* context) noexcept
 #endif
 }
 
+// An exact USB identity selects its independently proven board ID. Unknown
+// brand-scoped family candidates retain the narrower generic-family firmware
+// predicate and never inherit the known-board exception.
+aula_win60he::CompatibilityPolicy ProbePolicyForSession(
+    const Session& session) noexcept
+{
+    const auto* known = aula_win60he::FindKnownUsbIdentity(
+        session.candidate.attributes.VendorID,
+        session.candidate.attributes.ProductID);
+    if (known)
+    {
+        return {
+            aula_win60he::CompatibilityProfile::ExactKnownBoard6x21Family,
+            known->boardId,
+        };
+    }
+    return {
+        aula_win60he::CompatibilityProfile::Compatible6x21Family,
+        0u,
+    };
+}
+
 
 bool BuildProbeResult(
     const Session& session,
@@ -1217,6 +1545,18 @@ bool BuildProbeResult(
     if (out) *out = ProbeResult{};
     if (!out || !IsFingerprint(session.candidate))
         return false;
+    if (!aula_win60he::IsKnownUsbIdentityBoardCompatible(
+            session.candidate.attributes.VendorID,
+            session.candidate.attributes.ProductID,
+            capability.sync.boardId))
+    {
+        DebugLog_WriteBuffered(
+            L"[backend.aula_win60he] exact USB identity returned unexpected board id vid=%04X pid=%04X board=%08X; refusing claim",
+            static_cast<unsigned>(session.candidate.attributes.VendorID),
+            static_cast<unsigned>(session.candidate.attributes.ProductID),
+            static_cast<unsigned>(capability.sync.boardId));
+        return false;
+    }
     ProbeResult result{};
     result.vendorId = session.candidate.attributes.VendorID;
     result.productId = session.candidate.attributes.ProductID;
@@ -1231,6 +1571,7 @@ bool BuildProbeResult(
 
 void ClearPublishedValues(bool clearOwnership)
 {
+    g_verifiedLayoutToken.store(0, std::memory_order_release);
     bool changed = false;
     for (std::size_t hid = 0; hid < g_milli.size(); ++hid)
     {
@@ -1248,9 +1589,9 @@ void PublishProof(const ProbeResult& proof)
 {
     ClearPublishedValues(true);
     for (const auto& row : proof.capability.keyMap)
-        for (const auto hid : row)
-            if (aula_win60he::IsPublishableKeyboardUsage(hid))
-                g_owned[hid].store(1, std::memory_order_relaxed);
+        for (const auto keyCode : row)
+            if (halljoy::keycode::IsSupported(keyCode))
+                g_owned[keyCode].store(1, std::memory_order_relaxed);
 
     g_vendorId.store(proof.vendorId, std::memory_order_relaxed);
     g_productId.store(proof.productId, std::memory_order_relaxed);
@@ -1267,7 +1608,7 @@ void PublishProof(const ProbeResult& proof)
 }
 
 bool PublishMatrix(
-    const aula_win60he::KeyMap& map,
+    const aula_win60he::ActiveKeyMap& map,
     const aula_win60he::TravelMatrix& travel,
     std::uint16_t maximumTravelUm)
 {
@@ -1303,7 +1644,7 @@ bool OpenSelectedSession(Session* out)
 
     const EnumerationResult enumeration = EnumerateCandidates();
     g_candidatePresent.store(
-        enumeration.exactVidPidPathSeen || !enumeration.candidates.empty(),
+        enumeration.knownIdentityPathSeen || !enumeration.candidates.empty(),
         std::memory_order_release);
     g_candidateCount.store(
         static_cast<std::uint32_t>(enumeration.candidates.size()),
@@ -1343,6 +1684,9 @@ bool OpenSelectedSession(Session* out)
     if (selection.invalidEnumeration)
     {
         g_invalidEnumeration.store(true, std::memory_order_relaxed);
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        RecordDiagnosticFailure(DiagnosticFailure::InvalidEnumeration);
+#endif
         DebugLog_WriteBuffered(
             L"[backend.aula_win60he] contradictory SetupAPI enumeration evidence; refusing device selection");
         return false;
@@ -1350,6 +1694,9 @@ bool OpenSelectedSession(Session* out)
     if (selection.ambiguous)
     {
         g_ambiguousSelection.store(true, std::memory_order_relaxed);
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        RecordDiagnosticFailure(DiagnosticFailure::AmbiguousSelection);
+#endif
         DebugLog_WriteBuffered(
             L"[backend.aula_win60he] multiple or contradictory exact-fingerprint candidates; refusing implicit device selection");
         return false;
@@ -1357,6 +1704,9 @@ bool OpenSelectedSession(Session* out)
     if (selection.retainedIdentityMissing)
     {
         g_retainedIdentityMissing.store(true, std::memory_order_relaxed);
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        RecordDiagnosticFailure(DiagnosticFailure::RetainedIdentityMissing);
+#endif
         DebugLog_WriteBuffered(
             L"[backend.aula_win60he] retained Aula identity is absent; refusing path, instance or serial rebind until backend restart");
         return false;
@@ -1366,10 +1716,10 @@ bool OpenSelectedSession(Session* out)
     {
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
         StabilityTrace_Write(L"WARN", L"aula-win60he", L"selection.none",
-            L"attempt=%u exact_path_seen=%u exact_paths=%u fingerprint_candidates=%u",
+            L"attempt=%u known_path_seen=%u known_paths=%u fingerprint_candidates=%u",
             enumeration.attempt,
-            static_cast<unsigned>(enumeration.exactVidPidPathSeen),
-            enumeration.exactVidPidPaths,
+            static_cast<unsigned>(enumeration.knownIdentityPathSeen),
+            enumeration.knownIdentityPaths,
             static_cast<unsigned>(enumeration.candidates.size()));
 #endif
         return false;
@@ -1450,6 +1800,49 @@ void WaitForReconnect(DWORD timeoutMs)
     g_deviceChanged.store(false, std::memory_order_release);
 }
 
+bool IsDeterministicSemanticFailure(
+    aula_win60he::FailureStage stage) noexcept
+{
+    using aula_win60he::FailureStage;
+    switch (stage)
+    {
+    case FailureStage::UnexpectedFirmware:
+    case FailureStage::UnexpectedPrecision:
+    case FailureStage::UnexpectedDefaultMap:
+    case FailureStage::UnstableActiveMap:
+    case FailureStage::ImplausibleTravel:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void WaitForDeviceChangeAfterDeterministicRejection()
+{
+    // Discard notifications that led to the proof we just completed. A new
+    // device-change edge (or shutdown) is required before repeating the full
+    // 17..25 transaction proof. The bounded wait also observes the atomic flag
+    // if NotifyDeviceChange could not take the lifecycle mutex to signal.
+    g_deviceChanged.store(false, std::memory_order_release);
+    if (g_wakeEvent)
+        ResetEvent(g_wakeEvent);
+    while (!g_stop.load(std::memory_order_acquire))
+    {
+        if (g_wakeEvent)
+            (void)WaitForSingleObject(g_wakeEvent, 1000u);
+        else
+            return;
+        if (g_stop.load(std::memory_order_acquire))
+            return;
+        if (g_deviceChanged.exchange(false, std::memory_order_acq_rel))
+        {
+            ResetEvent(g_wakeEvent);
+            return;
+        }
+        ResetEvent(g_wakeEvent);
+    }
+}
+
 void SignalInitialAttempt()
 {
     if (g_initialAttemptEvent)
@@ -1520,9 +1913,21 @@ std::uint32_t WorkerMain()
         aula_win60he::CapabilityProof capability{};
         aula_win60he::Failure failure{};
         const bool probeOk = client.Probe(
-            &capability, &failure,
-            aula_win60he::CompatibilityProfile::Compatible6x21Family);
+            &capability, &failure, ProbePolicyForSession(session));
         TraceCapabilityOutcome(L"worker", probeOk, capability, failure);
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        g_diagnosticLastBoardId.store(
+            capability.sync.boardId, std::memory_order_relaxed);
+        g_diagnosticLastMismatchMask.store(
+            capability.compatibilityMismatchMask, std::memory_order_relaxed);
+        if (probeOk)
+            AdvanceDiagnosticProgress(DiagnosticProgress::CapabilityProved);
+        else
+        {
+            RecordDiagnosticFailure(DiagnosticFailure::CapabilityProof);
+            RecordDiagnosticProtocolFailure(failure);
+        }
+#endif
         if (!probeOk)
         {
             g_failedUpdates.fetch_add(1, std::memory_order_relaxed);
@@ -1536,13 +1941,17 @@ std::uint32_t WorkerMain()
             g_connected.store(false, std::memory_order_release);
             ClearPublishedValues(false);
             signalInitialAttempt();
-            WaitForReconnect(100);
+            if (IsDeterministicSemanticFailure(failure.stage))
+                WaitForDeviceChangeAfterDeterministicRejection();
+            else
+                WaitForReconnect(100);
             continue;
         }
 
         if (capability.compatibilityMismatchMask != 0)
         {
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+            RecordDiagnosticFailure(DiagnosticFailure::SemanticMismatch);
             StabilityTrace_Write(L"WARN", L"aula-win60he", L"proof.relaxed_complete",
                 L"mismatch_mask=%08X claim_blocked=1 publication_blocked=1 retry_ms=%u",
                 static_cast<unsigned>(capability.compatibilityMismatchMask),
@@ -1552,41 +1961,67 @@ std::uint32_t WorkerMain()
             g_connected.store(false, std::memory_order_release);
             ClearPublishedValues(false);
             signalInitialAttempt();
-            WaitForReconnect(kReconnectWaitMs);
+            WaitForDeviceChangeAfterDeterministicRejection();
             continue;
         }
 
         if (!MatchesRetainedProofIdentity(session, capability))
         {
             g_firmwareSerialMismatch.store(true, std::memory_order_relaxed);
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+            RecordDiagnosticFailure(DiagnosticFailure::RetainedProofMismatch);
+#endif
             DebugLog_WriteBuffered(
                 L"[backend.aula_win60he] proven Aula identity returned different retained path, instance or firmware-serial evidence; refusing session");
             g_protocolPresent.store(false, std::memory_order_release);
             g_connected.store(false, std::memory_order_release);
             ClearPublishedValues(false);
             signalInitialAttempt();
-            WaitForReconnect(100);
+            WaitForDeviceChangeAfterDeterministicRejection();
             continue;
         }
 
         ProbeResult proof{};
-        if (!BuildProbeResult(session, capability, &proof) ||
-            !NativeAnalogRouting_Claim(
-                aula_win60he::kAulaVendorId,
-                aula_win60he::kAulaProductId,
-                session.candidate.path.c_str(),
-                NativeAnalogProtocol::AulaWin60He))
+        const bool probeResultOk = BuildProbeResult(session, capability, &proof);
+        const bool routeClaimed = probeResultOk && NativeAnalogRouting_Claim(
+            session.candidate.attributes.VendorID,
+            session.candidate.attributes.ProductID,
+            session.candidate.path.c_str(),
+            NativeAnalogProtocol::AulaWin60He);
+        if (!probeResultOk || !routeClaimed)
         {
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+            RecordDiagnosticFailure(probeResultOk
+                ? DiagnosticFailure::RouteClaim
+                : DiagnosticFailure::ProbeResult);
+            StabilityTrace_Write(L"WARN", L"aula-win60he", L"routing.not_claimed",
+                L"phase=worker probe_result_ok=%u route_claimed=%u board_id=%08X claim_blocked=1 publication_blocked=1",
+                static_cast<unsigned>(probeResultOk),
+                static_cast<unsigned>(routeClaimed),
+                static_cast<unsigned>(capability.sync.boardId));
+#endif
             g_protocolPresent.store(false, std::memory_order_release);
             g_connected.store(false, std::memory_order_release);
             ClearPublishedValues(false);
             signalInitialAttempt();
-            WaitForReconnect(100);
+            if (!probeResultOk)
+                WaitForDeviceChangeAfterDeterministicRejection();
+            else
+                WaitForReconnect(100);
             continue;
         }
 
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        g_diagnosticFailure.store(DiagnosticFailure::None, std::memory_order_relaxed);
+        AdvanceDiagnosticProgress(DiagnosticProgress::RouteClaimed);
+#endif
         SaveValidatedClaim(session, proof);
         PublishProof(proof);
+        g_verifiedLayoutToken.store(
+            capability.profile == aula_win60he::CompatibilityProfile::ExactWin60HeMax &&
+            capability.sync.boardId == 0x0A021902u ?
+                halljoy::layout_identity::Token("aula-rm6x21","0A021902") : 0,
+            std::memory_order_release);
         g_candidatePresent.store(true, std::memory_order_release);
         g_protocolPresent.store(true, std::memory_order_release);
         g_connected.store(true, std::memory_order_release);
@@ -1633,6 +2068,7 @@ std::uint32_t WorkerMain()
 
         ULONGLONG nextActiveMapRefreshMs =
             GetTickCount64() + kActiveMapRefreshIntervalMs;
+        bool retryOnlyAfterDeviceChange = false;
         while (!g_stop.load(std::memory_order_acquire))
         {
             if (GetTickCount64() >= nextActiveMapRefreshMs)
@@ -1652,6 +2088,9 @@ std::uint32_t WorkerMain()
                         static_cast<unsigned>(failure.selector),
                         static_cast<unsigned>(failure.index));
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+                    RecordDiagnosticProtocolFailure(failure);
+                    if (!stopping)
+                        RecordDiagnosticFailure(DiagnosticFailure::ActiveMap);
                     diagnosticEndReason = stopping
                         ? L"shutdown_cancel" : L"active_map_failure";
                     if (stopping)
@@ -1661,15 +2100,21 @@ std::uint32_t WorkerMain()
                     else
                         TraceCapabilityOutcome(L"active_map_refresh", false, capability, failure);
 #endif
+                    retryOnlyAfterDeviceChange =
+                        IsDeterministicSemanticFailure(failure.stage);
                     break;
                 }
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
                 if (client.CompatibilityMismatchMask() != 0)
                 {
+                    RecordDiagnosticFailure(DiagnosticFailure::SemanticMismatch);
+                    g_diagnosticLastMismatchMask.store(
+                        client.CompatibilityMismatchMask(), std::memory_order_relaxed);
                     diagnosticEndReason = L"semantic_mismatch";
                     StabilityTrace_Write(L"WARN", L"aula-win60he", L"runtime.semantic_mismatch",
                         L"phase=active_map mask=%08X publication_blocked=1 session_reopen=1",
                         static_cast<unsigned>(client.CompatibilityMismatchMask()));
+                    retryOnlyAfterDeviceChange = true;
                     break;
                 }
 #endif
@@ -1713,6 +2158,9 @@ std::uint32_t WorkerMain()
                     static_cast<unsigned>(failure.selector),
                     static_cast<unsigned>(failure.index));
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+                RecordDiagnosticProtocolFailure(failure);
+                if (!stopping)
+                    RecordDiagnosticFailure(DiagnosticFailure::Travel);
                 diagnosticEndReason = stopping
                     ? L"shutdown_cancel" : L"travel_failure";
                 if (stopping)
@@ -1723,15 +2171,21 @@ std::uint32_t WorkerMain()
                 else
                     TraceCapabilityOutcome(L"travel_poll", false, capability, failure);
 #endif
+                retryOnlyAfterDeviceChange =
+                    IsDeterministicSemanticFailure(failure.stage);
                 break;
             }
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
             if (client.CompatibilityMismatchMask() != 0)
             {
+                RecordDiagnosticFailure(DiagnosticFailure::SemanticMismatch);
+                g_diagnosticLastMismatchMask.store(
+                    client.CompatibilityMismatchMask(), std::memory_order_relaxed);
                 diagnosticEndReason = L"semantic_mismatch";
                 StabilityTrace_Write(L"WARN", L"aula-win60he", L"runtime.semantic_mismatch",
                     L"phase=travel mask=%08X publication_blocked=1 session_reopen=1",
                     static_cast<unsigned>(client.CompatibilityMismatchMask()));
+                retryOnlyAfterDeviceChange = true;
                 break;
             }
 #endif
@@ -1742,6 +2196,8 @@ std::uint32_t WorkerMain()
                 capability.precision.maximumTravelUm);
             RecordSuccessfulMatrix();
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+            g_diagnosticFailure.store(DiagnosticFailure::None, std::memory_order_relaxed);
+            AdvanceDiagnosticProgress(DiagnosticProgress::MatrixObserved);
             const std::uint64_t completedUs = NowUs();
             const std::uint32_t transactionUs = static_cast<std::uint32_t>(
                 std::min<std::uint64_t>(
@@ -1828,7 +2284,12 @@ std::uint32_t WorkerMain()
         }
 #endif
         if (!g_stop.load(std::memory_order_acquire))
-            WaitForReconnect(100);
+        {
+            if (retryOnlyAfterDeviceChange)
+                WaitForDeviceChangeAfterDeterministicRejection();
+            else
+                WaitForReconnect(100);
+        }
     }
 
     g_connected.store(false, std::memory_order_release);
@@ -1849,6 +2310,9 @@ void WorkerOnFault(
     g_connected.store(false, std::memory_order_release);
     g_protocolPresent.store(false, std::memory_order_release);
     ClearPublishedValues(false);
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+    RecordDiagnosticFailure(DiagnosticFailure::WorkerFault);
+#endif
     StabilityTrace_WriteCritical(L"ERROR", L"aula-win60he", L"worker.fault",
         L"kind=%u neutralized=1", static_cast<unsigned>(record.kind));
 }
@@ -1874,11 +2338,14 @@ unsigned __stdcall WorkerEntry(void*) noexcept
 
 void FillTelemetry(NativeAnalogBackendTelemetry* out)
 {
+    const auto identity = g_verifiedLayoutToken.load(std::memory_order_acquire);
     if (!out)
         return;
     *out = NativeAnalogBackendTelemetry{};
     out->present = g_candidatePresent.load(std::memory_order_acquire);
     out->connected = g_connected.load(std::memory_order_acquire);
+    if (out->connected && identity == g_verifiedLayoutToken.load(std::memory_order_acquire))
+        out->verifiedLayoutToken = identity;
     out->vendorId = g_vendorId.load(std::memory_order_relaxed);
     out->productId = g_productId.load(std::memory_order_relaxed);
     out->usagePage = g_usagePage.load(std::memory_order_relaxed);
@@ -1982,18 +2449,38 @@ bool AulaWin60He_PrepareProtocolRouting()
         aula_win60he::Failure failure{};
         ProbeResult proof{};
         const bool probeOk = client.Probe(
-            &capability, &failure,
-            aula_win60he::CompatibilityProfile::Compatible6x21Family);
+            &capability, &failure, ProbePolicyForSession(session));
         TraceCapabilityOutcome(L"pre_uap", probeOk, capability, failure);
-        if (probeOk && capability.compatibilityMismatchMask == 0 &&
-            MatchesRetainedProofIdentity(session, capability) &&
-            BuildProbeResult(session, capability, &proof) &&
-            NativeAnalogRouting_Claim(
+        const bool retainedIdentityOk =
+            probeOk && MatchesRetainedProofIdentity(session, capability);
+        const bool probeResultOk =
+            retainedIdentityOk && BuildProbeResult(session, capability, &proof);
+        const bool routeClaimed = probeOk &&
+            capability.compatibilityMismatchMask == 0 &&
+            probeResultOk && NativeAnalogRouting_Claim(
                 session.candidate.attributes.VendorID,
                 session.candidate.attributes.ProductID,
                 session.candidate.path.c_str(),
-                NativeAnalogProtocol::AulaWin60He))
+                NativeAnalogProtocol::AulaWin60He);
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        g_diagnosticLastBoardId.store(
+            capability.sync.boardId, std::memory_order_relaxed);
+        g_diagnosticLastMismatchMask.store(
+            capability.compatibilityMismatchMask, std::memory_order_relaxed);
+        if (probeOk)
+            AdvanceDiagnosticProgress(DiagnosticProgress::CapabilityProved);
+        else
         {
+            RecordDiagnosticFailure(DiagnosticFailure::CapabilityProof);
+            RecordDiagnosticProtocolFailure(failure);
+        }
+#endif
+        if (routeClaimed)
+        {
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+            g_diagnosticFailure.store(DiagnosticFailure::None, std::memory_order_relaxed);
+            AdvanceDiagnosticProgress(DiagnosticProgress::RouteClaimed);
+#endif
             SaveValidatedClaim(session, proof);
             PublishProof(proof);
             g_candidatePresent.store(true, std::memory_order_release);
@@ -2009,6 +2496,16 @@ bool AulaWin60He_PrepareProtocolRouting()
         }
         else
         {
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+            if (probeOk && capability.compatibilityMismatchMask != 0)
+                RecordDiagnosticFailure(DiagnosticFailure::SemanticMismatch);
+            else if (probeOk && !retainedIdentityOk)
+                RecordDiagnosticFailure(DiagnosticFailure::RetainedProofMismatch);
+            else if (probeOk && !probeResultOk)
+                RecordDiagnosticFailure(DiagnosticFailure::ProbeResult);
+            else if (probeOk)
+                RecordDiagnosticFailure(DiagnosticFailure::RouteClaim);
+#endif
             g_failedUpdates.fetch_add(1, std::memory_order_relaxed);
             g_protocolPresent.store(false, std::memory_order_release);
             DebugLog_WriteBuffered(
@@ -2022,8 +2519,8 @@ bool AulaWin60He_PrepareProtocolRouting()
                 L"probe_ok=%u mismatch_mask=%08X retained_identity_ok=%u fingerprint_ok=%u failure_stage=%u command=%02X selector=%02X index=%u",
                 static_cast<unsigned>(probeOk),
                 static_cast<unsigned>(capability.compatibilityMismatchMask),
-                static_cast<unsigned>(probeOk && MatchesRetainedProofIdentity(session, capability)),
-                static_cast<unsigned>(BuildProbeResult(session, capability, &proof)),
+                static_cast<unsigned>(retainedIdentityOk),
+                static_cast<unsigned>(probeResultOk),
                 static_cast<unsigned>(failure.stage),
                 static_cast<unsigned>(failure.command),
                 static_cast<unsigned>(failure.selector),
@@ -2040,8 +2537,9 @@ bool AulaWin60He_Start()
 {
     std::lock_guard<std::mutex> serviceLock(g_serviceMutex);
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+    ResetDiagnosticOutcome();
     StabilityTrace_Write(L"WARN", L"aula-win60he", L"diagnostic.enabled",
-        L"schema=2 strict_claim_required=1 strict_publication_required=1 proof_raw_reports_capped=1 serial_redacted=1 health_window_ms=5000 activity_snapshots=1 ten_key_gate=1 per_hid_coverage=1 reconnect_timeline=1 shutdown_cancellation_classified=1");
+        L"schema=3 strict_claim_required=1 strict_publication_required=1 proof_raw_reports_capped=1 serial_redacted=1 health_window_ms=5000 activity_snapshots=1 ten_key_gate=1 per_hid_coverage=1 reconnect_timeline=1 shutdown_cancellation_classified=1 conclusive_verdict=1 expected_profiles=1CA5:2201/16052201,1CA5:2202/16052202,1CA2:2201/2E022201");
 #endif
     if (!g_routingPrepared.load(std::memory_order_acquire))
         (void)AulaWin60He_PrepareProtocolRouting();
@@ -2073,8 +2571,13 @@ bool AulaWin60He_Start()
 
     {
         std::lock_guard<std::mutex> signalLock(g_signalMutex);
+        DWORD resourceError = ERROR_SUCCESS;
         g_wakeEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        if (!g_wakeEvent)
+            resourceError = GetLastError();
         g_initialAttemptEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        if (!g_initialAttemptEvent && resourceError == ERROR_SUCCESS)
+            resourceError = GetLastError();
         if (!g_wakeEvent || !g_initialAttemptEvent)
         {
             if (g_wakeEvent) CloseHandle(g_wakeEvent);
@@ -2082,6 +2585,12 @@ bool AulaWin60He_Start()
             g_wakeEvent = nullptr;
             g_initialAttemptEvent = nullptr;
             g_running.store(false, std::memory_order_release);
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+            RecordDiagnosticFailure(DiagnosticFailure::StartResources);
+            StabilityTrace_Write(L"ERROR", L"aula-win60he", L"start.failed",
+                L"stage=events native_error=%u", static_cast<unsigned>(resourceError));
+            TraceDiagnosticVerdict();
+#endif
             return false;
         }
     }
@@ -2091,12 +2600,22 @@ bool AulaWin60He_Start()
         nullptr, 0, WorkerEntry, nullptr, 0, &threadId);
     if (thread == 0)
     {
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        const DWORD threadError = static_cast<DWORD>(errno);
+#endif
         std::lock_guard<std::mutex> signalLock(g_signalMutex);
         CloseHandle(g_wakeEvent);
         CloseHandle(g_initialAttemptEvent);
         g_wakeEvent = nullptr;
         g_initialAttemptEvent = nullptr;
         g_running.store(false, std::memory_order_release);
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        RecordDiagnosticFailure(DiagnosticFailure::StartThread);
+        StabilityTrace_Write(L"ERROR", L"aula-win60he", L"start.failed",
+            L"stage=worker_thread native_error=%u",
+            static_cast<unsigned>(threadError));
+        TraceDiagnosticVerdict();
+#endif
         return false;
     }
     g_threadHandle = reinterpret_cast<HANDLE>(thread);
@@ -2114,6 +2633,12 @@ bool AulaWin60He_Start()
         DebugLog_WriteBuffered(
             L"[backend.aula_win60he] initial discovery/proof gate timed out; continuing worker in retry mode");
     }
+    else if (initialWait == WAIT_FAILED)
+    {
+        StabilityTrace_Write(L"ERROR", L"aula-win60he", L"start.initial_wait_failed",
+            L"native_error=%u worker_continues=1",
+            static_cast<unsigned>(GetLastError()));
+    }
     if (WaitForSingleObject(g_threadHandle, 0) == WAIT_OBJECT_0 &&
         !g_running.load(std::memory_order_acquire))
         return false;
@@ -2125,7 +2650,12 @@ halljoy::lifecycle::StopResult AulaWin60He_Stop(
 {
     std::lock_guard<std::mutex> serviceLock(g_serviceMutex);
     if (!g_threadHandle)
+    {
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        TraceDiagnosticVerdict();
+#endif
         return NativeAnalogBackendStopJoined(generation);
+    }
 
     g_stop.store(true, std::memory_order_release);
     {
@@ -2142,9 +2672,15 @@ halljoy::lifecycle::StopResult AulaWin60He_Stop(
     if (wait != WAIT_OBJECT_0)
     {
         const DWORD error = wait == WAIT_TIMEOUT ? WAIT_TIMEOUT : GetLastError();
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        RecordDiagnosticFailure(DiagnosticFailure::StopIncomplete);
+#endif
         StabilityTrace_WriteCritical(L"ERROR", L"aula-win60he", L"stop.incomplete",
             L"wait=%lu native_error=%lu resources_retained=1",
             static_cast<unsigned long>(wait), static_cast<unsigned long>(error));
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+        TraceDiagnosticVerdict();
+#endif
         return halljoy::lifecycle::ObserveWorkerJoin(
             generation,
             wait == WAIT_TIMEOUT
@@ -2167,6 +2703,9 @@ halljoy::lifecycle::StopResult AulaWin60He_Stop(
     g_protocolPresent.store(false, std::memory_order_release);
     g_connected.store(false, std::memory_order_release);
     ClearPublishedValues(false);
+#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+    TraceDiagnosticVerdict();
+#endif
     StabilityTrace_Write(L"INFO", L"aula-win60he", L"stop.joined");
     return NativeAnalogBackendStopJoined(generation);
 }
@@ -2223,7 +2762,7 @@ const NativeAnalogBackendDescriptor& AulaWin60He_GetNativeBackendDescriptor()
         kNativeAnalogBackendAbiVersion,
         sizeof(NativeAnalogBackendDescriptor),
         "aula-sparkplayjoy-6x21",
-        L"Aula / SparkPlayJoy 6x21 protocol family",
+        L"SparkPlayJoy 6x21 (Aula / GravaStar)",
         NativeAnalogProtocol::AulaWin60He,
         NativeAnalogStartPhase::BeforeUap,
         NativeAnalogBackendFlag_PolledTransport |

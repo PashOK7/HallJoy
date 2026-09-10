@@ -1,5 +1,16 @@
 # HallJoy hardware compatibility
 
+## Owner clarification — 2026-09-09
+
+For the Keychron HE models under discussion, the owner confirms that custom
+firmware is used and a tool already exists to prepare UAP-compatible firmware
+from the original. Treat analogue support through that path as established when
+adding layouts; do not restart protocol research or require owning every model
+as a layout-work prerequisite. Continue checking exact model/ANSI/ISO/JIS,
+device identity and geometry. This is owner-provided context, not a new physical
+test claim or a guarantee about stock firmware. See
+[persistent owner context](docs/current/OWNER_CONTEXT.md).
+
 HallJoy supports several analogue-keyboard protocol families. A brand name,
 USB VID/PID, or similar product title is never enough by itself: native routes
 claim only the exact HID interface that completes their protocol proof.
@@ -15,6 +26,9 @@ claim only the exact HID interface that completes their protocol proof.
   private UAP/Soup runtime. This is not the same as HallJoy physical validation.
 - **Unsupported:** the device or firmware was tested and does not provide a
   release-quality route.
+- **Experimental owner build:** an isolated, compile-time-gated diagnostic
+  candidate exists, but the model is not production-supported until its
+  physical gate passes.
 
 ## Physically tested devices
 
@@ -29,6 +43,28 @@ claim only the exact HID interface that completes their protocol proof.
 
 Physical evidence for one model does not prove every keyboard sold under the
 same brand.
+
+## Experimental owner-validation builds
+
+| Device | Identity | Candidate route | Current evidence |
+|---|---|---|---|
+| IROK ND75 | `0416:7372`, `FF1B:0091`, M484/X86HERGB | Experimental native M484 `0D`, host `29/18`, device `21` | official signed software/firmware static analysis, exact official 6x22 map, protocol/static tests, MSVC diagnostic build and no-device lifecycle smoke; physical input and hotplug evidence pending |
+
+The ND75 candidate is intentionally excluded from the normal v1.4.1 build.
+It does not flash firmware or write calibration, key maps, lighting or profiles.
+Passing the owner procedure in `docs/v1.4/IROK_ND75_OWNER_TEST.md` is required
+before this row can move to physically tested support.
+
+## Frozen implementations awaiting a real tester
+
+| Device | Identity | State | Re-enable rule |
+|---|---|---|---|
+| AULA HERO84 HE | `372E:103E`, `FF60:0061`, report ID `09` | Disabled from ordinary builds. The retained implementation is not supported or shipped as an automatic route because the original tester is unavailable and no physical input evidence exists. | Build only the explicitly named `HallJoyAulaHero84HeExperimental` test image for a new consenting owner; obtain and review its log and real-keyboard evidence before any release-scope decision. |
+| ROG Azoth 96 HE | `0B05:1C10` | Disabled from ordinary builds. The retained diagnostic candidate is not supported or shipped as an automatic route because no current tester has supplied physical input evidence. | Build only the explicitly named `HallJoyRogAzoth96HeDiagnostic` test image for a new consenting owner; obtain and review its log and real-keyboard evidence before any release-scope decision. |
+
+This frozen code never flashes firmware or writes calibration, maps, lighting or
+profiles. Its opt-in candidate uses only the already-audited read requests, but
+that source-level limit is not a substitute for physical validation.
 
 ## Native HallJoy protocol families
 
@@ -70,6 +106,19 @@ uses the `21` event stream.
 An unknown W669 product never inherits a guessed WIN60/WIN68 layout from its
 PID, product-name substring, or key count. It must return a sufficiently
 explicit map when no exact factory profile is known.
+
+### Redragon magnetic-switch family
+
+**Confirmed working: K673RGB-M with BR firmware.**
+
+Other compatible magnetic-switch models are expected to work but have not been
+physically tested with HallJoy: K673WB-RGB-M, K580-M, K552-M (PT), K552BGC-M,
+K552RGB-M SP, K556RGB-M, K556BP-RGB-M, K617RGB-M, K617RGB-MP (PT), K618RGB-M,
+K686RGB-M, K686BG-RGB-M, K707-RGB-M, K721RGB-M, K721WRB-RGB-M, M82, M82 SE,
+and RS82 RT. The UK firmware variant of K673RGB-M is also untested.
+
+These names refer to compatible magnetic-switch revisions, not every keyboard
+sold under the same model name. Firmware-specific evidence is recorded above.
 
 ### ATK Hex80-compatible `0x96`
 
@@ -135,9 +184,9 @@ for example, Razer devices may require Razer Synapse.
 
 ### Keychron K4 HE ANSI
 
-Keychron K4 HE ANSI (`3434:0E40`, `FF60:0061`) is physically validated and used
-daily by the HallJoy author with the custom read-only `A9 31` full-report
-firmware. Testing proved immediate sub-actuation input, the full value range,
+Keychron K4 HE ANSI (`3434:0E40`, `FF60:0061`) is physically validated with
+the custom read-only `A9 31` full-report firmware. Testing proved immediate
+sub-actuation input, the full value range,
 simultaneous keys, release-to-zero, sustained 181-191 Hz complete snapshots,
 and stable long-term HallJoy use.
 
@@ -162,8 +211,16 @@ keyboard, layout, MCU, and image before flashing.
 4. HallJoy never claims a random interface merely because its brand, VID/PID,
    report length, or key count looks similar.
 
-If the keyboard is not recognized, contact **`pash.ok`** on Discord. An
-open-source reader, public SDK/specification, firmware image, or offline `.exe`
-updater is usually enough to begin protocol research. Some firmware exposes no
-external analogue data at all; in that case application-only support may be
-impossible.
+After HallJoy's startup generation has completed, if no native route or UAP
+source is currently publishing analogue data, the keyboard page shows a red
+support banner above its tabs. It says that no supported analogue keyboard was
+detected and invites the user to help add their model. The banner remains hidden
+while startup is still searching. This is a statement about HallJoy's current
+analogue input, not a claim about every keyboard connected to Windows.
+
+The banner offers the official Discord invite
+[`https://discord.gg/5FQ297yZh`](https://discord.gg/5FQ297yZh) through a browser
+button, clipboard copy and a scannable QR code. An open-source reader, public
+SDK/specification, firmware image, or offline `.exe` updater is usually enough
+to begin protocol research. Some firmware exposes no external analogue data at
+all; in that case application-only support may be impossible.

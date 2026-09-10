@@ -8,7 +8,7 @@ Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root 'src\HallJoyProject\HallJoy\HallJoy.vcxproj'
-$output = Join-Path $root 'src\HallJoyProject\x64\AnalogSimulator'
+$output = Join-Path $root 'build\bin\AnalogSimulator\Release\x64'
 $exe = Join-Path $output 'HallJoyV14Simulator.exe'
 $evidenceParent = Join-Path $root 'build\evidence\factory-reset'
 $runRoot = Join-Path $evidenceParent (Get-Date -Format 'yyyyMMdd-HHmmss-fff')

@@ -15,6 +15,7 @@
 
 #include "keyboard_keysettings_panel_internal.h"
 #include "keyboard_keysettings_panel.h"
+#include "analog_key_codes.h"
 #include "win_util.h"
 #include "ui_theme.h"
 #include "backend.h"
@@ -687,7 +688,7 @@ static void DrawLiveMarkerOverlay(Graphics& g, const RectF& inner, const KeyDead
 {
     if (!Ksp_IsKeySelected()) return;
     uint16_t hid = g_kspSelectedHid;
-    if (hid == 0 || hid >= 256) return;
+    if (!halljoy::keycode::IsSupported(hid)) return;
 
     float raw = (float)BackendUI_GetRawMilli(hid) / 1000.0f;
     float out = (float)BackendUI_GetAnalogMilli(hid) / 1000.0f;

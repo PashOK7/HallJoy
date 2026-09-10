@@ -83,9 +83,10 @@ checks = {
         and "NativeAnalogProtocol::SayoDepth" in sayo
         and "SparkQueryDeviceInfo(routeProbe)" in spark
         and "NativeAnalogProtocol::SparkLink" in spark),
-    "Spark never probes the dedicated Aula identity": (
-        "SparkPathIsDedicatedAula(detail->DevicePath)" in spark
-        and spark.index("SparkPathIsDedicatedAula(detail->DevicePath)")
+    "Spark never probes any exact SparkPlayJoy 6x21 identity": (
+        "SparkPathIsDedicated6x21(detail->DevicePath)" in spark
+        and "PathContainsKnownUsbIdentity(path)" in spark
+        and spark.index("SparkPathIsDedicated6x21(detail->DevicePath)")
             < spark.index("HANDLE h = CreateFileW", spark.index("SparkTryOpenDevice"))
         and "candidate.skip_dedicated" in spark),
     "Hex80 exact protocol is independently catalogued": (
@@ -106,6 +107,9 @@ checks = {
         and "NativeAnalogProtocol::AulaWin60He" in aula
         and "kAulaVendorId = 0x1CA2" in aula_protocol
         and "kAulaProductId = 0x1902" in aula_protocol
+        and "0x1CA5u, 0x2201u, 0x16052201u" in aula_protocol
+        and "0x1CA5u, 0x2202u, 0x16052202u" in aula_protocol
+        and "0x1CA2u, 0x2201u, 0x2E022201u" in aula_protocol
         and "kAulaUsagePage = 0xFFA0" in aula_protocol
         and "kAulaUsage = 0x0001" in aula_protocol),
     "Aula family claims only after full read-only proof": (

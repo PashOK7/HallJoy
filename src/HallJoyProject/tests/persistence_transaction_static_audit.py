@@ -71,9 +71,9 @@ require(profile, "ProfileTransactionValidate", "bindings are parsed back before 
 require(profile, "IniUtil_ReportSaveFailure", "bindings failure reaches the user-facing reporter")
 require(global_profiles, "ActiveProfileTransactionValidate", "active-profile marker update is read back")
 require(global_profiles, "IniUtil_SaveAtomic", "active-profile marker update is atomic")
-require(subpages, "if (!previousSettingsSaved || !previousBindingsSaved)", "profile switching aborts after a failed old-profile save")
-require(subpages, "if (!newSettingsSaved || !newBindingsSaved)", "profile creation rejects a partial new profile")
-require(subpages, "if (!settingsSaved || !bindingsSaved)", "manual profile save keeps dirty state after failure")
+require(global_profiles, "if (!GlobalProfiles_Save(previous)) return false;", "profile switching aborts after a failed old-profile bundle save")
+require(subpages, "if (!GlobalProfiles_Save(newName))", "profile creation requires a complete bundle commit")
+require(subpages, "if (!GlobalProfiles_Save(GlobalProfiles_GetActiveName()))", "manual profile save keeps dirty state after failure")
 
 if 'std::wstring tmp = path + L".tmp"' in layout or 'std::wstring tmp = path + L".tmp"' in curves:
     raise SystemExit("FAIL: layout/curve saves still use a shared fixed .tmp path")
@@ -87,7 +87,7 @@ require(layout, "PresetStore candidate = g_presets[idx];", "active layout memory
 require(layout, "g_presets[idx] = std::move(candidate);", "active layout memory commits only after file save")
 require(layout, "PresetStore candidate = g_presets[presetIdx];", "layout editor stages a candidate before save")
 require(layout, "g_presets[presetIdx] = std::move(candidate);", "layout editor memory commits only after file save")
-require(layout, 'L"Keychron K4 HE", g_keychronK4HeKeys', "Keychron K4 HE ships as a distinct built-in layout")
+require(layout, 'L"Keychron K4 HE ANSI - Imported", g_imported_k4', "Reviewed K4 HE replaces the retired layout")
 
 layout_init = layout.find("static void EnsureInit()")
 layout_init_order = [
@@ -100,16 +100,15 @@ if any(position < 0 for position in layout_init_order) or layout_init_order != s
     raise SystemExit("FAIL: built-in layout merge order is missing or unsafe")
 print("PASS: built-ins load first, user files override them, and preset zero remains the default")
 
-keychron_begin = layout.find("static const KeyDef g_keychronK4HeKeys[]")
-keychron_end = layout.find("static const PresetDef g_builtinPresets[]", keychron_begin)
-keychron_body = layout[keychron_begin:keychron_end]
+keychron_begin = layout.find("static const PresetDef g_builtinPresets[]")
+imported = (Path(__file__).resolve().parents[1] / "HallJoy" / "imported_layouts.h").read_text(encoding="utf-8-sig")
+keychron_body = imported.split("g_imported_k4[] = {", 1)[1].split("};", 1)[0]
 if keychron_body.count("{L\"") != 100:
     raise SystemExit("FAIL: Keychron K4 HE built-in must contain exactly 100 keys")
 print("PASS: Keychron K4 HE built-in contains the validated 100-key geometry")
 
 for preset_name, body in (
     ("Generic 100% ANSI", layout[layout.find("static const KeyDef g_generic100Keys[]"):keychron_begin]),
-    ("Keychron K4 HE", keychron_body),
 ):
     for label, hid, row in (("Num+", 87, 2), ("NEnt", 88, 4)):
         matching_lines = [line for line in body.splitlines() if f'{{L"{label}",' in line]
@@ -141,6 +140,27 @@ for marker, description in (
     ("KeyboardProfiles::TestSaveStateToPath", "simulator exercises curve state transactions"),
 ):
     require(app, marker, description)
+
+if not ('defined(HALLJOY_ANALOG_SIMULATOR)' in app and
+        'wcsstr(GetCommandLineW(), L"--halljoy-test-data-root")' in app and
+        'if (wcsstr(GetCommandLineW(), L"--halljoy-test-data-root"))\n            return 1;' in app):
+    raise SystemExit("FAIL: simulator storage-failure automation can block on a modal dialog")
+print("PASS: simulator storage-failure automation cannot block on a modal dialog")
+
+if not ('$expectedEarlyStorageExit = $RequireStorageMigrationFailure -and $process.HasExited' in simulator_runner and
+        '-not $closeAccepted -and -not $expectedEarlyStorageExit' in simulator_runner):
+    raise SystemExit("FAIL: simulator runner mistakes an expected storage-startup exit for a missing WM_CLOSE")
+print("PASS: simulator runner accepts the expected storage-failure early exit")
+
+if '[ValidateRange(8, 120)]' not in simulator_runner:
+    raise SystemExit("FAIL: simulator minimum duration can preempt the scripted final phase")
+print("PASS: simulator minimum duration covers the complete scripted scenario")
+
+if not ('$createdPortableMarker = $false' in simulator_runner and
+        '$UsePortableStorage -and -not (Test-Path -LiteralPath $portableMarker)' in simulator_runner and
+        '$createdPortableMarker -and (Test-Path -LiteralPath $portableMarker)' in simulator_runner):
+    raise SystemExit("FAIL: simulator portable mode can fall through into real LocalAppData")
+print("PASS: simulator portable mode owns and cleans its temporary marker")
 
 for kind in ("layout preset", "curve preset", "curve state"):
     require(simulator_runner, f"kind={kind} stage=$InjectPersistenceFailure", f"runner requires {kind} failure evidence")

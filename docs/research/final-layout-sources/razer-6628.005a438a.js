@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkproject_anne_taliat160=globalThis.webpackChunkproject_anne_taliat160||[]).push([[6628],{66628:(a,t,e)=>{a.exports=e.p+"static/media/UK.b62b4afd.svg"}}]);

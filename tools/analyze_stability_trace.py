@@ -60,6 +60,26 @@ def parse_uint(event: Event, name: str) -> int | None:
     return parsed if parsed >= 0 else None
 
 
+def classify_failure_events(events: list[Event]) -> list[str]:
+    """Return additive, stable support labels for recorded failure evidence."""
+    categories: set[str] = set()
+    for event in events:
+        component = event.component.lower()
+        name = event.name.lower()
+        critical = event.level.upper() in {"ERROR", "FATAL"}
+        if "stale" in name or ("input" in component and "age" in name):
+            categories.add("INPUT_STALE")
+        if "producer" in name and ("stall" in name or "timeout" in name):
+            categories.add("PRODUCER_STALLED")
+        if (component.startswith("vigem") or component == "output") and critical:
+            categories.add("OUTPUT_FAILED")
+        if component in {"storage", "persistence", "factory-reset"} and critical:
+            categories.add("STORAGE_FAILED")
+        if "incomplete" in name or "timeout" in name or "retained" in name:
+            categories.add("INCOMPLETE")
+    return sorted(categories)
+
+
 def analyze(events: list[Event]) -> tuple[str, list[str], list[str], Counter[str]]:
     failures: list[str] = []
     warnings: list[str] = []
@@ -218,6 +238,8 @@ def main() -> int:
 
     print(f"VERDICT: {verdict}")
     print(f"EVENTS: {len(events)}")
+    for category in classify_failure_events(events):
+        print(f"CLASSIFICATION: {category}")
     for key in sorted(counts):
         print(f"  {key}={counts[key]}")
     for warning in warnings:

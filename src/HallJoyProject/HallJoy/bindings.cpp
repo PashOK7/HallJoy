@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <algorithm>
 
+#include "analog_key_codes.h"
+
 #if defined(_MSC_VER)
 #include <intrin.h>
 #endif
@@ -36,8 +38,9 @@ static bool IsValidPadIndex(int padIndex)
 static std::array<std::array<std::atomic<uint32_t>, 4>, BINDINGS_MAX_GAMEPADS> g_axes{};     // packed AxisBinding: minus|plus
 static std::array<std::array<std::atomic<uint16_t>, 2>, BINDINGS_MAX_GAMEPADS> g_triggers{}; // LT,RT
 
-// Buttons: 14 buttons * 4 chunks (0..255)
-static std::array<std::array<std::array<std::atomic<uint64_t>, 4>, 15>, BINDINGS_MAX_GAMEPADS> g_btnMask{};
+// Buttons: 15 buttons * complete HallJoy key-code bitset.
+static std::array<std::array<std::array<std::atomic<uint64_t>,
+    halljoy::keycode::kMaskChunkCount>, 15>, BINDINGS_MAX_GAMEPADS> g_btnMask{};
 // Pad accent/color identity (1..4), kept separate from pad index so removing a middle pad
 // does not force remaining pads to change visual identity.
 static std::array<int, BINDINGS_MAX_GAMEPADS> g_padStyle{ 1, 2, 3, 4 };
@@ -103,7 +106,7 @@ uint16_t Bindings_GetTrigger(Trigger t) { return Bindings_GetTriggerForPad(0, t)
 // ---- Buttons (bitmask HID<256) ----
 static bool HidToChunkBit(uint16_t hid, int& outChunk, int& outBit)
 {
-    if (hid == 0 || hid >= 256) return false;
+    if (!halljoy::keycode::IsSupported(hid)) return false;
     outChunk = (int)(hid / 64);
     outBit = (int)(hid % 64);
     return true;
@@ -140,7 +143,8 @@ bool Bindings_ButtonHasHidForPad(int padIndex, GameButton b, uint16_t hid)
 uint64_t Bindings_GetButtonMaskChunkForPad(int padIndex, GameButton b, int chunk)
 {
     if (!IsValidPadIndex(padIndex)) return 0;
-    if (chunk < 0 || chunk >= 4) return 0;
+    if (chunk < 0 || static_cast<std::size_t>(chunk) >=
+        halljoy::keycode::kMaskChunkCount) return 0;
     return g_btnMask[(size_t)padIndex][BtnIdx(b)][chunk].load(std::memory_order_acquire);
 }
 
@@ -150,9 +154,10 @@ bool Bindings_ButtonHasHid(GameButton b, uint16_t hid) { return Bindings_ButtonH
 uint64_t Bindings_GetButtonMaskChunk(GameButton b, int chunk) { return Bindings_GetButtonMaskChunkForPad(0, b, chunk); }
 
 // Legacy: return lowest HID set, or 0
-static uint16_t FindLowestHidInMask(const std::array<std::atomic<uint64_t>, 4>& m)
+static uint16_t FindLowestHidInMask(const std::array<std::atomic<uint64_t>,
+    halljoy::keycode::kMaskChunkCount>& m)
 {
-    for (int chunk = 0; chunk < 4; ++chunk)
+    for (int chunk = 0; chunk < Bindings_GetButtonMaskChunkCount(); ++chunk)
     {
         uint64_t v = m[chunk].load(std::memory_order_acquire);
         if (!v) continue;
@@ -177,6 +182,11 @@ uint16_t Bindings_GetButtonForPad(int padIndex, GameButton b)
 }
 
 uint16_t Bindings_GetButton(GameButton b) { return Bindings_GetButtonForPad(0, b); }
+
+int Bindings_GetButtonMaskChunkCount()
+{
+    return static_cast<int>(halljoy::keycode::kMaskChunkCount);
+}
 
 // ---- Clear HID from everywhere ----
 void Bindings_ClearHidForPad(int padIndex, uint16_t hid)
@@ -213,7 +223,7 @@ void Bindings_ClearHidForPad(int padIndex, uint16_t hid)
     }
 
     // buttons (mask)
-    if (hid < 256)
+    if (halljoy::keycode::IsSupported(hid))
     {
         int chunk = (int)(hid / 64);
         int bit = (int)(hid % 64);
@@ -244,7 +254,7 @@ bool Bindings_IsHidBoundForPad(int padIndex, uint16_t hid)
             return true;
     }
 
-    if (hid < 256)
+    if (halljoy::keycode::IsSupported(hid))
     {
         const int chunk = (int)(hid / 64);
         const int bit = (int)(hid % 64);
@@ -295,7 +305,7 @@ static void CopyPadBindingsAtomic(int dstPad, int srcPad)
 
     for (int b = 0; b < 15; ++b)
     {
-        for (int c = 0; c < 4; ++c)
+        for (int c = 0; c < Bindings_GetButtonMaskChunkCount(); ++c)
         {
             uint64_t v = g_btnMask[(size_t)srcPad][(size_t)b][(size_t)c].load(std::memory_order_acquire);
             g_btnMask[(size_t)dstPad][(size_t)b][(size_t)c].store(v, std::memory_order_release);
@@ -314,7 +324,7 @@ static void ClearPadBindingsAtomic(int padIndex)
         g_triggers[(size_t)padIndex][(size_t)t].store(0u, std::memory_order_release);
 
     for (int b = 0; b < 15; ++b)
-        for (int c = 0; c < 4; ++c)
+        for (int c = 0; c < Bindings_GetButtonMaskChunkCount(); ++c)
             g_btnMask[(size_t)padIndex][(size_t)b][(size_t)c].store(0ull, std::memory_order_release);
 }
 
@@ -362,4 +372,24 @@ bool Bindings_IsHidBound(uint16_t hid)
             return true;
     }
     return false;
+}
+
+void Bindings_Capture(BindingsSnapshot& out) noexcept {
+    for (int p=0; p<BINDINGS_MAX_GAMEPADS; ++p) {
+        for (int a=0; a<4; ++a) out.axes[p][a] = Bindings_GetAxisForPad(p, static_cast<Axis>(a));
+        for (int t=0; t<2; ++t) out.triggers[p][t] = Bindings_GetTriggerForPad(p, static_cast<Trigger>(t));
+        for (int b=0; b<15; ++b)
+            for (std::size_t c=0; c<halljoy::keycode::kMaskChunkCount; ++c)
+                out.buttons[p][b][c] = g_btnMask[p][b][c].load(std::memory_order_acquire);
+    }
+}
+void Bindings_Apply(const BindingsSnapshot& snapshot) noexcept {
+    for (int p=0; p<BINDINGS_MAX_GAMEPADS; ++p) {
+        for (int a=0; a<4; ++a) g_axes[p][a].store(
+            PackAxis(snapshot.axes[p][a].minusHid, snapshot.axes[p][a].plusHid), std::memory_order_release);
+        for (int t=0; t<2; ++t) g_triggers[p][t].store(snapshot.triggers[p][t], std::memory_order_release);
+        for (int b=0; b<15; ++b)
+            for (std::size_t c=0; c<halljoy::keycode::kMaskChunkCount; ++c)
+                g_btnMask[p][b][c].store(snapshot.buttons[p][b][c], std::memory_order_release);
+    }
 }

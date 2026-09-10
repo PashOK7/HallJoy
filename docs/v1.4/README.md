@@ -8,8 +8,16 @@ version or release status.
 ## Current status
 
 - Product version: `v1.4.1.0`
-- Working branch: `v1.4-integration`
-- Release qualification: passed
+- Current release-candidate status: [`RELEASE_READINESS_AUDIT_2026-09-05.md`](RELEASE_READINESS_AUDIT_2026-09-05.md)
+  is authoritative for the post-v1.4.1 local tree and its exact remaining
+  release gates. It does not rewrite the historical evidence below.
+- Local workspace: no Git/GitHub operations; rollback uses verified local
+  backups
+- Historical v1.4.1 release qualification: passed before the later protocol
+  audits; it cannot qualify another stable release
+- Next stable release: BLOCKED. The unified execution order and exact exit
+  criteria are in `RELEASE_READINESS_MEGA_AUDIT_2026-08-21.md`; the mandatory
+  prohibition remains in `CORRECTNESS_RELEASE_BLOCKERS.md`
 - UI gate: unified scroll architecture passed automated 6/6-tab stress; final
   scroll behavior and visual result accepted by the owner
 - Aula physical gate: passed, including real analogue matrices, 10+ rollover,
@@ -19,8 +27,65 @@ version or release status.
 - Public release notes: [`RELEASE_NOTES_v1.4.md`](../../RELEASE_NOTES_v1.4.md)
 - GitHub publication: [`v1.4.1`](https://github.com/PashOK7/HallJoy/releases/tag/v1.4.1)
   published as the latest stable release
-- Final artifact: `build/release/HallJoy.exe`, 2,188,288 bytes, SHA-256
+- Owner-confirmed historical stable A/B artifact:
+  `C:\github\HallJoy_v1.4\build\release\HallJoy.exe`, 2,188,288 bytes, SHA-256
   `B21060D0FE5676A6301DDB2EEB0412DFBF5EDC4850BAD575B82045905FDE4243`
+- Current local production artifact: `build/release/HallJoy.exe`, 8,529,408 bytes,
+  SHA-256
+  `B2C87A69F45EFBB046913B5B1DA4F7AB2D97AD33A3C0CC1494D91D06649238C0`;
+  not a release candidate because the ViGEm and broader P0/P1 hardware gates
+  remain open
+- Open UAP correctness follow-up: the cross-family audit remains authoritative
+  and must be resolved before claiming stable support for every UAP keyboard.
+  It is intentionally not closed by the existing release qualification.
+- Open native correctness follow-up: the production-native catalog audit found
+  independent Sayo, W669, Hex80, Addressed, SparkLink and special-key-domain
+  defects. No native fix or new hardware claim was made by that audit.
+- Open common-pipeline correctness follow-up: source arbitration, profile
+  publication and the downstream key domain have independent P1 defects even
+  when a protocol parser itself is correct.
+- Open precision/performance follow-up: native input is prematurely quantized
+  to 1001 levels, generic UAP repeatedly copies full snapshots per key/device,
+  independent 1 kHz ceilings are not capability-derived, and private UAP
+  device snapshots silently stop at eight. See
+  `ARTIFICIAL_LIMITS_PERFORMANCE_AUDIT.md`.
+- Open provider-architecture follow-up: the UAP child already publishes a full
+  snapshot, but realtime consumes it through a per-key Wooting compatibility
+  facade; one bidirectional IPC object mixes data/control/telemetry; native HID
+  I/O lacks the child-process containment used by UAP. See
+  `INPUT_PROVIDER_ARCHITECTURE_AUDIT.md`.
+- Open test/evidence trust follow-up: mandatory gates currently preserve some
+  known-wrong hotplug/precision/key-capacity/rate contracts; most audits are
+  source-text checks; official build/CI omits sanitizer and exact-artifact
+  qualification runners. See `TEST_EVIDENCE_TRUST_AUDIT.md`.
+- Open concurrency/lifecycle/ownership follow-up: ViGEm wake and desktop
+  tracked-list publication contain direct races; native registry state can
+  outlive its worker; SparkLink/Sayo lifecycle runs inside realtime; cancelled
+  native HID I/O and watchdog-allocation failure have no hard liveness bound.
+  See `CONCURRENCY_LIFECYCLE_OWNERSHIP_AUDIT.md`.
+- New physical IROK blocker: the current diagnostic candidate lost ViGEm
+  output after its worker thread handle became invalid; recovery then remained
+  permanently poisoned while SparkLink completed `279189/279189` reads. A
+  second run completed `421858/421858` reads but shutdown was poisoned by an
+  independent Sayo lifecycle-lock timeout. These are `HJ-V14-P0-006` and
+  `HJ-V14-P1-038`; SparkLink per-row freshness is `HJ-V14-P1-039`.
+- Physical GravaStar follow-up: corrected native V75 analogue input is proven
+  at 308-342 Hz with zero matrix failures, but the F3 parent-owned child-process
+  handle became invalid after 135.6 seconds and froze virtual output. D-064's
+  kernel-protected process/job owner and one-shot blocked-recovery policy pass
+  local exact-EXE gates; corrected exact-artifact continuity/reconnect remains
+  hardware pending under `HJ-V14-P0-006`.
+- Open global-pause/device-lease follow-up: HallJoy cannot safely share a vendor
+  HID command session with a web driver and currently has no transaction that
+  neutralizes all output, stops every provider, releases every HID/child/hook/
+  virtual target and resumes from a newly proved generation. A second ordinary
+  HallJoy process is also not excluded. See
+  `GLOBAL_PAUSE_DEVICE_LEASE_AUDIT.md`.
+- Open trust/security-boundary follow-up: the internal host can be launched with
+  a foreign ABI-compatible DLL, external layout count is unbounded before
+  allocation, diagnostic artifacts lack one privacy/redaction contract, and
+  current release binaries are unsigned. See
+  `TRUST_SECURITY_BOUNDARY_AUDIT.md`.
 
 The current workstation has an Irok MG75 Max (`VID 1CA6`, `PID 0529`) that
 passes SparkLink capability, analog-row, held-key unplug/reconnect and balanced
@@ -115,6 +180,19 @@ validation record is explicitly historical. Automated gates and a normal Irok
 
 ## Authoritative documents
 
+- [RELEASE_READINESS_AUDIT_2026-09-05.md](RELEASE_READINESS_AUDIT_2026-09-05.md) -
+  current source/artifact audit after the GitHub v1.4.1 release; it records the
+  reproducible build-gate failure, release scope decision, and exact path to a
+  new publishable artifact.
+- [RELEASE_READINESS_MEGA_AUDIT_2026-08-21.md](RELEASE_READINESS_MEGA_AUDIT_2026-08-21.md) -
+  single mandatory execution order, scope/exclusion policy, current physical
+  blockers, hardware matrix and definition of done for the next stable release.
+- [ENGINEERING_WORKING_METHOD.md](ENGINEERING_WORKING_METHOD.md) - mandatory
+  evidence-first workflow, architecture-option comparison, rewrite policy,
+  implementation prohibitions, validation order and stop conditions.
+- [CURRENT_HANDOFF_2026-08-20.md](CURRENT_HANDOFF_2026-08-20.md) - short entry
+  point for continuing the active work in another chat without relying on chat
+  history.
 - [ROADMAP.md](ROADMAP.md) - ordered packages, dependencies, and completion
   criteria.
 - [RISK_REGISTER.md](RISK_REGISTER.md) - inherited and newly discovered risks.
@@ -126,6 +204,47 @@ validation record is explicitly historical. Automated gates and a normal Irok
   contract, and repeatable gate.
 - [PRIVATE_UAP_RUNTIME.md](PRIVATE_UAP_RUNTIME.md) - embedded runtime locations,
   integrity, diagnostics, and protected-directory fallback.
+- [DRUNKDEER_UAP_PROTOCOL_AUDIT.md](DRUNKDEER_UAP_PROTOCOL_AUDIT.md) - complete
+  Windows UAP/Soup DrunkDeer data-path audit, confirmed defects, G65 root-cause
+  hypothesis, and requirements for native production support.
+- [UAP_ALL_KEYBOARDS_AUDIT.md](UAP_ALL_KEYBOARDS_AUDIT.md) - cross-family audit
+  of Wooting, Razer, DrunkDeer, Keychron/Lemokey, NuPhy and Madlions, including
+  special-key loss, parser safety, polling and hotplug defects.
+- [NATIVE_ALL_KEYBOARDS_AUDIT.md](NATIVE_ALL_KEYBOARDS_AUDIT.md) - complete
+  static audit of all seven production-native routes, including Sayo's
+  binary-derived identity, W669/Hex80 stale-state paths, layout admission,
+  duplicate mappings, normalization and native special-key loss.
+- [COMMON_ANALOG_PIPELINE_AUDIT.md](COMMON_ANALOG_PIPELINE_AUDIT.md) - complete
+  downstream audit of source arbitration, curves, bindings, SOCD, XUSB/ViGEm,
+  profile transactions, key identity, UI and overlay snapshots.
+- [ARTIFICIAL_LIMITS_PERFORMANCE_AUDIT.md](ARTIFICIAL_LIMITS_PERFORMANCE_AUDIT.md) -
+  static audit of early precision loss, snapshot complexity, wake/rate policy,
+  device capacity and artificial protocol/UI performance limits.
+- [INPUT_PROVIDER_ARCHITECTURE_AUDIT.md](INPUT_PROVIDER_ARCHITECTURE_AUDIT.md) -
+  target UAP/native provider contract, direct snapshot data plane, separated
+  IPC planes, process containment and staged non-big-bang migration roadmap.
+- [TEST_EVIDENCE_TRUST_AUDIT.md](TEST_EVIDENCE_TRUST_AUDIT.md) - current test
+  inventory, anti-fix contracts, production-linkage gaps, P0/P1 oracle map,
+  sanitizer health requirements and exact-artifact evidence architecture.
+- [CONCURRENCY_LIFECYCLE_OWNERSHIP_AUDIT.md](CONCURRENCY_LIFECYCLE_OWNERSHIP_AUDIT.md) -
+  thread/resource ownership, ready/fault/completion truth, realtime blocking,
+  hard I/O/shutdown bounds and coherent publication requirements.
+- [GLOBAL_PAUSE_DEVICE_LEASE_AUDIT.md](GLOBAL_PAUSE_DEVICE_LEASE_AUDIT.md) -
+  global temporary HallJoy shutdown, neutral-before-release transaction,
+  web-driver HID lease transfer, explicit new-generation resume and
+  single-application ownership requirements.
+- [TRUST_SECURITY_BOUNDARY_AUDIT.md](TRUST_SECURITY_BOUNDARY_AUDIT.md) - exact
+  child/plugin trust, bounded external documents, diagnostic privacy, signed
+  artifact provenance, provider security containment and binary hardening.
+- [CORRECTNESS_RELEASE_BLOCKERS.md](CORRECTNESS_RELEASE_BLOCKERS.md) - mandatory
+  cross-version rule that prevents the next stable release until every audited
+  P0/P1 has implementation, regression and applicable hardware evidence.
+- [PWNAGE_ZENBLADE_65_V2_PROTOCOL_RECON.md](PWNAGE_ZENBLADE_65_V2_PROTOCOL_RECON.md) -
+  pinned Web Hub identities, old V0022 firmware/dispatcher analysis, the
+  PID-1002 bootloader collision, comparison with current protocols, and the
+  required safe hardware diagnostic before native support.
+- [DRUNKDEER_DIAGNOSTIC.md](DRUNKDEER_DIAGNOSTIC.md) - owner test procedure for
+  the single-file DrunkDeer diagnostic build and the evidence to return.
 - [BUILD_REPRODUCIBILITY.md](BUILD_REPRODUCIBILITY.md) - dependency lock,
   local/CI commands, toolchains, and warning policy.
 - [PRE_RELEASE_UI_AUDIT_2026-08-02.md](PRE_RELEASE_UI_AUDIT_2026-08-02.md) -

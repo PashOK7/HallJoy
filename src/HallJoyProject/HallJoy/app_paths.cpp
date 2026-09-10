@@ -244,15 +244,36 @@ namespace
     struct MigrationMarkerContext
     {
         const wchar_t* sourceRoot = nullptr;
+        const wchar_t* section = L"Migration";
+        const wchar_t* ledgerSource = nullptr;
     };
 
     bool MarkerWrite(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
     {
         auto* context = static_cast<MigrationMarkerContext*>(rawContext);
+        const DWORD attributes = context->ledgerSource ? GetFileAttributesW(context->ledgerSource) : INVALID_FILE_ATTRIBUTES;
+        if (context->ledgerSource && attributes == INVALID_FILE_ATTRIBUTES)
+        {
+            const DWORD error = GetLastError();
+            if (error != ERROR_FILE_NOT_FOUND && error != ERROR_PATH_NOT_FOUND)
+            { if (errorOut) *errorOut = error; return false; }
+        }
+        if (context->ledgerSource && attributes != INVALID_FILE_ATTRIBUTES)
+        {
+            if (attributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT))
+            { if (errorOut) *errorOut = ERROR_INVALID_DATA; return false; }
+            wchar_t kind[64]{};
+            GetPrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"", kind, _countof(kind), context->ledgerSource);
+            if (wcscmp(kind, L"DataMigrationLedger") != 0 ||
+                GetPrivateProfileIntW(L"HallJoyPersistence", L"SchemaVersion", 0, context->ledgerSource) != 1)
+            { if (errorOut) *errorOut = ERROR_INVALID_DATA; return false; }
+            if (!CopyFileW(context->ledgerSource, temporaryPath, FALSE))
+            { if (errorOut) *errorOut = GetLastError(); return false; }
+        }
         bool ok = WritePrivateProfileStringW(L"HallJoyPersistence", L"SchemaVersion", L"1", temporaryPath) != FALSE;
-        ok &= WritePrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"DataMigration", temporaryPath) != FALSE;
-        ok &= WritePrivateProfileStringW(L"Migration", L"SourceRoot", context->sourceRoot, temporaryPath) != FALSE;
-        ok &= WritePrivateProfileStringW(L"Migration", L"Complete", L"1", temporaryPath) != FALSE;
+        ok &= WritePrivateProfileStringW(L"HallJoyPersistence", L"Kind", context->ledgerSource ? L"DataMigrationLedger" : L"DataMigration", temporaryPath) != FALSE;
+        ok &= WritePrivateProfileStringW(context->section, L"SourceRoot", context->sourceRoot, temporaryPath) != FALSE;
+        ok &= WritePrivateProfileStringW(context->section, L"Complete", L"1", temporaryPath) != FALSE;
         if (!ok && errorOut)
         {
             const DWORD error = GetLastError();
@@ -267,20 +288,21 @@ namespace
         wchar_t schema[16]{};
         wchar_t kind[32]{};
         std::vector<wchar_t> source(32768, L'\0');
-        const int complete = GetPrivateProfileIntW(L"Migration", L"Complete", 0, temporaryPath);
+        const int complete = GetPrivateProfileIntW(context->section, L"Complete", 0, temporaryPath);
         GetPrivateProfileStringW(L"HallJoyPersistence", L"SchemaVersion", L"", schema, _countof(schema), temporaryPath);
         GetPrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"", kind, _countof(kind), temporaryPath);
-        GetPrivateProfileStringW(L"Migration", L"SourceRoot", L"", source.data(), static_cast<DWORD>(source.size()), temporaryPath);
-        const bool ok = wcscmp(schema, L"1") == 0 && wcscmp(kind, L"DataMigration") == 0 &&
+        GetPrivateProfileStringW(context->section, L"SourceRoot", L"", source.data(), static_cast<DWORD>(source.size()), temporaryPath);
+        const bool ok = wcscmp(schema, L"1") == 0 && wcscmp(kind, context->ledgerSource ? L"DataMigrationLedger" : L"DataMigration") == 0 &&
             complete == 1 && PathsEqual(source.data(), context->sourceRoot);
         if (!ok && errorOut) *errorOut = ERROR_INVALID_DATA;
         return ok;
     }
 
-    bool ExistingMarkerIsComplete(const std::wstring& marker, const std::wstring& sourceRoot)
+    bool ExistingMarkerIsComplete(const std::wstring& marker, const std::wstring& sourceRoot, const wchar_t* section = nullptr)
     {
         if (GetFileAttributesW(marker.c_str()) == INVALID_FILE_ATTRIBUTES) return false;
         MigrationMarkerContext context{ sourceRoot.c_str() };
+        if (section) { context.section = section; context.ledgerSource = marker.c_str(); }
         DWORD error = ERROR_SUCCESS;
         return MarkerValidate(marker.c_str(), &context, &error);
     }
@@ -334,9 +356,11 @@ namespace
         const unsigned long long sourceHash = HashPath(sourceRoot);
         wchar_t hashText[32]{};
         swprintf_s(hashText, L"%016llX", sourceHash);
-        const std::wstring marker = (fs::path(destinationRoot) /
+        const std::wstring oldMarker = (fs::path(destinationRoot) /
             (std::wstring(L".migration-from-exe-") + hashText + L".ini")).wstring();
-        if (ExistingMarkerIsComplete(marker, sourceRoot))
+        const std::wstring marker = (fs::path(destinationRoot) / L".internal" / L"migrations.ini").wstring();
+        const std::wstring section = std::wstring(L"Source-") + hashText;
+        if (ExistingMarkerIsComplete(oldMarker, sourceRoot) || ExistingMarkerIsComplete(marker, sourceRoot, section.c_str()))
         {
             StabilityTrace_Write(L"INFO", L"storage", L"migration.skip",
                 L"reason=complete source=%ls destination=%ls", sourceRoot.c_str(), destinationRoot.c_str());
@@ -345,9 +369,9 @@ namespace
 
         std::vector<fs::path> legacyFiles;
         if (!CollectLegacyFiles(sourceRoot, legacyFiles)) return false;
+        if (legacyFiles.empty()) return true; // Nothing to migrate: no marker or backup.
         const std::wstring backupRoot = (fs::path(destinationRoot) / L"MigrationBackups" /
             (std::wstring(L"legacy-") + hashText)).wstring();
-        if (!EnsureOrdinaryDirectory(backupRoot)) return false;
 
         StabilityTrace_Write(L"INFO", L"storage", L"migration.begin",
             L"files=%zu source=%ls destination=%ls backup=%ls",
@@ -364,6 +388,16 @@ namespace
                 if (part == L".." || part == L".") return false;
             }
 
+            const std::wstring destination = (fs::path(destinationRoot) / relative).wstring();
+            const DWORD destinationAttributes = GetFileAttributesW(destination.c_str());
+            if (destinationAttributes != INVALID_FILE_ATTRIBUTES)
+            {
+                StabilityTrace_Write(L"INFO", L"storage", L"migration.keep_existing", L"relative=%ls", relativeText.c_str());
+                continue; // Source remains intact; do not back up a skipped import.
+            }
+            const DWORD destinationError = GetLastError();
+            if (destinationError != ERROR_FILE_NOT_FOUND && destinationError != ERROR_PATH_NOT_FOUND) return false;
+
             const std::wstring backup = (fs::path(backupRoot) / relative).wstring();
             if (GetFileAttributesW(backup.c_str()) == INVALID_FILE_ATTRIBUTES)
             {
@@ -375,7 +409,6 @@ namespace
                 if (!FilesEqual(source.c_str(), backup.c_str(), &error)) return false;
             }
 
-            const std::wstring destination = (fs::path(destinationRoot) / relative).wstring();
             if (GetFileAttributesW(destination.c_str()) == INVALID_FILE_ATTRIBUTES)
             {
                 if (!CopyFileTransactional(source.wstring(), destination, L"migration data")) return false;
@@ -387,7 +420,8 @@ namespace
             }
         }
 
-        MigrationMarkerContext markerContext{ sourceRoot.c_str() };
+        if (!EnsureOrdinaryDirectory(fs::path(marker).parent_path().wstring())) return false;
+        MigrationMarkerContext markerContext{ sourceRoot.c_str(), section.c_str(), marker.c_str() };
         const auto markerResult = IniUtil_SaveAtomic(marker.c_str(), MarkerWrite, MarkerValidate, &markerContext);
         if (!markerResult.Succeeded())
         {

@@ -65,9 +65,28 @@ int main()
     {
         const auto all = halljoy::uap::PinOwners<kCapacity>(registry_mutex, registry, 100);
         assert(all.count == kCapacity);
+        assert(all.required_count == kCapacity + 4);
         const auto three = halljoy::uap::PinOwners<kCapacity>(registry_mutex, registry, 3);
         assert(three.count == 3);
+        assert(three.required_count == kCapacity + 4);
     }
+    // The negotiated helper uses caller-grown storage and captures all twelve
+    // owners instead of silently inheriting the historical eight-owner window.
+    std::vector<Owner> negotiated_storage(
+        halljoy::uap::QueryOwnerCount(registry_mutex, registry));
+    assert(negotiated_storage.size() == kCapacity + 4);
+    {
+        auto negotiated = halljoy::uap::PinOwnersInto(
+            registry_mutex, registry, negotiated_storage.size(),
+            negotiated_storage.data(), negotiated_storage.size());
+        assert(negotiated.count == kCapacity + 4);
+        assert(negotiated.required_count == kCapacity + 4);
+        for (std::size_t i = 0; i < negotiated.count; ++i)
+            assert(negotiated.owners[i] == registry[i]);
+    }
+    // Lease teardown must clear references while retaining reusable capacity.
+    for (const auto& owner : negotiated_storage)
+        assert(!owner);
     {
         std::lock_guard<std::recursive_mutex> lock(registry_mutex);
         registry.clear();
@@ -152,9 +171,11 @@ int main()
     const Registry empty_registry;
     const auto empty = halljoy::uap::PinOwners<kCapacity>(registry_mutex, empty_registry, 8);
     assert(empty.count == 0);
+    assert(empty.required_count == 0);
 
     std::cout << "UAP_SNAPSHOT_PINNING_TEST=PASS coherent_reads=" << coherent_reads
               << " lifetime_cycles=" << lifetime_cycles
-              << " blocked_removal=1 exact_destruction=1\n";
+              << " blocked_removal=1 exact_destruction=1 required_count=1"
+                 " negotiated_capacity=12 lease_clears_refs=1\n";
     return 0;
 }

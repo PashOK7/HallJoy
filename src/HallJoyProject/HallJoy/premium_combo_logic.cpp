@@ -624,7 +624,9 @@ RECT PremiumComboInternal::GetPopupItemButtonRect(State* st, int idx, PremiumCom
     if (idx >= (int)st->itemBtnMask.size()) return empty;
 
     ItemBtnMask mask = st->itemBtnMask[idx];
-    if (!MaskHas(mask, kind)) return empty;
+    const bool confirming = idx == st->deleteConfirmation;
+    const bool confirmationAction = kind == PremiumCombo::ItemButtonKind::ConfirmDelete || kind == PremiumCombo::ItemButtonKind::CancelDelete;
+    if (confirming ? !confirmationAction : !MaskHas(mask, kind)) return empty;
 
     RECT rc{};
     GetClientRect(st->hwndPopup, &rc);
@@ -647,6 +649,12 @@ RECT PremiumComboInternal::GetPopupItemButtonRect(State* st, int idx, PremiumCom
     int gapBetween = S(st->hwnd, PC_ITEMBTN_GAP_BETWEEN);
 
     int rightEdge = rc.right - 2 - padR;
+    if (confirming) {
+        const int buttonWidth = S(st->hwnd, 58), gap = S(st->hwnd, 6);
+        const int right = kind == PremiumCombo::ItemButtonKind::CancelDelete ? rightEdge : rightEdge - buttonWidth - gap;
+        const int top = row * ih + 3;
+        return RECT{right - buttonWidth, top, right, (row + 1) * ih - 3};
+    }
 
     bool hasDel = (mask & BTN_DELETE) != 0;
 
@@ -688,6 +696,14 @@ bool PremiumComboInternal::HitTestPopupItemButtonFromScreen(State* st, POINT ptS
 
     POINT pt = ptScreen;
     ScreenToClient(st->hwndPopup, &pt);
+
+    if (idx == st->deleteConfirmation) {
+        for (auto kind : {PremiumCombo::ItemButtonKind::ConfirmDelete, PremiumCombo::ItemButtonKind::CancelDelete}) {
+            const RECT button = GetPopupItemButtonRect(st, idx, kind);
+            if (PtInRect(&button, pt)) { outIdx = idx; outKind = kind; return true; }
+        }
+        return false;
+    }
 
     if (MaskHas(st->itemBtnMask[idx], PremiumCombo::ItemButtonKind::Delete))
     {
@@ -834,6 +850,60 @@ void PremiumComboInternal::TypeSearchApply(State* st, wchar_t ch, bool droppedMo
 // ============================================================================
 // Popup hit-test
 // ============================================================================
+bool PremiumComboInternal::GetScrollGeometry(State* st, ScrollGeometry& g)
+{
+    g = {};
+    if (!st || !st->hwndPopup || GetMaxScrollTop(st) <= 0) return false;
+    RECT rc{}; GetClientRect(st->hwndPopup, &rc);
+    const int width = std::clamp(S(st->hwndPopup, 6), 4, 10);
+    g.track = {std::max(0L, rc.right-width-2), 2, rc.right-2, rc.bottom-2};
+    const int height = g.track.bottom-g.track.top;
+    if (height <= 0 || g.track.right <= g.track.left) return false;
+    g.lane = {g.track.left-2, 0, rc.right, rc.bottom};
+    const int thumbHeight = std::clamp((int)std::lround(
+        (double)height * GetVisibleRows(st) / st->items.size()),
+        std::min(height, S(st->hwndPopup, 18)), height);
+    g.travel = height-thumbHeight;
+    const int top = g.track.top + (int)std::lround((double)g.travel *
+        std::clamp(st->scrollTop, 0, GetMaxScrollTop(st)) / GetMaxScrollTop(st));
+    g.thumb = {g.track.left+1, top, g.track.right-1, top+thumbHeight};
+    return true;
+}
+
+bool PremiumComboInternal::ScrollMouseDown(State* st, POINT screen)
+{
+    ScrollGeometry g;
+    if (!GetScrollGeometry(st, g)) return false;
+    ScreenToClient(st->hwndPopup, &screen);
+    if (!PtInRect(&g.lane, screen)) return false;
+    st->hotIndex = st->hotBtnIndex = -1;
+    st->hotBtnKind = PremiumCombo::ItemButtonKind::None;
+    st->wheelRemainder = 0;
+    if (screen.y >= g.thumb.top && screen.y < g.thumb.bottom) {
+        // The combo already owns capture for the entire dropdown lifetime.
+        st->scrollDragging = true;
+        st->scrollGrabOffset = screen.y-g.thumb.top;
+    } else {
+        st->scrollTop += (screen.y < g.thumb.top ? -1 : 1)*GetVisibleRows(st);
+        ClampScroll(st);
+    }
+    InvalidateRect(st->hwndPopup, nullptr, FALSE);
+    return true;
+}
+
+void PremiumComboInternal::ScrollMouseMove(State* st, POINT screen)
+{
+    ScrollGeometry g;
+    if (!st->scrollDragging || !GetScrollGeometry(st, g) || g.travel <= 0) return;
+    ScreenToClient(st->hwndPopup, &screen);
+    const int offset = std::clamp<int>(screen.y-st->scrollGrabOffset-g.track.top, 0, g.travel);
+    const int top = (int)std::lround((double)offset*GetMaxScrollTop(st)/g.travel);
+    if (top != st->scrollTop) {
+        st->scrollTop = top;
+        InvalidateRect(st->hwndPopup, nullptr, FALSE);
+    }
+}
+
 int PremiumComboInternal::HitTestPopupIndexFromScreen(State* st, POINT ptScreen, bool& outInsidePopup)
 {
     outInsidePopup = false;
@@ -850,6 +920,9 @@ int PremiumComboInternal::HitTestPopupIndexFromScreen(State* st, POINT ptScreen,
 
     POINT pt = ptScreen;
     ScreenToClient(st->hwndPopup, &pt);
+
+    ScrollGeometry scroll;
+    if (GetScrollGeometry(st, scroll) && PtInRect(&scroll.lane, pt)) return -1;
 
     int ih = GetItemHeightPx(st->hwnd, st);
     if (ih <= 0) return -1;
@@ -874,6 +947,8 @@ void PremiumComboInternal::DropdownMouseMove(State* st)
 
     POINT pt{};
     GetCursorPos(&pt);
+
+    if (st->scrollDragging) { ScrollMouseMove(st, pt); return; }
 
     int newHotIndex = -1;
     {
@@ -910,6 +985,8 @@ void PremiumComboInternal::DropdownClick(State* st)
     POINT pt{};
     GetCursorPos(&pt);
 
+    if (!IsInlineEditing(st) && ScrollMouseDown(st, pt)) return;
+
     // If click is on an item button:
     {
         int btnIdx = -1;
@@ -923,7 +1000,10 @@ void PremiumComboInternal::DropdownClick(State* st)
                 return;
             }
 
-            if (btnKind == PremiumCombo::ItemButtonKind::Delete)
+            if (btnKind == PremiumCombo::ItemButtonKind::CancelDelete) {
+                PremiumCombo::SetDeleteConfirmation(st->hwnd, -1); return;
+            }
+            if (btnKind == PremiumCombo::ItemButtonKind::Delete || btnKind == PremiumCombo::ItemButtonKind::ConfirmDelete)
             {
                 if (st->parent)
                 {

@@ -21,7 +21,7 @@ hid = (SOUP / "hwHid.cpp").read_text(encoding="utf-8-sig")
 keyboard = (SOUP / "AnalogueKeyboard.cpp").read_text(encoding="utf-8-sig")
 patcher = SOUP_PATCH.read_text(encoding="utf-8-sig")
 
-clipboard_begin = ui.index("static void OverlayPage_SetClipboardText")
+clipboard_begin = ui.index("static bool OverlayPage_SetClipboardText")
 clipboard_end = ui.index("static void OverlayPage_UpdateColorControls", clipboard_begin)
 clipboard = ui[clipboard_begin:clipboard_end]
 require("if (!EmptyClipboard())" in clipboard and "CloseClipboard();" in clipboard,
@@ -35,10 +35,10 @@ require("if (mem)" in clipboard and "GlobalFree(mem);" in clipboard,
 require(hid.count("free(device_interface_list);") >= 3,
         "every Windows HID interface-list exit releases its allocation")
 require("memset(&razer, 0, sizeof(madlions))" not in keyboard and
-        "memset(&madlions, 0, sizeof(madlions))" in keyboard,
-        "UAP zeroes through the complete union-sized member")
+        "memset(&nuphy, 0, sizeof(nuphy))" in keyboard,
+        "UAP zeroes through the complete largest union member")
 require("memset(&razer, 0, sizeof(madlions))" not in patcher and
-        "memset(&madlions, 0, sizeof(madlions))" in patcher,
+        "memset(&nuphy, 0, sizeof(nuphy))" in patcher,
         "fresh Soup patching reproduces the safe union initialiser")
 require("combined.reserve((64 - 5) * 3);" in keyboard and
         "buf.reserve((64 - 5) * 3);" not in keyboard,

@@ -1,3 +1,5 @@
+#include "profile_runtime_gate.h"
+#include "input_privilege_warning.h"
 // backend.cpp
 #ifndef _WIN32_IE
 #define _WIN32_IE 0x0600
@@ -16,10 +18,10 @@
 #include <cstdint>
 #include <cwctype>
 #include <cstdlib>
-#include <mutex>
-#include <stdexcept>
 #include <string>
 #include <vector>
+#include <memory>
+#include <mutex>
 
 #include <setupapi.h>
 #include <hidsdi.h>
@@ -28,12 +30,17 @@
 #include <ViGEm/Client.h>
 
 #include "backend.h"
+#include "analog_key_codes.h"
 #include "bindings.h"
 #include "settings.h"
 #include "debug_log.h"
 #include "stability_trace.h"
 #include "mouse_bind_codes.h"
 #include "backend_curve.h"
+#include "configured_xusb_builder.h"
+#include "provider_v2_controller_shadow.h"
+#include "provider_v2_qualification_model.h"
+#include "xusb_output_adapter.h"
 #include "analog_host_client.h"
 #include "realtime_loop.h"
 #include "hid_io_operation.h"
@@ -43,12 +50,11 @@
 #include "hex80_backend.h"
 #include "native_analog_routing.h"
 #include "native_analog_backend_registry.h"
-#include "latest_value_mailbox.h"
+#include "native_hid_interface_claim_registry.h"
 #include "monotonic_time.h"
 #include "saturating_int.h"
 #include "vigem_output_scheduler.h"
-#include "worker_exception_barrier.h"
-#include "worker_join_policy.h"
+#include "vigem_output_runtime.h"
 #if defined(HALLJOY_ANALOG_SIMULATOR)
 #include "analog_simulator_backend.h"
 #endif
@@ -56,12 +62,10 @@
 #pragma comment(lib, "setupapi.lib")
 #pragma comment(lib, "hid.lib")
 
-static PVIGEM_CLIENT g_client = nullptr;
 static constexpr int kMaxVirtualPads = 4;
-static std::array<PVIGEM_TARGET, kMaxVirtualPads> g_pads{};
 static std::atomic<int> g_virtualPadCount{ 1 };
 static std::atomic<bool> g_virtualPadsEnabled{ true };
-static int g_connectedPadCount = 0;
+static std::atomic<bool> g_runtimeAdmission{ true };
 
 static std::array<XUSB_REPORT, kMaxVirtualPads> g_reports{};
 static std::array<XUSB_REPORT, kMaxVirtualPads> g_lastSentReports{};
@@ -69,28 +73,12 @@ static std::array<LONGLONG, kMaxVirtualPads> g_lastSentQpc{};
 static std::array<uint8_t, kMaxVirtualPads> g_lastSentValid{};
 static std::array<VigemOutputScheduler, kMaxVirtualPads> g_outputSchedulers{};
 
-struct VigemOutputBatch
-{
-    uint8_t count = 0;
-    uint8_t validMask = 0;
-    std::array<XUSB_REPORT, kMaxVirtualPads> reports{};
-};
-
-static halljoy::output::LatestValueMailbox<VigemOutputBatch> g_vigemOutputMailbox;
-static std::mutex g_vigemOutputLifecycleMutex;
-static halljoy::lifecycle::WorkerLifecycle g_vigemOutputLifecycle;
-static HANDLE g_vigemOutputThread = nullptr;
-static HANDLE g_vigemOutputWakeEvent = nullptr;
-static std::atomic<bool> g_vigemOutputRun{ false };
-static std::atomic<bool> g_vigemOutputThreadAlive{ false };
-static std::atomic<bool> g_vigemEmergencyNeutralRequested{ false };
+static halljoy::vigem_output::OutputRuntime g_vigemOutputRuntime;
 static std::atomic<bool> g_vigemResubmitRequested{ false };
-static std::atomic<halljoy::worker::WorkerExceptionKind> g_vigemOutputFaultKind{
-    halljoy::worker::WorkerExceptionKind::None };
-static halljoy::worker::WorkerExceptionRecord g_vigemOutputFaultRecord{};
+static std::atomic<std::uint64_t> g_vigemObservedGeneration{ 0 };
+static std::atomic<bool> g_vigemOutputRecoveryBlocked{ false };
 #if defined(HALLJOY_ANALOG_SIMULATOR)
-static std::atomic<bool> g_vigemTestStallInjected{ false };
-static std::atomic<bool> g_vigemTestFaultInjected{ false };
+static std::atomic<uint32_t> g_fileOnlyTestForbiddenInitAttempts{ 0 };
 #endif
 
 // Thread-safe last-report snapshot (writer: realtime thread, reader: UI thread).
@@ -159,36 +147,21 @@ static void TraceSimulatorPipelineReport(const XUSB_REPORT& report)
         static_cast<int>(report.sThumbLX), static_cast<int>(report.sThumbLY));
 }
 
-static void TraceAcceptedSimulatorVigemUpdate(const XUSB_REPORT& report)
-{
-    static bool nonNeutralAccepted = false;
-    static bool neutralAfterInputAccepted = false;
-    const bool neutral = report.wButtons == 0 && report.bLeftTrigger == 0 &&
-        report.bRightTrigger == 0 && report.sThumbLX == 0 && report.sThumbLY == 0 &&
-        report.sThumbRX == 0 && report.sThumbRY == 0;
-    if (!neutral && !nonNeutralAccepted)
-    {
-        nonNeutralAccepted = true;
-        StabilityTrace_Write(L"INFO", L"analog-simulator", L"vigem-report.accepted",
-            L"state=non-neutral simulated=1 hardware=0");
-    }
-    else if (neutral && nonNeutralAccepted && !neutralAfterInputAccepted)
-    {
-        neutralAfterInputAccepted = true;
-        StabilityTrace_Write(L"INFO", L"analog-simulator", L"vigem-report.accepted",
-            L"state=neutral-after-input simulated=1 hardware=0");
-    }
-}
 #endif
 
 // ---- UI snapshot ----
-static std::array<std::atomic<uint16_t>, 256> g_uiAnalogM{}; // filtered output (after curve)
-static std::array<std::atomic<uint16_t>, 256> g_uiRawM{};    // NEW: raw input
-static std::array<std::atomic<uint64_t>, 4>   g_uiDirty{};   // dirty for filtered only
+static std::array<std::atomic<uint16_t>, halljoy::keycode::kCount> g_uiAnalogM{};
+static std::array<std::atomic<uint16_t>, halljoy::keycode::kCount> g_uiRawM{};
+static std::array<std::atomic<uint64_t>, halljoy::keycode::kMaskChunkCount> g_uiDirty{};
 
 // list of HID codes to track (provided by UI)
-static std::array<uint16_t, 256> g_trackedList{};
-static std::atomic<int>          g_trackedCount{ 0 };
+struct TrackedKeys {
+    std::array<uint16_t, halljoy::keycode::kCount> keys{};
+    int count = 0;
+};
+static std::mutex g_trackingMutex;
+static std::bitset<halljoy::keycode::kCount> g_mainTracking, g_overlayTracking;
+static std::atomic<std::shared_ptr<const TrackedKeys>> g_trackingSnapshot{nullptr};
 
 // bind-capture state (layout editor)
 static std::atomic<bool>         g_bindCaptureEnabled{ false };
@@ -199,11 +172,6 @@ static std::atomic<bool>         g_bindHadDown{ false };
 static std::atomic<bool>         g_vigemOk{ false };
 static std::atomic<VIGEM_ERROR>  g_vigemLastErr{ VIGEM_ERROR_NONE };
 static std::atomic<uint32_t>     g_lastInitIssues{ BackendInitIssue_None };
-static std::atomic<bool>         g_reconnectRequested{ false }; // immediate reconnect (settings change)
-static std::atomic<bool>         g_deviceChangeReconnectRequested{ false }; // throttled reconnect (WM_DEVICECHANGE)
-static std::atomic<ULONGLONG>    g_ignoreDeviceChangeUntilMs{ 0 };
-static int                       g_vigemUpdateFailStreak = 0;
-static ULONGLONG                 g_lastReconnectAttemptMs = 0;
 static std::atomic<int>          g_lastAnalogErrorCode{ 0 };
 static std::atomic<ULONGLONG>    g_lastAnalogErrorLogMs{ 0 };
 static std::atomic<ULONGLONG>    g_lastWootingStateLogMs{ 0 };
@@ -231,6 +199,27 @@ static std::atomic<uint16_t>     g_tmFullBufferMaxMilli{ 0 };
 static std::atomic<int>          g_tmFullBufferDeviceBestRet{ 0 };
 static std::atomic<uint16_t>     g_tmFullBufferDeviceBestMaxMilli{ 0 };
 static std::atomic<bool>         g_digitalFallbackWarnPending{ false };
+static std::atomic<bool>         g_providerV2ShadowAvailable{ false };
+static std::atomic<std::uint64_t> g_providerV2ShadowEligibleTicks{ 0 };
+static std::atomic<std::uint64_t> g_providerV2ShadowMatchedReports{ 0 };
+static std::atomic<std::uint64_t> g_providerV2ShadowMismatchedReports{ 0 };
+static std::atomic<std::uint64_t> g_providerV2ShadowUnavailableTicks{ 0 };
+static std::atomic<std::uint64_t> g_providerV2ShadowDigitalFallbackTicks{ 0 };
+static std::atomic<std::uint64_t> g_providerV2ShadowCurveMutationTicks{ 0 };
+static std::array<std::atomic<std::uint64_t>, 7>
+    g_providerV2ShadowFieldMismatches{};
+static std::atomic<std::uint64_t> g_providerV2ShadowBackendInitCount{ 0 };
+static std::atomic<std::uint64_t> g_providerV2ShadowUniqueSampleGenerations{ 0 };
+static std::atomic<std::uint64_t> g_providerV2ShadowFirstEligibleTickMs{ 0 };
+static std::atomic<std::uint64_t> g_providerV2ShadowLastEligibleTickMs{ 0 };
+static std::atomic<std::uint32_t> g_providerV2ShadowConfiguredFieldMask{ 0 };
+static std::atomic<std::uint32_t> g_providerV2ShadowActivatedFieldMask{ 0 };
+static std::atomic<std::uint32_t> g_providerV2ShadowReleasedFieldMask{ 0 };
+static std::array<std::uint32_t, kMaxVirtualPads>
+    g_providerV2ShadowPendingReleaseMasks{};
+static std::atomic<std::uint32_t> g_providerV2ShadowLastMismatchMask{ 0 };
+static std::atomic<std::uint32_t> g_providerV2ShadowLastMismatchPad{ 0 };
+static std::atomic<std::uint64_t> g_providerV2ShadowLastSampleGeneration{ 0 };
 static std::atomic<bool>         g_keycodeModeLocked{ false };
 static constexpr bool            kEnableAdaptiveKeycodeModeProbe = false;
 static constexpr bool            kEnableFullBufferAssist = false;
@@ -514,6 +503,31 @@ static int WootingSafe_ReadFullBufferDevice(unsigned short* codeBuffer, float* a
         __except (WootingSdk_SehFilterOptional(L"wooting_analog_read_full_buffer_device", GetExceptionCode()))
         {
             result = (int)WootingAnalogResult_Failure;
+        }
+    }
+    ReleaseSRWLockExclusive(&g_wootingApiLock);
+    return result;
+}
+
+static bool WootingSafe_CaptureTickSnapshot(
+    halljoy::uap_parent_snapshot::SnapshotV1* out)
+{
+    if (!out || g_wootingSdkFaulted.load(std::memory_order_acquire))
+        return false;
+
+    g_wootingOtherApiCalls.fetch_add(1, std::memory_order_relaxed);
+    AcquireSRWLockExclusive(&g_wootingApiLock);
+    bool result = false;
+    if (!g_wootingSdkFaulted.load(std::memory_order_acquire))
+    {
+        __try
+        {
+            result = AnalogHostClient_CaptureTickSnapshot(out);
+        }
+        __except (WootingSdk_SehFilterCritical(
+            L"AnalogHostClient_CaptureTickSnapshot", GetExceptionCode()))
+        {
+            result = false;
         }
     }
     ReleaseSRWLockExclusive(&g_wootingApiLock);
@@ -1134,480 +1148,193 @@ static void LogWootingStateSnapshot(const wchar_t* stage)
 
 static float Clamp01(float v) { return std::clamp(v, 0.0f, 1.0f); }
 
-static void Vigem_Destroy() noexcept
+static halljoy::vigem_output::XusbReportV1 ToOutputReport(
+    const XUSB_REPORT& report) noexcept
 {
-    if (g_client)
-    {
-        for (int i = 0; i < g_connectedPadCount; ++i)
-        {
-            if (g_pads[(size_t)i])
-            {
-                DebugLog_SetCheckpoint(L"vigem-owner: target remove pad=%d", i);
-                vigem_target_remove(g_client, g_pads[(size_t)i]);
-                DebugLog_SetCheckpoint(L"vigem-owner: target free pad=%d", i);
-                vigem_target_free(g_pads[(size_t)i]);
-                g_pads[(size_t)i] = nullptr;
-            }
-        }
-    }
-
-    g_connectedPadCount = 0;
-    if (g_client)
-    {
-        DebugLog_SetCheckpoint(L"vigem-owner: disconnect");
-        vigem_disconnect(g_client);
-        DebugLog_SetCheckpoint(L"vigem-owner: client free");
-        vigem_free(g_client);
-        g_client = nullptr;
-    }
+    halljoy::vigem_output::XusbReportV1 converted{};
+    converted.buttons = report.wButtons;
+    converted.leftTrigger = report.bLeftTrigger;
+    converted.rightTrigger = report.bRightTrigger;
+    converted.thumbLX = report.sThumbLX;
+    converted.thumbLY = report.sThumbLY;
+    converted.thumbRX = report.sThumbRX;
+    converted.thumbRY = report.sThumbRY;
+    return converted;
 }
 
-static bool Vigem_Create(int padCount, VIGEM_ERROR* outErr)
+static VIGEM_ERROR OutputStatusError(
+    const halljoy::vigem_output::OutputRuntimeStatus& status) noexcept
 {
-    padCount = std::clamp(padCount, 1, kMaxVirtualPads);
-    if (outErr) *outErr = VIGEM_ERROR_NONE;
-    DebugLog_SetCheckpoint(L"vigem-owner: alloc");
-    g_client = vigem_alloc();
-    if (!g_client) { if (outErr) *outErr = VIGEM_ERROR_BUS_NOT_FOUND; return false; }
-    DebugLog_SetCheckpoint(L"vigem-owner: connect");
-    VIGEM_ERROR err = vigem_connect(g_client);
-    if (!VIGEM_SUCCESS(err)) { if (outErr) *outErr = err; vigem_free(g_client); g_client = nullptr; return false; }
-
-    g_connectedPadCount = 0;
-    for (int i = 0; i < padCount; ++i)
-    {
-        DebugLog_SetCheckpoint(L"vigem-owner: target alloc pad=%d", i);
-        PVIGEM_TARGET pad = vigem_target_x360_alloc();
-        if (!pad)
-        {
-            if (outErr) *outErr = VIGEM_ERROR_INVALID_TARGET;
-            Vigem_Destroy();
-            return false;
-        }
-
-        DebugLog_SetCheckpoint(L"vigem-owner: target add pad=%d", i);
-        err = vigem_target_add(g_client, pad);
-        if (!VIGEM_SUCCESS(err))
-        {
-            if (outErr) *outErr = err;
-            vigem_target_free(pad);
-            Vigem_Destroy();
-            return false;
-        }
-
-        g_pads[(size_t)i] = pad;
-        g_connectedPadCount = i + 1;
-    }
-
-    if (outErr) *outErr = VIGEM_ERROR_NONE;
-    return true;
+    return status.lastError == 0u
+        ? VIGEM_ERROR_NONE
+        : static_cast<VIGEM_ERROR>(status.lastError);
 }
 
-static bool Vigem_ReconnectThrottled(bool force = false)
+static void RefreshVigemOutputStatus(bool requestNewestOnGeneration) noexcept
 {
-    ULONGLONG now = GetTickCount64();
-    if (!force && now - g_lastReconnectAttemptMs < 1000) return false;
-    g_lastReconnectAttemptMs = now;
-    g_vigemUpdateFailStreak = 0;
+    const auto status = g_vigemOutputRuntime.GetStatus();
+    const bool ready = status.ready || !status.desiredEnabled;
+    g_vigemOk.store(ready, std::memory_order_release);
+    g_vigemLastErr.store(ready ? VIGEM_ERROR_NONE : OutputStatusError(status),
+        std::memory_order_release);
 
-    // Reconnect itself emits device-change broadcasts. Suppress them briefly so
-    // WM_DEVICECHANGE does not trigger reconnect loops.
-    g_ignoreDeviceChangeUntilMs.store(now + 1500, std::memory_order_release);
-    Vigem_Destroy();
-
-    if (!g_virtualPadsEnabled.load(std::memory_order_acquire))
-    {
-        g_vigemOk.store(true, std::memory_order_release);
-        g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
-        return true;
-    }
-
-    VIGEM_ERROR err = VIGEM_ERROR_NONE;
-    int wantedPads = std::clamp(g_virtualPadCount.load(std::memory_order_acquire), 1, kMaxVirtualPads);
-    bool ok = Vigem_Create(wantedPads, &err);
-    g_vigemOk.store(ok, std::memory_order_release);
-    g_vigemLastErr.store(ok ? VIGEM_ERROR_NONE : err, std::memory_order_release);
-    StabilityTrace_Write(ok ? L"INFO" : L"ERROR", L"vigem", L"reconnect",
-        L"ok=%d pads=%d error=%d forced=%d", ok ? 1 : 0, wantedPads, (int)err, force ? 1 : 0);
-    if (ok)
+    const std::uint64_t previous = g_vigemObservedGeneration.exchange(
+        status.activeGeneration, std::memory_order_acq_rel);
+    if (requestNewestOnGeneration && status.ready &&
+        status.activeGeneration != 0u && status.activeGeneration != previous)
     {
         g_vigemResubmitRequested.store(true, std::memory_order_release);
         RealtimeLoop_NotifyInputChanged();
+        StabilityTrace_Write(L"INFO", L"vigem-output", L"generation.route_ready",
+            L"generation=%llu previous=%llu newest_snapshot_requested=1",
+            static_cast<unsigned long long>(status.activeGeneration),
+            static_cast<unsigned long long>(previous));
     }
-    return ok;
-}
-
-static void VigemOutput_Wake() noexcept
-{
-    HANDLE wakeEvent = g_vigemOutputWakeEvent;
-    if (wakeEvent)
-        SetEvent(wakeEvent);
-}
-
-static bool VigemOutput_SendBatch(const VigemOutputBatch& batch)
-{
-    if (!g_client || g_connectedPadCount <= 0)
-    {
-        g_vigemOk.store(false, std::memory_order_release);
-        g_vigemLastErr.store(VIGEM_ERROR_BUS_NOT_FOUND, std::memory_order_release);
-        g_vigemResubmitRequested.store(true, std::memory_order_release);
-        RealtimeLoop_NotifyInputChanged();
-        return false;
-    }
-
-    VIGEM_ERROR error = VIGEM_ERROR_NONE;
-    bool allOk = true;
-    const int count = std::min<int>(batch.count, g_connectedPadCount);
-    for (int i = 0; i < count; ++i)
-    {
-        if ((batch.validMask & (1u << i)) == 0)
-            continue;
-        PVIGEM_TARGET pad = g_pads[static_cast<size_t>(i)];
-        if (!pad)
-            continue;
-
-#if defined(HALLJOY_ANALOG_SIMULATOR)
-        const wchar_t* commandLine = GetCommandLineW();
-        if (commandLine && wcsstr(commandLine, L"--halljoy-test-vigem-update-stall") &&
-            !g_vigemTestStallInjected.exchange(true, std::memory_order_acq_rel))
-        {
-            StabilityTrace_Write(L"WARN", L"vigem-output", L"test.update_stall.injected",
-                L"simulator_only=1 pad=%d sleep_ms=60000", i);
-            Sleep(60000);
-        }
-#endif
-
-        DebugLog_SetCheckpoint(L"vigem-output: update pad=%d", i);
-        error = vigem_target_x360_update(g_client, pad, batch.reports[static_cast<size_t>(i)]);
-        DebugLog_SetCheckpoint(L"vigem-output: update returned pad=%d", i);
-        if (!VIGEM_SUCCESS(error))
-        {
-            allOk = false;
-            break;
-        }
-#if defined(HALLJOY_ANALOG_SIMULATOR)
-        if (i == 0)
-            TraceAcceptedSimulatorVigemUpdate(batch.reports[0]);
-#endif
-    }
-
-    if (!allOk)
-    {
-        ++g_vigemUpdateFailStreak;
-        if (g_vigemUpdateFailStreak == 1)
-        {
-            StabilityTrace_Write(L"WARN", L"vigem", L"update.failed",
-                L"error=%d streak=1 owner=output-worker", static_cast<int>(error));
-        }
-        g_vigemOk.store(false, std::memory_order_release);
-        g_vigemLastErr.store(error, std::memory_order_release);
-        g_vigemResubmitRequested.store(true, std::memory_order_release);
-        RealtimeLoop_NotifyInputChanged();
-        if (g_vigemUpdateFailStreak >= 3)
-        {
-            g_vigemUpdateFailStreak = 0;
-            (void)Vigem_ReconnectThrottled();
-        }
-        return false;
-    }
-
-    g_vigemUpdateFailStreak = 0;
-    g_vigemOk.store(true, std::memory_order_release);
-    g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
-    return true;
-}
-
-static DWORD VigemOutputThreadBody()
-{
-#if defined(HALLJOY_ANALOG_SIMULATOR)
-    const wchar_t* commandLine = GetCommandLineW();
-    if (commandLine && wcsstr(commandLine, L"--halljoy-test-vigem-output-cpp-fault") &&
-        !g_vigemTestFaultInjected.exchange(true, std::memory_order_acq_rel))
-    {
-        StabilityTrace_Write(L"WARN", L"vigem-output", L"test.cpp_fault.injected",
-            L"simulator_only=1");
-        throw std::runtime_error("simulated ViGEm output worker C++ fault");
-    }
-#endif
-
-    uint64_t consumedGeneration = g_vigemOutputMailbox.PublishedGeneration();
-    while (g_vigemOutputRun.load(std::memory_order_acquire))
-    {
-        bool didWork = false;
-        const bool forceReconnect = g_reconnectRequested.exchange(false, std::memory_order_acq_rel);
-        const bool deviceReconnect = !forceReconnect &&
-            g_deviceChangeReconnectRequested.exchange(false, std::memory_order_acq_rel);
-        const bool emergencyNeutral =
-            g_vigemEmergencyNeutralRequested.exchange(false, std::memory_order_acq_rel);
-        const bool enabled = g_virtualPadsEnabled.load(std::memory_order_acquire);
-        const int wantedPads = std::clamp(
-            g_virtualPadCount.load(std::memory_order_acquire), 1, kMaxVirtualPads);
-
-        if (forceReconnect || deviceReconnect ||
-            (enabled && (!g_client || g_connectedPadCount != wantedPads)))
-        {
-            if (forceReconnect)
-                g_deviceChangeReconnectRequested.store(false, std::memory_order_release);
-            (void)Vigem_ReconnectThrottled(forceReconnect);
-            didWork = true;
-        }
-        else if (!enabled && (g_client || g_connectedPadCount > 0))
-        {
-            Vigem_Destroy();
-            g_vigemOk.store(true, std::memory_order_release);
-            g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
-            didWork = true;
-        }
-
-        for (;;)
-        {
-            VigemOutputBatch batch{};
-            uint64_t generation = consumedGeneration;
-            const auto read = g_vigemOutputMailbox.TryReadAfter(
-                consumedGeneration, &batch, &generation);
-            if (read == halljoy::output::LatestValueMailbox<VigemOutputBatch>::ReadResult::Busy)
-            {
-                SwitchToThread();
-                continue;
-            }
-            if (read == halljoy::output::LatestValueMailbox<VigemOutputBatch>::ReadResult::Unchanged)
-                break;
-            consumedGeneration = generation;
-            // A realtime fault invalidates every previously queued report. Drain
-            // those generations without submitting them; neutral must be the
-            // final driver write, never followed by stale pre-fault input.
-            if (enabled && !emergencyNeutral)
-                (void)VigemOutput_SendBatch(batch);
-            didWork = true;
-        }
-
-        if (emergencyNeutral)
-        {
-            VigemOutputBatch neutral{};
-            neutral.count = static_cast<uint8_t>(std::clamp(g_connectedPadCount, 0, kMaxVirtualPads));
-            neutral.validMask = neutral.count == 0
-                ? 0
-                : static_cast<uint8_t>((1u << neutral.count) - 1u);
-            (void)VigemOutput_SendBatch(neutral);
-            didWork = true;
-        }
-
-        if (!didWork)
-            WaitForSingleObject(g_vigemOutputWakeEvent, 100);
-    }
-    return 0;
-}
-
-static void VigemOutputThreadOnFault(
-    const halljoy::worker::WorkerExceptionRecord& record) noexcept
-{
-    g_vigemOutputFaultRecord = record;
-    g_vigemOutputFaultKind.store(record.kind, std::memory_order_release);
-    g_vigemOutputRun.store(false, std::memory_order_release);
-    g_vigemOk.store(false, std::memory_order_release);
-    StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"worker.fault",
-        L"kind=%u restart_blocked=1", static_cast<unsigned>(record.kind));
-}
-
-static void VigemOutputThreadOnCompletion(
-    const halljoy::worker::WorkerExceptionRecord& record) noexcept
-{
-    g_vigemOutputThreadAlive.store(false, std::memory_order_release);
-    StabilityTrace_Write(record.kind == halljoy::worker::WorkerExceptionKind::None ? L"INFO" : L"ERROR",
-        L"vigem-output", L"worker.exit", L"fault_kind=%u", static_cast<unsigned>(record.kind));
-}
-
-static DWORD WINAPI VigemOutputThreadProc(LPVOID) noexcept
-{
-    g_vigemOutputThreadAlive.store(true, std::memory_order_release);
-    StabilityTrace_Write(L"INFO", L"vigem-output", L"worker.start");
-    const DWORD result = static_cast<DWORD>(halljoy::worker::RunWorkerEntryBarrier(
-        [] { return VigemOutputThreadBody(); },
-        VigemOutputThreadOnFault,
-        [](const halljoy::worker::WorkerExceptionRecord&) noexcept {},
-        0xE0564947u));
-    Vigem_Destroy();
-    VigemOutputThreadOnCompletion(g_vigemOutputFaultRecord);
-    return result;
 }
 
 static bool VigemOutput_Start()
 {
-    std::lock_guard<std::mutex> lock(g_vigemOutputLifecycleMutex);
-    if (g_vigemOutputLifecycle.State() == halljoy::lifecycle::WorkerState::Running)
+    std::uint32_t error = ERROR_SUCCESS;
+    const bool enabled = g_virtualPadsEnabled.load(std::memory_order_acquire);
+    const std::uint32_t pads = static_cast<std::uint32_t>(std::clamp(
+        g_virtualPadCount.load(std::memory_order_acquire), 1, kMaxVirtualPads));
+    const bool started = g_vigemOutputRuntime.Start(enabled, pads, error);
+    RefreshVigemOutputStatus(false);
+    if (!started)
     {
-        return g_vigemOutputThreadAlive.load(std::memory_order_acquire) &&
-            g_vigemOutputFaultKind.load(std::memory_order_acquire) ==
-                halljoy::worker::WorkerExceptionKind::None;
-    }
-
-    const auto start = g_vigemOutputLifecycle.BeginStart();
-    if (start.status != halljoy::lifecycle::StartStatus::Starting)
-        return false;
-
-    g_vigemOutputWakeEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
-    if (!g_vigemOutputWakeEvent)
-    {
-        (void)g_vigemOutputLifecycle.FailStartBeforeWorker(start.generation, GetLastError());
-        return false;
-    }
-
-    g_vigemOutputFaultRecord = {};
-    g_vigemOutputFaultKind.store(halljoy::worker::WorkerExceptionKind::None, std::memory_order_release);
-    g_vigemEmergencyNeutralRequested.store(false, std::memory_order_release);
-    g_vigemResubmitRequested.store(false, std::memory_order_release);
-    g_vigemOutputMailbox.DiscardPending();
-#if defined(HALLJOY_ANALOG_SIMULATOR)
-    g_vigemTestStallInjected.store(false, std::memory_order_release);
-#endif
-    g_vigemOutputRun.store(true, std::memory_order_release);
-    g_vigemOutputThread = CreateThread(nullptr, 0, VigemOutputThreadProc, nullptr, 0, nullptr);
-    if (!g_vigemOutputThread)
-    {
-        const DWORD error = GetLastError();
-        g_vigemOutputRun.store(false, std::memory_order_release);
-        CloseHandle(g_vigemOutputWakeEvent);
-        g_vigemOutputWakeEvent = nullptr;
-        (void)g_vigemOutputLifecycle.FailStartBeforeWorker(start.generation, error);
+        g_vigemOk.store(false, std::memory_order_release);
+        g_vigemLastErr.store(static_cast<VIGEM_ERROR>(error),
+            std::memory_order_release);
+        StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"start.failed",
+            L"process_isolated=1 pads=%lu enabled=%d error=%lu",
+            static_cast<unsigned long>(pads), enabled ? 1 : 0,
+            static_cast<unsigned long>(error));
         return false;
     }
 
-    const auto running = g_vigemOutputLifecycle.ConfirmRunning(start.generation);
-    if (!running.IsRunning())
-        return false;
+    const auto status = g_vigemOutputRuntime.GetStatus();
+    g_vigemOutputRecoveryBlocked.store(false, std::memory_order_release);
+    g_vigemObservedGeneration.store(status.activeGeneration,
+        std::memory_order_release);
     StabilityTrace_Write(L"INFO", L"vigem-output", L"start.ok",
-        L"generation=%llu", static_cast<unsigned long long>(start.generation.Value()));
+        L"process_isolated=1 generation=%llu child_pid=%lu pads=%lu enabled=%d",
+        static_cast<unsigned long long>(status.activeGeneration),
+        static_cast<unsigned long>(status.childPid),
+        static_cast<unsigned long>(pads), enabled ? 1 : 0);
     return true;
 }
 
-static halljoy::lifecycle::StopResult VigemOutput_Stop()
+static bool VigemOutput_Stop()
 {
-    std::lock_guard<std::mutex> lock(g_vigemOutputLifecycleMutex);
-    const auto state = g_vigemOutputLifecycle.State();
-    if (state == halljoy::lifecycle::WorkerState::Stopped ||
-        state == halljoy::lifecycle::WorkerState::Joined)
-        return g_vigemOutputLifecycle.RequestStop();
-    if (state == halljoy::lifecycle::WorkerState::Poisoned)
-        return g_vigemOutputLifecycle.RequestStop(g_vigemOutputLifecycle.Generation());
-
-    const auto requested = g_vigemOutputLifecycle.RequestStop(g_vigemOutputLifecycle.Generation());
-    if (requested.status != halljoy::lifecycle::StopStatus::StopRequested)
-        return requested;
-    if (!g_vigemOutputThread)
+    std::uint32_t error = ERROR_SUCCESS;
+    const bool stopped = g_vigemOutputRuntime.Stop(error);
+    g_vigemObservedGeneration.store(0u, std::memory_order_release);
+    g_vigemOk.store(false, std::memory_order_release);
+    if (!stopped)
     {
-        return g_vigemOutputLifecycle.MarkPoisoned(requested.generation,
-            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
-            halljoy::lifecycle::LifecycleErrorCode::PrimitiveFailed,
-            ERROR_INVALID_HANDLE);
+        g_vigemLastErr.store(static_cast<VIGEM_ERROR>(error),
+            std::memory_order_release);
+        StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"stop.failed",
+            L"owner_joined=0 error=%lu", static_cast<unsigned long>(error));
     }
-
-    StabilityTrace_Write(L"INFO", L"vigem-output", L"stop.begin",
-        L"generation=%llu", static_cast<unsigned long long>(requested.generation.Value()));
-    g_vigemOutputRun.store(false, std::memory_order_release);
-    VigemOutput_Wake();
-    const DWORD waitResult = WaitForSingleObject(g_vigemOutputThread, 3000);
-    const DWORD waitError = waitResult == WAIT_OBJECT_0
-        ? ERROR_SUCCESS
-        : (waitResult == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT);
-    const auto observed = halljoy::lifecycle::ObserveWorkerJoin(
-        requested.generation,
-        waitResult == WAIT_OBJECT_0
-            ? halljoy::lifecycle::JoinWaitStatus::Joined
-            : (waitResult == WAIT_FAILED
-                ? halljoy::lifecycle::JoinWaitStatus::Failed
-                : halljoy::lifecycle::JoinWaitStatus::TimedOut),
-        waitError);
-    if (!observed.Completed())
-    {
-        StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"stop.timeout",
-            L"generation=%llu wait=%lu win32=%lu handles_retained=1 restart_blocked=1",
-            static_cast<unsigned long long>(requested.generation.Value()), waitResult, waitError);
-        return g_vigemOutputLifecycle.MarkPoisoned(requested.generation,
-            halljoy::lifecycle::LifecycleOperation::ConfirmJoined,
-            observed.error.code, observed.error.native_error);
-    }
-
-    CloseHandle(g_vigemOutputThread);
-    g_vigemOutputThread = nullptr;
-    CloseHandle(g_vigemOutputWakeEvent);
-    g_vigemOutputWakeEvent = nullptr;
-    g_vigemOutputThreadAlive.store(false, std::memory_order_release);
-    const auto joined = g_vigemOutputLifecycle.ConfirmJoined(requested.generation);
-    StabilityTrace_Write(L"INFO", L"vigem-output", L"stop.end",
-        L"generation=%llu", static_cast<unsigned long long>(requested.generation.Value()));
-    return joined;
+    return stopped;
 }
 
-bool Backend_EnsureOutputWorkerRunning()
+bool Backend_EnsureOutputRuntimeHealthy()
 {
-    const bool alive = g_vigemOutputThreadAlive.load(std::memory_order_acquire);
-    const auto faultKind = g_vigemOutputFaultKind.load(std::memory_order_acquire);
-    if (alive && faultKind == halljoy::worker::WorkerExceptionKind::None &&
-        g_vigemOutputThread && WaitForSingleObject(g_vigemOutputThread, 0) == WAIT_TIMEOUT)
-    {
-        return true;
-    }
-
-    StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"watchdog.recover.begin",
-        L"alive=%d fault_kind=%u has_thread=%d",
-        alive ? 1 : 0, static_cast<unsigned>(faultKind), g_vigemOutputThread ? 1 : 0);
-
-    const auto stopped = VigemOutput_Stop();
-    if (!stopped.RestartSafe())
-    {
-        StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"watchdog.recover.blocked",
-            L"state=%u error=%u restart_blocked=1",
-            static_cast<unsigned>(stopped.state), static_cast<unsigned>(stopped.error.code));
+    if (g_vigemOutputRecoveryBlocked.load(std::memory_order_acquire))
         return false;
-    }
 
-    if (g_virtualPadsEnabled.load(std::memory_order_acquire))
+    auto status = g_vigemOutputRuntime.GetStatus();
+    if (status.state == halljoy::vigem_output::OutputRuntimeState::Faulted ||
+        !status.restartSafe)
     {
-        g_ignoreDeviceChangeUntilMs.store(GetTickCount64() + 1500, std::memory_order_release);
-        VIGEM_ERROR error = VIGEM_ERROR_NONE;
-        if (!Vigem_Create(g_virtualPadCount.load(std::memory_order_acquire), &error))
+        StabilityTrace_WriteCritical(L"ERROR", L"vigem-output",
+            L"watchdog.session_rebuild.begin",
+            L"state=%u error=%lu completed_generation=%llu",
+            static_cast<unsigned>(status.state),
+            static_cast<unsigned long>(status.lastError),
+            static_cast<unsigned long long>(status.completedGeneration));
+        std::uint32_t stopError = ERROR_SUCCESS;
+        if (!g_vigemOutputRuntime.Stop(stopError))
         {
             g_vigemOk.store(false, std::memory_order_release);
-            g_vigemLastErr.store(error, std::memory_order_release);
-            StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"watchdog.transport_failed",
-                L"error=%d", static_cast<int>(error));
+            g_vigemLastErr.store(static_cast<VIGEM_ERROR>(stopError),
+                std::memory_order_release);
+            g_vigemOutputRecoveryBlocked.store(true, std::memory_order_release);
+            const auto blocked = g_vigemOutputRuntime.GetStatus();
+            StabilityTrace_WriteCritical(L"ERROR", L"vigem-output",
+                L"watchdog.recovery_blocked",
+                L"stage=stop error=%lu state=%u last_error=%lu last_outcome=%u restart_safe=%d completed_generation=%llu unsafe_generation=%llu unsafe_flags=%lu action=restart_halljoy",
+                static_cast<unsigned long>(stopError),
+                static_cast<unsigned>(blocked.state),
+                static_cast<unsigned long>(blocked.lastError),
+                static_cast<unsigned>(blocked.lastOutcome),
+                blocked.restartSafe ? 1 : 0,
+                static_cast<unsigned long long>(blocked.completedGeneration),
+                static_cast<unsigned long long>(blocked.lastUnsafeGeneration),
+                static_cast<unsigned long>(blocked.lastUnsafeFlags));
             return false;
         }
-    }
-    else
-    {
-        g_vigemOk.store(true, std::memory_order_release);
-        g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
+        std::uint32_t startError = ERROR_SUCCESS;
+        const bool restarted = g_vigemOutputRuntime.Start(
+            g_virtualPadsEnabled.load(std::memory_order_acquire),
+            static_cast<std::uint32_t>(std::clamp(
+                g_virtualPadCount.load(std::memory_order_acquire),
+                1, kMaxVirtualPads)),
+            startError);
+        if (!restarted)
+        {
+            g_vigemOk.store(false, std::memory_order_release);
+            g_vigemLastErr.store(static_cast<VIGEM_ERROR>(startError),
+                std::memory_order_release);
+            g_vigemOutputRecoveryBlocked.store(true, std::memory_order_release);
+            const auto blocked = g_vigemOutputRuntime.GetStatus();
+            StabilityTrace_WriteCritical(L"ERROR", L"vigem-output",
+                L"watchdog.recovery_blocked",
+                L"stage=start error=%lu state=%u last_error=%lu last_outcome=%u restart_safe=%d completed_generation=%llu unsafe_generation=%llu unsafe_flags=%lu action=restart_halljoy",
+                static_cast<unsigned long>(startError),
+                static_cast<unsigned>(blocked.state),
+                static_cast<unsigned long>(blocked.lastError),
+                static_cast<unsigned>(blocked.lastOutcome),
+                blocked.restartSafe ? 1 : 0,
+                static_cast<unsigned long long>(blocked.completedGeneration),
+                static_cast<unsigned long long>(blocked.lastUnsafeGeneration),
+                static_cast<unsigned long>(blocked.lastUnsafeFlags));
+            return false;
+        }
+        g_vigemOutputRecoveryBlocked.store(false, std::memory_order_release);
+        status = g_vigemOutputRuntime.GetStatus();
+        StabilityTrace_Write(L"INFO", L"vigem-output",
+            L"watchdog.session_rebuild.end",
+            L"restart_safe=1 generation=%llu child_pid=%lu",
+            static_cast<unsigned long long>(status.activeGeneration),
+            static_cast<unsigned long>(status.childPid));
     }
 
-    if (!VigemOutput_Start())
-    {
-        Vigem_Destroy();
-        g_vigemOk.store(false, std::memory_order_release);
-        StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"watchdog.worker_start_failed");
-        return false;
-    }
-
-    g_vigemResubmitRequested.store(true, std::memory_order_release);
-    RealtimeLoop_NotifyInputChanged();
-    VigemOutput_Wake();
-    StabilityTrace_Write(L"INFO", L"vigem-output", L"watchdog.recover.end",
-        L"restart_safe=1 pads=%d",
-        g_virtualPadsEnabled.load(std::memory_order_relaxed)
-            ? g_virtualPadCount.load(std::memory_order_relaxed)
-            : 0);
-    return true;
+    RefreshVigemOutputStatus(true);
+    status = g_vigemOutputRuntime.GetStatus();
+    // Starting and Recovering are bounded states owned by the supervisor. The
+    // watchdog must not create a competing owner while that recovery is active.
+    return status.ready || !status.desiredEnabled ||
+        status.state == halljoy::vigem_output::OutputRuntimeState::Starting ||
+        status.state == halljoy::vigem_output::OutputRuntimeState::Recovering;
 }
-
-// Cache: for HID <= 255 read once per tick
+// Cache every supported ordinary or extended key code once per tick.
 struct HidCache
 {
-    std::array<float, 256> raw{};
-    std::array<float, 256> filtered{};
+    std::array<float, halljoy::keycode::kCount> raw{};
+    std::array<float, halljoy::keycode::kCount> filtered{};
+    std::array<NativeAnalogReadResult, halljoy::keycode::kCount> native{};
     std::array<float, 256> fullRaw{};
     std::bitset<256> fullPresent{};
-    std::bitset<256> hasRaw{};
-    std::bitset<256> hasFiltered{};
+    halljoy::provider_v2_shadow::RawInputMapV1 providerV2Raw{};
+    std::bitset<halljoy::keycode::kCount> hasRaw{};
+    std::bitset<halljoy::keycode::kCount> hasFiltered{};
+    std::bitset<halljoy::keycode::kCount> hasNative{};
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    std::bitset<halljoy::keycode::kCount> isolatedSynthetic{};
+#endif
     bool sparkConnected = false;
     bool sayoConnected = false;
     bool addressedConnected = false;
@@ -1617,6 +1344,20 @@ struct HidCache
     bool wootingReady = false;
     WootingAnalog_KeycodeType mode = WootingAnalog_KeycodeType_HID;
     bool hasFullBuffer = false;
+    bool hasAuthoritativeUapDense = false;
+    bool hasAuthoritativeProviderV2 = false;
+    const halljoy::uap_parent_snapshot::SnapshotV1* uapTickSnapshot = nullptr;
+};
+
+struct ProviderV2ShadowTick
+{
+    halljoy::provider_v2_shadow::RawInputMapV1 providerRaw{};
+    std::array<float, halljoy::keycode::kCount> raw{};
+    std::array<float, halljoy::keycode::kCount> filtered{};
+    std::bitset<halljoy::keycode::kCount> hasRaw{};
+    std::bitset<halljoy::keycode::kCount> hasFiltered{};
+    bool eligible = false;
+    bool curveCoherent = true;
 };
 
 struct SimulatedKeyState
@@ -1640,7 +1381,7 @@ struct PersistentFilteredValue
     uint64_t curveGeneration = 0;
     bool valid = false;
 };
-static std::array<PersistentFilteredValue, 256> g_persistentFiltered{};
+static std::array<PersistentFilteredValue, halljoy::keycode::kCount> g_persistentFiltered{};
 static uint64_t g_persistentCurveCacheHits = 0;
 static uint64_t g_persistentCurveCacheMisses = 0;
 
@@ -1730,145 +1471,170 @@ static float ReadMouseBindRaw01(uint16_t hidKeycode)
     }
 }
 
+static const NativeAnalogReadResult& ReadNativeCached(
+    uint16_t hidKeycode, HidCache& cache)
+{
+    static const NativeAnalogReadResult empty{};
+    if (!halljoy::keycode::IsSupported(hidKeycode))
+        return empty;
+    if (!cache.hasNative.test(hidKeycode))
+    {
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        if (AnalogSimulator_ReadIsolated(hidKeycode, cache.native[hidKeycode]))
+            cache.isolatedSynthetic.set(hidKeycode);
+        else
+#endif
+        cache.native[hidKeycode] =
+            NativeAnalogBackends_ReadMilli(hidKeycode);
+        cache.hasNative.set(hidKeycode);
+    }
+    return cache.native[hidKeycode];
+}
+
 static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
 {
     if (hidKeycode == 0) return 0.0f;
     if (MouseBind_IsPseudoHid(hidKeycode))
         return ReadMouseBindRaw01(hidKeycode);
+    if (!halljoy::keycode::IsSupported(hidKeycode))
+        return 0.0f;
 
-    if (hidKeycode < 256)
+    if (cache.hasRaw.test(hidKeycode))
+        return cache.raw[hidKeycode];
+
+    const NativeAnalogReadResult& native =
+        ReadNativeCached(hidKeycode, cache);
+    float providerValue = 0.0f;
+    bool providerAvailable = false;
+    bool providerOwned = false;
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    if (cache.isolatedSynthetic.test(hidKeycode)) {
+        cache.raw[hidKeycode] = native.owned
+            ? std::clamp(static_cast<float>(native.milli) / 1000.0f, 0.0f, 1.0f)
+            : 0.0f;
+        cache.hasRaw.set(hidKeycode);
+        return cache.raw[hidKeycode];
+    }
+#endif
+    const uint16_t modeCode = cache.wootingReady
+        ? HidToModeCode(hidKeycode, cache.mode) : 0;
+    // Ordinary HID usages retain max aggregation across multiple physical
+    // keyboards. Extended native Fn/OEM codes have no second USB HID source;
+    // avoid a serialized SDK call after the DrunkDeer backend owns them.
+    if (cache.wootingReady && (modeCode != 0 ||
+        cache.hasAuthoritativeProviderV2) &&
+        (!native.owned || halljoy::keycode::IsStandardHid(hidKeycode)))
     {
-        if (cache.hasRaw.test(hidKeycode))
-            return cache.raw[hidKeycode];
-
-        uint16_t modeCode = cache.wootingReady ? HidToModeCode(hidKeycode, cache.mode) : 0;
-        float v = 0.0f;
-        // Every native protocol participates through the same descriptor catalog.
-        // The exact physical device is excluded from UAP only after capability
-        // proof, so max aggregation remains safe for multiple analogue keyboards.
-        const NativeAnalogReadResult native = NativeAnalogBackends_ReadMilli(hidKeycode);
-        if (native.owned)
-            v = std::max(v, std::clamp((float)native.milli / 1000.0f, 0.0f, 1.0f));
-
-        if (cache.wootingReady && modeCode != 0)
+        float sdk = 0.0f;
+        providerAvailable = true;
+        const bool standard = halljoy::keycode::IsStandardHid(hidKeycode);
+        const bool snapshotMode = !cache.hasAuthoritativeProviderV2 &&
+            cache.mode == WootingAnalog_KeycodeType_HID &&
+            cache.hasFullBuffer &&
+            (cache.hasAuthoritativeUapDense || kPreferFullBufferSnapshot);
+        if (cache.hasAuthoritativeProviderV2)
         {
-            float wsdk = 0.0f;
-            const bool snapshotMode = kPreferFullBufferSnapshot &&
-                cache.mode == WootingAnalog_KeycodeType_HID;
-
-            if (snapshotMode)
+            // The production route consumes the immutable, variable-capacity
+            // V2 broker snapshot.  Missing ownership is a released/unbound
+            // source, not permission to fall back to dense compatibility IPC.
+            if (cache.providerV2Raw.owned.test(hidKeycode))
             {
-                // Never fall back to per-key SDK calls in the Madlions build.
-                // A missing/failed snapshot is treated as zero until the next
-                // realtime-tick snapshot, avoiding blocking per-key SDK calls entirely.
-                if (cache.hasFullBuffer && cache.fullPresent.test(hidKeycode))
-                    wsdk = cache.fullRaw[hidKeycode];
+                sdk = cache.providerV2Raw.values[hidKeycode];
+                providerOwned = true;
+            }
+        }
+        else if (snapshotMode)
+        {
+            if (standard && cache.hasFullBuffer &&
+                cache.fullPresent.test(hidKeycode))
+            {
+                sdk = cache.fullRaw[hidKeycode];
+                providerOwned = true;
+            }
+        }
+        else
+        {
+            sdk = ReadAnalogByCodeWithDeviceFallback(modeCode, hidKeycode);
+            if (sdk < 0.0f)
+            {
+                providerAvailable = false;
+                const int error = static_cast<int>(std::lround(sdk));
+                const ULONGLONG now = GetTickCount64();
+                const int previous =
+                    g_lastAnalogErrorCode.load(std::memory_order_relaxed);
+                const ULONGLONG previousMs =
+                    g_lastAnalogErrorLogMs.load(std::memory_order_relaxed);
+                if (error != previous || now - previousMs >= 5000)
+                {
+                    DebugLog_Write(
+                        L"[backend.analog] read_analog key_code=%u mode_code=%u mode=%s err=%d",
+                        static_cast<unsigned>(hidKeycode),
+                        static_cast<unsigned>(modeCode),
+                        KeycodeModeName(static_cast<int>(cache.mode)), error);
+                    g_lastAnalogErrorCode.store(error,
+                        std::memory_order_relaxed);
+                    g_lastAnalogErrorLogMs.store(now,
+                        std::memory_order_relaxed);
+                }
+                sdk = 0.0f;
             }
             else
             {
-                // Normal builds retain the established per-key path.
-                wsdk = ReadAnalogByCodeWithDeviceFallback(modeCode, hidKeycode);
-                if (wsdk < 0.0f)
-                {
-                    int err = (int)std::lround(wsdk);
-                    ULONGLONG now = GetTickCount64();
-                    int prev = g_lastAnalogErrorCode.load(std::memory_order_relaxed);
-                    ULONGLONG prevMs = g_lastAnalogErrorLogMs.load(std::memory_order_relaxed);
-                    if (err != prev || now - prevMs >= 5000)
-                    {
-                        DebugLog_Write(
-                            L"[backend.analog] read_analog hid=%u code=%u mode=%s err=%d",
-                            (unsigned)hidKeycode,
-                            (unsigned)modeCode,
-                            KeycodeModeName((int)cache.mode),
-                            err);
-                        g_lastAnalogErrorCode.store(err, std::memory_order_relaxed);
-                        g_lastAnalogErrorLogMs.store(now, std::memory_order_relaxed);
-                    }
-                    wsdk = 0.0f;
-                }
-
-                // Generic builds may optionally use a snapshot as a conservative
-                // assist without changing their primary read behavior.
-                if (kEnableFullBufferAssist &&
-                    cache.hasFullBuffer &&
-                    cache.mode == WootingAnalog_KeycodeType_HID &&
-                    cache.fullPresent.test(hidKeycode))
-                {
-                    float vf = cache.fullRaw[hidKeycode];
-                    if (std::isfinite(vf))
-                    {
-                        vf = Clamp01(vf);
-                        if (vf > wsdk + 0.02f || (wsdk <= 0.001f && vf >= 0.01f))
-                            wsdk = vf;
-                    }
-                }
+                // The legacy SDK does not expose per-key ownership. A successful
+                // read is its historical available/owned-zero equivalence.
+                providerOwned = true;
             }
 
-            if (!std::isfinite(wsdk)) wsdk = 0.0f;
-            wsdk = Clamp01(wsdk);
-            v = std::max(v, wsdk);
-        }
-
-        if (!std::isfinite(v)) v = 0.0f;
-        v = Clamp01(v);
-
-        // If no confirmed native analogue source owns this HID and the SDK path
-        // provides only zeros, retain HallJoy's existing generic digital fallback.
-        // Native protocol modules never derive depth from this fallback.
-        if (cache.allowFallback && !native.owned && v <= 0.001f)
-        {
-            float sim = ReadDigitalFallback01(hidKeycode);
-            if (sim > v)
+            if (standard && kEnableFullBufferAssist &&
+                cache.hasFullBuffer &&
+                cache.mode == WootingAnalog_KeycodeType_HID &&
+                cache.fullPresent.test(hidKeycode))
             {
-                v = sim;
-                if (v >= 0.05f)
-                    g_digitalFallbackWarnPending.store(true, std::memory_order_release);
+                float snapshot = cache.fullRaw[hidKeycode];
+                if (std::isfinite(snapshot))
+                {
+                    snapshot = Clamp01(snapshot);
+                    if (snapshot > sdk + 0.02f ||
+                        (sdk <= 0.001f && snapshot >= 0.01f))
+                        sdk = snapshot;
+                }
             }
         }
-
-        cache.raw[hidKeycode] = v;
-        cache.hasRaw.set(hidKeycode);
-        return v;
+        if (!std::isfinite(sdk)) sdk = 0.0f;
+        providerValue = Clamp01(sdk);
     }
 
-    // HID>=256: no caching needed in this project (UI tracks <256 anyway).
-    // Native addressed sources use byte-sized HID usages; HID>=256 stays SDK-only.
-    uint16_t modeCode = cache.wootingReady ? HidToModeCode(hidKeycode, cache.mode) : 0;
-    if (!cache.wootingReady || modeCode == 0)
-        return 0.0f;
+    const auto nativeSource = halljoy::provider_v2_shadow::AnalogSourceStateV1{
+        native.connected, native.owned, native.owned,
+        static_cast<float>(native.milli) / 1000.0f };
+    const auto providerSource = halljoy::provider_v2_shadow::AnalogSourceStateV1{
+        providerAvailable, providerOwned, providerAvailable, providerValue };
+    auto arbitration = halljoy::provider_v2_shadow::Arbitrate({ hidKeycode,
+        nativeSource, providerSource, {}, false });
+    float v = arbitration.value;
 
-    float v = ReadAnalogByCodeWithDeviceFallback(modeCode, hidKeycode);
-    if (v < 0.0f)
+    // Extended Fn/OEM keys never have a Windows digital fallback. Native
+    // matrix ownership therefore preserves their travel from the first sample.
+    if (halljoy::keycode::IsStandardHid(hidKeycode) &&
+        cache.allowFallback && !native.owned && v <= 0.001f)
     {
-        int err = (int)std::lround(v);
-        ULONGLONG now = GetTickCount64();
-        int prev = g_lastAnalogErrorCode.load(std::memory_order_relaxed);
-        ULONGLONG prevMs = g_lastAnalogErrorLogMs.load(std::memory_order_relaxed);
-        if (err != prev || now - prevMs >= 5000)
+        const float sim = ReadDigitalFallback01(hidKeycode);
+        arbitration = halljoy::provider_v2_shadow::Arbitrate({ hidKeycode,
+            nativeSource, providerSource,
+            { true, true, true, sim }, true });
+        if ((arbitration.sourceMask &
+                halljoy::provider_v2_shadow::ArbitrationSource_DigitalFallback) != 0 &&
+            arbitration.value > v)
         {
-            DebugLog_Write(
-                L"[backend.analog] read_analog hid=%u code=%u mode=%s err=%d",
-                (unsigned)hidKeycode,
-                (unsigned)modeCode,
-                KeycodeModeName((int)cache.mode),
-                err);
-            g_lastAnalogErrorCode.store(err, std::memory_order_relaxed);
-            g_lastAnalogErrorLogMs.store(now, std::memory_order_relaxed);
-        }
-    }
-    if (!std::isfinite(v)) v = 0.0f;
-    v = Clamp01(v);
-    if (cache.allowFallback && v <= 0.001f)
-    {
-        float sim = ReadDigitalFallback01(hidKeycode);
-        if (sim > v)
-        {
-            v = sim;
+            v = arbitration.value;
             if (v >= 0.05f)
-                g_digitalFallbackWarnPending.store(true, std::memory_order_release);
+            g_digitalFallbackWarnPending.store(true, std::memory_order_release);
         }
     }
+
+    cache.raw[hidKeycode] = v;
+    cache.hasRaw.set(hidKeycode);
     return v;
 }
 
@@ -1878,7 +1644,7 @@ static float ReadFiltered01Cached(uint16_t hidKeycode, HidCache& cache)
     if (MouseBind_IsPseudoHid(hidKeycode))
         return ReadRaw01Cached(hidKeycode, cache);
 
-    if (hidKeycode < 256)
+    if (halljoy::keycode::IsSupported(hidKeycode))
     {
         if (cache.hasFiltered.test(hidKeycode))
             return cache.filtered[hidKeycode];
@@ -1909,173 +1675,111 @@ static float ReadFiltered01Cached(uint16_t hidKeycode, HidCache& cache)
         return filtered;
     }
 
-    float raw = ReadRaw01Cached(hidKeycode, cache);
-    return BackendCurve_ApplyByHid(hidKeycode, raw);
+    return 0.0f;
 }
 
-static SHORT StickFromMinus1Plus1(float x)
+static float ReadProviderV2ShadowRaw01Cached(uint16_t hidKeycode,
+    HidCache& qualifiedCache, ProviderV2ShadowTick& shadow)
 {
-    x = std::clamp(x, -1.0f, 1.0f);
-    return (SHORT)std::lround(x * 32767.0f);
-}
-
-static uint8_t TriggerByte01(float v01)
-{
-    v01 = std::clamp(v01, 0.0f, 1.0f);
-    return (uint8_t)std::lround(v01 * 255.0f);
-}
-
-static bool Pressed(float v01)
-{
-    // Simple logic threshold after curve applied
-    return v01 >= 0.10f;
-}
-
-// ---- Snappy Joystick (SOCD-like) state (backend thread) ----
-// One state per axis (LX,LY,RX,RY)
-static std::array<std::array<uint8_t, 4>, kMaxVirtualPads> g_snappyPrevMinusDown{};
-static std::array<std::array<uint8_t, 4>, kMaxVirtualPads> g_snappyPrevPlusDown{};
-static std::array<std::array<int8_t, 4>, kMaxVirtualPads>  g_snappyLastDir{}; // -1 = minus, +1 = plus, 0 = unknown
-static std::array<std::array<float, 4>, kMaxVirtualPads>   g_snappyMinusValley{};
-static std::array<std::array<float, 4>, kMaxVirtualPads>   g_snappyPlusValley{};
-
-static int AxisIndexSafe(Axis a)
-{
-    switch (a)
-    {
-    case Axis::LX: return 0;
-    case Axis::LY: return 1;
-    case Axis::RX: return 2;
-    case Axis::RY: return 3;
-    default:       return -1;
-    }
-}
-
-static float AxisValue_WithConflictModes(int padIndex, Axis a, float minusV, float plusV)
-{
-    const bool snapStick = Settings_GetSnappyJoystick();
-    const bool lastKeyPriority = Settings_GetLastKeyPriority();
-    if (!snapStick && !lastKeyPriority)
-        return plusV - minusV;
-
-    int idx = AxisIndexSafe(a);
-    if (idx < 0 || idx >= 4)
-        return plusV - minusV;
-
-    // detect "press" edges using the same semantics as buttons (stable threshold)
-    bool minusDown = Pressed(minusV);
-    bool plusDown = Pressed(plusV);
-
-    int p = std::clamp(padIndex, 0, kMaxVirtualPads - 1);
-    bool prevMinus = (g_snappyPrevMinusDown[(size_t)p][idx] != 0);
-    bool prevPlus = (g_snappyPrevPlusDown[(size_t)p][idx] != 0);
-
-    if (minusDown && !prevMinus) g_snappyLastDir[(size_t)p][idx] = -1;
-    if (plusDown && !prevPlus)  g_snappyLastDir[(size_t)p][idx] = +1;
-
-    if (lastKeyPriority)
-    {
-        // Re-trigger threshold for analog "re-press" while key is still logically down.
-        // Example: user slightly releases key and presses again without crossing Pressed() threshold.
-        const float repDelta = std::clamp(Settings_GetLastKeyPrioritySensitivity(), 0.02f, 0.95f);
-
-        if (!minusDown)
-        {
-            g_snappyMinusValley[(size_t)p][idx] = 1.0f;
-        }
-        else if (!prevMinus)
-        {
-            g_snappyMinusValley[(size_t)p][idx] = minusV;
-        }
-        else
-        {
-            float& valley = g_snappyMinusValley[(size_t)p][idx];
-            valley = std::min(valley, minusV);
-            if ((minusV - valley) >= repDelta)
-            {
-                g_snappyLastDir[(size_t)p][idx] = -1;
-                valley = minusV;
-            }
-        }
-
-        if (!plusDown)
-        {
-            g_snappyPlusValley[(size_t)p][idx] = 1.0f;
-        }
-        else if (!prevPlus)
-        {
-            g_snappyPlusValley[(size_t)p][idx] = plusV;
-        }
-        else
-        {
-            float& valley = g_snappyPlusValley[(size_t)p][idx];
-            valley = std::min(valley, plusV);
-            if ((plusV - valley) >= repDelta)
-            {
-                g_snappyLastDir[(size_t)p][idx] = +1;
-                valley = plusV;
-            }
-        }
-    }
-
-    g_snappyPrevMinusDown[(size_t)p][idx] = minusDown ? 1u : 0u;
-    g_snappyPrevPlusDown[(size_t)p][idx] = plusDown ? 1u : 0u;
-
-    float maxV = std::max(minusV, plusV);
-    if (maxV <= 0.0001f)
+    if (!halljoy::keycode::IsSupported(hidKeycode) ||
+        MouseBind_IsPseudoHid(hidKeycode))
         return 0.0f;
+    if (shadow.hasRaw.test(hidKeycode))
+        return shadow.raw[hidKeycode];
 
-    if (lastKeyPriority)
-    {
-        // While only one side is logically pressed, keep output fully bound to that side.
-        // This prevents partial cancellation when the opposite side starts moving but
-        // has not crossed the press threshold yet.
-        if (minusDown && !plusDown) return -minusV;
-        if (plusDown && !minusDown) return +plusV;
+    const NativeAnalogReadResult& native =
+        ReadNativeCached(hidKeycode, qualifiedCache);
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    if (qualifiedCache.isolatedSynthetic.test(hidKeycode)) {
+        shadow.raw[hidKeycode] = static_cast<float>(native.milli) / 1000.0f;
+        shadow.hasRaw.set(hidKeycode);
+        return shadow.raw[hidKeycode];
     }
-
-    // Last Key Priority: when both directions are down, most recent press wins.
-    if (lastKeyPriority && minusDown && plusDown)
+#endif
+    // The shadow deliberately remains on the legacy compatibility plane while
+    // qualified input uses Provider V2. Standard keys come from the one dense
+    // parent capture; extended keys retain the legacy per-key reader because
+    // the historical dense table has no extended-key slots.
+    const bool standard = halljoy::keycode::IsStandardHid(hidKeycode);
+    bool compatibilityOwned = standard &&
+        qualifiedCache.hasAuthoritativeUapDense &&
+        qualifiedCache.fullPresent.test(hidKeycode);
+    float compatibilityValue = compatibilityOwned
+        ? qualifiedCache.fullRaw[hidKeycode] : 0.0f;
+    if (!standard)
     {
-        int8_t dir = g_snappyLastDir[(size_t)p][idx];
-        if (dir == 0)
-            dir = (plusV >= minusV) ? +1 : -1;
-
-        float mag = 0.0f;
-        if (snapStick)
+        const uint16_t modeCode = HidToModeCode(hidKeycode,
+            qualifiedCache.mode);
+        if (modeCode != 0)
         {
-            // Keep "snap" punch while still honoring last pressed direction.
-            mag = maxV;
+            compatibilityValue = ReadAnalogByCodeWithDeviceFallback(modeCode,
+                hidKeycode);
+            compatibilityOwned = compatibilityValue >= 0.0f;
+            if (!compatibilityOwned)
+                compatibilityValue = 0.0f;
         }
-        else
-        {
-            mag = (dir > 0) ? plusV : minusV;
-        }
-        return (dir > 0) ? +mag : -mag;
     }
-
-    // Snap Stick behavior: stronger side wins; if equal, last direction wins.
-    if (snapStick)
-    {
-        constexpr float EQ_EPS = 0.002f; // tolerant equality (float noise)
-        float d = plusV - minusV;
-
-        if (std::fabs(d) > EQ_EPS)
-            return (d > 0.0f) ? +maxV : -maxV;
-
-        if (g_snappyLastDir[(size_t)p][idx] > 0) return +maxV;
-        if (g_snappyLastDir[(size_t)p][idx] < 0) return -maxV;
-        return 0.0f;
-    }
-
-    return plusV - minusV;
+    // Match the ordinary ownership policy: standard USB HID keys aggregate
+    // across native and UAP sources; native extended keys remain authoritative.
+    const float value = halljoy::provider_v2_shadow::MergeWithNative(
+        hidKeycode, native.owned,
+        static_cast<float>(native.milli) / 1000.0f,
+        compatibilityOwned, compatibilityValue);
+    shadow.raw[hidKeycode] = value;
+    shadow.hasRaw.set(hidKeycode);
+    return value;
 }
 
-static void SetBtn(XUSB_REPORT& report, WORD mask, bool down)
+static void ReadFilteredPair(uint16_t hidKeycode, HidCache& qualifiedCache,
+    ProviderV2ShadowTick& shadow, float* qualified, float* shadowValue)
 {
-    if (down) report.wButtons |= mask;
-    else      report.wButtons &= ~mask;
+    if (!qualified || !shadowValue ||
+        !halljoy::keycode::IsSupported(hidKeycode))
+        return;
+
+    const float qualifiedFiltered =
+        ReadFiltered01Cached(hidKeycode, qualifiedCache);
+    *qualified = qualifiedFiltered;
+
+    // Mouse pseudo-bindings are sampled once through the qualified cache and
+    // copied. Provider V2 USB usages in this reserved UI range must not alias
+    // HallJoy's mouse controls.
+    if (!shadow.eligible || MouseBind_IsPseudoHid(hidKeycode))
+    {
+        *shadowValue = qualifiedFiltered;
+        return;
+    }
+    if (shadow.hasFiltered.test(hidKeycode))
+    {
+        *shadowValue = shadow.filtered[hidKeycode];
+        return;
+    }
+
+    const float qualifiedRaw = ReadRaw01Cached(hidKeycode, qualifiedCache);
+    const float providerV2Raw = ReadProviderV2ShadowRaw01Cached(
+        hidKeycode, qualifiedCache, shadow);
+    float expectedQualified = qualifiedFiltered;
+    float providerV2Filtered = qualifiedFiltered;
+    if (qualifiedRaw != providerV2Raw)
+    {
+        BackendCurve_ApplyPairByHid(hidKeycode, qualifiedRaw, providerV2Raw,
+            &expectedQualified, &providerV2Filtered);
+        if (std::fabs(expectedQualified - qualifiedFiltered) > 0.000001f)
+            shadow.curveCoherent = false;
+    }
+    shadow.filtered[hidKeycode] = providerV2Filtered;
+    shadow.hasFiltered.set(hidKeycode);
+    *shadowValue = providerV2Filtered;
 }
+
+// Separate explicit states ensure that evaluating V2 can never change SOCD or
+// Last Key Priority behavior sent to the game. On an ineligible tick the shadow
+// state is advanced with qualified input, keeping its history synchronized
+// without treating unavailable V2 data as proof.
+static std::array<halljoy::configured_xusb::BuilderState,
+    kMaxVirtualPads> g_qualifiedReportBuilderState{};
+static std::array<halljoy::configured_xusb::BuilderState,
+    kMaxVirtualPads> g_providerV2ShadowReportBuilderState{};
 
 static float MouseErrorToAxis(double err, float radius, float aggressiveness)
 {
@@ -2335,98 +2039,257 @@ static bool ReadMouseStickSample(float& outX, float& outY)
     return (std::fabs(outX) > 0.0001f || std::fabs(outY) > 0.0001f);
 }
 
-static SHORT MergeStickAxis(SHORT baseAxis, float mouseAxis01)
+struct PadFramePair
 {
-    SHORT mouse = StickFromMinus1Plus1(mouseAxis01);
-    if (mouse == 0)
-        return baseAxis;
-    // Mouse should feel immediate, but keep keyboard if stronger on this tick.
-    return (std::abs((int)mouse) >= std::abs((int)baseAxis)) ? mouse : baseAxis;
-}
+    halljoy::controller::VirtualControllerFrameV1 qualified{};
+    halljoy::controller::VirtualControllerFrameV1 shadow{};
+    std::uint32_t providerConfiguredFieldMask = 0;
+    std::uint32_t providerDeepTravelFieldMask = 0;
+    std::uint32_t providerNonNeutralFieldMask = 0;
+    std::uint32_t providerActiveFieldMask = 0;
+    std::uint32_t providerNeutralFieldMask = 0;
+    std::uint32_t mismatchMask = 0;
+};
 
-static bool BtnPressedFromMask(int padIndex, GameButton b, HidCache& cache)
+static PadFramePair BuildReportFramesForPad(int padIndex, HidCache& cache,
+    ProviderV2ShadowTick& shadowTick, bool snappyJoystick,
+    bool lastKeyPriority, float lastKeyPrioritySensitivity,
+    bool mouseToStickEnabled, std::uint8_t mouseTarget)
 {
-    for (int chunk = 0; chunk < 4; ++chunk)
-    {
-        uint64_t bits = Bindings_GetButtonMaskChunkForPad(padIndex, b, chunk);
-        if (!bits) continue;
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64))
-        while (bits) {
-            unsigned long idx = 0;
-            _BitScanForward64(&idx, bits);
-            bits &= (bits - 1);
-            uint16_t hid = (uint16_t)(chunk * 64 + (int)idx);
-            float v01 = ReadFiltered01Cached(hid, cache);
-            if (Pressed(v01)) return true;
-        }
-#else
-        for (int bit = 0; bit < 64; ++bit) {
-            if (bits & (1ULL << bit)) {
-                uint16_t hid = (uint16_t)(chunk * 64 + bit);
-                float v01 = ReadFiltered01Cached(hid, cache);
-                if (Pressed(v01)) return true;
-            }
-        }
-#endif
-    }
-    return false;
-}
-
-static XUSB_REPORT BuildReportForPad(int padIndex, HidCache& cache)
-{
-    XUSB_REPORT report{};
-    report.wButtons = 0;
-
-    auto applyAxis = [&](Axis a, SHORT& out) {
-        AxisBinding b = Bindings_GetAxisForPad(padIndex, a);
-        float minusV = ReadFiltered01Cached(b.minusHid, cache);
-        float plusV = ReadFiltered01Cached(b.plusHid, cache);
-        out = StickFromMinus1Plus1(AxisValue_WithConflictModes(padIndex, a, minusV, plusV));
-        };
-
-    applyAxis(Axis::LX, report.sThumbLX);
-    applyAxis(Axis::LY, report.sThumbLY);
-    applyAxis(Axis::RX, report.sThumbRX);
-    applyAxis(Axis::RY, report.sThumbRY);
-
-    if (padIndex == 0 && Settings_GetMouseToStickEnabled())
-    {
-        float mx = 0.0f, my = 0.0f;
-        if (ReadMouseStickSample(mx, my))
+    using namespace halljoy::configured_xusb;
+    const int boundedPad = std::clamp(padIndex, 0, kMaxVirtualPads - 1);
+    PadConfiguration configuration{};
+    InputValues qualifiedInput{};
+    InputValues shadowInput{};
+    PadFramePair pair{};
+    const auto recordProviderKey = [&](std::uint16_t hid,
+        std::uint32_t fieldMask) {
+        if (!halljoy::keycode::IsSupported(hid) ||
+            MouseBind_IsPseudoHid(hid) ||
+            !shadowTick.providerRaw.owned.test(hid))
         {
-            if (Settings_GetMouseToStickTarget() == 0)
+            return;
+        }
+        pair.providerConfiguredFieldMask |= fieldMask;
+        const float value = shadowTick.providerRaw.values[hid];
+        if (value > 0.001f)
+            pair.providerNonNeutralFieldMask |= fieldMask;
+        if (value >= 0.5f)
+            pair.providerDeepTravelFieldMask |= fieldMask;
+    };
+    const auto readIntoInput = [&](std::uint16_t hid) {
+        if (halljoy::keycode::IsSupported(hid))
+        {
+            ReadFilteredPair(hid, cache, shadowTick,
+                &qualifiedInput.filtered[hid], &shadowInput.filtered[hid]);
+        }
+    };
+
+    for (std::size_t axis = 0; axis < kAxisCount; ++axis)
+    {
+        configuration.axes[axis] = Bindings_GetAxisForPad(
+            boundedPad, static_cast<Axis>(axis));
+        readIntoInput(configuration.axes[axis].minusHid);
+        readIntoInput(configuration.axes[axis].plusHid);
+    }
+    for (std::size_t trigger = 0; trigger < kTriggerCount; ++trigger)
+    {
+        configuration.triggers[trigger] = Bindings_GetTriggerForPad(
+            boundedPad, static_cast<::Trigger>(trigger));
+        readIntoInput(configuration.triggers[trigger]);
+    }
+    for (std::size_t button = 0; button < kButtonCount; ++button)
+    {
+        for (std::size_t chunk = 0; chunk < halljoy::keycode::kMaskChunkCount;
+            ++chunk)
+        {
+            const std::uint64_t mask = Bindings_GetButtonMaskChunkForPad(
+                boundedPad, static_cast<GameButton>(button),
+                static_cast<int>(chunk));
+            configuration.buttonMasks[button][chunk] = mask;
+            std::uint64_t remaining = mask;
+            while (remaining != 0)
             {
-                report.sThumbLX = MergeStickAxis(report.sThumbLX, mx);
-                report.sThumbLY = MergeStickAxis(report.sThumbLY, my);
+                unsigned long bit = 0;
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64))
+                _BitScanForward64(&bit, remaining);
+#else
+                while ((remaining & (std::uint64_t{ 1 } << bit)) == 0)
+                    ++bit;
+#endif
+                remaining &= remaining - 1u;
+                const std::size_t hid = chunk * 64u + bit;
+                if (hid < halljoy::keycode::kCount)
+                    readIntoInput(static_cast<std::uint16_t>(hid));
             }
-            else
+        }
+    }
+    configuration.snappyJoystick = snappyJoystick;
+    configuration.lastKeyPriority = lastKeyPriority;
+    configuration.lastKeyPrioritySensitivity = lastKeyPrioritySensitivity;
+
+    for (std::size_t axis = 0; axis < kAxisCount; ++axis)
+    {
+        const auto& binding = configuration.axes[axis];
+        const std::uint32_t fieldMask = 1u << (3u + axis);
+        recordProviderKey(binding.minusHid, fieldMask);
+        recordProviderKey(binding.plusHid, fieldMask);
+    }
+    for (std::size_t trigger = 0; trigger < kTriggerCount; ++trigger)
+    {
+        recordProviderKey(configuration.triggers[trigger],
+            1u << (1u + trigger));
+    }
+    for (const auto& buttonMask : configuration.buttonMasks)
+    {
+        for (std::size_t chunk = 0; chunk < buttonMask.size(); ++chunk)
+        {
+            std::uint64_t remaining = buttonMask[chunk];
+            while (remaining != 0)
             {
-                report.sThumbRX = MergeStickAxis(report.sThumbRX, mx);
-                report.sThumbRY = MergeStickAxis(report.sThumbRY, my);
+                unsigned long bit = 0;
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64))
+                _BitScanForward64(&bit, remaining);
+#else
+                while ((remaining & (std::uint64_t{ 1 } << bit)) == 0)
+                    ++bit;
+#endif
+                remaining &= remaining - 1u;
+                const std::size_t hid = chunk * 64u + bit;
+                if (hid < halljoy::keycode::kCount)
+                {
+                    recordProviderKey(static_cast<std::uint16_t>(hid),
+                        1u << 0);
+                }
             }
         }
     }
 
-    report.bLeftTrigger = TriggerByte01(ReadFiltered01Cached(Bindings_GetTriggerForPad(padIndex, Trigger::LT), cache));
-    report.bRightTrigger = TriggerByte01(ReadFiltered01Cached(Bindings_GetTriggerForPad(padIndex, Trigger::RT), cache));
+    if (boundedPad == 0 && mouseToStickEnabled)
+    {
+        qualifiedInput.mouseEnabled = ReadMouseStickSample(
+            qualifiedInput.mouseX, qualifiedInput.mouseY);
+        qualifiedInput.mouseTarget = mouseTarget;
+        shadowInput.mouseEnabled = qualifiedInput.mouseEnabled;
+        shadowInput.mouseTarget = qualifiedInput.mouseTarget;
+        shadowInput.mouseX = qualifiedInput.mouseX;
+        shadowInput.mouseY = qualifiedInput.mouseY;
+    }
 
-    SetBtn(report, XUSB_GAMEPAD_A, BtnPressedFromMask(padIndex, GameButton::A, cache));
-    SetBtn(report, XUSB_GAMEPAD_B, BtnPressedFromMask(padIndex, GameButton::B, cache));
-    SetBtn(report, XUSB_GAMEPAD_X, BtnPressedFromMask(padIndex, GameButton::X, cache));
-    SetBtn(report, XUSB_GAMEPAD_Y, BtnPressedFromMask(padIndex, GameButton::Y, cache));
-    SetBtn(report, XUSB_GAMEPAD_LEFT_SHOULDER, BtnPressedFromMask(padIndex, GameButton::LB, cache));
-    SetBtn(report, XUSB_GAMEPAD_RIGHT_SHOULDER, BtnPressedFromMask(padIndex, GameButton::RB, cache));
-    SetBtn(report, XUSB_GAMEPAD_BACK, BtnPressedFromMask(padIndex, GameButton::Back, cache));
-    SetBtn(report, XUSB_GAMEPAD_START, BtnPressedFromMask(padIndex, GameButton::Start, cache));
-    SetBtn(report, XUSB_GAMEPAD_GUIDE, BtnPressedFromMask(padIndex, GameButton::Guide, cache));
-    SetBtn(report, XUSB_GAMEPAD_LEFT_THUMB, BtnPressedFromMask(padIndex, GameButton::LS, cache));
-    SetBtn(report, XUSB_GAMEPAD_RIGHT_THUMB, BtnPressedFromMask(padIndex, GameButton::RS, cache));
-    SetBtn(report, XUSB_GAMEPAD_DPAD_UP, BtnPressedFromMask(padIndex, GameButton::DpadUp, cache));
-    SetBtn(report, XUSB_GAMEPAD_DPAD_DOWN, BtnPressedFromMask(padIndex, GameButton::DpadDown, cache));
-    SetBtn(report, XUSB_GAMEPAD_DPAD_LEFT, BtnPressedFromMask(padIndex, GameButton::DpadLeft, cache));
-    SetBtn(report, XUSB_GAMEPAD_DPAD_RIGHT, BtnPressedFromMask(padIndex, GameButton::DpadRight, cache));
+    const std::size_t stateIndex = static_cast<std::size_t>(boundedPad);
+    if (!shadowTick.eligible)
+    {
+        g_providerV2ShadowReportBuilderState[stateIndex] =
+            g_qualifiedReportBuilderState[stateIndex];
+    }
+    pair.qualified = halljoy::configured_xusb::BuildReport(configuration,
+        qualifiedInput, g_qualifiedReportBuilderState[stateIndex]);
+    pair.shadow = halljoy::configured_xusb::BuildReport(configuration,
+        shadowInput, g_providerV2ShadowReportBuilderState[stateIndex]);
+    if (shadowTick.eligible)
+    {
+        const std::uint32_t shadowActive =
+            halljoy::provider_v2_qualification::ActiveFieldMask(pair.shadow);
+        pair.providerActiveFieldMask =
+            pair.providerDeepTravelFieldMask & shadowActive;
+        pair.providerNeutralFieldMask = pair.providerConfiguredFieldMask &
+            ~pair.providerNonNeutralFieldMask & ~shadowActive;
+        pair.mismatchMask = halljoy::provider_v2_shadow::CompareFrames(
+            pair.qualified, pair.shadow);
+    }
+    return pair;
+}
 
+static XUSB_REPORT ToLegacyXusbReport(
+    const halljoy::controller::VirtualControllerFrameV1& frame)
+{
+    const auto built = halljoy::xusb_output::ToReport(frame);
+    XUSB_REPORT report{};
+    report.wButtons = built.buttons;
+    report.bLeftTrigger = built.leftTrigger;
+    report.bRightTrigger = built.rightTrigger;
+    report.sThumbLX = built.thumbLX;
+    report.sThumbLY = built.thumbLY;
+    report.sThumbRX = built.thumbRX;
+    report.sThumbRY = built.thumbRY;
     return report;
+}
+
+static void RecordProviderV2ShadowComparison(
+    const std::array<std::uint32_t, kMaxVirtualPads>& mismatchMasks,
+    const std::array<std::uint32_t, kMaxVirtualPads>&
+        providerConfiguredFieldMasks,
+    const std::array<std::uint32_t, kMaxVirtualPads>&
+        providerActiveFieldMasks,
+    const std::array<std::uint32_t, kMaxVirtualPads>&
+        providerNeutralFieldMasks,
+    int padCount, std::uint64_t sampleGeneration, std::uint64_t nowMs)
+{
+    g_providerV2ShadowEligibleTicks.fetch_add(1, std::memory_order_relaxed);
+    std::uint64_t firstTick = 0;
+    (void)g_providerV2ShadowFirstEligibleTickMs.compare_exchange_strong(
+        firstTick, nowMs, std::memory_order_relaxed);
+    g_providerV2ShadowLastEligibleTickMs.store(nowMs, std::memory_order_relaxed);
+    const std::uint64_t previousSample =
+        g_providerV2ShadowLastSampleGeneration.exchange(sampleGeneration,
+            std::memory_order_relaxed);
+    if (previousSample != sampleGeneration)
+    {
+        g_providerV2ShadowUniqueSampleGenerations.fetch_add(1,
+            std::memory_order_relaxed);
+    }
+    for (int pad = 0; pad < padCount; ++pad)
+    {
+        const std::size_t index = static_cast<std::size_t>(pad);
+        const std::uint32_t configuredFields =
+            providerConfiguredFieldMasks[index];
+        const std::uint32_t activeFields = providerActiveFieldMasks[index];
+        const auto releaseUpdate =
+            halljoy::provider_v2_qualification::UpdateReleaseTracker(
+                g_providerV2ShadowPendingReleaseMasks[index], activeFields,
+                providerNeutralFieldMasks[index]);
+        g_providerV2ShadowPendingReleaseMasks[index] =
+            releaseUpdate.pendingMask;
+        const std::uint32_t releasedFields = releaseUpdate.releasedNowMask;
+        constexpr std::uint32_t fieldsPerPad = static_cast<std::uint32_t>(
+            halljoy::provider_v2_qualification::kFieldCount);
+        const std::uint32_t coverageShift =
+            static_cast<std::uint32_t>(index) * fieldsPerPad;
+        const std::uint32_t configuredCoverage =
+            configuredFields << coverageShift;
+        const std::uint32_t activeCoverage = activeFields << coverageShift;
+        const std::uint32_t releasedCoverage = releasedFields << coverageShift;
+        g_providerV2ShadowConfiguredFieldMask.fetch_or(configuredCoverage,
+            std::memory_order_relaxed);
+        g_providerV2ShadowActivatedFieldMask.fetch_or(activeCoverage,
+            std::memory_order_relaxed);
+        g_providerV2ShadowReleasedFieldMask.fetch_or(releasedCoverage,
+            std::memory_order_relaxed);
+
+        const std::uint32_t mismatch = mismatchMasks[index];
+        if (mismatch == 0)
+        {
+            g_providerV2ShadowMatchedReports.fetch_add(1,
+                std::memory_order_relaxed);
+            continue;
+        }
+
+        g_providerV2ShadowMismatchedReports.fetch_add(1,
+            std::memory_order_relaxed);
+        g_providerV2ShadowLastMismatchMask.store(mismatch,
+            std::memory_order_relaxed);
+        g_providerV2ShadowLastMismatchPad.store(
+            static_cast<std::uint32_t>(pad), std::memory_order_relaxed);
+        for (std::size_t field = 0;
+            field < g_providerV2ShadowFieldMismatches.size(); ++field)
+        {
+            if ((mismatch & (1u << field)) != 0)
+            {
+                g_providerV2ShadowFieldMismatches[field].fetch_add(1,
+                    std::memory_order_relaxed);
+            }
+        }
+    }
 }
 
 static LONGLONG BackendQpcFrequency()
@@ -2454,6 +2317,16 @@ static uint64_t BackendQpcElapsedUs(LONGLONG start, LONGLONG now)
     const uint64_t delta = static_cast<uint64_t>(now - start);
     const uint64_t frequency = static_cast<uint64_t>(BackendQpcFrequency());
     return (delta / frequency) * 1000000ull + ((delta % frequency) * 1000000ull) / frequency;
+}
+
+static uint64_t BackendQpcTimestampUs(LONGLONG now)
+{
+    if (now <= 0)
+        return 0;
+    const uint64_t ticks = static_cast<uint64_t>(now);
+    const uint64_t frequency = static_cast<uint64_t>(BackendQpcFrequency());
+    return (ticks / frequency) * 1000000ull +
+        ((ticks % frequency) * 1000000ull) / frequency;
 }
 
 static uint64_t BackendQpcIntervalTicks(uint64_t intervalUs)
@@ -2849,10 +2722,24 @@ static void BackendLatencyTraceMaybeLog(LONGLONG nowQpc)
 
 bool Backend_Init()
 {
+    // File-only profile tests must fail closed if a future startup refactor
+    // reaches the backend.  Keep this check before output stop, HID discovery,
+    // native worker lifecycle, or any virtual-controller activity.
+    const wchar_t* const commandLine = GetCommandLineW();
+    if (commandLine && wcsstr(commandLine, L"--halljoy-test-forbid-backend-init"))
+    {
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        g_fileOnlyTestForbiddenInitAttempts.fetch_add(1, std::memory_order_relaxed);
+#endif
+        g_lastInitIssues.store(BackendInitIssue_Unknown, std::memory_order_release);
+        StabilityTrace_WriteCritical(L"ERROR", L"backend", L"test.forbidden_backend_init");
+        DebugLog_Write(L"[backend.init] denied by file-only test guard");
+        return false;
+    }
     StabilityTrace_Write(L"INFO", L"backend", L"init.begin");
     DebugLog_Write(L"[backend.init] begin");
-    const auto previousOutput = VigemOutput_Stop();
-    if (!previousOutput.RestartSafe())
+    const bool previousOutputStopped = VigemOutput_Stop();
+    if (!previousOutputStopped)
     {
         g_lastInitIssues.store(BackendInitIssue_Unknown, std::memory_order_release);
         StabilityTrace_WriteCritical(L"ERROR", L"backend", L"init.failed",
@@ -2860,6 +2747,14 @@ bool Backend_Init()
         return false;
     }
     ResetPersistentFilteredCache();
+    g_qualifiedReportBuilderState = {};
+    g_providerV2ShadowReportBuilderState = {};
+    g_providerV2ShadowAvailable.store(false, std::memory_order_relaxed);
+    g_providerV2ShadowBackendInitCount.fetch_add(1,
+        std::memory_order_relaxed);
+    g_providerV2ShadowPendingReleaseMasks.fill(0);
+    g_providerV2ShadowLastSampleGeneration.store(0,
+        std::memory_order_relaxed);
     g_wootingSdkFaulted.store(false, std::memory_order_release);
     g_wootingOptionalFaultCount.store(0, std::memory_order_relaxed);
     g_wootingReadAnalogCalls.store(0, std::memory_order_relaxed);
@@ -2892,10 +2787,8 @@ bool Backend_Init()
     g_virtualPadCount.store(std::clamp(Settings_GetVirtualGamepadCount(), 1, kMaxVirtualPads), std::memory_order_release);
     g_virtualPadsEnabled.store(Settings_GetVirtualGamepadsEnabled(), std::memory_order_release);
     g_lastInitIssues.store(BackendInitIssue_None, std::memory_order_release);
-    g_reconnectRequested.store(false, std::memory_order_release);
-    g_deviceChangeReconnectRequested.store(false, std::memory_order_release);
-    g_ignoreDeviceChangeUntilMs.store(0, std::memory_order_release);
-    g_vigemUpdateFailStreak = 0;
+    g_vigemResubmitRequested.store(false, std::memory_order_release);
+    g_vigemObservedGeneration.store(0u, std::memory_order_release);
     g_zeroProbeStreak.store(0, std::memory_order_relaxed);
     g_autoRecoverTried.store(false, std::memory_order_relaxed);
     g_keycodeModeLocked.store(false, std::memory_order_relaxed);
@@ -2935,6 +2828,16 @@ bool Backend_Init()
     // All protocol modules report capability presence through the common catalog.
     // A validated native route keeps HallJoy usable when optional UAP is absent.
     const bool nativeReady = NativeAnalogBackends_AnyProtocolDevicePresent();
+
+#if defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC) || defined(HALLJOY_ROG_AZOTH96HE_DIAGNOSTIC)
+    // These images are bounded HID transport probes, not HallJoy gameplay.
+    // Starting the UAP host or ViGEm can fail independently and must never
+    // prevent the documented diagnostic transaction from reaching the keyboard.
+    StabilityTrace_Write(L"INFO", L"backend", L"diagnostic.transport_only",
+        L"native_ready=%d uap=disabled vigem=disabled", nativeReady ? 1 : 0);
+    DebugLog_Write(L"[backend.init] transport-only diagnostic; UAP and ViGEm disabled");
+    return preUapReady;
+#endif
 
     DebugLog_Write(L"[backend.init] wooting_analog_initialise begin");
     wootingInit = wooting_analog_initialise();
@@ -2990,41 +2893,12 @@ bool Backend_Init()
             initIssues &= ~BackendInitIssue_Unknown;
     }
 
-    if (g_virtualPadsEnabled.load(std::memory_order_acquire))
-    {
-        // Initial virtual pad creation may also broadcast device changes.
-        g_ignoreDeviceChangeUntilMs.store(GetTickCount64() + 1500, std::memory_order_release);
-        VIGEM_ERROR err = VIGEM_ERROR_NONE;
-        if (!Vigem_Create(g_virtualPadCount.load(std::memory_order_acquire), &err)) {
-            DebugLog_Write(L"[backend.init] Vigem_Create failed err=%d", (int)err);
-            g_vigemOk.store(false, std::memory_order_release);
-            g_vigemLastErr.store(err, std::memory_order_release);
-            StabilityTrace_WriteCritical(L"ERROR", L"vigem", L"init.failed",
-                L"error=%d pads=%d", (int)err, g_virtualPadCount.load(std::memory_order_acquire));
-            if (err == VIGEM_ERROR_BUS_NOT_FOUND)
-                initIssues |= BackendInitIssue_VigemBusMissing;
-            else
-                initIssues |= BackendInitIssue_Unknown;
-        }
-        else
-        {
-            DebugLog_Write(L"[backend.init] Vigem_Create ok pads=%d", g_virtualPadCount.load(std::memory_order_acquire));
-            g_vigemOk.store(true, std::memory_order_release);
-            g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
-            StabilityTrace_Write(L"INFO", L"vigem", L"init.ok",
-                L"pads=%d", g_virtualPadCount.load(std::memory_order_acquire));
-        }
-    }
-    else
-    {
-        g_vigemOk.store(true, std::memory_order_release);
-        g_vigemLastErr.store(VIGEM_ERROR_NONE, std::memory_order_release);
-    }
-
     if (initIssues == BackendInitIssue_None && !VigemOutput_Start())
     {
-        initIssues |= BackendInitIssue_Unknown;
-        StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"start.failed");
+        const VIGEM_ERROR error = g_vigemLastErr.load(std::memory_order_acquire);
+        initIssues |= error == VIGEM_ERROR_BUS_NOT_FOUND
+            ? BackendInitIssue_VigemBusMissing
+            : BackendInitIssue_Unknown;
     }
 
     if (initIssues != BackendInitIssue_None)
@@ -3037,10 +2911,7 @@ bool Backend_Init()
         Spark_ResetKeyState();
         Sayo_ResetKeyState();
         g_wootingReady.store(false, std::memory_order_release);
-        const auto outputStopped = VigemOutput_Stop();
-        if (outputStopped.RestartSafe())
-            Vigem_Destroy();
-        else
+        if (!VigemOutput_Stop())
             StabilityTrace_WriteCritical(L"ERROR", L"backend", L"init.rollback_incomplete",
                 L"component=vigem-output dependent_cleanup_skipped=1");
         const WootingAnalogResult analogStop = wooting_analog_uninitialise();
@@ -3071,12 +2942,34 @@ bool Backend_Init()
     return true;
 }
 
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+uint32_t Backend_FileOnlyTestForbiddenInitAttempts() noexcept
+{
+    return g_fileOnlyTestForbiddenInitAttempts.load(std::memory_order_acquire);
+}
+#endif
+
+void Backend_SetRuntimeAdmission(bool admitted) noexcept
+{
+    g_runtimeAdmission.store(admitted, std::memory_order_release);
+}
+
+bool Backend_IsRuntimeAdmissionOpen() noexcept
+{
+    return g_runtimeAdmission.load(std::memory_order_acquire);
+}
+
 bool Backend_Shutdown()
 {
     StabilityTrace_Write(L"INFO", L"backend", L"shutdown.begin");
     DebugLog_Write(L"[backend] shutdown");
-    const auto outputStopped = VigemOutput_Stop();
-    if (!outputStopped.RestartSafe())
+#if defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC) || defined(HALLJOY_ROG_AZOTH96HE_DIAGNOSTIC)
+    const bool nativeStopped = NativeAnalogBackends_StopPhase(NativeAnalogStartPhase::BeforeUap);
+    StabilityTrace_Write(nativeStopped ? L"INFO" : L"ERROR", L"backend", L"shutdown.end",
+        L"native_joined=%d uap=disabled vigem=disabled", nativeStopped ? 1 : 0);
+    return nativeStopped;
+#else
+    if (!VigemOutput_Stop())
     {
         StabilityTrace_WriteCritical(L"ERROR", L"backend", L"shutdown.blocked",
             L"component=vigem-output dependent_cleanup_skipped=1");
@@ -3109,10 +3002,8 @@ bool Backend_Shutdown()
     for (auto& s : g_physicalDown) s.store(0, std::memory_order_relaxed);
     g_mouseWheelPulseUpUntilMs.store(0, std::memory_order_relaxed);
     g_mouseWheelPulseDownUntilMs.store(0, std::memory_order_relaxed);
-    g_reconnectRequested.store(false, std::memory_order_release);
-    g_deviceChangeReconnectRequested.store(false, std::memory_order_release);
     g_keycodeModeLocked.store(false, std::memory_order_relaxed);
-    g_vigemUpdateFailStreak = 0;
+    g_vigemResubmitRequested.store(false, std::memory_order_release);
     DebugLog_Write(L"[backend.shutdown] pre-UAP native stop begin");
     const bool nativeStopped = NativeAnalogBackends_StopPhase(NativeAnalogStartPhase::BeforeUap);
     Spark_ResetKeyState();
@@ -3128,11 +3019,18 @@ bool Backend_Shutdown()
         nativeStopped ? 1 : 0, analogHostStopped ? 1 : 0);
     DebugLog_Write(L"[backend.shutdown] complete");
     return nativeStopped && analogHostStopped;
+#endif
 }
 
 
 void Backend_ResetPublishedStateAfterRealtimeFault() noexcept
 {
+#if defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC) || defined(HALLJOY_ROG_AZOTH96HE_DIAGNOSTIC)
+    // The diagnostic is deliberately transport-only.  In particular, a
+    // realtime fault must not cause its recovery path to create a ViGEm
+    // generation after Backend_Init deliberately skipped that subsystem.
+    return;
+#endif
     // Do not leave UI snapshots or the virtual controller's last published
     // state stuck after an unexpected worker exception. This path performs no
     // allocation and is never used for normal control flow.
@@ -3166,15 +3064,32 @@ void Backend_ResetPublishedStateAfterRealtimeFault() noexcept
         PublishLastReport(i, neutral);
     }
 
-    // The faulting realtime worker must never enter the driver. The independent
-    // output owner observes this request and submits neutral state if possible.
-    g_vigemEmergencyNeutralRequested.store(true, std::memory_order_release);
-    VigemOutput_Wake();
+    // The faulting realtime worker never enters the driver. It publishes one
+    // complete neutral snapshot through the same bounded process channel.
+    std::array<halljoy::vigem_output::XusbReportV1, kMaxVirtualPads> output{};
+    const std::uint32_t padCount = static_cast<std::uint32_t>(std::clamp(
+        g_virtualPadCount.load(std::memory_order_acquire), 1, kMaxVirtualPads));
+    const std::uint32_t validMask = (1u << padCount) - 1u;
+    (void)g_vigemOutputRuntime.PublishProducerProgress(GetTickCount64());
+    const auto published = g_vigemOutputRuntime.TryPublish(output.data(),
+        padCount, validMask, GetTickCount64() * 1000u, nullptr);
+    g_vigemResubmitRequested.store(
+        published != halljoy::vigem_output::OutputPublishResult::Published,
+        std::memory_order_release);
     g_vigemOk.store(false, std::memory_order_release);
 }
 
 void Backend_Tick()
 {
+    if (!g_runtimeAdmission.load(std::memory_order_acquire))
+        return;
+    halljoy::profile_runtime::ReadLease profileLease;
+    if (!profileLease) return; // No partial profile is allowed into an output report.
+#if defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC)
+    // No normal input/output processing belongs in a transport-only HID probe.
+    // Its dedicated backend owns the bounded control/stream exchange.
+    return;
+#endif
     ULONGLONG nowMs = GetTickCount64();
     const bool latencyTrace = RealtimeLoop_IsLatencyTraceEnabled();
     const LONGLONG backendTickQpc = latencyTrace ? BackendQpcNow() : 0;
@@ -3204,6 +3119,7 @@ void Backend_Tick()
     }
 
     BackendCurve_BeginTick();
+    const std::uint64_t tickCurveGeneration = BackendCurve_GetGeneration();
     ULONGLONG lastStateLog = g_lastWootingStateLogMs.load(std::memory_order_relaxed);
     if (g_wootingReady.load(std::memory_order_acquire) && nowMs - lastStateLog >= 10000)
     {
@@ -3233,9 +3149,79 @@ void Backend_Tick()
     static uint32_t s_lastHandledKeyEventSeq = 0;
     static ULONGLONG s_lastFullAssistTickMs = 0;
 
+    // One parent transaction captures the complete legacy dense plane and its
+    // optional same-generation Provider V2 view. Standard HID reads below use
+    // this immutable dense table for the whole tick. If capture is unavailable,
+    // the qualified legacy per-key path remains the fail-safe fallback.
+    static halljoy::uap_parent_snapshot::SnapshotV1 s_uapTickSnapshot{};
+    const bool uapTickCaptured = cache.wootingReady &&
+        cache.mode == WootingAnalog_KeycodeType_HID &&
+        WootingSafe_CaptureTickSnapshot(&s_uapTickSnapshot);
+    if (uapTickCaptured)
+    {
+        cache.fullRaw = s_uapTickSnapshot.denseValues;
+        cache.fullPresent.set();
+        cache.hasFullBuffer = true;
+        cache.hasAuthoritativeUapDense = true;
+        cache.uapTickSnapshot = &s_uapTickSnapshot;
+        g_tmFullBufferRet.store(
+            static_cast<int>(s_uapTickSnapshot.denseActiveKeyCount),
+            std::memory_order_relaxed);
+        std::uint16_t maximumMilli = 0;
+        for (const float value : s_uapTickSnapshot.denseValues)
+        {
+            maximumMilli = (std::max)(maximumMilli,
+                static_cast<std::uint16_t>(std::clamp(
+                    static_cast<int>(std::lround(value * 1000.0f)), 0, 1000)));
+        }
+        g_tmFullBufferMaxMilli.store(maximumMilli, std::memory_order_relaxed);
+    }
+
+    ProviderV2ShadowTick providerV2Shadow{};
+    bool providerV2Projected = false;
+    std::uint64_t providerV2SampleGeneration = 0;
+    auto providerV2Lease = AnalogHostClient_AcquireProviderV2Snapshot();
+    const bool providerV2LeaseMatchesDense = uapTickCaptured &&
+        providerV2Lease &&
+        halljoy::provider_v2_shadow::MatchesCapturedPublication(
+            providerV2Lease.Metadata(), s_uapTickSnapshot);
+    if (providerV2LeaseMatchesDense)
+    {
+        providerV2Projected =
+            halljoy::provider_v2_shadow::ProjectCapturedSnapshot(
+                providerV2Lease.Header(), providerV2Lease.Devices(),
+                providerV2Lease.DeviceCount(), providerV2Lease.Samples(),
+                providerV2Lease.SampleCount(),
+                &providerV2Shadow.providerRaw) ==
+            halljoy::provider_v2_shadow::ProjectionError::None;
+        providerV2SampleGeneration =
+            providerV2Lease.Header().sampleGeneration;
+        if (providerV2Projected)
+        {
+            cache.providerV2Raw = providerV2Shadow.providerRaw;
+            cache.hasAuthoritativeProviderV2 = true;
+        }
+    }
+    if (uapTickCaptured && !providerV2Projected)
+    {
+        g_providerV2ShadowUnavailableTicks.fetch_add(1,
+            std::memory_order_relaxed);
+    }
+    g_providerV2ShadowAvailable.store(providerV2Projected,
+        std::memory_order_relaxed);
+    if (providerV2Projected && cache.allowFallback)
+    {
+        // A Windows key edge is neither Provider V2 input nor an analogue
+        // ownership signal. Never let it qualify or train the shadow route.
+        g_providerV2ShadowDigitalFallbackTicks.fetch_add(1,
+            std::memory_order_relaxed);
+    }
+    providerV2Shadow.eligible = providerV2Projected && !cache.allowFallback;
+
     // Build the raw map from the isolated host's shared-memory snapshot. V9
     // reads it on every realtime tick; no blocking device I/O occurs here.
-    if ((kEnableFullBufferAssist || kPreferFullBufferSnapshot) && cache.wootingReady)
+    if ((kEnableFullBufferAssist || kPreferFullBufferSnapshot) &&
+        cache.wootingReady && !cache.hasAuthoritativeUapDense)
     {
         const UINT assistMinPeriodMs = kPreferFullBufferSnapshot
             ? kMadlionsSnapshotPeriodMs
@@ -3318,18 +3304,20 @@ void Backend_Tick()
         }
     }
 
-    int cnt = g_trackedCount.load(std::memory_order_acquire);
-    cnt = std::clamp(cnt, 0, 256);
+    // One immutable, deduplicated subscription for both independent consumers.
+    const auto tracked = g_trackingSnapshot.load(std::memory_order_acquire);
+    const int cnt = tracked ? tracked->count : 0;
     uint16_t maxRawM = 0;
     uint16_t maxOutM = 0;
     uint16_t maxRawHid = 0;
     uint16_t maxOutHid = 0;
 
+    const auto inputEvidenceTime = GetTickCount64();
     // UI snapshot update
     for (int i = 0; i < cnt; ++i)
     {
-        uint16_t hid = g_trackedList[i];
-        if (hid == 0 || hid >= 256) continue;
+        uint16_t hid = tracked->keys[i];
+        if (!halljoy::keycode::IsSupported(hid)) continue;
 
         float raw = ReadRaw01Cached(hid, cache);
         float filtered = ReadFiltered01Cached(hid, cache);
@@ -3337,6 +3325,7 @@ void Backend_Tick()
         int rawM = (int)std::lround(raw * 1000.0f);
         rawM = std::clamp(rawM, 0, 1000);
         g_uiRawM[hid].store((uint16_t)rawM, std::memory_order_relaxed);
+        halljoy::input_privilege::analogPresses.Observe(hid, static_cast<unsigned>(rawM), inputEvidenceTime);
         if ((uint16_t)rawM >= maxRawM)
         {
             maxRawM = (uint16_t)rawM;
@@ -3443,21 +3432,24 @@ void Backend_Tick()
         }
     }
 
-    // Bind capture: scan all HID 1..255 and capture first edge above threshold.
+    // Bind capture includes the two stable Soup/UAP extended layer-key codes.
     if (g_bindCaptureEnabled.load(std::memory_order_acquire))
     {
         uint16_t bestHid = 0;
         int bestRawM = 0;
-        for (uint16_t hid = 1; hid < 256; ++hid)
-        {
-            float raw = ReadRaw01Cached(hid, cache);
-            int rawM = (int)std::lround(raw * 1000.0f);
+        const auto consider = [&](uint16_t hid) {
+            const float raw = ReadRaw01Cached(hid, cache);
+            const int rawM = static_cast<int>(std::lround(raw * 1000.0f));
             if (rawM > bestRawM)
             {
                 bestRawM = rawM;
                 bestHid = hid;
             }
-        }
+        };
+        for (uint16_t hid = 1; hid < 256; ++hid)
+            consider(hid);
+        consider(halljoy::keycode::kOem1);
+        consider(halljoy::keycode::kFn);
 
         bool down = (bestRawM >= 120);
         bool hadDown = g_bindHadDown.load(std::memory_order_relaxed);
@@ -3473,10 +3465,36 @@ void Backend_Tick()
         g_bindHadDown.store(false, std::memory_order_relaxed);
     }
 
+    const bool snappyJoystick = Settings_GetSnappyJoystick();
+    const bool lastKeyPriority = Settings_GetLastKeyPriority();
+    const float lastKeyPrioritySensitivity =
+        Settings_GetLastKeyPrioritySensitivity();
+    const bool mouseToStickEnabled = Settings_GetMouseToStickEnabled();
+    const std::uint8_t mouseTarget =
+        Settings_GetMouseToStickTarget() == 0 ? 0u : 1u;
+    std::array<std::uint32_t, kMaxVirtualPads> shadowMismatchMasks{};
+    std::array<std::uint32_t, kMaxVirtualPads>
+        shadowProviderConfiguredFieldMasks{};
+    std::array<std::uint32_t, kMaxVirtualPads>
+        shadowProviderActiveFieldMasks{};
+    std::array<std::uint32_t, kMaxVirtualPads>
+        shadowProviderNeutralFieldMasks{};
+
     int logicalPads = std::clamp(g_virtualPadCount.load(std::memory_order_acquire), 1, kMaxVirtualPads);
     for (int pad = 0; pad < logicalPads; ++pad)
     {
-        XUSB_REPORT report = BuildReportForPad(pad, cache);
+        const PadFramePair frames = BuildReportFramesForPad(pad, cache,
+            providerV2Shadow, snappyJoystick, lastKeyPriority,
+            lastKeyPrioritySensitivity, mouseToStickEnabled, mouseTarget);
+        shadowMismatchMasks[static_cast<std::size_t>(pad)] =
+            frames.mismatchMask;
+        shadowProviderConfiguredFieldMasks[static_cast<std::size_t>(pad)] =
+            frames.providerConfiguredFieldMask;
+        shadowProviderActiveFieldMasks[static_cast<std::size_t>(pad)] =
+            frames.providerActiveFieldMask;
+        shadowProviderNeutralFieldMasks[static_cast<std::size_t>(pad)] =
+            frames.providerNeutralFieldMask;
+        const XUSB_REPORT report = ToLegacyXusbReport(frames.qualified);
         g_reports[(size_t)pad] = report;
 
         PublishLastReport(pad, report);
@@ -3491,6 +3509,31 @@ void Backend_Tick()
         g_reports[(size_t)pad] = report;
 
         PublishLastReport(pad, report);
+    }
+
+    if (providerV2Shadow.eligible)
+    {
+        const bool curveGenerationStable =
+            tickCurveGeneration == BackendCurve_GetGeneration();
+        if (curveGenerationStable && providerV2Shadow.curveCoherent)
+        {
+            RecordProviderV2ShadowComparison(shadowMismatchMasks,
+                shadowProviderConfiguredFieldMasks,
+                shadowProviderActiveFieldMasks,
+                shadowProviderNeutralFieldMasks, logicalPads,
+                providerV2SampleGeneration, nowMs);
+        }
+        else
+        {
+            g_providerV2ShadowCurveMutationTicks.fetch_add(1,
+                std::memory_order_relaxed);
+            g_providerV2ShadowReportBuilderState =
+                g_qualifiedReportBuilderState;
+        }
+    }
+    else
+    {
+        g_providerV2ShadowReportBuilderState = g_qualifiedReportBuilderState;
     }
 
     const LONGLONG mad68ReportReadyQpc =
@@ -3520,20 +3563,26 @@ void Backend_Tick()
 
     if (g_virtualPadsEnabled.load(std::memory_order_acquire))
     {
-        VigemOutputBatch batch{};
-        batch.count = static_cast<uint8_t>(std::clamp(
+        const std::uint32_t outputCount = static_cast<std::uint32_t>(std::clamp(
             g_virtualPadCount.load(std::memory_order_acquire), 1, kMaxVirtualPads));
+        std::array<halljoy::vigem_output::XusbReportV1, kMaxVirtualPads>
+            outputReports{};
+        std::array<bool, kMaxVirtualPads> changedPads{};
         const LONGLONG publishQpc = BackendQpcNow();
+        bool publishDue = false;
         bool hasChangedCandidate = false;
-        for (int i = 0; i < batch.count; ++i)
+        for (std::uint32_t i = 0; i < outputCount; ++i)
         {
             const size_t index = static_cast<size_t>(i);
             const XUSB_REPORT& report = g_reports[index];
-            batch.reports[index] = report;
+            outputReports[index] = ToOutputReport(report);
             const bool valid = g_lastSentValid[index] != 0;
-            const bool changed = !valid || IsReportDifferent(report, g_lastSentReports[index]);
+            const bool changed = !valid ||
+                IsReportDifferent(report, g_lastSentReports[index]);
+            changedPads[index] = changed;
             hasChangedCandidate = hasChangedCandidate || changed;
-            BackendTracePadWindow* tracePad = latencyTrace ? &g_backendTracePads[index] : nullptr;
+            BackendTracePadWindow* tracePad =
+                latencyTrace ? &g_backendTracePads[index] : nullptr;
             if (tracePad)
             {
                 ++tracePad->decisions;
@@ -3542,15 +3591,12 @@ void Backend_Tick()
             }
 
             auto& scheduler = g_outputSchedulers[index];
-            // All analogue backends share the same scheduler. It governs
-            // realtime-to-mailbox publication; driver latency is isolated
-            // behind the output worker and cannot extend Backend_Tick.
-            const auto decision = scheduler.Evaluate(changed, static_cast<uint64_t>(publishQpc));
+            // The scheduler remains in realtime, but the complete snapshot and
+            // every ViGEm call are owned by the isolated output process.
+            const auto decision = scheduler.Evaluate(
+                changed, static_cast<uint64_t>(publishQpc));
             if (!changed)
             {
-                // Periodic duplicate keepalives add no information. The output
-                // owner retains the last submitted XUSB state until a changed
-                // complete snapshot or target removal arrives.
                 if (tracePad) ++tracePad->unchangedSkipped;
                 continue;
             }
@@ -3560,51 +3606,51 @@ void Backend_Tick()
                 if (mad68BatchPresent) mad68RateLimited = true;
                 continue;
             }
-
-            batch.validMask |= static_cast<uint8_t>(1u << i);
+            publishDue = true;
         }
 
-        // Even when every changed pad is still rate-limited, refresh an
-        // already-pending batch with the newest complete snapshot. Its due-pad
-        // mask is preserved by the merge, so the output worker never emits an
-        // older intermediate state merely because it was queued first.
-        if (batch.validMask != 0 || hasChangedCandidate)
+        // A calculation that produces the same held XUSB value is still proof
+        // that the realtime producer is alive. Keep it independent from the
+        // deduplicated snapshot path and its bounded slot contention.
+        (void)g_vigemOutputRuntime.PublishProducerProgress(nowMs);
+
+        if (publishDue)
         {
-            if (g_vigemOutputMailbox.TryPublishMerged(batch,
-                [](const VigemOutputBatch& pending, VigemOutputBatch& next) noexcept {
-                    const uint8_t validPads = next.count == 0
-                        ? 0
-                        : static_cast<uint8_t>((1u << next.count) - 1u);
-                    next.validMask = static_cast<uint8_t>(
-                        next.validMask | (pending.validMask & validPads));
-                }))
+            // A newest-value slot may replace an older ready slot. Marking the
+            // complete configured set valid guarantees that no due pad is lost
+            // during that coalescing.
+            const std::uint32_t validMask = (1u << outputCount) - 1u;
+            std::uint64_t publicationSequence = 0u;
+            const auto publishResult = g_vigemOutputRuntime.TryPublish(
+                outputReports.data(), outputCount, validMask,
+                BackendQpcTimestampUs(publishQpc), &publicationSequence);
+            if (publishResult ==
+                halljoy::vigem_output::OutputPublishResult::Published)
             {
-                VigemOutput_Wake();
                 const uint64_t inputSequence = latencyTrace
                     ? RealtimeLoop_GetInputNotifySequence()
                     : 0;
                 const LONGLONG inputNotifyQpc = latencyTrace
                     ? RealtimeLoop_GetLastInputNotifyQpc()
                     : 0;
-                for (int i = 0; i < batch.count; ++i)
+                for (std::uint32_t i = 0; i < outputCount; ++i)
                 {
-                    if ((batch.validMask & (1u << i)) == 0)
-                        continue;
                     const size_t index = static_cast<size_t>(i);
                     const bool valid = g_lastSentValid[index] != 0;
                     const uint64_t intervalUs = valid
                         ? BackendQpcElapsedUs(g_lastSentQpc[index], publishQpc)
                         : 0;
-                    const uint64_t signalToPublishUs = latencyTrace && inputNotifyQpc > 0
+                    const uint64_t signalToPublishUs =
+                        latencyTrace && inputNotifyQpc > 0 && changedPads[index]
                         ? BackendQpcElapsedUs(inputNotifyQpc, publishQpc)
                         : 0;
-                    BackendTracePadWindow* tracePad = latencyTrace
-                        ? &g_backendTracePads[index]
-                        : nullptr;
+                    BackendTracePadWindow* tracePad =
+                        latencyTrace ? &g_backendTracePads[index] : nullptr;
                     if (tracePad)
                     {
                         ++tracePad->sends;
-                        ++tracePad->changedSends;
+                        if (changedPads[index])
+                            ++tracePad->changedSends;
                         if (valid)
                         {
                             tracePad->sendIntervalUs.Add(intervalUs);
@@ -3615,10 +3661,11 @@ void Backend_Tick()
                             tracePad->signalToSendUs.Add(signalToPublishUs);
                         g_backendTraceLastInputSequence[index] = inputSequence;
                     }
-                    g_lastSentReports[index] = batch.reports[index];
+                    g_lastSentReports[index] = g_reports[index];
                     g_lastSentQpc[index] = publishQpc;
                     g_lastSentValid[index] = 1;
-                    g_outputSchedulers[index].MarkSent(static_cast<uint64_t>(publishQpc));
+                    g_outputSchedulers[index].MarkSent(
+                        static_cast<uint64_t>(publishQpc));
                 }
 
                 if (latencyTrace && mad68BatchPresent)
@@ -3626,17 +3673,33 @@ void Backend_Tick()
                     ++g_mad68PipelineTrace.changedSends;
                     if (mad68ReportReadyQpc > 0)
                         g_mad68PipelineTrace.reportReadyToSendUs.Add(
-                            BackendQpcElapsedUs(mad68ReportReadyQpc, publishQpc));
+                            BackendQpcElapsedUs(
+                                mad68ReportReadyQpc, publishQpc));
                     mad68SendRecorded = true;
                 }
             }
-            else if (mad68BatchPresent)
+            else
             {
-                mad68RateLimited = true;
+                // No state is marked sent until the process channel accepts the
+                // complete value. The next realtime pass retries immediately.
+                g_vigemResubmitRequested.store(true, std::memory_order_release);
+                if (latencyTrace)
+                {
+                    for (std::uint32_t i = 0; i < outputCount; ++i)
+                    {
+                        if (changedPads[static_cast<size_t>(i)])
+                            ++g_backendTracePads[static_cast<size_t>(i)].failures;
+                    }
+                }
+                if (mad68BatchPresent)
+                    mad68RateLimited = true;
             }
         }
+        else if (hasChangedCandidate && mad68BatchPresent)
+        {
+            mad68RateLimited = true;
+        }
     }
-
     if (latencyTrace && mad68BatchPresent && !mad68SendRecorded)
     {
         if (mad68RateLimited)
@@ -3666,51 +3729,67 @@ XUSB_REPORT Backend_GetLastReportForPad(int padIndex)
     return report;
 }
 
-void BackendUI_SetTrackedHids(const uint16_t* hids, int count)
+static void SetTrackedSubscription(bool overlay, const uint16_t* hids, int count)
 {
-    if (!hids || count <= 0) { BackendUI_ClearTrackedHids(); return; }
-    count = std::clamp(count, 0, 256);
-
-    g_trackedCount.store(0, std::memory_order_release);
-
-    int outN = 0;
-    for (int i = 0; i < count && outN < 256; ++i) {
-        uint16_t hid = hids[i];
-        if (hid == 0 || hid >= 256) continue;
-        g_trackedList[outN++] = hid;
-    }
-
-    g_trackedCount.store(outN, std::memory_order_release);
-    wchar_t sample[256]{};
-    size_t used = 0;
-    int sampleN = std::min(outN, 12);
-    for (int i = 0; i < sampleN; ++i)
-    {
-        wchar_t t[16]{};
-        _snwprintf_s(t, _countof(t), _TRUNCATE, (i == 0) ? L"%u" : L",%u", (unsigned)g_trackedList[i]);
-        size_t left = _countof(sample) - 1 - used;
-        if (left == 0) break;
-        wcsncat_s(sample, _countof(sample), t, _TRUNCATE);
-        used = wcslen(sample);
-    }
-    DebugLog_Write(L"[backend.ui] tracked set count=%d sample=%s", outN, sample[0] ? sample : L"-");
+    std::bitset<halljoy::keycode::kCount> requested;
+    if (hids) for (int i = 0; i < count; ++i)
+        if (halljoy::keycode::IsSupported(hids[i])) requested.set(hids[i]);
+    std::lock_guard<std::mutex> lock(g_trackingMutex);
+    auto& consumer = overlay ? g_overlayTracking : g_mainTracking;
+    if (consumer == requested) return;
+    const auto combined = requested | (overlay ? g_mainTracking : g_overlayTracking);
+    auto snapshot = std::make_shared<TrackedKeys>();
+    for (size_t hid = 0; hid < combined.size(); ++hid)
+        if (combined.test(hid)) snapshot->keys[snapshot->count++] = static_cast<uint16_t>(hid);
+    consumer = requested;
+    g_trackingSnapshot.store(std::move(snapshot), std::memory_order_release);
 }
 
+void BackendUI_SetTrackedHids(const uint16_t* hids, int count) { SetTrackedSubscription(false, hids, count); }
+void BackendUI_SetOverlayTrackedHids(const uint16_t* hids, int count) { SetTrackedSubscription(true, hids, count); }
 void BackendUI_ClearTrackedHids()
 {
-    g_trackedCount.store(0, std::memory_order_release);
-    DebugLog_Write(L"[backend.ui] tracked cleared");
+    SetTrackedSubscription(false, nullptr, 0);
 }
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool BackendUI_TestIsTracked(uint16_t hid) {
+    const auto snapshot = g_trackingSnapshot.load(std::memory_order_acquire);
+    return snapshot && std::binary_search(snapshot->keys.begin(), snapshot->keys.begin() + snapshot->count, hid);
+}
+bool BackendUI_TestTrackedUnion() {
+    const auto oldMain = g_mainTracking, oldOverlay = g_overlayTracking;
+    const uint16_t main[] = {0x1A, 0x1A}; // W only, duplicated intentionally
+    const uint16_t overlay[] = {0x1A, 0x59, 0x58, 0xFFFF}; // keypad 1, Enter
+    BackendUI_SetTrackedHids(main, 2); BackendUI_SetOverlayTrackedHids(overlay, 4);
+    const auto held = g_trackingSnapshot.load();
+    bool ok = held && held->count == 3 && BackendUI_TestIsTracked(0x59) && BackendUI_TestIsTracked(0x58);
+    BackendUI_ClearTrackedHids();
+    ok &= BackendUI_TestIsTracked(0x59); // main rebuild cannot remove overlay keys
+    BackendUI_SetOverlayTrackedHids(nullptr, 0);
+    ok &= !BackendUI_TestIsTracked(0x59) && held->count == 3; // old reader remains valid
+    BackendUI_SetTrackedHids(main, 2);
+    ok &= BackendUI_TestIsTracked(0x1A) && !BackendUI_TestIsTracked(0x59);
+    std::vector<uint16_t> restoreMain, restoreOverlay;
+    for (size_t i = 0; i < oldMain.size(); ++i) {
+        if (oldMain.test(i)) restoreMain.push_back(static_cast<uint16_t>(i));
+        if (oldOverlay.test(i)) restoreOverlay.push_back(static_cast<uint16_t>(i));
+    }
+    BackendUI_SetTrackedHids(restoreMain.data(), (int)restoreMain.size());
+    BackendUI_SetOverlayTrackedHids(restoreOverlay.data(), (int)restoreOverlay.size());
+    return ok;
+}
+#endif
 
 uint16_t BackendUI_GetAnalogMilli(uint16_t hid)
 {
-    if (hid == 0 || hid >= 256) return 0;
+    if (!halljoy::keycode::IsSupported(hid)) return 0;
     return g_uiAnalogM[hid].load(std::memory_order_relaxed);
 }
 
 uint16_t BackendUI_GetRawMilli(uint16_t hid)
 {
-    if (hid == 0 || hid >= 256) return 0;
+    if (!halljoy::keycode::IsSupported(hid)) return 0;
     return g_uiRawM[hid].load(std::memory_order_relaxed);
 }
 
@@ -3735,12 +3814,14 @@ bool BackendUI_ConsumeBindCapture(uint16_t* outHid, uint16_t* outRawMilli)
 
 uint64_t BackendUI_ConsumeDirtyChunk(int chunk)
 {
-    if (chunk < 0 || chunk >= 4) return 0;
+    if (chunk < 0 || static_cast<std::size_t>(chunk) >=
+        halljoy::keycode::kMaskChunkCount) return 0;
     return g_uiDirty[chunk].exchange(0, std::memory_order_acq_rel);
 }
 
 BackendStatus Backend_GetStatus()
 {
+    RefreshVigemOutputStatus(false);
     BackendStatus s;
     s.vigemOk = g_vigemOk.load(std::memory_order_acquire);
     s.lastVigemError = g_vigemLastErr.load(std::memory_order_acquire);
@@ -3763,6 +3844,7 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
         if (!native.present && !native.connected)
             continue;
         auto& dst = t.nativeProtocols[t.nativeProtocolCount++];
+        dst.verifiedLayoutToken = native.verifiedLayoutToken;
         dst.present = native.present;
         dst.connected = native.connected;
         dst.protocol = static_cast<std::uint16_t>(descriptor->protocol);
@@ -4025,6 +4107,48 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
     t.fullBufferDeviceBestRet = g_tmFullBufferDeviceBestRet.load(std::memory_order_relaxed);
     t.fullBufferDeviceBestMaxMilli = g_tmFullBufferDeviceBestMaxMilli.load(std::memory_order_relaxed);
     t.lastAnalogError = g_lastAnalogErrorCode.load(std::memory_order_relaxed);
+    t.providerV2ShadowAvailable =
+        g_providerV2ShadowAvailable.load(std::memory_order_relaxed);
+    t.providerV2ShadowEligibleTicks =
+        g_providerV2ShadowEligibleTicks.load(std::memory_order_relaxed);
+    t.providerV2ShadowMatchedReports =
+        g_providerV2ShadowMatchedReports.load(std::memory_order_relaxed);
+    t.providerV2ShadowMismatchedReports =
+        g_providerV2ShadowMismatchedReports.load(std::memory_order_relaxed);
+    t.providerV2ShadowUnavailableTicks =
+        g_providerV2ShadowUnavailableTicks.load(std::memory_order_relaxed);
+    t.providerV2ShadowDigitalFallbackTicks =
+        g_providerV2ShadowDigitalFallbackTicks.load(std::memory_order_relaxed);
+    t.providerV2ShadowCurveMutationTicks =
+        g_providerV2ShadowCurveMutationTicks.load(std::memory_order_relaxed);
+    for (std::size_t field = 0;
+        field < g_providerV2ShadowFieldMismatches.size(); ++field)
+    {
+        t.providerV2ShadowFieldMismatches[field] =
+            g_providerV2ShadowFieldMismatches[field].load(
+                std::memory_order_relaxed);
+    }
+    t.providerV2ShadowBackendInitCount =
+        g_providerV2ShadowBackendInitCount.load(std::memory_order_relaxed);
+    t.providerV2ShadowUniqueSampleGenerations =
+        g_providerV2ShadowUniqueSampleGenerations.load(
+            std::memory_order_relaxed);
+    t.providerV2ShadowFirstEligibleTickMs =
+        g_providerV2ShadowFirstEligibleTickMs.load(std::memory_order_relaxed);
+    t.providerV2ShadowLastEligibleTickMs =
+        g_providerV2ShadowLastEligibleTickMs.load(std::memory_order_relaxed);
+    t.providerV2ShadowConfiguredFieldMask =
+        g_providerV2ShadowConfiguredFieldMask.load(std::memory_order_relaxed);
+    t.providerV2ShadowActivatedFieldMask =
+        g_providerV2ShadowActivatedFieldMask.load(std::memory_order_relaxed);
+    t.providerV2ShadowReleasedFieldMask =
+        g_providerV2ShadowReleasedFieldMask.load(std::memory_order_relaxed);
+    t.providerV2ShadowLastMismatchMask =
+        g_providerV2ShadowLastMismatchMask.load(std::memory_order_relaxed);
+    t.providerV2ShadowLastMismatchPad =
+        g_providerV2ShadowLastMismatchPad.load(std::memory_order_relaxed);
+    t.providerV2ShadowLastSampleGeneration =
+        g_providerV2ShadowLastSampleGeneration.load(std::memory_order_relaxed);
     *out = t;
 }
 
@@ -4058,21 +4182,21 @@ bool Backend_ConsumeDigitalFallbackWarning()
 
 void Backend_NotifyDeviceChange()
 {
+    if (!g_runtimeAdmission.load(std::memory_order_acquire))
+        return;
+    // The UAP child deliberately has no periodic discovery thread.  Forward
+    // genuine Windows topology changes to its supervisor; this only queues a
+    // bounded replacement and never enumerates HID from the UI thread.
+    (void)AnalogHostClient_RequestDeviceRefresh();
+
     if (!g_virtualPadsEnabled.load(std::memory_order_acquire))
         return;
 
-    // Ignore generic device-change noise while ViGEm is healthy.
-    // Realtime tick already detects real update failures and reconnects.
+    // Ignore generic device-change noise while the child reports fresh
+    // progress. An unhealthy generation is replaced by its sole owner.
     if (g_vigemOk.load(std::memory_order_acquire))
         return;
-
-    ULONGLONG now = GetTickCount64();
-    ULONGLONG ignoreUntil = g_ignoreDeviceChangeUntilMs.load(std::memory_order_acquire);
-    if (now < ignoreUntil)
-        return;
-
-    g_deviceChangeReconnectRequested.store(true, std::memory_order_release);
-    VigemOutput_Wake();
+    g_vigemOutputRuntime.RequestRestart();
 }
 
 void Backend_NotifyKeyboardEvent(
@@ -4082,7 +4206,7 @@ void Backend_NotifyKeyboardEvent(
     bool isKeyDown,
     bool isInjected)
 {
-    if (hidHint == 0 || isInjected) return;
+    if (!g_runtimeAdmission.load(std::memory_order_acquire) || hidHint == 0 || isInjected) return;
 
     if (hidHint < 256)
     {
@@ -4117,6 +4241,7 @@ void Backend_NotifyKeyboardEvent(
 
 void Backend_AddMouseDelta(int dx, int dy)
 {
+    if (!g_runtimeAdmission.load(std::memory_order_acquire)) return;
     if (dx != 0)
     {
         int old = g_mouseRawAccumDx.load(std::memory_order_relaxed);
@@ -4141,6 +4266,7 @@ void Backend_AddMouseDelta(int dx, int dy)
 
 void Backend_SetMouseBindButtonState(uint16_t mouseBindHid, bool down)
 {
+    if (!g_runtimeAdmission.load(std::memory_order_acquire)) return;
     switch (mouseBindHid)
     {
     case kMouseBindHidLButton: g_mouseBindButtons[0].store(down ? 1u : 0u, std::memory_order_relaxed); break;
@@ -4154,6 +4280,7 @@ void Backend_SetMouseBindButtonState(uint16_t mouseBindHid, bool down)
 
 void Backend_PulseMouseBindWheel(uint16_t mouseBindHid)
 {
+    if (!g_runtimeAdmission.load(std::memory_order_acquire)) return;
     // Keep wheel as a short digital pulse.
     constexpr ULONGLONG kPulseMs = 42;
     ULONGLONG until = GetTickCount64() + kPulseMs;
@@ -4169,8 +4296,10 @@ void Backend_SetVirtualGamepadCount(int count)
     int old = g_virtualPadCount.exchange(count, std::memory_order_acq_rel);
     if (old != count)
     {
-        g_reconnectRequested.store(true, std::memory_order_release);
-        VigemOutput_Wake();
+        g_vigemResubmitRequested.store(true, std::memory_order_release);
+        g_vigemOutputRuntime.Configure(
+            g_virtualPadsEnabled.load(std::memory_order_acquire),
+            static_cast<std::uint32_t>(count));
     }
 }
 
@@ -4184,8 +4313,11 @@ void Backend_SetVirtualGamepadsEnabled(bool on)
     bool old = g_virtualPadsEnabled.exchange(on, std::memory_order_acq_rel);
     if (old != on)
     {
-        g_reconnectRequested.store(true, std::memory_order_release);
-        VigemOutput_Wake();
+        g_vigemResubmitRequested.store(true, std::memory_order_release);
+        g_vigemOutputRuntime.Configure(on,
+            static_cast<std::uint32_t>(std::clamp(
+                g_virtualPadCount.load(std::memory_order_acquire),
+                1, kMaxVirtualPads)));
     }
 }
 
@@ -4226,6 +4358,76 @@ std::uint16_t BackendNative_SparkGetMilli(std::uint16_t hidUsage)
     return hidUsage < g_sparkAnalogMilli.size()
         ? g_sparkAnalogMilli[hidUsage].load(std::memory_order_relaxed)
         : 0;
+}
+
+bool BackendNative_SparkGetSnapshotV2(halljoy::native_analog_snapshot::OutputV1 output)
+{
+    using namespace halljoy::native_analog_snapshot;
+    const std::uint64_t providerId = StableProviderId("native.sparklink.v2");
+    std::array<std::uint8_t, 256> owned{};
+    std::array<std::uint16_t, 256> milli{};
+    LegacyMilliSourceV1 source{};
+    std::uint64_t publication = 0;
+
+    // Do not block Backend_Tick: retry a concurrent row publication a bounded
+    // number of times, then report no snapshot rather than inventing coherence.
+    for (unsigned attempt = 0; attempt < 3u; ++attempt)
+    {
+        const std::uint64_t before = g_sparkPublicationSequence.load(std::memory_order_acquire);
+        if ((before & 1u) != 0)
+            continue;
+        const bool connected = g_sparkConnected.load(std::memory_order_acquire);
+        source.exactInterfaceId = g_sparkExactInterfaceId.load(std::memory_order_relaxed);
+        source.vendorId = g_sparkConnectedVid.load(std::memory_order_relaxed);
+        source.productId = g_sparkConnectedPid.load(std::memory_order_relaxed);
+        source.usagePage = g_sparkUsagePage.load(std::memory_order_relaxed);
+        source.usage = kSparkKnownUsage;
+        source.protocolId = static_cast<std::uint32_t>(NativeAnalogProtocol::SparkLink);
+        source.connected = connected;
+        source.protocolProven = connected;
+        source.layoutProven = connected;
+        // Row polling offers independent fresh samples, but not one atomic
+        // whole-keyboard acquisition; leave V2 Complete clear intentionally.
+        source.topologyComplete = false;
+        source.ownedHid = owned.data();
+        source.milli = milli.data();
+        if (connected)
+        {
+            int effectiveRows = std::clamp(g_sparkRowCount.load(std::memory_order_relaxed),
+                0, kSparkMaxRows);
+            const UINT rowLimit = Settings_GetSparkRowLimit();
+            if (rowLimit > 0)
+                effectiveRows = std::min(effectiveRows,
+                    std::clamp(static_cast<int>(rowLimit), 1, kSparkMaxRows));
+            const ULONGLONG snapshotMs = GetTickCount64();
+            for (int row = 0; row < effectiveRows; ++row)
+            {
+                if (!SparkRowFresh(static_cast<uint8_t>(row), snapshotMs, effectiveRows))
+                    continue;
+                for (int col = 0; col < kSparkColsPerRow; ++col)
+                {
+                    const auto index = static_cast<std::size_t>(row) *
+                        kSparkColsPerRow + static_cast<std::size_t>(col);
+                    const std::uint8_t hid = g_sparkRowColToHid[index]
+                        .load(std::memory_order_relaxed);
+                    if (hid != 0)
+                        owned[hid] = 1;
+                }
+            }
+            for (std::size_t hid = 1; hid < milli.size(); ++hid)
+                milli[hid] = g_sparkAnalogMilli[hid].load(std::memory_order_relaxed);
+        }
+        const std::uint64_t after = g_sparkPublicationSequence.load(std::memory_order_acquire);
+        if (before == after && (after & 1u) == 0)
+        {
+            publication = after / 2u + 1u;
+            break;
+        }
+    }
+    if (publication == 0)
+        return false;
+    return PublishLegacyMilli(providerId, 1, publication, SparkNowUs(),
+        source.connected ? &source : nullptr, source.connected ? 1u : 0u, output);
 }
 
 void BackendNative_SparkTelemetry(NativeAnalogBackendTelemetry* out)
@@ -4349,6 +4551,7 @@ const NativeAnalogBackendDescriptor& BackendNative_GetSparkDescriptor()
         &BackendNative_SparkOwnsHid,
         &BackendNative_SparkGetMilli,
         &BackendNative_SparkTelemetry,
+        &BackendNative_SparkGetSnapshotV2,
     };
     return descriptor;
 }

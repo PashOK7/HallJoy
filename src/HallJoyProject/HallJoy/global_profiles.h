@@ -19,3 +19,9 @@ bool GlobalProfiles_Delete(const std::wstring& name);
 void GlobalProfiles_List(std::vector<std::wstring>& outNames);
 std::wstring GlobalProfiles_GetSettingsPath(const std::wstring& name);
 std::wstring GlobalProfiles_GetBindingsPath(const std::wstring& name);
+
+#include <functional>
+bool GlobalProfiles_Save(const std::wstring& name);
+bool GlobalProfiles_Prepare(const std::wstring& name, std::function<void()>& apply);
+bool GlobalProfiles_Load(const std::wstring& name);
+bool GlobalProfiles_Switch(const std::wstring& name);

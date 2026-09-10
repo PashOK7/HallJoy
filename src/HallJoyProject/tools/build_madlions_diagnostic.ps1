@@ -7,11 +7,11 @@ $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 $packageRoot = Split-Path -Parent $repo
 $project = Join-Path $repo "HallJoy\HallJoy.vcxproj"
-$outDir = Join-Path $repo "x64\MadlionsDiagnostic"
+$outDir = Join-Path $repo "..\..\build\bin\MadlionsDiagnostic\Release\x64"
 $exe = Join-Path $outDir "HallJoyMadlionsSafeHID.exe"
 $pdb = Join-Path $outDir "HallJoyMadlionsSafeHID.pdb"
 $map = Join-Path $outDir "HallJoyMadlionsSafeHID.map"
-$sendDir = Join-Path $outDir "SEND_TO_MADLIONS_TESTER"
+$sendDir = Join-Path $repo "..\..\build\packages\madlions-diagnostic"
 
 $required = @(
     $project,
@@ -25,7 +25,7 @@ $required = @(
     (Join-Path $repo "third_party\ViGEmClient\include\ViGEm\Client.h"),
     (Join-Path $repo "third_party\ViGEmClient\lib\release\x64\ViGEmClient.lib"),
     (Join-Path $repo "third_party\WootingAnalogSDK091\include\wooting-analog-sdk.h"),
-    (Join-Path $repo "runtime\universal_analog_abiv1.dll")
+    (Join-Path $repo "..\..\build\runtime\universal_analog_abiv1.dll")
 )
 $missing = @($required | Where-Object { -not (Test-Path -LiteralPath $_) })
 if ($missing.Count -ne 0) {
@@ -68,16 +68,14 @@ if (-not (Test-Path -LiteralPath $exe)) {
     throw "Diagnostic executable was not produced: $exe"
 }
 
-if (Test-Path -LiteralPath $sendDir) {
-    Remove-Item -LiteralPath $sendDir -Recurse -Force
-}
+# Preserve tester evidence and user files; overwrite only owned package files.
 New-Item -ItemType Directory -Force -Path $sendDir | Out-Null
 Copy-Item -LiteralPath $exe -Destination $sendDir -Force
 if (Test-Path -LiteralPath $map) { Copy-Item -LiteralPath $map -Destination $sendDir -Force }
 $symbolsDir = Join-Path $sendDir 'DEBUG_SYMBOLS_RETURN_ON_CRASH'
 New-Item -ItemType Directory -Force -Path $symbolsDir | Out-Null
 if (Test-Path -LiteralPath $pdb) { Copy-Item -LiteralPath $pdb -Destination $symbolsDir -Force }
-Copy-Item -LiteralPath (Join-Path $repo 'runtime\universal_analog_abiv1.dll') -Destination $symbolsDir -Force
+Copy-Item -LiteralPath (Join-Path $repo '..\..\build\runtime\universal_analog_abiv1.dll') -Destination $symbolsDir -Force
 $latencyFiles = @(
     'LATENCY_TRACE_TEST.md',
     'run_latency_trace.ps1',

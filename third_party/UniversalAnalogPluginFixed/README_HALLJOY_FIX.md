@@ -1,5 +1,9 @@
 # Universal Analog Plugin for HallJoy Madlions V6 SafeHID
 
+2026-09-06: current build/layout contract: [project layout](../../docs/current/PROJECT_LAYOUT.md).
+One ordinary distribution: `build/release/HallJoy.exe`. Historical paths below
+must be interpreted through that document; they are not additional release outputs.
+
 V6 replaces the unsafe Windows HID transport instead of masking its effects.
 
 The old Soup path could have unfinished `ReadFile` and `WriteFile` operations

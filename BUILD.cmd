@@ -17,3 +17,4 @@ echo.
 echo Build complete.
 echo Output: build\output\HallJoy.exe
 pause
+exit /b 0

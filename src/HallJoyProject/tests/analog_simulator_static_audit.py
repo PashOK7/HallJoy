@@ -38,8 +38,9 @@ checks = {
         "SIMULATED / NOT HARDWARE" in backend and "hardware=0" in backend,
     "simulator uses the common ViGEm send path":
         "TraceSimulatorPipelineReport(report)" in common_backend and
-        "TraceAcceptedSimulatorVigemUpdate(batch.reports[0])" in common_backend and
-        "vigem_target_x360_update(g_client, pad, batch.reports" in common_backend,
+        "g_vigemOutputRuntime.TryPublish" in common_backend and
+        "ToOutputReport(report)" in common_backend and
+        "vigem_target_x360_update" not in common_backend,
     "scenario covers disconnect, reconnect and fault":
         "Phase::Disconnected" in model and "Phase::Reconnected" in model and
         "Phase::SourceFault" in model,

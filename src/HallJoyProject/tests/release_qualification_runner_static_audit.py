@@ -26,10 +26,12 @@ require("Get-Process -Name 'HallJoy'" in runner and "Refusing to start" in runne
         "runner refuses to collide with an existing HallJoy session")
 require("[IO.Path]::GetFileName($ExePath) -ne 'HallJoy.exe'" in runner,
         "runner enforces the final HallJoy.exe artifact name")
-require("Start-Process -FilePath $ExePath" in runner and
+require("Start-Process -FilePath $profileExePath" in runner and
+        "HallJoy.portable" in runner and "portable-isolated-copy" in runner and
+        "isolated qualification executable does not match" in runner and
         not any(token in runner for token in (
             "--halljoy-test-", "--analog-simulator", "InjectRealtimeStartFailure")),
-        "qualification launches production with no simulator or fault arguments")
+        "qualification launches a hash-verified production copy with no simulator or fault arguments")
 require("PostClose" in runner and "0x0010" in runner and "ShutdownTimeoutSeconds" in runner,
         "every cycle uses bounded graceful WM_CLOSE shutdown")
 require("$process.ExitCode -ne 0" in runner and "Wait-NoHallJoyProcess" in runner,
@@ -39,8 +41,9 @@ require("Get-HallJoyStateSnapshot" in runner and "Write-StateSnapshot" in runner
         "state-after.json" in runner,
         "LocalAppData file set and SHA-256 values are persisted and invariant")
 require("forbiddenProductionLogs" in runner and "HallJoyStabilityTrace.log" in runner and
-        "HallJoyDiagnostic.log" in runner and "HallJoyCrash.txt" in runner,
-        "each cycle enforces the final zero-continuous-log and crash-only policy")
+        "HallJoyDiagnostic.log" in runner and "HallJoyCrash.txt" in runner and
+        "cycle-{0:D4}-stability.log" in runner and "stability trace contains ERROR" in runner,
+        "each cycle retains the expected stability trace while rejecting diagnostic/crash logs and trace errors")
 require("continuous_log_files = 0" in runner and "crash_report = $false" in runner and
         "trace_sha256" not in runner and "worker\\.stats" not in runner,
         "machine evidence records quiet production without stale trace-derived counters")

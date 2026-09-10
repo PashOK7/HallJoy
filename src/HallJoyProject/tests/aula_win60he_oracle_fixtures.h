@@ -13,7 +13,7 @@ inline constexpr std::uint16_t kMinimumTravelUm = 10;
 inline constexpr std::uint16_t kMaximumTravelUm = 3400;
 inline constexpr std::size_t kFirmwarePhysicalPositions = 61;
 inline constexpr std::size_t kFirmwareMappedUsages = 60;
-inline constexpr std::size_t kOracleActiveMappedUsages = 59;
+inline constexpr std::size_t kOracleActiveMappedKeyCodes = 60;
 
 inline constexpr std::array<std::uint8_t, 10> kRequestSync{{
         0x5C, 0x06, 0x01, 0x97, 0x01, 0x02, 0x03, 0x04, 0xFF, 0xFF

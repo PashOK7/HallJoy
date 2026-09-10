@@ -65,7 +65,7 @@ static const RemapIconDef g_icons[] =
     {L"Select",BindAction::Btn_Back,      RGB(180, 180, 180), false}, // select
 
 
-    // (������ ������ � �� ��������� ������ ������ "�����������", ��� ������ ������ �������)
+    // End of the built-in icon definitions.
 };
 
 struct RemapIconStyle

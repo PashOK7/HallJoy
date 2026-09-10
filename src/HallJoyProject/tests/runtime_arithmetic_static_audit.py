@@ -23,6 +23,7 @@ mad68 = (HALL / "mad68pr_backend.cpp").read_text(encoding="utf-8-sig")
 spark = (HALL / "backend_sparklink.inc").read_text(encoding="utf-8-sig")
 host = (HALL / "analog_host_client.cpp").read_text(encoding="utf-8-sig")
 backend = (HALL / "backend.cpp").read_text(encoding="utf-8-sig")
+app = (HALL / "app.cpp").read_text(encoding="utf-8-sig")
 test = (TESTS / "runtime_arithmetic_test.cpp").read_text(encoding="utf-8-sig")
 runner = (ROOT / "tools" / "run_native_backend_checks.py").read_text(encoding="utf-8-sig")
 
@@ -51,6 +52,10 @@ require(backend.count("SaturatingAgeMs(GetTickCount64(), last)") == 2,
 require(backend.count("SaturatingAddInt(old") == 2 and "old + dx" not in backend and
         "old + dy" not in backend,
         "both raw mouse axes use defined saturating addition")
+require("kMaxRawInputPacketBytes = 64u * 1024u" in app and
+        "sz == 0 || sz > kMaxRawInputPacketBytes" in app and
+        app.index("sz > kMaxRawInputPacketBytes") < app.index("s_rawInputBuf.resize(sz)"),
+        "raw input rejects an oversized envelope before the receive buffer grows")
 require("u64max" in test and "imax" in test and "imin" in test,
         "portable regression exercises integer boundary values")
 require("runtime_arithmetic_test.cpp" in runner,

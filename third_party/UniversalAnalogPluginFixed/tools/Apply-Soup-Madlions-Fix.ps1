@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
-    [string]$SoupRoot = (Join-Path (Split-Path -Parent $PSScriptRoot) 'Soup')
+    [string]$SoupRoot = (Join-Path $PSScriptRoot '..\..\..\.cache\uap\Soup')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -21,12 +21,12 @@ if (-not (Test-Path -LiteralPath $source) -or -not (Test-Path -LiteralPath $head
 $sourceText = [System.IO.File]::ReadAllText($source)
 $fixedMarker = 'HallJoy Madlions fix v7'
 
-# Soup's constructor used to clear only nuphy.buffer. That does not necessarily
-# cover the complete union when the Madlions member contains state, a pointer,
-# and a full key buffer. Match semantically, not by line endings or indentation.
-$fixedInitialiser = 'memset(&madlions, 0, sizeof(madlions)); // HallJoy: zero the complete analogue-keyboard state union'
+# Soup's constructor used to clear only nuphy.buffer. The NuPhy raw cache is now
+# the largest union member, so clearing the complete member covers every member's
+# storage; match semantically, not by line endings or indentation.
+$fixedInitialiser = 'memset(&nuphy, 0, sizeof(nuphy)); // HallJoy: zero through the largest complete analogue-keyboard state member'
 if (-not $sourceText.Contains($fixedInitialiser)) {
-    $initialiserPattern = 'memset\s*\(\s*nuphy\.buffer\s*,\s*0\s*,\s*sizeof\s*\(\s*nuphy\.buffer\s*\)\s*\)\s*;[^\r\n]*'
+    $initialiserPattern = 'memset\s*\(\s*(?:nuphy\.buffer|nuphy|madlions)\s*,\s*0\s*,\s*sizeof\s*\(\s*(?:nuphy\.buffer|nuphy|madlions)\s*\)\s*\)\s*;[^\r\n]*'
     $initialiserMatch = [System.Text.RegularExpressions.Regex]::Match($sourceText, $initialiserPattern)
     if (-not $initialiserMatch.Success) {
         throw 'Could not locate the AnalogueKeyboard union initialiser in AnalogueKeyboard.cpp.'
@@ -94,6 +94,7 @@ if (-not $sourceText.Contains($fixedMarker)) {
 
 		uint8_t report[33];
 		memset(report, 0, sizeof(report));
+		madlions.consecutive_failed_reports = 0;
 		report[1] = 0x02;
 		report[2] = 0x96;
 		report[3] = 0x1C;
@@ -154,9 +155,11 @@ if (-not $sourceText.Contains($fixedMarker)) {
 #if SOUP_WINDOWS
 				halljoy_plugin_transport_error(13u); // ERROR_INVALID_DATA
 #endif
-				if (madlions.consecutive_failed_reports != 0xff)
+				const auto failure_slot = static_cast<uint8_t>(offset >> 2);
+				madlions.consecutive_failed_reports = 1;
+				if (madlions.failed_reports[failure_slot] != 0xff)
 				{
-					++madlions.consecutive_failed_reports;
+					++madlions.failed_reports[failure_slot];
 				}
 
 				for (uint8_t i = 0; i != 4; ++i)
@@ -177,13 +180,13 @@ if (-not $sourceText.Contains($fixedMarker)) {
 				// read_full_buffer returns an error and the supervisor starts a
 				// completely fresh process/handle. A single transient timeout is
 				// tolerated without interrupting gameplay.
-				if (madlions.consecutive_failed_reports >= 8)
+				if (madlions.failed_reports[failure_slot] >= 8)
 				{
 					disconnected = true;
 				}
 				break;
 			}
-			madlions.consecutive_failed_reports = 0;
+			madlions.failed_reports[static_cast<uint8_t>(offset >> 2)] = 0;
 			halljoy_plugin_checkpoint(360); // madlions_parse
 
 			for (uint8_t i = 0; i != 4; ++i)
@@ -255,6 +258,15 @@ if ($headerText -notmatch 'uint8_t\s+consecutive_failed_reports') {
     }
     $replacement = $madlionsMatch.Groups[1].Value + "uint8_t consecutive_failed_reports;`r`n`t`t`t`t" + $madlionsMatch.Groups[2].Value
     $headerText = $headerText.Remove($madlionsMatch.Index, $madlionsMatch.Length).Insert($madlionsMatch.Index, $replacement)
+}
+if ($headerText -notmatch 'uint8_t\s+failed_reports\s*\[\s*64\s*\]') {
+    $failureStatePattern = '(uint8_t\s+consecutive_failed_reports\s*;)'
+    $failureStateMatch = [System.Text.RegularExpressions.Regex]::Match($headerText, $failureStatePattern)
+    if (-not $failureStateMatch.Success) {
+        throw 'Could not locate the Madlions aggregate failure state in AnalogueKeyboard.hpp.'
+    }
+    $replacement = $failureStateMatch.Groups[1].Value + "`r`n`t`t`t`tuint8_t failed_reports[64];"
+    $headerText = $headerText.Remove($failureStateMatch.Index, $failureStateMatch.Length).Insert($failureStateMatch.Index, $replacement)
 }
 
 # Fix explicit-destructor move assignment in Soup HandleRaii. Calling the
@@ -893,8 +905,14 @@ if ($sourceText -notmatch 'resp\.size\(\)\s*<\s*27') {
 if ($sourceText -notmatch 'madlions\.consecutive_failed_reports') {
     throw 'Internal error: per-device Madlions failure state is missing.'
 }
+if ($sourceText -notmatch 'madlions\.failed_reports\[failure_slot\]') {
+    throw 'Internal error: per-chunk Madlions failure state is missing.'
+}
 if ($headerText -notmatch 'uint8_t\s+consecutive_failed_reports') {
     throw 'Internal error: Madlions header state patch is missing.'
+}
+if ($headerText -notmatch 'uint8_t\s+failed_reports\s*\[\s*64\s*\]') {
+    throw 'Internal error: Madlions per-chunk failure state patch is missing.'
 }
 if ($hidHeaderText -notmatch 'transactReport\s*\(' -or $hidSourceText -notmatch 'HallJoySafeHidContext') {
     throw 'Internal error: safe Windows HID transaction patch is missing.'

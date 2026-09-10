@@ -76,12 +76,18 @@ require('best-effort A9 secondary safety net via audited primary transport' in b
 wm_create_start = app.find('case WM_CREATE:')
 wm_create_end = app.find('case WM_INPUT:', wm_create_start)
 wm_create = app[wm_create_start:wm_create_end]
+enumerate = app.find('static bool EngineRuntimeEnumerateFresh')
+prove = app.find('static bool EngineRuntimeProveCapabilities')
+start_fresh = app.find('static bool EngineRuntimeStartFreshGeneration')
 require(wm_create_start >= 0 and wm_create_end > wm_create_start and
-        wm_create.find('NativeAnalogBackends_PrepareRouting()') >= 0 and
-        wm_create.find('NativeAnalogBackends_PrepareRouting()') < wm_create.find('Backend_Init();') and
-        wm_create.find('g_backendReady = AppStartBackendDependents(rawInputRegistered') >
-        wm_create.find('RegisterRawInputDevices(rid, 2'),
-        'native routing/lifecycle order must be prepare -> UAP/backend -> Raw Input -> MAD68 start phase')
+        wm_create.find('RegisterRawInputDevices(rid, 2') >= 0 and
+        wm_create.find('EngineRuntimeOwner_RequestResume()') >
+        wm_create.find('RegisterRawInputDevices(rid, 2') and
+        enumerate >= 0 and prove > enumerate and start_fresh > prove and
+        'NativeAnalogBackends_PrepareRouting()' in app[enumerate:prove] and
+        'Backend_Init()' in app[prove:start_fresh] and
+        'AppStartBackendDependents' in app[start_fresh:start_fresh + 700],
+        'owner lifecycle order must be raw input -> fresh routing -> UAP/backend proof -> MAD68 start phase')
 require('NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRawInput)' in app,
         'transactional dependent-start helper must own the MAD68 phase')
 require('Mad68ProR_GetNativeBackendDescriptor' in catalog and
@@ -90,8 +96,7 @@ require('Mad68ProR_GetNativeBackendDescriptor' in catalog and
 require('AddressedAnalog_GetNativeBackendDescriptor' in catalog and
         'NativeAnalogStartPhase::AfterRealtime' in (ROOT / 'HallJoy/addressed_analog_backend.cpp').read_text(encoding='utf-8-sig') and
         'NativeAnalogBackends_StartPhase(NativeAnalogStartPhase::AfterRealtime)' in app and
-        wm_create.find('g_backendReady = AppStartBackendDependents(rawInputRegistered') >
-        wm_create.find('Backend_Init();'),
+        start_fresh > prove,
         'Addressed Analog must be capability-routed before UAP and started in the post-realtime phase')
 require('HallJoy native analogue pre-open exclusion' in uap_soup_patch and
         'UAP_EXCLUDE_HALLJOY_NATIVE' in uap_soup_patch and
@@ -152,8 +157,9 @@ require(native_ready_start >= 0 and
         'NativeAnalogBackends_AnyProtocolDevicePresent()' in native_ready_region and
         'IsRunning()' not in native_ready_region,
         'unvalidated or merely running native workers must not hide UAP startup failures')
-require('late device arrival while backend degraded' in app and 'g_lastMad68PresenceForBackendRetry' in app,
-        'late-connect Backend_Init/ViGEm recovery missing')
+require('late-device owner resume request' in app and 'g_lastMad68PresenceForBackendRetry' in app and
+        'EngineRuntimeOwner_RequestResume()' in app,
+        'late-connect fresh owner generation recovery missing')
 require('return mad68pr::IsWasdHid(hid);' in backend, 'emergency mode is not restricted to W/A/S/D')
 require('did not validate native A8/A9 framing; remaining passive' in backend, 'unvalidated protocol passive-only gate missing')
 require('WM_DEVICECHANGE did not remove current MAD68 vendor path' in backend,
@@ -229,7 +235,8 @@ require('NativeAnalogBackends_ReadMilli(hidKeycode)' in backend_main and
 require('cache.allowFallback && !native.owned' in backend_main,
         'digital fallback is not guarded per authoritative native key')
 require('result.milli = std::max' in registry and
-        'cache.wootingReady && modeCode != 0' in backend_main,
+        'cache.wootingReady && (modeCode != 0 ||' in backend_main and
+        'cache.providerV2Raw.owned.test(hidKeycode)' in backend_main,
         'registered native protocols do not preserve multi-analogue-device max arbitration')
 require('cache.mad68Connected = Mad68ProR_IsConnected();' in backend_main,
         'MAD68 connection state not snapshotted on realtime tick')

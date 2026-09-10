@@ -1,5 +1,9 @@
 # HallJoy v1.4 project tree
 
+2026-09-06: current build/layout contract: [project layout](../../docs/current/PROJECT_LAYOUT.md).
+One ordinary distribution: `build/release/HallJoy.exe`. Historical paths below
+must be interpreted through that document; they are not additional release outputs.
+
 This directory contains the Visual Studio C++ application, portable tests and
 project-local support tools for HallJoy v1.4. The current product turns real
 analogue keyboard input into up to four virtual Xbox 360 controllers through a
@@ -33,7 +37,7 @@ Requirements:
 The final executable is:
 
 ```text
-build\output\HallJoy.exe
+build\release\HallJoy.exe
 ```
 
 Do not use old `build_all.ps1`, V6 Madlions package paths or renamed diagnostic

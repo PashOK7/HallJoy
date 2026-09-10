@@ -33,8 +33,10 @@
       "repository": "https://github.com/calamity-inc/Soup.git",
       "commit": "b02796b0b20276277c8a4b4d3759643eeab43ff7",
       "patchedOverlayFiles": {
-        "AnalogueKeyboard.cpp": "B454800F09C12CBEC480B5FCB9D0F8C1523CB0E63118AF9B97D5AA41C0EBADA7",
-        "AnalogueKeyboard.hpp": "A1F897F3A5683C964F000A9D3FC0D0C1FD9B07DFB3CA95CC3FA3643F353E4CF0",
+        "AnalogueKeyboard.cpp": "DC2B83E7CB21DD2908E8F4FC1ADB87322762FDF7BA7CF21E2FBAF8C119AC5B92",
+        "AnalogueKeyboard.hpp": "2315098BEEA1C5AA4E48EFC8E213E14777DE537E52FB158D90B5BD035E339B24",
+        "Key.hpp": "90964BD41E9CB76572348AE29AFE474949F958750459B7339D4D9A84F49C2C0D",
+        "HidScancode.hpp": "533FB93168B4B6E65232C74A9D8E6BAFDBC0652DA090B472A01CA8240033AFE7",
         "HandleRaii.hpp": "AE5CEB7D8E20CE0211F435962FD1C202A077E4F5983D57C1C8F19C98D2058C19",
         "hwHid.cpp": "CC01D673C138A57BB1F4AFD947C7C05233B211F5E780C1823C46BF41E376DEA4",
         "hwHid.hpp": "EB5635DDC0601CB02EEC5F81FEF93F095C9F41B09137DC4B4AB0D3D53ECFF3A6"
@@ -45,7 +47,11 @@
     "vigemBus": {
       "version": "1.22.0",
       "releasePage": "https://github.com/nefarius/ViGEmBus/releases/tag/v1.22.0",
-      "installationPolicy": "manual-only"
+      "installerUrl": "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe",
+      "installerPath": "src/HallJoyProject/third_party/ViGEmBus/ViGEmBus_1.22.0_x64_x86_arm64.exe",
+      "installerSize": 6278576,
+      "installerSha256": "89220A7865076B342892F98865F3499FB7C4CFD673159E89D352C360FD014C6A",
+      "installationPolicy": "embedded-pinned-one-click"
     }
   },
   "binaryInputs": {

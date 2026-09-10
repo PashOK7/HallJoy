@@ -11,6 +11,13 @@ enum class NativeAnalogProtocol : std::uint8_t
     SayoDepth = 5,
     AulaWin60He = 6,
     AulaW669 = 7,
+    IrokNd75M484 = 8,
+    DrunkDeerMatrixB6 = 9,
+    MchoseAce68Diagnostic = 10,
+    AulaHero84HeDiagnostic = 11,
+    AulaHero84He = 12,
+    Titan68TurboDiagnostic = 13,
+    RogAzoth96HeDiagnostic = 14,
     Simulator = 250,
 };
 

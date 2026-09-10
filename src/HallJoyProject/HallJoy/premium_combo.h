@@ -44,6 +44,8 @@ namespace PremiumCombo
         None = 0,
         Delete = 1,
         Rename = 2,
+        ConfirmDelete = 3,
+        CancelDelete = 4,
     };
 
     enum class ExtraIconKind : int
@@ -118,6 +120,9 @@ namespace PremiumCombo
     void SetExtraIcon(HWND hCombo, ExtraIconKind kind);
 
     void SetItemButtonKind(HWND hCombo, int idx, ItemButtonKind kind);
+    // Opt-in inline confirmation; closed popups and rebuilt lists reset it.
+    void SetDeleteConfirmation(HWND hCombo, int idx);
+    int GetDeleteConfirmation(HWND hCombo);
 
     void ResetVisualState(HWND hCombo);
 

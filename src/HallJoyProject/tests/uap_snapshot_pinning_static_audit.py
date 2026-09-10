@@ -45,6 +45,12 @@ def main() -> int:
     require("LockGuard<Mutex> registry_lock(registry_mutex)" in helper and
             "std::copy_n(source.begin(), pinned.count" in helper,
             "production helper copies only bounded owners under registry lock")
+    require("QueryOwnerCount" in helper and "PinOwnersInto" in helper and
+            "PinnedOwnerLease" in helper and "owners[--count] = Owner{}" in helper,
+            "negotiated helper grows externally and releases every reusable owner pin")
+    require("LockSetView" in (PLUGIN / "halljoy_uap_cabi_guard.h").read_text(
+                encoding="utf-8-sig"),
+            "dynamic device-lock set is allocation-free and RAII-owned")
 
     telemetry = function_body(main_cpp, "SOUP_CEXPORT uint32_t halljoy_get_device_telemetry")
     dense = function_body(main_cpp, "SOUP_CEXPORT uint32_t halljoy_get_dense_snapshots")
@@ -57,6 +63,16 @@ def main() -> int:
             dense.index("PinOwners<") < dense.index("snapshot_lock(dev->snapshot_mtx)"),
             "dense value copy occurs after bounded registry capture")
 
+    provider = function_body(main_cpp, "static bool halljoy_build_provider_snapshot_v2")
+    require("QueryOwnerCount" in provider and "PinOwnersInto" in provider and
+            "LockSetView" in provider,
+            "Provider V2 producer uses negotiated owner and lock storage")
+    require("PinOwners<HallJoyUapProviderV2::kMaxDevices>" not in provider,
+            "Provider V2 producer no longer inherits the eight-owner pin window")
+    require(provider.index("owner_storage.resize") <
+            provider.index("PinOwnersInto") < provider.index("snapshot_locks"),
+            "Provider V2 storage grows before registry capture and device locks")
+
     removal = function_body(main_cpp, "static void remove_stopped_devices()")
     unload = function_body(main_cpp, "static bool halljoy_unload_impl(uint32_t timeout_ms)")
     require("std::shared_ptr<Device> stopped" in removal and "stopped = dev" in removal,
@@ -68,7 +84,8 @@ def main() -> int:
             "device discovery publishes shared owners")
 
     require("blocked_removal=1" in test and "lifetime_cycles = 100000" in test and
-            "coherent_reads" in test,
+            "coherent_reads" in test and "negotiated_capacity=12" in test and
+            "lease_clears_refs=1" in test,
             "portable test covers blocked copy, exact lifetime and coherent snapshots")
     require("uap_snapshot_pinning_test.cpp" in runner,
             "portable runner includes the exact production helper test")

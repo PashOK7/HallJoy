@@ -1,0 +1,102 @@
+HallJoy v1.4 R2-B2i-a split Provider V2 data-plane layout evidence
+Date: 2026-08-23
+
+SCOPE
+-----
+This checkpoint implements and validates only the portable variable-layout and
+publication contract selected by D-074. It does not create or inherit a Windows
+payload mapping, change parent/child mapping rights, remove fixed SharedState
+arrays, switch the live shadow, publish Provider V2 to XUSB, or authorize a user
+build. Those boundaries remain B2i-b, B2i-c and B2j respectively.
+
+COMPARED IMPLEMENTATIONS
+------------------------
+1. Raise the fixed device/sample constants: rejected; only moves the cliff.
+2. Resize the monolithic bidirectional SharedState mapping: rejected; Windows
+   mappings do not resize in place and this retains coupled lifecycle/rights.
+3. Copy every frame through pipe/RPC: rejected for high-rate payload because it
+   adds serialization, copying, queue capacity and backpressure per generation.
+4. Separate parent-owned double-buffered mapping with a parent-read-only payload
+   view and child-writable view: selected; Windows lifecycle follows in B2i-b.
+
+IMPLEMENTED FILES AND SHA-256
+-----------------------------
+provider_v2_data_plane_layout.h
+  size=4183
+  sha256=4249AE0A7A724A74ED159F1D748C4EB02A1107CB1B21718D69761B58B4664D70
+provider_v2_data_plane_layout.cpp
+  size=10814
+  sha256=AEC445D40C04FDFAD8CEB5CBA90F0F8AA47E45B73C5BF805ACFA7335C769A843
+provider_v2_data_plane_layout_test.cpp
+  size=7623
+  sha256=44C912C421EEE56736C73960C37F4C8CD1F0BA83018262484BE431871799ECC8
+provider_v2_data_plane_layout_static_audit.py
+  size=1814
+  sha256=21C3200948749F606088823CB939F8A652B23F8F99B359D35C17EF79938F629F
+tools/run_native_backend_checks.py
+  size=9705
+  sha256=C5104A38A202024FCE6BE195E77F2F9FD8DFF9FD576C2D6FC597335403FF1DF9
+HallJoy.vcxproj
+  size=22706
+  sha256=C994B57EC2A117717E62258E787A53D37A8D2D4EF09F0985B2536A81913B25C9
+HallJoy.vcxproj.filters
+  size=21537
+  sha256=58D746473C78DF81DC9AFB626112683B0FC2ADE900160881C8FAF96EBF5CA646
+
+PORTABLE CONTRACT RESULT
+------------------------
+PASS: B2i-a split-plane layout is bounded and production-unselected
+provider_v2_split_plane_layout=pass negotiated_devices=12 negotiated_samples=60 parent_payload_route_selected=0
+
+Covered:
+- deterministic exact calculation/validation at 0, 1, 8, 12, 32 and defensive
+  maximum capacities (4096 devices, 1048576 samples);
+- complete authoritative 12-device/60-sample snapshot;
+- two aligned commit slots and stable even nonzero sequence;
+- generation, launch nonce and transaction token identity;
+- rejected checked-arithmetic overflow/ceiling and corrupt offset/stride;
+- rejected odd, uncommitted, stale, false-complete and truncated snapshots;
+- production backend contains no route reference and the old fixed arrays remain.
+
+UNIFIED AND OFFICIAL BUILD GATES
+--------------------------------
+python tools/run_native_backend_checks.py --require-compiler
+  PASS: all repository static and portable C++20 tests.
+
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1
+  PASS: MSVC Release x64, 0 errors.
+  Diagnostic: one allow-listed external ViGEmClient LNK4099 only.
+  PASS: exact private UAP ABI:
+    PRIVATE_UAP_ABI_RUNTIME=PASS abi=1 initial_devices=1 provider_v2_devices=1 provider_v2_samples=127 dual_view_devices=1 dual_view_samples=127 dual_view_equivalent=1 negotiated_capacity=1
+  PASS: embedded ViGEm installer verification and production telemetry policy.
+
+EXACT ARTIFACT RUNTIME GATES
+----------------------------
+Artifact:
+  C:\github\_halljoy_latest_20260817\HallJoy-main\build\release\HallJoy.exe
+  size=8650240
+  sha256=920CBFB75229F9820FFB20C30CC11A3ED6940EEEA16D66E23E926099F087F5FE
+
+tools/run_uap_provider_v2_dual_capture_smoke.ps1
+  UAP_PROVIDER_V2_EXACT_EXE_DUAL_CAPTURE=PASS
+  sha256=920CBFB75229F9820FFB20C30CC11A3ED6940EEEA16D66E23E926099F087F5FE
+
+tools/run_production_smoke.ps1 -RunSeconds 3
+  HallJoy production startup/shutdown smoke: PASS
+  Continuous diagnostic logs: none; crash report: none
+
+EVIDENCE BOUNDARY / NEXT STEP
+-----------------------------
+B2i-a is PASS. R2-B2i as a whole is not complete. The live monolithic all-access
+SharedState remains fixed at eight V2 devices and production remains dense.
+B2i-b must implement and test the separate inherited Windows mapping, parent
+read-only payload view, child-writable view, zero-capacity demand handshake,
+exact allocation, child-reaped replacement and crash/resize/topology lifecycle.
+B2i-c must migrate the live shadow and remove fixed V2 payload arrays. R2-B2j is
+the later independent production-route decision.
+
+Backups:
+  .analysis/backups/r2_b2i_a_layout_pre_20260823
+  .analysis/backups/r2_b2i_a_docs_pre_20260823
+
+No GitHub/network or version-control mutation was performed.

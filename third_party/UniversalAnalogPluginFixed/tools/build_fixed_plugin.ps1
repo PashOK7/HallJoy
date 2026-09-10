@@ -9,10 +9,13 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $Root = Split-Path -Parent $PSScriptRoot
-$SoupRoot = Join-Path $Root 'Soup'
-$DistRoot = Join-Path $Root 'dist'
+$RepoRoot = [IO.Path]::GetFullPath((Join-Path $Root '..\..'))
+$SoupRoot = Join-Path $RepoRoot '.cache\uap\Soup'
+$Variant = if ($ExcludeMad68ProRNative) { 'native' } else { 'standard' }
+$DistRoot = Join-Path $RepoRoot "build\bin\UAP\$Variant"
+$WorkRoot = Join-Path $RepoRoot "build\obj\UAP\$Variant"
 $PluginOut = Join-Path $DistRoot 'universal-analog-plugin'
-$BuildToolsRoot = Join-Path $Root '.build-tools'
+$BuildToolsRoot = Join-Path $RepoRoot '.cache\uap\build-tools'
 $SunRoot = Join-Path $BuildToolsRoot 'Sun'
 
 if (-not $DependencyLock) {
@@ -255,7 +258,19 @@ if (Test-Path -LiteralPath $DistRoot) {
 }
 New-Item -ItemType Directory -Path $PluginOut -Force | Out-Null
 
-Push-Location $Root
+# Sun writes intermediates relative to sources: compile a disposable copy.
+# Keep the pinned download and editable overlays separate from this work tree.
+$expectedWorkRoot = [IO.Path]::GetFullPath((Join-Path $RepoRoot "build\obj\UAP\$Variant"))
+if ([IO.Path]::GetFullPath($WorkRoot) -ne $expectedWorkRoot) { throw 'Unsafe UAP work tree' }
+if (Test-Path -LiteralPath $WorkRoot) { Remove-Item -LiteralPath $WorkRoot -Recurse -Force }
+New-Item -ItemType Directory -Path $WorkRoot -Force | Out-Null
+Get-ChildItem -LiteralPath $Root -File | Where-Object {
+    $_.Extension -in @('.cpp', '.h', '.hpp', '.sun', '.lib', '.a')
+} | Copy-Item -Destination $WorkRoot
+$WorkSoup = Join-Path $WorkRoot 'Soup'
+& robocopy $SoupRoot $WorkSoup /E /XJ /XD .git int /XF *.obj *.a *.lib /R:0 /W:0 /NFL /NDL /NJH /NJS /NP
+if ($LASTEXITCODE -ge 8) { throw "Cannot stage Soup: $LASTEXITCODE" }
+Push-Location $WorkRoot
 try {
     if ($ExcludeMad68ProRNative) {
         Write-Host 'Building UAP with runtime-validated MADLIONS PID exclusion for the native HallJoy backend.' -ForegroundColor DarkGray
@@ -283,13 +298,13 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw "Sun build for $target failed with exit code $LASTEXITCODE"
         }
-        $dll = Join-Path $Root "$target.dll"
+        $dll = Join-Path $WorkRoot "$target.dll"
         if (-not (Test-Path -LiteralPath $dll)) {
             throw "Expected output not found: $dll"
         }
         Move-Item -LiteralPath $dll -Destination (Join-Path $PluginOut "$output.dll") -Force
-        Remove-Item -LiteralPath (Join-Path $Root "$target.exp") -Force -ErrorAction SilentlyContinue
-        Remove-Item -LiteralPath (Join-Path $Root "$target.lib") -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath (Join-Path $WorkRoot "$target.exp") -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath (Join-Path $WorkRoot "$target.lib") -Force -ErrorAction SilentlyContinue
     }
 }
 finally {
@@ -307,12 +322,13 @@ Write-Host "  $package"
 
 if ($HallJoyRoot) {
     $HallJoyRoot = (Resolve-Path -LiteralPath $HallJoyRoot).Path
-    $runtime = Join-Path $HallJoyRoot 'runtime'
+    $runtime = Join-Path $HallJoyRoot '..\..\build\runtime'
     $halljoyBuild = Join-Path $HallJoyRoot 'tools\build_madlions_diagnostic.ps1'
-    if (-not (Test-Path -LiteralPath $runtime) -or -not (Test-Path -LiteralPath $halljoyBuild)) {
+    if (-not (Test-Path -LiteralPath $halljoyBuild)) {
         throw "The supplied HallJoyRoot is not the complete HallJoy SDK 0.9.1 project: $HallJoyRoot"
     }
 
+    New-Item -ItemType Directory -Path $runtime -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $PluginOut 'abiv0.dll') -Destination (Join-Path $runtime 'universal_analog_abiv0.dll') -Force
     Copy-Item -LiteralPath (Join-Path $PluginOut 'abiv1.dll') -Destination (Join-Path $runtime 'universal_analog_abiv1.dll') -Force
 
@@ -323,3 +339,5 @@ if ($HallJoyRoot) {
         throw "HallJoy build failed with exit code $LASTEXITCODE"
     }
 }
+
+exit 0

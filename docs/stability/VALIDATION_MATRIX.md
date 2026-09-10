@@ -107,3 +107,23 @@ The corrected V14-12K executable recorded SHA-256
 The deterministic narrow correction did not invalidate the already completed
 1000-cycle gate. External Aula and other device-owner requirements remained
 separate until their own acceptance records.
+
+- V14-12F.1/D-049 (2026-08-21): exact embedded ViGEmBus 1.22.0 recovery passed
+  full static/portable/compiler/build gates and the linked resource
+  hash/signature/read-execute self-test. Production artifact is 8,485,376 bytes,
+  SHA-256 `7EB42CF1687D0DB1FF16721875C5F36B502FD96D1EB1DEC686C3AC4EEA85AB6B`.
+  Actual UAC installation was not run on the already-configured workstation.
+
+- V14 F3 (2026-08-22): production ViGEm ownership moved atomically from the
+  in-process worker to one supervised same-image child. Static/portable gates,
+  1,008-generation supervisor stress, nine-generation exact fake lifecycle,
+  exact four-pad real ViGEmBus apply/neutral/remove, normal routed analogue
+  publication and routed exit/stall recovery pass with strict reap-before-
+  replacement and zero survivor. F3 local O1/O2 status is PASS. Exact local O5
+  also passes 20 independent runs: at least 2,000,000 complete publications,
+  2,020 child generations, 1,000 topology changes and 200 disable/enable
+  cycles, with no rebuild, unsafe generation, overlap or survivor. Release
+  status remains `Implemented / hardware pending` until long active-input soak
+  and the same immutable final candidate pass IROK MG75 Max and DrunkDeer G65.
+  Final local production build: 8,518,144 bytes, SHA-256
+  `DADFF635AD4681DA3B4D8EAF7CC97BADD5A30541D2075910CABDE81889269B37`.

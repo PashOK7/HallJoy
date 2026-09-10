@@ -6,11 +6,13 @@
 #include <vector>
 #include <algorithm>
 #include <filesystem>
+#include <limits>
 
 #include "keyboard_profiles.h"
 #include "app_paths.h"
 #include "file_name_policy.h"
 #include "ini_util.h"
+#include "bounded_ini.h"
 
 namespace fs = std::filesystem;
 
@@ -153,14 +155,21 @@ static int ClampI(int v, int lo, int hi)
 
 static float ReadM01(const wchar_t* sec, const wchar_t* key, int defM, const wchar_t* path)
 {
-    int m = GetPrivateProfileIntW(sec, key, defM, path);
+    std::int32_t parsed = defM;
+    if (!halljoy::ini::ReadSigned(path, sec, key, 0, 1000, defM, parsed))
+        parsed = defM;
+    int m = static_cast<int>(parsed);
     m = ClampI(m, 0, 1000);
     return (float)m / 1000.0f;
 }
 
 static int ReadI(const wchar_t* sec, const wchar_t* key, int defV, const wchar_t* path)
 {
-    return GetPrivateProfileIntW(sec, key, defV, path);
+    std::int32_t parsed = defV;
+    if (!halljoy::ini::ReadSigned(path, sec, key,
+            INT32_MIN, INT32_MAX, defV, parsed))
+        parsed = defV;
+    return static_cast<int>(parsed);
 }
 
 static bool WriteI(const wchar_t* sec, const wchar_t* key, int v, const wchar_t* path)
@@ -211,8 +220,8 @@ static KeyDeadzone NormalizePreset(KeyDeadzone ks)
 // Internal load that NEVER touches module active/dirty state (safe for comparisons)
 static bool LoadPresetFile_NoState(const std::wstring& path, KeyDeadzone& outKs)
 {
-    if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES)
-        return false;
+    halljoy::ini::ReadFile inputFile(path.c_str());
+    if (!inputFile) return false;
 
     // defaults from struct
     KeyDeadzone ks{};

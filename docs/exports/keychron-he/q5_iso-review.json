@@ -1,0 +1,1374 @@
+{
+  "schema": 1,
+  "name": "Keychron Q5 HE ISO",
+  "vendorProductId": 875826001,
+  "layer": "WIN_BASE",
+  "scale": {
+    "pitch_x": "48",
+    "pitch_y": "46",
+    "gap": "6"
+  },
+  "keys": [
+    {
+      "matrix": [
+        0,
+        0
+      ],
+      "token": "KC_ESC",
+      "hid": 41,
+      "label": "Esc",
+      "x": 0,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        2
+      ],
+      "token": "KC_F1",
+      "hid": 58,
+      "label": "F1",
+      "x": 96,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        3
+      ],
+      "token": "KC_F2",
+      "hid": 59,
+      "label": "F2",
+      "x": 144,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        4
+      ],
+      "token": "KC_F3",
+      "hid": 60,
+      "label": "F3",
+      "x": 192,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        5
+      ],
+      "token": "KC_F4",
+      "hid": 61,
+      "label": "F4",
+      "x": 240,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        6
+      ],
+      "token": "KC_F5",
+      "hid": 62,
+      "label": "F5",
+      "x": 312,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        7
+      ],
+      "token": "KC_F6",
+      "hid": 63,
+      "label": "F6",
+      "x": 360,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        8
+      ],
+      "token": "KC_F7",
+      "hid": 64,
+      "label": "F7",
+      "x": 408,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        9
+      ],
+      "token": "KC_F8",
+      "hid": 65,
+      "label": "F8",
+      "x": 456,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        10
+      ],
+      "token": "KC_F9",
+      "hid": 66,
+      "label": "F9",
+      "x": 528,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        11
+      ],
+      "token": "KC_F10",
+      "hid": 67,
+      "label": "F10",
+      "x": 576,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        12
+      ],
+      "token": "KC_F11",
+      "hid": 68,
+      "label": "F11",
+      "x": 624,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        13
+      ],
+      "token": "KC_F12",
+      "hid": 69,
+      "label": "F12",
+      "x": 672,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        14
+      ],
+      "token": "KC_DEL",
+      "hid": 76,
+      "label": "Del",
+      "x": 732,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        15
+      ],
+      "token": "KC_F13",
+      "hid": 1027,
+      "label": "F13",
+      "x": 792,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        16
+      ],
+      "token": "KC_F14",
+      "hid": 1028,
+      "label": "F14",
+      "x": 840,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        0,
+        17
+      ],
+      "token": "KC_F15",
+      "hid": 1029,
+      "label": "F15",
+      "x": 888,
+      "y": 0,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        0
+      ],
+      "token": "KC_GRV",
+      "hid": 53,
+      "label": "`",
+      "x": 0,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        1
+      ],
+      "token": "KC_1",
+      "hid": 30,
+      "label": "1",
+      "x": 48,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        2
+      ],
+      "token": "KC_2",
+      "hid": 31,
+      "label": "2",
+      "x": 96,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        3
+      ],
+      "token": "KC_3",
+      "hid": 32,
+      "label": "3",
+      "x": 144,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        4
+      ],
+      "token": "KC_4",
+      "hid": 33,
+      "label": "4",
+      "x": 192,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        5
+      ],
+      "token": "KC_5",
+      "hid": 34,
+      "label": "5",
+      "x": 240,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        6
+      ],
+      "token": "KC_6",
+      "hid": 35,
+      "label": "6",
+      "x": 288,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        7
+      ],
+      "token": "KC_7",
+      "hid": 36,
+      "label": "7",
+      "x": 336,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        8
+      ],
+      "token": "KC_8",
+      "hid": 37,
+      "label": "8",
+      "x": 384,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        9
+      ],
+      "token": "KC_9",
+      "hid": 38,
+      "label": "9",
+      "x": 432,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        10
+      ],
+      "token": "KC_0",
+      "hid": 39,
+      "label": "0",
+      "x": 480,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        11
+      ],
+      "token": "KC_MINS",
+      "hid": 45,
+      "label": "-",
+      "x": 528,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        12
+      ],
+      "token": "KC_EQL",
+      "hid": 46,
+      "label": "=",
+      "x": 576,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        13
+      ],
+      "token": "KC_BSPC",
+      "hid": 42,
+      "label": "Back",
+      "x": 624,
+      "y": 58,
+      "w": 90,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        14
+      ],
+      "token": "KC_PGUP",
+      "hid": 75,
+      "label": "PgUp",
+      "x": 732,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        15
+      ],
+      "token": "KC_NUM",
+      "hid": 83,
+      "label": "Num",
+      "x": 792,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        16
+      ],
+      "token": "KC_PSLS",
+      "hid": 84,
+      "label": "/",
+      "x": 840,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        17
+      ],
+      "token": "KC_PAST",
+      "hid": 85,
+      "label": "*",
+      "x": 888,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        1,
+        18
+      ],
+      "token": "KC_PMNS",
+      "hid": 86,
+      "label": "-",
+      "x": 936,
+      "y": 58,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        0
+      ],
+      "token": "KC_TAB",
+      "hid": 43,
+      "label": "Tab",
+      "x": 0,
+      "y": 104,
+      "w": 66,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        1
+      ],
+      "token": "KC_Q",
+      "hid": 20,
+      "label": "Q",
+      "x": 72,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        2
+      ],
+      "token": "KC_W",
+      "hid": 26,
+      "label": "W",
+      "x": 120,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        3
+      ],
+      "token": "KC_E",
+      "hid": 8,
+      "label": "E",
+      "x": 168,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        4
+      ],
+      "token": "KC_R",
+      "hid": 21,
+      "label": "R",
+      "x": 216,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        5
+      ],
+      "token": "KC_T",
+      "hid": 23,
+      "label": "T",
+      "x": 264,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        6
+      ],
+      "token": "KC_Y",
+      "hid": 28,
+      "label": "Y",
+      "x": 312,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        7
+      ],
+      "token": "KC_U",
+      "hid": 24,
+      "label": "U",
+      "x": 360,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        8
+      ],
+      "token": "KC_I",
+      "hid": 12,
+      "label": "I",
+      "x": 408,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        9
+      ],
+      "token": "KC_O",
+      "hid": 18,
+      "label": "O",
+      "x": 456,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        10
+      ],
+      "token": "KC_P",
+      "hid": 19,
+      "label": "P",
+      "x": 504,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        11
+      ],
+      "token": "KC_LBRC",
+      "hid": 47,
+      "label": "[",
+      "x": 552,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        12
+      ],
+      "token": "KC_RBRC",
+      "hid": 48,
+      "label": "]",
+      "x": 600,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        13
+      ],
+      "token": "KC_ENT",
+      "hid": 40,
+      "label": "Enter",
+      "x": 648,
+      "y": 104,
+      "w": 66,
+      "h": 86,
+      "notchW": 12,
+      "notchY": 40
+    },
+    {
+      "matrix": [
+        2,
+        14
+      ],
+      "token": "KC_PGDN",
+      "hid": 78,
+      "label": "PgDn",
+      "x": 732,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        15
+      ],
+      "token": "KC_P7",
+      "hid": 95,
+      "label": "7",
+      "x": 792,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        16
+      ],
+      "token": "KC_P8",
+      "hid": 96,
+      "label": "8",
+      "x": 840,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        17
+      ],
+      "token": "KC_P9",
+      "hid": 97,
+      "label": "9",
+      "x": 888,
+      "y": 104,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        2,
+        18
+      ],
+      "token": "KC_PPLS",
+      "hid": 87,
+      "label": "+",
+      "x": 936,
+      "y": 104,
+      "w": 42,
+      "h": 86
+    },
+    {
+      "matrix": [
+        3,
+        0
+      ],
+      "token": "KC_CAPS",
+      "hid": 57,
+      "label": "Caps",
+      "x": 0,
+      "y": 150,
+      "w": 78,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        1
+      ],
+      "token": "KC_A",
+      "hid": 4,
+      "label": "A",
+      "x": 84,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        2
+      ],
+      "token": "KC_S",
+      "hid": 22,
+      "label": "S",
+      "x": 132,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        3
+      ],
+      "token": "KC_D",
+      "hid": 7,
+      "label": "D",
+      "x": 180,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        4
+      ],
+      "token": "KC_F",
+      "hid": 9,
+      "label": "F",
+      "x": 228,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        5
+      ],
+      "token": "KC_G",
+      "hid": 10,
+      "label": "G",
+      "x": 276,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        6
+      ],
+      "token": "KC_H",
+      "hid": 11,
+      "label": "H",
+      "x": 324,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        7
+      ],
+      "token": "KC_J",
+      "hid": 13,
+      "label": "J",
+      "x": 372,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        8
+      ],
+      "token": "KC_K",
+      "hid": 14,
+      "label": "K",
+      "x": 420,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        9
+      ],
+      "token": "KC_L",
+      "hid": 15,
+      "label": "L",
+      "x": 468,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        10
+      ],
+      "token": "KC_SCLN",
+      "hid": 51,
+      "label": ";",
+      "x": 516,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        11
+      ],
+      "token": "KC_QUOT",
+      "hid": 52,
+      "label": "'",
+      "x": 564,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        12
+      ],
+      "token": "KC_NUHS",
+      "hid": 50,
+      "label": "#",
+      "x": 612,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        13
+      ],
+      "token": "KC_HOME",
+      "hid": 74,
+      "label": "Home",
+      "x": 732,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        15
+      ],
+      "token": "KC_P4",
+      "hid": 92,
+      "label": "4",
+      "x": 792,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        16
+      ],
+      "token": "KC_P5",
+      "hid": 93,
+      "label": "5",
+      "x": 840,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        3,
+        17
+      ],
+      "token": "KC_P6",
+      "hid": 94,
+      "label": "6",
+      "x": 888,
+      "y": 150,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        0
+      ],
+      "token": "KC_LSFT",
+      "hid": 225,
+      "label": "Shift",
+      "x": 0,
+      "y": 196,
+      "w": 54,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        1
+      ],
+      "token": "KC_NUBS",
+      "hid": 100,
+      "label": "\\",
+      "x": 60,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        2
+      ],
+      "token": "KC_Z",
+      "hid": 29,
+      "label": "Z",
+      "x": 108,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        3
+      ],
+      "token": "KC_X",
+      "hid": 27,
+      "label": "X",
+      "x": 156,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        4
+      ],
+      "token": "KC_C",
+      "hid": 6,
+      "label": "C",
+      "x": 204,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        5
+      ],
+      "token": "KC_V",
+      "hid": 25,
+      "label": "V",
+      "x": 252,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        6
+      ],
+      "token": "KC_B",
+      "hid": 5,
+      "label": "B",
+      "x": 300,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        7
+      ],
+      "token": "KC_N",
+      "hid": 17,
+      "label": "N",
+      "x": 348,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        8
+      ],
+      "token": "KC_M",
+      "hid": 16,
+      "label": "M",
+      "x": 396,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        9
+      ],
+      "token": "KC_COMM",
+      "hid": 54,
+      "label": ",",
+      "x": 444,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        10
+      ],
+      "token": "KC_DOT",
+      "hid": 55,
+      "label": ".",
+      "x": 492,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        12
+      ],
+      "token": "KC_SLSH",
+      "hid": 56,
+      "label": "/",
+      "x": 540,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        13
+      ],
+      "token": "KC_RSFT",
+      "hid": 229,
+      "label": "Shift",
+      "x": 588,
+      "y": 196,
+      "w": 78,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        14
+      ],
+      "token": "KC_UP",
+      "hid": 82,
+      "label": "Up",
+      "x": 684,
+      "y": 207,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        15
+      ],
+      "token": "KC_P1",
+      "hid": 89,
+      "label": "1",
+      "x": 792,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        16
+      ],
+      "token": "KC_P2",
+      "hid": 90,
+      "label": "2",
+      "x": 840,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        17
+      ],
+      "token": "KC_P3",
+      "hid": 91,
+      "label": "3",
+      "x": 888,
+      "y": 196,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        4,
+        18
+      ],
+      "token": "KC_PENT",
+      "hid": 88,
+      "label": "NEnt",
+      "x": 936,
+      "y": 196,
+      "w": 42,
+      "h": 86
+    },
+    {
+      "matrix": [
+        5,
+        0
+      ],
+      "token": "KC_LCTL",
+      "hid": 224,
+      "label": "Ctrl",
+      "x": 0,
+      "y": 242,
+      "w": 54,
+      "h": 40
+    },
+    {
+      "matrix": [
+        5,
+        1
+      ],
+      "token": "KC_LWIN",
+      "hid": 227,
+      "label": "Win",
+      "x": 60,
+      "y": 242,
+      "w": 54,
+      "h": 40
+    },
+    {
+      "matrix": [
+        5,
+        2
+      ],
+      "token": "KC_LALT",
+      "hid": 226,
+      "label": "Alt",
+      "x": 120,
+      "y": 242,
+      "w": 54,
+      "h": 40
+    },
+    {
+      "matrix": [
+        5,
+        6
+      ],
+      "token": "KC_SPC",
+      "hid": 44,
+      "label": "Space",
+      "x": 180,
+      "y": 242,
+      "w": 294,
+      "h": 40
+    },
+    {
+      "matrix": [
+        5,
+        9
+      ],
+      "token": "KC_RALT",
+      "hid": 230,
+      "label": "Alt",
+      "x": 480,
+      "y": 242,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        5,
+        10
+      ],
+      "token": "FN_WIN",
+      "hid": 1033,
+      "label": "Fn",
+      "x": 528,
+      "y": 242,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        5,
+        11
+      ],
+      "token": "KC_RCTL",
+      "hid": 228,
+      "label": "Ctrl",
+      "x": 576,
+      "y": 242,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        5,
+        12
+      ],
+      "token": "KC_LEFT",
+      "hid": 80,
+      "label": "Left",
+      "x": 636,
+      "y": 253,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        5,
+        13
+      ],
+      "token": "KC_DOWN",
+      "hid": 81,
+      "label": "Down",
+      "x": 684,
+      "y": 253,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        5,
+        14
+      ],
+      "token": "KC_RGHT",
+      "hid": 79,
+      "label": "Right",
+      "x": 732,
+      "y": 253,
+      "w": 42,
+      "h": 40
+    },
+    {
+      "matrix": [
+        5,
+        16
+      ],
+      "token": "KC_P0",
+      "hid": 98,
+      "label": "0",
+      "x": 792,
+      "y": 242,
+      "w": 90,
+      "h": 40
+    },
+    {
+      "matrix": [
+        5,
+        17
+      ],
+      "token": "KC_PDOT",
+      "hid": 99,
+      "label": ".",
+      "x": 888,
+      "y": 242,
+      "w": 42,
+      "h": 40
+    }
+  ],
+  "unresolved": [],
+  "warnings": [
+    "QMK child info has no VID; PID and full matrix checked, verify source repository identity.",
+    "0,15: KC_F13 -> 1027 (Reviewed UAP Q5_ISO physical matrix identity at 0,15)",
+    "0,16: KC_F14 -> 1028 (Reviewed UAP Q5_ISO physical matrix identity at 0,16)",
+    "0,17: KC_F15 -> 1029 (Reviewed UAP Q5_ISO physical matrix identity at 0,17)",
+    "5,10: FN_WIN -> 1033 (Reviewed UAP Q5_ISO physical matrix identity at 5,10)"
+  ],
+  "excluded": [
+    {
+      "matrix": [
+        0,
+        18
+      ],
+      "token": "KC_MUTE",
+      "reason": "Reviewed UAP Q5_ISO physical matrix identity at 0,18"
+    }
+  ],
+  "status": "ready",
+  "sources": {
+    "launcher": {
+      "path": "docs/research/keychron-catalog-sources/875826001-launcher.json",
+      "sha256": "634dbe9bd2fe3e6cd4dd77aff3bfab0a5a93617325b9eb0e06ee71409097b879"
+    },
+    "info": {
+      "path": "docs/research/keychron-catalog-sources/qmk-2025q3/q5_he/iso_encoder/keyboard.json",
+      "sha256": "78072d7c0e3cbc39273386af03f1630c10ebd72159ef3813d21d8292b4b096de"
+    },
+    "keymap": {
+      "path": "docs/research/keychron-catalog-sources/qmk-2025q3/q5_he/iso_encoder/keymaps/default/keymap.c",
+      "sha256": "321461486a9e942b29abb69c5a5473bc6bf2f56a8b99b7c102c8b3c004bad911"
+    }
+  }
+}

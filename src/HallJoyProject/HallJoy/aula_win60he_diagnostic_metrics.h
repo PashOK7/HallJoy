@@ -1,5 +1,6 @@
 #pragma once
 
+#include "analog_key_codes.h"
 #include "aula_win60he_protocol.h"
 
 #include <array>
@@ -13,7 +14,7 @@ constexpr std::size_t kDiagnosticLatencyBuckets = 7u;
 
 struct DiagnosticActiveValue
 {
-    std::uint8_t hid = 0;
+    std::uint16_t keyCode = 0;
     std::uint8_t row = 0;
     std::uint8_t column = 0;
     std::uint16_t travelUm = 0;
@@ -21,7 +22,7 @@ struct DiagnosticActiveValue
 
 struct DiagnosticObservation
 {
-    std::array<DiagnosticActiveValue, kExpectedPublishableDefaultKeys> active{};
+    std::array<DiagnosticActiveValue, kMatrixPositions> active{};
     std::size_t activeCount = 0;
     std::uint16_t minimumPositiveUm = 0;
     std::uint16_t maximumUm = 0;
@@ -62,7 +63,7 @@ class DiagnosticMetrics final
 public:
     void Begin(std::uint64_t nowUs) noexcept;
     DiagnosticObservation Observe(
-        const KeyMap& map,
+        const ActiveKeyMap& map,
         const TravelMatrix& travel,
         bool changed,
         std::uint64_t completedUs,
@@ -70,7 +71,8 @@ public:
     [[nodiscard]] bool WindowReady(std::uint64_t nowUs) const noexcept;
     DiagnosticWindow TakeWindow(std::uint64_t nowUs) noexcept;
     [[nodiscard]] DiagnosticWindow Lifetime(std::uint64_t nowUs) const noexcept;
-    [[nodiscard]] const std::array<std::uint16_t, 256>& MaximumByHid() const noexcept;
+    [[nodiscard]] const std::array<std::uint16_t,
+        halljoy::keycode::kCount>& MaximumByKeyCode() const noexcept;
     [[nodiscard]] std::uint64_t TotalUpdates() const noexcept;
     [[nodiscard]] std::uint32_t MaximumActiveKeys() const noexcept;
     [[nodiscard]] std::uint32_t ObservedHids() const noexcept;
@@ -92,7 +94,7 @@ private:
     std::uint64_t previousCompletionUs_ = 0;
     DiagnosticWindow lifetime_{};
     DiagnosticWindow window_{};
-    std::array<std::uint16_t, 256> maximumByHid_{};
+    std::array<std::uint16_t, halljoy::keycode::kCount> maximumByKeyCode_{};
     std::uint32_t observedHids_ = 0;
     std::uint32_t previousActiveKeys_ = 0;
     bool sawNonzero_ = false;

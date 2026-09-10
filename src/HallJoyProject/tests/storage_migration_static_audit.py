@@ -56,7 +56,9 @@ require(curves, "AppPaths_CurvePresetsDir()", "curve presets use the centralized
 require(curves, "FileNamePolicy_MakeUniqueChildPath", "curve creation uses collision-safe suffixing")
 require(globals_cpp, "FileNamePolicy_NormalizeStem", "global profiles use the common filename policy")
 require(globals_cpp, "FindExistingProfilePath", "Unicode/case aliases resolve existing profile files")
-require(subpages, "AppPaths_LayoutsDir()", "Open Layouts Folder targets the writable root")
+require(subpages, "const auto directory = AppPaths_DataRoot();", "Open HallJoy folder targets the writable root")
+if 'Open Layouts Folder' in subpages or 'GLOB_ID_LAYOUTS_FOLDER' in subpages:
+    raise SystemExit("FAIL: redundant layouts-folder action remains")
 
 require(runner, "--halljoy-test-data-root", "simulator state is isolated from user LocalAppData")
 require(runner, "--halljoy-test-storage-policy", "simulator executes the real Windows filename policy")
@@ -78,3 +80,12 @@ if 'WinUtil_BuildPathNearExe(L"Layouts")' in layout or 'WinUtil_BuildPathNearExe
 print("PASS: preset writers no longer implicitly prefer the executable directory")
 
 print("STORAGE_MIGRATION_STATIC_AUDIT=PASS")
+
+require(paths, "if (legacyFiles.empty()) return true;", "empty sources create no migration artifacts")
+require(paths, 'L"migrations.ini"', "new migrations share one internal ledger")
+for script in ("run_gravastar_v75_diagnostic_smoke.ps1", "run_drunkdeer_diagnostic_smoke.ps1",
+               "run_irok_nd75_smoke.ps1", "run_drunkdeer_abnormal_exit_log_test.ps1"):
+    smoke = read(REPO / "tools" / script)
+    require(smoke, "'HallJoy.portable'", f"{script} isolates runtime state")
+    if smoke.index("'HallJoy.portable'") > smoke.index("Start-Process"):
+        raise SystemExit(f"FAIL: {script} isolates state too late")

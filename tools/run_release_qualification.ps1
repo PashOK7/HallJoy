@@ -17,7 +17,7 @@ Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($ExePath)) {
-    $ExePath = Join-Path $root 'build\output\HallJoy.exe'
+    $ExePath = Join-Path $root 'build\release\HallJoy.exe'
 }
 $ExePath = [IO.Path]::GetFullPath($ExePath)
 if (-not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
@@ -32,14 +32,6 @@ if ($existing.Count -ne 0) {
     throw "Refusing to start while HallJoy is already running (PID: $($existing.Id -join ', '))."
 }
 
-$output = Split-Path -Parent $ExePath
-$trace = Join-Path $output 'HallJoyStabilityTrace.log'
-$forbiddenProductionLogs = @(
-    $trace,
-    (Join-Path $output 'HallJoyDiagnostic.log'),
-    (Join-Path $output 'HallJoyAddressedAnalogTrace.log'),
-    (Join-Path $output 'HallJoyCrash.txt')
-)
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if ([string]::IsNullOrWhiteSpace($EvidenceRoot)) {
     $EvidenceRoot = Join-Path $root "build\evidence\release-qualification\$stamp"
@@ -146,6 +138,17 @@ function Wait-NoHallJoyProcess {
     throw "HallJoy process remained after shutdown (PID: $($remaining.Id -join ', '))."
 }
 
+function Copy-ProfileStateToPortableRuntime {
+    param([string]$SourceRoot, [string]$DestinationRoot)
+    if (-not (Test-Path -LiteralPath $SourceRoot -PathType Container)) { return }
+    foreach ($item in @(Get-ChildItem -LiteralPath $SourceRoot -Force)) {
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Refusing to copy reparse-point user-state item: $($item.FullName)"
+        }
+        Copy-Item -LiteralPath $item.FullName -Destination $DestinationRoot -Recurse -Force
+    }
+}
+
 function Write-QualificationCheckpoint {
     param(
         [string]$Status,
@@ -174,6 +177,21 @@ $stateRoot = Join-Path $env:LOCALAPPDATA 'HallJoy'
 $stateBefore = Get-HallJoyStateSnapshot -StateRoot $stateRoot
 Write-StateSnapshot -Snapshot $stateBefore -Path $stateBeforePath
 $exeHash = (Get-FileHash -LiteralPath $ExePath -Algorithm SHA256).Hash
+$portableRuntimeRoot = Join-Path $EvidenceRoot 'portable-runtime'
+$resolvedEvidenceRoot = [IO.Path]::GetFullPath($EvidenceRoot).TrimEnd('\') + '\'
+$resolvedPortableRuntimeRoot = [IO.Path]::GetFullPath($portableRuntimeRoot)
+if (-not $resolvedPortableRuntimeRoot.StartsWith($resolvedEvidenceRoot, [StringComparison]::OrdinalIgnoreCase) -or (Test-Path -LiteralPath $portableRuntimeRoot)) {
+    throw "Refusing to create an unexpected portable qualification runtime: $resolvedPortableRuntimeRoot"
+}
+New-Item -ItemType Directory -Path $portableRuntimeRoot | Out-Null
+Copy-ProfileStateToPortableRuntime -SourceRoot $stateRoot -DestinationRoot $portableRuntimeRoot
+$profileExePath = Join-Path $portableRuntimeRoot 'HallJoy.exe'
+Copy-Item -LiteralPath $ExePath -Destination $profileExePath -Force
+if ((Get-FileHash -LiteralPath $profileExePath -Algorithm SHA256).Hash -ne $exeHash) { throw 'The isolated qualification executable does not match the requested production artifact.' }
+New-Item -ItemType File -Path (Join-Path $portableRuntimeRoot 'HallJoy.portable') | Out-Null
+$output = $portableRuntimeRoot
+$trace = Join-Path $output 'HallJoyStabilityTrace.log'
+$forbiddenProductionLogs = @((Join-Path $output 'HallJoyDiagnostic.log'), (Join-Path $output 'HallJoyAddressedAnalogTrace.log'), (Join-Path $output 'HallJoyCrash.txt'))
 $results = [System.Collections.Generic.List[object]]::new()
 
 foreach ($logPath in $forbiddenProductionLogs) {
@@ -193,7 +211,7 @@ try {
         try {
             # Production qualification intentionally passes no fault-injection or
             # simulator arguments. Every cycle is the same path a user launches.
-            $process = Start-Process -FilePath $ExePath -PassThru -WindowStyle Hidden -WorkingDirectory $output
+            $process = Start-Process -FilePath $profileExePath -PassThru -WindowStyle Hidden -WorkingDirectory $output
             $runDeadline = [DateTime]::UtcNow.AddSeconds($RunSeconds)
             do {
                 if ($process.WaitForExit(100)) { break }
@@ -232,6 +250,14 @@ try {
             })
             if ($unexpectedLogs.Count -ne 0) {
                 throw "Production created a continuous diagnostic or crash log in cycle $cycle`: $($unexpectedLogs -join ', ')"
+            }
+            if (-not (Test-Path -LiteralPath $trace -PathType Leaf)) {
+                throw "Production stability trace was not produced in cycle $cycle."
+            }
+            $cycleTrace = Join-Path $EvidenceRoot ("cycle-{0:D4}-stability.log" -f $cycle)
+            Copy-Item -LiteralPath $trace -Destination $cycleTrace -Force
+            if ((Get-Content -LiteralPath $cycleTrace -Raw) -match '\[level=ERROR\]') {
+                throw "Production stability trace contains ERROR in cycle $cycle."
             }
 
             $results.Add([pscustomobject]@{
@@ -272,6 +298,8 @@ try {
         completed_utc = [DateTime]::UtcNow.ToString('o')
         executable = $ExePath
         executable_sha256 = $exeHash
+        profile_executable = $profileExePath
+        storage_mode = 'portable-isolated-copy'
         cycles_requested = $Cycles
         cycles_passed = $results.Count
         run_seconds = $RunSeconds

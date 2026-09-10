@@ -24,17 +24,21 @@
 #include <mutex>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 #if SOUP_WINDOWS
 #include <windows.h>
 #endif
 
 #include "halljoy_plugin_telemetry.h"
 #include "halljoy_dense_snapshot.h"
+#include "halljoy_uap_provider_v2.h"
+#include "halljoy_uap_provider_v2_projection.h"
 #include "halljoy_native_hid_claim.h"
 #include "halljoy_uap_cabi_guard.h"
 #include "halljoy_uap_device_identity.h"
 #include "halljoy_uap_pinned_owners.h"
 #include "halljoy_uap_poll_pacing.h"
+#include "halljoy_drunkdeer_identity.h"
 
 #define LOGGING false
 
@@ -318,7 +322,10 @@ SOUP_CEXPORT bool is_initialised() noexcept
 // waits on this generation instead of imposing a fixed 8 ms polling cadence.
 // The condition variable is process-local: HallJoy loads this DLL inside the
 // isolated analog-host process and calls the optional export directly.
-static std::atomic<uint64_t> halljoy_snapshot_generation{ 0 };
+static std::atomic<uint64_t> halljoy_snapshot_generation{ 1 };
+static std::atomic<uint64_t> halljoy_value_generation{ 1 };
+static std::atomic<uint64_t> halljoy_ownership_generation{ 1 };
+static std::atomic<uint64_t> halljoy_value_timestamp_us{ 0 };
 static std::mutex halljoy_snapshot_wait_mtx{};
 static std::condition_variable halljoy_snapshot_wait_cv{};
 
@@ -326,6 +333,12 @@ static void halljoy_signal_snapshot_update()
 {
 	halljoy_snapshot_generation.fetch_add(1, std::memory_order_release);
 	halljoy_snapshot_wait_cv.notify_one();
+}
+
+static void halljoy_signal_topology_update()
+{
+	halljoy_ownership_generation.fetch_add(1, std::memory_order_release);
+	halljoy_signal_snapshot_update();
 }
 
 SOUP_CEXPORT uint64_t halljoy_wait_for_snapshot_update(uint64_t last_generation, uint32_t timeout_ms) noexcept
@@ -358,11 +371,13 @@ struct Device
 	uint32_t telemetry_layout_key_slots = 0;
 	uint32_t telemetry_nominal_levels = 0;
 	static constexpr std::size_t KEY_COUNT = HallJoyDenseSnapshot::kKeyCount;
+	static constexpr std::size_t PROVIDER_KEY_COUNT = soup::NUM_KEYS;
 
 	// V11: every worker publishes one coherent dense HID table. This removes the
 	// legacy 16-active-key truncation and makes reads independent of key ordering.
 	soup::RecursiveMutex snapshot_mtx{};
 	std::array<float, KEY_COUNT> key_values{};
+	std::array<float, PROVIDER_KEY_COUNT> provider_key_values{};
 	std::uint32_t active_key_count = 0;
 	std::uint64_t snapshot_generation = 0;
 	std::uint64_t snapshot_timestamp_us = 0;
@@ -388,6 +403,33 @@ struct Device
 		  synchronous_poll(UAP_SYNCHRONOUS_POLL != 0 && kbd.isPoll()), poll_transport(kbd.isPoll())
 	{
 		telemetry_seen_levels.set(0);
+		// Constructor runs only after stable-ID deduplication and before worker
+		// publication. No competing handle, periodic query, or changing ID seed.
+#if SOUP_WINDOWS
+		if (kbd.hid.vendor_id == 0x352d &&
+			(kbd.hid.product_id == 0x2382 || kbd.hid.product_id == 0x2383 ||
+			 kbd.hid.product_id == 0x2384 || kbd.hid.product_id == 0x2386 || kbd.hid.product_id == 0x2391))
+		{
+			HANDLE mutex = CreateMutexA(nullptr, FALSE, "DrunkDeerMtx");
+			if (mutex)
+			{
+				const DWORD wait = WaitForSingleObject(mutex, 100);
+				if (wait == WAIT_OBJECT_0 || wait == WAIT_ABANDONED)
+				{
+					const auto request = halljoy::drunkdeer_identity::Request();
+					const auto& reply = kbd.hid.transactReport(request.data(), request.size(), 100);
+					const auto identity = halljoy::drunkdeer_identity::Parse(reply.data(), reply.size());
+					if (halljoy::drunkdeer_identity::MatchesProduct(identity.model, kbd.hid.product_id))
+						kbd.drunkdeer_model = static_cast<uint8_t>(identity.model);
+					ReleaseMutex(mutex);
+				}
+				CloseHandle(mutex);
+			}
+			if (const auto* name = halljoy::drunkdeer_identity::Name(
+				static_cast<halljoy::drunkdeer_identity::Model>(kbd.drunkdeer_model)))
+				kbd.name = name;
+		}
+#endif
 		const std::string combined_name = manufacturer_name + " " + kbd.name;
 		if (kbd.hid.usage_page == 0xFF54)
 		{
@@ -467,13 +509,21 @@ struct Device
 		drop_device_info(info);
 	}
 
-	void publish_dense(const std::array<float, KEY_COUNT>& dense)
+	void publish_snapshot(const std::array<float, KEY_COUNT>& dense,
+		const std::array<float, PROVIDER_KEY_COUNT>& provider_values)
 	{
 		const uint64_t now_us = halljoy_telemetry_now_us();
 		std::uint32_t active_count = 0;
+		bool values_changed = false;
 		{
 			halljoy::uap::LockGuard<soup::RecursiveMutex> snapshot_lock(snapshot_mtx);
-		for (std::size_t code = 0; code < KEY_COUNT; ++code)
+			for (std::size_t key = 0; key < PROVIDER_KEY_COUNT; ++key)
+			{
+				const float value = std::clamp(provider_values[key], 0.0f, 1.0f);
+				values_changed = values_changed || provider_key_values[key] != value;
+				provider_key_values[key] = value;
+			}
+			for (std::size_t code = 0; code < KEY_COUNT; ++code)
 		{
 			const float value = std::clamp(dense[code], 0.0f, 1.0f);
 			key_values[code] = value;
@@ -525,14 +575,20 @@ struct Device
 		}
 		telemetry_last_update_us = now_us;
 			++telemetry_update_count;
+			if (values_changed)
+			{
+				halljoy_value_timestamp_us.store(now_us, std::memory_order_release);
+				halljoy_value_generation.fetch_add(1, std::memory_order_release);
+			}
+			halljoy_signal_snapshot_update();
 		}
-		halljoy_signal_snapshot_update();
 	}
 
 	void clear_snapshot()
 	{
 		std::array<float, KEY_COUNT> empty{};
-		publish_dense(empty);
+		std::array<float, PROVIDER_KEY_COUNT> provider_empty{};
+		publish_snapshot(empty, provider_empty);
 	}
 
 	bool poll_worker_stale(uint64_t now_us, uint64_t timeout_us)
@@ -557,6 +613,8 @@ struct Device
 		out.usagePage = kbd.hid.usage_page;
 		out.usage = kbd.hid.usage;
 		out.flags = HallJoyPluginTelemetry::DeviceFlag_Connected;
+		if (kbd.hid.vendor_id == 0x352d && kbd.drunkdeer_model != 0)
+			out.flags |= HallJoyPluginTelemetry::DeviceFlag_VerifiedModel;
 		if (duplicate_safe_id)
 		{
 			out.flags |= HallJoyPluginTelemetry::DeviceFlag_DuplicateSafeId;
@@ -629,21 +687,22 @@ struct Device
 	void update_from_keyboard()
 	{
 		std::array<float, KEY_COUNT> dense{};
+		std::array<float, PROVIDER_KEY_COUNT> provider_values{};
 		for (const auto& key : kbd.getActiveKeys())
 		{
-			const uint16_t code = mapToWootingKey(key.getSoupKey());
-			if (code >= KEY_COUNT)
-			{
-				continue;
-			}
 			float value = key.getFValue();
 			if (!std::isfinite(value) || value <= 0.0f)
 				value = 0.0f;
 			else if (value > 1.0f)
 				value = 1.0f;
-			dense[code] = (std::max)(dense[code], value);
+			const auto soup_key = static_cast<std::size_t>(key.getSoupKey());
+			if (soup_key < provider_values.size())
+				provider_values[soup_key] = (std::max)(provider_values[soup_key], value);
+			const uint16_t code = mapToWootingKey(key.getSoupKey());
+			if (code < KEY_COUNT)
+				dense[code] = (std::max)(dense[code], value);
 		}
-		publish_dense(dense);
+		publish_snapshot(dense, provider_values);
 	}
 };
 
@@ -727,6 +786,238 @@ SOUP_CEXPORT uint32_t halljoy_get_dense_snapshots(
 		}
 		return count;
 	}, []() noexcept { halljoy_mark_plugin_fault(0xE0470004u); });
+}
+
+static bool halljoy_build_provider_snapshot_v2(
+	halljoy::analog_provider_v2::AnalogSnapshotHeaderV2* header,
+	halljoy::analog_provider_v2::AnalogDeviceV2* device_buffer,
+	uint32_t device_capacity,
+	halljoy::analog_provider_v2::AnalogSampleV2* sample_buffer,
+	uint32_t sample_capacity,
+	HallJoyDenseSnapshot::DeviceV1* legacy_dense_buffer,
+	uint32_t legacy_dense_capacity)
+{
+	using namespace halljoy::analog_provider_v2;
+	constexpr std::size_t kNegotiatedDeviceSafetyLimit = 4096;
+	constexpr std::size_t kNegotiatedSampleSafetyLimit = 1048576;
+	constexpr unsigned int kTopologyCaptureAttempts = 4;
+	std::array<HallJoyUapProviderV2::ProjectionKey, soup::NUM_KEYS> keys{};
+	std::size_t key_count = 0;
+	for (uint32_t key = 0; key < static_cast<uint32_t>(soup::NUM_KEYS); ++key)
+	{
+		const auto identity = HallJoyUapProviderV2::IdentityFromLegacyCode(
+			mapToWootingKey(static_cast<soup::Key>(key)));
+		if (!IsValid(identity))
+			continue;
+		bool duplicate = false;
+		for (std::size_t earlier = 0; earlier < key_count; ++earlier)
+			duplicate = duplicate || keys[earlier].identity == identity;
+		if (!duplicate)
+			keys[key_count++] = { identity, key };
+	}
+
+	using DeviceOwner = typename decltype(devices)::value_type;
+	thread_local std::vector<DeviceOwner> owner_storage;
+	thread_local std::vector<HallJoyUapProviderV2::ProjectionDevice>
+		projection_devices;
+	thread_local std::vector<soup::RecursiveMutex*> snapshot_lock_storage;
+
+	halljoy::uap::PinnedOwnerLease<DeviceOwner> pinned_devices;
+	uint64_t ownership_before = 0;
+	bool owner_capture_complete = false;
+	for (unsigned int attempt = 0; attempt < kTopologyCaptureAttempts; ++attempt)
+	{
+		ownership_before =
+			halljoy_ownership_generation.load(std::memory_order_acquire);
+		const std::size_t required =
+			halljoy::uap::QueryOwnerCount(devices_mtx, devices);
+		if (required > kNegotiatedDeviceSafetyLimit ||
+			(key_count != 0 &&
+				required > kNegotiatedSampleSafetyLimit / key_count))
+		{
+			return false;
+		}
+
+		// Every growth operation occurs after the short registry-count query and
+		// before the registry capture or any per-device lock.
+		if (owner_storage.size() < required)
+			owner_storage.resize(required);
+		if (projection_devices.size() < required)
+			projection_devices.resize(required);
+		if (snapshot_lock_storage.size() < required)
+			snapshot_lock_storage.resize(required);
+
+		auto candidate = halljoy::uap::PinOwnersInto(
+			devices_mtx, devices, required, owner_storage.data(),
+			owner_storage.size());
+		if (candidate.count == candidate.required_count &&
+			halljoy_ownership_generation.load(std::memory_order_acquire) ==
+				ownership_before)
+		{
+			pinned_devices = std::move(candidate);
+			owner_capture_complete = true;
+			break;
+		}
+	}
+	if (!owner_capture_complete ||
+		pinned_devices.count != pinned_devices.required_count)
+		return false;
+
+	halljoy::uap::LockSetView<soup::RecursiveMutex> snapshot_locks(
+		snapshot_lock_storage.data(), pinned_devices.count);
+	for (std::size_t i = 0; i < pinned_devices.count; ++i)
+	{
+		if (!snapshot_locks.Acquire(pinned_devices.owners[i]->snapshot_mtx))
+			return false;
+	}
+
+	for (std::size_t di = 0; di < pinned_devices.count; ++di)
+	{
+		const auto& source = pinned_devices.owners[di];
+		// Topology publication precedes the first hardware acquisition.  Do not
+		// label the constructor-zero arrays Fresh: callers must retain their last
+		// accepted generation until every captured device has published once.
+		if (source->snapshot_generation == 0 || source->snapshot_timestamp_us == 0)
+			return false;
+		auto& projection = projection_devices[di];
+		projection.descriptor = AnalogDeviceV2{};
+		projection.descriptor.deviceId = source->id;
+		projection.descriptor.flags = AnalogDeviceFlag_Connected;
+		if (source->duplicate_safe_id)
+			projection.descriptor.flags |= AnalogDeviceFlag_StableIdentity;
+		projection.descriptor.vendorId = source->kbd.hid.vendor_id;
+		projection.descriptor.productId = source->kbd.hid.product_id;
+		projection.descriptor.usagePage = source->kbd.hid.usage_page;
+		projection.descriptor.usage = source->kbd.hid.usage;
+		projection.values = source->provider_key_values.data();
+		projection.valueCount = source->provider_key_values.size();
+		projection.sampleTimestampUs = source->snapshot_timestamp_us;
+	}
+
+	if (halljoy_ownership_generation.load(std::memory_order_acquire) != ownership_before)
+		return false;
+	const uint64_t value_timestamp =
+		halljoy_value_timestamp_us.load(std::memory_order_acquire);
+	const HallJoyUapProviderV2::ProjectionGeneration generation{
+		1,
+		halljoy_snapshot_generation.load(std::memory_order_acquire),
+		halljoy_value_generation.load(std::memory_order_acquire),
+		ownership_before,
+		value_timestamp,
+		halljoy_telemetry_now_us(),
+	};
+	if (HallJoyUapProviderV2::BuildSnapshot(
+		keys.data(), key_count,
+		projection_devices.data(), pinned_devices.count,
+		pinned_devices.required_count, generation, header,
+		device_buffer, device_capacity, sample_buffer, sample_capacity) !=
+		HallJoyUapProviderV2::ProjectionError::None)
+	{
+		return false;
+	}
+
+	if (legacy_dense_buffer == nullptr)
+		return true;
+	if (header->deviceCount > legacy_dense_capacity)
+		return false;
+
+	std::array<float, HallJoyDenseSnapshot::kKeyCount> projected_dense{};
+	for (std::uint32_t di = 0; di < header->deviceCount; ++di)
+	{
+		const auto& source = pinned_devices.owners[di];
+		auto& out = legacy_dense_buffer[di];
+		out = HallJoyDenseSnapshot::DeviceV1{};
+		out.structSize = sizeof(HallJoyDenseSnapshot::DeviceV1);
+		out.version = HallJoyDenseSnapshot::kVersion;
+		out.deviceId = source->id;
+		out.generation = source->snapshot_generation;
+		out.timestampUs = source->snapshot_timestamp_us;
+		out.activeKeyCount = source->active_key_count;
+		out.flags = HallJoyDenseSnapshot::DeviceFlag_Connected;
+		if (source->duplicate_safe_id)
+			out.flags |= HallJoyDenseSnapshot::DeviceFlag_DuplicateSafeId;
+		out.flags |= source->poll_transport
+			? HallJoyDenseSnapshot::DeviceFlag_PolledTransport
+			: HallJoyDenseSnapshot::DeviceFlag_StreamTransport;
+		out.vendorId = source->kbd.hid.vendor_id;
+		out.productId = source->kbd.hid.product_id;
+		out.usagePage = source->kbd.hid.usage_page;
+		out.usage = source->kbd.hid.usage;
+		std::copy(source->key_values.begin(), source->key_values.end(), out.values);
+
+		if (!HallJoyUapProviderV2::ProjectCapturedDeviceOrdinaryUsbHidDense(
+			*header, sample_buffer, di, projected_dense.data(), projected_dense.size()))
+		{
+			return false;
+		}
+		for (std::size_t code = 0; code < projected_dense.size(); ++code)
+		{
+			if (projected_dense[code] != out.values[code])
+				return false;
+		}
+	}
+	return true;
+}
+
+SOUP_CEXPORT bool halljoy_get_provider_snapshot_v2(
+	halljoy::analog_provider_v2::AnalogSnapshotHeaderV2* header,
+	uint32_t header_size,
+	halljoy::analog_provider_v2::AnalogDeviceV2* device_buffer,
+	uint32_t device_capacity,
+	uint32_t device_element_size,
+	halljoy::analog_provider_v2::AnalogSampleV2* sample_buffer,
+	uint32_t sample_capacity,
+	uint32_t sample_element_size) noexcept
+{
+	using namespace halljoy::analog_provider_v2;
+	if (header == nullptr || header_size != sizeof(AnalogSnapshotHeaderV2) ||
+		(device_capacity != 0 && device_buffer == nullptr) ||
+		(sample_capacity != 0 && sample_buffer == nullptr) ||
+		device_element_size != sizeof(AnalogDeviceV2) ||
+		sample_element_size != sizeof(AnalogSampleV2) || !is_initialised())
+	{
+		return false;
+	}
+
+	return halljoy::uap::CAbiInvoke<bool>(false, [&]() {
+		return halljoy_build_provider_snapshot_v2(
+			header, device_buffer, device_capacity,
+			sample_buffer, sample_capacity, nullptr, 0);
+	}, []() noexcept { halljoy_mark_plugin_fault(0xE0470007u); });
+}
+
+SOUP_CEXPORT bool halljoy_get_dual_snapshot_v2(
+	halljoy::analog_provider_v2::AnalogSnapshotHeaderV2* header,
+	uint32_t header_size,
+	halljoy::analog_provider_v2::AnalogDeviceV2* device_buffer,
+	uint32_t device_capacity,
+	uint32_t device_element_size,
+	halljoy::analog_provider_v2::AnalogSampleV2* sample_buffer,
+	uint32_t sample_capacity,
+	uint32_t sample_element_size,
+	HallJoyDenseSnapshot::DeviceV1* legacy_dense_buffer,
+	uint32_t legacy_dense_capacity,
+	uint32_t legacy_dense_element_size) noexcept
+{
+	using namespace halljoy::analog_provider_v2;
+	if (header == nullptr || header_size != sizeof(AnalogSnapshotHeaderV2) ||
+		(device_capacity != 0 && device_buffer == nullptr) ||
+		(sample_capacity != 0 && sample_buffer == nullptr) ||
+		legacy_dense_buffer == nullptr || legacy_dense_capacity == 0 ||
+		device_element_size != sizeof(AnalogDeviceV2) ||
+		sample_element_size != sizeof(AnalogSampleV2) ||
+		legacy_dense_element_size != sizeof(HallJoyDenseSnapshot::DeviceV1) ||
+		!is_initialised())
+	{
+		return false;
+	}
+
+	return halljoy::uap::CAbiInvoke<bool>(false, [&]() {
+		return halljoy_build_provider_snapshot_v2(
+			header, device_buffer, device_capacity,
+			sample_buffer, sample_capacity,
+			legacy_dense_buffer, legacy_dense_capacity);
+	}, []() noexcept { halljoy_mark_plugin_fault(0xE0470012u); });
 }
 
 // Actual important stuff
@@ -853,14 +1144,18 @@ static void remove_stopped_devices()
 
 		{
 			halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
+			bool removed = false;
 			for (auto it = devices.begin(); it != devices.end(); ++it)
 			{
 				if (it->get() == stopped.get())
 				{
 					devices.erase(it);
+					removed = true;
 					break;
 				}
 			}
+			if (removed)
+				halljoy_signal_topology_update();
 		}
 	}
 }
@@ -927,6 +1222,7 @@ static void discover_devices(bool initial)
 			halljoy::uap::LockGuard<soup::RecursiveMutex> devices_lock(devices_mtx);
 			devices.emplace_back(std::move(owner));
 		}
+		halljoy_signal_topology_update();
 
 		if (!raw->synchronous_poll)
 		{

@@ -1,0 +1,305 @@
+{
+  "schema": 1,
+  "brands": {
+    "Keychron": {"adapter": "keychron", "guide": "docs/current/KEYCHRON_COMPOUND_LAYOUTS.md"},
+    "Lemokey": {"adapter": "lemokey", "guide": "docs/current/LEMOKEY_LAYOUTS.md"},
+    "DrunkDeer": {"adapter": "drunkdeer", "guide": "docs/current/DRUNKDEER_LAYOUTS.md"},
+    "Aula": {
+      "adapter": "aula-w669",
+      "runtime": true,
+      "guide": "docs/current/AULA_LAYOUT_PIPELINE.md",
+      "models": [
+        {
+          "id": "aula_win60_standard_ansi", "model": "WIN 60 HE Standard", "variant": "ANSI", "count": 61,
+          "source": "docs/research/aula-layout-sources/SI2825HEARGB.json",
+          "url": "https://hed.aulacn.com/config/keys/SI2825HEARGB.json",
+          "sha256": "04e2fda00fdb1645c74d42121102c1cf233658ddf43fb2611ace57460cfcb448",
+          "factory": "Win60FactoryMap",
+          "products": ["SI2825HEARGB", "SI2825KRT12HEARGB", "SI2825KR-AHEARGB", "SI2825KZHEARGB"]
+        },
+        {
+          "id": "aula_win68_standard_ansi", "model": "WIN 68 HE Standard", "variant": "ANSI", "count": 68,
+          "source": "docs/research/aula-layout-sources/SI2828HEARGB.json",
+          "url": "https://hed.aulacn.com/config/keys/SI2828HEARGB.json",
+          "sha256": "cc2cbbc9c051230279ba8ce3b52054739446dc19c78cf1a38adfd2d7c6cdf9e1",
+          "factory": "Win68FactoryMap",
+          "products": ["SI2828HEARGB", "SI2828KZHEARGB"]
+        }
+        ,{
+          "id": "aula_win60_max_ansi", "model": "WIN 60 HE MAX", "variant": "ANSI", "count": 61,
+          "adapter": "aula-max",
+          "source": "docs/research/aula-max-layout-sources/index-C7aUVaaC.js",
+          "url": "https://magnet.aulastar.com/assets/index-C7aUVaaC.js",
+          "sha256": "636245fe485fa9dddc74b2ecc3b3779a1c83848174de9ecbef9ce17084004d05",
+          "css": "docs/research/aula-max-layout-sources/index-lKmrC98y.css",
+          "cssUrl": "https://magnet.aulastar.com/assets/index-lKmrC98y.css",
+          "cssSha256": "214f2f2161b9e092210f8c8b801b851b01e8da83774fb4e220db16720c46980e",
+          "products": ["0A021902"]
+        }
+      ],
+      "pending": [
+        {"model": "KP-TE153", "reason": "Protocol profile exists; brand attribution and compound geometry require a separate review."}
+      ],
+      "excluded": ["HERO84 HE: frozen, not supported"]
+    },
+    "Redragon": {
+      "adapter": "redragon-w669", "runtime": true,
+      "guide": "docs/current/REDRAGON_LAYOUTS.md",
+      "models": [
+        {
+          "id": "redragon_k673_us_ansi", "model": "K673WB-RGB-M", "variant": "ANSI", "count": 80,
+          "source": "docs/research/redragon-layout-sources/7272USHEXYXK673JCARGB.json",
+          "url": "https://www.illumipc.com/config/keys/7272USHEXYXK673JCARGB.json",
+          "sha256": "3793c15e57e7b2f70f158eefb746d85da4d9a3ca04d625100b6888a3b64e06cd",
+          "css": "docs/research/redragon-layout-sources/mainIndex8.min.css",
+          "cssUrl": "https://www.illumipc.com/css/mainIndex8.min.css",
+          "cssSha256": "e90906657ed201b9cfbde5de88d082920e9184c8a0d4a807f630065752f62c43",
+          "factory": "K673UsFactoryMap", "products": ["7272USHEXYXK673JCARGB"]
+        },
+        {
+          "id": "redragon_k673_uk_iso", "model": "K673RGB-M", "variant": "ISO", "count": 81,
+          "source": "docs/research/redragon-layout-sources/7272UKHEXYXBJCARGB.json",
+          "url": "https://www.illumipc.com/config/keys/7272UKHEXYXBJCARGB.json",
+          "sha256": "95caecc35b88f7d5bb489ff00b966d5a027e525450898fb7066b8dc4c72e12a7",
+          "css": "docs/research/redragon-layout-sources/mainIndex8.min.css",
+          "cssUrl": "https://www.illumipc.com/css/mainIndex8.min.css",
+          "cssSha256": "e90906657ed201b9cfbde5de88d082920e9184c8a0d4a807f630065752f62c43",
+          "factory": "K673UkFactoryMap", "products": ["7272UKHEXYXBJCARGB"]
+        }
+      ],
+      "pending": [{"model": "K673 BR", "reason": "Official position 100 publishes IntlRo (0x87) instead of Right Shift; no guessed substitution or protocol change. Fn/encoder have no published HID."}]
+    },
+  "Razer": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/FINAL_LAYOUT_BATCH.md",
+      "models": [
+        {
+          "id": "razer_huntsman_v3_pro_mini_ansi",
+          "model": "Huntsman V3 Pro Mini",
+          "variant": "ANSI",
+          "brand": "Razer",
+          "count": 61,
+          "source": "docs/research/final-layout-reports/razer_huntsman_v3_pro_mini_ansi.json",
+          "sha256": "882d73bae8bb04b43371d43d96d789534e18848a87e223947e7e4ec06bc0239d",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "razer_huntsman_v3_pro_mini_iso",
+          "model": "Huntsman V3 Pro Mini",
+          "variant": "ISO",
+          "brand": "Razer",
+          "count": 62,
+          "source": "docs/research/final-layout-reports/razer_huntsman_v3_pro_mini_iso.json",
+          "sha256": "f8dea23ada42db4f40434362465c430d1f543a5f409f00302422f53d9e83081a",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "razer_huntsman_v3_pro_mini_jis",
+          "model": "Huntsman V3 Pro Mini",
+          "variant": "JIS",
+          "brand": "Razer",
+          "count": 65,
+          "source": "docs/research/final-layout-reports/razer_huntsman_v3_pro_mini_jis.json",
+          "sha256": "7219b279c7d3eefea6a2034e8cc5a9d477d463553ca535e29a6f921017d363bc",
+          "products": [],
+          "url": ""
+        }
+      ],
+      "pending": [
+        {
+          "model": "Huntsman V2 Analog / Mini Analog / V3 Pro / V3 Pro Tenkeyless",
+          "reason": "Exact source geometry unavailable in reviewed Synapse Web product catalog; existing analog support unchanged."
+        }
+      ]
+    },
+    "NuPhy": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/FINAL_LAYOUT_BATCH.md",
+      "models": [
+        {
+          "id": "nuphy_air60_he_ansi",
+          "model": "Air60 HE",
+          "variant": "ANSI",
+          "brand": "NuPhy",
+          "count": 61,
+          "source": "docs/research/final-layout-reports/nuphy_air60_he_ansi.json",
+          "sha256": "07102b9598db0a86a8a49b4693c875292c3e53a48d9bdaa3c0a4afc97cd5519b",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "nuphy_air75_he_ansi",
+          "model": "Air75 HE",
+          "variant": "ANSI",
+          "brand": "NuPhy",
+          "count": 83,
+          "source": "docs/research/final-layout-reports/nuphy_air75_he_ansi.json",
+          "sha256": "01bb1d76a03b0b94ced68e792e944db12369d4bb01910ccbc7f239149b524619",
+          "products": [],
+          "url": ""
+        }
+      ],
+      "pending": []
+    },
+    "Wooting": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/FINAL_LAYOUT_BATCH.md",
+      "models": [
+        {
+          "id": "wooting_60he_ansi",
+          "model": "60HE",
+          "variant": "ANSI",
+          "brand": "Wooting",
+          "count": 61,
+          "source": "docs/research/final-layout-reports/wooting_60he_ansi.json",
+          "sha256": "83e810744771dcb7b4aa3946ddff7493f359a48055e729d62bdd659a80fb2389",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_60he_iso",
+          "model": "60HE",
+          "variant": "ISO",
+          "brand": "Wooting",
+          "count": 62,
+          "source": "docs/research/final-layout-reports/wooting_60he_iso.json",
+          "sha256": "5dc92a216fbf20e29255aa72f3ad5189471491738b7d33c2c4d504b49875afe6",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_60he_plus_ansi",
+          "model": "60HE+",
+          "variant": "ANSI",
+          "brand": "Wooting",
+          "count": 61,
+          "source": "docs/research/final-layout-reports/wooting_60he_plus_ansi.json",
+          "sha256": "06583658c6b24a5bebbeceae6ad10db44cb581a9eed6468ddb49028a8be96d44",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_60he_plus_iso",
+          "model": "60HE+",
+          "variant": "ISO",
+          "brand": "Wooting",
+          "count": 62,
+          "source": "docs/research/final-layout-reports/wooting_60he_plus_iso.json",
+          "sha256": "dca25de63859cb13c4ceeb401229949b5edb69543691a078d723e974dc5a8976",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_80he_ansi",
+          "model": "80HE",
+          "variant": "ANSI",
+          "brand": "Wooting",
+          "count": 84,
+          "source": "docs/research/final-layout-reports/wooting_80he_ansi.json",
+          "sha256": "4b32040548da34bc30feb48a69efc22e85bf3e1ad31ff775e5b74e5005218e05",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_80he_iso",
+          "model": "80HE",
+          "variant": "ISO",
+          "brand": "Wooting",
+          "count": 85,
+          "source": "docs/research/final-layout-reports/wooting_80he_iso.json",
+          "sha256": "99750c4d32e41abea43de598d1c2b9c75e110d0eebf00f69ea732e77612a049d",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_80he_jis",
+          "model": "80HE",
+          "variant": "JIS",
+          "brand": "Wooting",
+          "count": 88,
+          "source": "docs/research/final-layout-reports/wooting_80he_jis.json",
+          "sha256": "aec920d20c2e7b386aa0b98d0e4b9560feb6b06ddb2926a74b493bf1aadb385c",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_one_ansi",
+          "model": "One",
+          "variant": "ANSI",
+          "brand": "Wooting",
+          "count": 87,
+          "source": "docs/research/final-layout-reports/wooting_one_ansi.json",
+          "sha256": "e03dd60a21854d2af7c3420979e823b251d0aace2220d51e4aa092ce76fa50c6",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_one_iso",
+          "model": "One",
+          "variant": "ISO",
+          "brand": "Wooting",
+          "count": 88,
+          "source": "docs/research/final-layout-reports/wooting_one_iso.json",
+          "sha256": "be69bc002affd5579a54dfcde2edbb8f3c1dd47bfef9d8bbe0432b057d83936e",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_two_ansi",
+          "model": "Two",
+          "variant": "ANSI",
+          "brand": "Wooting",
+          "count": 108,
+          "source": "docs/research/final-layout-reports/wooting_two_ansi.json",
+          "sha256": "f025c6d98fb2b06fdcbc9f52fde658f910f1938ba7bf06ff0b85e40b34e19a01",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_two_he_ansi",
+          "model": "Two HE",
+          "variant": "ANSI",
+          "brand": "Wooting",
+          "count": 108,
+          "source": "docs/research/final-layout-reports/wooting_two_he_ansi.json",
+          "sha256": "8b254ec9303fd84ee0696a05b2c863d9a4bafbb4edca88f8117fdf263ba055cb",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_two_he_iso",
+          "model": "Two HE",
+          "variant": "ISO",
+          "brand": "Wooting",
+          "count": 109,
+          "source": "docs/research/final-layout-reports/wooting_two_he_iso.json",
+          "sha256": "c7f02389b815a4e8f377f2c6741fd77c7733b69a0dbc423759deaa8f5a887561",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_two_iso",
+          "model": "Two",
+          "variant": "ISO",
+          "brand": "Wooting",
+          "count": 109,
+          "source": "docs/research/final-layout-reports/wooting_two_iso.json",
+          "sha256": "8457cf5695b114896612f96582c64b4b0aca56382eebb876dff0fad14c49c19e",
+          "products": [],
+          "url": ""
+        }
+      ],
+      "pending": [
+        {
+          "model": "60HE v2 / split variants / UwU",
+          "reason": "Outside reviewed v4 keyboard layout batch; no guessed geometry."
+        }
+      ]
+    }
+  }
+}

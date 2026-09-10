@@ -15,6 +15,8 @@ NAMESPACE_SOUP
 		hwHid hid;
 		bool has_ctx_key;
 		bool disconnected = false;
+		// Immutable after device admission; zero means identity not verified.
+		uint8_t drunkdeer_model = 0;
 		union
 		{
 			struct
@@ -30,17 +32,24 @@ NAMESPACE_SOUP
 			} keychron;
 			struct
 			{
-				uint8_t buffer[NUM_KEYS];
+				// NuPhy A0 values are 16-bit raw travel. Keeping that domain until
+				// publication avoids silently reducing an 800/1600-step stream to
+				// the legacy 8-bit cache.
+				uint16_t buffer[NUM_KEYS];
 			} nuphy;
 			struct
 			{
 				uint8_t state;
 				uint8_t consecutive_failed_reports;
+				uint8_t failed_reports[64];
 				uint8_t layout_size;
 				const Key* layout;
 				uint8_t buffer[NUM_KEYS];
 			} madlions;
 		};
+		static_assert(sizeof(decltype(nuphy)) >= sizeof(decltype(razer)));
+		static_assert(sizeof(decltype(nuphy)) >= sizeof(decltype(keychron)));
+		static_assert(sizeof(decltype(nuphy)) >= sizeof(decltype(madlions)));
 
 		AnalogueKeyboard() = default;
 		AnalogueKeyboard(std::string&& name, hwHid&& hid, bool has_ctx_key);

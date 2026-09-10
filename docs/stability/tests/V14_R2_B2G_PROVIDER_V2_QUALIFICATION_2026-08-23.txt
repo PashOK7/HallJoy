@@ -1,0 +1,127 @@
+HallJoy v1.4 correctness evidence
+Package: R2-B2g fail-closed Provider V2 physical qualification
+Date: 2026-08-23
+
+Purpose
+- Turn the bounded R2-B2f live-shadow counters into trustworthy physical
+  evidence without continuous logging or a Provider V2 route switch.
+- Exercise the ordinary HallJoy UI/backend/realtime/shutdown lifecycle.
+- Produce one small finalized report or fail closed as INCOMPLETE/FAIL.
+
+Rejected evidence mechanisms
+- Continuous production log: permanent I/O/noise and no session verdict.
+- UI/screenshot only: no durable session identity or finalization.
+- Hidden partial backend: not the normal configured application lifecycle.
+- Direct counter export: idle/repeated/reset/stale evidence can false-pass.
+
+Selected contract
+- Startup removes stale final/temp reports and atomically writes a flushed
+  finalized=0 INCOMPLETE report with a new session ID.
+- Normal post-logger shutdown atomically finalizes the report.
+- Crash or poisoned immediate process exit cannot finalize PASS.
+- Process counters are monotonic and require exactly one Backend_Init.
+- PASS policy: app exit 0; Provider V2 available; >=1000 eligible ticks;
+  >=1000 matched reports; >=100 unique UAP sample generations; <=1%
+  unavailable ticks; zero digital fallback, curve mutation and mismatch.
+- Duration is recorded as informational only. The original 60-second boundary
+  was removed because a 59.9/60.0-second cliff proves neither equality nor
+  stability; stability is a separate soak/reconnect/fault-injection gate.
+- Every V2-backed configured controller field must reach Provider V2 raw >=0.5
+  and a non-neutral mapped shadow output. It then remains latched pending release
+  until all V2 raw bindings and that shadow field are neutral. Partial return,
+  mouse/native input and Windows digital events cannot satisfy this proof alone.
+- Coverage is independent for 4 pads x 7 fields using bit pad*7+field.
+- Any mismatch is FAIL. Missing proof is INCOMPLETE. Only complete proof is PASS.
+- Backend_Tick performs no report file I/O.
+- production_route=dense_compatibility; shadow_submitted_to_vigem=0.
+
+Regression results
+PROVIDER_V2_QUALIFICATION_STATIC_AUDIT=PASS
+PROVIDER_V2_QUALIFICATION_MODEL_TEST=PASS no_idle_pass=1 duration_informational=1 all_fields_exercised=1 per_pad_coverage=1 release_required=1 partial_travel_not_release=1 mismatch_fails=1 reset_rejected=1
+PROVIDER_V2_CONTROLLER_SHADOW_TEST=PASS identity_projection=1 owned_zero=1 multi_device_max=1 native_arbitration=1 all_fields=1
+UAP_PARENT_SNAPSHOT_TEST=PASS one_publication=1 dense_fallback=1 aggregate_checked=1 dual_checked=1
+Full static and portable/native suite: PASS
+
+Dedicated qualification Release x64
+- MSVC result: PASS, 0 errors.
+- Only allow-listed external ViGEmClient LNK4099 warning.
+- Exact production-style startup/shutdown smoke: PASS.
+- Exact qualification transaction smoke: PASS.
+- Continuous diagnostic logs/crash report: absent.
+- Path: build/provider-v2-qualification/HallJoy.exe
+- Size: 8,653,312 bytes
+- SHA-256: 60C2E205C61CF6F61EE6216DB46A825121A34975924D35D2C9A96FC85473ED71
+
+Schema-2 short fail-closed report
+- finalized=1; verdict=INCOMPLETE; app_exit_code=0.
+- schema=2; duration_is_informational=1.
+- evidence_gaps=0x00000300.
+- available=1; backend_init_count=1.
+- eligible_ticks=2039; matched_reports=2039; mismatched_reports=0.
+- eligible_duration_ms=2547; unique_sample_generations=504.
+- unavailable_ticks=0; digital_fallback_ticks=0; curve_mutation_ticks=0.
+- configured_pad_field_mask=0x0000007E.
+- activated_pad_field_mask=0x00000000.
+- released_pad_field_mask=0x00000000.
+- missing activated mask=0x0000007E; missing released mask=0x0000007E.
+- coverage_source=provider_v2_raw_gated_shadow_output.
+- activation_policy=provider_raw_at_least_0.5_and_shadow_non_neutral.
+- release_policy=latched_until_provider_raw_zero_and_shadow_neutral.
+- Every per-field mismatch counter is zero.
+- Temporary report after shutdown: absent.
+- Result is intentionally INCOMPLETE solely because physical field activation/
+  release was absent. Its 2,547 ms duration does not add an evidence gap.
+
+Representative physical schema-1 evidence
+- Both reports came from the same exact qualification EXE, 8,653,312 bytes,
+  SHA-256 0357A68E60E3DFDDC496DAC7D514C862A873C6FC3EC47AC56AF50F9D4DE9A8BB.
+- Report 1 SHA-256:
+  BE0084B54F2A753B623AE78D56D44BB26514849BF58E0747AB07B06668614A51.
+- Report 1: finalized=1; 35,744 eligible/matched frames; 8,776 unique
+  generations; configured=0x7A; activated/released=0x78; only LT absent;
+  zero mismatches, unavailable, fallback and mutation ticks.
+- Report 2 SHA-256:
+  DE1380EEE913D5DA1292F4A030ACF0C70C8AFE9D149CDC497AD14C058CAB2620.
+- Report 2: finalized=1; 8,135 eligible/matched frames; 2,001 unique
+  generations; configured=0x7E; activated/released=0x26, including both LT and
+  RT; zero mismatches, unavailable, fallback and mutation ticks.
+- Aggregated same-executable result: 43,879 matched frames, 10,777 unique
+  generations, configured/activated/released union=0x7E, zero mismatches/skips.
+- Representative physical configured Provider V2 equality: PASS.
+- This is equality/coverage evidence, not a claim of week-long stability.
+
+Ordinary production requalification
+- Full official build: PASS, 0 errors, no unexpected warnings.
+- Embedded ViGEm installer hash/signature self-test: PASS.
+- Exact private UAP runtime: 1 device, 127 V2 samples, dual-view equivalent.
+- UAP_PROVIDER_V2_EXACT_EXE_DUAL_CAPTURE=PASS.
+- Sequential 10-second startup/WM_CLOSE smoke: PASS.
+- Continuous log, crash report, qualification report/temp: absent.
+- Path: build/release/HallJoy.exe
+- Size: 8,644,608 bytes
+- SHA-256: 9E7FD20D41E441AF50D42A12FB9C44AEDB917C29D5A69FB4CA0778678DC63166
+- Production route remains dense compatibility; no V2 promotion occurred.
+
+Protected user artifact
+- build/gravastar-v75-diagnostic/HallJoy.exe
+- Size: 8,683,008 bytes
+- SHA-256: 2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B
+- Unchanged and not executed, overwritten, terminated or promoted.
+- Three unrelated C:\github\HallJoy_v1.4\build\release\HallJoy.exe processes
+  remained running and were not touched.
+
+Backups
+- .analysis/backups/r2_provider_v2_qualification_pre_20260823_0330
+- .analysis/backups/r2_provider_v2_qualification_docs_pre_20260823_1130
+- .analysis/backups/r2_b2g_duration_policy_pre_20260823_1150
+- .analysis/backups/r2_b2g_physical_docs_pre_20260823_1200
+
+Remaining boundary
+- Local implementation, exact-artifact and representative physical configured
+  equality gates are PASS; no repeat hardware run is requested for R2-B2g.
+- Production still publishes dense compatibility output.
+- Provider V2 promotion requires a separate explicit architecture decision.
+- Long-duration stability remains separately qualified; no arbitrary duration
+  is represented as proof against every future failure.
+- No GitHub/network or version-control mutation occurred; the locked UAP
+  overlay verifier performed its normal read-only local check.

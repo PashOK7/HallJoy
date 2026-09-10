@@ -1,0 +1,114 @@
+HallJoy v1.4 release-readiness IROK/ViGEm freeze forensics
+Date: 2026-08-21
+Status: physical failure evidence; production fix not implemented
+
+Artifacts inspected read-only
+-----------------------------
+HallJoyStabilityTrace.previous (1).log
+  size: 146608 bytes
+  SHA-256: 8F2D1F275BA681A662F2DC86BE42B3F42C64953FEB9FE2F03734E57B3E422737
+
+HallJoyStabilityTrace (5).log
+  size: 104363 bytes
+  SHA-256: FF8E7360299528182C522A627F8F2770FE17189BE0014265539EE59EF529A290
+
+HallJoyDiagnosticExit.txt
+  size: 347 bytes
+  SHA-256: C27B42C8D6FE0EFA1BA3E45CC7DA7279BBF84845819DC43B30255E507491C379
+
+HallJoyDiagnosticCrash.txt
+  size: 498 bytes
+  SHA-256: 74BB9A3551936E5BA690577B9D345F740B5AF4A1273A2148611B1F1A8DD8F069
+
+Known-good owner A/B artifact
+  path at inspection: C:\github\HallJoy_v1.4\build\release\HallJoy.exe
+  size: 2188288 bytes
+  SHA-256: B21060D0FE5676A6301DDB2EEB0412DFBF5EDC4850BAD575B82045905FDE4243
+  owner result: IROK MG75 Max fully working
+
+Failing diagnostic candidate
+  path at inspection: build\release\HallJoy.exe
+  size: 8485376 bytes
+  SHA-256: 7EB42CF1687D0DB1FF16721875C5F36B502FD96D1EB1DEC686C3AC4EEA85AB6B
+
+Run 1: output freeze
+--------------------
+At elapsed 30562 ms the UI logged "keyboard hook removed".
+At elapsed 30797 ms the ViGEm watchdog began recovery with:
+  alive=1 fault_kind=0 has_thread=1
+VigemOutput_Stop immediately returned:
+  wait=4294967295 (WAIT_FAILED)
+  win32=6 (ERROR_INVALID_HANDLE)
+  handles_retained=1 restart_blocked=1
+The output worker logged a normal fault_kind=0 exit at the same elapsed time.
+The lifecycle was marked poisoned. The log then contains 161 blocked recovery
+attempts and no recovery completion before shutdown.
+
+SparkLink continued independently until close:
+  route_queries=279189
+  route_ok=279189
+  route_fail=0
+  changed_rows=6530
+  avg_route_interval_us=424
+  max_route_interval_us=3255
+
+Conclusion: the observed frozen analogue gamepad state is a common ViGEm
+output/lifecycle failure, not an IROK transport failure. The 235 ms proximity
+to hook removal is a correlation and required stress-oracle input, not proof of
+causation.
+
+Run 2: independent shutdown poison
+----------------------------------
+ViGEm output started and remained alive for the 160-second run. No output
+watchdog recovery was logged.
+
+SparkLink result:
+  route_queries=421858
+  route_ok=421858
+  route_fail=0
+  changed_rows=15755
+  avg_route_interval_us=408
+  max_route_interval_us=5250
+
+Shutdown then logged:
+  sayo stop.lock_timeout wait_ms=500 lifecycle_lock_retained=1 restart_blocked=1
+  app shutdown.poisoned component=native-analog
+  main session.end exit_code=2
+
+HallJoyDiagnosticExit.txt confirms process exit code 2. The separate crash file
+states source=exit_watchdog_synthetic, vectored_report_present=0. It must not be
+classified as an unhandled exception crash.
+
+Source comparison boundary
+--------------------------
+The available stable and current backend.cpp implementations from
+VigemOutput_Wake through Backend_EnsureOutputWorkerRunning are line-for-line
+identical after their one-line offset. Therefore the stable EXE is a mandatory
+A/B runtime baseline but does not prove that the shared output lifecycle is
+correct. The cause may be a latent interleaving, handle lifetime violation or
+memory corruption exposed by other candidate behavior. Root-cause work must
+instrument create/duplicate/wait/close provenance and generations.
+
+Separate code-audit finding
+---------------------------
+SparkLink uses one global failStreak and one global lastPacket timestamp. A
+failed active row advances to another row; a successful neighbour resets the
+streak and refreshes lastPacket. A permanently failing row can therefore keep
+its previously published values indefinitely while the device remains globally
+fresh. This was not the failure in the supplied logs (route_fail=0), but it is a
+mandatory lost-release fix before release.
+
+Required next evidence
+----------------------
+1. Deterministic old-bug oracle for invalid/reused ViGEm thread and wake handles.
+2. Hook/profile/device-change/output-enable stress with continuous reports.
+3. Progress acknowledgement and bounded neutral/rebuild recovery proof.
+4. Sayo lifecycle-lock owner/hold-time trace and absent-backend shutdown test.
+5. Spark alternating/permanent single-row failure and lost-release tests.
+6. Exact final-EXE IROK and DrunkDeer physical regression.
+
+Privacy boundary
+----------------
+Raw user logs were inspected in Downloads and were not copied into the project.
+This file retains hashes, event facts and aggregate counters only. It does not
+retain HID paths, serials, usernames, command lines or raw key-travel history.

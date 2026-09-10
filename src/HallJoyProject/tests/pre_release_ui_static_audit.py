@@ -121,6 +121,10 @@ require(PAGES.count("PremiumCombo::PaintRetainedFace") >= 3 and
         "all retained combo faces must reuse the exact PremiumCombo renderer")
 require("GetFocus() == hwndCombo" not in COMBO_PAINT,
         "PremiumCombo must not add a second bright focus outline when its popup opens")
+require("kGlyphCacheMaxEntries = 256" in (ROOT / "HallJoy" / "keyboard_render.cpp").read_text(encoding="utf-8") and
+        "GlyphCache_EvictOneIfFull" in (ROOT / "HallJoy" / "keyboard_render.cpp").read_text(encoding="utf-8") and
+        "kIconCacheMaxEntries = 256" in REMAP and "IconCache_EvictOneIfFull" in REMAP,
+        "DPI/style glyph caches evict owned GDI pairs at a fixed bound")
 require("MsgDropStateChanged" in COMBO_ANIM and
         PAGES.count("msg == PremiumCombo::MsgDropStateChanged()") >= 2 and
         "ShowWindow((HWND)lParam, SW_HIDE)" in PAGES,
@@ -136,7 +140,7 @@ require("flatIndex >= 0 && flatIndex < (int)st->iconBtns.size()" in REMAP,
         "retained Remap icon hit classification must be bounded by the actual icon collection")
 
 binding_transaction = section(UI, "bool KeyboardUI_SaveBindingsAfterUserChange", "static uint64_t HashAnalogTelemetry")
-require("Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str())" in binding_transaction and
+require("GlobalProfiles_Save(GlobalProfiles_GetActiveName())" in binding_transaction and
         "GlobalProfiles_SetDirty(true)" in binding_transaction and
         "PostMessageW(g_hPageGlobal, WM_APP_KEYBOARD_GLOBAL_PROFILE_DIRTY" in binding_transaction,
         "a user binding mutation must persist and mark/refresh the active global profile atomically")
@@ -180,8 +184,9 @@ require("OverlayServer_GetEffectStrengthPercent(OverlayEffect_Smoothing)" in SET
         'IniReadI32(L"InputOverlay", L"StrengthSmoothing", overlaySmoothDef, path)' in SETTINGS_INI,
         "missing smoothing keys must use the new default while stored profiles remain authoritative")
 
-require("Config_DrawLiveStatus" in PAGES and "Live diagnostics: Gamepad Tester" in PAGES,
-        "Configuration must point to the canonical diagnostics surface")
+require("Config_DrawLiveStatus" in PAGES and "BuildAnalogDiagnosticsLines" in PAGES
+        and "Live diagnostics: Gamepad Tester" not in PAGES,
+        "Keep tester diagnostics and preset feedback without the redundant Configuration hint")
 require(PAGES.count("BuildAnalogDiagnosticsLines(") == 3,
         "route-complete diagnostics builder must be declared, defined, and consumed once")
 tester = section(PAGES, "struct TesterPageState", "// ============================================================================\n// Input Overlay page")

@@ -1,3 +1,4 @@
+#include "../HallJoy/analog_key_codes.h"
 #include "../HallJoy/aula_win60he_protocol.h"
 #include "aula_win60he_oracle_fixtures.h"
 
@@ -126,12 +127,12 @@ void TestActiveFn0OracleAndPaddingCorrelation()
     }
     assert(valueIndex == kExpectedActiveValues.size());
 
-    KeyMap active{};
+    ActiveKeyMap active{};
     BuildPublishableActiveKeyMap(kFirmwareKeyMap, functions, &active);
     assert(active[1][0] == 0x52u); // physical Esc -> active Up
     assert(active[3][1] == 0u);    // physical A disabled
-    assert(active[5][12] == 0u);   // internal F001 never becomes HID 01
-    assert(CountMappedHids(active) == kOracleActiveMappedUsages);
+    assert(active[5][12] == halljoy::keycode::kFn);
+    assert(CountMappedKeyCodes(active) == kOracleActiveMappedKeyCodes);
 
     // Mutate only the low byte of the last repeated padding record. The weak
     // firmware checksum depends on the final high byte, so framing still

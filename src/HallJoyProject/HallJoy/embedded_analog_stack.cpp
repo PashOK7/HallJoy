@@ -167,18 +167,29 @@ bool ExtractResourceAtomic(HINSTANCE hInst, int resourceId, const std::wstring& 
     return true;
 }
 
-bool ResourceEqualsFile(HINSTANCE hInst, int resourceId, const std::wstring& path)
+bool ResourceEqualsFileLocked(HINSTANCE hInst, int resourceId, const std::wstring& path,
+    HANDLE* leaseOut)
 {
     const void* resourceBytes = nullptr;
     DWORD resourceSize = 0;
-    if (!GetResourceBytes(hInst, resourceId, resourceBytes, resourceSize))
+    if (leaseOut) *leaseOut = nullptr;
+    if (!GetResourceBytes(hInst, resourceId, resourceBytes, resourceSize) || path.empty())
         return false;
 
     HANDLE file = CreateFileW(path.c_str(), GENERIC_READ,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-        nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
     if (file == INVALID_HANDLE_VALUE)
         return false;
+
+    BY_HANDLE_FILE_INFORMATION information{};
+    if (!GetFileInformationByHandle(file, &information) ||
+        (information.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) != 0)
+    {
+        CloseHandle(file);
+        SetLastError(ERROR_INVALID_DATA);
+        return false;
+    }
 
     LARGE_INTEGER fileSize{};
     if (!GetFileSizeEx(file, &fileSize) || fileSize.QuadPart != resourceSize)
@@ -203,8 +214,21 @@ bool ResourceEqualsFile(HINSTANCE hInst, int resourceId, const std::wstring& pat
         }
         offset += read;
     }
-    CloseHandle(file);
-    return equal;
+    if (!equal)
+    {
+        CloseHandle(file);
+        return false;
+    }
+    if (leaseOut)
+        *leaseOut = file;
+    else
+        CloseHandle(file);
+    return true;
+}
+
+bool ResourceEqualsFile(HINSTANCE hInst, int resourceId, const std::wstring& path)
+{
+    return ResourceEqualsFileLocked(hInst, resourceId, path, nullptr);
 }
 
 bool EnsurePrivatePluginAt(HINSTANCE hInst, const std::wstring& pluginPath,
@@ -291,6 +315,18 @@ const wchar_t* EmbeddedAnalogStack_RuntimeLocationName()
 DWORD EmbeddedAnalogStack_LastError()
 {
     return g_lastError;
+}
+
+bool EmbeddedAnalogStack_OpenVerifiedPrivatePlugin(
+    HINSTANCE hInst, const wchar_t* pluginPath, HANDLE* leaseOut)
+{
+    if (!leaseOut)
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return false;
+    }
+    return ResourceEqualsFileLocked(hInst, IDR_UAP_ABIV1,
+        pluginPath ? std::wstring(pluginPath) : std::wstring{}, leaseOut);
 }
 
 bool EmbeddedAnalogStack_TryRunInstallerCommand(HINSTANCE hInst, int& exitCode)

@@ -16,7 +16,7 @@ Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($ExePath)) {
-    $ExePath = Join-Path $root 'build\output\HallJoy.exe'
+    $ExePath = Join-Path $root 'build\release\HallJoy.exe'
 }
 $ExePath = [IO.Path]::GetFullPath($ExePath)
 if (-not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
@@ -29,10 +29,7 @@ if (@(Get-Process -Name HallJoy -ErrorAction SilentlyContinue).Count -ne 0) {
     throw 'Refusing to profile while HallJoy is already running.'
 }
 
-$output = Split-Path -Parent $ExePath
-$tracePath = Join-Path $output 'HallJoyStabilityTrace.log'
-$overlayPerfPath = Join-Path $output 'overlay_perf.log'
-$settingsPath = Join-Path $env:LOCALAPPDATA 'HallJoy\settings.ini'
+$productionStateRoot = Join-Path $env:LOCALAPPDATA 'HallJoy'
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if ([string]::IsNullOrWhiteSpace($EvidenceRoot)) {
     $EvidenceRoot = Join-Path $root "build\evidence\input-pipeline-profile\$stamp"
@@ -41,7 +38,8 @@ $EvidenceRoot = [IO.Path]::GetFullPath($EvidenceRoot)
 New-Item -ItemType Directory -Path $EvidenceRoot -Force | Out-Null
 
 function Get-StateManifest {
-    $stateRoot = Join-Path $env:LOCALAPPDATA 'HallJoy'
+    param([Parameter(Mandatory = $true)][string]$StateRoot)
+    $stateRoot = [IO.Path]::GetFullPath($StateRoot)
     $entries = @()
     if (Test-Path -LiteralPath $stateRoot -PathType Container) {
         $entries = @(Get-ChildItem -LiteralPath $stateRoot -File -Recurse |
@@ -56,6 +54,7 @@ function Get-StateManifest {
 }
 
 function Get-ConfiguredOverlayPort {
+    param([Parameter(Mandatory = $true)][string]$SettingsPath)
     if ($OverlayPort -ne 0) {
         return $OverlayPort
     }
@@ -76,6 +75,32 @@ function Get-ConfiguredOverlayPort {
         }
     }
     return 8765
+}
+
+function Get-StartedOverlayPort {
+    param([Parameter(Mandatory = $true)][string]$TracePath)
+    if (-not (Test-Path -LiteralPath $TracePath -PathType Leaf)) { return 0 }
+    foreach ($line in @(Get-Content -LiteralPath $TracePath | Select-Object -Last 80)) {
+        if ($line -match '\[component=overlay\]\[event=start\.ok\] port=(\d+)') {
+            $value = [int]$Matches[1]
+            if ($value -ge 1 -and $value -le 65535) { return $value }
+        }
+    }
+    return 0
+}
+
+function Copy-ProfileStateToPortableRuntime {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceRoot,
+        [Parameter(Mandatory = $true)][string]$DestinationRoot
+    )
+    if (-not (Test-Path -LiteralPath $SourceRoot -PathType Container)) { return }
+    foreach ($item in @(Get-ChildItem -LiteralPath $SourceRoot -Force)) {
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Refusing to copy reparse-point user-state item: $($item.FullName)"
+        }
+        Copy-Item -LiteralPath $item.FullName -Destination $DestinationRoot -Recurse -Force
+    }
 }
 
 function Find-Browser {
@@ -542,10 +567,28 @@ function Add-OverlayMetrics {
 
 $script:logicalProcessors = [Environment]::ProcessorCount
 $script:browserExecutable = Find-Browser
-$configuredPort = Get-ConfiguredOverlayPort
-$stateBefore = @(Get-StateManifest)
-$stateBefore | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $EvidenceRoot 'state-before.json') -Encoding UTF8
+$productionStateBefore = @(Get-StateManifest -StateRoot $productionStateRoot)
+$productionStateBefore | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $EvidenceRoot 'production-state-before.json') -Encoding UTF8
 $exeHash = (Get-FileHash -LiteralPath $ExePath -Algorithm SHA256).Hash
+$portableRuntimeRoot = Join-Path $EvidenceRoot 'portable-runtime'
+$resolvedEvidenceRoot = [IO.Path]::GetFullPath($EvidenceRoot).TrimEnd('\') + '\'
+$resolvedPortableRuntimeRoot = [IO.Path]::GetFullPath($portableRuntimeRoot)
+if (-not $resolvedPortableRuntimeRoot.StartsWith($resolvedEvidenceRoot, [StringComparison]::OrdinalIgnoreCase) -or
+    (Test-Path -LiteralPath $portableRuntimeRoot)) {
+    throw "Refusing to create an unexpected portable profiling runtime: $resolvedPortableRuntimeRoot"
+}
+New-Item -ItemType Directory -Path $portableRuntimeRoot | Out-Null
+Copy-ProfileStateToPortableRuntime -SourceRoot $productionStateRoot -DestinationRoot $portableRuntimeRoot
+$profileExePath = Join-Path $portableRuntimeRoot 'HallJoy.exe'
+Copy-Item -LiteralPath $ExePath -Destination $profileExePath -Force
+if ((Get-FileHash -LiteralPath $profileExePath -Algorithm SHA256).Hash -ne $exeHash) {
+    throw 'The isolated profiling executable does not match the requested production artifact.'
+}
+New-Item -ItemType File -Path (Join-Path $portableRuntimeRoot 'HallJoy.portable') | Out-Null
+$output = $portableRuntimeRoot
+$tracePath = Join-Path $output 'HallJoyStabilityTrace.log'
+$overlayPerfPath = Join-Path $output 'overlay_perf.log'
+$configuredPort = if ($OverlayPort -ne 0) { $OverlayPort } else { 0 }
 $overlayPerfOffset = if (Test-Path -LiteralPath $overlayPerfPath -PathType Leaf) {
     (Get-Item -LiteralPath $overlayPerfPath).Length
 } else { 0L }
@@ -554,17 +597,35 @@ $script:hallJoy = $null
 $activeBrowser = $null
 
 try {
-    $script:hallJoy = Start-Process -FilePath $ExePath -ArgumentList '--overlay-server' `
+    $script:hallJoy = Start-Process -FilePath $profileExePath -ArgumentList '--overlay-server' `
         -WorkingDirectory $output -WindowStyle Hidden -PassThru
     $ready = $false
     for ($attempt = 0; $attempt -lt 20; ++$attempt) {
         Start-Sleep -Milliseconds 500
         if ($script:hallJoy.HasExited) { throw "HallJoy exited during startup with $($script:hallJoy.ExitCode)." }
-        $probeOutput = @(& python (Join-Path $root 'tools\check_overlay_responsiveness.py') `
-            --port $configuredPort --deadline-ms 1000 --connect-deadline-ms 500 2>&1)
-        if ($LASTEXITCODE -eq 0) { $ready = $true; break }
+        if ($configuredPort -eq 0) {
+            $configuredPort = Get-StartedOverlayPort -TracePath $tracePath
+            if ($configuredPort -eq 0) { continue }
+        }
+        # A refused connection is expected while the listener is still starting.
+        # Keep strict native-command failures everywhere else; only this bounded
+        # readiness retry must receive the probe's nonzero exit as data.
+        $previousProbeErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $probeOutput = @(& python (Join-Path $root 'tools\check_overlay_responsiveness.py') `
+                --port $configuredPort --deadline-ms 1000 --connect-deadline-ms 500 2>&1)
+            $probeExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $previousProbeErrorActionPreference
+        }
+        if ($probeExitCode -eq 0) { $ready = $true; break }
     }
-    if (-not $ready) { throw "Overlay did not become ready on port $configuredPort." }
+    if (-not $ready) {
+        $detail = if ($configuredPort -eq 0) { 'HallJoy did not publish an overlay listener port.' } else { "Overlay did not become ready on port $configuredPort." }
+        throw $detail
+    }
     Start-Sleep -Seconds 5
 
     $phases += Measure-ProfilePhase -Name 'server-idle' -Browser $null
@@ -592,10 +653,10 @@ try {
         throw 'HallJoy left a process after profiling shutdown.'
     }
 
-    $stateAfter = @(Get-StateManifest)
-    $stateAfter | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $EvidenceRoot 'state-after.json') -Encoding UTF8
-    $beforeJson = ConvertTo-Json -InputObject $stateBefore -Depth 4 -Compress
-    $afterJson = ConvertTo-Json -InputObject $stateAfter -Depth 4 -Compress
+    $productionStateAfter = @(Get-StateManifest -StateRoot $productionStateRoot)
+    $productionStateAfter | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $EvidenceRoot 'production-state-after.json') -Encoding UTF8
+    $beforeJson = ConvertTo-Json -InputObject $productionStateBefore -Depth 4 -Compress
+    $afterJson = ConvertTo-Json -InputObject $productionStateAfter -Depth 4 -Compress
     if ($beforeJson -ne $afterJson) { throw 'User state changed during input pipeline profiling.' }
 
     if (-not (Test-Path -LiteralPath $tracePath -PathType Leaf)) { throw 'No stability trace was produced.' }
@@ -603,15 +664,38 @@ try {
     Copy-Item -LiteralPath $tracePath -Destination $traceDestination -Force
     $traceText = Get-Content -LiteralPath $traceDestination -Raw
     if ($traceText -match '\[level=ERROR\]') { throw 'Stability trace contains ERROR.' }
-    if ($traceText -notmatch '\[component=spark\]\[event=worker\.stats\].*route_queries=(\d+).*route_ok=(\d+).*route_fail=(\d+).*avg_route_tx_us=(\d+).*max_route_tx_us=(\d+)') {
-        throw 'SparkLink worker statistics were not found.'
+    $providerPlanes = [regex]::Matches($traceText,
+        '\[component=analog-host\]\[event=provider_plane\.prepared\].*devices=(\d+).*samples=(\d+)')
+    if ($providerPlanes.Count -eq 0) {
+        throw 'The universal analog provider did not publish a device plane.'
     }
-    $sparkQueries = [long]$Matches[1]
-    $sparkOk = [long]$Matches[2]
-    $sparkFail = [long]$Matches[3]
-    $sparkAverageTxUs = [long]$Matches[4]
-    $sparkMaxTxUs = [long]$Matches[5]
-    if ($sparkQueries -eq 0 -or $sparkOk -eq 0) { throw 'Physical SparkLink polling was not proven.' }
+    $uapDevices = 0L
+    $uapSamples = 0L
+    foreach ($plane in $providerPlanes) {
+        $uapDevices = [Math]::Max($uapDevices, [long]$plane.Groups[1].Value)
+        $uapSamples = [Math]::Max($uapSamples, [long]$plane.Groups[2].Value)
+    }
+    if ($uapDevices -lt 1 -or $uapSamples -lt 1) {
+        throw 'No supported analog device was available through the universal provider.'
+    }
+    if ($traceText -notmatch '\[component=vigem-output\]\[event=publication\.applied\].*sequence=(\d+)') {
+        throw 'The active analog route did not reach ViGEm publication.'
+    }
+    $vigemPublications = [long]$Matches[1]
+    $sparkQueries = 0L
+    $sparkOk = 0L
+    $sparkFail = 0L
+    $sparkAverageTxUs = 0L
+    $sparkMaxTxUs = 0L
+    $sparkLinkAvailable = $false
+    if ($traceText -match '\[component=spark\]\[event=worker\.stats\].*route_queries=(\d+).*route_ok=(\d+).*route_fail=(\d+).*avg_route_tx_us=(\d+).*max_route_tx_us=(\d+)') {
+        $sparkQueries = [long]$Matches[1]
+        $sparkOk = [long]$Matches[2]
+        $sparkFail = [long]$Matches[3]
+        $sparkAverageTxUs = [long]$Matches[4]
+        $sparkMaxTxUs = [long]$Matches[5]
+        $sparkLinkAvailable = $sparkQueries -gt 0 -and $sparkOk -gt 0
+    }
 
     $overlayPerfText = Read-NewOverlayPerf -Offset $overlayPerfOffset
     $overlayPerfEvidence = Join-Path $EvidenceRoot 'overlay_perf.log'
@@ -632,13 +716,19 @@ try {
         completed_local = (Get-Date).ToString('o')
         executable = $ExePath
         executable_sha256 = $exeHash
+        profile_executable = $profileExePath
+        storage_mode = 'portable-isolated-copy'
         browser = $script:browserExecutable
         browser_version = (Get-Item -LiteralPath $script:browserExecutable).VersionInfo.FileVersion
         logical_processors = $script:logicalProcessors
         overlay_port = $configuredPort
         phase_seconds = $PhaseSeconds
         browser_warmup_seconds = $BrowserWarmupSeconds
-        physical_keyboard = 'Irok MG75 Max / native SparkLink'
+        physical_input_route = 'universal-analog-provider-v2'
+        universal_provider_devices = $uapDevices
+        universal_provider_sample_slots = $uapSamples
+        vigem_publication_sequence = $vigemPublications
+        sparklink_available = $sparkLinkAvailable
         spark_route_queries = $sparkQueries
         spark_route_ok = $sparkOk
         spark_route_fail = $sparkFail

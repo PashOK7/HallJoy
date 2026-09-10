@@ -237,6 +237,11 @@ LRESULT CALLBACK PremiumComboInternal::PopupProc(HWND hWnd, UINT msg, WPARAM wPa
         return 0;
     }
 
+    case WM_LBUTTONUP:
+        if (st && st->hwnd && st->dropped)
+            return SendMessageW(st->hwnd, msg, wParam, lParam);
+        return 0;
+
     case WM_MOUSEWHEEL:
         // The popup is a separate top-level window, so wheel input under the
         // pointer is delivered here rather than to the combo controller. Keep
@@ -433,6 +438,13 @@ LRESULT CALLBACK PremiumComboInternal::ComboProc(HWND hWnd, UINT msg, WPARAM wPa
         PremiumComboInternal::OpenDropDown(st);
         return 0;
 
+    case WM_LBUTTONUP:
+        if (st && st->scrollDragging) {
+            st->scrollDragging = false;
+            PremiumComboInternal::DropdownMouseMove(st);
+        }
+        return 0;
+
     case WM_MOUSEWHEEL:
         if (st)
         {
@@ -445,7 +457,7 @@ LRESULT CALLBACK PremiumComboInternal::ComboProc(HWND hWnd, UINT msg, WPARAM wPa
                 return 0;
             }
 
-            if (PremiumComboInternal::IsInlineEditing(st))
+            if (st->scrollDragging || PremiumComboInternal::IsInlineEditing(st))
                 return 0;
 
             PremiumComboInternal::ResetTypeSearch(st);
@@ -627,6 +639,7 @@ namespace PremiumCombo
             PremiumComboInternal::EndInlineEdit(st, false);
 
         st->items.clear();
+        st->deleteConfirmation = -1;
         st->itemBtnMask.clear();
         st->curSel = -1;
         st->hotIndex = -1;
@@ -833,6 +846,22 @@ namespace PremiumCombo
         }
 
         InvalidateRect(hCombo, nullptr, FALSE);
+    }
+
+    void SetDeleteConfirmation(HWND hCombo, int idx)
+    {
+        auto* st = PremiumComboInternal::Get(hCombo);
+        if (!st) return;
+        st->deleteConfirmation = idx >= 0 && idx < (int)st->itemBtnMask.size() &&
+            PremiumComboInternal::MaskHas(st->itemBtnMask[idx], ItemButtonKind::Delete) ? idx : -1;
+        st->hotBtnIndex = -1; st->hotBtnKind = ItemButtonKind::None;
+        if (st->hwndPopup) InvalidateRect(st->hwndPopup, nullptr, FALSE);
+    }
+
+    int GetDeleteConfirmation(HWND hCombo)
+    {
+        auto* st = PremiumComboInternal::Get(hCombo);
+        return st ? st->deleteConfirmation : -1;
     }
 
     void SetItemButtonKind(HWND hCombo, int idx, ItemButtonKind kind)

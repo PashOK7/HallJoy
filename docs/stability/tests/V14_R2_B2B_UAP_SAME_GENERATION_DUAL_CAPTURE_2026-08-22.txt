@@ -1,0 +1,73 @@
+HallJoy V14 R2-B2b same-generation UAP dual-capture evidence
+Date: 2026-08-22
+Scope: local architecture/compile/runtime qualification; no user promotion
+
+Selected architecture
+- One private UAP export pins/locks the source once and returns both the
+  AnalogProviderV2 snapshot and its ordinary-HID dense compatibility view.
+- Separate-call counter retry was rejected: it cannot prove one pinned source.
+- Immediate legacy replacement was rejected: it removes the rollback oracle
+  before configured XUSB equivalence.
+- Digital Windows key events are never used for identity or analog fallback.
+
+Negative oracle found during implementation
+- First exact ABI run failed on device topology carrying
+  generation=0/timestamp_us=0 before its first hardware acquisition.
+- The dual export now rejects that false-fresh state and the bounded ABI gate
+  waits for a real acquisition.
+
+Private DLL gate
+Command:
+  python tools/check_private_uap_abi.py third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+Result:
+  PRIVATE_UAP_ABI_RUNTIME=PASS abi=1 initial_devices=1 provider_v2_devices=1 provider_v2_samples=127 dual_view_devices=1 dual_view_samples=127 dual_view_equivalent=1
+- All 256 dense cells/device were independently reconstructed from V2 and equal.
+- Pre-init and stale post-unload calls rejected.
+
+Official build
+Command:
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1
+Result:
+- Complete compiler-required static/portable/native suite PASS.
+- Embedded ViGEmBus resource/hash/signature gate PASS.
+- Exact private UAP ABI gate PASS.
+- MSVC Release x64: 0 errors; only allow-listed external ViGEmClient LNK4099.
+
+Exact production-image parent capture
+Command:
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/run_uap_provider_v2_dual_capture_smoke.ps1 -ExePath build/release/HallJoy.exe
+Result:
+  UAP_PROVIDER_V2_EXACT_EXE_DUAL_CAPTURE=PASS sha256=CE26D65EFBF0DBB354B36AF8FC6BDD13B7C29F369775957545003462C18987F2
+- The actual EXE started the isolated analog child and required coherent,
+  authoritative, non-empty parent capture.
+- No new exact-artifact parent/child survived.
+
+Ordinary production smoke
+Command:
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/run_production_smoke.ps1 -ExePath build/release/HallJoy.exe -RunSeconds 10
+Result:
+  HallJoy production startup/shutdown smoke: PASS
+  Continuous diagnostic logs: none; crash report: none
+
+Artifacts
+- build/release/HallJoy.exe
+  size=8535552
+  sha256=CE26D65EFBF0DBB354B36AF8FC6BDD13B7C29F369775957545003462C18987F2
+- third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv0.dll
+  size=393216
+  sha256=3F2A0B0CE3E83CA3FD82360F9C8397D5A863D9AE78E68A9F3E3C8E9EFF32FD35
+- third_party/UniversalAnalogPluginFixed/dist/universal-analog-plugin/abiv1.dll
+  size=265728
+  sha256=7F9B0818A04D5D080C877A9EE952E0F89A2EC45FD4B1E7545F8ABC3BE7706859
+- build/gravastar-v75-diagnostic/HallJoy.exe (unchanged user artifact)
+  size=8683008
+  sha256=2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B
+
+Boundary
+- IPC V12 carries the two views with an explicit dual-coherent label.
+- Parent capture rejects unlabeled V2.
+- Dual-contract failure invalidates V2 while current legacy production remains
+  available through the old export.
+- Backend_Tick is unchanged.
+- Configured bindings/curves/every XUSB field shadow comparison remains pending
+  and is required before any production route switch.

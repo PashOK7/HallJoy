@@ -1,0 +1,57 @@
+HallJoy V14 R2-B2e one parent UAP tick capture evidence
+Date: 2026-08-22
+Scope: intermediate local architecture checkpoint; not promoted
+
+Defect found
+- Production could read each bound UAP key through a separate parent call.
+- Each call was coherent, but one controller frame could mix adjacent analog-
+  host publications.
+
+Decision
+- Counter-matched separate dense/V2 reads retain an ABA window.
+- V2-only side capture leaves the qualified comparison on another generation.
+- Immediate V2 route replacement removes the rollback oracle too early.
+- Selected: one parent transaction containing publication metadata, aggregate
+  dense, per-device dense and optional Provider V2. See D-069.
+
+Production boundary
+- Backend_Tick captures once and uses only that dense compatibility plane for
+  standard UAP keys throughout the tick.
+- Provider V2 remains read-only and is not consumed by configured mapping.
+- Dense remains valid when V2 is absent. Complete capture failure retains the
+  old analogue per-key fallback.
+- No digital correlation, runtime learning or shadow ViGEm publication exists.
+
+Behavioral gate
+  UAP_PARENT_SNAPSHOT_TEST=PASS one_publication=1 dense_fallback=1 aggregate_checked=1 dual_checked=1
+- Negative cases: aggregate mismatch, per-device/V2 mismatch, NaN.
+- Positive fallback: valid dense capture without Provider V2.
+
+Unified checks
+- python tools/run_native_backend_checks.py --require-compiler
+  result: all static and portable C++ tests passed.
+- powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1
+  result: exact private UAP ABI and dual views PASS; MSVC Release x64 0 errors;
+  only allow-listed external ViGEmClient LNK4099; embedded installer gates PASS.
+
+Exact-image runtime gates
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/run_uap_provider_v2_dual_capture_smoke.ps1 -ExePath build/release/HallJoy.exe
+  UAP_PROVIDER_V2_EXACT_EXE_DUAL_CAPTURE=PASS sha256=C60CA71237663766354CC6E34B562BCE27E71A0DA446741C4BC969F8A13111DF
+
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/run_production_smoke.ps1 -ExePath build/release/HallJoy.exe -RunSeconds 10
+  HallJoy production startup/shutdown smoke: PASS
+  Continuous diagnostic logs: none; crash report: none
+
+Artifacts
+- build/release/HallJoy.exe (local intermediate, not promoted)
+  size=8637952
+  sha256=C60CA71237663766354CC6E34B562BCE27E71A0DA446741C4BC969F8A13111DF
+- build/gravastar-v75-diagnostic/HallJoy.exe (unchanged)
+  size=8683008
+  sha256=2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B
+
+Remaining boundary
+- Live V2 configured shadow is not active.
+- Next package must derive its raw map from this exact capture, share native,
+  curve/configuration and mouse inputs, use separate state, compare every final
+  field and never submit the shadow output.

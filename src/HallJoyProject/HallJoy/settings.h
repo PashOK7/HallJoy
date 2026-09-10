@@ -1,6 +1,8 @@
 // settings.h
 #pragma once
 #include <windows.h>
+bool Settings_GetDiagnosticLogging();
+void Settings_SetDiagnosticLogging(bool enabled);
 
 // Input deadzones for analog key readings (0..1):
 // - Low: everything below becomes 0, remaining range is rescaled
@@ -85,6 +87,10 @@ float Settings_GetLastKeyPrioritySensitivity();
 // Block physical keyboard events for keys that are currently bound to gamepad inputs.
 void Settings_SetBlockBoundKeys(bool on);
 bool Settings_GetBlockBoundKeys();
+bool Settings_GetBlockKeysAllowAltTab();
+void Settings_SetBlockKeysAllowAltTab(bool on);
+UINT Settings_GetBlockKeysHotkey();
+void Settings_SetBlockKeysHotkey(UINT chord);
 
 // Allow digital compatibility fallback when analog SDK stream is unavailable.
 void Settings_SetDigitalFallbackInput(bool on);
@@ -160,3 +166,7 @@ int Settings_GetMainWindowPosXPx();
 
 void Settings_SetMainWindowPosYPx(int px);
 int Settings_GetMainWindowPosYPx();
+void Settings_SetMainWindowPlacementMeta(int version, int dpi, bool maximized);
+int Settings_GetMainWindowPlacementVersion();
+int Settings_GetMainWindowDpi();
+bool Settings_GetMainWindowMaximized();

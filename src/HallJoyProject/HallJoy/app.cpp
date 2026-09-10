@@ -6,6 +6,9 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include "support_log.h"
+#include "window_placement_windows.h"
+#include "main_keyboard_input.h"
 #include <dbt.h>
 #include <commctrl.h>
 #include <shellapi.h>
@@ -37,6 +40,9 @@
 #include "profile_ini.h"
 #include "global_profiles.h"
 #include "realtime_loop.h"
+#include "engine_runtime_owner.h"
+#include "engine_runtime_ui_bridge.h"
+#include "runtime_supervisor.h"
 #include "stability_trace.h"
 #include "win_util.h"
 #include "app_paths.h"
@@ -45,17 +51,38 @@
 #include "mouse_ipc.h"
 #include "overlay_server.h"
 #include "mouse_bind_codes.h"
+#include "raw_input_packet_size.h"
+#include "digital_keyboard_state.h"
+#include "input_privilege_warning.h"
+#include "input_privilege_windows.h"
+#include "block_keys_hotkey.h"
+#include "keyboard_ui_state.h"
 #include "addressed_analog_backend.h"
 #include "mad68pr_backend.h"
 #include "hex80_backend.h"
 #include "native_analog_routing.h"
 #include "native_analog_backend_registry.h"
+#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+#include "drunkdeer_backend.h"
+#endif
+#if defined(HALLJOY_MCHOSE_ACE68_DIAGNOSTIC)
+#include "mchose_ace68_diagnostic_backend.h"
+#endif
+#if defined(HALLJOY_AULA_HERO84HE_DIAGNOSTIC)
+#include "aula_hero84he_diagnostic_backend.h"
+#endif
+#if defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC)
+#include "titan68_turbo_diagnostic_backend.h"
+#endif
 
 #pragma comment(lib, "Comctl32.lib")
 static constexpr UINT WM_APP_REQUEST_SAVE = WM_APP + 1;
 static constexpr UINT WM_APP_APPLY_TIMING = WM_APP + 2;
 static constexpr UINT WM_APP_FACTORY_RESET_RESTART = WM_APP + 3;
 static constexpr UINT WM_APP_KEYBOARD_LAYOUT_CHANGED = WM_APP + 260;
+static constexpr UINT WM_APP_ENGINE_RUNTIME_UI_OPERATION = WM_APP + 261;
+static constexpr UINT WM_APP_ENGINE_RUNTIME_TOGGLE = WM_APP + 262;
+static constexpr UINT WM_APP_ENGINE_RUNTIME_STATE_CHANGED = WM_APP + 362;
 
 // UI refresh timer
 static const UINT_PTR UI_TIMER_ID = 2;
@@ -63,34 +90,53 @@ static const UINT_PTR UI_TIMER_ID = 2;
 // Debounced settings save timer
 static const UINT_PTR SETTINGS_SAVE_TIMER_ID = 3;
 static const UINT SETTINGS_SAVE_TIMER_MS = 350;
+static constexpr UINT_PTR WINDOW_SAVE_TIMER_ID = 14;
+static constexpr UINT_PTR WINDOW_REFIT_TIMER_ID = 15;
+static bool g_windowPlacementReady = false, g_windowMoving = false, g_windowApplying = false;
+static bool g_windowPlacementDirty = false;
 
 static HWND g_hPageMain = nullptr;
 static HWND g_hMainWnd = nullptr;
 static HHOOK g_hKeyboardHook = nullptr;
 static HHOOK g_hMouseHook = nullptr;
-static bool g_backendReady = false;
+// Written by the serialized engine owner and observed by UI presentation only.
+static std::atomic<bool> g_backendReady{ false };
 static bool g_digitalFallbackWarnShown = false;
 static std::atomic<bool> g_shutdownStarted{ false };
 static std::atomic<bool> g_relaunchAfterExit{ false };
 static std::atomic<bool> g_immediateProcessExitRequired{ false };
 static HANDLE g_shutdownWatchdogCancelEvent = nullptr;
 static HANDLE g_shutdownWatchdogThread = nullptr;
-// Analog-host shutdown has a 6 s graceful phase followed by a 4 s child-job
-// containment phase. The process-wide last resort must not pre-empt either.
-static constexpr DWORD kShutdownWatchdogTimeoutMs = 12000;
+// The process-wide deadline must cover one in-flight runtime-supervisor
+// recovery plus the bounded output/UAP containment phases. Individual owners
+// still retain/poison on an unconfirmed join; this is only the final process
+// containment boundary, never permission for an unbounded wait.
+static constexpr DWORD kShutdownWatchdogTimeoutMs = 30000;
 static constexpr UINT kShutdownWatchdogExitCode = 4;
 static bool g_cmdStartOverlay = false;
 static bool g_cmdStartMinimized = false;
 static bool g_cmdLatencyTrace = false;
 static uint16_t g_cmdOverlayPort = 0;
 static std::atomic<bool> g_mouseBlockPauseByRShift{ false };
+// This is deliberately independent of the backend admission gate. It makes
+// hooks pass through immediately while the owner waits for their UI-thread
+// release acknowledgement; no old hook may swallow input during Pause.
+static std::atomic<bool> g_engineUiInputPassThrough{ false };
+// Auto-recovery is allowed only while the initial generation has never been
+// explicitly paused by the user. A manual Resume remains explicit and does not
+// re-enable device-change-driven opens later in the process lifetime.
+static std::atomic<bool> g_enginePauseWasExplicit{ false };
 static bool g_mouseCursorLocked = false;
 static POINT g_mouseCursorLockPos{};
 static std::atomic<uint32_t> g_uiTimerTickCount{ 0 };
+// The first GetRawInputData call reports an externally supplied byte count.
+// Bound it before growing the thread-local buffer; typed payload checks below
+// still decide whether the received packet is a valid mouse/keyboard shape.
+static constexpr UINT kMaxRawInputPacketBytes = 64u * 1024u;
 #if defined(HALLJOY_MAD68PR_NATIVE)
 static bool g_lastMad68PresenceForBackendRetry = false;
-static bool g_rawInputRegistered = false;
 #endif
+static std::atomic<bool> g_rawInputRegistered{ false };
 static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam);
 static LRESULT CALLBACK MouseBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam);
 
@@ -217,20 +263,53 @@ static void App_ParseCommandLine()
     LocalFree(argv);
 }
 
+static halljoy::block_keys::PressRoutes g_blockPressRoutes;
+static halljoy::block_keys::HotkeyRegistration g_blockHotkey;
+static bool g_blockHotkeyCapture = false;
+static DWORD g_blockHotkeyError = ERROR_SUCCESS;
+static UINT g_blockHotkeyAttempt = UINT_MAX;
+static void SeedBlockPressRoutes();
+
+DWORD App_SetBlockKeysHotkey(UINT chord)
+{
+    const DWORD error = g_blockHotkey.Apply(g_hMainWnd, chord);
+    if (!error) {
+        Settings_SetBlockKeysHotkey(chord);
+        g_blockHotkeyAttempt = chord;
+        g_blockHotkeyError = ERROR_SUCCESS;
+    }
+    return error;
+}
+DWORD App_BlockKeysHotkeyError() { return g_blockHotkeyError; }
+void App_SetBlockKeysHotkeyCapture(bool capturing) { g_blockHotkeyCapture = capturing; }
+
+static void RefreshBlockKeysHotkey()
+{
+    const UINT chord = Settings_GetBlockKeysHotkey();
+    if (chord == g_blockHotkeyAttempt || !g_hMainWnd) return;
+    g_blockHotkeyAttempt = chord;
+    g_blockHotkeyError = g_blockHotkey.Apply(g_hMainWnd, chord);
+    if (g_hPageConfig) PostMessageW(g_hPageConfig, WM_APP_BLOCK_KEYS_CHANGED, 0, 0);
+}
+
 static bool NeedKeyboardHookNow()
 {
     // Keyboard LL hook is needed only for features that depend on global key events.
     // Native QBZ analogue polling is independent and does not require this hook.
-    return Settings_GetBlockBoundKeys() ||
+    return !g_engineUiInputPassThrough.load(std::memory_order_acquire) &&
+           (Settings_GetBlockBoundKeys() ||
+           g_blockPressRoutes.HasHeld() ||
+           g_blockHotkey.Chord() != 0 ||
            Settings_GetDigitalFallbackInput() ||
-           Settings_GetMouseToStickEnabled();
+           Settings_GetMouseToStickEnabled());
 }
 
 static bool NeedMouseHookNow()
 {
     // Mouse LL hook is expensive on some systems; enable only for mouse-to-stick path.
-    return Settings_GetMouseToStickEnabled() ||
-           Settings_GetBlockMouseInput();
+    return !g_engineUiInputPassThrough.load(std::memory_order_acquire) &&
+           (Settings_GetMouseToStickEnabled() ||
+            Settings_GetBlockMouseInput());
 }
 
 static void RefreshLowLevelHooks()
@@ -239,12 +318,14 @@ static void RefreshLowLevelHooks()
     if (wantKb && !g_hKeyboardHook)
     {
         g_hKeyboardHook = SetWindowsHookExW(WH_KEYBOARD_LL, KeyboardBlockHookProc, GetModuleHandleW(nullptr), 0);
+        if (g_hKeyboardHook) SeedBlockPressRoutes();
         DebugLog_Write(L"[app] keyboard hook install=%p", g_hKeyboardHook);
     }
     else if (!wantKb && g_hKeyboardHook)
     {
         UnhookWindowsHookEx(g_hKeyboardHook);
         g_hKeyboardHook = nullptr;
+        g_blockPressRoutes.Reset();
         DebugLog_Write(L"[app] keyboard hook removed");
     }
 
@@ -262,14 +343,18 @@ static void RefreshLowLevelHooks()
     }
 }
 
-static void SaveSettingsByActiveGlobalProfile()
+// Startup failures and command-line self-tests must never persist partial state.
+static bool g_profileReadyForAutosave = false;
+
+static bool SaveSettingsByActiveGlobalProfile()
 {
+    if (!g_profileReadyForAutosave) return true;
     DebugLog_SetCheckpoint(L"ui: save settings begin");
     DebugLog_Write(L"[settings] save begin");
     const std::wstring& active = GlobalProfiles_GetActiveName();
     if (GlobalProfiles_IsDefault(active))
     {
-        SettingsIni_Save(AppPaths_SettingsIni().c_str());
+        const bool saved = SettingsIni_Save(AppPaths_SettingsIni().c_str());
 #if defined(HALLJOY_ANALOG_SIMULATOR)
         const wchar_t* commandLine = GetCommandLineW();
         if (commandLine && wcsstr(commandLine, L"--halljoy-test-persistence-failure-"))
@@ -286,37 +371,72 @@ static void SaveSettingsByActiveGlobalProfile()
             KeyboardProfiles::TestSaveStateToPath(curveStateProbe, L"PersistenceProbe");
         }
 #endif
-        DebugLog_Write(L"[settings] save default profile done");
+        DebugLog_Write(L"[settings] save default profile done success=%d", saved ? 1 : 0);
         DebugLog_SetCheckpoint(L"ui: save settings done");
-        return;
+        return saved;
     }
 
     // IMPORTANT:
     // When non-default profile is active, do NOT overwrite base settings.ini with
     // runtime values from that profile, otherwise "Default" profile gets polluted.
     // Keep only active profile marker in base file.
-    GlobalProfiles_SaveActiveToSettingsIni(AppPaths_SettingsIni().c_str());
-    SettingsIni_SaveOverlay(AppPaths_SettingsIni().c_str());
+    const bool activeMarkerSaved =
+        GlobalProfiles_SaveActiveToSettingsIni(AppPaths_SettingsIni().c_str());
+    const bool overlaySaved = SettingsIni_SaveOverlay(AppPaths_SettingsIni().c_str());
 
     // Active profile stores all runtime settings except layout/window.
     std::wstring profileSettingsPath = AppPaths_ActiveSettingsIni();
-    SettingsIni_SaveProfile(profileSettingsPath.c_str());
-    DebugLog_Write(L"[settings] save active profile done");
+    const bool profileSaved = SettingsIni_SaveProfile(profileSettingsPath.c_str());
+    const bool windowSaved = SettingsIni_SaveWindow(AppPaths_SettingsIni().c_str());
+    const bool saved = activeMarkerSaved && overlaySaved && profileSaved && windowSaved;
+    DebugLog_Write(L"[settings] save active profile done success=%d", saved ? 1 : 0);
     DebugLog_SetCheckpoint(L"ui: save settings done");
+    return saved;
 }
 
-static bool IsWindowRectVisibleOnAnyScreen(int x, int y, int w, int h)
+static bool CaptureMainWindowPlacement(HWND window)
 {
-    RECT r{ x, y, x + w, y + h };
-    RECT vr{};
-    vr.left = GetSystemMetrics(SM_XVIRTUALSCREEN);
-    vr.top = GetSystemMetrics(SM_YVIRTUALSCREEN);
-    vr.right = vr.left + GetSystemMetrics(SM_CXVIRTUALSCREEN);
-    vr.bottom = vr.top + GetSystemMetrics(SM_CYVIRTUALSCREEN);
-    RECT inter{};
-    return IntersectRect(&inter, &r, &vr) != FALSE;
+    if (!g_windowPlacementReady || g_windowApplying) return false;
+    halljoy::window_placement::Rect r{};
+    bool maximized = false;
+    if (!halljoy::window_placement::Capture(window, r, maximized)) return false;
+    const int dpi = (int)WinUtil_GetSystemDpiCompat();
+    const bool changed = r.x != Settings_GetMainWindowPosXPx() || r.y != Settings_GetMainWindowPosYPx() ||
+        r.w != Settings_GetMainWindowWidthPx() || r.h != Settings_GetMainWindowHeightPx() ||
+        maximized != Settings_GetMainWindowMaximized() || dpi != Settings_GetMainWindowDpi() ||
+        Settings_GetMainWindowPlacementVersion() != 2;
+    if (changed) {
+        Settings_SetMainWindowWidthPx(r.w); Settings_SetMainWindowHeightPx(r.h);
+        Settings_SetMainWindowPosXPx(r.x); Settings_SetMainWindowPosYPx(r.y);
+        Settings_SetMainWindowPlacementMeta(2, dpi, maximized);
+        g_windowPlacementDirty = true;
+    }
+    return changed;
 }
 
+static void SaveMainWindowPlacement(HWND window)
+{
+    KillTimer(window, WINDOW_SAVE_TIMER_ID);
+    CaptureMainWindowPlacement(window);
+    if (g_profileReadyForAutosave && g_windowPlacementDirty &&
+        SettingsIni_SaveWindow(AppPaths_SettingsIni().c_str())) g_windowPlacementDirty = false;
+}
+
+static void RefitMainWindow(HWND window)
+{
+    if (!g_windowPlacementReady || g_windowApplying) return;
+    halljoy::window_placement::Rect normal{};
+    bool maximized = false;
+    if (!halljoy::window_placement::Capture(window, normal, maximized)) return;
+    const auto fit = halljoy::window_placement::FitToDesktop(normal);
+    if (fit.x != normal.x || fit.y != normal.y || fit.w != normal.w || fit.h != normal.h) {
+        g_windowApplying = true;
+        halljoy::window_placement::Apply(window, fit,
+            IsIconic(window) ? SW_SHOWMINIMIZED : maximized ? SW_SHOWMAXIMIZED : SW_SHOWNOACTIVATE, maximized);
+        g_windowApplying = false;
+    }
+    SaveMainWindowPlacement(window);
+}
 
 static bool RelaunchSelfImpl()
 {
@@ -376,6 +496,7 @@ static bool IsOwnForegroundWindow()
 
 static bool IsMouseBlockingActiveNow()
 {
+    if (g_engineUiInputPassThrough.load(std::memory_order_acquire)) return false;
     if (!Settings_GetBlockMouseInput()) return false;
     if (!Settings_GetMouseToStickEnabled()) return false;
     if (IsOwnForegroundWindow()) return false;
@@ -418,8 +539,59 @@ static void UpdateMouseCursorLockState(bool blockNow)
     }
 }
 
+static bool EngineRuntimeUiOperationHandler(
+    halljoy::engine_runtime::ui_bridge::Operation operation,
+    std::uint32_t& nativeError) noexcept
+{
+    switch (operation)
+    {
+    case halljoy::engine_runtime::ui_bridge::Operation::ReleaseInput:
+        g_engineUiInputPassThrough.store(true, std::memory_order_release);
+        g_mouseBlockPauseByRShift.store(false, std::memory_order_relaxed);
+        UpdateMouseCursorLockState(false);
+        RefreshLowLevelHooks();
+        MouseIpc_ShutdownPublisher();
+        nativeError = ERROR_SUCCESS;
+        return true;
+
+    case halljoy::engine_runtime::ui_bridge::Operation::RestoreInput:
+        if (!MouseIpc_InitPublisher())
+        {
+            nativeError = GetLastError();
+            return false;
+        }
+        g_engineUiInputPassThrough.store(false, std::memory_order_release);
+        RefreshLowLevelHooks();
+        PublishMouseIpcState();
+        nativeError = ERROR_SUCCESS;
+        return true;
+
+    case halljoy::engine_runtime::ui_bridge::Operation::DependencyGuidance:
+    {
+        const HINSTANCE instance = g_hMainWnd
+            ? reinterpret_cast<HINSTANCE>(GetWindowLongPtrW(g_hMainWnd, GWLP_HINSTANCE))
+            : nullptr;
+        const DependencyGuidanceResult result = AppDeps_ShowMissingDependencyGuidance(
+            instance, g_hMainWnd, Backend_GetLastInitIssues());
+        if (result == DependencyGuidanceResult::NoAction ||
+            result == DependencyGuidanceResult::InstallCompleted)
+        {
+            nativeError = ERROR_SUCCESS;
+            return true;
+        }
+        nativeError = ERROR_CANCELLED;
+        return false;
+    }
+    }
+    nativeError = ERROR_INVALID_PARAMETER;
+    return false;
+}
+
 static uint16_t HidFromKeyboardScanCode(DWORD scanCode, bool extended, DWORD vkCode)
 {
+    if (vkCode == VK_PAUSE) return 72;
+    if (vkCode >= VK_F13 && vkCode <= VK_F24)
+        return static_cast<uint16_t>(104 + vkCode - VK_F13);
     switch (scanCode & 0xFFu)
     {
     case 0x01: return 41; // Esc
@@ -505,6 +677,7 @@ static uint16_t HidFromKeyboardScanCode(DWORD scanCode, bool extended, DWORD vkC
     case 0x51: return extended ? 78 : 91; // PgDn / Numpad 3
     case 0x52: return extended ? 73 : 98; // Insert / Numpad 0
     case 0x53: return extended ? 76 : 99; // Delete / Numpad .
+    case 0x56: return 100; // ISO extra key (non-US backslash)
     case 0x57: return 68; // F11
     case 0x58: return 69; // F12
     case 0x5B: return 227; // LWin
@@ -545,8 +718,98 @@ static uint16_t HidFromKeyboardScanCode(DWORD scanCode, bool extended, DWORD vkC
     }
 }
 
+static void SeedBlockPressRoutes()
+{
+    g_blockPressRoutes.Reset();
+    // Keys already down before hook installation were delivered to Windows.
+    for (UINT vk = 8; vk < 255; ++vk) {
+        if (!(GetAsyncKeyState(vk) & 0x8000)) continue;
+        const UINT scan = MapVirtualKeyW(vk, MAPVK_VK_TO_VSC_EX);
+        g_blockPressRoutes.SeedPassed(HidFromKeyboardScanCode(scan & 255, (scan & 0xff00) == 0xe000, vk));
+    }
+}
+
+static bool ReadProcessIntegrity(DWORD pid, DWORD& level, bool& uiAccess)
+{
+    HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!process) return false;
+    HANDLE token = nullptr;
+    const bool opened = OpenProcessToken(process, TOKEN_QUERY, &token) != FALSE;
+    CloseHandle(process);
+    if (!opened) return false;
+    alignas(TOKEN_MANDATORY_LABEL) BYTE buffer[256]{};
+    DWORD bytes = 0, access = 0;
+    bool ok = GetTokenInformation(token, TokenIntegrityLevel, buffer, sizeof(buffer), &bytes) != FALSE;
+    if (ok) {
+        const auto label = reinterpret_cast<TOKEN_MANDATORY_LABEL*>(buffer);
+        ok = IsValidSid(label->Label.Sid) != FALSE;
+        if (ok) {
+            const BYTE count = *GetSidSubAuthorityCount(label->Label.Sid);
+            ok = count != 0;
+            if (ok) level = *GetSidSubAuthority(label->Label.Sid, count - 1);
+        }
+    }
+    if (!GetTokenInformation(token, TokenUIAccess, &access, sizeof(access), &bytes)) ok = false;
+    uiAccess = access != 0;
+    CloseHandle(token);
+    return ok;
+}
+
+static void UpdateInputPrivilegeWarning()
+{
+    using namespace halljoy::input_privilege;
+    if (detector.warning) return; // Advisory stays until restart; no more probing needed.
+    static ULONGLONG lastCheck = 0;
+    const ULONGLONG now = GetTickCount64();
+    if (now - lastCheck < 100) return;
+    lastCheck = now;
+    static HWND previousWindow = nullptr;
+    static DWORD previousPid = 0;
+    static bool known = false, higher = false;
+    static ULONGLONG sessionStarted = 0;
+    const HWND foreground = GetForegroundWindow();
+    DWORD pid = 0;
+    if (foreground) GetWindowThreadProcessId(foreground, &pid);
+    if (foreground != previousWindow || pid != previousPid) {
+        previousWindow = foreground; previousPid = pid;
+        DWORD ownLevel = 0, otherLevel = 0;
+        bool ownUiAccess = false, otherUiAccess = false;
+        const bool ownKnown = ReadProcessIntegrity(GetCurrentProcessId(), ownLevel, ownUiAccess);
+        known = pid && ownKnown && ReadProcessIntegrity(pid, otherLevel, otherUiAccess);
+        higher = known && !ownUiAccess && otherLevel > ownLevel;
+        if (!known && pid && ownKnown && !ownUiAccess) {
+            // Elevated apps can deny TOKEN_QUERY to a medium-integrity caller.
+            // Confirm the actual UIPI barrier instead of treating query failure
+            // itself as elevation, or disabling all input evidence processing.
+            higher = IsWindowMessageAccessBlocked(foreground);
+            known = higher;
+        }
+        detector.ResetSession(); // Never attribute a press spanning a focus change.
+        sessionStarted = now;
+    }
+    const bool before = detector.warning;
+    if (!g_backendReady || g_engineUiInputPassThrough.load(std::memory_order_acquire)) {
+        detector.ResetSession();
+        sessionStarted = now;
+    } else if (known) {
+        BackendAnalogTelemetry telemetry{};
+        Backend_GetAnalogTelemetry(&telemetry);
+        if (telemetry.sdkInitialised && telemetry.deviceCount > 0) {
+            for (unsigned hid = 4; hid < 232; ++hid) {
+                const auto press = analogPresses.Latest(hid);
+                detector.Sample(hid, press > sessionStarted ? press : 0, now,
+                    higher, Settings_GetBlockBoundKeys() && pid != GetCurrentProcessId());
+            }
+        } else { detector.ResetSession(); sessionStarted = now; }
+    }
+    if (before != detector.warning && g_hPageConfig)
+        PostMessageW(g_hPageConfig, kChangedMessage, 0, 0);
+}
+
 static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
+    if (g_engineUiInputPassThrough.load(std::memory_order_acquire))
+        return CallNextHookEx(g_hKeyboardHook, nCode, wParam, lParam);
     if (nCode == HC_ACTION && lParam)
     {
         if (wParam == WM_KEYDOWN || wParam == WM_KEYUP || wParam == WM_SYSKEYDOWN || wParam == WM_SYSKEYUP)
@@ -555,6 +818,8 @@ static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM l
             const bool ext = (k->flags & LLKHF_EXTENDED) != 0;
             const bool isDown = (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
             uint16_t hid = HidFromKeyboardScanCode(k->scanCode, ext, k->vkCode);
+            if (isDown && !(k->flags & LLKHF_INJECTED))
+                halljoy::input_privilege::detector.Digital(hid, true, GetTickCount64());
             Backend_NotifyKeyboardEvent(
                 hid,
                 (uint16_t)(k->scanCode & 0xFFFFu),
@@ -582,14 +847,14 @@ static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM l
                 }
             }
 
-            if (Settings_GetBlockBoundKeys() && (k->flags & LLKHF_INJECTED) == 0 && !IsOwnForegroundWindow())
+            if ((k->flags & LLKHF_INJECTED) == 0)
             {
-                // Right Shift must always be able to pause mouse blocking, even if bound.
-                if (hid == 229 && Settings_GetBlockMouseInput() && Settings_GetMouseToStickEnabled())
-                    return CallNextHookEx(g_hKeyboardHook, nCode, wParam, lParam);
-
-                if (hid != 0 && Bindings_IsHidBound(hid))
-                    return 1; // swallow key event
+                const bool rescueShift = hid == 229 && Settings_GetBlockMouseInput() && Settings_GetMouseToStickEnabled();
+                const bool reserved = g_blockHotkey.Reserves(k->vkCode) ||
+                    (Settings_GetBlockKeysAllowAltTab() && halljoy::block_keys::IsAltOrTab(hid));
+                const bool block = Settings_GetBlockBoundKeys() && !IsOwnForegroundWindow() &&
+                    !rescueShift && !reserved && hid && Bindings_IsHidBound(hid);
+                if (g_blockPressRoutes.Filter(hid, isDown, block)) return 1;
             }
         }
     }
@@ -598,6 +863,8 @@ static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM l
 
 static LRESULT CALLBACK MouseBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
+    if (g_engineUiInputPassThrough.load(std::memory_order_acquire))
+        return CallNextHookEx(g_hMouseHook, nCode, wParam, lParam);
     if (nCode == HC_ACTION && lParam)
     {
         const MSLLHOOKSTRUCT* m = (const MSLLHOOKSTRUCT*)lParam;
@@ -699,6 +966,7 @@ struct AppBackendStartupProgress
 {
     bool backend = true;
     bool realtime = false;
+    bool runtimeSupervisor = false;
 #if defined(HALLJOY_MAD68PR_NATIVE)
     bool afterRealtime = false;
     bool afterRawInput = false;
@@ -719,6 +987,14 @@ static bool AppRollbackBackendStartup(
             failedStage ? failedStage : L"unknown", component);
         return false;
     };
+
+    // It may stop or recreate realtime/output state, so it must relinquish
+    // ownership before any dependency is stopped during rollback.
+    if (progress.runtimeSupervisor)
+    {
+        const auto stopped = RuntimeSupervisor_Stop();
+        if (!stopped.RestartSafe()) return poison(L"runtime-supervisor");
+    }
 
 #if defined(HALLJOY_MAD68PR_NATIVE)
     if (progress.afterRawInput)
@@ -838,6 +1114,15 @@ static bool AppStartBackendDependents(bool rawInputRegistered, const wchar_t* or
 #else
         (void)rawInputRegistered;
 #endif
+
+        // The UI timer is not a lifecycle owner. Once all input/output
+        // dependents exist, a dedicated bounded worker owns their recovery.
+        progress.runtimeSupervisor = true;
+        if (!RuntimeSupervisor_Start())
+        {
+            (void)AppRollbackBackendStartup(progress, L"runtime-supervisor");
+            return false;
+        }
     }
     catch (...)
     {
@@ -850,6 +1135,186 @@ static bool AppStartBackendDependents(bool rawInputRegistered, const wchar_t* or
     return true;
 }
 
+static bool EngineRuntimeCloseAdmission(void*, std::uint32_t& nativeError) noexcept
+{
+    Backend_SetRuntimeAdmission(false);
+    g_backendReady.store(false, std::memory_order_release);
+    nativeError = ERROR_SUCCESS;
+    return true;
+}
+
+static bool EngineRuntimeStopSupervisor(void*, std::uint32_t& nativeError) noexcept
+{
+    const auto stopped = RuntimeSupervisor_Stop();
+    if (!stopped.RestartSafe())
+    {
+        nativeError = stopped.error.native_error ? stopped.error.native_error : ERROR_TIMEOUT;
+        return false;
+    }
+    nativeError = ERROR_SUCCESS;
+    return true;
+}
+
+static bool EngineRuntimePublishNeutral(void*, std::uint32_t& nativeError) noexcept
+{
+    Backend_ResetPublishedStateAfterRealtimeFault();
+    nativeError = ERROR_SUCCESS;
+    return true;
+}
+
+static bool EngineRuntimeStopRealtime(void*, std::uint32_t& nativeError) noexcept
+{
+    const auto stopped = RealtimeLoop_Stop();
+    if (!stopped.RestartSafe())
+    {
+        nativeError = stopped.error.native_error ? stopped.error.native_error : ERROR_TIMEOUT;
+        return false;
+    }
+    nativeError = ERROR_SUCCESS;
+    return true;
+}
+
+static bool EngineRuntimeReleaseUiInput(void*, std::uint32_t& nativeError) noexcept
+{
+    // Window shutdown runs on the UI thread. It has already forced pass-through
+    // and removed hooks, so posting a request back to that blocked thread would
+    // deadlock the owner join.
+    if (g_shutdownStarted.load(std::memory_order_acquire))
+    {
+        nativeError = ERROR_SUCCESS;
+        return true;
+    }
+    return halljoy::engine_runtime::ui_bridge::Execute(
+        halljoy::engine_runtime::ui_bridge::Operation::ReleaseInput, nativeError);
+}
+
+static bool EngineRuntimeStopNativeProviders(void*, std::uint32_t& nativeError) noexcept
+{
+    if (!NativeAnalogBackends_StopAll())
+    {
+        nativeError = ERROR_TIMEOUT;
+        return false;
+    }
+    nativeError = ERROR_SUCCESS;
+    return true;
+}
+
+static bool EngineRuntimeReleaseBackendLeases(void*, std::uint32_t& nativeError) noexcept
+{
+    if (!Backend_Shutdown())
+    {
+        nativeError = ERROR_BUSY;
+        return false;
+    }
+    nativeError = ERROR_SUCCESS;
+    return true;
+}
+
+static bool EngineRuntimeEnumerateFresh(void*, std::uint32_t& nativeError) noexcept
+{
+    if (!NativeAnalogBackends_Reset() || !NativeAnalogBackends_CatalogIsValid())
+    {
+        nativeError = ERROR_INVALID_DATA;
+        return false;
+    }
+    // A false result means no native protocol is currently present. It is not
+    // an error: UAP/Soup may still own a valid fresh universal session.
+    (void)NativeAnalogBackends_PrepareRouting();
+    nativeError = ERROR_SUCCESS;
+    return true;
+}
+
+static bool EngineRuntimeProveCapabilities(void*, std::uint32_t& nativeError) noexcept
+{
+    if (Backend_Init())
+    {
+        nativeError = ERROR_SUCCESS;
+        return true;
+    }
+    if (!halljoy::engine_runtime::ui_bridge::Execute(
+            halljoy::engine_runtime::ui_bridge::Operation::DependencyGuidance, nativeError))
+        return false;
+    if (!Backend_Init())
+    {
+        nativeError = ERROR_DEVICE_NOT_AVAILABLE;
+        return false;
+    }
+    nativeError = ERROR_SUCCESS;
+    return true;
+}
+
+static bool EngineRuntimeStartFreshGeneration(void*, std::uint32_t& nativeError) noexcept
+{
+    if (!AppStartBackendDependents(g_rawInputRegistered.load(std::memory_order_acquire),
+            L"engine-runtime-owner"))
+    {
+        nativeError = ERROR_GEN_FAILURE;
+        return false;
+    }
+    nativeError = ERROR_SUCCESS;
+    return true;
+}
+
+static bool EngineRuntimeRestoreUiInput(void*, std::uint32_t& nativeError) noexcept
+{
+    return halljoy::engine_runtime::ui_bridge::Execute(
+        halljoy::engine_runtime::ui_bridge::Operation::RestoreInput, nativeError);
+}
+
+static bool EngineRuntimeOpenAdmission(void*, std::uint32_t& nativeError) noexcept
+{
+    Backend_SetRuntimeAdmission(true);
+    g_backendReady.store(true, std::memory_order_release);
+    nativeError = ERROR_SUCCESS;
+    return true;
+}
+
+static bool EngineRuntimeReleaseFailedResume(void*, std::uint32_t& nativeError) noexcept
+{
+    Backend_SetRuntimeAdmission(false);
+    g_backendReady.store(false, std::memory_order_release);
+    Backend_ResetPublishedStateAfterRealtimeFault();
+    if (!EngineRuntimeStopSupervisor(nullptr, nativeError) ||
+        !EngineRuntimeStopRealtime(nullptr, nativeError) ||
+        !EngineRuntimeStopNativeProviders(nullptr, nativeError) ||
+        !EngineRuntimeReleaseBackendLeases(nullptr, nativeError))
+        return false;
+    nativeError = ERROR_SUCCESS;
+    return true;
+}
+
+static void EngineRuntimeStateChanged(void* context) noexcept
+{
+    const auto state = halljoy::engine_runtime::EngineRuntimeOwner_Snapshot();
+    SupportLog_Event("engine.state", static_cast<unsigned>(state.state), state.lastNativeError);
+    if (state.state == halljoy::runtime_command::State::PauseFaulted)
+        SupportLog_ReportFailure("engine.fault", state.lastNativeError);
+    SupportLog_SetWindow(static_cast<HWND>(context));
+    PostMessageW(static_cast<HWND>(context), WM_APP_ENGINE_RUNTIME_STATE_CHANGED, 0, 0);
+}
+
+static halljoy::engine_runtime::OperationsV1 BuildEngineRuntimeOperations(HWND hwnd) noexcept
+{
+    return {
+        hwnd,
+        EngineRuntimeCloseAdmission,
+        EngineRuntimeStopSupervisor,
+        EngineRuntimePublishNeutral,
+        EngineRuntimeStopRealtime,
+        EngineRuntimeReleaseUiInput,
+        EngineRuntimeStopNativeProviders,
+        EngineRuntimeReleaseBackendLeases,
+        EngineRuntimeEnumerateFresh,
+        EngineRuntimeProveCapabilities,
+        EngineRuntimeStartFreshGeneration,
+        EngineRuntimePublishNeutral,
+        EngineRuntimeRestoreUiInput,
+        EngineRuntimeOpenAdmission,
+        EngineRuntimeReleaseFailedResume,
+        EngineRuntimeStateChanged,
+    };
+}
+
 static void AppShutdownNoThrow(HWND hwnd) noexcept
 {
     if (g_shutdownStarted.exchange(true, std::memory_order_acq_rel))
@@ -859,7 +1324,7 @@ static void AppShutdownNoThrow(HWND hwnd) noexcept
     // poisoned dependency lock cannot leave HallJoy requiring Task Manager.
     if (ArmShutdownWatchdog())
     {
-        StabilityTrace_Write(L"INFO", L"app", L"shutdown.watchdog.armed",
+        StabilityTrace_WriteCritical(L"INFO", L"app", L"shutdown.watchdog.armed",
             L"deadline_ms=%lu exit_code=%u",
             static_cast<unsigned long>(kShutdownWatchdogTimeoutMs),
             static_cast<unsigned>(kShutdownWatchdogExitCode));
@@ -869,14 +1334,20 @@ static void AppShutdownNoThrow(HWND hwnd) noexcept
         StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.watchdog.arm_failed",
             L"native_error=%lu", static_cast<unsigned long>(GetLastError()));
     }
+    StabilityTrace_WriteCritical(L"INFO", L"app", L"shutdown.begin",
+        L"hwnd_present=%d", hwnd ? 1 : 0);
     DebugLog_Write(L"[app.shutdown] begin hwnd=%p", hwnd);
     g_mouseBlockPauseByRShift.store(false, std::memory_order_relaxed);
+    g_engineUiInputPassThrough.store(true, std::memory_order_release);
     UpdateMouseCursorLockState(false);
+    halljoy::engine_runtime::ui_bridge::CancelPending();
 
     if (hwnd)
     {
         KillTimer(hwnd, UI_TIMER_ID);
         KillTimer(hwnd, SETTINGS_SAVE_TIMER_ID);
+        KillTimer(hwnd, WINDOW_SAVE_TIMER_ID);
+        KillTimer(hwnd, WINDOW_REFIT_TIMER_ID);
     }
     if (g_hKeyboardHook)
     {
@@ -888,80 +1359,37 @@ static void AppShutdownNoThrow(HWND hwnd) noexcept
         UnhookWindowsHookEx(g_hMouseHook);
         g_hMouseHook = nullptr;
     }
-
-    auto runStep = [](const wchar_t* name, auto&& fn) noexcept {
-        try
-        {
-            fn();
-            DebugLog_Write(L"[app.shutdown] step ok name=%s", name);
-        }
-        catch (const std::exception& ex)
-        {
-            DebugLog_Write(L"[app.shutdown] step exception name=%s what=%S", name, ex.what());
-        }
-        catch (...)
-        {
-            DebugLog_Write(L"[app.shutdown] step unknown exception name=%s", name);
-        }
-    };
-
-    halljoy::lifecycle::StopResult overlayStop{};
-    runStep(L"overlay", [&] { overlayStop = OverlayServer_Stop(); });
+    const auto ownerStop = halljoy::engine_runtime::EngineRuntimeOwner_Stop();
+    if (!ownerStop.RestartSafe())
+    {
+        g_immediateProcessExitRequired.store(true, std::memory_order_release);
+        StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.poisoned",
+            L"component=engine-runtime-owner state=%u generation=%llu error=%u native_error=%lu",
+            static_cast<unsigned>(ownerStop.state),
+            static_cast<unsigned long long>(ownerStop.generation.Value()),
+            static_cast<unsigned>(ownerStop.error.code),
+            static_cast<unsigned long>(ownerStop.error.native_error));
+        return;
+    }
+    const auto overlayStop = OverlayServer_Stop();
     if (!overlayStop.RestartSafe())
     {
         g_immediateProcessExitRequired.store(true, std::memory_order_release);
-        StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.poisoned",
-            L"component=overlay state=%u generation=%llu error=%u native_error=%lu dependent_cleanup_skipped=1",
-            static_cast<unsigned>(overlayStop.state),
-            static_cast<unsigned long long>(overlayStop.generation.Value()),
-            static_cast<unsigned>(overlayStop.error.code),
-            static_cast<unsigned long>(overlayStop.error.native_error));
-        DebugLog_Write(L"[app.shutdown] overlay did not join; dependent cleanup skipped and immediate process exit required");
         return;
     }
-#if defined(HALLJOY_MAD68PR_NATIVE)
-    bool nativeBackendsStopped = false;
-    runStep(L"native_analog_backends", [&] { nativeBackendsStopped = NativeAnalogBackends_StopAll(); });
-    if (!nativeBackendsStopped)
+    MouseIpc_ShutdownPublisher();
+    if (!SaveSettingsByActiveGlobalProfile())
+    {
+        StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.settings_save_failed",
+            L"active_profile=%s", GlobalProfiles_GetActiveName().c_str());
+    }
+    if (!halljoy::engine_runtime::ui_bridge::Stop())
     {
         g_immediateProcessExitRequired.store(true, std::memory_order_release);
-        StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.poisoned",
-            L"component=native-analog dependent_cleanup_skipped=1");
-        DebugLog_Write(L"[app.shutdown] a native analog worker did not join; dependent cleanup skipped and immediate process exit required");
         return;
     }
-#else
-    runStep(L"addressed_analog", [] { AddressedAnalog_Stop(); });
-#endif
-    runStep(L"mouse_ipc", [] { MouseIpc_ShutdownPublisher(); });
-    runStep(L"settings", [] { SaveSettingsByActiveGlobalProfile(); });
-    halljoy::lifecycle::StopResult realtimeStop{};
-    runStep(L"realtime", [&] { realtimeStop = RealtimeLoop_Stop(); });
-    if (realtimeStop.RestartSafe())
-    {
-        bool backendStopped = false;
-        runStep(L"backend", [&] { backendStopped = Backend_Shutdown(); });
-        if (!backendStopped)
-        {
-            g_immediateProcessExitRequired.store(true, std::memory_order_release);
-            StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.poisoned",
-                L"component=backend dependency_join_incomplete=1 dependent_cleanup_skipped=1");
-            DebugLog_Write(L"[app.shutdown] backend worker did not join; immediate process exit required");
-            return;
-        }
-    }
-    else
-    {
-        g_immediateProcessExitRequired.store(true, std::memory_order_release);
-        StabilityTrace_WriteCritical(L"ERROR", L"app", L"shutdown.poisoned",
-            L"component=realtime state=%u generation=%llu error=%u native_error=%lu backend_cleanup_skipped=1",
-            static_cast<unsigned>(realtimeStop.state),
-            static_cast<unsigned long long>(realtimeStop.generation.Value()),
-            static_cast<unsigned>(realtimeStop.error.code),
-            static_cast<unsigned long>(realtimeStop.error.native_error));
-        DebugLog_Write(L"[app.shutdown] realtime did not join; backend cleanup skipped and immediate process exit required");
-    }
-    g_backendReady = false;
+    g_backendReady.store(false, std::memory_order_release);
+    StabilityTrace_WriteCritical(L"INFO", L"app", L"shutdown.complete");
     DebugLog_Write(L"[app.shutdown] complete");
 }
 
@@ -987,7 +1415,14 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     {
         DebugLog_Write(L"[app] WM_CREATE");
         g_mouseBlockPauseByRShift.store(false, std::memory_order_relaxed);
+        g_engineUiInputPassThrough.store(false, std::memory_order_release);
         g_mouseCursorLocked = false;
+        if (!halljoy::engine_runtime::ui_bridge::Start(
+                hwnd, WM_APP_ENGINE_RUNTIME_UI_OPERATION, EngineRuntimeUiOperationHandler))
+        {
+            DebugLog_Write(L"[engine-runtime] UI bridge initialization failed err=%lu", GetLastError());
+            return -1;
+        }
         UiTheme::ApplyToTopLevelWindow(hwnd);
 
         HINSTANCE hInst = (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE);
@@ -1004,73 +1439,12 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         ResizeChildren(hwnd);
         ShowWindow(g_hPageMain, SW_SHOW);
 
-
-#if defined(HALLJOY_MAD68PR_NATIVE)
-        // One catalog owns native protocol classification/lifecycle. Each module
-        // performs only its documented safe capability proof and claims an exact
-        // VID/PID before the isolated UAP process enumerates HID paths.
-        NativeAnalogBackends_Reset();
-        if (!NativeAnalogBackends_CatalogIsValid())
-        {
-            DebugLog_Write(L"[native.route] invalid native backend catalog");
-            MessageBoxW(hwnd,
-                L"The native analogue backend catalog is invalid. Check duplicate IDs/protocol values and descriptor callbacks.",
-                L"HallJoy startup error", MB_ICONERROR);
-            return -1;
-        }
-        if (!NativeAnalogBackends_PrepareRouting())
-            DebugLog_Write(L"[native.route] no pre-UAP native protocol candidate validated");
-#endif
-
-        // Backend_Init performs the remaining native capability proofs (SparkLink
-        // and Sayo) before it starts UAP/Wooting. The dedicated UAP target patches
-        // Soup at the HID-enumeration boundary and skips only runtime-validated
-        // exact interface-path tokens before CreateFileW, so the child never opens an
-        // endpoint routed to any HallJoy native backend. All unclaimed devices stay
-        // available to Soup/UAP. The universal native target can continue without
-        // UAP; Backend_Init then succeeds only when a validated native route exists.
-        bool backendInitialised = Backend_Init();
-        g_backendReady = false;
-        if (!backendInitialised)
-        {
-            uint32_t issues = Backend_GetLastInitIssues();
-            DebugLog_Write(L"[app] Backend_Init failed issues=0x%08X", issues);
-            const DependencyGuidanceResult depRes =
-                AppDeps_ShowMissingDependencyGuidance(hwnd, issues);
-            bool backendReady = false;
-
-            if (depRes == DependencyGuidanceResult::NoAction)
-            {
-                // A transient private-runtime failure may clear without external
-                // action. ViGEm manual-install guidance deliberately never claims
-                // that a dependency changed inside this process.
-                backendReady = Backend_Init();
-                DebugLog_Write(L"[app] Backend_Init retry after guidance result=%d issues=0x%08X",
-                    backendReady ? 1 : 0, Backend_GetLastInitIssues());
-            }
-
-            if (!backendReady)
-            {
-                DebugLog_Write(L"[app] backend not ready, continue in degraded mode manual_install_required=%d",
-                    depRes == DependencyGuidanceResult::ManualInstallRequired ? 1 : 0);
-                backendInitialised = false;
-            }
-            else
-            {
-                backendInitialised = true;
-            }
-        }
         ApplyTimingSettings(hwnd);
+        Backend_SetRuntimeAdmission(false);
+        g_backendReady.store(false, std::memory_order_release);
 
-        if (!MouseIpc_InitPublisher())
-            DebugLog_Write(L"[app] mouse ipc init failed");
-        PublishMouseIpcState();
-
-        // Receive raw mouse deltas even when this window is not focused. The
-        // MAD68 native build additionally receives target-scoped keyboard edges
-        // for diagnostics; existing low-level hooks and input blocking are unchanged.
+        // Receive digital keyboard state independently of game-input hooks.
         bool rawInputRegistered = false;
-#if defined(HALLJOY_MAD68PR_NATIVE)
         RAWINPUTDEVICE rid[2]{};
         rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
         rid[0].usUsage = HID_USAGE_GENERIC_MOUSE;
@@ -1085,38 +1459,31 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         else
         {
             rawInputRegistered = true;
-            DebugLog_Write(L"[app] raw mouse and target-scoped MAD68 keyboard input registered");
-        }
+#if defined(HALLJOY_AULA_HERO84HE_DIAGNOSTIC) || defined(HALLJOY_DRUNKDEER_DIAGNOSTIC) || defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC)
+            DebugLog_Write(L"[app] raw mouse and diagnostic keyboard input registered");
 #else
-        RAWINPUTDEVICE rid{};
-        rid.usUsagePage = HID_USAGE_PAGE_GENERIC;
-        rid.usUsage = HID_USAGE_GENERIC_MOUSE;
-        rid.dwFlags = RIDEV_INPUTSINK;
-        rid.hwndTarget = hwnd;
-        if (!RegisterRawInputDevices(&rid, 1, sizeof(rid)))
-            DebugLog_Write(L"[app] RegisterRawInputDevices(mouse) failed err=%lu", GetLastError());
-        else
-        {
-            rawInputRegistered = true;
-            DebugLog_Write(L"[app] raw mouse input registered");
-        }
+            DebugLog_Write(L"[app] raw mouse and keyboard preview input registered");
 #endif
-
-#if defined(HALLJOY_MAD68PR_NATIVE)
-        g_rawInputRegistered = rawInputRegistered;
-#endif
-        if (backendInitialised)
-        {
-            g_backendReady = AppStartBackendDependents(rawInputRegistered, L"initial");
-            if (!g_backendReady)
-                DebugLog_Write(L"[app] dependent startup failed; backend transaction rolled back");
-            if (g_immediateProcessExitRequired.load(std::memory_order_acquire))
-                return -1;
         }
 
-#if defined(HALLJOY_MAD68PR_NATIVE)
-        g_lastMad68PresenceForBackendRetry = g_backendReady ? Mad68ProR_IsDevicePresent() : false;
+        g_rawInputRegistered.store(rawInputRegistered, std::memory_order_release);
+#if defined(HALLJOY_AULA_HERO84HE_DIAGNOSTIC)
+        AulaHero84HeDiagnostic_NotifyRawInputReady(rawInputRegistered);
 #endif
+#if defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC)
+        Titan68TurboDiagnostic_NotifyRawInputReady(rawInputRegistered);
+#endif
+        if (!halljoy::engine_runtime::EngineRuntimeOwner_Start(BuildEngineRuntimeOperations(hwnd)))
+        {
+            DebugLog_Write(L"[engine-runtime] owner start failed err=%lu", GetLastError());
+            return -1;
+        }
+        if (halljoy::engine_runtime::EngineRuntimeOwner_RequestResume() !=
+            halljoy::engine_runtime::SubmitStatus::Queued)
+        {
+            DebugLog_Write(L"[engine-runtime] initial resume request rejected");
+            return -1;
+        }
 
         DebugLog_Write(L"[app] init complete");
 
@@ -1130,14 +1497,43 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         return 0;
     }
 
+    case WM_ENTERSIZEMOVE:
+        g_windowMoving = true;
+        KillTimer(hwnd, WINDOW_SAVE_TIMER_ID);
+        return 0;
+    case WM_EXITSIZEMOVE:
+        g_windowMoving = false;
+        SaveMainWindowPlacement(hwnd);
+        return 0;
+    case WM_DISPLAYCHANGE:
+        if (g_windowPlacementReady) SetTimer(hwnd, WINDOW_REFIT_TIMER_ID, 350, nullptr);
+        break;
+    case WM_SETTINGCHANGE:
+        if (g_windowPlacementReady && wParam == SPI_SETWORKAREA)
+            SetTimer(hwnd, WINDOW_REFIT_TIMER_ID, 350, nullptr);
+        break;
+    case WM_QUERYENDSESSION:
+        if (!KeyboardUI_CloseLayoutEditor(true)) return FALSE;
+        SaveMainWindowPlacement(hwnd);
+        return TRUE;
+    case WM_MOVE:
+        if (g_windowPlacementReady && !g_windowMoving && !g_windowApplying)
+            SetTimer(hwnd, WINDOW_SAVE_TIMER_ID, 350, nullptr);
+        break;
     case WM_SIZE:
         ResizeChildren(hwnd);
+        if (g_windowPlacementReady && !g_windowMoving && !g_windowApplying)
+            SetTimer(hwnd, WINDOW_SAVE_TIMER_ID, 350, nullptr);
         return 0;
 
     case WM_INPUT:
     {
+        if (g_engineUiInputPassThrough.load(std::memory_order_acquire) ||
+            !Backend_IsRuntimeAdmissionOpen())
+            return 0;
         UINT sz = 0;
-        if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, nullptr, &sz, sizeof(RAWINPUTHEADER)) != 0 || sz == 0)
+        if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, nullptr, &sz, sizeof(RAWINPUTHEADER)) != 0 ||
+            sz == 0 || sz > kMaxRawInputPacketBytes)
             return 0;
 
         static thread_local std::vector<BYTE> s_rawInputBuf;
@@ -1146,10 +1542,14 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, s_rawInputBuf.data(), &sz, sizeof(RAWINPUTHEADER)) == (UINT)-1)
             return 0;
 
-        if (sz < sizeof(RAWINPUT)) return 0;
+        if (sz < sizeof(RAWINPUTHEADER)) return 0;
         RAWINPUT* ri = (RAWINPUT*)s_rawInputBuf.data();
         if (ri->header.dwType == RIM_TYPEMOUSE)
         {
+            if (!halljoy::raw_input::ContainsTypedPayload(sz,
+                    ri->header.dwSize, offsetof(RAWINPUT, data),
+                    sizeof(RAWMOUSE)))
+                return 0;
             const RAWMOUSE& rm = ri->data.mouse;
             LONG dx = 0;
             LONG dy = 0;
@@ -1161,27 +1561,79 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             if (dx != 0 || dy != 0)
                 Backend_AddMouseDelta((int)dx, (int)dy);
         }
-#if defined(HALLJOY_MAD68PR_NATIVE)
-        else if (ri->header.dwType == RIM_TYPEKEYBOARD && IsMad68RawKeyboard(ri->header.hDevice))
+        else if (ri->header.dwType == RIM_TYPEKEYBOARD)
         {
+            if (!halljoy::raw_input::ContainsTypedPayload(sz,
+                    ri->header.dwSize, offsetof(RAWINPUT, data),
+                    sizeof(RAWKEYBOARD)))
+                return 0;
             const RAWKEYBOARD& rk = ri->data.keyboard;
             if (rk.VKey != 0xFFu)
             {
                 const bool extended = (rk.Flags & (RI_KEY_E0 | RI_KEY_E1)) != 0;
                 const bool isDown = (rk.Flags & RI_KEY_BREAK) == 0;
                 const uint16_t hid = HidFromKeyboardScanCode(rk.MakeCode, extended, rk.VKey);
+                if (isDown)
+                    halljoy::input_privilege::detector.Digital(hid, false, GetTickCount64());
+                // Preview observes physical identity before Num Lock/VK aliases
+                // and independently of gameplay admission or optional hooks.
+                try
+                {
+                    const auto device = reinterpret_cast<std::uintptr_t>(ri->header.hDevice);
+                    // Pause has no reliable break event in the Windows stream.
+                    if (hid == 72)
+                    {
+                        if (isDown)
+                            halljoy::digital_keyboard::state.ObservePulse(device, hid, GetTickCount64() + 150);
+                    }
+                    else
+                        halljoy::digital_keyboard::state.Observe(device, hid, isDown);
+                }
+                catch (...)
+                {
+                    halljoy::digital_keyboard::state.Reset();
+                }
+#if defined(HALLJOY_AULA_HERO84HE_DIAGNOSTIC)
+                (void)isDown;
+                AulaHero84HeDiagnostic_RecordRawKeyboardEvent(
+                    reinterpret_cast<std::uintptr_t>(ri->header.hDevice), hid,
+                    rk.MakeCode, rk.Flags, rk.VKey);
+#elif defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC)
+                (void)isDown;
+                Titan68TurboDiagnostic_RecordRawKeyboardEvent(
+                    reinterpret_cast<std::uintptr_t>(ri->header.hDevice), hid,
+                    rk.MakeCode, rk.Flags, rk.VKey);
+#elif defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+                DrunkDeerDiagnostic_RecordRawKeyboardEvent(
+                    reinterpret_cast<std::uintptr_t>(ri->header.hDevice), hid,
+                    rk.MakeCode, rk.Flags, rk.VKey);
+                if (hid != 0 && IsMad68RawKeyboard(ri->header.hDevice))
+                    Mad68ProR_NotifyKeyboardEvent(hid, isDown, false);
+#elif defined(HALLJOY_MCHOSE_ACE68_DIAGNOSTIC)
+                (void)isDown;
+                MchoseAce68Diagnostic_RecordRawKeyboardEvent(
+                    reinterpret_cast<std::uintptr_t>(ri->header.hDevice), hid,
+                    rk.MakeCode, rk.Flags, rk.VKey);
+#elif defined(HALLJOY_MAD68PR_NATIVE)
                 if (hid != 0)
                     Mad68ProR_NotifyKeyboardEvent(hid, isDown, false);
+#endif
             }
         }
-#endif
         return 0;
     }
 
-#if defined(HALLJOY_MAD68PR_NATIVE)
     case WM_INPUT_DEVICE_CHANGE:
     {
         const HANDLE changed = reinterpret_cast<HANDLE>(lParam);
+        if (wParam == GIDC_REMOVAL)
+            halljoy::digital_keyboard::state.Remove(reinterpret_cast<std::uintptr_t>(changed));
+#if defined(HALLJOY_MAD68PR_NATIVE)
+#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+        DrunkDeerDiagnostic_RecordRawDeviceChange(
+            reinterpret_cast<std::uintptr_t>(changed),
+            wParam == GIDC_ARRIVAL);
+#endif
         bool target = false;
         const auto cached = g_mad68RawKeyboardCache.find(changed);
         if (cached != g_mad68RawKeyboardCache.end())
@@ -1197,16 +1649,21 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             Mad68ProR_NotifyKeyboardDeviceReset();
         }
         Mad68ProR_NotifyDeviceChange();
+#endif
         return 0;
     }
-#endif
 
     case WM_DEVICECHANGE:
+        SupportLog_InventoryChanged();
+        SupportLog_Event("device.change", wParam);
         if (wParam == DBT_DEVNODES_CHANGED ||
             wParam == DBT_DEVICEARRIVAL ||
             wParam == DBT_DEVICEREMOVECOMPLETE)
         {
-#if defined(HALLJOY_MAD68PR_NATIVE)
+            if (g_engineUiInputPassThrough.load(std::memory_order_acquire) ||
+                !Backend_IsRuntimeAdmissionOpen())
+                return 0;
+#if defined(HALLJOY_MAD68PR_NATIVE) || defined(HALLJOY_AULA_HERO84HE_DIAGNOSTIC) || defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC) || defined(HALLJOY_ROG_AZOTH96HE_DIAGNOSTIC)
             // Generic WM_DEVICECHANGE is broadcast for unrelated USB devices too.
             // Protocol modules receive it through the common catalog; the MAD68
             // keyboard-state reset remains tied to WM_INPUT_DEVICE_CHANGE above.
@@ -1219,6 +1676,17 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         return 0;
 
     case WM_TIMER:
+        if (wParam == WINDOW_SAVE_TIMER_ID) {
+            if (!g_windowMoving) SaveMainWindowPlacement(hwnd);
+            else KillTimer(hwnd, WINDOW_SAVE_TIMER_ID);
+            return 0;
+        }
+        if (wParam == WINDOW_REFIT_TIMER_ID) {
+            if (g_windowMoving) return 0;
+            KillTimer(hwnd, WINDOW_REFIT_TIMER_ID);
+            RefitMainWindow(hwnd);
+            return 0;
+        }
         if (wParam == UI_TIMER_ID)
         {
             uint32_t tick = g_uiTimerTickCount.fetch_add(1u, std::memory_order_relaxed) + 1u;
@@ -1226,51 +1694,20 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                 DebugLog_Write(L"[app.timer] ui tick=%u", tick);
 
 #if defined(HALLJOY_MAD68PR_NATIVE)
-            // Preserve private UAP behavior, but recover the common
-            // curve/UI/ViGEm pipeline when a Pro R is connected after a degraded
-            // startup. One retry is made for each absent->present transition.
+            // Before any user-issued Pause exists, a late native device may
+            // trigger one fresh owner-owned generation. The timer never calls
+            // Backend_Init or starts dependents itself.
             const bool mad68PresentNow = Mad68ProR_IsDevicePresent();
-            if (!g_backendReady && mad68PresentNow && !g_lastMad68PresenceForBackendRetry)
+            if (!g_enginePauseWasExplicit.load(std::memory_order_acquire) &&
+                !g_backendReady && mad68PresentNow && !g_lastMad68PresenceForBackendRetry)
             {
-                DebugLog_Write(L"[mad68pr] late device arrival while backend degraded; retrying Backend_Init once");
-                if (Backend_Init())
-                {
-                    g_backendReady = AppStartBackendDependents(g_rawInputRegistered, L"late-device");
-                    if (!g_backendReady)
-                    {
-                        DebugLog_Write(L"[mad68pr] late backend dependent startup failed; transaction rolled back");
-                    }
-                    else
-                    {
-                        DebugLog_Write(L"[mad68pr] late backend startup transaction committed");
-                    }
-                }
-                else
-                {
-                    DebugLog_Write(L"[mad68pr] late Backend_Init failed issues=0x%08X", Backend_GetLastInitIssues());
-                }
+                const auto request = halljoy::engine_runtime::EngineRuntimeOwner_RequestResume();
+                DebugLog_Write(L"[mad68pr] late-device owner resume request=%u",
+                    static_cast<unsigned>(request));
             }
             g_lastMad68PresenceForBackendRetry = mad68PresentNow;
 #endif
 
-            // The V10 event-driven dispatcher must never silently disappear.
-            // If the worker terminated unexpectedly, rebuild its private wait
-            // objects and restart it from the UI owner thread.
-            if (g_backendReady && (tick % 30u) == 0u && !RealtimeLoop_IsRunning())
-            {
-                DebugLog_Write(L"[app.rt.watchdog] realtime thread not running; restarting");
-                const auto stopped = RealtimeLoop_Stop();
-                if (!stopped.RestartSafe())
-                    DebugLog_Write(L"[app.rt.watchdog] realtime stop incomplete; generation poisoned and restart blocked");
-                else if (!RealtimeLoop_Start())
-                    DebugLog_Write(L"[app.rt.watchdog] realtime restart failed");
-                else
-                    DebugLog_Write(L"[app.rt.watchdog] realtime restart succeeded");
-            }
-            if (g_backendReady && (tick % 30u) == 0u && !Backend_EnsureOutputWorkerRunning())
-            {
-                DebugLog_Write(L"[app.vigem.watchdog] output worker recovery failed; retrying on next watchdog tick");
-            }
             if ((tick % 30u) == 0u &&
                 (g_cmdStartOverlay || OverlayServer_GetAutoStart()) &&
                 !OverlayServer_IsRunning())
@@ -1282,7 +1719,9 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             }
             bool traceTick = (tick <= 20u) || ((tick % 120u) == 0u);
             if (traceTick) DebugLog_Write(L"[app.timer] step hooks begin");
+            RefreshBlockKeysHotkey();
             RefreshLowLevelHooks();
+            UpdateInputPrivilegeWarning();
             if (traceTick) DebugLog_Write(L"[app.timer] step hooks done");
             if (traceTick) DebugLog_Write(L"[app.timer] step ipc begin");
             PublishMouseIpcState();
@@ -1310,7 +1749,11 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         if (wParam == SETTINGS_SAVE_TIMER_ID)
         {
             KillTimer(hwnd, SETTINGS_SAVE_TIMER_ID);
-            SaveSettingsByActiveGlobalProfile();
+            if (!SaveSettingsByActiveGlobalProfile())
+            {
+                StabilityTrace_Write(L"WARN", L"app", L"settings.debounced_save_failed",
+                    L"active_profile=%s", GlobalProfiles_GetActiveName().c_str());
+            }
             return 0;
         }
         return 0;
@@ -1319,9 +1762,32 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         RequestSettingsSave(hwnd);
         return 0;
 
+    case WM_HOTKEY:
+        if (g_blockHotkey.Matches(wParam, lParam) && g_blockHotkeyCapture) {
+            if (g_hPageConfig) PostMessageW(g_hPageConfig, WM_APP_BLOCK_KEYS_CAPTURED, 0, lParam);
+            return 0;
+        }
+        if (g_blockHotkey.Matches(wParam, lParam) && !g_blockHotkeyCapture)
+        {
+            Settings_SetBlockBoundKeys(!Settings_GetBlockBoundKeys());
+            GlobalProfiles_SetDirty(true);
+            if (g_hPageConfig) PostMessageW(g_hPageConfig, WM_APP_BLOCK_KEYS_CHANGED, 0, 0);
+            if (g_hPageGlobal) PostMessageW(g_hPageGlobal, WM_APP + 122, 0, 0);
+            RefreshLowLevelHooks();
+            RequestSettingsSave(hwnd);
+        }
+        return 0;
+
     case WM_APP_APPLY_TIMING:
         ApplyTimingSettings(hwnd);
         return 0;
+
+    case WM_ACTIVATEAPP:
+        if (!wParam && g_blockHotkeyCapture && g_hPageConfig) {
+            g_blockHotkeyCapture = false;
+            PostMessageW(g_hPageConfig, WM_APP_BLOCK_KEYS_CANCEL_CAPTURE, 0, 0);
+        }
+        break;
 
     case WM_APP_FACTORY_RESET_RESTART:
         g_relaunchAfterExit.store(true, std::memory_order_release);
@@ -1333,8 +1799,45 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             PostMessageW(g_hPageMain, WM_APP_KEYBOARD_LAYOUT_CHANGED, 0, 0);
         return 0;
 
+    case WM_APP_ENGINE_RUNTIME_UI_OPERATION:
+        (void)halljoy::engine_runtime::ui_bridge::Dispatch(static_cast<std::uintptr_t>(wParam));
+        return 0;
+
+    case WM_APP_ENGINE_RUNTIME_STATE_CHANGED:
+        KeyboardUI_OnEngineStateChanged();
+        return 0;
+
+    case WM_APP + 363: // Preview Resume is one-way: delayed/double clicks cannot pause again.
+        (void)halljoy::engine_runtime::EngineRuntimeOwner_RequestResume();
+        return 0;
+
+    case WM_APP_ENGINE_RUNTIME_TOGGLE:
+    {
+        const auto snapshot = halljoy::engine_runtime::EngineRuntimeOwner_Snapshot();
+        if (snapshot.state == halljoy::runtime_command::State::Active)
+        {
+            g_enginePauseWasExplicit.store(true, std::memory_order_release);
+            (void)halljoy::engine_runtime::EngineRuntimeOwner_RequestPause();
+        }
+        else if (snapshot.state == halljoy::runtime_command::State::Paused)
+        {
+            (void)halljoy::engine_runtime::EngineRuntimeOwner_RequestResume();
+        }
+        return 0;
+    }
+
+
+    case WM_CLOSE:
+        if (!KeyboardUI_CloseLayoutEditor()) return 0;
+        StabilityTrace_WriteCritical(L"INFO", L"app", L"window.close",
+            L"source=WM_CLOSE");
+        DestroyWindow(hwnd);
+        return 0;
 
     case WM_DESTROY:
+        g_blockHotkey.Stop();
+        StabilityTrace_WriteCritical(L"INFO", L"app", L"window.destroy",
+            L"source=WM_DESTROY");
         DebugLog_Write(L"[app] WM_DESTROY");
         // Start/stop actions persist the preference at the time of the action.
         // Do not erase an enabled autostart preference merely because the
@@ -1342,23 +1845,8 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         if (!g_cmdStartOverlay && OverlayServer_IsRunning())
             OverlayServer_SetAutoStart(true);
 
-        WINDOWPLACEMENT wp{};
-        wp.length = sizeof(wp);
-        RECT wr{};
-        if (GetWindowPlacement(hwnd, &wp))
-            wr = wp.rcNormalPosition;
-        else
-            GetWindowRect(hwnd, &wr);
-
-        int ww = std::max(0, (int)(wr.right - wr.left));
-        int wh = std::max(0, (int)(wr.bottom - wr.top));
-        if (ww >= 300 && wh >= 240)
-        {
-            Settings_SetMainWindowWidthPx(ww);
-            Settings_SetMainWindowHeightPx(wh);
-            Settings_SetMainWindowPosXPx((int)wr.left);
-            Settings_SetMainWindowPosYPx((int)wr.top);
-        }
+        CaptureMainWindowPlacement(hwnd);
+        g_windowPlacementReady = false;
 
         AppShutdownNoThrow(hwnd);
         PostQuitMessage(0);
@@ -1377,6 +1865,13 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
         StabilityTrace_WriteCritical(L"ERROR", L"storage", L"root.failed",
             L"mode=%ls root=%ls legacy=%ls",
             AppPaths_ModeName(), AppPaths_DataRoot().c_str(), AppPaths_LegacyDataRoot().c_str());
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        // The storage migration runner deliberately creates failing temporary
+        // roots.  Its result is read from the process code and stability trace;
+        // a modal dialog would make that non-interactive test block the user.
+        if (wcsstr(GetCommandLineW(), L"--halljoy-test-data-root"))
+            return 1;
+#endif
         MessageBoxW(nullptr,
             L"HallJoy could not prepare its writable data folder or safely migrate existing settings.\n\n"
             L"No legacy files were deleted. Check folder permissions and try again.",
@@ -1385,6 +1880,21 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
         return 1;
     }
 
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    if (wcsstr(GetCommandLineW(), L"--halljoy-test-storage-initialize-only"))
+        return 0; // Exercise real migration without UI, profiles or devices.
+    if (wcsstr(GetCommandLineW(), L"--halljoy-test-profile-transactions")) {
+        extern bool HallJoy_RunProfileTransactionTests();
+        const bool passed = HallJoy_RunProfileTransactionTests();
+        const uint32_t forbiddenBackendInits = Backend_FileOnlyTestForbiddenInitAttempts();
+        if (forbiddenBackendInits != 0)
+        {
+            StabilityTrace_WriteCritical(L"ERROR", L"profile-test", L"forbidden_backend_init",
+                L"attempts=%u", static_cast<unsigned>(forbiddenBackendInits));
+        }
+        return passed && forbiddenBackendInits == 0 ? 0 : 1;
+    }
+#endif
     const FactoryResetApplyResult factoryReset = FactoryReset_ApplyPending();
     if (factoryReset.status == FactoryResetApplyStatus::Failed)
     {
@@ -1453,34 +1963,42 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     }
 #endif
 
-    // Load settings before window creation so we can restore last window size.
-    if (!SettingsIni_Load(AppPaths_SettingsIni().c_str()))
-    {
-        DebugLog_Write(L"[app] settings load failed, writing defaults path=%s", AppPaths_SettingsIni().c_str());
-        SettingsIni_Save(AppPaths_SettingsIni().c_str());
+    // Reject damaged persisted data before window creation or autosave.
+    // A missing settings file is the only first-run case that creates defaults.
+    auto profileStartupFailure = [] {
+        DebugLog_Write(L"[app] profile load rejected; existing files preserved");
+#if !defined(HALLJOY_ANALOG_SIMULATOR)
+        MessageBoxW(nullptr, L"HallJoy could not load a complete profile. Your files have been preserved. Restore a valid settings/profile INI and its bindings from backup, or move the damaged files aside before restarting.",
+            L"HallJoy profile could not be loaded", MB_ICONERROR);
+#endif
+        return 1;
+    };
+    bool initialProfileSaved = true;
+    if (!SettingsIni_Load(AppPaths_SettingsIni().c_str())) {
+        if (GetFileAttributesW(AppPaths_SettingsIni().c_str()) != INVALID_FILE_ATTRIBUTES)
+            return profileStartupFailure();
+        if (GetFileAttributesW(AppPaths_BindingsIni().c_str()) != INVALID_FILE_ATTRIBUTES &&
+            !Profile_LoadIni(AppPaths_BindingsIni().c_str())) return profileStartupFailure();
+        initialProfileSaved = SettingsIni_Save(AppPaths_SettingsIni().c_str());
+        KeyboardLayout_ArmFirstRunSelection();
     }
-    else
-    {
-        DebugLog_Write(L"[app] settings loaded path=%s", AppPaths_SettingsIni().c_str());
-    }
+    // Load both settings and bindings as one prepared runtime transaction.
+    if (initialProfileSaved && !GlobalProfiles_Load(GlobalProfiles_GetActiveName())) return profileStartupFailure();
 
-    // Overlay active global profile settings (all settings except layout/window).
-    // Active profile name is read from base settings in SettingsIni_Load().
-    if (!GlobalProfiles_IsDefault(GlobalProfiles_GetActiveName()))
-    {
-        std::wstring activeSettingsPath = AppPaths_ActiveSettingsIni();
-        if (SettingsIni_LoadProfile(activeSettingsPath.c_str()))
+    g_profileReadyForAutosave = true;
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    if (wcsstr(GetCommandLineW(), L"--halljoy-test-profile-startup-only")) {
+        g_profileReadyForAutosave = false;
+        const uint32_t forbiddenBackendInits = Backend_FileOnlyTestForbiddenInitAttempts();
+        if (forbiddenBackendInits != 0)
         {
-            DebugLog_Write(L"[app] active profile settings loaded profile=%s path=%s",
-                GlobalProfiles_GetActiveName().c_str(), activeSettingsPath.c_str());
+            StabilityTrace_WriteCritical(L"ERROR", L"profile-test", L"forbidden_backend_init",
+                L"attempts=%u", static_cast<unsigned>(forbiddenBackendInits));
+            return 1;
         }
-        else
-        {
-            DebugLog_Write(L"[app] active profile settings missing, creating defaults profile=%s path=%s",
-                GlobalProfiles_GetActiveName().c_str(), activeSettingsPath.c_str());
-            SettingsIni_SaveProfile(activeSettingsPath.c_str());
-        }
+        return 0; // File-only startup probe: never create a window or backend.
     }
+#endif
 
     // The one-command latency test must not depend on a previously saved UI value.
     // Force the highest supported HallJoy realtime cadence for this temporary trace run.
@@ -1520,21 +2038,28 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     int h = Settings_GetMainWindowHeightPx();
     if (w <= 0) w = defaultW;
     if (h <= 0) h = defaultH;
-
-    int minW = MulDiv(700, (int)dpi, 96);
-    int minH = MulDiv(520, (int)dpi, 96);
-    w = std::max(w, minW);
-    h = std::max(h, minH);
+    w = halljoy::window_placement::ScaleSize(w, Settings_GetMainWindowDpi(), (int)dpi);
+    h = halljoy::window_placement::ScaleSize(h, Settings_GetMainWindowDpi(), (int)dpi);
 
     int x = Settings_GetMainWindowPosXPx();
     int y = Settings_GetMainWindowPosYPx();
     bool hasSavedPos = (x != std::numeric_limits<int>::min() &&
                         y != std::numeric_limits<int>::min());
-    if (!hasSavedPos || !IsWindowRectVisibleOnAnyScreen(x, y, w, h))
+    if (!hasSavedPos)
     {
-        x = CW_USEDEFAULT;
-        y = CW_USEDEFAULT;
+        w = defaultW; h = defaultH;
+        POINT cursor{};
+        GetCursorPos(&cursor);
+        x = cursor.x; y = cursor.y;
     }
+    halljoy::window_placement::Rect initial{x, y, w, h};
+    if (hasSavedPos && Settings_GetMainWindowPlacementVersion() != 2) {
+        RECT legacy = halljoy::window_placement::Native(initial);
+        initial = halljoy::window_placement::ConvertWorkspace(initial,
+            MonitorFromRect(&legacy, MONITOR_DEFAULTTONEAREST), true);
+    }
+    initial = halljoy::window_placement::FitToDesktop(initial);
+    x = initial.x; y = initial.y; w = initial.w; h = initial.h;
 
     HWND hwnd = CreateWindowExW(
         0,
@@ -1564,8 +2089,11 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     }
 
     DebugLog_Write(L"[app] ShowWindow begin");
-    int showCmd = g_cmdStartMinimized ? SW_MINIMIZE : nCmdShow;
-    ShowWindow(hwnd, showCmd);
+    const bool startMinimized = g_cmdStartMinimized || nCmdShow == SW_SHOWMINIMIZED || nCmdShow == SW_MINIMIZE || nCmdShow == SW_SHOWMINNOACTIVE;
+    const bool startMaximized = Settings_GetMainWindowMaximized() || nCmdShow == SW_SHOWMAXIMIZED;
+    const UINT showCmd = startMinimized ? SW_SHOWMINIMIZED : startMaximized ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
+    if (!halljoy::window_placement::Apply(hwnd, initial, showCmd, startMaximized)) ShowWindow(hwnd, showCmd);
+    g_windowPlacementReady = true;
     DebugLog_Write(L"[app] ShowWindow done");
 
     if (factoryReset.status == FactoryResetApplyStatus::Applied)
@@ -1600,6 +2128,10 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
             L"ui: dispatch message 0x%04X wparam=0x%llX",
             (unsigned)msg.message,
             (unsigned long long)msg.wParam);
+        // UI-only gate: low-level digital input and user-defined bindings have
+        // already been processed independently. No keyboard message reaches a
+        // main-window button, slider, tab, combo or implicit profile shortcut.
+        if (!halljoy::main_input::Allow(msg,hwnd)) continue;
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
         DebugLog_SetCheckpoint(L"ui: message loop idle");

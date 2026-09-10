@@ -1,0 +1,52 @@
+HallJoy V14 R2-B2d neutral controller frame and exact XUSB adapter evidence
+Date: 2026-08-22
+Scope: intermediate local architecture checkpoint; not promoted
+
+Decision
+- Keeping XUSB as the canonical mapped type was rejected because it would leak
+  Xbox constants into future outputs.
+- A universal touch/motion/arbitrary-axis graph was rejected as premature.
+- Selected: versioned internal standard-controller frame plus explicit output
+  adapters. D-068 records the boundary.
+
+Architecture
+- configured_xusb_builder returns VirtualControllerFrameV1: semantic buttons,
+  two triggers and four sticks.
+- xusb_output_adapter alone owns Xbox button masks and XUSB conversion.
+- Backend_Tick still publishes only the qualified XUSB result.
+- No DS4 runtime, Provider V2 shadow, route switch or ViGEm submission change.
+
+Behavioral gate
+  CONFIGURED_XUSB_BUILDER_TEST=PASS all_fields=1 explicit_state=1 paired_equivalence=1 divergence_localized=1 neutral_frame=1 exact_xusb_adapter=1
+- Covers all current buttons, Fn binding, both triggers, four axes, thresholds,
+  mouse merge, Snappy/LKP state, paired equality and localized divergence.
+
+Unified checks
+- python tools/run_native_backend_checks.py --require-compiler
+  result: all static and portable C++ tests passed.
+- powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1
+  result: MSVC Release x64 0 errors; only allow-listed external ViGEmClient
+  LNK4099; embedded ViGEmBus installer/hash/signature and exact UAP gates pass.
+
+Exact-image runtime gates
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/run_uap_provider_v2_dual_capture_smoke.ps1 -ExePath build/release/HallJoy.exe
+  UAP_PROVIDER_V2_EXACT_EXE_DUAL_CAPTURE=PASS sha256=21DDA421768F4320744BD052F1C9D85AB3B3E2663CBDAEC04015FCB64D56948D
+
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/run_production_smoke.ps1 -ExePath build/release/HallJoy.exe -RunSeconds 10
+  HallJoy production startup/shutdown smoke: PASS
+  Continuous diagnostic logs: none; crash report: none
+
+Artifacts
+- build/release/HallJoy.exe (local intermediate, not promoted)
+  size=8536576
+  sha256=21DDA421768F4320744BD052F1C9D85AB3B3E2663CBDAEC04015FCB64D56948D
+- build/gravastar-v75-diagnostic/HallJoy.exe (unchanged)
+  size=8683008
+  sha256=2C5A1E05D374FF0D5C1AC0F2A9663F328F0E1A54C43DEAA69AE46DA9AAEB098B
+
+Boundary
+- V1 is an internal value type, not a persisted/wire ABI.
+- Future DS4 standard controls can use another adapter; touch/motion requires a
+  later explicit frame version and is not claimed here.
+- Live Provider V2 comparison remains pending and shadow output must never be
+  submitted to ViGEm.

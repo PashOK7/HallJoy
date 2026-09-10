@@ -52,6 +52,12 @@ bool NativeAnalogBackends_AnyProtocolDevicePresent();
 bool NativeAnalogBackends_AnyConnected();
 NativeAnalogReadResult NativeAnalogBackends_ReadMilli(std::uint16_t hidUsage);
 
+// Reads one backend's source-preserving common V2 snapshot.  The caller picks
+// the backend deliberately; this function never applies the legacy early-max
+// policy across catalog entries.
+bool NativeAnalogBackends_ReadSnapshotV2(
+    std::size_t index, halljoy::native_analog_snapshot::OutputV1 output);
+
 std::size_t NativeAnalogBackends_Count();
 const NativeAnalogBackendDescriptor* NativeAnalogBackends_Descriptor(std::size_t index);
 bool NativeAnalogBackends_GetTelemetry(std::size_t index, NativeAnalogBackendTelemetry* out);

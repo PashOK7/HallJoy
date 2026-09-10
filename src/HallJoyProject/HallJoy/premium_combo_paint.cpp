@@ -682,10 +682,11 @@ static void PaintPopup_Impl(HWND hwndPopup, State* st, HDC hdc)
 
         bool hotRow = (idx == st->hotIndex);
         bool sel = (idx == st->curSel);
+        const bool confirming = idx == st->deleteConfirmation;
 
-        if (hotRow || sel)
+        if (hotRow || sel || confirming)
         {
-            COLORREF c = hotRow ? UiTheme::Color_Accent() : RGB(55, 55, 55);
+            COLORREF c = confirming ? RGB(61, 34, 40) : hotRow ? UiTheme::Color_Accent() : RGB(55, 55, 55);
             HBRUSH br = CreateSolidBrush(c);
             FillRect(hdc, &row, br);
             DeleteObject(br);
@@ -699,7 +700,22 @@ static void PaintPopup_Impl(HWND hwndPopup, State* st, HDC hdc)
         if (idx >= 0 && idx < (int)st->itemBtnMask.size())
             mask = st->itemBtnMask[idx];
 
-        if (mask != BTN_NONE)
+        if (confirming) {
+            for (auto kind : {PremiumCombo::ItemButtonKind::ConfirmDelete, PremiumCombo::ItemButtonKind::CancelDelete}) {
+                RECT button = GetPopupItemButtonRect(st, idx, kind);
+                textRc.right = std::min(textRc.right, button.left - S(hwndPopup, 6));
+                const bool destructive = kind == PremiumCombo::ItemButtonKind::ConfirmDelete;
+                const bool hot = st->hotBtnIndex == idx && st->hotBtnKind == kind;
+                HBRUSH brush = CreateSolidBrush(destructive ? (hot ? RGB(167, 62, 77) : RGB(126, 47, 59))
+                    : (hot ? RGB(65, 57, 60) : RGB(43, 38, 40)));
+                HGDIOBJ oldBrush = SelectObject(hdc, brush), oldPen = SelectObject(hdc, GetStockObject(NULL_PEN));
+                RoundRect(hdc, button.left, button.top, button.right, button.bottom, S(hwndPopup, 6), S(hwndPopup, 6));
+                SelectObject(hdc, oldPen); SelectObject(hdc, oldBrush); DeleteObject(brush);
+                SetTextColor(hdc, UiTheme::Color_Text());
+                DrawTextW(hdc, destructive ? L"Delete" : L"Cancel", -1, &button, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            }
+        }
+        else if (mask != BTN_NONE)
         {
             RECT rDel = GetPopupItemButtonRect(st, idx, PremiumCombo::ItemButtonKind::Delete);
             RECT rRen = GetPopupItemButtonRect(st, idx, PremiumCombo::ItemButtonKind::Rename);
@@ -728,7 +744,7 @@ static void PaintPopup_Impl(HWND hwndPopup, State* st, HDC hdc)
             }
         }
 
-        if (hotRow)
+        if (hotRow && !confirming)
             SetTextColor(hdc, RGB(12, 12, 12));
         else
             SetTextColor(hdc, UiTheme::Color_Text());
@@ -745,17 +761,13 @@ static void PaintPopup_Impl(HWND hwndPopup, State* st, HDC hdc)
     }
 
     // Scrollbar
-    if (n > rows)
+    ScrollGeometry scroll;
+    if (GetScrollGeometry(st, scroll))
     {
         int maxTop = GetMaxScrollTop(st);
         if (maxTop > 0)
         {
-            int trackW = std::clamp(S(hwndPopup, 6), 4, 10);
-            RECT track{};
-            track.left = w - trackW - 2;
-            track.right = w - 2;
-            track.top = 2;
-            track.bottom = h - 2;
+            const RECT track = scroll.track;
 
             {
                 HBRUSH br = CreateSolidBrush(RGB(42, 42, 42));
@@ -763,17 +775,7 @@ static void PaintPopup_Impl(HWND hwndPopup, State* st, HDC hdc)
                 DeleteObject(br);
             }
 
-            float tH = (float)(track.bottom - track.top);
-            float thumbH = std::max((float)S(hwndPopup, 18), tH * ((float)rows / (float)n));
-            float tt = (float)st->scrollTop / (float)maxTop;
-            tt = std::clamp(tt, 0.0f, 1.0f);
-            float y0 = (float)track.top + (tH - thumbH) * tt;
-
-            RECT thumb{};
-            thumb.left = track.left + 1;
-            thumb.right = track.right - 1;
-            thumb.top = (int)std::lroundf(y0);
-            thumb.bottom = (int)std::lroundf(y0 + thumbH);
+            const RECT thumb = scroll.thumb;
 
             {
                 HBRUSH br = CreateSolidBrush(RGB(90, 90, 90));

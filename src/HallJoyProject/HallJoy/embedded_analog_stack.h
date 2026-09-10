@@ -26,3 +26,9 @@ const std::wstring& EmbeddedAnalogStack_PrivatePluginPath();
 EmbeddedAnalogRuntimeLocation EmbeddedAnalogStack_RuntimeLocation();
 const wchar_t* EmbeddedAnalogStack_RuntimeLocationName();
 DWORD EmbeddedAnalogStack_LastError();
+
+// Child-side trust boundary: compare the selected plugin with this exact
+// executable's embedded ABI1 resource and retain a non-write/non-delete lease
+// until LoadLibrary has opened the verified image. Caller closes leaseOut.
+bool EmbeddedAnalogStack_OpenVerifiedPrivatePlugin(
+    HINSTANCE hInst, const wchar_t* pluginPath, HANDLE* leaseOut);

@@ -2,8 +2,20 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include "support_log.h"
+#include "community_links.h"
+#include "overlay_text_edit.h"
+#include "layout_editor_model.h"
+#include "key_shape_win.h"
+#include "main_keyboard_input.h"
+#include "bounded_ini.h"
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+#include "premium_combo_internal.h"
+#include "keyboard_render.h"
+#endif
 #include <commctrl.h>
 #include <string>
+#include <stdexcept>
 #include <cstdint>
 #include <algorithm>
 #include <cmath>
@@ -26,7 +38,12 @@
 
 #include "Resource.h"
 #include "keyboard_ui_internal.h"
+#include "keyboard_ui.h"
 #include "keyboard_ui_state.h"
+#include "input_privilege_warning.h"
+#include "app.h"
+#include "block_keys_policy.h"
+#include "analog_key_codes.h"
 #include "keyboard_keysettings_panel.h"
 #include "keyboard_keysettings_panel_internal.h"
 
@@ -35,10 +52,13 @@
 #include "ui_theme.h"
 #include "settings.h"
 #include "realtime_loop.h"
+#include "engine_runtime_owner.h"
 #include "win_util.h"
 #include "keyboard_profiles.h"
 #include "premium_combo.h"
 #include "keyboard_layout.h"
+#include "layout_picker.h"
+#include "keyboard_support_status.h"
 #include "settings_ini.h"
 #include "factory_reset.h"
 #include "profile_ini.h"
@@ -51,6 +71,9 @@
 #include "custom_page_surface.h"
 #include "custom_page_controls.h"
 #include "ui_paint_audit.h"
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+#include "ini_util.h"
+#endif
 
 using namespace Gdiplus;
 namespace fs = std::filesystem;
@@ -58,6 +81,8 @@ namespace fs = std::filesystem;
 static constexpr UINT WM_APP_REQUEST_SAVE = WM_APP + 1;
 static constexpr UINT WM_APP_APPLY_TIMING = WM_APP + 2;
 static constexpr UINT WM_APP_FACTORY_RESET_RESTART = WM_APP + 3;
+static constexpr UINT WM_APP_ENGINE_RUNTIME_TOGGLE = WM_APP + 262;
+static constexpr UINT WM_APP_ENGINE_RUNTIME_STATE_CHANGED = WM_APP + 362;
 static constexpr UINT WM_APP_PROFILE_BEGIN_CREATE = WM_APP + 120;
 static constexpr UINT WM_APP_CONFIG_PROFILE_APPLIED = WM_APP + 121;
 static constexpr UINT WM_APP_GLOBAL_PROFILE_DIRTY = WM_APP + 122;
@@ -71,6 +96,9 @@ static constexpr bool kEnableSnappyDebug = false; // set true for temporary snap
 
 static constexpr int ID_SNAPPY = 7003;
 static constexpr int ID_BLOCK_BOUND_KEYS = 7004;
+static constexpr int ID_BLOCK_KEYS_ALLOW_ALT_TAB = 7014;
+static constexpr int ID_BLOCK_KEYS_SHORTCUT = 7015;
+static constexpr int ID_BLOCK_KEYS_CLEAR_SHORTCUT = 7016;
 static constexpr int ID_LAST_KEY_PRIORITY = 7005;
 static constexpr int ID_LAST_KEY_PRIORITY_SENS_SLIDER = 7006;
 static constexpr int ID_LAST_KEY_PRIORITY_SENS_CHIP = 7007;
@@ -103,14 +131,16 @@ static void SnappyDebugLog(const wchar_t* stage, HWND hBtn, int extraA = -1, int
 }
 
 // ---------------- Double-buffer helpers ----------------
-static void BeginDoubleBufferPaint(HWND hWnd, PAINTSTRUCT& ps, HDC& outMemDC, HBITMAP& outBmp, HGDIOBJ& outOldBmp)
+static void BeginDoubleBufferPaint(HWND hWnd, PAINTSTRUCT& ps, HDC& outMemDC, HBITMAP& outBmp, HGDIOBJ& outOldBmp, bool dirtyOnly = false)
 {
     HDC hdc = BeginPaint(hWnd, &ps);
     RECT rc{};
     GetClientRect(hWnd, &rc);
+    if (dirtyOnly) rc = ps.rcPaint;
     outMemDC = CreateCompatibleDC(hdc);
-    outBmp = CreateCompatibleBitmap(hdc, rc.right - rc.left, rc.bottom - rc.top);
+    outBmp = CreateCompatibleBitmap(hdc, (std::max)(1L, rc.right - rc.left), (std::max)(1L, rc.bottom - rc.top));
     outOldBmp = SelectObject(outMemDC, outBmp);
+    if (dirtyOnly) SetViewportOrgEx(outMemDC, -rc.left, -rc.top, nullptr);
     FillRect(outMemDC, &rc, UiTheme::Brush_PanelBg());
 }
 
@@ -562,6 +592,11 @@ static constexpr int OVERLAY_ID_STRENGTH_SCALE = 9154;
 static constexpr int OVERLAY_ID_STRENGTH_LABEL = 9155;
 static constexpr int OVERLAY_ID_STRENGTH_RIM_LIGHT = 9156;
 static constexpr int OVERLAY_ID_REFRESH_MS = 9160;
+static constexpr int OVERLAY_ID_LAYOUT = 9161;
+static constexpr int OVERLAY_ID_LAYOUT_EDIT = 9162;
+static constexpr int OVERLAY_ID_BRAND = 9163;
+static constexpr int OVERLAY_ID_VARIANT = 9164;
+static void LayoutEditor_OpenWindow(HWND hOwnerPage, int presetIdx = -1);
 
 struct InputOverlayPageState
 {
@@ -1021,16 +1056,17 @@ static std::wstring OverlayPage_BuildUrl(InputOverlayPageState* st)
     return buf;
 }
 
-static void OverlayPage_SetClipboardText(HWND hWnd, const std::wstring& text)
+static bool OverlayPage_SetClipboardText(HWND hWnd, const std::wstring& text)
 {
     if (!OpenClipboard(hWnd))
-        return;
+        return false;
     if (!EmptyClipboard())
     {
         CloseClipboard();
-        return;
+        return false;
     }
     size_t bytes = (text.size() + 1u) * sizeof(wchar_t);
+    bool copied = false;
     HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, bytes);
     if (mem)
     {
@@ -1040,12 +1076,16 @@ static void OverlayPage_SetClipboardText(HWND hWnd, const std::wstring& text)
             memcpy(dst, text.c_str(), bytes);
             GlobalUnlock(mem);
             if (SetClipboardData(CF_UNICODETEXT, mem))
+            {
+                copied = true;
                 mem = nullptr; // ownership transfers only after a successful call
+            }
         }
     }
     if (mem)
         GlobalFree(mem);
     CloseClipboard();
+    return copied;
 }
 
 static void OverlayPage_UpdateColorControls(InputOverlayPageState* st)
@@ -1584,7 +1624,9 @@ enum class OverlayCustomKind
     Edit,
     Hue,
     ColorPreview,
-    Hint
+    Hint,
+    Status,
+    CopyAddress
 };
 
 struct OverlayCustomItem
@@ -1632,8 +1674,12 @@ struct OverlayCustomState
     int dragId = 0;
     int colorDragMode = 0; // 1 = saturation/value square, 2 = hue strip
     std::wstring portText;
+    std::wstring copyFeedback;
     std::wstring hexText;
     std::wstring labelHexText;
+    halljoy::overlay_edit::Editor editor;
+    bool selectingText = false;
+    std::wstring editFeedback;
     OverlayColorBitmapCache indicatorColorCache;
     OverlayColorBitmapCache labelColorCache;
     OverlayColorUiState indicatorColorUi;
@@ -1641,7 +1687,28 @@ struct OverlayCustomState
     HWND comboDirection = nullptr;
     HWND comboDepthSource = nullptr;
     HWND comboLabelFont = nullptr;
+    HWND comboLayout = nullptr;
+    LayoutPicker layoutPicker;
 };
+
+static bool OverlayCustom_IsEdit(int id)
+{
+    return id == OVERLAY_ID_PORT || id == OVERLAY_ID_COLOR_HEX || id == OVERLAY_ID_LABEL_COLOR_HEX;
+}
+static halljoy::overlay_edit::Kind OverlayCustom_EditKind(int id)
+{
+    return id == OVERLAY_ID_PORT ? halljoy::overlay_edit::Kind::Port : halljoy::overlay_edit::Kind::Hex;
+}
+static std::wstring& OverlayCustom_EditText(OverlayCustomState* st, int id)
+{
+    return id == OVERLAY_ID_PORT ? st->portText : id == OVERLAY_ID_LABEL_COLOR_HEX ? st->labelHexText : st->hexText;
+}
+static int OverlayCustom_TextWidth(HDC dc, const std::wstring& text, size_t count)
+{
+    SIZE size{};
+    GetTextExtentPoint32W(dc, text.c_str(), (int)std::min(count, text.size()), &size);
+    return size.cx;
+}
 
 static void OverlayCustom_DestroyColorCache(OverlayColorBitmapCache& cache)
 {
@@ -1691,16 +1758,6 @@ static std::wstring OverlayCustom_BuildUrl(OverlayCustomState* st)
     wchar_t buf[96]{};
     swprintf_s(buf, L"http://127.0.0.1:%u/", (unsigned)port);
     return buf;
-}
-
-static uint16_t OverlayCustom_GetPort(OverlayCustomState* st)
-{
-    if (!st) return OverlayServer_GetConfiguredPort();
-    wchar_t* end = nullptr;
-    unsigned long port = wcstoul(st->portText.c_str(), &end, 10);
-    if (port < 1 || port > 65535)
-        return OverlayServer_GetConfiguredPort();
-    return (uint16_t)port;
 }
 
 static void OverlayCustom_RequestSave(HWND hWnd)
@@ -1826,6 +1883,75 @@ static void OverlayCustom_RebuildLayout(HWND hWnd, OverlayCustomState* st)
 
     OverlayCustom_AddItem(st, 1, OverlayCustomKind::Label, RECT{ x, y, x + w, y + labelH }, L"Input overlay");
     y += labelH + rowGap;
+
+    // Primary actions come first, in reading/tab order as well as on screen.
+    const bool running = OverlayServer_IsRunning();
+    const std::wstring serverError = OverlayServer_GetLastError();
+    OverlayCustom_AddItem(st, 12, OverlayCustomKind::Status,
+        RECT{ x, y, x + w, y + valueH }, running ? L"Server running" : L"Server stopped");
+    st->items.back().value = running ? 1 : 0;
+    y += valueH + gap;
+    const int actionIds[] = { OVERLAY_ID_TOGGLE, OVERLAY_ID_OPEN };
+    const wchar_t* actionLabels[] = { running ? L"Stop server" : L"Start server", L"Open overlay" };
+    int actionX = x;
+    for (int i = 0; i < 2; ++i)
+    {
+        if (actionX + btnW > x + w) { actionX = x; y += btnH + gap; }
+        OverlayCustom_AddItem(st, actionIds[i], OverlayCustomKind::Button,
+            RECT{ actionX, y, actionX + btnW, y + btnH }, actionLabels[i]);
+        st->items.back().enabled = i != 1 || running;
+        actionX += btnW + gap;
+    }
+    const int addressMinWidth = S(hWnd, 350);
+    if (x + w - actionX < addressMinWidth)
+    {
+        actionX = x;
+        y += btnH + gap;
+    }
+    OverlayCustom_AddItem(st, 10, OverlayCustomKind::CopyAddress,
+        RECT{ actionX, y, x + w, y + S(hWnd, 32) }, OverlayCustom_BuildUrl(st));
+    y += S(hWnd, 32) + gap;
+    OverlayCustom_AddItem(st, 13, OverlayCustomKind::Hint,
+        RECT{ x, y, x + w, y + S(hWnd, 40) }, L"In OBS, add a Browser Source and paste this URL.");
+    y += S(hWnd, 40);
+    if (!serverError.empty())
+    {
+        // Keep the complete server error available, including at narrow widths.
+        HDC measure = GetDC(hWnd);
+        HGDIOBJ previousFont = SelectObject(measure, GetStockObject(SYSTEM_FONT));
+        RECT errorRect{ x, y, x + w, y };
+        DrawTextW(measure, serverError.c_str(), -1, &errorRect, DT_CALCRECT | DT_WORDBREAK | DT_NOPREFIX);
+        SelectObject(measure, previousFont);
+        ReleaseDC(hWnd, measure);
+        errorRect.bottom += S(hWnd, 12);
+        OverlayCustom_AddItem(st, 11, OverlayCustomKind::Hint, errorRect, serverError);
+        y = errorRect.bottom;
+    }
+    y += rowGap;
+
+    OverlayCustom_AddItem(st, 30, OverlayCustomKind::Label,
+        RECT{ x, y, x + w, y + labelH }, L"Layout");
+    y += labelH + S(hWnd, 6);
+    const bool followingLayout = st->layoutPicker.Following();
+    const int brandW = followingLayout ? std::min(S(hWnd, 240), w) : std::min(S(hWnd, 160), (w - gap) / 2);
+    const int variantW = st->layoutPicker.HasVariants() ? S(hWnd, 96) + gap : 0;
+    OverlayCustom_AddItem(st, 31, OverlayCustomKind::Label,
+        RECT{ x, y, x + brandW, y + labelH }, L"Brand");
+    if (!followingLayout) OverlayCustom_AddItem(st, 32, OverlayCustomKind::Label,
+        RECT{ x + brandW + gap, y, x + w - variantW, y + labelH }, L"Model");
+    if (variantW) OverlayCustom_AddItem(st, 33, OverlayCustomKind::Label,
+        RECT{ x + w - variantW + gap, y, x + w, y + labelH }, L"Variant");
+    y += labelH + S(hWnd, 6);
+    OverlayCustom_AddItem(st, OVERLAY_ID_BRAND, OverlayCustomKind::Combo,
+        RECT{ x, y, x + brandW, y + editH }, L"");
+    if (!followingLayout) OverlayCustom_AddItem(st, OVERLAY_ID_LAYOUT, OverlayCustomKind::Combo,
+        RECT{ x + brandW + gap, y, x + w - variantW, y + editH }, L"");
+    if (variantW) OverlayCustom_AddItem(st, OVERLAY_ID_VARIANT, OverlayCustomKind::Combo,
+        RECT{ x + w - variantW + gap, y, x + w, y + editH }, L"");
+    y += editH + gap;
+    OverlayCustom_AddItem(st, OVERLAY_ID_LAYOUT_EDIT, OverlayCustomKind::Button,
+        RECT{ x, y, x + btnW, y + editH }, L"Layout editor");
+    y += editH + rowGap;
 
     bool compactTop = w < portW + gap + directionW + gap + depthW;
     OverlayCustom_AddItem(st, 2, OverlayCustomKind::Label, RECT{ x, y, x + portW, y + labelH }, L"Port");
@@ -1960,42 +2086,7 @@ static void OverlayCustom_RebuildLayout(HWND hWnd, OverlayCustomState* st)
         y += editH + rowGap;
     }
 
-    OverlayCustom_AddItem(st, 9, OverlayCustomKind::Label, RECT{ x, y, x + w, y + labelH }, L"OBS browser source URL");
-    y += labelH + S(hWnd, 6);
-    OverlayCustom_AddItem(st, 10, OverlayCustomKind::Label, RECT{ x, y, x + w, y + valueH }, OverlayCustom_BuildUrl(st));
-    y += valueH + rowGap;
-
-    OverlayCustom_AddItem(st, 11, OverlayCustomKind::Label, RECT{ x, y, x + w, y + labelH }, L"Server status");
-    y += labelH + S(hWnd, 6);
-    std::wstring status = OverlayServer_IsRunning() ? L"Running" : L"Stopped";
-    std::wstring err = OverlayServer_GetLastError();
-    if (!err.empty()) status += L" (" + err + L")";
-    OverlayCustom_AddItem(st, 12, OverlayCustomKind::Label, RECT{ x, y, x + w, y + valueH }, status);
-    y += valueH + rowGap;
-
-    if (w >= btnW * 3 + gap * 2)
-    {
-        OverlayCustom_AddItem(st, OVERLAY_ID_TOGGLE, OverlayCustomKind::Button, RECT{ x, y, x + btnW, y + btnH }, OverlayServer_IsRunning() ? L"Stop server" : L"Start server");
-        OverlayCustom_AddItem(st, OVERLAY_ID_OPEN, OverlayCustomKind::Button, RECT{ x + btnW + gap, y, x + btnW * 2 + gap, y + btnH }, L"Open");
-        st->items.back().enabled = OverlayServer_IsRunning();
-        OverlayCustom_AddItem(st, OVERLAY_ID_COPY, OverlayCustomKind::Button, RECT{ x + (btnW + gap) * 2, y, x + (btnW + gap) * 2 + btnW, y + btnH }, L"Copy URL");
-        y += btnH + rowGap;
-    }
-    else
-    {
-        int narrowW = std::min(w, S(hWnd, 220));
-        OverlayCustom_AddItem(st, OVERLAY_ID_TOGGLE, OverlayCustomKind::Button, RECT{ x, y, x + narrowW, y + btnH }, OverlayServer_IsRunning() ? L"Stop server" : L"Start server");
-        y += btnH + S(hWnd, 8);
-        OverlayCustom_AddItem(st, OVERLAY_ID_OPEN, OverlayCustomKind::Button, RECT{ x, y, x + narrowW, y + btnH }, L"Open");
-        st->items.back().enabled = OverlayServer_IsRunning();
-        y += btnH + S(hWnd, 8);
-        OverlayCustom_AddItem(st, OVERLAY_ID_COPY, OverlayCustomKind::Button, RECT{ x, y, x + narrowW, y + btnH }, L"Copy URL");
-        y += btnH + rowGap;
-    }
-
-    OverlayCustom_AddItem(st, 13, OverlayCustomKind::Hint, RECT{ x, y, x + w, y + S(hWnd, 52) },
-        L"Add the URL to OBS as a Browser Source. The page renders the current HallJoy keyboard layout and HE analog depth.");
-    y += S(hWnd, 52) + margin;
+    y += margin;
 
     st->contentHeight = y;
     st->surface.scrollY = st->scrollY;
@@ -2245,6 +2336,30 @@ static void OverlayCustom_DrawItem(HWND hWnd, HDC hdc, Graphics& g, OverlayCusto
 
     switch (it.kind)
     {
+    case OverlayCustomKind::CopyAddress:
+    {
+        OverlayCustom_DrawRoundRect(g, rc, hot ? RGB(43, 48, 53) : UiTheme::Color_ControlBg(),
+            hot ? UiTheme::Color_Accent() : UiTheme::Color_Border(), (float)S(hWnd, 4));
+        RECT url = rc;
+        InflateRect(&url, -S(hWnd, 12), 0);
+        RECT action = url;
+        action.left = (std::max)(url.left, url.right - S(hWnd, 118));
+        url.right = action.left - S(hWnd, 10);
+        OverlayCustom_DrawText(hdc, it.text, url, text, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        OverlayCustom_DrawText(hdc, st->copyFeedback.empty() ? L"Click to copy" : st->copyFeedback,
+            action, UiTheme::Color_Accent(), DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
+        break;
+    }
+    case OverlayCustomKind::Status:
+    {
+        const COLORREF accent = it.value ? RGB(105, 199, 146) : UiTheme::Color_TextMuted();
+        SolidBrush dot(Gp(accent));
+        const int diameter = S(hWnd, 7);
+        g.FillEllipse(&dot, (INT)rc.left, (INT)(rc.top + (rc.bottom - rc.top - diameter) / 2), diameter, diameter);
+        rc.left += S(hWnd, 17);
+        OverlayCustom_DrawText(hdc, it.text, rc, accent, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        break;
+    }
     case OverlayCustomKind::Label:
         OverlayCustom_DrawText(hdc, it.text, rc, text, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
         break;
@@ -2262,6 +2377,9 @@ static void OverlayCustom_DrawItem(HWND hWnd, HDC hdc, Graphics& g, OverlayCusto
             if (it.id == OVERLAY_ID_DIRECTION) combo = st->comboDirection;
             else if (it.id == OVERLAY_ID_DEPTH_SOURCE) combo = st->comboDepthSource;
             else if (it.id == OVERLAY_ID_LABEL_FONT) combo = st->comboLabelFont;
+            else if (it.id == OVERLAY_ID_LAYOUT) combo = st->comboLayout;
+            else if (it.id == OVERLAY_ID_BRAND) combo = st->layoutPicker.brand;
+            else if (it.id == OVERLAY_ID_VARIANT) combo = st->layoutPicker.variant;
         }
         if (combo)
             PremiumCombo::PaintRetainedFace(combo, hdc, rc, hot);
@@ -2280,20 +2398,32 @@ static void OverlayCustom_DrawItem(HWND hWnd, HDC hdc, Graphics& g, OverlayCusto
         CustomPage_DrawChip(g, hdc, rc, it.text, it.enabled);
         break;
     case OverlayCustomKind::Edit:
-        OverlayCustom_DrawRoundRect(g, rc, UiTheme::Color_ControlBg(), focused ? UiTheme::Color_Accent() : UiTheme::Color_Border(), 4.0f, it.enabled ? 255 : 145);
         {
+            const std::wstring& editText = st ? OverlayCustom_EditText(st, it.id) : it.text;
+            uint32_t value = 0;
+            const bool valid = halljoy::overlay_edit::Value(editText, OverlayCustom_EditKind(it.id), value);
+            OverlayCustom_DrawRoundRect(g, rc, UiTheme::Color_ControlBg(), !valid ? RGB(222, 104, 114) :
+                focused ? UiTheme::Color_Accent() : UiTheme::Color_Border(), 4.0f, it.enabled ? 255 : 145);
             RECT trc = rc;
             InflateRect(&trc, -S(hWnd, 8), 0);
-            const std::wstring& editText = !st ? it.text :
-                ((it.id == OVERLAY_ID_PORT) ? st->portText :
-                ((it.id == OVERLAY_ID_LABEL_COLOR_HEX) ? st->labelHexText : st->hexText));
-            OverlayCustom_DrawText(hdc, editText, trc, text, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+            const int dcState = SaveDC(hdc);
+            IntersectClipRect(hdc, trc.left, trc.top, trc.right, trc.bottom);
+            const int caretWidth = focused ? OverlayCustom_TextWidth(hdc, editText, st->editor.Caret()) : 0;
+            const int offset = focused ? std::max<int>(0, caretWidth - (trc.right - trc.left) + 2) : 0;
+            RECT textRect = trc;
+            textRect.left -= offset;
+            textRect.right = textRect.left + std::max<int>(OverlayCustom_TextWidth(hdc, editText, editText.size()) + 4, trc.right - trc.left);
+            if (focused && st->editor.Selected()) {
+                RECT selection{ textRect.left + OverlayCustom_TextWidth(hdc, editText, st->editor.Begin()), rc.top + S(hWnd, 4),
+                    textRect.left + OverlayCustom_TextWidth(hdc, editText, st->editor.End()), rc.bottom - S(hWnd, 4) };
+                HBRUSH brush = CreateSolidBrush(RGB(48, 100, 150));
+                FillRect(hdc, &selection, brush);
+                DeleteObject(brush);
+            }
+            OverlayCustom_DrawText(hdc, editText, textRect, text, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
             if (focused && it.enabled)
             {
-                SIZE sz{};
-                const std::wstring& s = editText;
-                GetTextExtentPoint32W(hdc, s.c_str(), (int)s.size(), &sz);
-                int cx = std::min(trc.left + sz.cx + 1, trc.right - 2);
+                int cx = textRect.left + caretWidth;
                 HPEN caret = CreatePen(PS_SOLID, 1, UiTheme::Color_Text());
                 HGDIOBJ old = SelectObject(hdc, caret);
                 MoveToEx(hdc, cx, rc.top + S(hWnd, 6), nullptr);
@@ -2301,6 +2431,7 @@ static void OverlayCustom_DrawItem(HWND hWnd, HDC hdc, Graphics& g, OverlayCusto
                 SelectObject(hdc, old);
                 DeleteObject(caret);
             }
+            RestoreDC(hdc, dcState);
         }
         break;
     case OverlayCustomKind::Hue:
@@ -2329,7 +2460,8 @@ static void OverlayCustom_RenderCacheContent(HWND hWnd, HDC hdc, const RECT& ful
     auto* st = (OverlayCustomState*)user;
     if (!st) return;
 
-    HGDIOBJ oldFont = SelectObject(hdc, GetStockObject(DEFAULT_GUI_FONT));
+    // Match the shared retained Global/Configuration page typography.
+    HGDIOBJ oldFont = SelectObject(hdc, GetStockObject(SYSTEM_FONT));
     Graphics g(hdc);
     g.SetSmoothingMode(SmoothingModeAntiAlias);
     g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
@@ -2465,13 +2597,16 @@ static HWND OverlayCustom_ComboForId(OverlayCustomState* st, int id)
     if (id == OVERLAY_ID_DIRECTION) return st->comboDirection;
     if (id == OVERLAY_ID_DEPTH_SOURCE) return st->comboDepthSource;
     if (id == OVERLAY_ID_LABEL_FONT) return st->comboLabelFont;
+    if (id == OVERLAY_ID_LAYOUT) return st->comboLayout;
+    if (id == OVERLAY_ID_BRAND) return st->layoutPicker.brand;
+    if (id == OVERLAY_ID_VARIANT) return st->layoutPicker.variant;
     return nullptr;
 }
 
 static void OverlayCustom_CloseComboAnchors(OverlayCustomState* st)
 {
     if (!st) return;
-    HWND combos[] = { st->comboDirection, st->comboDepthSource, st->comboLabelFont };
+    HWND combos[] = { st->comboDirection, st->comboDepthSource, st->comboLabelFont, st->comboLayout, st->layoutPicker.brand, st->layoutPicker.variant };
     for (HWND combo : combos)
     {
         if (!combo) continue;
@@ -2480,8 +2615,15 @@ static void OverlayCustom_CloseComboAnchors(OverlayCustomState* st)
     }
 }
 
+static void OverlayCustom_RefreshLayoutCombo(OverlayCustomState* st)
+{
+    if (!st || !st->comboLayout) return;
+    st->layoutPicker.Refresh(KeyboardLayout_GetOverlayPresetIndex());
+}
+
 static void OverlayCustom_OpenComboAnchor(HWND hWnd, OverlayCustomState* st, int id)
 {
+    if (id == OVERLAY_ID_LAYOUT || id == OVERLAY_ID_BRAND || id == OVERLAY_ID_VARIANT) OverlayCustom_RefreshLayoutCombo(st);
     HWND combo = OverlayCustom_ComboForId(st, id);
     if (!combo) return;
     const OverlayCustomItem* item = nullptr;
@@ -2502,7 +2644,7 @@ static void OverlayCustom_InitCombos(HWND hWnd, OverlayCustomState* st)
 {
     if (!st) return;
     HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
-    HFONT font = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+    HFONT font = (HFONT)GetStockObject(SYSTEM_FONT);
     auto create = [&](int id)
     {
         HWND combo = PremiumCombo::Create(hWnd, hInst, 0, 0, 10, 10, id,
@@ -2522,6 +2664,12 @@ static void OverlayCustom_InitCombos(HWND hWnd, OverlayCustomState* st)
     PremiumCombo::AddString(st->comboDepthSource, L"Raw press depth");
 
     st->comboLabelFont = create(OVERLAY_ID_LABEL_FONT);
+    st->comboLayout = create(OVERLAY_ID_LAYOUT);
+    st->layoutPicker.model = st->comboLayout;
+    st->layoutPicker.brand = create(OVERLAY_ID_BRAND);
+    st->layoutPicker.variant = create(OVERLAY_ID_VARIANT);
+    st->layoutPicker.follow = true;
+    OverlayCustom_RefreshLayoutCombo(st);
     for (int i = 0; i < 13; ++i)
         PremiumCombo::AddString(st->comboLabelFont, OverlayCustom_LabelFontName(i));
 
@@ -2545,7 +2693,16 @@ static void OverlayCustom_Activate(HWND hWnd, OverlayCustomState* st, int id)
         }
         else
         {
-            OverlayServer_Start(OverlayCustom_GetPort(st));
+            uint32_t port = 0;
+            if (!halljoy::overlay_edit::Value(st->portText, halljoy::overlay_edit::Kind::Port, port)) {
+                st->focusId = OVERLAY_ID_PORT;
+                st->editor.Reset(st->portText, halljoy::overlay_edit::Kind::Port);
+                st->editor.SelectAll();
+                st->editFeedback = L"Enter a port from 1 to 65535 before starting.";
+                OverlayCustom_MarkCacheDirty(hWnd, st);
+                return;
+            }
+            OverlayServer_Start((uint16_t)port);
             OverlayServer_SetAutoStart(OverlayServer_IsRunning());
         }
         break;
@@ -2557,12 +2714,22 @@ static void OverlayCustom_Activate(HWND hWnd, OverlayCustomState* st, int id)
         }
         break;
     case OVERLAY_ID_COPY:
-        OverlayPage_SetClipboardText(hWnd, OverlayCustom_BuildUrl(st));
-        break;
+    case 10: // Address field uses exactly the same copy operation as Copy URL.
+        st->copyFeedback = OverlayPage_SetClipboardText(hWnd, OverlayCustom_BuildUrl(st))
+            ? L"Copied!" : L"Copy failed";
+        SetTimer(hWnd, OVERLAY_ID_COPY, 2000, nullptr);
+        OverlayCustom_MarkCacheDirty(hWnd, st);
+        return; // Copying does not change settings or trigger an autosave.
     case OVERLAY_ID_DIRECTION:
     case OVERLAY_ID_DEPTH_SOURCE:
     case OVERLAY_ID_LABEL_FONT:
+    case OVERLAY_ID_LAYOUT:
+    case OVERLAY_ID_BRAND:
+    case OVERLAY_ID_VARIANT:
         OverlayCustom_OpenComboAnchor(hWnd, st, id);
+        return;
+    case OVERLAY_ID_LAYOUT_EDIT:
+        LayoutEditor_OpenWindow(hWnd, KeyboardLayout_GetOverlayPresetIndex());
         return;
     default:
     {
@@ -2577,9 +2744,127 @@ static void OverlayCustom_Activate(HWND hWnd, OverlayCustomState* st, int id)
     InvalidateRect(hWnd, nullptr, FALSE);
 }
 
+static void OverlayCustom_ApplyEdit(HWND hWnd, OverlayCustomState* st)
+{
+    if (!st || !OverlayCustom_IsEdit(st->focusId)) return;
+    OverlayCustom_EditText(st, st->focusId) = st->editor.Text();
+    uint32_t value = 0;
+    bool changed = false;
+    if (halljoy::overlay_edit::Value(st->editor.Text(), st->editor.kind, value)) {
+        if (st->focusId == OVERLAY_ID_PORT && !OverlayServer_IsRunning()) {
+            changed = value != OverlayServer_GetConfiguredPort();
+            if (changed) OverlayServer_SetConfiguredPort((uint16_t)value);
+        } else if (st->focusId == OVERLAY_ID_LABEL_COLOR_HEX) {
+            changed = value != OverlayServer_GetLabelColor();
+            if (changed) OverlayServer_SetLabelColor(value);
+            OverlayCustom_SyncColorUiFromRgb(st->labelColorUi, value);
+        } else if (st->focusId == OVERLAY_ID_COLOR_HEX) {
+            changed = value != OverlayServer_GetAccentColor();
+            if (changed) OverlayServer_SetAccentColor(value);
+            OverlayCustom_SyncColorUiFromRgb(st->indicatorColorUi, value);
+        }
+    }
+    if (changed) {
+        OverlayCustom_RebuildLayout(hWnd, st);
+        OverlayCustom_RequestSave(hWnd);
+    }
+    OverlayCustom_MarkCacheDirty(hWnd, st);
+}
+
+static size_t OverlayCustom_EditHit(HWND hWnd, OverlayCustomState* st, const OverlayCustomItem& item, int x)
+{
+    HDC dc = GetDC(hWnd);
+    HGDIOBJ font = SelectObject(dc, GetStockObject(SYSTEM_FONT));
+    const auto& text = st->editor.Text();
+    const int width = item.rc.right - item.rc.left - S(hWnd, 16);
+    const int offset = std::max(0, OverlayCustom_TextWidth(dc, text, st->editor.Caret()) - width + 2);
+    const int target = x - item.rc.left - S(hWnd, 8) + offset;
+    size_t index = 0;
+    for (; index < text.size(); ++index) {
+        const int left = OverlayCustom_TextWidth(dc, text, index);
+        const int right = OverlayCustom_TextWidth(dc, text, index + 1);
+        if (target < (left + right) / 2) break;
+    }
+    SelectObject(dc, font); ReleaseDC(hWnd, dc);
+    return index;
+}
+
+static bool OverlayCustom_Paste(HWND hWnd, OverlayCustomState* st)
+{
+    if (!OpenClipboard(hWnd)) { st->editFeedback = L"Clipboard is busy. Please try again."; return false; }
+    HANDLE data = GetClipboardData(CF_UNICODETEXT);
+    const size_t capacity = data ? GlobalSize(data) / sizeof(wchar_t) : 0;
+    const auto* text = data ? (const wchar_t*)GlobalLock(data) : nullptr;
+    std::wstring copied;
+    bool bounded = false;
+    if (text) {
+        size_t length = 0;
+        while (length < std::min<size_t>(capacity, 128) && text[length]) ++length;
+        bounded = length < capacity && length < 128;
+        if (bounded) copied.assign(text, length);
+        GlobalUnlock(data);
+    }
+    CloseClipboard();
+    if (!bounded || copied.empty() || !st->editor.Replace(copied, true)) {
+        st->editFeedback = L"Paste a port number or a six-digit HEX color.";
+        return false;
+    }
+    st->editFeedback.clear();
+    return true;
+}
+
+enum { OVERLAY_EDIT_UNDO = 1, OVERLAY_EDIT_REDO, OVERLAY_EDIT_CUT, OVERLAY_EDIT_COPY, OVERLAY_EDIT_PASTE, OVERLAY_EDIT_ALL };
+static void OverlayCustom_EditCommand(HWND hWnd, OverlayCustomState* st, int command)
+{
+    st->editFeedback.clear();
+    switch (command) {
+    case OVERLAY_EDIT_UNDO: st->editor.Undo(); break;
+    case OVERLAY_EDIT_REDO: st->editor.Undo(true); break;
+    case OVERLAY_EDIT_ALL: st->editor.SelectAll(); break;
+    case OVERLAY_EDIT_COPY:
+    case OVERLAY_EDIT_CUT:
+        if (st->editor.Selected()) {
+            if (OverlayPage_SetClipboardText(hWnd, st->editor.Selection())) {
+                if (command == OVERLAY_EDIT_CUT) st->editor.Replace(L"");
+            } else st->editFeedback = L"Could not copy. Please try again.";
+        }
+        break;
+    case OVERLAY_EDIT_PASTE: OverlayCustom_Paste(hWnd, st); break;
+    }
+    OverlayCustom_ApplyEdit(hWnd, st);
+}
+
+static void OverlayCustom_DrawEditFeedback(HWND hWnd, HDC dc, OverlayCustomState* st)
+{
+    if (!st || !OverlayCustom_IsEdit(st->focusId) || GetFocus() != hWnd || st->selectingText) return;
+    uint32_t value = 0;
+    std::wstring message = st->editFeedback;
+    if (message.empty() && !halljoy::overlay_edit::Value(st->editor.Text(), st->editor.kind, value))
+        message = st->editor.kind == halljoy::overlay_edit::Kind::Port ? L"Enter a port from 1 to 65535." : L"Enter six HEX digits, for example #4A90D9.";
+    if (message.empty()) return;
+    for (const auto& item : st->items) if (item.id == st->focusId) {
+        RECT client{}; GetClientRect(hWnd, &client);
+        const RECT field = OverlayCustom_ToView(item.rc, st->scrollY);
+        if (field.bottom <= 0 || field.top >= client.bottom) return;
+        const int height = S(hWnd, 28), width = std::min<int>(S(hWnd, 340), client.right - S(hWnd, 16));
+        const int left = std::clamp<int>(field.left, S(hWnd, 4), std::max(S(hWnd, 4), (int)client.right - width - S(hWnd, 4)));
+        const int top = field.top >= height + S(hWnd, 4) ? field.top - height - S(hWnd, 3) : field.bottom + S(hWnd, 3);
+        RECT tip{left, top, left + width, top + height};
+        Graphics graphics(dc);
+        OverlayCustom_DrawRoundRect(graphics, tip, RGB(55, 29, 34), RGB(190, 86, 99), (float)S(hWnd, 4), 255);
+        InflateRect(&tip, -S(hWnd, 8), 0);
+        HGDIOBJ font = SelectObject(dc, GetStockObject(SYSTEM_FONT));
+        OverlayCustom_DrawText(dc, message, tip, RGB(245, 192, 198), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        SelectObject(dc, font);
+        break;
+    }
+}
+
 static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     auto* st = (OverlayCustomState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+    if (msg == halljoy::main_input::QueryExplicitInput())
+        return st && GetFocus() == hWnd && OverlayCustom_IsEdit(st->focusId) ? 1 : 0;
 
     if (msg == PremiumCombo::MsgDropStateChanged())
     {
@@ -2605,6 +2890,24 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
                 OverlayServer_SetUseRawDepth(selection == 1);
             else if (id == OVERLAY_ID_LABEL_FONT)
                 OverlayServer_SetLabelFontIndex(std::clamp(selection, 0, 12));
+            else if (id == OVERLAY_ID_BRAND) {
+                st->layoutPicker.Browse(KeyboardLayout_GetOverlayPresetIndex());
+                if (st->layoutPicker.Following()) {
+                    KeyboardLayout_SetOverlayPresetIndex(-1);
+                    st->layoutPicker.Refresh(-1, true);
+                    OverlayCustom_RequestSave(hWnd);
+                }
+                OverlayCustom_RebuildLayout(hWnd, st);
+                OverlayCustom_CloseComboAnchors(st);
+                OverlayCustom_MarkCacheDirty(hWnd, st);
+                return 0;
+            }
+            else if (id == OVERLAY_ID_LAYOUT || id == OVERLAY_ID_VARIANT) {
+                const int selected = id == OVERLAY_ID_LAYOUT ? st->layoutPicker.ChooseModel() : st->layoutPicker.Selected();
+                if (selected < -1) return 0;
+                KeyboardLayout_SetOverlayPresetIndex(selected);
+                st->layoutPicker.Refresh(KeyboardLayout_GetOverlayPresetIndex(), true);
+            }
             OverlayCustom_RebuildLayout(hWnd, st);
             OverlayCustom_RequestSave(hWnd);
             OverlayCustom_MarkCacheDirty(hWnd, st);
@@ -2633,6 +2936,7 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 
     case WM_NCDESTROY:
         OverlayCustom_CloseComboAnchors(st);
+        KillTimer(hWnd, OVERLAY_ID_COPY);
         OverlayCustom_DestroyCache(st);
         delete st;
         SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);
@@ -2647,11 +2951,15 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
     case WM_SHOWWINDOW:
         if (wParam && st)
         {
+            OverlayCustom_RefreshLayoutCombo(st);
             PremiumCombo::SetCurSel(st->comboDirection,
                 OverlayServer_GetFillDirection() == OverlayFillDirection::TopDown ? 0 : 1, false);
             PremiumCombo::SetCurSel(st->comboDepthSource, OverlayServer_GetUseRawDepth() ? 1 : 0, false);
             PremiumCombo::SetCurSel(st->comboLabelFont,
                 std::clamp(OverlayServer_GetLabelFontIndex(), 0, 12), false);
+            st->focusId = 0;
+            st->selectingText = false;
+            st->portText = std::to_wstring(OverlayServer_GetConfiguredPort());
             st->hexText = OverlayPage_FormatHex(OverlayServer_GetAccentColor());
             st->labelHexText = OverlayPage_FormatHex(OverlayServer_GetLabelColor());
             OverlayCustom_RebuildLayout(hWnd, st);
@@ -2675,6 +2983,7 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
             st->surface.scrollY = st->scrollY;
             CustomPageSurface_Present(hWnd, memDC, &st->surface,
                 OverlayCustom_RenderCacheContent, st, st->scroll.draggingThumb);
+            OverlayCustom_DrawEditFeedback(hWnd, memDC, st);
         }
         EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
         if (st && st->surface.scrollSampleStartMs != 0)
@@ -2685,10 +2994,25 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
         return 0;
     }
 
+    case WM_TIMER:
+        if (st && wParam == OVERLAY_ID_COPY)
+        {
+            KillTimer(hWnd, OVERLAY_ID_COPY);
+            st->copyFeedback.clear();
+            OverlayCustom_MarkCacheDirty(hWnd, st);
+            return 0;
+        }
+        break;
+
     case WM_SETCURSOR:
         if (LOWORD(lParam) == HTCLIENT)
         {
-            SetCursor(LoadCursorW(nullptr, IDC_ARROW));
+            POINT pt{};
+            GetCursorPos(&pt);
+            ScreenToClient(hWnd, &pt);
+            auto* item = OverlayCustom_HitTest(st, pt);
+            SetCursor(LoadCursorW(nullptr, item && item->kind == OverlayCustomKind::CopyAddress ? IDC_HAND :
+                item && item->kind == OverlayCustomKind::Edit && item->enabled ? IDC_IBEAM : IDC_ARROW));
             return TRUE;
         }
         break;
@@ -2696,6 +3020,14 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
     case WM_MOUSEMOVE:
     {
         if (!st) break;
+        if (st->selectingText && GetCapture() == hWnd) {
+            for (const auto& item : st->items) if (item.id == st->focusId) {
+                st->editor.MoveTo(OverlayCustom_EditHit(hWnd, st, item, (short)LOWORD(lParam)), true);
+                OverlayCustom_MarkCacheDirty(hWnd, st);
+                break;
+            }
+            return 0;
+        }
         POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
         if (st->scroll.draggingThumb)
         {
@@ -2727,6 +3059,7 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
         return 0;
     }
 
+    case WM_LBUTTONDBLCLK:
     case WM_LBUTTONDOWN:
     {
         if (!st) break;
@@ -2743,12 +3076,19 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
         }
 
         OverlayCustomItem* hit = OverlayCustom_HitTest(st, pt);
+        const int oldFocus = st->focusId;
         st->focusId = 0;
+        st->editFeedback.clear();
         if (hit && hit->enabled)
         {
             st->pressedId = hit->id;
-            if (hit->kind == OverlayCustomKind::Edit)
+            if (hit->kind == OverlayCustomKind::Edit) {
                 st->focusId = hit->id;
+                if (oldFocus != hit->id) st->editor.Reset(OverlayCustom_EditText(st, hit->id), OverlayCustom_EditKind(hit->id));
+                if (msg == WM_LBUTTONDBLCLK) st->editor.SelectAll();
+                else st->editor.MoveTo(OverlayCustom_EditHit(hWnd, st, *hit, pt.x), oldFocus == hit->id && (GetKeyState(VK_SHIFT) & 0x8000));
+                st->selectingText = msg != WM_LBUTTONDBLCLK;
+            }
             if (hit->kind == OverlayCustomKind::Slider || hit->kind == OverlayCustomKind::Hue)
             {
                 st->dragId = hit->id;
@@ -2773,7 +3113,8 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
         if (!st) break;
         POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
         int pressed = st->pressedId;
-        bool wasDrag = st->dragId != 0 || st->scroll.draggingThumb;
+        bool wasDrag = st->dragId != 0 || st->scroll.draggingThumb || OverlayCustom_IsEdit(pressed);
+        st->selectingText = false;
         st->pressedId = 0;
         st->dragId = 0;
         st->colorDragMode = 0;
@@ -2792,6 +3133,7 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
     case WM_CAPTURECHANGED:
         if (st)
         {
+            st->selectingText = false;
             st->pressedId = 0;
             st->dragId = 0;
             st->colorDragMode = 0;
@@ -2815,98 +3157,130 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
         break;
 
     case WM_CHAR:
-        if (st && (st->focusId == OVERLAY_ID_PORT || st->focusId == OVERLAY_ID_COLOR_HEX || st->focusId == OVERLAY_ID_LABEL_COLOR_HEX))
+        if (st && GetFocus() == hWnd && OverlayCustom_IsEdit(st->focusId))
         {
-            std::wstring& s = (st->focusId == OVERLAY_ID_PORT) ? st->portText :
-                ((st->focusId == OVERLAY_ID_LABEL_COLOR_HEX) ? st->labelHexText : st->hexText);
-            if (wParam == VK_BACK)
-            {
-                if (!s.empty())
-                    s.pop_back();
-            }
-            else if (wParam == 22) // Ctrl+V
-            {
-                if (OpenClipboard(hWnd))
-                {
-                    HANDLE h = GetClipboardData(CF_UNICODETEXT);
-                    const wchar_t* txt = h ? (const wchar_t*)GlobalLock(h) : nullptr;
-                    if (txt)
-                    {
-                        for (const wchar_t* p = txt; *p; ++p)
-                        {
-                            wchar_t ch = *p;
-                            if (st->focusId == OVERLAY_ID_PORT)
-                            {
-                                if (iswdigit(ch) && s.size() < 5) s.push_back(ch);
-                            }
-                            else
-                            {
-                                if ((iswxdigit(ch) || ch == L'#') && s.size() < 7) s.push_back(towupper(ch));
-                            }
-                        }
-                        GlobalUnlock(h);
-                    }
-                    CloseClipboard();
-                }
-            }
-            else if (wParam >= 32)
-            {
-                wchar_t ch = (wchar_t)wParam;
-                if (st->focusId == OVERLAY_ID_PORT)
-                {
-                    if (iswdigit(ch) && s.size() < 5) s.push_back(ch);
-                    OverlayServer_SetConfiguredPort(OverlayCustom_GetPort(st));
-                }
-                else
-                {
-                    if ((iswxdigit(ch) || ch == L'#') && s.size() < 7)
-                        s.push_back(towupper(ch));
-                    uint32_t color = 0;
-                    if (OverlayPage_ParseHex(s, &color))
-                    {
-                        if (st->focusId == OVERLAY_ID_LABEL_COLOR_HEX)
-                        {
-                            OverlayServer_SetLabelColor(color);
-                            OverlayCustom_SyncColorUiFromRgb(st->labelColorUi, color);
-                        }
-                        else
-                        {
-                            OverlayServer_SetAccentColor(color);
-                            OverlayCustom_SyncColorUiFromRgb(st->indicatorColorUi, color);
-                        }
-                    }
-                }
-            }
-            if (st->focusId == OVERLAY_ID_PORT)
-                OverlayServer_SetConfiguredPort(OverlayCustom_GetPort(st));
-            else
-            {
-                uint32_t color = 0;
-                if (OverlayPage_ParseHex(s, &color))
-                {
-                    if (st->focusId == OVERLAY_ID_LABEL_COLOR_HEX)
-                    {
-                        OverlayServer_SetLabelColor(color);
-                        OverlayCustom_SyncColorUiFromRgb(st->labelColorUi, color);
-                    }
-                    else
-                    {
-                        OverlayServer_SetAccentColor(color);
-                        OverlayCustom_SyncColorUiFromRgb(st->indicatorColorUi, color);
-                    }
-                }
-            }
-            OverlayCustom_RebuildLayout(hWnd, st);
-            OverlayCustom_RequestSave(hWnd);
-            InvalidateRect(hWnd, nullptr, FALSE);
+            // Control characters are handled exactly once by WM_KEYDOWN.
+            if (wParam < 32 || (GetKeyState(VK_CONTROL) & 0x8000)) return 0;
+            st->editFeedback.clear();
+            if (!st->editor.Replace(std::wstring(1, (wchar_t)wParam)))
+                st->editFeedback = st->editor.kind == halljoy::overlay_edit::Kind::Port ?
+                    L"Use up to five digits for the port." : L"Use six HEX digits, optionally starting with #.";
+            OverlayCustom_ApplyEdit(hWnd, st);
             return 0;
         }
         break;
 
-    case WM_KEYDOWN:
-        if (st && wParam == VK_ESCAPE)
-        {
+    case WM_CANCELMODE:
+        if (st) {
+            st->selectingText = false;
+            if (GetCapture() == hWnd) ReleaseCapture();
+            OverlayCustom_MarkCacheDirty(hWnd, st);
+        }
+        break;
+    case WM_KILLFOCUS:
+        if (st) {
+            st->selectingText = false;
             st->focusId = 0;
+            if (GetCapture() == hWnd) ReleaseCapture();
+            OverlayCustom_MarkCacheDirty(hWnd, st);
+        }
+        break;
+    case WM_GETDLGCODE:
+        if (st && OverlayCustom_IsEdit(st->focusId)) return DLGC_WANTARROWS | DLGC_WANTCHARS | DLGC_WANTTAB;
+        break;
+    case WM_KEYDOWN:
+        if (st && GetFocus() == hWnd && OverlayCustom_IsEdit(st->focusId))
+        {
+            const bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+            const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+            int command = 0;
+            if (ctrl) {
+                if (wParam == 'A') command = OVERLAY_EDIT_ALL;
+                if (wParam == 'C' || wParam == VK_INSERT) command = OVERLAY_EDIT_COPY;
+                if (wParam == 'X') command = OVERLAY_EDIT_CUT;
+                if (wParam == 'V') command = OVERLAY_EDIT_PASTE;
+                if (wParam == 'Z') command = shift ? OVERLAY_EDIT_REDO : OVERLAY_EDIT_UNDO;
+                if (wParam == 'Y') command = OVERLAY_EDIT_REDO;
+            }
+            if (shift && wParam == VK_INSERT) command = OVERLAY_EDIT_PASTE;
+            if (shift && wParam == VK_DELETE) command = OVERLAY_EDIT_CUT;
+            if (command) { OverlayCustom_EditCommand(hWnd, st, command); return 0; }
+            st->editFeedback.clear();
+            switch (wParam) {
+            case VK_LEFT: st->editor.Move(-1, shift, ctrl); break;
+            case VK_RIGHT: st->editor.Move(1, shift, ctrl); break;
+            case VK_HOME: st->editor.MoveTo(0, shift); break;
+            case VK_END: st->editor.MoveTo(st->editor.Text().size(), shift); break;
+            case VK_BACK: st->editor.Erase(true, ctrl); break;
+            case VK_DELETE: st->editor.Erase(false, ctrl); break;
+            case VK_ESCAPE:
+                // Discard only an incomplete draft; already valid auto-applied edits remain.
+                OverlayCustom_EditText(st, st->focusId) = st->focusId == OVERLAY_ID_PORT ?
+                    std::to_wstring(OverlayServer_GetConfiguredPort()) : OverlayPage_FormatHex(
+                        st->focusId == OVERLAY_ID_LABEL_COLOR_HEX ? OverlayServer_GetLabelColor() : OverlayServer_GetAccentColor());
+                st->focusId = 0;
+                OverlayCustom_MarkCacheDirty(hWnd, st); return 0;
+            case VK_RETURN: {
+                uint32_t value = 0;
+                if (halljoy::overlay_edit::Value(st->editor.Text(), st->editor.kind, value)) st->focusId = 0;
+                OverlayCustom_MarkCacheDirty(hWnd, st); return 0;
+            }
+            case VK_TAB: {
+                const int ids[] = {OVERLAY_ID_PORT, OVERLAY_ID_LABEL_COLOR_HEX, OVERLAY_ID_COLOR_HEX};
+                int index = 0;
+                while (index < 3 && ids[index] != st->focusId) ++index;
+                for (int step = 1; step <= 3; ++step) {
+                    const int next = ids[(index + (shift ? -step : step) + 6) % 3];
+                    for (const auto& item : st->items) if (item.id == next && item.enabled) {
+                        st->focusId = next;
+                        st->editor.Reset(OverlayCustom_EditText(st, next), OverlayCustom_EditKind(next));
+                        st->editor.SelectAll();
+                        RECT viewport{}; GetClientRect(hWnd, &viewport);
+                        int scroll = st->scrollY;
+                        if (item.rc.top < scroll) scroll = item.rc.top;
+                        else if (item.rc.bottom > scroll + viewport.bottom) scroll = item.rc.bottom - viewport.bottom;
+                        CustomPageSurface_SetScrollY(hWnd, &st->surface, scroll);
+                        st->scrollY = st->surface.scrollY;
+                        OverlayCustom_MarkCacheDirty(hWnd, st); return 0;
+                    }
+                }
+                return 0;
+            }
+            default: return 0;
+            }
+            OverlayCustom_ApplyEdit(hWnd, st);
+            return 0;
+        }
+        break;
+
+    case WM_CONTEXTMENU:
+        if (st) {
+            POINT screen{(short)LOWORD(lParam), (short)HIWORD(lParam)};
+            POINT client = screen;
+            const bool keyboard = screen.x == -1 && screen.y == -1;
+            if (!keyboard) ScreenToClient(hWnd, &client);
+            OverlayCustomItem* item = keyboard ? nullptr : OverlayCustom_HitTest(st, client);
+            if (keyboard) for (auto& candidate : st->items) if (candidate.id == st->focusId) { item = &candidate; break; }
+            if (!item || !item->enabled || item->kind != OverlayCustomKind::Edit) break;
+            SetFocus(hWnd);
+            if (st->focusId != item->id) {
+                st->focusId = item->id;
+                st->editor.Reset(OverlayCustom_EditText(st, item->id), OverlayCustom_EditKind(item->id));
+                st->editor.SelectAll();
+            }
+            if (keyboard) { screen = {item->rc.left, item->rc.bottom - st->scrollY}; ClientToScreen(hWnd, &screen); }
+            HMENU menu = CreatePopupMenu();
+            if (!menu) break;
+            AppendMenuW(menu, MF_STRING | (st->editor.CanUndo() ? 0 : MF_GRAYED), OVERLAY_EDIT_UNDO, L"Undo");
+            AppendMenuW(menu, MF_STRING | (st->editor.CanRedo() ? 0 : MF_GRAYED), OVERLAY_EDIT_REDO, L"Redo");
+            AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+            AppendMenuW(menu, MF_STRING | (st->editor.Selected() ? 0 : MF_GRAYED), OVERLAY_EDIT_CUT, L"Cut");
+            AppendMenuW(menu, MF_STRING | (st->editor.Selected() ? 0 : MF_GRAYED), OVERLAY_EDIT_COPY, L"Copy");
+            AppendMenuW(menu, MF_STRING | (IsClipboardFormatAvailable(CF_UNICODETEXT) ? 0 : MF_GRAYED), OVERLAY_EDIT_PASTE, L"Paste");
+            AppendMenuW(menu, MF_STRING, OVERLAY_EDIT_ALL, L"Select all");
+            const int chosen = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON, screen.x, screen.y, 0, hWnd, nullptr);
+            DestroyMenu(menu);
+            if (chosen && OverlayCustom_IsEdit(st->focusId)) OverlayCustom_EditCommand(hWnd, st, chosen);
             OverlayCustom_MarkCacheDirty(hWnd, st);
             return 0;
         }
@@ -2914,6 +3288,148 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
     }
     return DefWindowProcW(hWnd, msg, wParam, lParam);
 }
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+// Production event wiring exercised on a private, never-displayed desktop.
+// No physical input, user clipboard, profile writes or running overlay server.
+bool KeyboardSubpages_TestOverlayTextEditing()
+{
+    HDESK previous = GetThreadDesktop(GetCurrentThreadId());
+    wchar_t name[64]{}; swprintf_s(name, L"HallJoyEditTest-%lu", GetCurrentProcessId());
+    HDESK desktop = CreateDesktopW(name, nullptr, nullptr, 0, GENERIC_ALL, nullptr);
+    if (!desktop) return false;
+    if (!SetThreadDesktop(desktop)) { CloseDesktop(desktop); return false; }
+    const auto oldPort = OverlayServer_GetConfiguredPort();
+    const auto oldColor = OverlayServer_GetAccentColor();
+    OverlayServer_SetConfiguredPort(8765);
+    WNDCLASSW wc{};
+    wc.lpfnWndProc = OverlayCustom_PageProc; wc.hInstance = GetModuleHandleW(nullptr);
+    wc.lpszClassName = L"HallJoyOverlayEditTest"; wc.style = CS_DBLCLKS;
+    RegisterClassW(&wc);
+    HWND parent = CreateWindowW(L"STATIC", L"", WS_OVERLAPPEDWINDOW, 0, 0, 800, 800, nullptr, nullptr, wc.hInstance, nullptr);
+    HWND page = CreateWindowW(wc.lpszClassName, L"", WS_CHILD | WS_VISIBLE, 0, 0, 780, 740, parent, nullptr, wc.hInstance, nullptr);
+    bool ok = page != nullptr;
+    BYTE originalKeys[256]{}; GetKeyboardState(originalKeys);
+    // SetThreadDesktop does not reset this thread's keyboard-state table.
+    // Synthetic WM_CHAR must not inherit a held Ctrl/Shift from the caller.
+    BYTE neutralKeys[256]{}; SetKeyboardState(neutralKeys);
+    if (page) {
+        ShowWindow(parent, SW_SHOWNOACTIVATE);
+        SetFocus(page);
+        auto* st = (OverlayCustomState*)GetWindowLongPtrW(page, GWLP_USERDATA);
+        const auto key = [&](WPARAM code, bool control = false, bool shift = false) {
+            BYTE keys[256]{};
+            keys[VK_CONTROL] = control ? 0x80 : 0; keys[VK_SHIFT] = shift ? 0x80 : 0;
+            SetKeyboardState(keys);
+            SendMessageW(page, WM_KEYDOWN, code, 0);
+            BYTE released[256]{}; SetKeyboardState(released);
+        };
+        const auto click = [&](int id, bool doubleClick) {
+            RECT rect{};
+            for (const auto& item : st->items) if (item.id == id) rect = item.rc;
+            // Direct message coordinates exercise the page's content/view boundary.
+            st->scrollY = std::max(0, (int)rect.top - 100);
+            CustomPageSurface_SetScrollY(page, &st->surface, st->scrollY);
+            st->scrollY = st->surface.scrollY;
+            LPARAM pos = MAKELPARAM(rect.left + S(page, 10), (rect.top + rect.bottom) / 2 - st->scrollY);
+            SendMessageW(page, doubleClick ? WM_LBUTTONDBLCLK : WM_LBUTTONDOWN, MK_LBUTTON, pos);
+            SendMessageW(page, WM_LBUTTONUP, 0, pos);
+        };
+        click(OVERLAY_ID_PORT, true);
+        MSG typed{};typed.hwnd=page;typed.message=WM_CHAR;typed.wParam='9';
+        ok &= halljoy::main_input::Allow(typed,parent);
+        ok &= st->editor.Selected() && st->editor.Selection() == L"8765";
+        SendMessageW(page, WM_CHAR, '9', 0);
+        SendMessageW(page, WM_CHAR, '0', 0);
+        ok &= st->portText == L"90" && OverlayServer_GetConfiguredPort() == 90;
+        if (!ok) throw std::runtime_error("overlay edit: initial focus/selection/typing failed");
+        key(VK_HOME); key(VK_DELETE);
+        ok &= st->portText == L"0" && OverlayServer_GetConfiguredPort() == 90;
+        key('A', true); SendMessageW(page, WM_CHAR, 1, 0);
+        ok &= st->editor.Selected();
+        for (wchar_t c : std::wstring(L"65536")) SendMessageW(page, WM_CHAR, c, 0);
+        ok &= st->portText == L"65536" && OverlayServer_GetConfiguredPort() == 6553;
+        key(VK_ESCAPE);
+        ok &= st->portText == L"6553" && st->focusId == 0;
+        ok &= !halljoy::main_input::Allow(typed,parent);
+        if (!ok) throw std::runtime_error("overlay edit: port validation/escape failed");
+        click(OVERLAY_ID_COLOR_HEX, true);
+        const auto original = st->hexText;
+        // Paste model shares the exact Replace path, without touching user clipboard.
+        ok &= st->editor.Replace(L" #aBcDeF ", true);
+        OverlayCustom_ApplyEdit(page, st);
+        ok &= st->hexText == L"#ABCDEF" && OverlayServer_GetAccentColor() == 0xABCDEF;
+        key('Z', true);
+        ok &= st->hexText == original;
+        key('Y', true);
+        ok &= st->hexText == L"#ABCDEF";
+        key(VK_HOME); key(VK_RIGHT, false, true);
+        ok &= st->editor.Selection() == L"#";
+        SendMessageW(page, WM_CANCELMODE, 0, 0);
+        ok &= st->focusId == OVERLAY_ID_COLOR_HEX; // Menu entry must retain the edit session.
+        SendMessageW(page, WM_KILLFOCUS, 0, 0);
+        const auto before = st->hexText;
+        SendMessageW(page, WM_CHAR, 'F', 0);
+        ok &= st->hexText == before && st->focusId == 0;
+        if (!ok) throw std::runtime_error("overlay edit: HEX undo/selection/focus failed");
+        const int oldLayout = KeyboardLayout_GetOverlayPresetIndex();
+        const int mainLayout = KeyboardLayout_GetCurrentPresetIndex();
+        const auto brandIt = std::find(st->layoutPicker.brands.begin(), st->layoutPicker.brands.end(), L"DrunkDeer");
+        PremiumCombo::SetCurSel(st->layoutPicker.brand, (int)(brandIt - st->layoutPicker.brands.begin()), false);
+        SendMessageW(page, WM_COMMAND, MAKEWPARAM(OVERLAY_ID_BRAND, CBN_SELCHANGE), (LPARAM)st->layoutPicker.brand);
+        ok &= KeyboardLayout_GetOverlayPresetIndex() == oldLayout;
+        ok &= st->layoutPicker.Row(1) >= 0 && st->layoutPicker.Row(2) == -1;
+        PremiumCombo::SetCurSel(st->comboLayout, st->layoutPicker.Row(1), false);
+        SendMessageW(page, WM_COMMAND, MAKEWPARAM(OVERLAY_ID_LAYOUT, CBN_SELCHANGE), (LPARAM)st->comboLayout);
+        ok &= KeyboardLayout_GetOverlayPresetIndex() == 1 && KeyboardLayout_GetCurrentPresetIndex() == mainLayout;
+        int iso=-1;
+        for (int i=0;i<KeyboardLayout_GetPresetCount();++i)
+            if (KeyboardLayout_GetPresetDisplayName(i)==L"DrunkDeer A75 ISO") iso=i;
+        if (iso<0) throw std::runtime_error("overlay variant test: ISO missing");
+        PremiumCombo::SetCurSel(st->comboLayout,st->layoutPicker.Row(iso),false);
+        SendMessageW(page,WM_COMMAND,MAKEWPARAM(OVERLAY_ID_LAYOUT,CBN_SELCHANGE),(LPARAM)st->comboLayout);
+        if (!st->layoutPicker.HasVariants()) throw std::runtime_error("overlay variant test: model has no variants");
+        PremiumCombo::SetCurSel(st->layoutPicker.variant,1,false);
+        SendMessageW(page,WM_COMMAND,MAKEWPARAM(OVERLAY_ID_VARIANT,CBN_SELCHANGE),(LPARAM)st->layoutPicker.variant);
+        if (KeyboardLayout_GetOverlayPresetIndex()!=iso || KeyboardLayout_GetCurrentPresetIndex()!=mainLayout)
+            throw std::runtime_error("overlay variant test: selection failed");
+        PremiumCombo::SetCurSel(st->layoutPicker.brand, 0, false);
+        SendMessageW(page, WM_COMMAND, MAKEWPARAM(OVERLAY_ID_BRAND, CBN_SELCHANGE), (LPARAM)st->layoutPicker.brand);
+        ok &= KeyboardLayout_GetOverlayPresetIndex() == -1 && !st->layoutPicker.HasVariants();
+        ok &= st->layoutPicker.Following() && st->layoutPicker.Selected() == -1;
+        ok &= st->layoutPicker.groups.empty() && st->layoutPicker.variants.empty();
+        for (const auto& item : st->items)
+            ok &= item.id != OVERLAY_ID_LAYOUT && item.id != OVERLAY_ID_VARIANT && item.id != 32 && item.id != 33;
+        // Reconstructed picker restores follow from the same persisted -1 mode;
+        // selecting All only browses, exposing models without changing that mode.
+        st->layoutPicker.Refresh(KeyboardLayout_GetOverlayPresetIndex(), true);
+        ok &= PremiumCombo::GetCurSel(st->layoutPicker.brand) == 0 && st->layoutPicker.Following();
+        PremiumCombo::SetCurSel(st->layoutPicker.brand, 1, false);
+        SendMessageW(page, WM_COMMAND, MAKEWPARAM(OVERLAY_ID_BRAND, CBN_SELCHANGE), (LPARAM)st->layoutPicker.brand);
+        ok &= !st->layoutPicker.Following() && KeyboardLayout_GetOverlayPresetIndex() == -1;
+        ok &= !st->layoutPicker.groups.empty();
+        for (int preset : st->layoutPicker.presets) ok &= preset >= 0;
+        ok &= std::any_of(st->items.begin(), st->items.end(), [](const OverlayCustomItem& item) { return item.id == OVERLAY_ID_LAYOUT; });
+        // Real catalog selection must publish every overlay-only key, including keypad.
+        KeyboardLayout_SetOverlayPresetName(L"Keychron K4 HE"); // stable saved-name alias
+        const auto fullOverlay = KeyboardLayout_GetOverlaySnapshot();
+        bool hasKeypad = false;
+        for (const auto& key : fullOverlay->keys) {
+            if (key.hid == 0x59) hasKeypad = true;
+            if (halljoy::keycode::IsSupported(key.hid)) ok &= BackendUI_TestIsTracked(key.hid);
+        }
+        ok &= hasKeypad && KeyboardLayout_GetCurrentPresetIndex() == mainLayout;
+        KeyboardLayout_SetOverlayPresetIndex(oldLayout);
+    }
+    SetKeyboardState(originalKeys);
+    if (parent) DestroyWindow(parent);
+    UnregisterClassW(wc.lpszClassName, wc.hInstance);
+    OverlayServer_SetConfiguredPort(oldPort); OverlayServer_SetAccentColor(oldColor);
+    ok &= SetThreadDesktop(previous) != FALSE;
+    CloseDesktop(desktop);
+    return ok;
+}
+#endif
 
 LRESULT CALLBACK KeyboardSubpages_InputOverlayPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -3385,10 +3901,39 @@ LRESULT CALLBACK KeyboardSubpages_InputOverlayPageProc(HWND hWnd, UINT msg, WPAR
 // ============================================================================
 // Keyboard Layout page (preset picker + visual editor)
 // ============================================================================
+static LRESULT CALLBACK Layout_ButtonMouseProc(HWND button, UINT msg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR subclassId, DWORD_PTR)
+{
+    // Owner-drawn BUTTON interprets the second press as BN_DOUBLECLICKED.
+    // Treat it as a normal press so native release/cancel/disabled semantics
+    // remain intact, instead of firing an extra action on mouse-down.
+    if (msg == WM_LBUTTONDBLCLK) msg = WM_LBUTTONDOWN;
+    if (msg == WM_NCDESTROY) RemoveWindowSubclass(button, Layout_ButtonMouseProc, subclassId);
+    return DefSubclassProc(button, msg, wParam, lParam);
+}
+
 struct LayoutPageState
 {
+    HWND btnUndo = nullptr, btnRedo = nullptr, btnFit = nullptr, btnDuplicate = nullptr;
+    HWND lblStatus = nullptr, lblEmpty = nullptr, lblY = nullptr, edtY = nullptr, lblLayoutTools = nullptr;
+    HWND btnPrecision = nullptr, btnSnap = nullptr, btnActual = nullptr;
+    halljoy::layout_editor::History history;
+    halljoy::layout_editor::View view;
+    bool restoringHistory = false, preciseY = false, snap = false, panning = false;
+    POINT panPoint{};
+    bool resizing = false;
+    POINT resizeStart{};
+    int resizeWidth = 0, resizeHeight = 0;
+    int resizeEdges = 0;
+    halljoy::layout_editor::Geometry resizeOrigin{};
+    std::vector<halljoy::layout_editor::Guide> guides; // Editor-session aids, not layout geometry.
+    int draggingGuide = -1, guideOriginal = 0;
+    bool guideNew = false;
+    RECT topRuler{}, leftRuler{};
     HWND lblPreset = nullptr;
     HWND cmbPreset = nullptr;
+    LayoutPicker layoutPicker;
+    HWND lblBrand = nullptr, lblModel = nullptr, lblVariant = nullptr;
     HWND btnAdd = nullptr;
     HWND btnDelete = nullptr;
     HWND btnReset = nullptr;
@@ -3398,7 +3943,6 @@ struct LayoutPageState
     HWND edtUniformGap = nullptr;
     HWND lblLabel = nullptr;
     HWND edtLabel = nullptr;
-    HWND btnApplyLabel = nullptr;
     HWND btnBindKey = nullptr;
     HWND lblPos = nullptr;
     HWND edtPos = nullptr;
@@ -3406,18 +3950,20 @@ struct LayoutPageState
     HWND edtWidth = nullptr;
     HWND lblHeight = nullptr;
     HWND edtHeight = nullptr;
+    HWND lblNotchW = nullptr, edtNotchW = nullptr, lblNotchY = nullptr, edtNotchY = nullptr;
+    bool shapeControlsVisible = false;
     HWND lblBindState = nullptr;
     HWND lblKeys = nullptr;
-    HWND lstKeys = nullptr;
     HWND lblHint = nullptr;
 
     int selectedIdx = -1;
     bool dragging = false;
     bool dirty = false;
     bool hasUnsaved = false;
+    bool resolvingDraft = false;
     bool bindArmed = false;
-    int dragOffsetX = 0;
-    int dragOffsetY = 0;
+    float dragOffsetX = 0;
+    float dragOffsetY = 0;
     RECT canvasRc{};
     int editingPresetIdx = 0;
     std::vector<KeyDef> draftKeys;
@@ -3428,24 +3974,29 @@ struct LayoutPageState
 };
 
 static constexpr int ID_LAYOUT_PRESET = 8111;
+static constexpr int ID_LAYOUT_BRAND = 8190;
+static constexpr int ID_LAYOUT_VARIANT = 8191;
 static constexpr int ID_LAYOUT_RESET = 8112;
-static constexpr int ID_LAYOUT_KEYS = 8113;
 static constexpr int ID_LAYOUT_SAVE = 8114;
 static constexpr int ID_LAYOUT_ADD = 8115;
 static constexpr int ID_LAYOUT_DELETE = 8116;
 static constexpr int ID_LAYOUT_LABEL_EDIT = 8117;
-static constexpr int ID_LAYOUT_LABEL_APPLY = 8118;
 static constexpr int ID_LAYOUT_BIND_KEY = 8119;
 static constexpr int ID_LAYOUT_UNIFORM_SPACING = 8120;
 static constexpr int ID_LAYOUT_POS_EDIT = 8122;
 static constexpr int ID_LAYOUT_WIDTH_EDIT = 8123;
+static constexpr int ID_LAYOUT_NOTCH_W = 8191, ID_LAYOUT_NOTCH_Y = 8192;
 static constexpr int ID_LAYOUT_UNIFORM_GAP_EDIT = 8124;
 static constexpr int ID_LAYOUT_HEIGHT_EDIT = 8125;
 static constexpr UINT_PTR ID_LAYOUT_UI_TIMER = 8121;
+static constexpr int ID_LAYOUT_UNDO = 8130, ID_LAYOUT_REDO = 8131, ID_LAYOUT_FIT = 8132;
+static constexpr int ID_LAYOUT_DUPLICATE = 8133, ID_LAYOUT_Y = 8134;
+static constexpr int ID_LAYOUT_PRECISION = 8135, ID_LAYOUT_SNAP = 8136;
+static constexpr int ID_LAYOUT_ACTUAL = 8137;
 
 static bool Layout_NudgeSelectedKey(HWND hWnd, LayoutPageState* st, int dRow, int dX, int dW);
 static void Layout_SetUnsaved(LayoutPageState* st, bool on);
-static void Layout_RefreshKeyList(HWND hWnd, LayoutPageState* st);
+static void Layout_RefreshSelection(HWND hWnd, LayoutPageState* st);
 static void Layout_NotifyMainPage(HWND hWnd);
 static bool Layout_LoadDraftFromPreset(HWND hWnd, LayoutPageState* st, int presetIdx, bool clearUnsaved);
 static void Layout_UpdateBindStateOnly(LayoutPageState* st);
@@ -3456,6 +4007,15 @@ static void Layout_UpdateUniformSpacingButton(LayoutPageState* st);
 static void Layout_ApplyUniformGapFromEdit(HWND hWnd, LayoutPageState* st);
 static void Layout_UpdateHintText(LayoutPageState* st);
 static bool Layout_BakeUniformSpacingIntoDraft(LayoutPageState* st);
+static bool Layout_ResolveDraft(HWND hWnd, LayoutPageState* st, bool saveWithoutPrompt = false);
+static bool Layout_SaveDraft(HWND hWnd, LayoutPageState* st);
+static void Layout_UpdateMetaControls(LayoutPageState* st);
+static void Layout_Arrange(HWND hWnd, LayoutPageState* st);
+
+static halljoy::layout_editor::Draft Layout_CaptureDraft(const LayoutPageState* st)
+{
+    return { st->draftKeys, st->draftLabels, st->uniformSpacingEnabled, st->uniformSpacingGap, st->selectedIdx };
+}
 
 static void Layout_SetWindowTextIfChanged(HWND hWnd, const wchar_t* text)
 {
@@ -3467,12 +4027,28 @@ static void Layout_SetWindowTextIfChanged(HWND hWnd, const wchar_t* text)
         SetWindowTextW(hWnd, target);
 }
 
+static bool Layout_ReadNumber(HWND field, int minimum, int maximum, int& value)
+{
+    if (!field || GetWindowTextLengthW(field) > 9) return false;
+    wchar_t text[16]{};
+    if (!GetWindowTextW(field, text, 16)) return false;
+    int parsed = 0;
+    for (const wchar_t* c = text; *c; ++c)
+    {
+        if (*c < L'0' || *c > L'9') return false;
+        parsed = parsed * 10 + (*c - L'0');
+        if (parsed > maximum) return false;
+    }
+    if (parsed < minimum) return false;
+    value = parsed; return true;
+}
+
 static void Layout_UpdateUniformSpacingButton(LayoutPageState* st)
 {
     if (!st || !st->btnUniformSpacing) return;
     Layout_SetWindowTextIfChanged(
         st->btnUniformSpacing,
-        st->uniformSpacingEnabled ? L"Uniform Spacing: ON" : L"Uniform Spacing: OFF");
+        st->uniformSpacingEnabled ? L"Auto spacing: On" : L"Auto spacing: Off");
 }
 
 static void Layout_UpdateHintText(LayoutPageState* st)
@@ -3481,12 +4057,12 @@ static void Layout_UpdateHintText(LayoutPageState* st)
     if (st->uniformSpacingEnabled)
     {
         Layout_SetWindowTextIfChanged(st->lblHint,
-            L"Select a key and drag to move it.\nMouse wheel changes width (Shift = x4).\nUniform Spacing: drag reorders keys in row. Click Save Changes to apply.");
+            L"Wheel: zoom  |  Middle-drag: pan\nExact values use layout pixels.");
     }
     else
     {
         Layout_SetWindowTextIfChanged(st->lblHint,
-            L"Select a key and drag to move it.\nMouse wheel changes width (Shift = x4).\nClick Save Changes to apply.");
+            L"Drag rulers: guides  |  Alt: no snapping\nWheel: zoom  |  Middle-drag: pan");
     }
 }
 
@@ -3516,12 +4092,8 @@ static void Layout_ApplyUniformGapFromEdit(HWND hWnd, LayoutPageState* st)
 {
     if (!st || !st->edtUniformGap) return;
 
-    wchar_t b[32]{};
-    GetWindowTextW(st->edtUniformGap, b, (int)(sizeof(b) / sizeof(b[0])));
     int v = 0;
-    if (swscanf_s(b, L"%d", &v) != 1)
-        v = st->uniformSpacingGap;
-    v = std::clamp(v, 0, 120);
+    if (!Layout_ReadNumber(st->edtUniformGap, 0, 120, v)) return;
 
     if (v != st->uniformSpacingGap)
     {
@@ -3614,7 +4186,11 @@ static bool Layout_LoadDraftFromPreset(HWND hWnd, LayoutPageState* st, int prese
     Layout_UpdateHintText(st);
 
     st->selectedIdx = -1;
-    Layout_RefreshKeyList(hWnd, st);
+    st->view.ready = false;
+    st->preciseY = std::any_of(st->draftKeys.begin(), st->draftKeys.end(), [](const KeyDef& k) { return k.y >= 0; });
+    st->guides.clear(); st->draggingGuide = -1;
+    st->history.Reset(Layout_CaptureDraft(st));
+    Layout_RefreshSelection(hWnd, st);
     st->previewHash = Layout_ComputePreviewHash(st);
     if (clearUnsaved)
         Layout_SetUnsaved(st, false);
@@ -3625,7 +4201,46 @@ static bool Layout_LoadDraftFromPreset(HWND hWnd, LayoutPageState* st, int prese
 static void Layout_SetUnsaved(LayoutPageState* st, bool on)
 {
     if (!st) return;
+    if (on)
+    {
+        std::vector<KeyDef> saved;
+        std::vector<std::wstring> labels;
+        bool uniform = false;
+        int gap = 8;
+        if (KeyboardLayout_GetPresetSnapshot(st->editingPresetIdx, saved, labels, &uniform, &gap))
+        {
+            on = saved.size() != st->draftKeys.size() || labels != st->draftLabels ||
+                uniform != st->uniformSpacingEnabled || gap != st->uniformSpacingGap;
+            for (size_t i = 0; !on && i < saved.size(); ++i)
+            {
+                const auto& a = saved[i];
+                const auto& b = st->draftKeys[i];
+                on = a.hid != b.hid || a.row != b.row || a.x != b.x || a.w != b.w || a.h != b.h ||
+                    a.notchW != b.notchW || a.notchY != b.notchY ||
+                    KeyboardLayout_KeyY(a) != KeyboardLayout_KeyY(b);
+            }
+        }
+    }
     st->hasUnsaved = on;
+    if (!st->restoringHistory)
+    {
+        HWND focus = GetFocus();
+        const bool field = focus && (focus == st->edtLabel || focus == st->edtPos || focus == st->edtY ||
+            focus == st->edtWidth || focus == st->edtHeight || focus == st->edtUniformGap ||
+            focus == st->edtNotchW || focus == st->edtNotchY);
+        st->history.Record(Layout_CaptureDraft(st), field ? (uintptr_t)focus : 0);
+    }
+    if (st->btnUndo) EnableWindow(st->btnUndo, st->history.CanUndo());
+    if (st->btnRedo) EnableWindow(st->btnRedo, st->history.CanRedo());
+    Layout_SetWindowTextIfChanged(st->lblStatus, on ? L"Unsaved changes" : L"All changes saved");
+    if (st->btnSave)
+    {
+        const HWND host = GetParent(GetParent(st->btnSave));
+        std::wstring title = L"HallJoy - Layout Editor - ";
+        title += KeyboardLayout_GetPresetDisplayName(st->editingPresetIdx);
+        if (on) title += L" - Unsaved changes";
+        Layout_SetWindowTextIfChanged(host, title.c_str());
+    }
     if (st->btnSave && IsWindow(st->btnSave))
         EnableWindow(st->btnSave, on ? TRUE : FALSE);
     if (st->btnDelete && IsWindow(st->btnDelete))
@@ -3636,6 +4251,26 @@ static void Layout_UpdateMetaControls(LayoutPageState* st)
 {
     if (!st) return;
     bool hasSel = (st->selectedIdx >= 0);
+    HWND selectedControls[] = { st->lblLabel, st->edtLabel, st->lblPos, st->edtPos,
+        st->lblY, st->edtY, st->lblWidth, st->edtWidth, st->lblHeight, st->edtHeight,
+        st->btnBindKey, st->lblBindState, st->btnDelete, st->btnDuplicate };
+    auto visible = [](HWND control, bool show) {
+        if (control && ((GetWindowLongPtrW(control, GWL_STYLE) & WS_VISIBLE) != 0) != show)
+            ShowWindow(control, show ? SW_SHOWNA : SW_HIDE);
+    };
+    for (HWND control : selectedControls) visible(control, hasSel);
+    visible(st->lblEmpty, !hasSel);
+    const bool shaped = hasSel && st->selectedIdx < (int)st->draftKeys.size() && st->draftKeys[st->selectedIdx].notchW > 0;
+    for (HWND control : {st->lblNotchW, st->edtNotchW, st->lblNotchY, st->edtNotchY}) visible(control, shaped);
+    if (shaped != st->shapeControlsVisible) {
+        st->shapeControlsVisible = shaped;
+        Layout_Arrange(GetParent(st->cmbPreset), st);
+    }
+    Layout_SetWindowTextIfChanged(st->lblWidth, shaped ? L"Width" : L"Width (px)");
+    Layout_SetWindowTextIfChanged(st->lblHeight, shaped ? L"Height" : L"Height (px)");
+    Layout_SetWindowTextIfChanged(st->btnPrecision, st->preciseY ? L"Vertical: exact pixels" : L"Vertical: keyboard rows");
+    Layout_SetWindowTextIfChanged(st->btnSnap, st->snap ? L"Snap to 8 px: On" : L"Snap to 8 px: Off");
+    Layout_SetWindowTextIfChanged(st->lblY, st->preciseY ? L"Y (px)" : L"Row");
     bool labelHasFocus = (st->edtLabel && GetFocus() == st->edtLabel);
     bool posHasFocus = (st->edtPos && GetFocus() == st->edtPos);
     bool widthHasFocus = (st->edtWidth && GetFocus() == st->edtWidth);
@@ -3644,8 +4279,6 @@ static void Layout_UpdateMetaControls(LayoutPageState* st)
 
     if (st->btnDelete && IsWindow(st->btnDelete))
         EnableWindow(st->btnDelete, hasSel ? TRUE : FALSE);
-    if (st->btnApplyLabel && IsWindow(st->btnApplyLabel))
-        EnableWindow(st->btnApplyLabel, hasSel ? TRUE : FALSE);
     if (st->btnBindKey && IsWindow(st->btnBindKey))
         EnableWindow(st->btnBindKey, hasSel ? TRUE : FALSE);
     if (st->edtLabel && IsWindow(st->edtLabel))
@@ -3680,12 +4313,18 @@ static void Layout_UpdateMetaControls(LayoutPageState* st)
     KeyDef k{};
     if (Layout_DraftGet(st, st->selectedIdx, k))
     {
+        if (GetFocus() != st->edtNotchW) Layout_SetWindowTextIfChanged(st->edtNotchW, std::to_wstring(k.notchW).c_str());
+        if (GetFocus() != st->edtNotchY) Layout_SetWindowTextIfChanged(st->edtNotchY, std::to_wstring(k.notchY).c_str());
+        if (st->edtY && GetFocus() != st->edtY)
+            Layout_SetWindowTextIfChanged(st->edtY, std::to_wstring(st->preciseY ? KeyboardLayout_KeyY(k) : k.row + 1).c_str());
         if (st->edtLabel && !labelHasFocus)
             Layout_SetWindowTextIfChanged(st->edtLabel, (k.label && k.label[0]) ? k.label : L"");
         if (st->edtPos && !posHasFocus)
         {
             wchar_t b[32]{};
-            swprintf_s(b, L"%d", k.x);
+            std::vector<int> displayX;
+            Layout_BuildDisplayXMap(st, displayX);
+            swprintf_s(b, L"%d", displayX[st->selectedIdx]);
             Layout_SetWindowTextIfChanged(st->edtPos, b);
         }
         if (st->edtWidth && !widthHasFocus)
@@ -3703,7 +4342,7 @@ static void Layout_UpdateMetaControls(LayoutPageState* st)
         if (st->lblBindState)
         {
             wchar_t s[96]{};
-            swprintf_s(s, L"HID: %u  Raw: %u", (unsigned)k.hid, (unsigned)BackendUI_GetRawMilli(k.hid));
+            swprintf_s(s, k.hid ? L"Key assigned  |  Press depth: %u%%" : L"No physical key assigned", (unsigned)BackendUI_GetRawMilli(k.hid) / 10);
             Layout_SetWindowTextIfChanged(st->lblBindState, s);
         }
     }
@@ -3726,7 +4365,7 @@ static void Layout_UpdateBindStateOnly(LayoutPageState* st)
     }
 
     wchar_t s[96]{};
-    swprintf_s(s, L"HID: %u  Raw: %u", (unsigned)k.hid, (unsigned)BackendUI_GetRawMilli(k.hid));
+    swprintf_s(s, k.hid ? L"Key assigned  |  Press depth: %u%%" : L"No physical key assigned", (unsigned)BackendUI_GetRawMilli(k.hid) / 10);
     Layout_SetWindowTextIfChanged(st->lblBindState, s);
 }
 
@@ -3736,7 +4375,7 @@ static uint32_t Layout_ComputePreviewHash(LayoutPageState* st)
     uint32_t h = 2166136261u;
     for (const KeyDef& k : st->draftKeys)
     {
-        if (k.hid == 0 || k.hid >= 256)
+        if (!halljoy::keycode::IsSupported(k.hid))
             continue;
         uint32_t raw = (uint32_t)BackendUI_GetRawMilli(k.hid);
         uint32_t v = ((uint32_t)k.hid << 16) ^ raw;
@@ -3775,9 +4414,10 @@ static void Layout_ApplyLabelFromEdit(HWND hWnd, LayoutPageState* st)
     GetWindowTextW(st->edtLabel, txt, (int)(sizeof(txt) / sizeof(txt[0])));
     if (st->selectedIdx >= (int)st->draftLabels.size()) return;
 
+    if (st->draftLabels[st->selectedIdx] == (txt[0] ? txt : L"Key")) return;
     st->draftLabels[st->selectedIdx] = (txt[0] ? txt : L"Key");
     Layout_RebindDraftLabels(st);
-    Layout_RefreshKeyList(hWnd, st);
+    Layout_RefreshSelection(hWnd, st);
     Layout_SetUnsaved(st, true);
     InvalidateRect(hWnd, nullptr, FALSE);
 }
@@ -3792,14 +4432,19 @@ static void Layout_ApplyGeometryFromEdits(HWND hWnd, LayoutPageState* st, bool a
 
     if (applyPos && st->edtPos)
     {
-        wchar_t b[32]{};
-        GetWindowTextW(st->edtPos, b, (int)(sizeof(b) / sizeof(b[0])));
         int v = 0;
-        if (swscanf_s(b, L"%d", &v) == 1)
+        if (Layout_ReadNumber(st->edtPos, 0, 4000, v))
         {
-            v = std::clamp(v, 0, 4000);
-            if (k.x != v)
+            std::vector<int> displayX;
+            Layout_BuildDisplayXMap(st, displayX);
+            if (displayX[st->selectedIdx] != v)
             {
+                if (st->uniformSpacingEnabled)
+                {
+                    Layout_BakeUniformSpacingIntoDraft(st);
+                    st->uniformSpacingEnabled = false;
+                    Layout_UpdateUniformSpacingButton(st);
+                }
                 k.x = v;
                 changed = true;
             }
@@ -3808,13 +4453,10 @@ static void Layout_ApplyGeometryFromEdits(HWND hWnd, LayoutPageState* st, bool a
 
     if (applyWidth && st->edtWidth)
     {
-        wchar_t b[32]{};
-        GetWindowTextW(st->edtWidth, b, (int)(sizeof(b) / sizeof(b[0])));
         int v = 0;
-        if (swscanf_s(b, L"%d", &v) == 1)
+        if (Layout_ReadNumber(st->edtWidth, KEYBOARD_KEY_MIN_DIM, KEYBOARD_KEY_MAX_DIM, v))
         {
-            v = std::clamp(v, KEYBOARD_KEY_MIN_DIM, KEYBOARD_KEY_MAX_DIM);
-            if (k.w != v)
+            if (k.w != v && v > k.notchW)
             {
                 k.w = v;
                 changed = true;
@@ -3824,13 +4466,10 @@ static void Layout_ApplyGeometryFromEdits(HWND hWnd, LayoutPageState* st, bool a
 
     if (applyHeight && st->edtHeight)
     {
-        wchar_t b[32]{};
-        GetWindowTextW(st->edtHeight, b, (int)(sizeof(b) / sizeof(b[0])));
         int v = 0;
-        if (swscanf_s(b, L"%d", &v) == 1)
+        if (Layout_ReadNumber(st->edtHeight, KEYBOARD_KEY_MIN_DIM, KEYBOARD_KEY_MAX_DIM, v))
         {
-            v = std::clamp(v, KEYBOARD_KEY_MIN_DIM, KEYBOARD_KEY_MAX_DIM);
-            if (k.h != v)
+            if (k.h != v && v > k.notchY)
             {
                 k.h = v;
                 changed = true;
@@ -3840,11 +4479,169 @@ static void Layout_ApplyGeometryFromEdits(HWND hWnd, LayoutPageState* st, bool a
 
     if (changed)
     {
-        Layout_RefreshKeyList(hWnd, st);
+        Layout_RefreshSelection(hWnd, st);
         Layout_SetUnsaved(st, true);
         InvalidateRect(hWnd, &st->canvasRc, FALSE);
     }
     Layout_UpdateMetaControls(st);
+}
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+static int g_layoutTestDecision = 0; // 0: real dialog; otherwise explicit test choice
+#endif
+
+static bool Layout_SaveDraft(HWND hWnd, LayoutPageState* st)
+{
+    if (!st) return true;
+    if (!KeyboardLayout_StorePresetSnapshot(st->editingPresetIdx, st->draftKeys,
+        st->draftLabels, true, st->uniformSpacingEnabled, st->uniformSpacingGap))
+    {
+        Layout_SetWindowTextIfChanged(st->lblHint,
+            L"Could not save. Your changes are safe.\nCheck folder access and try again.");
+        InvalidateRect(hWnd, nullptr, FALSE);
+        return false;
+    }
+    Layout_NotifyMainPage(hWnd);
+    Layout_RequestSave(hWnd);
+    Layout_SetUnsaved(st, false);
+    st->history.EndGroup();
+    Layout_UpdateHintText(st);
+    InvalidateRect(hWnd, nullptr, FALSE);
+    return true;
+}
+
+static void Layout_UndoRedo(HWND hWnd, LayoutPageState* st, bool redo)
+{
+    if (!st || st->dragging || st->panning) return;
+    SetFocus(hWnd);
+    Layout_StopBindCapture(hWnd, st);
+    const auto* entry = st->history.Step(redo);
+    if (!entry) return;
+    st->restoringHistory = true;
+    st->draftKeys = entry->keys; st->draftLabels = entry->labels;
+    st->uniformSpacingEnabled = entry->spacing; st->uniformSpacingGap = entry->gap;
+    st->selectedIdx = entry->selected;
+    if (std::any_of(st->draftKeys.begin(), st->draftKeys.end(), [](const KeyDef& k) { return k.y >= 0; })) st->preciseY = true;
+    Layout_RebindDraftLabels(st);
+    Layout_UpdateUniformSpacingButton(st);
+    Layout_RefreshSelection(hWnd, st);
+    Layout_SetUnsaved(st, true);
+    st->restoringHistory = false;
+    InvalidateRect(hWnd, nullptr, FALSE);
+}
+
+static INT_PTR CALLBACK Layout_SaveDialogProc(HWND dialog, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+    case WM_INITDIALOG: {
+        UiTheme::ApplyToTopLevelWindow(dialog);
+        SetWindowTextW(dialog, L"HallJoy - Layout Editor");
+        const int width = S(dialog, 520), height = S(dialog, 202);
+        RECT frame{0, 0, width, height};
+        AdjustWindowRectEx(&frame, (DWORD)GetWindowLongPtrW(dialog, GWL_STYLE), FALSE,
+            (DWORD)GetWindowLongPtrW(dialog, GWL_EXSTYLE));
+        RECT owner{}; GetWindowRect(GetParent(dialog), &owner);
+        MONITORINFO monitor{sizeof(monitor)};
+        GetMonitorInfoW(MonitorFromWindow(GetParent(dialog), MONITOR_DEFAULTTONEAREST), &monitor);
+        const int outerW = frame.right - frame.left, outerH = frame.bottom - frame.top;
+        const int x = std::clamp((owner.left + owner.right - outerW) / 2,
+            monitor.rcWork.left, std::max(monitor.rcWork.left, monitor.rcWork.right - outerW));
+        const int y = std::clamp((owner.top + owner.bottom - outerH) / 2,
+            monitor.rcWork.top, std::max(monitor.rcWork.top, monitor.rcWork.bottom - outerH));
+        SetWindowPos(dialog, nullptr, x, y, outerW, outerH, SWP_NOZORDER | SWP_NOACTIVATE);
+        auto control = [&](const wchar_t* cls, const wchar_t* text, DWORD style,
+            int id, int left, int top, int w, int h) {
+            HWND child = CreateWindowExW(0, cls, text, WS_CHILD | WS_VISIBLE | style,
+                S(dialog, left), S(dialog, top), S(dialog, w), S(dialog, h), dialog,
+                (HMENU)(INT_PTR)id, GetModuleHandleW(nullptr), nullptr);
+            SendMessageW(child, WM_SETFONT, (WPARAM)GetStockObject(SYSTEM_FONT), FALSE);
+            return child;
+        };
+        control(L"STATIC", L"Save changes to this layout?", SS_LEFT, 101, 24, 20, 472, 28);
+        control(L"STATIC", (const wchar_t*)lParam, SS_LEFT | SS_ENDELLIPSIS | SS_NOPREFIX,
+            102, 24, 58, 472, 24);
+        control(L"STATIC", L"This layout is shared by HallJoy and Input Overlay.", SS_LEFT,
+            103, 24, 94, 472, 38);
+        control(L"BUTTON", L"Save changes", BS_OWNERDRAW | WS_TABSTOP, IDYES, 24, 150, 152, 32);
+        control(L"BUTTON", L"Discard changes", BS_OWNERDRAW | WS_TABSTOP, IDNO, 184, 150, 168, 32);
+        HWND cancel = control(L"BUTTON", L"Cancel", BS_OWNERDRAW | WS_TABSTOP, IDCANCEL, 360, 150, 136, 32);
+        SendMessageW(dialog, DM_SETDEFID, IDCANCEL, 0);
+        SetFocus(cancel);
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+        // Exercise the real modal dialog in production-linked tests, without human input.
+        if (g_layoutTestDecision) PostMessageW(dialog, WM_COMMAND, g_layoutTestDecision, 0);
+#endif
+        return FALSE;
+    }
+    case WM_CTLCOLORDLG:
+        return (INT_PTR)UiTheme::Brush_WindowBg();
+    case WM_CTLCOLORSTATIC:
+        SetBkMode((HDC)wParam, TRANSPARENT);
+        SetTextColor((HDC)wParam, GetDlgCtrlID((HWND)lParam) == 103
+            ? UiTheme::Color_TextMuted() : UiTheme::Color_Text());
+        return (INT_PTR)UiTheme::Brush_WindowBg();
+    case WM_DRAWITEM: {
+        const auto* item = (const DRAWITEMSTRUCT*)lParam;
+        if (!item || item->CtlType != ODT_BUTTON) return FALSE;
+        Graphics g(item->hDC); g.SetSmoothingMode(SmoothingModeAntiAlias);
+        HGDIOBJ oldFont = SelectObject(item->hDC, GetStockObject(SYSTEM_FONT));
+        FillRect(item->hDC, &item->rcItem, UiTheme::Brush_WindowBg());
+        wchar_t label[64]{}; GetWindowTextW(item->hwndItem, label, 64);
+        if (item->CtlID == IDYES) {
+            CustomPage_DrawRoundRect(g, item->rcItem,
+                (item->itemState & ODS_SELECTED) ? RGB(32, 68, 94) : RGB(40, 86, 117),
+                UiTheme::Color_Accent(), 5.0f);
+            CustomPage_DrawText(item->hDC, label, item->rcItem, UiTheme::Color_Text(), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        } else CustomPage_DrawButton(g, item->hDC, item->rcItem, label,
+            (item->itemState & ODS_HOTLIGHT) != 0, (item->itemState & ODS_SELECTED) != 0, true);
+        if (item->itemState & ODS_FOCUS) {
+            RECT focus = item->rcItem; InflateRect(&focus, -4, -4); DrawFocusRect(item->hDC, &focus);
+        }
+        SelectObject(item->hDC, oldFont);
+        return TRUE;
+    }
+    case WM_CLOSE:
+        EndDialog(dialog, IDCANCEL); return TRUE;
+    case WM_COMMAND:
+        if (LOWORD(wParam) == IDYES || LOWORD(wParam) == IDNO || LOWORD(wParam) == IDCANCEL) {
+            EndDialog(dialog, LOWORD(wParam)); return TRUE;
+        }
+        break;
+    }
+    return FALSE;
+}
+
+static bool Layout_ResolveDraft(HWND hWnd, LayoutPageState* st, bool saveWithoutPrompt)
+{
+    if (!st) return true;
+    if (st->resolvingDraft) return false;
+    // Capture loss must not leave a moved key outside dirty tracking.
+    st->dragging = false;
+    if (st->dirty) Layout_RefreshSelection(hWnd, st);
+    st->dirty = false;
+    if (GetCapture() == hWnd) ReleaseCapture();
+    Layout_StopBindCapture(hWnd, st);
+    Layout_SetUnsaved(st, true);
+    if (!st->hasUnsaved) return true;
+    if (saveWithoutPrompt) return Layout_SaveDraft(hWnd, st);
+    st->resolvingDraft = true;
+    int choice = IDCANCEL;
+    {
+        std::wstring content = L"Layout: ";
+        content += KeyboardLayout_GetPresetDisplayName(st->editingPresetIdx);
+        struct alignas(DWORD) EmptyDialog {
+            DLGTEMPLATE dialog;
+            WORD menu, windowClass, title;
+        } definition{};
+        definition.dialog.style = WS_POPUP | WS_CAPTION | WS_SYSMENU | DS_MODALFRAME;
+        definition.dialog.cx = 320; definition.dialog.cy = 130;
+        const INT_PTR result = DialogBoxIndirectParamW(GetModuleHandleW(nullptr), &definition.dialog,
+            GetAncestor(hWnd, GA_ROOT), Layout_SaveDialogProc, (LPARAM)content.c_str());
+        if (result == IDYES || result == IDNO) choice = (int)result;
+    }
+    st->resolvingDraft = false;
+    if (choice == IDYES) return Layout_SaveDraft(hWnd, st);
+    return choice == IDNO;
 }
 
 static void Layout_NotifyMainPage(HWND hWnd)
@@ -3866,19 +4663,23 @@ static void Layout_NotifyMainPage(HWND hWnd)
     if (root) PostMessageW(root, WM_APP_KEYBOARD_LAYOUT_CHANGED, 0, 0);
 }
 
+static void Layout_RefreshPresetCombo(LayoutPageState* st)
+{
+    st->layoutPicker.Refresh(st->editingPresetIdx, true);
+    Layout_Arrange(GetParent(st->cmbPreset), st);
+}
+
+static bool LayoutEditor_DeletePreset(int idx, bool keepEditor = false);
+
 static void Layout_ComputeCanvasRect(HWND hWnd, LayoutPageState* st)
 {
-    RECT rc{};
-    GetClientRect(hWnd, &rc);
-
-    int margin = S(hWnd, 12);
-    int leftW = S(hWnd, 300);
-    int topY = S(hWnd, 56);
-
-    st->canvasRc.left = margin + leftW + S(hWnd, 12);
-    st->canvasRc.top = topY;
-    st->canvasRc.right = rc.right - margin;
-    st->canvasRc.bottom = rc.bottom - margin;
+    RECT rc{}; GetClientRect(hWnd, &rc);
+    st->canvasRc = RECT{ S(hWnd, 16), S(hWnd, 152),
+        std::max(S(hWnd, 100), (int)rc.right - S(hWnd, 304)), (int)rc.bottom - S(hWnd, 66) };
+    const int ruler = S(hWnd, 32);
+    st->canvasRc.left += ruler; st->canvasRc.top += ruler;
+    st->topRuler = {st->canvasRc.left, st->canvasRc.top - ruler, st->canvasRc.right, st->canvasRc.top};
+    st->leftRuler = {st->canvasRc.left - ruler, st->canvasRc.top, st->canvasRc.left, st->canvasRc.bottom};
 }
 
 static void Layout_BuildDisplayXMap(const LayoutPageState* st, std::vector<int>& outDisplayX)
@@ -3932,6 +4733,12 @@ static void Layout_ComputeTransform(LayoutPageState* st, const RECT& canvas, con
         return;
     }
 
+    if (st->view.ready)
+    {
+        scale = st->view.scale; ox = canvas.left + st->view.x; oy = canvas.top + st->view.y;
+        return;
+    }
+
     int maxX = 1;
     int maxBottom = KEYBOARD_KEY_H;
     for (size_t i = 0; i < st->draftKeys.size(); ++i)
@@ -3941,7 +4748,7 @@ static void Layout_ComputeTransform(LayoutPageState* st, const RECT& canvas, con
         if (pDisplayX && i < pDisplayX->size())
             x = (*pDisplayX)[i];
         maxX = std::max(maxX, x + k.w);
-        maxBottom = std::max(maxBottom, k.row * KEYBOARD_ROW_PITCH_Y + std::max(KEYBOARD_KEY_MIN_DIM, k.h));
+        maxBottom = std::max(maxBottom, KeyboardLayout_KeyY(k) + std::max(KEYBOARD_KEY_MIN_DIM, k.h));
     }
 
     int modelW = KEYBOARD_MARGIN_X + maxX + KEYBOARD_MARGIN_X;
@@ -3958,6 +4765,8 @@ static void Layout_ComputeTransform(LayoutPageState* st, const RECT& canvas, con
 
     ox = (float)canvas.left + (cw - drawW) * 0.5f;
     oy = (float)canvas.top + (ch - drawH) * 0.5f;
+    st->view.Fit((float)modelW, (float)modelH, cw, ch);
+    scale = st->view.scale; ox = canvas.left + st->view.x; oy = canvas.top + st->view.y;
 }
 
 static RECT Layout_KeyRectOnCanvasFast(LayoutPageState* st, int idx, const std::vector<int>* pDisplayX, float scale, float ox, float oy)
@@ -3971,9 +4780,9 @@ static RECT Layout_KeyRectOnCanvasFast(LayoutPageState* st, int idx, const std::
         modelX = (*pDisplayX)[(size_t)idx];
 
     int x = (int)std::lround(ox + (KEYBOARD_MARGIN_X + modelX) * scale);
-    int y = (int)std::lround(oy + (KEYBOARD_MARGIN_Y + k.row * KEYBOARD_ROW_PITCH_Y) * scale);
-    int w = std::max(10, (int)std::lround(k.w * scale));
-    int h = std::max(10, (int)std::lround(std::max(KEYBOARD_KEY_MIN_DIM, k.h) * scale));
+    int y = (int)std::lround(oy + (KEYBOARD_MARGIN_Y + KeyboardLayout_KeyY(k)) * scale);
+    int w = std::max(1, (int)std::lround(k.w * scale));
+    int h = std::max(1, (int)std::lround(std::max(KEYBOARD_KEY_MIN_DIM, k.h) * scale));
     r = RECT{ x, y, x + w, y + h };
     return r;
 }
@@ -3988,6 +4797,50 @@ static RECT Layout_KeyRectOnCanvas(LayoutPageState* st, int idx, const RECT& can
     return Layout_KeyRectOnCanvasFast(st, idx, pDisplayX, scale, ox, oy);
 }
 
+static int Layout_ResizeEdges(LayoutPageState* st, POINT point)
+{
+    if (st->selectedIdx < 0) return 0;
+    const RECT r = Layout_KeyRectOnCanvas(st, st->selectedIdx, st->canvasRc);
+    if (r.right - r.left < 18 || r.bottom - r.top < 18) return 0;
+    RECT hit = r; InflateRect(&hit, 5, 5);
+    if (!PtInRect(&hit, point)) return 0;
+    const KeyDef& shape = st->draftKeys[st->selectedIdx];
+    if (shape.notchW && point.x < r.left + (r.right-r.left)*shape.notchW/shape.w - 7 &&
+        point.y > r.top + (r.bottom-r.top)*shape.notchY/shape.h + 7) return 0;
+    using namespace halljoy::layout_editor;
+    int edges = 0;
+    if (std::abs(point.x - r.left) <= 7) edges |= Left;
+    else if (std::abs(point.x - r.right) <= 7) edges |= Right;
+    if (std::abs(point.y - r.top) <= 7 && st->preciseY) edges |= Top;
+    else if (std::abs(point.y - r.bottom) <= 7) edges |= Bottom;
+    return edges;
+}
+
+static int Layout_HitGuide(LayoutPageState* st, POINT point)
+{
+    if (!PtInRect(&st->canvasRc, point)) return -1;
+    float scale, ox, oy; Layout_ComputeTransform(st, st->canvasRc, nullptr, scale, ox, oy);
+    float nearest = 5.0f; int found = -1;
+    for (int i = 0; i < (int)st->guides.size(); ++i) {
+        const auto& guide = st->guides[i];
+        const float position = guide.vertical ? ox + (KEYBOARD_MARGIN_X + guide.coordinate) * scale
+            : oy + (KEYBOARD_MARGIN_Y + guide.coordinate) * scale;
+        const float distance = std::abs(position - (guide.vertical ? point.x : point.y));
+        if (distance <= nearest) { nearest = distance; found = i; }
+    }
+    return found;
+}
+
+static void Layout_MoveGuide(HWND hWnd, LayoutPageState* st, POINT point)
+{
+    float scale, ox, oy; Layout_ComputeTransform(st, st->canvasRc, nullptr, scale, ox, oy);
+    auto& guide = st->guides[st->draggingGuide];
+    guide.coordinate = std::clamp((int)std::lround(guide.vertical
+        ? (point.x - ox) / scale - KEYBOARD_MARGIN_X
+        : (point.y - oy) / scale - KEYBOARD_MARGIN_Y), 0, 4600);
+    InvalidateRect(hWnd, nullptr, FALSE);
+}
+
 static int Layout_HitTestKey(LayoutPageState* st, POINT pt)
 {
     std::vector<int> displayX;
@@ -4000,31 +4853,17 @@ static int Layout_HitTestKey(LayoutPageState* st, POINT pt)
     for (int i = n - 1; i >= 0; --i)
     {
         RECT r = Layout_KeyRectOnCanvasFast(st, i, pDisplayX, scale, ox, oy);
-        if (PtInRect(&r, pt)) return i;
+        if (PtInRect(&r, pt) && KeyboardLayout_Contains(st->draftKeys[i],
+                (double)(pt.x-r.left)*st->draftKeys[i].w/(r.right-r.left),
+                (double)(pt.y-r.top)*st->draftKeys[i].h/(r.bottom-r.top))) return i;
     }
     return -1;
 }
 
-static void Layout_RefreshKeyList(HWND hWnd, LayoutPageState* st)
+static void Layout_RefreshSelection(HWND, LayoutPageState* st)
 {
-    if (!st || !st->lstKeys) return;
-    SendMessageW(st->lstKeys, LB_RESETCONTENT, 0, 0);
-
-    int n = Layout_DraftCount(st);
-    for (int i = 0; i < n; ++i)
-    {
-        KeyDef k{};
-        if (!Layout_DraftGet(st, i, k)) continue;
-
-        wchar_t line[256]{};
-        swprintf_s(line, L"%2d. %-7ls HID:%3u  row:%d x:%d w:%d h:%d", i + 1,
-            (k.label ? k.label : L""), (unsigned)k.hid, k.row, k.x, k.w, std::max(KEYBOARD_KEY_MIN_DIM, k.h));
-        SendMessageW(st->lstKeys, LB_ADDSTRING, 0, (LPARAM)line);
-    }
-
-    if (st->selectedIdx >= n) st->selectedIdx = -1;
-    if (st->selectedIdx >= 0)
-        SendMessageW(st->lstKeys, LB_SETCURSEL, (WPARAM)st->selectedIdx, 0);
+    if (!st) return;
+    if (st->selectedIdx >= (int)st->draftKeys.size()) st->selectedIdx = -1;
     Layout_UpdateMetaControls(st);
 }
 
@@ -4076,6 +4915,11 @@ static void Layout_DrawCanvas(HWND hWnd, HDC hdc, LayoutPageState* st)
 {
     if (!st) return;
     Layout_ComputeCanvasRect(hWnd, st);
+    std::vector<int> displayX;
+    Layout_BuildDisplayXMap(st, displayX);
+    const std::vector<int>* pDisplayX = displayX.empty() ? nullptr : &displayX;
+    float scale = 1.0f, ox = 0.0f, oy = 0.0f;
+    Layout_ComputeTransform(st, st->canvasRc, pDisplayX, scale, ox, oy);
 
     Graphics g(hdc);
     g.SetSmoothingMode(SmoothingModeAntiAlias);
@@ -4084,34 +4928,42 @@ static void Layout_DrawCanvas(HWND hWnd, HDC hdc, LayoutPageState* st)
 
     RectF canvas((REAL)st->canvasRc.left, (REAL)st->canvasRc.top,
         (REAL)(st->canvasRc.right - st->canvasRc.left), (REAL)(st->canvasRc.bottom - st->canvasRc.top));
+    g.SetClip(canvas);
 
     SolidBrush bg(Gp(RGB(28, 28, 30)));
     g.FillRectangle(&bg, canvas);
 
-    // subtle grid helps alignment while dragging keys
+    // World-anchored pixel grid. Line widths remain in screen pixels at every zoom.
     {
-        Pen rowPen(Gp(RGB(70, 70, 76), 110), 1.0f);
-        Pen colPen(Gp(RGB(56, 56, 60), 80), 1.0f);
-        const int step = std::max(8, S(hWnd, 12));
-        int x0 = (int)canvas.X;
-        int y0 = (int)canvas.Y;
-        int x1 = (int)canvas.GetRight();
-        int y1 = (int)canvas.GetBottom();
-
-        for (int y = y0; y <= y1; y += step)
-            g.DrawLine(&rowPen, (REAL)x0, (REAL)y, (REAL)x1, (REAL)y);
-        for (int x = x0; x <= x1; x += step)
-            g.DrawLine(&colPen, (REAL)x, (REAL)y0, (REAL)x, (REAL)y1);
+        const auto grid = halljoy::layout_editor::GridForScale(scale);
+        Pen minorPen(Gp(RGB(100, 100, 110), (BYTE)std::lround(36 * grid.minorOpacity)), 0.7f);
+        Pen majorPen(Gp(RGB(100, 100, 110), 85), 1.1f);
+        const float gridX = ox + KEYBOARD_MARGIN_X * scale;
+        const float gridY = oy + KEYBOARD_MARGIN_Y * scale;
+        auto drawAxis = [&](bool vertical, int stride, Pen& pen, bool minor) {
+            const float origin = vertical ? gridX : gridY;
+            const float lo = vertical ? canvas.X : canvas.Y;
+            const float hi = vertical ? canvas.GetRight() : canvas.GetBottom();
+            const int first = (int)std::ceil((lo - origin) / (stride * scale));
+            const int last = (int)std::floor((hi - origin) / (stride * scale));
+            for (int index = first; index <= last; ++index) {
+                const int coordinate = index * stride;
+                if (minor && coordinate % grid.majorStep == 0) continue;
+                const float position = origin + coordinate * scale;
+                if (vertical) g.DrawLine(&pen, position, canvas.Y, position, canvas.GetBottom());
+                else g.DrawLine(&pen, canvas.X, position, canvas.GetRight(), position);
+            }
+        };
+        if (grid.minorOpacity > 0) {
+            drawAxis(true, 1, minorPen, true);
+            drawAxis(false, 1, minorPen, true);
+        }
+        drawAxis(true, grid.majorStep, majorPen, false);
+        drawAxis(false, grid.majorStep, majorPen, false);
     }
 
     Pen border(Gp(UiTheme::Color_Border()), 1.0f);
     g.DrawRectangle(&border, canvas);
-
-    std::vector<int> displayX;
-    Layout_BuildDisplayXMap(st, displayX);
-    const std::vector<int>* pDisplayX = displayX.empty() ? nullptr : &displayX;
-    float scale = 1.0f, ox = 0.0f, oy = 0.0f;
-    Layout_ComputeTransform(st, st->canvasRc, pDisplayX, scale, ox, oy);
 
     int n = Layout_DraftCount(st);
     for (int i = 0; i < n; ++i)
@@ -4121,14 +4973,32 @@ static void Layout_DrawCanvas(HWND hWnd, HDC hdc, LayoutPageState* st)
 
         RECT rr = Layout_KeyRectOnCanvasFast(st, i, pDisplayX, scale, ox, oy);
         RectF r((REAL)rr.left, (REAL)rr.top, (REAL)(rr.right - rr.left), (REAL)(rr.bottom - rr.top));
-        r.Inflate(-1.0f, -1.0f);
+        r.Inflate(-std::min(1.0f, r.Width * 0.1f), -std::min(1.0f, r.Height * 0.1f));
 
         bool sel = (i == st->selectedIdx);
+        if (sel && st->dragging)
+        {
+            Pen guide(Gp(UiTheme::Color_Accent(), 130), 1.0f);
+            guide.SetDashStyle(DashStyleDash);
+            g.DrawLine(&guide, r.X, canvas.Y, r.X, canvas.GetBottom());
+            g.DrawLine(&guide, canvas.X, r.Y, canvas.GetRight(), r.Y);
+            g.DrawLine(&guide, r.GetRight(), canvas.Y, r.GetRight(), canvas.GetBottom());
+            g.DrawLine(&guide, canvas.X, r.GetBottom(), canvas.GetRight(), r.GetBottom());
+        }
         SolidBrush fill(sel ? Gp(UiTheme::Color_Accent(), 210) : Gp(RGB(48, 48, 52), 230));
-        g.FillRectangle(&fill, r);
+        GraphicsPath shape;
+        if (k.notchW) {
+            const float nx = r.X + r.Width*k.notchW/k.w, ny = r.Y + r.Height*k.notchY/k.h;
+            const PointF points[] = {{r.X,r.Y},{r.GetRight(),r.Y},{r.GetRight(),r.GetBottom()},
+                {nx,r.GetBottom()},{nx,ny},{r.X,ny}};
+            shape.AddPolygon(points, 6);
+        } else shape.AddRectangle(r);
+        g.FillPath(&fill, &shape);
+        const auto shapeClip = g.Save();
+        g.SetClip(&shape, CombineModeIntersect);
 
         // Live analog preview for bound HID keys (helps verify bind immediately).
-        if (k.hid > 0 && k.hid < 256)
+        if (halljoy::keycode::IsSupported(k.hid))
         {
             float v = (float)BackendUI_GetRawMilli(k.hid) / 1000.0f;
             v = std::clamp(v, 0.0f, 1.0f);
@@ -4142,201 +5012,306 @@ static void Layout_DrawCanvas(HWND hWnd, HDC hdc, LayoutPageState* st)
         }
 
         Pen keyBorder(sel ? Gp(RGB(245, 245, 245)) : Gp(UiTheme::Color_Border()), sel ? 2.0f : 1.0f);
-        g.DrawRectangle(&keyBorder, r);
+        g.Restore(shapeClip);
+        g.DrawPath(&keyBorder, &shape);
+        if (sel && r.Width >= 16 && r.Height >= 16)
+        {
+            SolidBrush grip(Gp(UiTheme::Color_Text()));
+            for (int column = 0; column < 3; ++column) for (int row = 0; row < 3; ++row) {
+                if ((column == 1 && row == 1) || (row == 0 && !st->preciseY)) continue;
+                const float x = r.X + column * r.Width / 2;
+                const float y = r.Y + row * r.Height / 2;
+                if (k.notchW && column == 0 && row * k.h / 2 >= k.notchY) continue;
+                g.FillRectangle(&grip, x - 3, y - 3, 6.0f, 6.0f);
+            }
+        }
 
         if (k.label && k.label[0])
         {
             FontFamily ff(L"Segoe UI");
-            float em = std::clamp(r.Height * 0.36f, 9.0f, 13.0f);
+            float em = std::clamp(r.Height * 0.30f, 10.0f, 24.0f);
             Font font(&ff, em, FontStyleRegular, UnitPixel);
             StringFormat fmt;
             fmt.SetAlignment(StringAlignmentCenter);
             fmt.SetLineAlignment(StringAlignmentCenter);
             fmt.SetFormatFlags(StringFormatFlagsNoWrap);
             SolidBrush txt(sel ? Gp(RGB(12, 12, 12)) : Gp(UiTheme::Color_Text()));
-            g.DrawString(k.label, -1, &font, r, &fmt, &txt);
+            RectF labelRect = r;
+            if (k.notchW) { const float offset = r.Width*k.notchW/k.w; labelRect.X += offset; labelRect.Width -= offset; }
+            g.DrawString(k.label, -1, &font, labelRect, &fmt, &txt);
         }
     }
 }
 
-static void Layout_ApplyDrag(HWND hWnd, LayoutPageState* st, POINT ptClient)
+static void Layout_DrawRulersAndGuides(HWND hWnd, HDC hdc, LayoutPageState* st)
+{
+    float scale, ox, oy; Layout_ComputeTransform(st, st->canvasRc, nullptr, scale, ox, oy);
+    Graphics g(hdc); g.SetSmoothingMode(SmoothingModeAntiAlias);
+    g.SetClip(Rect(st->canvasRc.left, st->canvasRc.top,
+        st->canvasRc.right - st->canvasRc.left, st->canvasRc.bottom - st->canvasRc.top));
+    Pen guidePen(Gp(RGB(85, 190, 215), 170), 1.0f);
+    for (const auto& guide : st->guides) {
+        if (guide.vertical) {
+            const float x = ox + (KEYBOARD_MARGIN_X + guide.coordinate) * scale;
+            g.DrawLine(&guidePen, x, (float)st->canvasRc.top, x, (float)st->canvasRc.bottom);
+        } else {
+            const float y = oy + (KEYBOARD_MARGIN_Y + guide.coordinate) * scale;
+            g.DrawLine(&guidePen, (float)st->canvasRc.left, y, (float)st->canvasRc.right, y);
+        }
+    }
+    g.ResetClip();
+    HGDIOBJ oldFont = SelectObject(hdc, GetStockObject(SYSTEM_FONT));
+    int tickStep = 1;
+    while (tickStep * scale < S(hWnd, 8)) tickStep *= 5;
+    Pen tickPen(Gp(UiTheme::Color_TextMuted(), 140), 1.0f);
+    for (bool vertical : {false, true}) {
+        const RECT ruler = vertical ? st->leftRuler : st->topRuler;
+        FillRect(hdc, &ruler, UiTheme::Brush_ControlBg());
+        const int saved = SaveDC(hdc); IntersectClipRect(hdc, ruler.left, ruler.top, ruler.right, ruler.bottom);
+        const float origin = vertical ? oy + KEYBOARD_MARGIN_Y * scale : ox + KEYBOARD_MARGIN_X * scale;
+        const int lo = vertical ? ruler.top : ruler.left, hi = vertical ? ruler.bottom : ruler.right;
+        const int first = (int)std::ceil((lo - origin) / (tickStep * scale));
+        const int last = (int)std::floor((hi - origin) / (tickStep * scale));
+        for (int i = first; i <= last; ++i) {
+            const int coordinate = i * tickStep;
+            const int position = (int)std::lround(origin + coordinate * scale);
+            const bool major = i % 5 == 0;
+            const int length = S(hWnd, major ? 9 : 4);
+            if (vertical) g.DrawLine(&tickPen, ruler.right - length, position, ruler.right, position);
+            else g.DrawLine(&tickPen, position, ruler.bottom - length, position, ruler.bottom);
+            if (major) {
+                const std::wstring label = std::to_wstring(coordinate);
+                RECT text = vertical ? RECT{ruler.left, position - S(hWnd, 18), ruler.right - S(hWnd, 3), position}
+                    : RECT{position + S(hWnd, 3), ruler.top, position + S(hWnd, 70), ruler.bottom - S(hWnd, 9)};
+                CustomPage_DrawText(hdc, label, text, UiTheme::Color_TextMuted(), DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+            }
+        }
+        RestoreDC(hdc, saved);
+    }
+    SelectObject(hdc, oldFont);
+}
+
+static void Layout_ApplyDrag(HWND hWnd, LayoutPageState* st, POINT point)
 {
     if (!st || st->selectedIdx < 0) return;
-
-    KeyDef k{};
-    if (!Layout_DraftGet(st, st->selectedIdx, k)) return;
-
-    std::vector<int> displayX;
-    const std::vector<int>* pDisplayX = nullptr;
+    if (st->uniformSpacingEnabled) {
+        std::vector<int> positions; Layout_BuildDisplayXMap(st, positions);
+        if (std::any_of(positions.begin(), positions.end(), [](int x) { return x < 0 || x > 4000; })) {
+            Layout_SetWindowTextIfChanged(st->lblHint,
+                L"Automatic spacing exceeds the editable range.\nReduce spacing before dragging keys.");
+            return;
+        }
+    }
+    float scale, ox, oy;
+    Layout_ComputeTransform(st, st->canvasRc, nullptr, scale, ox, oy);
+    auto& key = st->draftKeys[st->selectedIdx];
+    if (st->resizing)
+    {
+        using namespace halljoy::layout_editor;
+        int dx = (int)std::lround((point.x - st->resizeStart.x) / scale);
+        int dy = (int)std::lround((point.y - st->resizeStart.y) / scale);
+        if (!(st->resizeEdges & (Left | Right))) dx = 0;
+        if (!(st->resizeEdges & (Top | Bottom))) dy = 0;
+        if (!dx && !dy && !st->dirty) return;
+        const auto origin = st->resizeOrigin;
+        if (!dx && !dy && key.x == origin.x && KeyboardLayout_KeyY(key) == origin.y &&
+            key.w == origin.w && key.h == origin.h) return;
+        const bool bypass = (GetKeyState(VK_MENU) & 0x8000) != 0;
+        auto snapEdge = [&](int start, int delta, bool vertical) {
+            int target = start + delta;
+            if (!bypass) {
+                if (st->snap) target = (int)std::lround(target / 8.0) * 8;
+                target = SnapPosition(target, 0, st->guides, vertical, scale, 0, 4600);
+            }
+            return target - start;
+        };
+        dx = snapEdge(origin.x + ((st->resizeEdges & Right) ? origin.w : 0), dx, true);
+        dy = snapEdge(origin.y + ((st->resizeEdges & Bottom) ? origin.h : 0), dy, false);
+        auto geometry = Resize(origin, st->resizeEdges, dx, dy, st->preciseY);
+        if (geometry.w <= key.notchW) {
+            geometry.w = key.notchW + 1;
+            if (st->resizeEdges & Left) geometry.x = origin.x + origin.w - geometry.w;
+        }
+        if (geometry.h <= key.notchY) {
+            geometry.h = key.notchY + 1;
+            if (st->resizeEdges & Top) geometry.y = origin.y + origin.h - geometry.h;
+        }
+        if (key.w != geometry.w || key.h != geometry.h || key.x != geometry.x || KeyboardLayout_KeyY(key) != geometry.y)
+        {
+            if (st->uniformSpacingEnabled) {
+                Layout_BakeUniformSpacingIntoDraft(st); st->uniformSpacingEnabled = false;
+                Layout_UpdateUniformSpacingButton(st);
+            }
+            key.x = geometry.x; key.w = geometry.w; key.h = geometry.h;
+            if (st->resizeEdges & Top) key.y = geometry.y;
+            st->dirty = true;
+            Layout_UpdateMetaControls(st); InvalidateRect(hWnd, &st->canvasRc, FALSE);
+        }
+        return;
+    }
     if (st->uniformSpacingEnabled)
     {
-        Layout_BuildDisplayXMap(st, displayX);
-        pDisplayX = displayX.empty() ? nullptr : &displayX;
-    }
-
-    float scale = 1.0f, ox = 0.0f, oy = 0.0f;
-    Layout_ComputeTransform(st, st->canvasRc, pDisplayX, scale, ox, oy);
-    if (scale <= 0.0001f) return;
-
-    int left = ptClient.x - st->dragOffsetX;
-    int top = ptClient.y - st->dragOffsetY;
-
-    int targetDisplayX = (int)std::lround(((float)left - ox) / scale) - KEYBOARD_MARGIN_X;
-    float rowPitch = (float)KEYBOARD_ROW_PITCH_Y * scale;
-    int modelRow = (int)std::lround((((float)top - oy) - (float)KEYBOARD_MARGIN_Y * scale) / std::max(1.0f, rowPitch));
-
-    KeyDef& edit = st->draftKeys[st->selectedIdx];
-    int nextRow = std::clamp(modelRow, 0, 20);
-    bool changed = false;
-
-    if (st->uniformSpacingEnabled)
-    {
-        auto keyDisplayX = [&](int idx) -> int
-        {
-            if (pDisplayX && idx >= 0 && (size_t)idx < pDisplayX->size())
-                return (*pDisplayX)[(size_t)idx];
-            if (idx >= 0 && (size_t)idx < st->draftKeys.size())
-                return st->draftKeys[(size_t)idx].x;
-            return 0;
-        };
-
-        auto buildRowOrder = [&](int row) -> std::vector<int>
-        {
-            std::vector<int> ids;
-            ids.reserve(st->draftKeys.size());
-            for (int i = 0; i < (int)st->draftKeys.size(); ++i)
-            {
-                if (st->draftKeys[(size_t)i].row == row)
-                    ids.push_back(i);
-            }
-            std::sort(ids.begin(), ids.end(), [&](int a, int b)
-            {
-                int ax = keyDisplayX(a);
-                int bx = keyDisplayX(b);
-                if (ax != bx) return ax < bx;
-                return a < b;
-            });
-            return ids;
-        };
-
-        auto rowBaseX = [&](int row) -> int
-        {
-            int base = INT_MAX;
-            for (int i = 0; i < (int)st->draftKeys.size(); ++i)
-            {
-                if (st->draftKeys[(size_t)i].row == row)
-                    base = std::min(base, keyDisplayX(i));
-            }
-            if (base == INT_MAX)
-                base = std::clamp(targetDisplayX, 0, 4000);
-            return base;
-        };
-
-        auto insertionPos = [&](const std::vector<int>& ids) -> int
-        {
-            int ins = (int)ids.size();
-            for (int i = 0; i < (int)ids.size(); ++i)
-            {
-                int id = ids[(size_t)i];
-                int center = keyDisplayX(id) + st->draftKeys[(size_t)id].w / 2;
-                if (targetDisplayX < center)
-                {
-                    ins = i;
-                    break;
-                }
-            }
-            return ins;
-        };
-
-        auto applyRowOrder = [&](int row, const std::vector<int>& order, int baseX)
-        {
-            int gap = std::max(0, st->uniformSpacingGap);
-            int x = std::clamp(baseX, 0, 4000);
-            for (int id : order)
-            {
-                KeyDef& kk = st->draftKeys[(size_t)id];
-                kk.row = row;
-                kk.x = std::clamp(x, 0, 4000);
-                x += kk.w + gap;
-            }
-        };
-
-        int rowFrom = edit.row;
-        int rowTo = nextRow;
-        std::vector<int> fromOrder = buildRowOrder(rowFrom);
-
-        if (rowTo == rowFrom)
-        {
-            int oldPos = -1;
-            for (int i = 0; i < (int)fromOrder.size(); ++i)
-            {
-                if (fromOrder[(size_t)i] == st->selectedIdx)
-                {
-                    oldPos = i;
-                    break;
-                }
-            }
-
-            if (oldPos >= 0)
-            {
-                std::vector<int> movable = fromOrder;
-                movable.erase(movable.begin() + oldPos);
-
-                int ins = insertionPos(movable);
-                ins = std::clamp(ins, 0, (int)movable.size());
-                movable.insert(movable.begin() + ins, st->selectedIdx);
-
-                if (movable != fromOrder)
-                {
-                    applyRowOrder(rowFrom, movable, rowBaseX(rowFrom));
-                    changed = true;
-                }
-            }
-        }
-        else
-        {
-            std::vector<int> toOrder = buildRowOrder(rowTo);
-
-            std::vector<int> fromWithout = fromOrder;
-            fromWithout.erase(std::remove(fromWithout.begin(), fromWithout.end(), st->selectedIdx), fromWithout.end());
-
-            int ins = insertionPos(toOrder);
-            ins = std::clamp(ins, 0, (int)toOrder.size());
-            toOrder.insert(toOrder.begin() + ins, st->selectedIdx);
-
-            if (!fromWithout.empty())
-                applyRowOrder(rowFrom, fromWithout, rowBaseX(rowFrom));
-            applyRowOrder(rowTo, toOrder, rowBaseX(rowTo));
-            changed = true;
-        }
-    }
-    else
-    {
-        int nextX = std::clamp(targetDisplayX, 0, 4000);
-        if (edit.x != nextX)
-        {
-            edit.x = nextX;
-            changed = true;
-        }
-    }
-
-    if (!st->uniformSpacingEnabled && edit.row != nextRow)
-    {
-        edit.row = nextRow;
-        changed = true;
-    }
-
-    if (changed)
-    {
+        Layout_BakeUniformSpacingIntoDraft(st);
+        st->uniformSpacingEnabled = false;
+        Layout_UpdateUniformSpacingButton(st);
         st->dirty = true;
-        Layout_UpdateMetaControls(st);
-        InvalidateRect(hWnd, &st->canvasRc, FALSE);
     }
+    int x = (int)std::lround((point.x - st->dragOffsetX - ox) / scale) - KEYBOARD_MARGIN_X;
+    int y = (int)std::lround((point.y - st->dragOffsetY - oy) / scale) - KEYBOARD_MARGIN_Y;
+    const bool bypass = (GetKeyState(VK_MENU) & 0x8000) != 0;
+    if (st->snap && !bypass) { x = (int)std::lround(x / 8.0) * 8; if (st->preciseY) y = (int)std::lround(y / 8.0) * 8; }
+    x = std::clamp(x, 0, 4000);
+    const int offset = KeyboardLayout_KeyY(key) - key.row * KEYBOARD_ROW_PITCH_Y;
+    int row = std::clamp((int)std::lround((y - offset) / (double)KEYBOARD_ROW_PITCH_Y), 0, 20);
+    y = st->preciseY ? std::clamp(y, 0, 4000) : halljoy::layout_editor::RowY(key, row);
+    if (!bypass) {
+        x = halljoy::layout_editor::SnapPosition(x, key.w, st->guides, true, scale);
+        y = halljoy::layout_editor::SnapPosition(y, key.h, st->guides, false, scale,
+            st->preciseY ? 0 : std::max(0, offset),
+            st->preciseY ? 4000 : std::min(4000, offset + 20 * KEYBOARD_ROW_PITCH_Y),
+            offset, st->preciseY ? 0 : KEYBOARD_ROW_PITCH_Y);
+        if (!st->preciseY) row = std::clamp((y - offset) / KEYBOARD_ROW_PITCH_Y, 0, 20);
+    }
+    if (key.x == x && KeyboardLayout_KeyY(key) == y) return;
+    key.x = x; key.y = st->preciseY || key.y >= 0 ? y : -1;
+    if (!st->preciseY) key.row = row;
+    st->dirty = true;
+    Layout_UpdateMetaControls(st);
+    InvalidateRect(hWnd, &st->canvasRc, FALSE);
+}
+
+static void Layout_Arrange(HWND hWnd, LayoutPageState* st)
+{
+    RECT rc{}; GetClientRect(hWnd, &rc);
+    const int m = S(hWnd, 16), gap = S(hWnd, 8), side = S(hWnd, 264);
+    const int rightX = rc.right - side - m;
+    bool lower = false;
+    auto place = [&](HWND control, int x, int y, int w, int h) {
+        if (lower) y += S(hWnd, 60);
+        if (control) SetWindowPos(control, nullptr, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+    };
+    place(st->lblPreset, m, S(hWnd, 12), S(hWnd, 280), S(hWnd, 18));
+    const int comboW = std::clamp((int)rc.right - S(hWnd, 560), S(hWnd, 180), S(hWnd, 300));
+    int x = m;
+    place(st->lblBrand, x, S(hWnd, 36), S(hWnd, 160), S(hWnd, 18));
+    place(st->layoutPicker.brand, x, S(hWnd, 58), S(hWnd, 160), S(hWnd, 32));
+    place(st->lblModel, x + S(hWnd, 160) + gap, S(hWnd, 36), comboW, S(hWnd, 18));
+    place(st->cmbPreset, x + S(hWnd, 160) + gap, S(hWnd, 58), comboW, S(hWnd, 32));
+    const int variantX = x + S(hWnd, 160) + gap + comboW + gap;
+    place(st->lblVariant, variantX, S(hWnd, 36), S(hWnd, 96), S(hWnd, 18));
+    place(st->layoutPicker.variant, variantX, S(hWnd, 58), S(hWnd, 96), S(hWnd, 32));
+    ShowWindow(st->lblVariant, st->layoutPicker.HasVariants() ? SW_SHOWNA : SW_HIDE);
+    ShowWindow(st->layoutPicker.variant, st->layoutPicker.HasVariants() ? SW_SHOWNA : SW_HIDE);
+    for (HWND button : { st->btnUndo, st->btnRedo }) { place(button, x, S(hWnd, 102), S(hWnd, 64), S(hWnd, 32)); x += S(hWnd, 64) + gap; }
+    place(st->btnFit, x, S(hWnd, 102), S(hWnd, 102), S(hWnd, 32)); x += S(hWnd, 102) + gap;
+    place(st->btnAdd, x, S(hWnd, 102), S(hWnd, 88), S(hWnd, 32)); x += S(hWnd, 88) + gap;
+    place(st->btnSave, x, S(hWnd, 102), S(hWnd, 116), S(hWnd, 32));
+    place(st->lblStatus, rc.right - S(hWnd, 190), S(hWnd, 12), S(hWnd, 174), S(hWnd, 18));
+    lower = true;
+    place(st->lblKeys, rightX, S(hWnd, 100), side, S(hWnd, 22));
+    place(st->lblEmpty, rightX, S(hWnd, 146), side, S(hWnd, 112));
+    place(st->lblLabel, rightX, S(hWnd, 136), side, S(hWnd, 18));
+    place(st->edtLabel, rightX, S(hWnd, 158), side, S(hWnd, 28));
+    const int col = (side - gap) / 2;
+    place(st->lblPos, rightX, S(hWnd, 200), col, S(hWnd, 18));
+    place(st->lblY, rightX + col + gap, S(hWnd, 200), col, S(hWnd, 18));
+    place(st->edtPos, rightX, S(hWnd, 222), col, S(hWnd, 28));
+    place(st->edtY, rightX + col + gap, S(hWnd, 222), col, S(hWnd, 28));
+    place(st->lblWidth, rightX, S(hWnd, 264), col, S(hWnd, 18));
+    place(st->lblHeight, rightX + col + gap, S(hWnd, 264), col, S(hWnd, 18));
+    place(st->edtWidth, rightX, S(hWnd, 286), col, S(hWnd, 28));
+    place(st->edtHeight, rightX + col + gap, S(hWnd, 286), col, S(hWnd, 28));
+    if (st->shapeControlsVisible) {
+        const int quarter = (side - gap*3) / 4;
+        const HWND labels[] = {st->lblWidth, st->lblHeight, st->lblNotchW, st->lblNotchY};
+        const HWND edits[] = {st->edtWidth, st->edtHeight, st->edtNotchW, st->edtNotchY};
+        for (int i = 0; i < 4; ++i) {
+            place(labels[i], rightX + i*(quarter+gap), S(hWnd, 264), quarter, S(hWnd, 18));
+            place(edits[i], rightX + i*(quarter+gap), S(hWnd, 286), quarter, S(hWnd, 28));
+        }
+    }
+    place(st->btnBindKey, rightX, S(hWnd, 328), side, S(hWnd, 30));
+    place(st->lblBindState, rightX, S(hWnd, 366), side, S(hWnd, 20));
+    place(st->btnDuplicate, rightX, S(hWnd, 398), col, S(hWnd, 30));
+    place(st->btnDelete, rightX + col + gap, S(hWnd, 398), col, S(hWnd, 30));
+    place(st->lblLayoutTools, rightX, S(hWnd, 436), side, S(hWnd, 18));
+    place(st->btnPrecision, rightX, S(hWnd, 460), side, S(hWnd, 30));
+    place(st->btnSnap, rightX, S(hWnd, 498), side, S(hWnd, 30));
+    place(st->btnUniformSpacing, rightX, S(hWnd, 536), side, S(hWnd, 30));
+    place(st->lblUniformGap, rightX, S(hWnd, 578), S(hWnd, 164), S(hWnd, 24));
+    place(st->edtUniformGap, rightX + side - S(hWnd, 80), S(hWnd, 574), S(hWnd, 80), S(hWnd, 28));
+    lower = false;
+    place(st->btnReset, rightX, std::max(S(hWnd, 678), (int)rc.bottom - S(hWnd, 48)), side, S(hWnd, 30));
+    place(st->btnActual, rightX - S(hWnd, 104), rc.bottom - S(hWnd, 48), S(hWnd, 80), S(hWnd, 30));
+    place(st->lblHint, m, rc.bottom - S(hWnd, 54), std::max(S(hWnd, 100), rightX - m - S(hWnd, 120)), S(hWnd, 46));
+    Layout_ComputeCanvasRect(hWnd, st);
 }
 
 LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     auto* st = (LayoutPageState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+    if (st && msg == PremiumCombo::MsgItemTextCommit() && (HWND)lParam == st->cmbPreset) {
+        wchar_t name[260]{}; PremiumCombo::ConsumeCommittedText(st->cmbPreset, name, 260);
+        if (st->layoutPicker.PresetAt(LOWORD(wParam)) != LayoutPicker::Create || st->resolvingDraft) return 0;
+        PremiumCombo::SetDeleteConfirmation(st->cmbPreset, -1);
+        PremiumCombo::ShowDropDown(st->cmbPreset, false);
+        if (!Layout_ResolveDraft(hWnd, st)) {
+            Layout_RefreshPresetCombo(st); return 0;
+        }
+        int created = -1;
+        if (KeyboardLayout_CreatePreset(name, &created, st->editingPresetIdx, false, st->layoutPicker.CreationBrand())) {
+            Layout_LoadDraftFromPreset(hWnd, st, created, true);
+            Layout_RefreshPresetCombo(st); Layout_NotifyMainPage(hWnd); Layout_RequestSave(hWnd);
+        } else {
+            Layout_RefreshPresetCombo(st);
+            Layout_SetWindowTextIfChanged(st->lblHint, L"Could not create layout. Use a unique name\nand check that the layouts folder is writable.");
+        }
+        return 0;
+    }
+    if (st && msg == PremiumCombo::MsgItemButton() && ((HWND)lParam == st->cmbPreset || (HWND)lParam == st->layoutPicker.variant)) {
+        if (st->resolvingDraft) return 0;
+        const auto action = (PremiumCombo::ItemButtonKind)HIWORD(wParam);
+        const int index = LOWORD(wParam);
+        const HWND source = (HWND)lParam;
+        const int preset = source == st->cmbPreset ? st->layoutPicker.PresetAt(index) : st->layoutPicker.VariantAt(index);
+        if (source == st->cmbPreset && index < (int)st->layoutPicker.groups.size() && st->layoutPicker.groups[index].members.size()>1) return 0;
+        if (preset < 0 || preset >= KeyboardLayout_GetPresetCount() || KeyboardLayout_GetPresetCount() <= 1) return 0;
+        if (action == PremiumCombo::ItemButtonKind::Delete) {
+            PremiumCombo::SetDeleteConfirmation(source, index); return 0;
+        }
+        if (action != PremiumCombo::ItemButtonKind::ConfirmDelete ||
+            PremiumCombo::GetDeleteConfirmation(source) != index) return 0;
+        PremiumCombo::SetDeleteConfirmation(source, -1);
+        PremiumCombo::ShowDropDown(source, false);
+        if (LayoutEditor_DeletePreset(preset, true)) {
+            Layout_NotifyMainPage(hWnd); Layout_RequestSave(hWnd); Layout_UpdateHintText(st);
+        }
+        return 0;
+    }
+    if (msg == WM_SETCURSOR && st && (HWND)wParam == hWnd && LOWORD(lParam) == HTCLIENT)
+    {
+        POINT point{}; GetCursorPos(&point); ScreenToClient(hWnd, &point);
+        if (PtInRect(&st->canvasRc, point))
+        {
+            using namespace halljoy::layout_editor;
+            const int edges = st->resizing ? st->resizeEdges : st->dragging ? 0 : Layout_ResizeEdges(st, point);
+            LPCWSTR cursor = IDC_ARROW;
+            if ((edges & (Left | Right)) && (edges & (Top | Bottom)))
+                cursor = (edges == (Left | Top) || edges == (Right | Bottom)) ? IDC_SIZENWSE : IDC_SIZENESW;
+            else if (edges & (Left | Right)) cursor = IDC_SIZEWE;
+            else if (edges & (Top | Bottom)) cursor = IDC_SIZENS;
+            else if (st->panning || st->dragging) cursor = IDC_SIZEALL;
+            else {
+                const int guide = st->draggingGuide >= 0 ? st->draggingGuide : Layout_HitGuide(st, point);
+                if (guide >= 0) cursor = st->guides[guide].vertical ? IDC_SIZEWE : IDC_SIZENS;
+            }
+            SetCursor(LoadCursorW(nullptr, cursor));
+            return TRUE;
+        }
+        if (PtInRect(&st->topRuler, point) || PtInRect(&st->leftRuler, point)) {
+            SetCursor(LoadCursorW(nullptr, IDC_CROSS)); return TRUE;
+        }
+    }
 
     switch (msg)
     {
@@ -4352,6 +5327,7 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
         BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
 
         Layout_DrawCanvas(hWnd, memDC, st);
+        if (st) Layout_DrawRulersAndGuides(hWnd, memDC, st);
 
         EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
         return 0;
@@ -4386,21 +5362,38 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
     case WM_CREATE:
     {
         HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
-        HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+        HFONT hFont = (HFONT)GetStockObject(SYSTEM_FONT);
 
         st = new LayoutPageState();
         SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)st);
 
-        st->lblPreset = CreateWindowW(L"STATIC", L"Keyboard model", WS_CHILD | WS_VISIBLE,
+        st->lblPreset = CreateWindowW(L"STATIC", L"Layout", WS_CHILD | WS_VISIBLE,
             0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblPreset, WM_SETFONT, (WPARAM)hFont, TRUE);
 
         st->cmbPreset = PremiumCombo::Create(hWnd, hInst, 0, 0, 10, 10, ID_LAYOUT_PRESET,
             WS_CHILD | WS_VISIBLE | WS_TABSTOP);
         PremiumCombo::SetFont(st->cmbPreset, hFont, true);
+        st->layoutPicker.model = st->cmbPreset;
+        st->layoutPicker.editable = true;
+        st->layoutPicker.brand = PremiumCombo::Create(hWnd, hInst, 0, 0, 10, 10, ID_LAYOUT_BRAND,
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP);
+        PremiumCombo::SetFont(st->layoutPicker.brand, hFont, false);
+        st->layoutPicker.variant = PremiumCombo::Create(hWnd, hInst, 0, 0, 10, 10, ID_LAYOUT_VARIANT,
+            WS_CHILD | WS_TABSTOP);
+        PremiumCombo::SetFont(st->layoutPicker.variant, hFont, false);
+        st->lblVariant = CreateWindowW(L"STATIC", L"Variant", WS_CHILD,
+            0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblVariant, WM_SETFONT, (WPARAM)hFont, FALSE);
+        st->lblBrand = CreateWindowW(L"STATIC", L"Brand", WS_CHILD | WS_VISIBLE,
+            0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        st->lblModel = CreateWindowW(L"STATIC", L"Model", WS_CHILD | WS_VISIBLE,
+            0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
+        SendMessageW(st->lblBrand, WM_SETFONT, (WPARAM)hFont, FALSE);
+        SendMessageW(st->lblModel, WM_SETFONT, (WPARAM)hFont, FALSE);
         PremiumCombo::SetDropMaxVisible(st->cmbPreset, 8);
 
-        st->btnReset = CreateWindowW(L"BUTTON", L"Reset To Preset", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+        st->btnReset = CreateWindowW(L"BUTTON", L"Reload saved", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
             0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)ID_LAYOUT_RESET, hInst, nullptr);
         SendMessageW(st->btnReset, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -4441,15 +5434,13 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
             0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)ID_LAYOUT_LABEL_EDIT, hInst, nullptr);
         SendMessageW(st->edtLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->btnApplyLabel = CreateWindowW(L"BUTTON", L"Apply Label", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-            0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)ID_LAYOUT_LABEL_APPLY, hInst, nullptr);
-        SendMessageW(st->btnApplyLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
+        SendMessageW(st->edtLabel, EM_SETLIMITTEXT, 63, 0);
 
         st->btnBindKey = CreateWindowW(L"BUTTON", L"Bind Physical Key", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
             0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)ID_LAYOUT_BIND_KEY, hInst, nullptr);
         SendMessageW(st->btnBindKey, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblPos = CreateWindowW(L"STATIC", L"Position", WS_CHILD | WS_VISIBLE,
+        st->lblPos = CreateWindowW(L"STATIC", L"X (px)", WS_CHILD | WS_VISIBLE,
             0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblPos, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -4458,7 +5449,7 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
             0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)ID_LAYOUT_POS_EDIT, hInst, nullptr);
         SendMessageW(st->edtPos, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblWidth = CreateWindowW(L"STATIC", L"Width", WS_CHILD | WS_VISIBLE,
+        st->lblWidth = CreateWindowW(L"STATIC", L"Width (px)", WS_CHILD | WS_VISIBLE,
             0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblWidth, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -4467,7 +5458,7 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
             0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)ID_LAYOUT_WIDTH_EDIT, hInst, nullptr);
         SendMessageW(st->edtWidth, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblHeight = CreateWindowW(L"STATIC", L"Height", WS_CHILD | WS_VISIBLE,
+        st->lblHeight = CreateWindowW(L"STATIC", L"Height (px)", WS_CHILD | WS_VISIBLE,
             0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblHeight, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -4475,19 +5466,47 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_NUMBER,
             0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)ID_LAYOUT_HEIGHT_EDIT, hInst, nullptr);
         SendMessageW(st->edtHeight, WM_SETFONT, (WPARAM)hFont, TRUE);
+        st->lblNotchW = CreateWindowW(L"STATIC", L"Inset", WS_CHILD, 0,0,10,10,hWnd,nullptr,hInst,nullptr);
+        st->lblNotchY = CreateWindowW(L"STATIC", L"Top arm", WS_CHILD, 0,0,10,10,hWnd,nullptr,hInst,nullptr);
+        st->edtNotchW = CreateWindowW(L"EDIT", L"", WS_CHILD | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
+            0,0,10,10,hWnd,(HMENU)(INT_PTR)ID_LAYOUT_NOTCH_W,hInst,nullptr);
+        st->edtNotchY = CreateWindowW(L"EDIT", L"", WS_CHILD | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL,
+            0,0,10,10,hWnd,(HMENU)(INT_PTR)ID_LAYOUT_NOTCH_Y,hInst,nullptr);
+        for (HWND control : {st->lblNotchW, st->lblNotchY, st->edtNotchW, st->edtNotchY})
+            SendMessageW(control, WM_SETFONT, (WPARAM)hFont, FALSE);
 
         st->lblBindState = CreateWindowW(L"STATIC", L"", WS_CHILD | WS_VISIBLE,
             0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblBindState, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblKeys = CreateWindowW(L"STATIC", L"Keys", WS_CHILD | WS_VISIBLE,
+        st->lblKeys = CreateWindowW(L"STATIC", L"Key properties", WS_CHILD | WS_VISIBLE,
             0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblKeys, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lstKeys = CreateWindowW(L"LISTBOX", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | LBS_NOTIFY | WS_VSCROLL | WS_BORDER,
-            0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)ID_LAYOUT_KEYS, hInst, nullptr);
-        SendMessageW(st->lstKeys, WM_SETFONT, (WPARAM)hFont, TRUE);
-        UiTheme::ApplyToControl(st->lstKeys);
+        // Selection is owned by the canvas; no hidden technical list is needed.
+        auto make = [&](const wchar_t* cls, const wchar_t* text, int id, DWORD style) {
+            HWND control = CreateWindowW(cls, text, WS_CHILD | WS_VISIBLE | style,
+                0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)id, hInst, nullptr);
+            SendMessageW(control, WM_SETFONT, (WPARAM)hFont, FALSE);
+            return control;
+        };
+        const DWORD buttonStyle = WS_TABSTOP | BS_OWNERDRAW;
+        st->btnUndo = make(L"BUTTON", L"Undo", ID_LAYOUT_UNDO, buttonStyle);
+        st->btnRedo = make(L"BUTTON", L"Redo", ID_LAYOUT_REDO, buttonStyle);
+        st->btnFit = make(L"BUTTON", L"Fit to window", ID_LAYOUT_FIT, buttonStyle);
+        st->btnActual = make(L"BUTTON", L"100%", ID_LAYOUT_ACTUAL, buttonStyle);
+        st->btnDuplicate = make(L"BUTTON", L"Duplicate", ID_LAYOUT_DUPLICATE, buttonStyle);
+        st->btnPrecision = make(L"BUTTON", L"", ID_LAYOUT_PRECISION, buttonStyle);
+        st->btnSnap = make(L"BUTTON", L"", ID_LAYOUT_SNAP, buttonStyle);
+        for (HWND button : {st->btnReset, st->btnAdd, st->btnDelete, st->btnSave,
+            st->btnUniformSpacing, st->btnBindKey, st->btnUndo, st->btnRedo,
+            st->btnFit, st->btnActual, st->btnDuplicate, st->btnPrecision, st->btnSnap})
+            SetWindowSubclass(button, Layout_ButtonMouseProc, 1, 0);
+        st->lblStatus = make(L"STATIC", L"All changes saved", 0, SS_RIGHT);
+        st->lblLayoutTools = make(L"STATIC", L"Canvas & spacing", 0, SS_NOPREFIX);
+        st->lblEmpty = make(L"STATIC", L"Select a key on the canvas to edit it.\n\nDrag to move it, or enter exact dimensions here.", 0, 0);
+        st->lblY = make(L"STATIC", L"Row", 0, 0);
+        st->edtY = make(L"EDIT", L"", ID_LAYOUT_Y, WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_NUMBER);
 
         st->lblHint = CreateWindowW(L"STATIC",
             L"",
@@ -4496,11 +5515,8 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
         SendMessageW(st->lblHint, WM_SETFONT, (WPARAM)hFont, TRUE);
         Layout_UpdateHintText(st);
 
-        int presetCount = KeyboardLayout_GetPresetCount();
-        for (int i = 0; i < presetCount; ++i)
-            PremiumCombo::AddString(st->cmbPreset, KeyboardLayout_GetPresetName(i));
         st->editingPresetIdx = KeyboardLayout_GetCurrentPresetIndex();
-        PremiumCombo::SetCurSel(st->cmbPreset, st->editingPresetIdx, false);
+        Layout_RefreshPresetCombo(st);
         Layout_LoadDraftFromPreset(hWnd, st, st->editingPresetIdx, false);
         EnableWindow(st->btnDelete, FALSE);
         Layout_SetUnsaved(st, false);
@@ -4520,95 +5536,105 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
         return 0;
 
     case WM_SIZE:
-        if (st)
-        {
-            RECT rc{};
-            GetClientRect(hWnd, &rc);
-            int margin = S(hWnd, 12);
-            int leftW = S(hWnd, 300);
-            int topY = S(hWnd, 330);
-
-            SetWindowPos(st->lblPreset, nullptr, margin, margin, leftW, S(hWnd, 18), SWP_NOZORDER);
-            SetWindowPos(st->cmbPreset, nullptr, margin, margin + S(hWnd, 20), leftW - S(hWnd, 110), S(hWnd, 26), SWP_NOZORDER);
-            SetWindowPos(st->btnReset, nullptr, margin + leftW - S(hWnd, 104), margin + S(hWnd, 20), S(hWnd, 104), S(hWnd, 26), SWP_NOZORDER);
-            int actionY = margin + S(hWnd, 52);
-            int actionH = S(hWnd, 26);
-            int actionGap = S(hWnd, 8);
-            int addW = S(hWnd, 90);
-            int saveW = S(hWnd, 100);
-            int addX = margin;
-            int saveX = margin + leftW - saveW;
-            int delX = addX + addW + actionGap;
-            int delW = saveX - actionGap - delX;
-            delW = std::max(S(hWnd, 72), delW);
-            if (delX + delW > saveX - actionGap)
-                delW = std::max(S(hWnd, 60), (saveX - actionGap) - delX);
-            if (st->btnAdd)
-                SetWindowPos(st->btnAdd, nullptr, addX, actionY, addW, actionH, SWP_NOZORDER);
-            if (st->btnDelete)
-                SetWindowPos(st->btnDelete, nullptr, delX, actionY, delW, actionH, SWP_NOZORDER);
-            if (st->btnSave)
-                SetWindowPos(st->btnSave, nullptr, saveX, actionY, saveW, actionH, SWP_NOZORDER);
-            if (st->btnUniformSpacing)
-                SetWindowPos(st->btnUniformSpacing, nullptr, margin, margin + S(hWnd, 84), leftW, S(hWnd, 24), SWP_NOZORDER);
-            if (st->lblUniformGap)
-                SetWindowPos(st->lblUniformGap, nullptr, margin, margin + S(hWnd, 112), leftW, S(hWnd, 18), SWP_NOZORDER);
-            if (st->edtUniformGap)
-                SetWindowPos(st->edtUniformGap, nullptr, margin, margin + S(hWnd, 132), S(hWnd, 96), S(hWnd, 24), SWP_NOZORDER);
-            if (st->lblLabel)
-                SetWindowPos(st->lblLabel, nullptr, margin, margin + S(hWnd, 162), leftW, S(hWnd, 18), SWP_NOZORDER);
-            if (st->edtLabel)
-                SetWindowPos(st->edtLabel, nullptr, margin, margin + S(hWnd, 182), leftW - S(hWnd, 114), S(hWnd, 24), SWP_NOZORDER);
-            if (st->btnApplyLabel)
-                SetWindowPos(st->btnApplyLabel, nullptr, margin + leftW - S(hWnd, 104), margin + S(hWnd, 182), S(hWnd, 104), S(hWnd, 24), SWP_NOZORDER);
-            if (st->btnBindKey)
-                SetWindowPos(st->btnBindKey, nullptr, margin, margin + S(hWnd, 212), leftW, S(hWnd, 24), SWP_NOZORDER);
-            int fieldLabelY = margin + S(hWnd, 239);
-            int fieldEditY = margin + S(hWnd, 257);
-            int fieldGap = S(hWnd, 8);
-            int fieldW = (leftW - fieldGap * 2) / 3;
-            if (st->lblPos)
-                SetWindowPos(st->lblPos, nullptr, margin, fieldLabelY, fieldW, S(hWnd, 18), SWP_NOZORDER);
-            if (st->lblWidth)
-                SetWindowPos(st->lblWidth, nullptr, margin + fieldW + fieldGap, fieldLabelY, fieldW, S(hWnd, 18), SWP_NOZORDER);
-            if (st->lblHeight)
-                SetWindowPos(st->lblHeight, nullptr, margin + (fieldW + fieldGap) * 2, fieldLabelY, fieldW, S(hWnd, 18), SWP_NOZORDER);
-            if (st->edtPos)
-                SetWindowPos(st->edtPos, nullptr, margin, fieldEditY, fieldW, S(hWnd, 24), SWP_NOZORDER);
-            if (st->edtWidth)
-                SetWindowPos(st->edtWidth, nullptr, margin + fieldW + fieldGap, fieldEditY, fieldW, S(hWnd, 24), SWP_NOZORDER);
-            if (st->edtHeight)
-                SetWindowPos(st->edtHeight, nullptr, margin + (fieldW + fieldGap) * 2, fieldEditY, fieldW, S(hWnd, 24), SWP_NOZORDER);
-            if (st->lblBindState)
-                SetWindowPos(st->lblBindState, nullptr, margin, margin + S(hWnd, 284), leftW, S(hWnd, 18), SWP_NOZORDER);
-            if (st->lblKeys)
-                SetWindowPos(st->lblKeys, nullptr, margin, margin + S(hWnd, 306), leftW, S(hWnd, 18), SWP_NOZORDER);
-            int hintH = S(hWnd, 68);
-            int listH = std::max(S(hWnd, 80), (int)rc.bottom - topY - margin - hintH - S(hWnd, 8));
-            SetWindowPos(st->lstKeys, nullptr, margin, topY, leftW, listH, SWP_NOZORDER);
-            SetWindowPos(st->lblHint, nullptr, margin, rc.bottom - margin - hintH, leftW, hintH, SWP_NOZORDER);
-
-            Layout_ComputeCanvasRect(hWnd, st);
-        }
+        if (st) Layout_Arrange(hWnd, st);
         InvalidateRect(hWnd, nullptr, FALSE);
         return 0;
 
     case WM_COMMAND:
         if (!st) return 0;
-        if (LOWORD(wParam) == ID_LAYOUT_PRESET && HIWORD(wParam) == CBN_SELCHANGE)
+        if (HIWORD(wParam) == BN_CLICKED)
         {
-            int sel = PremiumCombo::GetCurSel(st->cmbPreset);
-            Layout_LoadDraftFromPreset(hWnd, st, sel, true);
+            switch (LOWORD(wParam))
+            {
+            case ID_LAYOUT_UNDO: Layout_UndoRedo(hWnd, st, false); return 0;
+            case ID_LAYOUT_REDO: Layout_UndoRedo(hWnd, st, true); return 0;
+            case ID_LAYOUT_FIT:
+                st->view.ready = false; InvalidateRect(hWnd, nullptr, FALSE); return 0;
+            case ID_LAYOUT_ACTUAL:
+                { float scale, ox, oy; Layout_ComputeTransform(st, st->canvasRc, nullptr, scale, ox, oy);
+                  st->view.Zoom((st->canvasRc.right - st->canvasRc.left) / 2.0f,
+                      (st->canvasRc.bottom - st->canvasRc.top) / 2.0f, 1.0f / scale);
+                  InvalidateRect(hWnd, nullptr, FALSE); return 0; }
+            case ID_LAYOUT_PRECISION:
+                SetFocus(hWnd); st->history.EndGroup();
+                st->preciseY = !st->preciseY;
+                if (!st->preciseY && st->selectedIdx >= 0) {
+                    auto& key = st->draftKeys[st->selectedIdx];
+                    key.row = std::clamp((int)std::lround(KeyboardLayout_KeyY(key) /
+                        (double)KEYBOARD_ROW_PITCH_Y), 0, 20);
+                    key.y = -1;
+                    Layout_SetUnsaved(st, true);
+                }
+                Layout_UpdateMetaControls(st);
+                InvalidateRect(hWnd, &st->canvasRc, FALSE); return 0;
+            case ID_LAYOUT_SNAP:
+                st->history.EndGroup(); st->snap = !st->snap; Layout_UpdateMetaControls(st); return 0;
+            case ID_LAYOUT_DUPLICATE:
+                if (st->selectedIdx >= 0 && st->draftKeys.size() < halljoy::ini::kMaxLayoutKeys)
+                {
+                    auto key = st->draftKeys[st->selectedIdx];
+                    auto label = st->draftLabels[st->selectedIdx];
+                    key.x = std::clamp(key.x + key.w + 8, 0, 4000);
+                    key.hid = 0;
+                    st->draftKeys.push_back(key); st->draftLabels.push_back(label);
+                    Layout_RebindDraftLabels(st);
+                    st->selectedIdx = (int)st->draftKeys.size() - 1;
+                    Layout_RefreshSelection(hWnd, st); Layout_SetUnsaved(st, true);
+                    InvalidateRect(hWnd, &st->canvasRc, FALSE);
+                }
+                return 0;
+            }
+        }
+        if (LOWORD(wParam) == ID_LAYOUT_Y &&
+            (HIWORD(wParam) == EN_CHANGE || HIWORD(wParam) == EN_KILLFOCUS))
+        {
+            if (st->selectedIdx >= 0 && (GetFocus() == st->edtY || HIWORD(wParam) == EN_KILLFOCUS))
+            {
+                int value = 0;
+                if (Layout_ReadNumber(st->edtY, st->preciseY ? 0 : 1, st->preciseY ? 4000 : 21, value))
+                {
+                    auto& key = st->draftKeys[st->selectedIdx];
+                    const int y = st->preciseY ? value : halljoy::layout_editor::RowY(key, value - 1);
+                    if (KeyboardLayout_KeyY(key) != y)
+                    {
+                        key.y = st->preciseY || key.y >= 0 ? y : -1;
+                        if (!st->preciseY) key.row = value - 1;
+                        Layout_SetUnsaved(st, true); InvalidateRect(hWnd, &st->canvasRc, FALSE);
+                    }
+                }
+            }
+            return 0;
+        }
+        if (LOWORD(wParam) == ID_LAYOUT_BRAND && HIWORD(wParam) == CBN_SELCHANGE)
+        {
+            st->layoutPicker.Browse(st->editingPresetIdx);
+            Layout_Arrange(hWnd, st);
+            return 0;
+        }
+        if ((LOWORD(wParam) == ID_LAYOUT_PRESET || LOWORD(wParam) == ID_LAYOUT_VARIANT) && HIWORD(wParam) == CBN_SELCHANGE)
+        {
+            PremiumCombo::SetDeleteConfirmation(st->cmbPreset, -1);
+            PremiumCombo::SetDeleteConfirmation(st->layoutPicker.variant, -1);
+            int sel = LOWORD(wParam) == ID_LAYOUT_PRESET ? st->layoutPicker.ChooseModel() : st->layoutPicker.Selected();
+            if (sel == LayoutPicker::Create) {
+                PremiumCombo::ShowDropDown(st->cmbPreset, true);
+                PremiumCombo::BeginInlineEditSelected(st->cmbPreset, false); return 0;
+            }
+            if (sel >= 0 && sel != st->editingPresetIdx && Layout_ResolveDraft(hWnd, st))
+                Layout_LoadDraftFromPreset(hWnd, st, sel, true);
+            Layout_RefreshPresetCombo(st);
             return 0;
         }
         if (LOWORD(wParam) == ID_LAYOUT_RESET && HIWORD(wParam) == BN_CLICKED)
         {
+            if (!Layout_ResolveDraft(hWnd, st)) return 0;
             Layout_LoadDraftFromPreset(hWnd, st, st->editingPresetIdx, true);
-            PremiumCombo::SetCurSel(st->cmbPreset, st->editingPresetIdx, false);
+            Layout_RefreshPresetCombo(st);
             return 0;
         }
         if (LOWORD(wParam) == ID_LAYOUT_ADD && HIWORD(wParam) == BN_CLICKED)
         {
+            if (st->draftKeys.size() >= halljoy::ini::kMaxLayoutKeys) return 0;
             int n = Layout_DraftCount(st);
             int maxRow = 0;
             for (int i = 0; i < n; ++i)
@@ -4628,15 +5654,9 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
             st->draftKeys.push_back(kd);
             Layout_RebindDraftLabels(st);
             st->selectedIdx = (int)st->draftKeys.size() - 1;
-            Layout_RefreshKeyList(hWnd, st);
-            SendMessageW(st->lstKeys, LB_SETCURSEL, (WPARAM)st->selectedIdx, 0);
+            Layout_RefreshSelection(hWnd, st);
             Layout_SetUnsaved(st, true);
             InvalidateRect(hWnd, nullptr, FALSE);
-            return 0;
-        }
-        if (LOWORD(wParam) == ID_LAYOUT_LABEL_APPLY && HIWORD(wParam) == BN_CLICKED)
-        {
-            Layout_ApplyLabelFromEdit(hWnd, st);
             return 0;
         }
         if (LOWORD(wParam) == ID_LAYOUT_BIND_KEY && HIWORD(wParam) == BN_CLICKED)
@@ -4652,7 +5672,7 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
             if (st->uniformSpacingEnabled)
             {
                 if (Layout_BakeUniformSpacingIntoDraft(st))
-                    Layout_RefreshKeyList(hWnd, st);
+                    Layout_RefreshSelection(hWnd, st);
             }
             st->uniformSpacingEnabled = !st->uniformSpacingEnabled;
             Layout_UpdateUniformSpacingButton(st);
@@ -4664,8 +5684,6 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
         }
         if (LOWORD(wParam) == ID_LAYOUT_DELETE && HIWORD(wParam) == BN_CLICKED)
         {
-            if (st->selectedIdx < 0)
-                st->selectedIdx = (int)SendMessageW(st->lstKeys, LB_GETCURSEL, 0, 0);
             if (st->selectedIdx >= 0 && st->selectedIdx < (int)st->draftKeys.size())
             {
                 st->draftKeys.erase(st->draftKeys.begin() + st->selectedIdx);
@@ -4675,9 +5693,7 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
                 int n = (int)st->draftKeys.size();
                 if (st->selectedIdx >= n) st->selectedIdx = n - 1;
-                Layout_RefreshKeyList(hWnd, st);
-                if (st->selectedIdx >= 0)
-                    SendMessageW(st->lstKeys, LB_SETCURSEL, (WPARAM)st->selectedIdx, 0);
+                Layout_RefreshSelection(hWnd, st);
                 Layout_SetUnsaved(st, true);
                 InvalidateRect(hWnd, nullptr, FALSE);
             }
@@ -4685,28 +5701,13 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
         }
         if (LOWORD(wParam) == ID_LAYOUT_SAVE && HIWORD(wParam) == BN_CLICKED)
         {
-            bool wasActive = (st->editingPresetIdx == KeyboardLayout_GetCurrentPresetIndex());
-            if (KeyboardLayout_StorePresetSnapshot(st->editingPresetIdx, st->draftKeys, st->draftLabels, true,
-                st->uniformSpacingEnabled, st->uniformSpacingGap))
-            {
-                if (wasActive)
-                    Layout_NotifyMainPage(hWnd);
-                Layout_RequestSave(hWnd);
-                Layout_SetUnsaved(st, false);
-            }
-            else
-            {
-                MessageBoxW(hWnd, L"Failed to save layout preset file.", L"Layout Editor", MB_ICONERROR);
-            }
-            InvalidateRect(hWnd, nullptr, FALSE);
+            Layout_SaveDraft(hWnd, st);
             return 0;
         }
-        if (LOWORD(wParam) == ID_LAYOUT_KEYS && HIWORD(wParam) == LBN_SELCHANGE)
+        if (LOWORD(wParam) == ID_LAYOUT_LABEL_EDIT && HIWORD(wParam) == EN_CHANGE)
         {
-            st->selectedIdx = (int)SendMessageW(st->lstKeys, LB_GETCURSEL, 0, 0);
-            Layout_UpdateMetaControls(st);
-            SetFocus(hWnd);
-            InvalidateRect(hWnd, &st->canvasRc, FALSE);
+            if ((HWND)lParam == st->edtLabel && GetFocus() == st->edtLabel)
+                Layout_ApplyLabelFromEdit(hWnd, st);
             return 0;
         }
         if (LOWORD(wParam) == ID_LAYOUT_POS_EDIT && HIWORD(wParam) == EN_KILLFOCUS)
@@ -4718,6 +5719,25 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
         {
             if ((HWND)lParam == st->edtPos && GetFocus() == st->edtPos)
                 Layout_ApplyGeometryFromEdits(hWnd, st, true, false, false);
+            return 0;
+        }
+        if ((LOWORD(wParam) == ID_LAYOUT_NOTCH_W || LOWORD(wParam) == ID_LAYOUT_NOTCH_Y) &&
+            (HIWORD(wParam) == EN_CHANGE || HIWORD(wParam) == EN_KILLFOCUS))
+        {
+            if (st->selectedIdx < 0 || st->selectedIdx >= (int)st->draftKeys.size()) return 0;
+            auto& key = st->draftKeys[st->selectedIdx];
+            if (!key.notchW) return 0;
+            const bool width = LOWORD(wParam) == ID_LAYOUT_NOTCH_W;
+            HWND edit = width ? st->edtNotchW : st->edtNotchY;
+            int value = 0;
+            if (GetFocus() == edit && Layout_ReadNumber(edit, 1, (width ? key.w : key.h)-1, value)) {
+                int& target = width ? key.notchW : key.notchY;
+                if (value != target) {
+                    target = value; Layout_SetUnsaved(st, true);
+                    InvalidateRect(hWnd, &st->canvasRc, FALSE);
+                }
+            }
+            if (HIWORD(wParam) == EN_KILLFOCUS) { st->history.EndGroup(); Layout_UpdateMetaControls(st); }
             return 0;
         }
         if (LOWORD(wParam) == ID_LAYOUT_WIDTH_EDIT && HIWORD(wParam) == EN_KILLFOCUS)
@@ -4766,12 +5786,34 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
             ((dis->CtlID == ID_LAYOUT_RESET && st->btnReset == dis->hwndItem) ||
              (dis->CtlID == ID_LAYOUT_ADD && st->btnAdd == dis->hwndItem) ||
              (dis->CtlID == ID_LAYOUT_DELETE && st->btnDelete == dis->hwndItem) ||
-             (dis->CtlID == ID_LAYOUT_LABEL_APPLY && st->btnApplyLabel == dis->hwndItem) ||
              (dis->CtlID == ID_LAYOUT_BIND_KEY && st->btnBindKey == dis->hwndItem) ||
              (dis->CtlID == ID_LAYOUT_SAVE && st->btnSave == dis->hwndItem) ||
-             (dis->CtlID == ID_LAYOUT_UNIFORM_SPACING && st->btnUniformSpacing == dis->hwndItem)))
+             (dis->CtlID == ID_LAYOUT_UNIFORM_SPACING && st->btnUniformSpacing == dis->hwndItem) ||
+             (dis->CtlID >= ID_LAYOUT_UNDO && dis->CtlID <= ID_LAYOUT_ACTUAL)))
         {
-            Layout_DrawFlatButton(dis);
+            // Owner-draw owns every pixel, including rounded corners and disabled
+            // alpha blends. Never blend over native button paint or a prior frame.
+            FillRect(dis->hDC, &dis->rcItem, UiTheme::Brush_PanelBg());
+            Graphics g(dis->hDC);
+            g.SetSmoothingMode(SmoothingModeAntiAlias);
+            HGDIOBJ previousFont = SelectObject(dis->hDC, GetStockObject(SYSTEM_FONT));
+            wchar_t label[128]{}; GetWindowTextW(dis->hwndItem, label, 128);
+            const bool enabled = !(dis->itemState & ODS_DISABLED);
+            if (dis->CtlID == ID_LAYOUT_SAVE && enabled)
+            {
+                CustomPage_DrawRoundRect(g, dis->rcItem,
+                    (dis->itemState & ODS_SELECTED) ? RGB(30, 65, 91) : RGB(40, 86, 117),
+                    UiTheme::Color_Accent(), 5.0f);
+                CustomPage_DrawText(dis->hDC, label, dis->rcItem, UiTheme::Color_Text(), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            }
+            else CustomPage_DrawButton(g, dis->hDC, dis->rcItem, label,
+                (dis->itemState & ODS_HOTLIGHT) != 0, (dis->itemState & ODS_SELECTED) != 0, enabled);
+            if (enabled && (dis->itemState & ODS_FOCUS) && !(dis->itemState & ODS_NOFOCUSRECT)) {
+                Pen focus(Gp(UiTheme::Color_Accent(), 190), 2.0f);
+                g.DrawLine(&focus, (REAL)dis->rcItem.left + 9, (REAL)dis->rcItem.bottom - 3,
+                    (REAL)dis->rcItem.right - 9, (REAL)dis->rcItem.bottom - 3);
+            }
+            SelectObject(dis->hDC, previousFont);
             return TRUE;
         }
         break;
@@ -4781,18 +5823,45 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
         if (st)
         {
             POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            if (st->dragging || st->panning || st->draggingGuide >= 0) return 0;
+            const bool topRuler = PtInRect(&st->topRuler, pt) != 0;
+            const bool leftRuler = PtInRect(&st->leftRuler, pt) != 0;
+            const int edges = PtInRect(&st->canvasRc, pt) ? Layout_ResizeEdges(st, pt) : 0;
+            const int guide = edges ? -1 : Layout_HitGuide(st, pt);
+            if (topRuler || leftRuler || guide >= 0) {
+                if ((topRuler || leftRuler) && st->guides.size() >= 64) return 0;
+                st->guideNew = guide < 0;
+                if (st->guideNew) st->guides.push_back({leftRuler, 0});
+                st->draggingGuide = st->guideNew ? (int)st->guides.size() - 1 : guide;
+                st->guideOriginal = st->guides[st->draggingGuide].coordinate;
+                SetFocus(hWnd); SetCapture(hWnd);
+                Layout_MoveGuide(hWnd, st, pt); return 0;
+            }
             if (PtInRect(&st->canvasRc, pt))
             {
-                int hit = Layout_HitTestKey(st, pt);
+                st->history.EndGroup();
+                SetFocus(hWnd);
+                int hit = edges ? st->selectedIdx : Layout_HitTestKey(st, pt);
+                if (hit < 0)
+                {
+                    st->selectedIdx = -1; Layout_UpdateMetaControls(st);
+                    st->history.Select(-1);
+                    InvalidateRect(hWnd, &st->canvasRc, FALSE); return 0;
+                }
                 if (hit >= 0)
                 {
                     st->selectedIdx = hit;
-                    SendMessageW(st->lstKeys, LB_SETCURSEL, (WPARAM)hit, 0);
+                    st->history.Select(hit);
                     Layout_UpdateMetaControls(st);
                     SetFocus(hWnd);
                     RECT rr = Layout_KeyRectOnCanvas(st, hit, st->canvasRc);
-                    st->dragOffsetX = pt.x - rr.left;
-                    st->dragOffsetY = pt.y - rr.top;
+                    st->resizeEdges = edges; st->resizing = edges != 0;
+                    st->resizeStart = pt; st->resizeWidth = st->draftKeys[hit].w; st->resizeHeight = st->draftKeys[hit].h;
+                    std::vector<int> displayX; Layout_BuildDisplayXMap(st, displayX);
+                    st->resizeOrigin = {displayX.empty() ? st->draftKeys[hit].x : displayX[hit],
+                        KeyboardLayout_KeyY(st->draftKeys[hit]), st->resizeWidth, st->resizeHeight};
+                    st->dragOffsetX = (float)(pt.x - rr.left);
+                    st->dragOffsetY = (float)(pt.y - rr.top);
                     st->dragging = true;
                     st->dirty = false;
                     SetCapture(hWnd);
@@ -4803,6 +5872,16 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
         return 0;
 
     case WM_MOUSEMOVE:
+        if (st && st->draggingGuide >= 0) {
+            Layout_MoveGuide(hWnd, st, POINT{(short)LOWORD(lParam), (short)HIWORD(lParam)}); return 0;
+        }
+        if (st && st->panning)
+        {
+            POINT point{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            st->view.x += point.x - st->panPoint.x; st->view.y += point.y - st->panPoint.y;
+            st->panPoint = point;
+            InvalidateRect(hWnd, nullptr, FALSE); return 0;
+        }
         if (st && st->dragging)
         {
             POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
@@ -4811,44 +5890,87 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
         return 0;
 
     case WM_LBUTTONUP:
+        if (st && st->draggingGuide >= 0) {
+            POINT point{(short)LOWORD(lParam), (short)HIWORD(lParam)};
+            Layout_MoveGuide(hWnd, st, point);
+            if (!PtInRect(&st->canvasRc, point)) st->guides.erase(st->guides.begin() + st->draggingGuide);
+            st->draggingGuide = -1; ReleaseCapture(); InvalidateRect(hWnd, nullptr, FALSE); return 0;
+        }
         if (st && st->dragging)
         {
             st->dragging = false;
+            InvalidateRect(hWnd, &st->canvasRc, FALSE);
             ReleaseCapture();
             if (st->dirty)
             {
-                Layout_RefreshKeyList(hWnd, st);
+                Layout_RefreshSelection(hWnd, st);
                 Layout_SetUnsaved(st, true);
                 st->dirty = false;
             }
         }
         return 0;
 
-    case WM_MOUSEWHEEL:
-        if (st && st->selectedIdx >= 0)
-        {
-            KeyDef k{};
-            if (Layout_DraftGet(st, st->selectedIdx, k))
-            {
-                int delta = GET_WHEEL_DELTA_WPARAM(wParam);
-                bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
-                int step = shift ? 4 : 1;
-                int newW = k.w + ((delta > 0) ? step : -step);
-                int clampedW = std::clamp(newW, KEYBOARD_KEY_MIN_DIM, KEYBOARD_KEY_MAX_DIM);
-                if (st->draftKeys[st->selectedIdx].w != clampedW)
-                {
-                    st->draftKeys[st->selectedIdx].w = clampedW;
-                    Layout_RefreshKeyList(hWnd, st);
-                    Layout_SetUnsaved(st, true);
-                    InvalidateRect(hWnd, &st->canvasRc, FALSE);
-                }
+    case WM_MBUTTONDOWN:
+        if (st && !st->dragging && st->draggingGuide < 0) {
+            POINT p{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+            if (PtInRect(&st->canvasRc, p)) {
+                float scale, ox, oy; Layout_ComputeTransform(st, st->canvasRc, nullptr, scale, ox, oy);
+                st->panning = true; st->panPoint = p; SetCapture(hWnd); SetCursor(LoadCursorW(nullptr, IDC_SIZEALL));
             }
-            return 0;
         }
-        break;
+        return 0;
+    case WM_MBUTTONUP:
+        if (st && st->panning) { st->panning = false; ReleaseCapture(); }
+        return 0;
+    case WM_MOUSEWHEEL:
+        if (st && !st->panning) {
+            POINT point{ (short)LOWORD(lParam), (short)HIWORD(lParam) }; ScreenToClient(hWnd, &point);
+            if (!PtInRect(&st->canvasRc, point) && !st->dragging && st->draggingGuide < 0) return 0;
+            float scale, ox, oy; Layout_ComputeTransform(st, st->canvasRc, nullptr, scale, ox, oy);
+            st->view.Zoom((float)(point.x - st->canvasRc.left), (float)(point.y - st->canvasRc.top),
+                std::pow(1.15f, GET_WHEEL_DELTA_WPARAM(wParam) / 120.0f));
+            if (st->dragging && st->selectedIdx >= 0) {
+                // Rebase the active gesture, not the document/history. The next
+                // mouse delta uses the new zoom without moving the fixed edge.
+                Layout_ComputeTransform(st, st->canvasRc, nullptr, scale, ox, oy);
+                const auto& key = st->draftKeys[st->selectedIdx];
+                std::vector<int> displayX; Layout_BuildDisplayXMap(st, displayX);
+                const int x = displayX.empty() ? key.x : displayX[st->selectedIdx];
+                st->resizeOrigin = {x, KeyboardLayout_KeyY(key), key.w, key.h};
+                st->resizeStart = point;
+                st->dragOffsetX = point.x - ox - (KEYBOARD_MARGIN_X + x) * scale;
+                st->dragOffsetY = point.y - oy - (KEYBOARD_MARGIN_Y + KeyboardLayout_KeyY(key)) * scale;
+            }
+            InvalidateRect(hWnd, nullptr, FALSE);
+        }
+        return 0;
+
+    case WM_RBUTTONUP:
+        if (st && !st->dragging && !st->panning && st->draggingGuide < 0) {
+            const int guide = Layout_HitGuide(st, POINT{(short)LOWORD(lParam), (short)HIWORD(lParam)});
+            if (guide >= 0) { st->guides.erase(st->guides.begin() + guide); InvalidateRect(hWnd, nullptr, FALSE); }
+        }
+        return 0;
 
     case WM_CAPTURECHANGED:
-        if (st) st->dragging = false;
+        if (st)
+        {
+            if (st->draggingGuide >= 0) {
+                if (st->guideNew) st->guides.erase(st->guides.begin() + st->draggingGuide);
+                else st->guides[st->draggingGuide].coordinate = st->guideOriginal;
+                st->draggingGuide = -1; InvalidateRect(hWnd, nullptr, FALSE);
+            }
+            st->resizing = false;
+            st->panning = false;
+            st->dragging = false;
+            InvalidateRect(hWnd, &st->canvasRc, FALSE);
+            if (st->dirty)
+            {
+                st->dirty = false;
+                Layout_RefreshSelection(hWnd, st);
+                Layout_SetUnsaved(st, true);
+            }
+        }
         return 0;
 
     case WM_GETDLGCODE:
@@ -4866,11 +5988,11 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
                     if (st->selectedIdx >= 0 && st->selectedIdx < (int)st->draftKeys.size())
                     {
                         st->draftKeys[st->selectedIdx].hid = hid;
-                        Layout_RefreshKeyList(hWnd, st);
+                        Layout_RefreshSelection(hWnd, st);
                         Layout_SetUnsaved(st, true);
                     }
                     wchar_t s[128]{};
-                    swprintf_s(s, L"Bound HID %u (raw %u).", (unsigned)hid, (unsigned)rawM);
+                    swprintf_s(s, L"Key assigned. Press it to test.");
                     Layout_StopBindCapture(hWnd, st, s);
                     InvalidateRect(hWnd, nullptr, FALSE);
                 }
@@ -4896,6 +6018,16 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
     case WM_KEYDOWN:
         if (!st) return 0;
+        if (st->draggingGuide >= 0) {
+            if (wParam == VK_ESCAPE) ReleaseCapture();
+            return 0;
+        }
+        if (st->dragging || st->panning) return 0;
+        if (GetFocus() == hWnd && (GetKeyState(VK_CONTROL) & 0x8000))
+        {
+            if (wParam == 'Z') { Layout_UndoRedo(hWnd, st, (GetKeyState(VK_SHIFT) & 0x8000) != 0); return 0; }
+            if (wParam == 'Y') { Layout_UndoRedo(hWnd, st, true); return 0; }
+        }
         if (wParam == VK_ESCAPE && st->bindArmed)
         {
             Layout_StopBindCapture(hWnd, st, L"Bind cancelled.");
@@ -4921,8 +6053,9 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
         }
         if ((GetKeyState(VK_CONTROL) & 0x8000) != 0 && (wParam == 'R' || wParam == 'r'))
         {
+            if (!Layout_ResolveDraft(hWnd, st)) return 0;
             Layout_LoadDraftFromPreset(hWnd, st, st->editingPresetIdx, true);
-            PremiumCombo::SetCurSel(st->cmbPreset, st->editingPresetIdx, false);
+            Layout_RefreshPresetCombo(st);
             return 0;
         }
         if (st->selectedIdx < 0) return 0;
@@ -4935,8 +6068,8 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
             case VK_RIGHT: Layout_NudgeSelectedKey(hWnd, st, 0, +step, 0); return 0;
             case VK_UP:    Layout_NudgeSelectedKey(hWnd, st, -1, 0, 0); return 0;
             case VK_DOWN:  Layout_NudgeSelectedKey(hWnd, st, +1, 0, 0); return 0;
-            case VK_OEM_4: Layout_NudgeSelectedKey(hWnd, st, 0, 0, -step * 2); return 0; // [
-            case VK_OEM_6: Layout_NudgeSelectedKey(hWnd, st, 0, 0, +step * 2); return 0; // ]
+            case VK_OEM_4: Layout_NudgeSelectedKey(hWnd, st, 0, 0, -step); return 0; // [
+            case VK_OEM_6: Layout_NudgeSelectedKey(hWnd, st, 0, 0, +step); return 0; // ]
             }
         }
         return 0;
@@ -4965,6 +6098,49 @@ struct LayoutEditorHostState
     HWND hPage = nullptr;
 };
 
+bool KeyboardUI_CloseLayoutEditor(bool saveWithoutPrompt)
+{
+    if (!g_hLayoutEditorWindow || !IsWindow(g_hLayoutEditorWindow)) return true;
+    auto* host = (LayoutEditorHostState*)GetWindowLongPtrW(g_hLayoutEditorWindow, GWLP_USERDATA);
+    auto* draft = host ? (LayoutPageState*)GetWindowLongPtrW(host->hPage, GWLP_USERDATA) : nullptr;
+    if (host && !Layout_ResolveDraft(host->hPage, draft, saveWithoutPrompt))
+    {
+        if (!saveWithoutPrompt) SetForegroundWindow(g_hLayoutEditorWindow);
+        return false;
+    }
+    DestroyWindow(g_hLayoutEditorWindow);
+    return true;
+}
+
+static bool LayoutEditor_DeletePreset(int idx, bool keepEditor)
+{
+    auto* host = g_hLayoutEditorWindow
+        ? (LayoutEditorHostState*)GetWindowLongPtrW(g_hLayoutEditorWindow, GWLP_USERDATA) : nullptr;
+    auto* draft = host ? (LayoutPageState*)GetWindowLongPtrW(host->hPage, GWLP_USERDATA) : nullptr;
+    if (draft && draft->resolvingDraft) return false;
+    if (draft && draft->editingPresetIdx == idx)
+    {
+        if (keepEditor) {
+            if (!Layout_ResolveDraft(host->hPage, draft)) return false;
+        } else {
+            if (!KeyboardUI_CloseLayoutEditor()) return false;
+            draft = nullptr;
+        }
+    }
+    if (!KeyboardLayout_DeletePreset(idx)) return false;
+    // Deleting another preset must neither close this editor nor shift its draft
+    // onto the next catalog entry. All catalog changes occur on this UI thread.
+    if (draft)
+    {
+        if (draft->editingPresetIdx == idx)
+            Layout_LoadDraftFromPreset(host->hPage, draft, std::min(idx, KeyboardLayout_GetPresetCount() - 1), true);
+        else if (draft->editingPresetIdx > idx) --draft->editingPresetIdx;
+        Layout_RefreshPresetCombo(draft);
+        Layout_SetUnsaved(draft, true);
+    }
+    return true;
+}
+
 static void LayoutEditor_ApplyDarkFrame(HWND hWnd)
 {
     if (!hWnd) return;
@@ -4991,6 +6167,13 @@ static LRESULT CALLBACK LayoutEditorHostProc(HWND hWnd, UINT msg, WPARAM wParam,
         st->hPage = CreateWindowW(L"KeyboardSubLayoutPage", L"",
             WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN,
             0, 0, 100, 100, hWnd, nullptr, hInst, nullptr);
+        if (!st->hPage) return -1;
+        if (cs && cs->lpCreateParams)
+        {
+            auto* draft = (LayoutPageState*)GetWindowLongPtrW(st->hPage, GWLP_USERDATA);
+            Layout_LoadDraftFromPreset(st->hPage, draft, *(const int*)cs->lpCreateParams, true);
+            Layout_RefreshPresetCombo(draft);
+        }
         LayoutEditor_ApplyDarkFrame(hWnd);
         return 0;
     }
@@ -5005,11 +6188,29 @@ static LRESULT CALLBACK LayoutEditorHostProc(HWND hWnd, UINT msg, WPARAM wParam,
         return 0;
 
     case WM_CLOSE:
-        DestroyWindow(hWnd);
+        if (!st || Layout_ResolveDraft(st->hPage,
+            (LayoutPageState*)GetWindowLongPtrW(st->hPage, GWLP_USERDATA)))
+            DestroyWindow(hWnd);
+        return 0;
+
+    case WM_GETMINMAXINFO:
+        if (auto* bounds = (MINMAXINFO*)lParam)
+            bounds->ptMinTrackSize = POINT{ S(hWnd, 820), S(hWnd, 760) };
         return 0;
 
     case WM_SHOWWINDOW:
     case WM_ACTIVATE:
+        if (msg == WM_ACTIVATE && LOWORD(wParam) != WA_INACTIVE && st && st->hPage)
+        {
+            auto* draft = (LayoutPageState*)GetWindowLongPtrW(st->hPage, GWLP_USERDATA);
+            if (draft && !draft->resolvingDraft &&
+                !PremiumCombo::GetDroppedState(draft->cmbPreset) &&
+                !PremiumCombo::IsEditingItem(draft->cmbPreset) &&
+                !draft->layoutPicker.Current())
+            {
+                Layout_RefreshPresetCombo(draft);
+            }
+        }
         LayoutEditor_ApplyDarkFrame(hWnd);
         return 0;
 
@@ -5026,12 +6227,20 @@ static LRESULT CALLBACK LayoutEditorHostProc(HWND hWnd, UINT msg, WPARAM wParam,
     return DefWindowProcW(hWnd, msg, wParam, lParam);
 }
 
-static void LayoutEditor_OpenWindow(HWND hOwnerPage)
+static void LayoutEditor_OpenWindow(HWND hOwnerPage, int presetIdx)
 {
+    if (presetIdx < 0) presetIdx = KeyboardLayout_GetCurrentPresetIndex();
     if (g_hLayoutEditorWindow && IsWindow(g_hLayoutEditorWindow))
     {
         ShowWindow(g_hLayoutEditorWindow, SW_SHOWNORMAL);
         SetForegroundWindow(g_hLayoutEditorWindow);
+        auto* host = (LayoutEditorHostState*)GetWindowLongPtrW(g_hLayoutEditorWindow, GWLP_USERDATA);
+        auto* draft = host ? (LayoutPageState*)GetWindowLongPtrW(host->hPage, GWLP_USERDATA) : nullptr;
+        if (draft && draft->editingPresetIdx != presetIdx && Layout_ResolveDraft(host->hPage, draft))
+        {
+            Layout_LoadDraftFromPreset(host->hPage, draft, presetIdx, true);
+            Layout_RefreshPresetCombo(draft);
+        }
         return;
     }
 
@@ -5076,7 +6285,7 @@ static void LayoutEditor_OpenWindow(HWND hOwnerPage)
         L"HallJoy - Layout Editor",
         WS_OVERLAPPEDWINDOW | WS_VISIBLE,
         x, y, w, h,
-        hOwnerTop, nullptr, hInst, nullptr);
+        hOwnerTop, nullptr, hInst, &presetIdx);
 
     if (g_hLayoutEditorWindow)
     {
@@ -5091,6 +6300,485 @@ static void LayoutEditor_OpenWindow(HWND hOwnerPage)
 // ============================================================================
 // Premium slider + value chip
 // ============================================================================
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool KeyboardSubpages_TestLayoutEditor()
+{
+    if (AppPaths_Mode() != AppDataMode::SimulatorOverride) return false;
+    if (!KeyboardLayout_TestFirstRunSelection()) return false;
+    if (!BackendUI_TestTrackedUnion()) return false;
+    HDESK previous = GetThreadDesktop(GetCurrentThreadId());
+    wchar_t name[64]{}; swprintf_s(name, L"HallJoyLayoutTest-%lu", GetCurrentProcessId());
+    HDESK desktop = CreateDesktopW(name, nullptr, nullptr, 0, GENERIC_ALL, nullptr);
+    if (!desktop) return false;
+    if (!SetThreadDesktop(desktop)) { CloseDesktop(desktop); return false; }
+    HWND owner = CreateWindowW(L"STATIC", L"", WS_OVERLAPPEDWINDOW,
+        0, 0, 900, 700, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+    bool ok = owner != nullptr;
+    if (owner)
+    {
+        LayoutEditor_OpenWindow(owner, 0);
+        HWND hostWindow = g_hLayoutEditorWindow;
+        auto* host = (LayoutEditorHostState*)GetWindowLongPtrW(hostWindow, GWLP_USERDATA);
+        auto* st = host ? (LayoutPageState*)GetWindowLongPtrW(host->hPage, GWLP_USERDATA) : nullptr;
+        ok &= st != nullptr;
+        if (st)
+        {
+            const HWND page = host->hPage;
+            const size_t count = st->draftKeys.size();
+            // Use the production message admission policy on real controls.
+            // hostWindow stands in for the main root; its owner is a separate
+            // root, proving independent editor windows are not globally muted.
+            SetFocus(st->cmbPreset);
+            const int modelBefore = PremiumCombo::GetCurSel(st->cmbPreset);
+            for (HWND control : {st->cmbPreset,st->layoutPicker.brand,st->btnSave,st->btnSnap,page}) {
+                for (UINT message : {WM_KEYDOWN,WM_KEYUP,WM_CHAR,WM_SYSKEYDOWN,WM_SYSKEYUP,WM_SYSCHAR}) {
+                    for (WPARAM key : {WPARAM(VK_RETURN),WPARAM(VK_SPACE),WPARAM(VK_DOWN),WPARAM(VK_F4),WPARAM('S'),WPARAM('Z'),WPARAM(VK_DELETE)}) {
+                        MSG event{}; event.hwnd=control; event.message=message; event.wParam=key;
+                        ok &= !halljoy::main_input::Allow(event,hostWindow);
+                        if (halljoy::main_input::Allow(event,hostWindow)) DispatchMessageW(&event);
+                    }
+                }
+            }
+            ok &= !PremiumCombo::GetDroppedState(st->cmbPreset) && PremiumCombo::GetCurSel(st->cmbPreset)==modelBefore;
+            PremiumCombo::ShowDropDown(st->cmbPreset,true);
+            HWND popup = nullptr;
+            // Find only this root's popup; desktop z-order is not an ownership contract.
+            for (HWND candidate=GetTopWindow(nullptr);candidate;candidate=GetWindow(candidate,GW_HWNDNEXT)) {
+                wchar_t cls[64]{};GetClassNameW(candidate,cls,64);
+                if (wcscmp(cls,L"PremiumCombo_Popup")==0 && GetWindow(candidate,GW_OWNER)==hostWindow) {popup=candidate;break;}
+            }
+            MSG popupKey{};popupKey.hwnd=popup;popupKey.message=WM_KEYDOWN;popupKey.wParam=VK_RETURN;
+            ok &= popup && !halljoy::main_input::Allow(popupKey,hostWindow);
+            PremiumCombo::ShowDropDown(st->cmbPreset,false);
+            MSG editorKey{};editorKey.hwnd=page;editorKey.message=WM_KEYDOWN;editorKey.wParam='Z';
+            ok &= halljoy::main_input::Allow(editorKey,owner);
+            if (!ok) throw std::runtime_error("main window keyboard admission checks failed");
+            // Exercise the actual shape edit controls and Win32 hit region,
+            // on the private test desktop, without screen capture.
+            const auto originalKey = st->draftKeys[0];
+            st->draftKeys[0] = {L"Enter",40,0,0,66,86,0,12,40};
+            st->selectedIdx = 0; st->history.Reset(Layout_CaptureDraft(st));
+            Layout_UpdateMetaControls(st);
+            ok &= st->shapeControlsVisible && IsWindowVisible(st->edtNotchW);
+            SetFocus(st->edtNotchW);
+            MSG typing{};typing.hwnd=st->edtNotchW;typing.message=WM_CHAR;typing.wParam='1';
+            ok &= halljoy::main_input::Allow(typing,hostWindow);
+            SetFocus(st->edtNotchW); SetWindowTextW(st->edtNotchW, L"13");
+            ok &= st->draftKeys[0].notchW == 13 && st->history.CanUndo();
+            SetWindowTextW(st->edtNotchW, L"66");
+            ok &= st->draftKeys[0].notchW == 13;
+            SetFocus(page); Layout_UndoRedo(page, st, false);
+            ok &= st->draftKeys[0].notchW == 12;
+            HWND shapeWindow = CreateWindowW(L"BUTTON", L"", WS_CHILD,0,0,66,86,page,nullptr,GetModuleHandleW(nullptr),nullptr);
+            extern bool KeyboardUI_TestCompoundButtonPaint();
+            extern bool KeyboardUI_TestPausePreview();
+            if (!KeyboardUI_TestPausePreview()) throw std::runtime_error("pause preview production events failed");
+            if (!KeyboardUI_TestCompoundButtonPaint()) throw std::runtime_error("native compound button paint overwrote notch");
+            SetWindowLongPtrW(shapeWindow,GWLP_USERDATA,40); // Real Enter: exercise impact/selection animations too.
+            HRGN region = CreateRectRgn(0,0,0,0);
+            // Exact native progress-fill contour: all boundaries, including
+            // the inner elbow, retain the same inset as rectangular keys.
+            RECT innerBounds{0,0,66,86}; POINT innerNotch{12,40};
+            const int inset = KeyShape_InnerInset(innerBounds,innerNotch);
+            InflateRect(&innerBounds,-inset,-inset);
+            innerNotch.y -= 2*inset;
+            const auto innerPoints = KeyShape_Points(innerBounds,innerNotch);
+            HRGN fillRegion = CreatePolygonRgn(innerPoints.data(),(int)innerPoints.size(),WINDING);
+            ok &= inset==3 && PtInRegion(fillRegion,4,36) && !PtInRegion(fillRegion,4,38);
+            ok &= !PtInRegion(fillRegion,13,60) && PtInRegion(fillRegion,15,60);
+            for(int depth=0;depth<=80;++depth) {
+                HRGN progress = CreateRectRgn(3,3,63,3+depth);
+                CombineRgn(progress,progress,fillRegion,RGN_AND);
+                ok &= !PtInRegion(progress,13,60) && !PtInRegion(progress,4,38);
+                ok &= (PtInRegion(progress,16,60)!=FALSE) == (depth>57);
+                DeleteObject(progress);
+            }
+            DeleteObject(fillRegion);
+            for (int scale : {1,2,4,1}) {
+                SetWindowPos(shapeWindow,nullptr,0,0,66*scale,86*scale,SWP_NOZORDER|SWP_NOACTIVATE);
+                KeyShape_Set(shapeWindow,st->draftKeys[0],66*scale,86*scale);
+                ok &= GetWindowRgn(shapeWindow,region) != ERROR;
+                ok &= PtInRegion(region,5*scale,20*scale) && PtInRegion(region,20*scale,60*scale);
+                ok &= !PtInRegion(region,5*scale,60*scale);
+            }
+            // Owner-draw can target an unclipped backing DC. The renderer must
+            // preserve the neighbour's pixels itself, not rely on HWND clipping.
+            HDC shapeScreen=GetDC(page), shapeDC=CreateCompatibleDC(shapeScreen);
+            HBITMAP shapeBitmap=CreateCompatibleBitmap(shapeScreen,80,100);
+            HGDIOBJ shapeOld=SelectObject(shapeDC,shapeBitmap);
+            ReleaseDC(page,shapeScreen);
+            HBRUSH neighbour=CreateSolidBrush(RGB(217,23,171));
+            for (bool selected : {false,true}) for (float depth : {0.0f,0.25f,0.5f,1.0f}) {
+                RECT target{0,0,80,100};FillRect(shapeDC,&target,neighbour);
+                DRAWITEMSTRUCT draw{};draw.hwndItem=shapeWindow;draw.hDC=shapeDC;
+                draw.rcItem={5,7,71,93};draw.itemState=selected?ODS_SELECTED:0;
+                KeyboardRender_DrawKey(&draw,40,selected,depth);
+                for(int y=40;y<86;++y) for(int x=0;x<12;++x)
+                    ok &= GetPixel(shapeDC,5+x,7+y)==RGB(217,23,171);
+                ok &= GetPixel(shapeDC,25,25)!=RGB(217,23,171);
+                if (!selected) {
+                    ok &= GetPixel(shapeDC,5+13,7+60)==UiTheme::Color_ControlBg();
+                    ok &= GetPixel(shapeDC,5+5,7+38)==UiTheme::Color_ControlBg();
+                }
+            }
+            DeleteObject(neighbour);SelectObject(shapeDC,shapeOld);DeleteObject(shapeBitmap);DeleteDC(shapeDC);
+            if (!ok) throw std::runtime_error("compound compositor overwrote notch pixels");
+            // Match main preview's actual order: shape first, deferred resize
+            // second; switch rectangular/compound repeatedly on the same HWND.
+            for (int scale : {4,1,2,1}) {
+                KeyShape_Set(shapeWindow,originalKey,66*scale,86*scale);
+                KeyShape_Set(shapeWindow,st->draftKeys[0],66*scale,86*scale);
+                SetWindowPos(shapeWindow,nullptr,0,0,66*scale,86*scale,SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOREDRAW);
+                ok &= GetWindowRgn(shapeWindow,region) != ERROR;
+                ok &= !PtInRegion(region,5*scale,60*scale);
+            }
+            KeyShape_Set(shapeWindow,originalKey,66,86);
+            ok &= !KeyShape_Get(shapeWindow).x && GetWindowRgn(shapeWindow,region) == ERROR;
+            DeleteObject(region); DestroyWindow(shapeWindow);
+            st->draftKeys[0] = originalKey; st->selectedIdx = -1;
+            st->history.Reset(Layout_CaptureDraft(st));
+            Layout_SetUnsaved(st,false); Layout_UpdateMetaControls(st);
+            if (!ok) throw std::runtime_error("compound key editor/region checks failed");
+            ok &= FindWindowExW(page, nullptr, L"LISTBOX", nullptr) == nullptr && !st->history.CanUndo();
+            SendMessageW(page, WM_COMMAND, MAKEWPARAM(ID_LAYOUT_ADD, BN_CLICKED), 0);
+            SendMessageW(page, WM_COMMAND, MAKEWPARAM(ID_LAYOUT_UNDO, BN_CLICKED), 0);
+            ok &= st->draftKeys.size() == count && !st->hasUnsaved;
+            SendMessageW(page, WM_COMMAND, MAKEWPARAM(ID_LAYOUT_REDO, BN_CLICKED), 0);
+            ok &= st->draftKeys.size() == count + 1 && st->hasUnsaved;
+            Layout_UndoRedo(page, st, false);
+            st->selectedIdx = 0; st->history.Select(0); st->preciseY = true;
+            Layout_UpdateMetaControls(st);
+            const int initialY = KeyboardLayout_KeyY(st->draftKeys[0]);
+            SetFocus(st->edtY);
+            SetWindowTextW(st->edtY, std::to_wstring(initialY + 23).c_str());
+            ok &= KeyboardLayout_KeyY(st->draftKeys[0]) == initialY + 23 && st->hasUnsaved;
+            const int originalRow = st->draftKeys[0].row;
+            SendMessageW(page, WM_COMMAND, MAKEWPARAM(ID_LAYOUT_PRECISION, BN_CLICKED), 0);
+            const int snappedRow = std::clamp((int)std::lround((initialY + 23) / (double)KEYBOARD_ROW_PITCH_Y), 0, 20);
+            ok &= !st->preciseY && st->draftKeys[0].row == snappedRow && st->draftKeys[0].y == -1;
+            ok &= KeyboardLayout_KeyY(st->draftKeys[0]) == snappedRow * KEYBOARD_ROW_PITCH_Y;
+            Layout_UndoRedo(page, st, false);
+            ok &= st->draftKeys[0].row == originalRow && KeyboardLayout_KeyY(st->draftKeys[0]) == initialY + 23;
+            SetFocus(st->edtY);
+            SetWindowTextW(st->edtY, L"12junk");
+            ok &= KeyboardLayout_KeyY(st->draftKeys[0]) == initialY + 23;
+            Layout_UndoRedo(page, st, false);
+            ok &= KeyboardLayout_KeyY(st->draftKeys[0]) == initialY && !st->hasUnsaved;
+            st->view.ready = true; st->view.scale = 1; st->view.x = 0; st->view.y = 0;
+            st->selectedIdx = 0; st->history.Select(0); st->preciseY = true;
+            const int initialX = st->draftKeys[0].x;
+            RECT keyRect = Layout_KeyRectOnCanvas(st, 0, st->canvasRc);
+            st->dragOffsetX = 0; st->dragOffsetY = 0; st->dragging = true;
+            Layout_ApplyDrag(page, st, POINT{keyRect.left + 1, keyRect.top + 1});
+            ValidateRect(page, nullptr);
+            SendMessageW(page, WM_CAPTURECHANGED, 0, 0);
+            ok &= GetUpdateRect(page, nullptr, FALSE) != FALSE;
+            ok &= st->draftKeys[0].x == initialX + 1 && KeyboardLayout_KeyY(st->draftKeys[0]) == initialY + 1;
+            ok &= st->view.scale == 1 && st->view.x == 0 && st->view.y == 0;
+            Layout_UndoRedo(page, st, false);
+            ok &= !st->hasUnsaved && st->draftKeys[0].x == initialX;
+            const int originalWidth = st->draftKeys[0].w, originalHeight = st->draftKeys[0].h;
+            st->selectedIdx = 0; st->history.Select(0);
+            keyRect = Layout_KeyRectOnCanvas(st, 0, st->canvasRc);
+            const POINT corner{keyRect.right - 2, keyRect.bottom - 2};
+            SendMessageW(page, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(corner.x, corner.y));
+            SendMessageW(page, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(corner.x + 1, corner.y + 1));
+            ValidateRect(page, nullptr);
+            SendMessageW(page, WM_LBUTTONUP, 0, MAKELPARAM(corner.x + 1, corner.y + 1));
+            ok &= GetUpdateRect(page, nullptr, FALSE) != FALSE && !st->dragging && !st->resizing;
+            ok &= st->draftKeys[0].w == originalWidth + 1 && st->draftKeys[0].h == originalHeight + 1;
+            Layout_UndoRedo(page, st, false);
+            ok &= st->draftKeys[0].w == originalWidth && st->draftKeys[0].h == originalHeight && !st->hasUnsaved;
+            const auto dimensions = Layout_CaptureDraft(st);
+            using namespace halljoy::layout_editor;
+            const int edgeCases[] = {Left, Right, Top, Bottom, Left | Top, Right | Top, Left | Bottom, Right | Bottom};
+            for (int edges : edgeCases) {
+                st->selectedIdx = 0; st->history.Select(0); st->preciseY = true;
+                const RECT r = Layout_KeyRectOnCanvas(st, 0, st->canvasRc);
+                POINT p{(r.left + r.right) / 2, (r.top + r.bottom) / 2};
+                if (edges & Left) p.x = r.left + 2;
+                if (edges & Right) p.x = r.right - 2;
+                if (edges & Top) p.y = r.top + 2;
+                if (edges & Bottom) p.y = r.bottom - 2;
+                ok &= Layout_ResizeEdges(st, p) == edges;
+                const auto keyBefore = st->draftKeys[0];
+                const auto expected = Resize({keyBefore.x, KeyboardLayout_KeyY(keyBefore), keyBefore.w, keyBefore.h}, edges, 1, 1, true);
+                SendMessageW(page, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(p.x, p.y));
+                SendMessageW(page, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(p.x + 1, p.y + 1));
+                SendMessageW(page, WM_LBUTTONUP, 0, MAKELPARAM(p.x + 1, p.y + 1));
+                const auto& after = st->draftKeys[0];
+                ok &= after.x == expected.x && KeyboardLayout_KeyY(after) == expected.y && after.w == expected.w && after.h == expected.h;
+                Layout_UndoRedo(page, st, false);
+                ok &= dimensions.Same(Layout_CaptureDraft(st));
+            }
+            st->preciseY = false;
+            const RECT topKey = Layout_KeyRectOnCanvas(st, 0, st->canvasRc);
+            ok &= Layout_ResizeEdges(st, POINT{(topKey.left + topKey.right) / 2, topKey.top + 2}) == 0;
+            // Guide creation/movement/deletion is editor-only and never dirties the preset.
+            const POINT rulerStart{st->topRuler.left + 40, st->topRuler.top + 8};
+            const POINT guideEnd{st->canvasRc.left + 200, st->canvasRc.top + KEYBOARD_MARGIN_Y + 200};
+            SendMessageW(page, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(rulerStart.x, rulerStart.y));
+            SendMessageW(page, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(guideEnd.x, guideEnd.y));
+            SendMessageW(page, WM_LBUTTONUP, 0, MAKELPARAM(guideEnd.x, guideEnd.y));
+            ok &= st->guides.size() == 1 && !st->guides[0].vertical && st->guides[0].coordinate == 200;
+            ok &= dimensions.Same(Layout_CaptureDraft(st)) && !st->hasUnsaved;
+            SendMessageW(page, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(guideEnd.x, guideEnd.y));
+            SendMessageW(page, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(guideEnd.x, guideEnd.y + 10));
+            SendMessageW(page, WM_KEYDOWN, VK_ESCAPE, 0);
+            ok &= st->draggingGuide == -1 && st->guides[0].coordinate == 200;
+            SendMessageW(page, WM_RBUTTONUP, 0, MAKELPARAM(guideEnd.x, guideEnd.y));
+            ok &= st->guides.empty();
+            SendMessageW(page, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(rulerStart.x, rulerStart.y));
+            SendMessageW(page, WM_KEYDOWN, VK_ESCAPE, 0);
+            ok &= st->guides.empty() && dimensions.Same(Layout_CaptureDraft(st));
+            SendMessageW(page, WM_MBUTTONDOWN, MK_MBUTTON, MAKELPARAM(st->canvasRc.left + 20, st->canvasRc.top + 20));
+            SendMessageW(page, WM_MOUSEMOVE, MK_MBUTTON, MAKELPARAM(st->canvasRc.left + 37, st->canvasRc.top + 29));
+            SendMessageW(page, WM_MBUTTONUP, 0, 0);
+            ok &= st->view.x == 17 && st->view.y == 9 && dimensions.Same(Layout_CaptureDraft(st));
+            // Wheel during a captured resize/move must change only the camera,
+            if (!ok) throw std::runtime_error("editor pre-wheel checks failed");
+            // preserve capture, and keep the next delta at the new model scale.
+            auto wheelAt = [&](POINT client, short delta) {
+                POINT screen = client; ClientToScreen(page, &screen);
+                SendMessageW(page, WM_MOUSEWHEEL, MAKEWPARAM(MK_LBUTTON, delta), MAKELPARAM(screen.x, screen.y));
+            };
+            for (bool resize : {true, false}) {
+                st->view.scale = 1; st->view.x = 0; st->view.y = 0;
+                st->selectedIdx = 0; st->history.Select(0); st->preciseY = true;
+                const RECT r = Layout_KeyRectOnCanvas(st, 0, st->canvasRc);
+                const POINT p = resize ? POINT{r.right - 2, r.bottom - 2}
+                    : POINT{(r.left + r.right) / 2, (r.top + r.bottom) / 2};
+                SendMessageW(page, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(p.x, p.y));
+                wheelAt(p, 120);
+                ok &= st->view.scale > 1 && st->dragging && GetCapture() == page && dimensions.Same(Layout_CaptureDraft(st));
+                SendMessageW(page, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(p.x, p.y));
+                ok &= dimensions.Same(Layout_CaptureDraft(st));
+                SendMessageW(page, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(p.x + 2, p.y + 2));
+                const auto moved = Layout_CaptureDraft(st);
+                wheelAt(POINT{p.x + 2, p.y + 2}, -120);
+                ok &= moved.Same(Layout_CaptureDraft(st)) && GetCapture() == page;
+                SendMessageW(page, WM_LBUTTONUP, 0, MAKELPARAM(p.x + 2, p.y + 2));
+                Layout_UndoRedo(page, st, false);
+                ok &= dimensions.Same(Layout_CaptureDraft(st)) && !st->hasUnsaved;
+            }
+            if (!ok) throw std::runtime_error("editor captured wheel checks failed");
+            st->view.scale = 1; st->view.x = 0; st->view.y = 0;
+            SendMessageW(page, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(rulerStart.x, rulerStart.y));
+            SendMessageW(page, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(guideEnd.x, guideEnd.y));
+            wheelAt(guideEnd, 120);
+            ok &= st->view.scale > 1 && st->draggingGuide >= 0 && GetCapture() == page;
+            SendMessageW(page, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(guideEnd.x, guideEnd.y));
+            ok &= st->guides.size() == 1 && st->guides[0].coordinate == 200 && dimensions.Same(Layout_CaptureDraft(st));
+            SendMessageW(page, WM_KEYDOWN, VK_ESCAPE, 0);
+            ok &= st->guides.empty();
+            // Offscreen code-only regression: every owner-drawn corner must
+            if (!ok) throw std::runtime_error("editor guide wheel checks failed");
+            // overwrite the native background, including disabled/focused states.
+            HDC screenDC = GetDC(page), testDC = CreateCompatibleDC(screenDC);
+            HBITMAP bitmap = CreateCompatibleBitmap(screenDC, 132, 32);
+            HGDIOBJ oldBitmap = SelectObject(testDC, bitmap);
+            ReleaseDC(page, screenDC);
+            HBRUSH sentinel = CreateSolidBrush(RGB(255, 0, 255));
+            for (UINT state : {0u, (UINT)ODS_DISABLED, (UINT)ODS_FOCUS, (UINT)ODS_SELECTED}) {
+                DRAWITEMSTRUCT draw{}; draw.CtlType = ODT_BUTTON; draw.CtlID = ID_LAYOUT_UNDO;
+                draw.itemAction = ODA_DRAWENTIRE; draw.itemState = state;
+                draw.hwndItem = st->btnUndo; draw.hDC = testDC; draw.rcItem = {0, 0, 132, 32};
+                FillRect(testDC, &draw.rcItem, sentinel);
+                SendMessageW(page, WM_DRAWITEM, ID_LAYOUT_UNDO, (LPARAM)&draw);
+                COLORREF corners[4]{}; int cornerIndex = 0;
+                for (int x : {0, 131}) for (int y : {0, 31}) {
+                    const COLORREF color = GetPixel(testDC, x, y);
+                    ok &= color != CLR_INVALID && color != RGB(255, 0, 255);
+                    corners[cornerIndex++] = color;
+                }
+                const COLORREF first = GetPixel(testDC, 15, 8);
+                FillRect(testDC, &draw.rcItem, (HBRUSH)GetStockObject(WHITE_BRUSH));
+                SendMessageW(page, WM_DRAWITEM, ID_LAYOUT_UNDO, (LPARAM)&draw);
+                ok &= first == GetPixel(testDC, 15, 8);
+                cornerIndex = 0;
+                for (int x : {0, 131}) for (int y : {0, 31})
+                    ok &= corners[cornerIndex++] == GetPixel(testDC, x, y);
+            }
+            DeleteObject(sentinel); SelectObject(testDC, oldBitmap); DeleteObject(bitmap); DeleteDC(testDC);
+            if (!ok) throw std::runtime_error("editor owner-draw coverage checks failed");
+            RECT snapRect{}; GetClientRect(st->btnSnap, &snapRect);
+            const LPARAM clickPoint = MAKELPARAM(snapRect.right / 2, snapRect.bottom / 2);
+            for (int click = 0; click < 8; ++click) {
+                const bool beforeClick = st->snap;
+                SendMessageW(st->btnSnap, click % 2 ? WM_LBUTTONDBLCLK : WM_LBUTTONDOWN, MK_LBUTTON, clickPoint);
+                ok &= st->snap == beforeClick; // No action before release.
+                SendMessageW(st->btnSnap, WM_LBUTTONUP, 0, clickPoint);
+                ok &= st->snap != beforeClick;
+            }
+            const bool beforeCancel = st->snap;
+            SendMessageW(st->btnSnap, WM_LBUTTONDBLCLK, MK_LBUTTON, clickPoint);
+            SendMessageW(st->btnSnap, WM_CANCELMODE, 0, 0);
+            SendMessageW(st->btnSnap, WM_LBUTTONUP, 0, clickPoint);
+            ok &= st->snap == beforeCancel;
+            if (!ok) throw std::runtime_error("editor repeated native button clicks failed");
+            st->preciseY = false;
+            SendMessageW(page, WM_COMMAND, MAKEWPARAM(ID_LAYOUT_ADD, BN_CLICKED), 0);
+            ok &= st->hasUnsaved && st->draftKeys.size() == count + 1;
+            g_layoutTestDecision = IDCANCEL;
+            SendMessageW(hostWindow, WM_CLOSE, 0, 0);
+            ok &= IsWindow(hostWindow) && st->hasUnsaved;
+            PremiumCombo::SetCurSel(st->cmbPreset, st->layoutPicker.Row(1), false);
+            SendMessageW(page, WM_COMMAND, MAKEWPARAM(ID_LAYOUT_PRESET, CBN_SELCHANGE), (LPARAM)st->cmbPreset);
+            ok &= st->editingPresetIdx == 0 && st->layoutPicker.Selected() == 0;
+            SendMessageW(page, WM_COMMAND, MAKEWPARAM(ID_LAYOUT_RESET, BN_CLICKED), 0);
+            ok &= st->draftKeys.size() == count + 1;
+            // Save failures at every transaction stage must retain the actual UI draft.
+            g_layoutTestDecision = IDYES;
+            const auto before = KeyboardLayout_GetSnapshot();
+            for (auto stage : { HallJoyPersistence::SaveStage::Prepare, HallJoyPersistence::SaveStage::Write,
+                HallJoyPersistence::SaveStage::Flush, HallJoyPersistence::SaveStage::Validate,
+                HallJoyPersistence::SaveStage::Replace })
+            {
+                IniUtil_TestSetFailureStage(stage);
+                const bool closed = KeyboardUI_CloseLayoutEditor();
+                IniUtil_TestSetFailureStage(HallJoyPersistence::SaveStage::None);
+                ok &= !closed && IsWindow(hostWindow) && st->hasUnsaved;
+                ok &= KeyboardLayout_GetSnapshot() == before;
+            }
+            // Discard followed by a preset change does not save the old draft.
+            g_layoutTestDecision = IDNO;
+            PremiumCombo::SetCurSel(st->cmbPreset, st->layoutPicker.Row(1), false);
+            SendMessageW(page, WM_COMMAND, MAKEWPARAM(ID_LAYOUT_PRESET, CBN_SELCHANGE), (LPARAM)st->cmbPreset);
+            ok &= st->editingPresetIdx == 1 && !st->hasUnsaved;
+            std::vector<KeyDef> saved; std::vector<std::wstring> labels;
+            KeyboardLayout_GetPresetSnapshot(0, saved, labels, nullptr, nullptr);
+            ok &= saved.size() == count;
+            // Interrupted dragging still marks the changed geometry as unsaved.
+            st->draftKeys[0].x += 1; st->dirty = true; st->dragging = true;
+            SendMessageW(page, WM_CAPTURECHANGED, 0, 0);
+            ok &= st->hasUnsaved && !st->dirty && !st->dragging;
+            st->draftKeys[0].x -= 1;
+            Layout_SetUnsaved(st, true);
+            ok &= !st->hasUnsaved;
+            st->resolvingDraft = true;
+            ok &= !KeyboardUI_CloseLayoutEditor();
+            st->resolvingDraft = false;
+            st->selectedIdx = 0;
+            Layout_UpdateMetaControls(st);
+            SetFocus(st->edtLabel);
+            SetWindowTextW(st->edtLabel, L"Test label");
+            ok &= st->draftLabels[0] == L"Test label" && st->hasUnsaved;
+            g_layoutTestDecision = IDYES;
+            ok &= KeyboardUI_CloseLayoutEditor();
+            ok &= !IsWindow(hostWindow);
+            KeyboardLayout_GetPresetSnapshot(1, saved, labels, nullptr, nullptr);
+            ok &= labels[0] == L"Test label";
+            LayoutEditor_OpenWindow(owner, 0);
+            hostWindow = g_hLayoutEditorWindow;
+            host = (LayoutEditorHostState*)GetWindowLongPtrW(hostWindow, GWLP_USERDATA);
+            if (host) SendMessageW(host->hPage, WM_COMMAND, MAKEWPARAM(ID_LAYOUT_ADD, BN_CLICKED), 0);
+            g_layoutTestDecision = IDNO;
+            ok &= KeyboardUI_CloseLayoutEditor() && !IsWindow(hostWindow);
+            KeyboardLayout_GetPresetSnapshot(0, saved, labels, nullptr, nullptr);
+            ok &= saved.size() == count;
+        }
+        int first = -1, second = -1;
+        if (KeyboardLayout_CreatePreset(L"Editor Delete A", &first) &&
+            KeyboardLayout_CreatePreset(L"Editor Delete B", &second))
+        {
+            LayoutEditor_OpenWindow(owner, second);
+            const HWND window = g_hLayoutEditorWindow;
+            auto* currentHost = (LayoutEditorHostState*)GetWindowLongPtrW(window, GWLP_USERDATA);
+            auto* draft = currentHost ? (LayoutPageState*)GetWindowLongPtrW(currentHost->hPage, GWLP_USERDATA) : nullptr;
+            if (draft)
+            {
+                SendMessageW(currentHost->hPage, WM_COMMAND, MAKEWPARAM(ID_LAYOUT_ADD, BN_CLICKED), 0);
+                g_layoutTestDecision = IDCANCEL;
+                ok &= LayoutEditor_DeletePreset(first) && IsWindow(window) && draft->hasUnsaved;
+                ok &= draft->editingPresetIdx == second - 1 &&
+                    std::wstring(KeyboardLayout_GetPresetName(draft->editingPresetIdx)) == L"Editor Delete B";
+                ok &= !LayoutEditor_DeletePreset(second - 1) && IsWindow(window);
+                g_layoutTestDecision = IDNO;
+                ok &= LayoutEditor_DeletePreset(second - 1) && !IsWindow(window);
+            }
+            else ok = false;
+        }
+        else ok = false;
+        // Manage the shared catalog through the real editor combo, without
+        if (!ok) throw std::runtime_error("editor pre-catalog checks failed");
+        // changing the independently selected main preview layout.
+        KeyboardLayout_SetPresetIndex(1);
+        const int mainBeforeCreate = KeyboardLayout_GetCurrentPresetIndex();
+        const int catalogBefore = KeyboardLayout_GetPresetCount();
+        LayoutEditor_OpenWindow(owner, 0);
+        auto* catalogHost = (LayoutEditorHostState*)GetWindowLongPtrW(g_hLayoutEditorWindow, GWLP_USERDATA);
+        auto* catalogDraft = catalogHost ? (LayoutPageState*)GetWindowLongPtrW(catalogHost->hPage, GWLP_USERDATA) : nullptr;
+        if (catalogDraft) {
+            const HWND page = catalogHost->hPage;
+            size_t brandModels=0;
+            for (int i=0;i<KeyboardLayout_GetPresetCount();++i)
+                if (KeyboardLayout_GetPresetBrand(i)==L"DrunkDeer") ++brandModels;
+            size_t represented=0;
+            for (const auto& group : catalogDraft->layoutPicker.groups) represented+=group.members.size();
+            ok &= represented == brandModels+1; // Every concrete layout plus Create.
+            PremiumCombo::SetCurSel(catalogDraft->cmbPreset, catalogDraft->layoutPicker.Row(LayoutPicker::Create), false);
+            SendMessageW(page, WM_COMMAND, MAKEWPARAM(ID_LAYOUT_PRESET, CBN_SELCHANGE), (LPARAM)catalogDraft->cmbPreset);
+            const HWND edit = GetFocus(); wchar_t editClass[32]{}; GetClassNameW(edit, editClass, 32);
+            if (wcscmp(editClass, L"Edit") == 0 || wcscmp(editClass, L"EDIT") == 0) {
+                SetWindowTextW(edit, L"Editor Combo Created");
+                SendMessageW(edit, WM_KEYDOWN, VK_RETURN, 0);
+                MSG commit{};
+                while (PeekMessageW(&commit, page, PremiumCombo::MsgItemTextCommit(), PremiumCombo::MsgItemTextCommit(), PM_REMOVE))
+                    DispatchMessageW(&commit);
+                ok &= KeyboardLayout_GetPresetCount() == catalogBefore + 1 && catalogDraft->editingPresetIdx == catalogBefore;
+                ok &= KeyboardLayout_GetCurrentPresetIndex() == mainBeforeCreate;
+                std::vector<KeyDef> source, copy; std::vector<std::wstring> sourceLabels, copyLabels;
+                KeyboardLayout_GetPresetSnapshot(0, source, sourceLabels, nullptr, nullptr);
+                KeyboardLayout_GetPresetSnapshot(catalogBefore, copy, copyLabels, nullptr, nullptr);
+                ok &= sourceLabels == copyLabels && source.size() == copy.size();
+                if (!ok) throw std::runtime_error("editor combo create/source checks failed");
+                SendMessageW(page, WM_COMMAND, MAKEWPARAM(ID_LAYOUT_ADD, BN_CLICKED), 0);
+                const int createdRow = catalogDraft->layoutPicker.Row(catalogBefore);
+                ok &= createdRow >= 0 && createdRow != catalogBefore;
+                ok &= KeyboardLayout_GetPresetBrand(catalogBefore) == L"DrunkDeer";
+                const WPARAM deletion = MAKEWPARAM(createdRow, (WORD)PremiumCombo::ItemButtonKind::Delete);
+                const WPARAM confirmation = MAKEWPARAM(createdRow, (WORD)PremiumCombo::ItemButtonKind::ConfirmDelete);
+                g_layoutTestDecision = IDCANCEL;
+                PremiumCombo::ShowDropDown(catalogDraft->cmbPreset, true);
+                SendMessageW(page, PremiumCombo::MsgItemButton(), deletion, (LPARAM)catalogDraft->cmbPreset);
+                ok &= PremiumCombo::GetDeleteConfirmation(catalogDraft->cmbPreset) == createdRow;
+                auto* comboState = PremiumComboInternal::Get(catalogDraft->cmbPreset);
+                for (auto action : {PremiumCombo::ItemButtonKind::ConfirmDelete, PremiumCombo::ItemButtonKind::CancelDelete}) {
+                    const RECT button = PremiumComboInternal::GetPopupItemButtonRect(comboState, createdRow, action);
+                    ok &= button.right > button.left && button.bottom > button.top;
+                    POINT point{(button.left + button.right) / 2, (button.top + button.bottom) / 2};
+                    ClientToScreen(comboState->hwndPopup, &point);
+                    int hit = -1; PremiumCombo::ItemButtonKind kind{}; bool inside = false;
+                    ok &= PremiumComboInternal::HitTestPopupItemButtonFromScreen(comboState, point, hit, kind, inside);
+                    ok &= inside && hit == createdRow && kind == action;
+                }
+                PremiumCombo::ShowDropDown(catalogDraft->cmbPreset, false);
+                ok &= PremiumCombo::GetDeleteConfirmation(catalogDraft->cmbPreset) == -1;
+                SendMessageW(page, PremiumCombo::MsgItemButton(), confirmation, (LPARAM)catalogDraft->cmbPreset);
+                ok &= KeyboardLayout_GetPresetCount() == catalogBefore + 1;
+                SendMessageW(page, PremiumCombo::MsgItemButton(), deletion, (LPARAM)catalogDraft->cmbPreset);
+                SendMessageW(page, PremiumCombo::MsgItemButton(), confirmation, (LPARAM)catalogDraft->cmbPreset);
+                ok &= KeyboardLayout_GetPresetCount() == catalogBefore + 1 && catalogDraft->hasUnsaved;
+                if (!ok) throw std::runtime_error("editor combo delete cancellation failed");
+                g_layoutTestDecision = IDNO;
+                SendMessageW(page, PremiumCombo::MsgItemButton(), deletion, (LPARAM)catalogDraft->cmbPreset);
+                SendMessageW(page, PremiumCombo::MsgItemButton(), confirmation, (LPARAM)catalogDraft->cmbPreset);
+                ok &= KeyboardLayout_GetPresetCount() == catalogBefore && IsWindow(page) && !catalogDraft->hasUnsaved;
+                ok &= KeyboardLayout_GetCurrentPresetIndex() == mainBeforeCreate;
+                if (!ok) throw std::runtime_error("editor combo delete completion failed");
+            } else throw std::runtime_error("editor combo inline edit did not focus");
+        } else ok = false;
+        g_layoutTestDecision = IDNO;
+        KeyboardUI_CloseLayoutEditor();
+        g_layoutTestDecision = 0;
+        DestroyWindow(owner);
+    }
+    ok &= SetThreadDesktop(previous) != FALSE;
+    CloseDesktop(desktop);
+    return ok;
+}
+#endif
+
 static Color Gp(COLORREF c, BYTE a) { return Color(a, GetRValue(c), GetGValue(c), GetBValue(c)); }
 
 struct PremiumSliderState
@@ -5516,8 +7204,8 @@ struct GlobalSettingsPageState
 
     HWND lblLayout = nullptr;
     HWND cmbLayout = nullptr;
+    LayoutPicker layoutPicker;
     HWND btnLayoutEditor = nullptr;
-    HWND btnOpenLayoutsFolder = nullptr;
 
     HWND lblPoll = nullptr;
     HWND sldPoll = nullptr;
@@ -5527,7 +7215,6 @@ struct GlobalSettingsPageState
     HWND sldUiRefresh = nullptr;
     HWND chipUiRefresh = nullptr;
 
-    HWND lblHint = nullptr;
     HWND lblFactoryReset = nullptr;
     HWND btnFactoryReset = nullptr;
     HWND lblFactoryResetHint = nullptr;
@@ -5538,12 +7225,18 @@ struct GlobalSettingsPageState
     int contentHeight = 0;
     RECT rcGlobalProfile{};
     RECT rcLayout{};
+    RECT rcLayoutBrand{}, rcLayoutTitle{}, rcLayoutVariant{};
     RECT rcLayoutEditor{};
-    RECT rcLayoutsFolder{};
     RECT rcPollSlider{};
     RECT rcPollChip{};
     RECT rcUiRefreshSlider{};
     RECT rcUiRefreshChip{};
+    RECT rcEngineRuntime{};
+    RECT rcDiagnosticLogging{}, rcHallJoyFolder{}, rcLoggingError{};
+    RECT rcCommunity{}, rcDiscord{};
+    DWORD loggingError = ERROR_SUCCESS;
+    bool pausePulseTimer = false;
+    ULONGLONG pausePulseEpoch = 0;
     RECT rcFactoryReset{};
     int hotId = 0;
     int pressedId = 0;
@@ -5561,10 +7254,42 @@ static constexpr int GLOB_ID_POLL_SLIDER = 7601;
 static constexpr int GLOB_ID_UIREFRESH_SLIDER = 7602;
 static constexpr int GLOB_ID_LAYOUT_COMBO = 7603;
 static constexpr int GLOB_ID_LAYOUT_EDITOR = 7604;
-static constexpr int GLOB_ID_LAYOUTS_FOLDER = 7605;
+static constexpr int GLOB_ID_LAYOUT_BRAND = 7690;
+static constexpr int GLOB_ID_LAYOUT_VARIANT = 7691;
 static constexpr int GLOB_ID_GLOBAL_PROFILE_COMBO = 7606;
 static constexpr int GLOB_ID_GLOBAL_PROFILE_SAVE = 7610;
+static constexpr int GLOB_ID_ENGINE_RUNTIME = 7611;
+static constexpr int GLOB_ID_DIAGNOSTIC_LOGGING = 7612;
+static constexpr int GLOB_ID_HALLJOY_FOLDER = 7613;
+static constexpr int GLOB_ID_DISCORD = 7614;
 static constexpr int GLOB_ID_FACTORY_RESET = 7607;
+
+static const wchar_t* Global_EngineRuntimeButtonText(halljoy::runtime_command::State state)
+{
+    using halljoy::runtime_command::State;
+    switch (state)
+    {
+    case State::Active: return L"Pause HallJoy";
+    case State::Paused: return L"Resume HallJoy";
+    case State::PauseFaulted: return L"Restart required";
+    case State::PauseRequested:
+    case State::Neutralizing:
+    case State::StoppingProviders:
+    case State::ReleasingLeases: return L"Pausing…";
+    case State::ResumeRequested:
+    case State::Enumerating:
+    case State::ProvingCapabilities:
+    case State::PublishingNeutralGeneration: return L"Resuming…";
+    }
+    return L"Engine state unavailable";
+}
+
+static bool Global_EngineRuntimeButtonEnabled()
+{
+    using halljoy::runtime_command::State;
+    const auto state = halljoy::engine_runtime::EngineRuntimeOwner_Snapshot().state;
+    return state == State::Active || state == State::Paused;
+}
 
 static void Global_DrawActionButton(const DRAWITEMSTRUCT* dis, bool danger = false)
 {
@@ -5663,14 +7388,6 @@ static void Global_NotifyMainPage(HWND hWnd)
     HWND tab = GetParent(hWnd);
     HWND page = tab ? GetParent(tab) : nullptr;
     if (page) PostMessageW(page, WM_APP_KEYBOARD_LAYOUT_CHANGED, 0, 0);
-}
-
-static void Global_OpenLayoutsFolder(HWND hWnd)
-{
-    std::wstring dir = AppPaths_LayoutsDir();
-    std::error_code ec;
-    fs::create_directories(fs::path(dir), ec);
-    ShellExecuteW(hWnd, L"open", dir.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 }
 
 static void GlobalToast_EnsureWindow(HWND hPage, GlobalSettingsPageState* st)
@@ -5837,28 +7554,15 @@ static void GlobalDeleteConfirm_Clear(HWND hPage, GlobalSettingsPageState* st)
     GlobalToast_Hide(hPage, st);
 }
 
+static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st);
+
 static void Global_RefreshLayoutCombo(GlobalSettingsPageState* st)
 {
     if (!st || !st->cmbLayout) return;
 
-    PremiumCombo::Clear(st->cmbLayout);
-
-    int presetCount = KeyboardLayout_GetPresetCount();
-    for (int i = 0; i < presetCount; ++i)
-    {
-        int idx = PremiumCombo::AddString(st->cmbLayout, KeyboardLayout_GetPresetName(i));
-        if (presetCount > 1)
-            PremiumCombo::SetItemButtonKind(st->cmbLayout, idx, PremiumCombo::ItemButtonKind::Delete);
-    }
-
-    PremiumCombo::AddString(st->cmbLayout, L"+ Create New Layout...");
-    PremiumCombo::SetDropMaxVisible(st->cmbLayout, 10);
-
-    int cur = KeyboardLayout_GetCurrentPresetIndex();
-    if (presetCount > 0)
-        PremiumCombo::SetCurSel(st->cmbLayout, std::clamp(cur, 0, presetCount - 1), false);
-    else
-        PremiumCombo::SetCurSel(st->cmbLayout, -1, false);
+    const bool hadVariants = st->layoutPicker.HasVariants();
+    st->layoutPicker.Refresh(KeyboardLayout_GetCurrentPresetIndex());
+    if (hadVariants != st->layoutPicker.HasVariants()) Global_Layout(GetParent(st->cmbLayout), st);
 }
 
 static void Global_UpdateUi(GlobalSettingsPageState* st);
@@ -5906,35 +7610,15 @@ static void Global_RefreshGlobalProfileCombo(GlobalSettingsPageState* st)
     Global_UpdateProfileSaveIcon(st);
 }
 
-static void Global_ApplyActiveGlobalProfile(GlobalSettingsPageState* st, HWND hWnd, const std::wstring& name)
+static bool Global_ApplyActiveGlobalProfile(GlobalSettingsPageState* st, HWND hWnd, const std::wstring& name)
 {
-    if (!st) return;
-
-    std::wstring newName = GlobalProfiles_SanitizeName(name);
-    if (newName.empty()) newName = L"Default";
-    if (FileNamePolicy_Equivalent(newName, GlobalProfiles_GetActiveName()))
-        return;
-
-    // Persist previous profile state before switching away.
-    const std::wstring prevName = GlobalProfiles_GetActiveName();
-    const bool previousSettingsSaved = SettingsIni_SaveProfile(GlobalProfiles_GetSettingsPath(prevName).c_str());
-    const bool previousBindingsSaved = Profile_SaveIni(GlobalProfiles_GetBindingsPath(prevName).c_str());
-    if (!previousSettingsSaved || !previousBindingsSaved)
-    {
+    if (!st) return false;
+    if (!GlobalProfiles_Switch(name)) {
+        MessageBoxW(hWnd, L"Could not switch profile. Check that its settings and bindings are complete and readable, and that your profiles can be saved.",
+            L"Profiles", MB_ICONWARNING);
         Global_UpdateUi(st);
-        return;
+        return false;
     }
-
-    GlobalProfiles_SetActiveName(newName);
-    if (!GlobalProfiles_SaveActiveToSettingsIni(AppPaths_SettingsIni().c_str()))
-    {
-        GlobalProfiles_SetActiveName(prevName);
-        Global_UpdateUi(st);
-        return;
-    }
-
-    SettingsIni_LoadProfile(GlobalProfiles_GetSettingsPath(newName).c_str());
-    Profile_LoadIni(GlobalProfiles_GetBindingsPath(newName).c_str());
 
     // Apply runtime timing/backend state from loaded profile.
     RealtimeLoop_SetIntervalMs(Settings_GetPollingMs());
@@ -5956,6 +7640,7 @@ static void Global_ApplyActiveGlobalProfile(GlobalSettingsPageState* st, HWND hW
     Global_RequestApplyTiming(hWnd);
     Global_RequestSave(hWnd);
     Global_UpdateUi(st);
+    return true;
 }
 
 static void Global_UpdateUi(GlobalSettingsPageState* st)
@@ -5988,12 +7673,7 @@ static void Global_UpdateUi(GlobalSettingsPageState* st)
 
     if (st->cmbLayout)
     {
-        int cur = KeyboardLayout_GetCurrentPresetIndex();
-        int sel = PremiumCombo::GetCurSel(st->cmbLayout);
-        int count = PremiumCombo::GetCount(st->cmbLayout);
-        bool selIsCreateRow = (count > 0 && sel == count - 1);
-        if (!selIsCreateRow && sel != cur)
-            PremiumCombo::SetCurSel(st->cmbLayout, cur, false);
+        Global_RefreshLayoutCombo(st);
     }
 
     if (st->chipPoll)
@@ -6020,16 +7700,22 @@ static bool Layout_NudgeSelectedKey(HWND hWnd, LayoutPageState* st, int dRow, in
     if (st->selectedIdx >= (int)st->draftKeys.size()) return false;
 
     KeyDef& k = st->draftKeys[st->selectedIdx];
+    if (dX && st->uniformSpacingEnabled)
+    {
+        Layout_BakeUniformSpacingIntoDraft(st); st->uniformSpacingEnabled = false;
+        Layout_UpdateUniformSpacingButton(st);
+    }
     int nextRow = std::clamp(k.row + dRow, 0, 20);
+    int nextY = dRow ? (st->preciseY ? std::clamp(KeyboardLayout_KeyY(k) + dRow, 0, 4000) : halljoy::layout_editor::RowY(k, nextRow)) : KeyboardLayout_KeyY(k);
     int nextX = std::clamp(k.x + dX, 0, 4000);
     int nextW = std::clamp(k.w + dW, KEYBOARD_KEY_MIN_DIM, KEYBOARD_KEY_MAX_DIM);
-    if (nextRow == k.row && nextX == k.x && nextW == k.w)
+    if (nextY == KeyboardLayout_KeyY(k) && nextX == k.x && nextW == k.w)
         return false;
-    k.row = nextRow;
+    if (dRow) { k.y = st->preciseY || k.y >= 0 ? nextY : -1; if (!st->preciseY) k.row = nextRow; }
     k.x = nextX;
     k.w = nextW;
 
-    Layout_RefreshKeyList(hWnd, st);
+    Layout_RefreshSelection(hWnd, st);
     Layout_SetUnsaved(st, true);
     InvalidateRect(hWnd, nullptr, FALSE);
     return true;
@@ -6079,15 +7765,29 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
     sliderW = std::max(S(hWnd, 180), sliderW);
     // All geometry is retained in content coordinates. The compatibility
     // PremiumCombo HWNDs stay hidden until their popup is explicitly opened.
+    // Keep the community entry first and compact at every window width.
+    const int communityRight = std::min(x + sliderW + gap + chipW, x + S(hWnd, 480));
+    const bool compactCommunity = communityRight - x < S(hWnd, 440);
+    st->rcCommunity = RECT{ x, y, communityRight, y + S(hWnd, compactCommunity ? 112 : 80) };
+    const int discordX = compactCommunity ? x + S(hWnd, 14) : communityRight - S(hWnd, 146);
+    const int discordY = y + S(hWnd, compactCommunity ? 68 : 24);
+    st->rcDiscord = RECT{ discordX, discordY, discordX + S(hWnd, 132), discordY + S(hWnd, 32) };
+    y = st->rcCommunity.bottom + S(hWnd, 24);
     y += labelH + S(hWnd, 6);
     st->rcGlobalProfile = RECT{ x, y, x + sliderW + gap + chipW, y + comboVisibleH };
     y += comboVisibleH + rowGap;
     y += labelH + S(hWnd, 6);
-    st->rcLayout = RECT{ x, y, x + sliderW + gap + chipW, y + comboVisibleH };
+    st->rcLayoutTitle = RECT{ x, y, x + sliderW + gap + chipW, y + labelH };
+    y += labelH + S(hWnd, 10);
+    const int brandW = std::min(S(hWnd, 160), (sliderW + chipW) / 2);
+    st->rcLayoutBrand = RECT{ x, y, x + brandW, y + comboVisibleH };
+    const int variantW = st->layoutPicker.HasVariants() ? S(hWnd, 96) + gap : 0;
+    st->rcLayout = RECT{ x + brandW + gap, y, x + sliderW + gap + chipW - variantW, y + comboVisibleH };
+    st->rcLayoutVariant = variantW ? RECT{ st->rcLayout.right + gap, y, x + sliderW + gap + chipW, y + comboVisibleH } : RECT{};
     y += comboVisibleH + rowGap;
     st->rcLayoutEditor = RECT{ x, y, x + S(hWnd, 210), y + S(hWnd, 28) };
     y += S(hWnd, 28) + S(hWnd, 14);
-    st->rcLayoutsFolder = RECT{ x, y, x + S(hWnd, 210), y + S(hWnd, 28) };
+    st->rcHallJoyFolder = RECT{ x, y, x + S(hWnd, 210), y + S(hWnd, 28) };
     y += S(hWnd, 28) + S(hWnd, 14);
     y += labelH + S(hWnd, 6);
     st->rcPollSlider = RECT{ x, y, x + sliderW, y + sliderH };
@@ -6096,8 +7796,15 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
     y += labelH + S(hWnd, 6);
     st->rcUiRefreshSlider = RECT{ x, y, x + sliderW, y + sliderH };
     st->rcUiRefreshChip = RECT{ x + sliderW + gap, y, x + sliderW + gap + chipW, y + chipH };
-    y += sliderH + S(hWnd, 14);
-    y += S(hWnd, 20) + S(hWnd, 18);
+    y += sliderH + S(hWnd, 18);
+    st->rcEngineRuntime = RECT{ x, y, x + S(hWnd, 210), y + S(hWnd, 32) };
+    y += S(hWnd, 32) + S(hWnd, 58);
+    st->rcDiagnosticLogging = RECT{ x, y, x + S(hWnd, 280), y + S(hWnd, 28) };
+    y += S(hWnd, 34);
+    st->loggingError = SupportLog_LastError();
+    st->rcLoggingError = RECT{ x, y, st->rcUiRefreshChip.right, y + S(hWnd, 44) };
+    if (st->loggingError != ERROR_SUCCESS) y += S(hWnd, 52);
+    y += S(hWnd, 10);
     y += labelH + S(hWnd, 7);
     st->rcFactoryReset = RECT{ x, y, x + S(hWnd, 210), y + S(hWnd, 30) };
     y += S(hWnd, 30) + S(hWnd, 7);
@@ -6114,6 +7821,58 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
         return;
     }
     CustomPageSurface_MarkDirty(hWnd, &st->surface);
+}
+
+static constexpr UINT_PTR GLOBAL_PAUSE_PULSE_TIMER = 0x7611;
+
+static RECT Global_PulseRect(HWND hWnd, GlobalSettingsPageState* st)
+{
+    RECT rc = st->rcEngineRuntime;
+    OffsetRect(&rc, 0, -st->scrollY);
+    InflateRect(&rc, S(hWnd, 7), S(hWnd, 7));
+    return rc;
+}
+
+static void Global_UpdatePulse(HWND hWnd, GlobalSettingsPageState* st)
+{
+    if (!st) return;
+    RECT client{}, intersection{};
+    GetClientRect(hWnd, &client);
+    RECT glow = Global_PulseRect(hWnd, st);
+    const bool animate = IsWindowVisible(hWnd) && !IsIconic(GetAncestor(hWnd, GA_ROOT)) &&
+        IntersectRect(&intersection, &client, &glow) &&
+        halljoy::engine_runtime::EngineRuntimeOwner_Snapshot().state == halljoy::runtime_command::State::Paused;
+    if (animate && !st->pausePulseTimer)
+    {
+        st->pausePulseEpoch = GetTickCount64();
+        st->pausePulseTimer = SetTimer(hWnd, GLOBAL_PAUSE_PULSE_TIMER, 33, nullptr) != 0;
+    }
+    else if (!animate && st->pausePulseTimer)
+    {
+        KillTimer(hWnd, GLOBAL_PAUSE_PULSE_TIMER);
+        st->pausePulseTimer = false;
+    }
+}
+
+static void Global_DrawPulse(HWND hWnd, HDC hdc, GlobalSettingsPageState* st)
+{
+    if (!st->pausePulseTimer) return;
+    // Overlay only: restore the cached page first, never rebuild it per frame.
+    Gdiplus::Graphics g(hdc);
+    g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+    RECT button = st->rcEngineRuntime;
+    OffsetRect(&button, 0, -st->scrollY);
+    g.ExcludeClip(Gdiplus::Rect(button.left, button.top,
+        button.right - button.left, button.bottom - button.top));
+    const double phase = (GetTickCount64() - st->pausePulseEpoch) % 2400 / 2400.0;
+    const double strength = 0.5 - 0.5 * std::cos(phase * 6.283185307179586);
+    for (int spread = 6; spread >= 1; --spread)
+    {
+        RECT halo = button;
+        InflateRect(&halo, S(hWnd, spread), S(hWnd, spread));
+        CustomPage_DrawRoundRect(g, halo, RGB(222, 167, 82), RGB(222, 167, 82),
+            (float)S(hWnd, 4 + spread), (BYTE)(2 + strength * (spread > 3 ? 9 : 17)));
+    }
 }
 
 static void Global_RenderContent(HWND hWnd, HDC hdc, const RECT&, void* user)
@@ -6141,11 +7900,19 @@ static void Global_RenderContent(HWND hWnd, HDC hdc, const RECT&, void* user)
         GlobalProfiles_IsDirty() ? L"Global profile - unsaved" : L"Global profile");
     PremiumCombo::PaintRetainedFace(st->cmbGlobalProfile, hdc, st->rcGlobalProfile,
         st->hotId == GLOB_ID_GLOBAL_PROFILE_COMBO || st->hotId == GLOB_ID_GLOBAL_PROFILE_SAVE);
-    labelAbove(st->rcLayout, L"Keyboard layout");
+    labelAbove(st->rcLayoutTitle, L"Layout");
+    labelAbove(st->rcLayoutBrand, L"Brand");
+    labelAbove(st->rcLayout, L"Model");
+    PremiumCombo::PaintRetainedFace(st->layoutPicker.brand, hdc, st->rcLayoutBrand,
+        st->hotId == GLOB_ID_LAYOUT_BRAND);
     PremiumCombo::PaintRetainedFace(st->cmbLayout, hdc, st->rcLayout,
         st->hotId == GLOB_ID_LAYOUT_COMBO);
-    button(GLOB_ID_LAYOUT_EDITOR, st->rcLayoutEditor, L"Open Layout Editor Window");
-    button(GLOB_ID_LAYOUTS_FOLDER, st->rcLayoutsFolder, L"Open Layouts Folder");
+    if (st->layoutPicker.HasVariants()) {
+        labelAbove(st->rcLayoutVariant, L"Variant");
+        PremiumCombo::PaintRetainedFace(st->layoutPicker.variant, hdc, st->rcLayoutVariant,
+            st->hotId == GLOB_ID_LAYOUT_VARIANT);
+    }
+    button(GLOB_ID_LAYOUT_EDITOR, st->rcLayoutEditor, L"Layout editor");
 
     labelAbove(st->rcPollSlider, L"Polling rate");
     CustomPage_DrawSlider(g, hWnd, st->rcPollSlider, 1, 20,
@@ -6160,10 +7927,96 @@ static void Global_RenderContent(HWND hWnd, HDC hdc, const RECT&, void* user)
     swprintf_s(value, L"%u ms", (unsigned)Settings_GetUIRefreshMs());
     CustomPage_DrawChip(g, hdc, st->rcUiRefreshChip, value);
 
-    RECT hint{ st->rcUiRefreshSlider.left, st->rcUiRefreshSlider.bottom + S(hWnd, 14),
-        st->rcUiRefreshChip.right, st->rcUiRefreshSlider.bottom + S(hWnd, 34) };
-    CustomPage_DrawText(hdc, L"Changes are applied immediately and saved automatically.",
-        hint, UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    // One snapshot for text, colour and enablement. The complete image lives
+    // in the retained page cache; the glow has no animation or timer.
+    const auto engineState = halljoy::engine_runtime::EngineRuntimeOwner_Snapshot().state;
+    using halljoy::runtime_command::State;
+    const bool paused = engineState == State::Paused;
+    const bool faulted = engineState == State::PauseFaulted;
+    const bool enabled = paused || engineState == State::Active;
+    const bool hot = enabled && st->hotId == GLOB_ID_ENGINE_RUNTIME;
+    const bool pressed = enabled && st->pressedId == GLOB_ID_ENGINE_RUNTIME;
+    if (paused || faulted)
+    {
+        const COLORREF accent = faulted ? RGB(222, 104, 114) : RGB(222, 167, 82);
+        if (paused)
+            for (int spread = 6; spread >= 1; --spread)
+            {
+                RECT halo = st->rcEngineRuntime;
+                InflateRect(&halo, S(hWnd, spread), S(hWnd, spread));
+                CustomPage_DrawRoundRect(g, halo, accent, accent,
+                    (float)S(hWnd, 4 + spread), (BYTE)(spread > 3 ? 5 : 9));
+            }
+        const COLORREF fill = faulted ? RGB(67, 35, 39) :
+            (pressed ? RGB(68, 49, 28) : hot ? RGB(88, 65, 35) : RGB(74, 55, 32));
+        CustomPage_DrawRoundRect(g, st->rcEngineRuntime, fill, accent, (float)S(hWnd, 4));
+        CustomPage_DrawText(hdc, Global_EngineRuntimeButtonText(engineState), st->rcEngineRuntime,
+            faulted ? RGB(245, 180, 186) : RGB(250, 219, 166),
+            DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        RECT status = st->rcEngineRuntime;
+        status.left = status.right + S(hWnd, 14);
+        status.right = status.left + S(hWnd, 100);
+        CustomPage_DrawText(hdc, paused ? L"Paused" : L"Needs restart", status, accent,
+            DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    }
+    else
+        CustomPage_DrawButton(g, hdc, st->rcEngineRuntime, Global_EngineRuntimeButtonText(engineState),
+            hot, pressed, enabled);
+
+    RECT pauseHint{ st->rcEngineRuntime.left, st->rcEngineRuntime.bottom + S(hWnd, 8),
+        st->rcUiRefreshChip.right, st->rcEngineRuntime.bottom + S(hWnd, 48) };
+    CustomPage_DrawText(hdc, L"Pause releases your keyboard so you can use its web configurator without a device-access conflict.",
+        pauseHint, UiTheme::Color_TextMuted(), DT_LEFT | DT_TOP | DT_WORDBREAK | DT_NOPREFIX);
+
+    CustomPage_DrawCheckbox(g, hdc, hWnd, st->rcDiagnosticLogging, L"Enable logging",
+        Settings_GetDiagnosticLogging(), true);
+    CustomPage_DrawButton(g, hdc, st->rcHallJoyFolder, L"Open HallJoy folder",
+        st->hotId == GLOB_ID_HALLJOY_FOLDER, st->pressedId == GLOB_ID_HALLJOY_FOLDER, true);
+    if (st->loggingError != ERROR_SUCCESS) {
+        wchar_t errorText[128]{};
+        swprintf_s(errorText, L"Could not write the support log. Windows error: %lu", st->loggingError);
+        CustomPage_DrawText(hdc, errorText, st->rcLoggingError, RGB(222,104,114), DT_LEFT | DT_WORDBREAK);
+    }
+
+    // Retained card: no child-window repaint races, timers or network activity.
+    CustomPage_DrawRoundRect(g, st->rcCommunity, UiTheme::Color_PanelBg(), RGB(66, 73, 96),
+        (float)S(hWnd, 7));
+    const bool stackedCommunity = st->rcDiscord.top >= st->rcCommunity.top + S(hWnd, 60);
+    const int communityTextRight = stackedCommunity ? st->rcCommunity.right - S(hWnd, 14)
+        : st->rcDiscord.left - S(hWnd, 18);
+    // Measure with the same selected font and wrapping rules used for painting.
+    // Centre the pair as one block, not two independently padded rectangles.
+    RECT communityTitle{ st->rcCommunity.left + S(hWnd, 14), 0, communityTextRight, 0 };
+    RECT communityBody = communityTitle;
+    DrawTextW(hdc, L"HallJoy on Discord", -1, &communityTitle,
+        DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
+    DrawTextW(hdc, L"Get help, share feedback and follow updates.", -1, &communityBody,
+        DT_LEFT | DT_WORDBREAK | DT_CALCRECT);
+    const int communityTextTop = st->rcCommunity.top + S(hWnd, 12);
+    const int communityTextBottom = stackedCommunity ? st->rcDiscord.top - S(hWnd, 10)
+        : st->rcCommunity.bottom - S(hWnd, 12);
+    const int communityGap = S(hWnd, 6);
+    const int communityTitleHeight = communityTitle.bottom - communityTitle.top;
+    const int communityBodyHeight = std::min<int>(communityBody.bottom - communityBody.top,
+        std::max(0, communityTextBottom - communityTextTop - communityTitleHeight - communityGap));
+    const int communityBlockHeight = communityTitleHeight + communityGap + communityBodyHeight;
+    communityTitle.top = communityTextTop + std::max(0,
+        (communityTextBottom - communityTextTop - communityBlockHeight) / 2);
+    communityTitle.bottom = communityTitle.top + communityTitleHeight;
+    communityTitle.right = communityTextRight;
+    communityBody = RECT{ communityTitle.left, communityTitle.bottom + communityGap,
+        communityTextRight, communityTitle.bottom + communityGap + communityBodyHeight };
+    CustomPage_DrawText(hdc, L"HallJoy on Discord", communityTitle, UiTheme::Color_Text(),
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    CustomPage_DrawText(hdc, L"Get help, share feedback and follow updates.", communityBody,
+        UiTheme::Color_TextMuted(), DT_LEFT | DT_WORDBREAK | DT_END_ELLIPSIS);
+    const bool discordPressed = st->pressedId == GLOB_ID_DISCORD;
+    const bool discordHot = st->hotId == GLOB_ID_DISCORD;
+    CustomPage_DrawRoundRect(g, st->rcDiscord,
+        discordPressed ? RGB(60, 67, 132) : discordHot ? RGB(85, 94, 181) : RGB(70, 78, 154),
+        RGB(111, 122, 214), (float)S(hWnd, 4));
+    CustomPage_DrawText(hdc, L"Join Discord", st->rcDiscord, RGB(245, 246, 255),
+        DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
     RECT factoryLabel{ st->rcFactoryReset.left, st->rcFactoryReset.top - S(hWnd, 25),
         st->rcFactoryReset.right, st->rcFactoryReset.top - S(hWnd, 7) };
@@ -6192,10 +8045,15 @@ static int Global_HitTest(GlobalSettingsPageState* st, POINT clientPoint)
     const std::pair<int, RECT*> hits[] = {
         { GLOB_ID_GLOBAL_PROFILE_COMBO, &st->rcGlobalProfile },
         { GLOB_ID_LAYOUT_COMBO, &st->rcLayout },
+        { GLOB_ID_LAYOUT_BRAND, &st->rcLayoutBrand },
+        { GLOB_ID_LAYOUT_VARIANT, &st->rcLayoutVariant },
         { GLOB_ID_LAYOUT_EDITOR, &st->rcLayoutEditor },
-        { GLOB_ID_LAYOUTS_FOLDER, &st->rcLayoutsFolder },
         { GLOB_ID_POLL_SLIDER, &st->rcPollSlider },
         { GLOB_ID_UIREFRESH_SLIDER, &st->rcUiRefreshSlider },
+        { GLOB_ID_ENGINE_RUNTIME, &st->rcEngineRuntime },
+        { GLOB_ID_DIAGNOSTIC_LOGGING, &st->rcDiagnosticLogging },
+        { GLOB_ID_HALLJOY_FOLDER, &st->rcHallJoyFolder },
+        { GLOB_ID_DISCORD, &st->rcDiscord },
         { GLOB_ID_FACTORY_RESET, &st->rcFactoryReset }
     };
     for (const auto& hit : hits)
@@ -6206,7 +8064,7 @@ static int Global_HitTest(GlobalSettingsPageState* st, POINT clientPoint)
 static void Global_CloseComboAnchors(GlobalSettingsPageState* st)
 {
     if (!st) return;
-    HWND combos[] = { st->cmbGlobalProfile, st->cmbLayout };
+    HWND combos[] = { st->cmbGlobalProfile, st->cmbLayout, st->layoutPicker.brand, st->layoutPicker.variant };
     for (HWND combo : combos)
     {
         if (!combo) continue;
@@ -6250,6 +8108,14 @@ static void Global_SetSliderFromClient(HWND hWnd, GlobalSettingsPageState* st, i
 
 LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    if (msg == WM_APP_KEYBOARD_LAYOUT_CHANGED) {
+        auto* state = (GlobalSettingsPageState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+        if (state) {
+            Global_RefreshLayoutCombo(state);
+            CustomPageSurface_MarkDirty(hWnd, &state->surface);
+        }
+        return 0;
+    }
     auto* st = (GlobalSettingsPageState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
 
     if (msg == PremiumCombo::MsgDropStateChanged())
@@ -6281,29 +8147,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         wchar_t nameBuf[260]{};
         PremiumCombo::ConsumeCommittedText(hCombo, nameBuf, 260);
 
-        if (hCombo == st->cmbLayout)
-        {
-            int presetCount = KeyboardLayout_GetPresetCount();
-            if (idx != presetCount)
-                return 0; // create row is always the last item
-
-            int newIdx = -1;
-            if (KeyboardLayout_CreatePreset(nameBuf, &newIdx))
-            {
-                Global_RefreshLayoutCombo(st);
-                if (newIdx >= 0)
-                    PremiumCombo::SetCurSel(st->cmbLayout, newIdx, false);
-                PremiumCombo::ShowDropDown(st->cmbLayout, false);
-                Global_NotifyMainPage(hWnd);
-                Global_RequestSave(hWnd);
-            }
-            else
-            {
-                MessageBoxW(hWnd, L"Failed to create layout. Name may be empty or already exists.", L"Layouts", MB_ICONWARNING);
-                Global_UpdateUi(st);
-            }
-            return 0;
-        }
+        if (hCombo == st->cmbLayout) return 0; // Selection-only control.
 
         if (hCombo == st->cmbGlobalProfile)
         {
@@ -6329,21 +8173,21 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
                 }
             }
 
+            if (GetFileAttributesW(GlobalProfiles_GetBindingsPath(newName).c_str()) != INVALID_FILE_ATTRIBUTES) {
+                MessageBoxW(hWnd, L"A bindings file with this profile name already exists. Choose another name.",
+                    L"Profiles", MB_ICONWARNING);
+                return 0;
+            }
             const std::wstring prevName = GlobalProfiles_GetActiveName();
-            const bool previousSettingsSaved = SettingsIni_SaveProfile(GlobalProfiles_GetSettingsPath(prevName).c_str());
-            const bool previousBindingsSaved = Profile_SaveIni(GlobalProfiles_GetBindingsPath(prevName).c_str());
-            if (!previousSettingsSaved || !previousBindingsSaved)
+            if (!GlobalProfiles_Save(prevName))
             {
                 Global_UpdateUi(st);
                 return 0;
             }
 
             // New profile starts as a full copy of current runtime state.
-            const bool newSettingsSaved = SettingsIni_SaveProfile(GlobalProfiles_GetSettingsPath(newName).c_str());
-            const bool newBindingsSaved = Profile_SaveIni(GlobalProfiles_GetBindingsPath(newName).c_str());
-            if (!newSettingsSaved || !newBindingsSaved)
+            if (!GlobalProfiles_Save(newName))
             {
-                GlobalProfiles_Delete(newName);
                 Global_UpdateUi(st);
                 return 0;
             }
@@ -6384,45 +8228,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             return 0;
         }
 
-        if (hCombo == st->cmbLayout)
-        {
-            int presetCount = KeyboardLayout_GetPresetCount();
-            if (idx < 0 || idx >= presetCount)
-                return 0;
-
-            bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
-            if (shift)
-            {
-                GlobalDeleteConfirm_Clear(hWnd, st);
-                if (KeyboardLayout_DeletePreset(idx))
-                {
-                    Global_RefreshLayoutCombo(st);
-                    Global_NotifyMainPage(hWnd);
-                    Global_RequestSave(hWnd);
-                }
-                return 0;
-            }
-
-            DWORD now = GetTickCount();
-            if (st->pendingDeleteIdx == idx && !st->pendingDeleteIsGlobalProfile &&
-                (now - st->pendingDeleteTick) <= TOAST_SHOW_MS)
-            {
-                GlobalDeleteConfirm_Clear(hWnd, st);
-                if (KeyboardLayout_DeletePreset(idx))
-                {
-                    Global_RefreshLayoutCombo(st);
-                    Global_NotifyMainPage(hWnd);
-                    Global_RequestSave(hWnd);
-                }
-                return 0;
-            }
-
-            st->pendingDeleteIdx = idx;
-            st->pendingDeleteTick = now;
-            st->pendingDeleteIsGlobalProfile = false;
-            GlobalToast_ShowNearCursor(hWnd, st, L"Click again to confirm delete");
-            return 0;
-        }
+        if (hCombo == st->cmbLayout) return 0; // Selection-only control.
 
         if (hCombo == st->cmbGlobalProfile)
         {
@@ -6444,8 +8250,8 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
                 GlobalDeleteConfirm_Clear(hWnd, st);
 
                 // If deleting active profile, switch to default first.
-                if (FileNamePolicy_Equivalent(GlobalProfiles_GetActiveName(), name))
-                    Global_ApplyActiveGlobalProfile(st, hWnd, L"Default");
+                if (FileNamePolicy_Equivalent(GlobalProfiles_GetActiveName(), name) &&
+                    !Global_ApplyActiveGlobalProfile(st, hWnd, L"Default")) return 0;
 
                 if (GlobalProfiles_Delete(name))
                 {
@@ -6471,17 +8277,20 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         if (!st || (HWND)lParam != st->cmbGlobalProfile)
             return 0;
 
-        std::wstring settingsPath = AppPaths_ActiveSettingsIni();
-        std::wstring bindingsPath = AppPaths_ActiveBindingsIni();
-        const bool settingsSaved = SettingsIni_SaveProfile(settingsPath.c_str());
-        const bool bindingsSaved = Profile_SaveIni(bindingsPath.c_str());
-        if (!settingsSaved || !bindingsSaved)
+        if (!GlobalProfiles_Save(GlobalProfiles_GetActiveName()))
             return 0;
 
         GlobalProfiles_SetDirty(false);
         Global_UpdateProfileSaveIcon(st);
         Global_RequestSave(hWnd);
         CustomPageSurface_MarkDirty(hWnd, &st->surface);
+        return 0;
+    }
+
+    if (msg == WM_APP_ENGINE_RUNTIME_STATE_CHANGED)
+    {
+        Global_UpdatePulse(hWnd, st);
+        if (st) CustomPageSurface_MarkDirty(hWnd, &st->surface);
         return 0;
     }
 
@@ -6506,13 +8315,17 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         HDC memDC = nullptr;
         HBITMAP bmp = nullptr;
         HGDIOBJ oldBmp = nullptr;
-        BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp, true);
         if (st)
         {
             st->surface.scrollY = st->scrollY;
+            if (st->loggingError != SupportLog_LastError())
+                Global_Layout(hWnd, st);
             st->surface.contentHeight = st->contentHeight;
             CustomPageSurface_Present(hWnd, memDC, &st->surface,
                 Global_RenderContent, st, st->scroll.draggingThumb);
+            Global_UpdatePulse(hWnd, st);
+            Global_DrawPulse(hWnd, memDC, st);
         }
         EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
         return 0;
@@ -6524,9 +8337,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         SetBkMode(hdc, TRANSPARENT);
 
         HWND hCtl = (HWND)lParam;
-        if (st && hCtl &&
-            ((st->lblHint && hCtl == st->lblHint) ||
-             (st->lblFactoryResetHint && hCtl == st->lblFactoryResetHint)))
+        if (st && hCtl && st->lblFactoryResetHint && hCtl == st->lblFactoryResetHint)
             SetTextColor(hdc, UiTheme::Color_TextMuted());
         else
             SetTextColor(hdc, UiTheme::Color_Text());
@@ -6560,17 +8371,20 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             0, 0, 10, 10, GLOB_ID_LAYOUT_COMBO,
             WS_CHILD | WS_VISIBLE | WS_TABSTOP);
         PremiumCombo::SetFont(st->cmbLayout, hFont, true);
+        st->layoutPicker.model = st->cmbLayout;
+        st->layoutPicker.brand = PremiumCombo::Create(hWnd, hInst,
+            0, 0, 10, 10, GLOB_ID_LAYOUT_BRAND, WS_CHILD | WS_TABSTOP);
+        PremiumCombo::SetFont(st->layoutPicker.brand, hFont, false);
+        PremiumCombo::SetDropMaxVisible(st->layoutPicker.brand, 10);
+        st->layoutPicker.variant = PremiumCombo::Create(hWnd, hInst,
+            0, 0, 10, 10, GLOB_ID_LAYOUT_VARIANT, WS_CHILD | WS_TABSTOP);
+        PremiumCombo::SetFont(st->layoutPicker.variant, hFont, false);
         Global_RefreshLayoutCombo(st);
 
-        st->btnLayoutEditor = CreateWindowW(L"BUTTON", L"Open Layout Editor Window",
+        st->btnLayoutEditor = CreateWindowW(L"BUTTON", L"Layout editor",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
             0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)GLOB_ID_LAYOUT_EDITOR, hInst, nullptr);
         SendMessageW(st->btnLayoutEditor, WM_SETFONT, (WPARAM)hFont, TRUE);
-
-        st->btnOpenLayoutsFolder = CreateWindowW(L"BUTTON", L"Open Layouts Folder",
-            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-            0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)GLOB_ID_LAYOUTS_FOLDER, hInst, nullptr);
-        SendMessageW(st->btnOpenLayoutsFolder, WM_SETFONT, (WPARAM)hFont, TRUE);
 
         st->lblPoll = CreateWindowW(L"STATIC", L"Polling rate",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
@@ -6594,11 +8408,6 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         st->chipUiRefresh = PremiumChip_Create(hWnd, hInst, 0, 0, 10, 10, GLOB_ID_UIREFRESH_SLIDER + 100);
         SendMessageW(st->chipUiRefresh, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblHint = CreateWindowW(L"STATIC",
-            L"Changes are applied immediately and saved automatically.",
-            WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
-        SendMessageW(st->lblHint, WM_SETFONT, (WPARAM)hFont, TRUE);
-
         st->lblFactoryReset = CreateWindowW(L"STATIC", L"Factory reset",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblFactoryReset, WM_SETFONT, (WPARAM)hFont, TRUE);
@@ -6618,9 +8427,9 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         // rendered by the page surface.
         HWND compatibilityChildren[] = {
             st->lblGlobalProfile, st->cmbGlobalProfile, st->lblLayout, st->cmbLayout,
-            st->btnLayoutEditor, st->btnOpenLayoutsFolder, st->lblPoll, st->sldPoll,
+            st->btnLayoutEditor, st->lblPoll, st->sldPoll,
             st->chipPoll, st->lblUiRefresh, st->sldUiRefresh, st->chipUiRefresh,
-            st->lblHint, st->lblFactoryReset, st->btnFactoryReset, st->lblFactoryResetHint
+            st->lblFactoryReset, st->btnFactoryReset, st->lblFactoryResetHint
         };
         for (HWND child : compatibilityChildren)
             if (child) ShowWindow(child, SW_HIDE);
@@ -6713,6 +8522,10 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
                 }
                 else if (pressed == GLOB_ID_LAYOUT_COMBO)
                     Global_OpenComboAnchor(hWnd, st, st->cmbLayout, st->rcLayout);
+                else if (pressed == GLOB_ID_LAYOUT_BRAND)
+                    Global_OpenComboAnchor(hWnd, st, st->layoutPicker.brand, st->rcLayoutBrand);
+                else if (pressed == GLOB_ID_LAYOUT_VARIANT)
+                    Global_OpenComboAnchor(hWnd, st, st->layoutPicker.variant, st->rcLayoutVariant);
                 else
                     PostMessageW(hWnd, WM_COMMAND, MAKEWPARAM(pressed, BN_CLICKED), 0);
             }
@@ -6767,7 +8580,26 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         }
         break;
 
+    case WM_SHOWWINDOW:
+        Global_UpdatePulse(hWnd, st);
+        if (!wParam && st)
+        {
+            KillTimer(hWnd, GLOBAL_PAUSE_PULSE_TIMER);
+            st->pausePulseTimer = false;
+        }
+        break;
+
     case WM_TIMER:
+        if (st && wParam == GLOBAL_PAUSE_PULSE_TIMER)
+        {
+            Global_UpdatePulse(hWnd, st);
+            if (st->pausePulseTimer)
+            {
+                RECT rc = Global_PulseRect(hWnd, st);
+                InvalidateRect(hWnd, &rc, FALSE);
+            }
+            return 0;
+        }
         if (st && wParam == TOAST_TIMER_ID)
         {
             const ULONGLONG now = GetTickCount64();
@@ -6816,7 +8648,6 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         const DRAWITEMSTRUCT* dis = (const DRAWITEMSTRUCT*)lParam;
         if (st && dis && dis->CtlType == ODT_BUTTON &&
             ((dis->CtlID == GLOB_ID_LAYOUT_EDITOR && st->btnLayoutEditor == dis->hwndItem) ||
-             (dis->CtlID == GLOB_ID_LAYOUTS_FOLDER && st->btnOpenLayoutsFolder == dis->hwndItem) ||
              (dis->CtlID == GLOB_ID_FACTORY_RESET && st->btnFactoryReset == dis->hwndItem)))
         {
             Global_DrawActionButton(dis, dis->CtlID == GLOB_ID_FACTORY_RESET);
@@ -6854,28 +8685,27 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             return 0;
         }
 
-        if (LOWORD(wParam) == (UINT)GLOB_ID_LAYOUT_COMBO && HIWORD(wParam) == CBN_SELCHANGE)
+        if (LOWORD(wParam) == GLOB_ID_LAYOUT_BRAND && HIWORD(wParam) == CBN_SELCHANGE)
+        {
+            st->layoutPicker.Browse(KeyboardLayout_GetCurrentPresetIndex());
+            Global_Layout(hWnd, st);
+            Global_CloseComboAnchors(st);
+            CustomPageSurface_MarkDirty(hWnd, &st->surface);
+            return 0;
+        }
+        if ((LOWORD(wParam) == GLOB_ID_LAYOUT_COMBO || LOWORD(wParam) == GLOB_ID_LAYOUT_VARIANT) && HIWORD(wParam) == CBN_SELCHANGE)
         {
             GlobalDeleteConfirm_Clear(hWnd, st);
-            int sel = PremiumCombo::GetCurSel(st->cmbLayout);
-            int count = PremiumCombo::GetCount(st->cmbLayout);
-            bool selIsCreateRow = (count > 0 && sel == count - 1);
-
-            if (selIsCreateRow)
-            {
-                PremiumCombo::ShowDropDown(st->cmbLayout, true);
-                PremiumCombo::BeginInlineEditSelected(st->cmbLayout, false);
-                return 0;
-            }
-
-            if (sel >= 0 && sel != KeyboardLayout_GetCurrentPresetIndex())
+            int sel = LOWORD(wParam) == GLOB_ID_LAYOUT_COMBO ? st->layoutPicker.ChooseModel() : st->layoutPicker.Selected();
+            if (sel >= 0 && sel < KeyboardLayout_GetPresetCount() && sel != KeyboardLayout_GetCurrentPresetIndex())
             {
                 KeyboardLayout_SetPresetIndex(sel);
                 Global_NotifyMainPage(hWnd);
                 Global_RequestSave(hWnd);
             }
-            PremiumCombo::ShowDropDown(st->cmbLayout, false);
-            ShowWindow(st->cmbLayout, SW_HIDE);
+            st->layoutPicker.Refresh(KeyboardLayout_GetCurrentPresetIndex(), true);
+            Global_CloseComboAnchors(st);
+            Global_Layout(hWnd, st);
             CustomPageSurface_MarkDirty(hWnd, &st->surface);
             return 0;
         }
@@ -6887,10 +8717,39 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             return 0;
         }
 
-        if (LOWORD(wParam) == (UINT)GLOB_ID_LAYOUTS_FOLDER && HIWORD(wParam) == BN_CLICKED)
+        if (LOWORD(wParam) == GLOB_ID_DIAGNOSTIC_LOGGING && HIWORD(wParam) == BN_CLICKED)
         {
-            GlobalDeleteConfirm_Clear(hWnd, st);
-            Global_OpenLayoutsFolder(hWnd);
+            Settings_SetDiagnosticLogging(!Settings_GetDiagnosticLogging());
+            Global_RequestSave(hWnd);
+            CustomPageSurface_MarkDirty(hWnd, &st->surface);
+            return 0;
+        }
+        if (LOWORD(wParam) == GLOB_ID_HALLJOY_FOLDER && HIWORD(wParam) == BN_CLICKED)
+        {
+            const auto directory = AppPaths_DataRoot();
+            if (!directory.empty()) {
+                CreateDirectoryW(directory.c_str(), nullptr);
+                ShellExecuteW(hWnd, L"open", directory.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+            }
+            return 0;
+        }
+        if (LOWORD(wParam) == GLOB_ID_DISCORD && HIWORD(wParam) == BN_CLICKED)
+        {
+            if (reinterpret_cast<INT_PTR>(ShellExecuteW(hWnd, L"open", kDiscordInviteUrl,
+                nullptr, nullptr, SW_SHOWNORMAL)) <= 32) {
+                const std::wstring error = std::wstring(L"Could not open Discord. Please try again or use the invite:\n") + kDiscordInviteUrl;
+                MessageBoxW(hWnd, error.c_str(),
+                    L"HallJoy", MB_OK | MB_ICONWARNING);
+            }
+            return 0;
+        }
+        if (LOWORD(wParam) == (UINT)GLOB_ID_ENGINE_RUNTIME && HIWORD(wParam) == BN_CLICKED)
+        {
+            if (!Global_EngineRuntimeButtonEnabled())
+                return 0;
+            HWND root = ResolveAppMainWindow(hWnd);
+            if (root)
+                PostMessageW(root, WM_APP_ENGINE_RUNTIME_TOGGLE, 0, 0);
             return 0;
         }
 
@@ -6912,6 +8771,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
                 return 0;
 
             DWORD error = ERROR_SUCCESS;
+            if (!KeyboardUI_CloseLayoutEditor()) return 0;
             if (!FactoryReset_Request(&error))
             {
                 wchar_t message[256]{};
@@ -6939,6 +8799,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             if (st->hToast && IsWindow(st->hToast))
                 DestroyWindow(st->hToast);
             st->hToast = nullptr;
+            KillTimer(hWnd, GLOBAL_PAUSE_PULSE_TIMER);
             CustomPageSurface_Destroy(&st->surface);
             delete st;
             SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);
@@ -6950,7 +8811,222 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
 }
 
 // ============================================================================
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool KeyboardSubpages_TestLayoutPicker()
+{
+    if (AppPaths_Mode() != AppDataMode::SimulatorOverride) return false;
+    HDESK previous = GetThreadDesktop(GetCurrentThreadId());
+    wchar_t name[80]{}; swprintf_s(name, L"HallJoyPickerTest-%lu", GetCurrentProcessId());
+    HDESK desktop = CreateDesktopW(name, nullptr, nullptr, 0, GENERIC_ALL, nullptr);
+    if (!desktop) return false;
+    if (!SetThreadDesktop(desktop)) { CloseDesktop(desktop); return false; }
+    const int saved = KeyboardLayout_GetCurrentPresetIndex();
+    KeyboardLayout_SetPresetIndex(0);
+    WNDCLASSW wc{}; wc.lpfnWndProc = KeyboardSubpages_GlobalSettingsPageProc;
+    wc.hInstance = GetModuleHandleW(nullptr); wc.lpszClassName = L"HallJoyPickerTestPage";
+    RegisterClassW(&wc);
+    HWND owner = CreateWindowW(L"STATIC", L"", WS_OVERLAPPEDWINDOW,
+        0, 0, 900, 800, nullptr, nullptr, wc.hInstance, nullptr);
+    HWND page = CreateWindowW(wc.lpszClassName, L"", WS_CHILD,
+        0, 0, 850, 750, owner, nullptr, wc.hInstance, nullptr);
+    auto* st = (GlobalSettingsPageState*)GetWindowLongPtrW(page, GWLP_USERDATA);
+    bool ok = st && owner;
+    if (st) {
+        auto& picker = st->layoutPicker;
+        ok &= picker.Selected() == 0 && picker.browsing == L"DrunkDeer";
+        const auto snapshot = KeyboardLayout_GetSnapshot();
+        auto browse = [&](const wchar_t* brand) {
+            auto it = std::find(picker.brands.begin(), picker.brands.end(), brand);
+            PremiumCombo::SetCurSel(picker.brand, (int)(it - picker.brands.begin()), false);
+            SendMessageW(page, WM_COMMAND, MAKEWPARAM(GLOB_ID_LAYOUT_BRAND, CBN_SELCHANGE), (LPARAM)picker.brand);
+        };
+        ok &= picker.brands.front() == L"All";
+        browse(L"All");
+        size_t represented=0;
+        for (const auto& group : picker.groups) represented+=group.members.size();
+        ok &= represented == (size_t)KeyboardLayout_GetPresetCount();
+        ok &= picker.groups.size() < represented;
+        ok &= KeyboardLayout_GetSnapshot() == snapshot;
+        for (int i = 0; i < KeyboardLayout_GetPresetCount(); ++i) {
+            wchar_t label[512]{};
+            PremiumCombo::GetLBText(picker.model, picker.Row(i), label, (int)std::size(label));
+            ok &= std::wstring(label) == LayoutPicker::ModelName(i,true);
+        }
+        PremiumCombo::SetCurSel(picker.model, picker.Row(4), false);
+        SendMessageW(page, WM_COMMAND, MAKEWPARAM(GLOB_ID_LAYOUT_COMBO, CBN_SELCHANGE), (LPARAM)picker.model);
+        Global_UpdateUi(st);
+        ok &= KeyboardLayout_GetCurrentPresetIndex() == 4 && picker.browsing == L"All" && picker.Selected() == 4;
+        picker.Refresh(4, true);
+        ok &= picker.browsing == L"All" && std::wstring(picker.CreationBrand()) == L"Custom";
+        KeyboardLayout_SetPresetIndex(0);
+        Global_UpdateUi(st);
+        browse(L"Keychron");
+        Global_UpdateUi(st); // A normal settings refresh must not undo browsing.
+        ok &= picker.browsing == L"Keychron" && picker.Selected() == LayoutPicker::Invalid;
+        ok &= KeyboardLayout_GetCurrentPresetIndex() == 0;
+        size_t keychronCount = 0;
+        for (int i = 0; i < KeyboardLayout_GetPresetCount(); ++i)
+            if (KeyboardLayout_GetPresetBrand(i) == L"Keychron") ++keychronCount;
+        represented=0;
+        for (const auto& group : picker.groups) represented+=group.members.size();
+        ok &= represented == keychronCount && picker.Row(0) < 0 && !picker.HasVariants();
+        ok &= LayoutPicker::ModelName(picker.PresetAt(0), false) == L"K2 HE";
+        ok &= LayoutPicker::VariantName(picker.PresetAt(0)) == L"JIS"; // ANSI/ISO belong to the shared K2/K3 model.
+        for (size_t row=1;row<picker.presets.size();++row)
+            ok &= !halljoy::layout_sort::Less(picker.groups[row].label, picker.groups[row-1].label);
+        const int keychron = picker.PresetAt(0);
+        // Exercise the production scrollbar against an actual popup on this
+        // private desktop; never move the user's real cursor.
+        PremiumCombo::ShowDropDown(picker.model, true);
+        auto* combo = PremiumComboInternal::Get(picker.model);
+        if (combo && combo->hwndPopup) {
+            using namespace PremiumComboInternal;
+            SetWindowPos(combo->hwndPopup, nullptr, 0, 0, 300, 200, SWP_NOZORDER | SWP_NOACTIVATE);
+            ScrollGeometry g;
+            ok &= GetScrollGeometry(combo, g);
+            const int selected = combo->curSel;
+            auto screen = [&](int x, int y) { POINT p{x,y}; ClientToScreen(combo->hwndPopup, &p); return p; };
+            POINT grab = screen(g.thumb.left, g.thumb.top+2);
+            bool inside = false;
+            ok &= HitTestPopupIndexFromScreen(combo, grab, inside) == -1 && inside;
+            ok &= ScrollMouseDown(combo, grab) && combo->scrollDragging;
+            ScrollMouseMove(combo, screen(-100, 10000));
+            ok &= combo->scrollTop == GetMaxScrollTop(combo) && combo->curSel == selected && combo->dropped;
+            ScrollMouseMove(combo, screen(1000, -10000));
+            ok &= combo->scrollTop == 0;
+            SendMessageW(picker.model, WM_LBUTTONUP, 0, 0);
+            ok &= !combo->scrollDragging && combo->dropped && combo->curSel == selected;
+            ok &= ScrollMouseDown(combo, screen(g.track.left, g.track.bottom-1));
+            ok &= combo->scrollTop > 0 && !combo->scrollDragging && combo->curSel == selected;
+            GetScrollGeometry(combo, g);
+            ok &= ScrollMouseDown(combo, screen(g.thumb.left, g.thumb.top+2));
+            SendMessageW(picker.model, WM_CANCELMODE, 0, 0);
+            ok &= !combo->scrollDragging && !combo->dropped && combo->curSel == selected;
+        } else ok = false;
+        PremiumCombo::ShowDropDown(picker.model, false);
+        PremiumCombo::SetCurSel(picker.model, 0, false);
+        SendMessageW(page, WM_COMMAND, MAKEWPARAM(GLOB_ID_LAYOUT_COMBO, CBN_SELCHANGE), (LPARAM)picker.model);
+        ok &= KeyboardLayout_GetCurrentPresetIndex() == keychron && keychron != 0;
+        browse(L"Lemokey");
+        ok &= picker.presets.size()==1 && !picker.HasVariants();
+        PremiumCombo::SetCurSel(picker.model,0,false);
+        SendMessageW(page,WM_COMMAND,MAKEWPARAM(GLOB_ID_LAYOUT_COMBO,CBN_SELCHANGE),(LPARAM)picker.model);
+        ok &= picker.HasVariants() && picker.variants.size()==2;
+        ok &= st->rcLayout.right < st->rcLayoutVariant.left;
+        for (int row=0;row<2;++row) {
+            ok &= LayoutPicker::VariantName(picker.VariantAt(row)) == (row==0 ? L"ANSI" : L"ISO");
+            PremiumCombo::SetCurSel(picker.variant,row,false);
+            SendMessageW(page,WM_COMMAND,MAKEWPARAM(GLOB_ID_LAYOUT_VARIANT,CBN_SELCHANGE),(LPARAM)picker.variant);
+            ok &= KeyboardLayout_Count()==(row==0 ? 81 : 82);
+            bool enter=false;
+            for (int i=0;i<KeyboardLayout_Count();++i) {
+                const auto& key=KeyboardLayout_Data()[i];
+                if (key.hid==40) { enter=true; ok &= (key.notchW>0)==(row==1); }
+            }
+            ok &= enter;
+        }
+        browse(L"DrunkDeer");
+        ok &= picker.presets.size()==5;
+        struct DrunkDeerExpected { const wchar_t* name; int count; bool compound; };
+        for (const auto& expected : {DrunkDeerExpected{L"A75 ANSI",82,false},
+            {L"A75 Pro",82,false},{L"A75 ISO",83,true},{L"G60 ANSI",61,false},
+            {L"G65 ANSI",68,false},{L"G75 ANSI",84,false},{L"G75 JIS",86,true}}) {
+            int target=-1;
+            for (int i=0;i<KeyboardLayout_GetPresetCount();++i)
+                if (KeyboardLayout_GetPresetBrand(i)==L"DrunkDeer" && KeyboardLayout_GetPresetModel(i)==expected.name) target=i;
+            ok &= target>=0 && picker.Row(target)>=0;
+            PremiumCombo::SetCurSel(picker.model,picker.Row(target),false);
+            SendMessageW(page,WM_COMMAND,MAKEWPARAM(GLOB_ID_LAYOUT_COMBO,CBN_SELCHANGE),(LPARAM)picker.model);
+            const auto variant=std::find(picker.variants.begin(),picker.variants.end(),target);
+            ok &= variant!=picker.variants.end();
+            PremiumCombo::SetCurSel(picker.variant,(int)(variant-picker.variants.begin()),false);
+            SendMessageW(page,WM_COMMAND,MAKEWPARAM(GLOB_ID_LAYOUT_VARIANT,CBN_SELCHANGE),(LPARAM)picker.variant);
+            ok &= picker.Selected()==target && KeyboardLayout_Count()==expected.count;
+            bool found=false;
+            for (int i=0;i<KeyboardLayout_Count();++i) {
+                const auto& key=KeyboardLayout_Data()[i];
+                if (key.hid==40) { found=true; ok &= (key.notchW>0)==expected.compound; }
+            }
+            ok &= found;
+        }
+        KeyboardLayout_SetPresetIndex(keychron);
+        Global_UpdateUi(st);
+        browse(L"Custom");
+        ok &= picker.Selected() == LayoutPicker::Invalid;
+        ok &= KeyboardLayout_GetCurrentPresetIndex() == keychron;
+        KeyboardLayout_SetPresetIndex(2);
+        SendMessageW(page, WM_APP_KEYBOARD_LAYOUT_CHANGED, 0, 0);
+        ok &= picker.browsing == L"Other" && picker.Selected() == 2;
+        ok &= st->rcLayoutBrand.right < st->rcLayout.left && st->rcLayoutBrand.top == st->rcLayout.top;
+        const int count = KeyboardLayout_GetPresetCount();
+        int transient = -1;
+        ok &= KeyboardLayout_CreatePreset(L"Picker Transient", &transient, 0, false);
+        ok &= transient >= 0 && KeyboardLayout_DeletePreset(transient);
+        ok &= KeyboardLayout_GetPresetCount() == count && !picker.Current();
+        ok &= picker.Selected() == LayoutPicker::Invalid; // Same count, stale row map.
+        Global_UpdateUi(st);
+        ok &= picker.Current() && picker.Selected() == 2;
+        // Every concrete variant is reachable, round-trips through refresh and
+        // never offers another model's geometry. All remains the selected view.
+        browse(L"All");
+        for (int target=0;target<KeyboardLayout_GetPresetCount();++target) {
+            PremiumCombo::SetCurSel(picker.model,picker.Row(target),false);
+            SendMessageW(page,WM_COMMAND,MAKEWPARAM(GLOB_ID_LAYOUT_COMBO,CBN_SELCHANGE),(LPARAM)picker.model);
+            const auto it=std::find(picker.variants.begin(),picker.variants.end(),target);
+            ok &= it!=picker.variants.end();
+            PremiumCombo::SetCurSel(picker.variant,(int)(it-picker.variants.begin()),false);
+            SendMessageW(page,WM_COMMAND,MAKEWPARAM(GLOB_ID_LAYOUT_VARIANT,CBN_SELCHANGE),(LPARAM)picker.variant);
+            picker.Refresh(target,true);
+            ok &= picker.Selected()==target && KeyboardLayout_GetCurrentPresetIndex()==target && picker.browsing==L"All";
+            ok &= picker.HasVariants()==(picker.groups[picker.Row(target)].members.size()>1);
+            for (int member : picker.variants)
+                ok &= KeyboardLayout_GetPresetBrand(member)==KeyboardLayout_GetPresetBrand(target) &&
+                    LayoutPicker::ModelName(member,false)==LayoutPicker::ModelName(target,false);
+        }
+        // Exercise variant-specific editor cancellation and two-step deletion
+        // on disposable catalog entries, never on the user's actual layouts.
+        int ansi=-1,iso=-1;
+        ok &= KeyboardLayout_CreatePreset(L"Variant Test ANSI",&ansi,0,false,L"DrunkDeer");
+        ok &= KeyboardLayout_CreatePreset(L"Variant Test ISO",&iso,0,false,L"DrunkDeer");
+        LayoutEditor_OpenWindow(owner,ansi);
+        auto* host=(LayoutEditorHostState*)GetWindowLongPtrW(g_hLayoutEditorWindow,GWLP_USERDATA);
+        auto* draft=host ? (LayoutPageState*)GetWindowLongPtrW(host->hPage,GWLP_USERDATA) : nullptr;
+        if (draft) {
+            const HWND editor=host->hPage;
+            ok &= draft->layoutPicker.HasVariants() && draft->layoutPicker.Row(ansi)==draft->layoutPicker.Row(iso);
+            SendMessageW(editor,WM_COMMAND,MAKEWPARAM(ID_LAYOUT_ADD,BN_CLICKED),0);
+            g_layoutTestDecision=IDCANCEL;
+            PremiumCombo::SetCurSel(draft->layoutPicker.variant,1,false);
+            SendMessageW(editor,WM_COMMAND,MAKEWPARAM(ID_LAYOUT_VARIANT,CBN_SELCHANGE),(LPARAM)draft->layoutPicker.variant);
+            ok &= draft->hasUnsaved && draft->editingPresetIdx==ansi && draft->layoutPicker.Selected()==ansi;
+            g_layoutTestDecision=IDNO;
+            PremiumCombo::SetCurSel(draft->layoutPicker.variant,1,false);
+            SendMessageW(editor,WM_COMMAND,MAKEWPARAM(ID_LAYOUT_VARIANT,CBN_SELCHANGE),(LPARAM)draft->layoutPicker.variant);
+            ok &= !draft->hasUnsaved && draft->editingPresetIdx==iso && draft->layoutPicker.Selected()==iso;
+            const HWND variants=draft->layoutPicker.variant;
+            const int beforeDelete=KeyboardLayout_GetPresetCount();
+            SendMessageW(editor,PremiumCombo::MsgItemButton(),MAKEWPARAM(1,(int)PremiumCombo::ItemButtonKind::Delete),(LPARAM)variants);
+            ok &= KeyboardLayout_GetPresetCount()==beforeDelete && PremiumCombo::GetDeleteConfirmation(variants)==1;
+            SendMessageW(editor,PremiumCombo::MsgItemButton(),MAKEWPARAM(1,(int)PremiumCombo::ItemButtonKind::ConfirmDelete),(LPARAM)variants);
+            ok &= KeyboardLayout_GetPresetCount()==beforeDelete-1;
+            ok &= std::wstring(KeyboardLayout_GetPresetName(ansi))==L"Variant Test ANSI";
+            if (IsWindow(g_hLayoutEditorWindow)) ok &= KeyboardUI_CloseLayoutEditor();
+        } else ok=false;
+        g_layoutTestDecision=0;
+        ok &= KeyboardLayout_DeletePreset(ansi);
+    }
+    if (owner) DestroyWindow(owner);
+    UnregisterClassW(wc.lpszClassName, wc.hInstance);
+    KeyboardLayout_SetPresetIndex(saved);
+    ok &= SetThreadDesktop(previous) != FALSE;
+    CloseDesktop(desktop);
+    return ok;
+}
+#endif
+
 // Mouse settings page
+// Disabled in keyboard_page_main.cpp: this part currently works poorly.
+// Retained as a foundation for future repair; do not remove the implementation.
 // ============================================================================
 struct MouseSettingsPageState
 {
@@ -8563,6 +10639,8 @@ struct ConfigPageState
     HWND sldLastKeyPrioritySensitivity = nullptr;
     HWND chipLastKeyPrioritySensitivity = nullptr;
     HWND chkBlockBoundKeys = nullptr;
+    bool blockShortcutCapturing = false;
+    std::wstring blockShortcutError;
     HWND btnAnalogSelfTest = nullptr;
     HWND lblAnalogSelfTest = nullptr;
 
@@ -8663,6 +10741,11 @@ static void Config_UpdateLkpSensitivityUi(ConfigPageState* st)
 static void Config_RefreshFromCurrentSettings(HWND hWnd, ConfigPageState* st)
 {
     if (!st) return;
+    if (!Settings_GetBlockBoundKeys()) {
+        st->blockShortcutCapturing = false;
+        App_SetBlockKeysHotkeyCapture(false);
+        st->hotCustomId = st->pressedCustomId = 0;
+    }
 
     if (st->chkSnappy && IsWindow(st->chkSnappy))
     {
@@ -8936,9 +11019,86 @@ static RECT Config_CustomLkpChipRect(HWND hWnd)
     return Config_Rect(slider.right + S(hWnd, 8), slider.top, S(hWnd, 68), slider.bottom - slider.top);
 }
 
+static RECT Config_BlockAllowRect(HWND hWnd)
+{
+    const auto row = Config_CustomToggleRect(hWnd, 2);
+    return Config_Rect(S(hWnd, 36), row.bottom + S(hWnd, 12), S(hWnd, 440), S(hWnd, 26));
+}
+
+static RECT Config_BlockShortcutRect(HWND hWnd)
+{
+    const auto row = Config_BlockAllowRect(hWnd);
+    return Config_Rect(S(hWnd, 154), row.bottom + S(hWnd, 8), S(hWnd, 210), S(hWnd, 30));
+}
+
+static RECT Config_BlockShortcutClearRect(HWND hWnd)
+{
+    const auto row = Config_BlockShortcutRect(hWnd);
+    return Config_Rect(row.right + S(hWnd, 8), row.top, S(hWnd, 70), row.bottom - row.top);
+}
+
+static int Config_BlockOptionsSpace(HWND hWnd)
+{
+    if (!Settings_GetBlockBoundKeys()) return 0;
+    auto* st = reinterpret_cast<ConfigPageState*>(GetWindowLongPtrW(hWnd, GWLP_USERDATA));
+    const bool error = (st && !st->blockShortcutError.empty()) || App_BlockKeysHotkeyError() != 0;
+    return S(hWnd, 88) + (error ? S(hWnd, 34) : 0);
+}
+
+static std::wstring Config_BlockShortcutText()
+{
+    const UINT chord = Settings_GetBlockKeysHotkey();
+    if (!chord) return L"Set shortcut";
+    std::wstring text;
+    const UINT mods = chord >> 8;
+    if (mods & MOD_CONTROL) text += L"Ctrl + ";
+    if (mods & MOD_ALT) text += L"Alt + ";
+    if (mods & MOD_SHIFT) text += L"Shift + ";
+    if (mods & MOD_WIN) text += L"Win + ";
+    const UINT scan = MapVirtualKeyW(chord & 255, MAPVK_VK_TO_VSC_EX);
+    wchar_t key[64]{};
+    LONG flags = (scan & 255) << 16;
+    if ((scan & 0xff00) == 0xe000) flags |= 1 << 24;
+    if (!GetKeyNameTextW(flags, key, _countof(key))) swprintf_s(key, L"Key %u", chord & 255);
+    return text + key;
+}
+
+static RECT Config_PrivilegeWarningRect(HWND hWnd)
+{
+    RECT client{};
+    GetClientRect(hWnd, &client);
+    RECT rc = Config_CustomToggleRect(hWnd, 2);
+    rc.top = rc.bottom + Config_BlockOptionsSpace(hWnd) + S(hWnd, 6);
+    rc.left = S(hWnd, 12);
+    rc.right = (std::max)(rc.left + S(hWnd, 80), client.right - S(hWnd, 28));
+    // Measure only when the wrapping width/DPI changes, not on graph repaints.
+    static int measuredWidth = -1, measuredScale = -1, measuredHeight = 0;
+    const int width = rc.right - rc.left, scale = S(hWnd, 18);
+    if (width != measuredWidth || scale != measuredScale) {
+        HDC dc = GetDC(hWnd);
+        if (!dc) { rc.bottom = rc.top + S(hWnd, 72); return rc; }
+        HGDIOBJ old = SelectObject(dc, GetStockObject(SYSTEM_FONT));
+        RECT measured = rc;
+        DrawTextW(dc, halljoy::input_privilege::kText, -1, &measured, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX | DT_CALCRECT);
+        SelectObject(dc, old);
+        ReleaseDC(hWnd, dc);
+        measuredWidth = width; measuredScale = scale;
+        measuredHeight = (std::max)(scale, static_cast<int>(measured.bottom - measured.top));
+    }
+    rc.bottom = rc.top + measuredHeight;
+    return rc;
+}
+
+static int Config_PrivilegeWarningSpace(HWND hWnd)
+{
+    if (!halljoy::input_privilege::detector.warning) return 0;
+    const RECT rc = Config_PrivilegeWarningRect(hWnd);
+    return rc.bottom - rc.top + S(hWnd, 12);
+}
+
 static RECT Config_CustomSparkModeLabelRect(HWND hWnd)
 {
-    int y = Config_CustomToggleRect(hWnd, 2).bottom + S(hWnd, 10);
+    int y = Config_CustomToggleRect(hWnd, 2).bottom + S(hWnd, 10) + Config_BlockOptionsSpace(hWnd) + Config_PrivilegeWarningSpace(hWnd);
     return Config_Rect(S(hWnd, 12), y, S(hWnd, 112), S(hWnd, 28));
 }
 
@@ -8983,6 +11143,11 @@ static std::vector<std::wstring> BuildAnalogDiagnosticsLines(
 {
     std::vector<std::wstring> lines;
     wchar_t line[768]{};
+
+    if (halljoy::keyboard_support::GetStatusSnapshot().analogSourceConnected)
+        lines.emplace_back(L"Analog keyboard: connected and visible to HallJoy.");
+    else
+        lines.emplace_back(L"Analog keyboard: not currently detected. If you have an analog keyboard, ask for support in Discord.");
 
     if (t.mad68Present)
     {
@@ -9328,12 +11493,12 @@ static std::vector<std::wstring> BuildAnalogDiagnosticsLines(
 
 static RECT Config_CustomStatusRect(HWND hWnd, ConfigPageState* st)
 {
-    int y = Config_CustomToggleRect(hWnd, 2).bottom + S(hWnd, 10);
+    int y = Config_CustomToggleRect(hWnd, 2).bottom + S(hWnd, 10) + Config_BlockOptionsSpace(hWnd) + Config_PrivilegeWarningSpace(hWnd);
     BackendAnalogTelemetry t{};
     Backend_GetAnalogTelemetry(&t);
     if (t.sparkConnected)
         y += S(hWnd, 28) + S(hWnd, 10);
-    return Config_Rect(S(hWnd, 12), y, S(hWnd, 720), S(hWnd, 36));
+    return Config_Rect(S(hWnd, 12), y, S(hWnd, 720), S(hWnd, 18));
 }
 
 static void Config_DrawCustomToggle(HWND hWnd, HDC hdc, Gdiplus::Graphics& g, const RECT& rc, const std::wstring& text, bool checked, bool enabled)
@@ -9383,6 +11548,38 @@ static void Config_DrawCustomControls(HWND hWnd, HDC hdc, ConfigPageState* st)
     CustomPage_DrawChip(g, hdc, Config_ToViewRect(Config_CustomLkpChipRect(hWnd), st), chip, Settings_GetLastKeyPriority());
 
     Config_DrawCustomToggle(hWnd, hdc, g, Config_ToViewRect(Config_CustomToggleRect(hWnd, 2), st), L"Block Bound Keys", Settings_GetBlockBoundKeys(), true);
+    if (Settings_GetBlockBoundKeys()) {
+    // Inset children and a quiet connecting rail express ownership without
+    // introducing another heading/font or a permanently empty container.
+    RECT group = Config_BlockAllowRect(hWnd);
+    group.left = S(hWnd, 20);
+    group.bottom = Config_CustomToggleRect(hWnd, 2).bottom + Config_BlockOptionsSpace(hWnd) - S(hWnd, 8);
+    group = Config_ToViewRect(group, st);
+    Gdiplus::Pen rail(Gp(UiTheme::Color_Border()), static_cast<Gdiplus::REAL>(S(hWnd, 2)));
+    g.DrawLine(&rail, static_cast<INT>(group.left), static_cast<INT>(group.top),
+        static_cast<INT>(group.left), static_cast<INT>(group.bottom));
+    Config_DrawCustomToggle(hWnd, hdc, g, Config_ToViewRect(Config_BlockAllowRect(hWnd), st),
+        L"Keep Alt and Tab unblocked", Settings_GetBlockKeysAllowAltTab(), true);
+    RECT shortcut = Config_BlockShortcutRect(hWnd);
+    RECT label = shortcut; label.left = S(hWnd, 36); label.right = shortcut.left - S(hWnd, 8);
+    CustomPage_DrawText(hdc, L"Toggle shortcut", Config_ToViewRect(label, st), UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    CustomPage_DrawButton(g, hdc, Config_ToViewRect(shortcut, st),
+        st->blockShortcutCapturing ? L"Press shortcut..." : Config_BlockShortcutText(),
+        st->blockShortcutCapturing || st->hotCustomId == ID_BLOCK_KEYS_SHORTCUT,
+        st->pressedCustomId == ID_BLOCK_KEYS_SHORTCUT, true);
+    CustomPage_DrawButton(g, hdc, Config_ToViewRect(Config_BlockShortcutClearRect(hWnd), st), L"Clear",
+        st->hotCustomId == ID_BLOCK_KEYS_CLEAR_SHORTCUT, st->pressedCustomId == ID_BLOCK_KEYS_CLEAR_SHORTCUT,
+        Settings_GetBlockKeysHotkey() != 0);
+    if (!st->blockShortcutError.empty() || App_BlockKeysHotkeyError()) {
+        RECT error{S(hWnd, 36), shortcut.bottom + S(hWnd, 6), S(hWnd, 720), shortcut.bottom + S(hWnd, 34)};
+        CustomPage_DrawText(hdc, st->blockShortcutError.empty() ? L"Shortcut unavailable. Click to reassign it." : st->blockShortcutError,
+            Config_ToViewRect(error, st), RGB(235, 185, 100), DT_LEFT | DT_WORDBREAK);
+    }
+    }
+    if (halljoy::input_privilege::detector.warning)
+        CustomPage_DrawText(hdc, halljoy::input_privilege::kText,
+            Config_ToViewRect(Config_PrivilegeWarningRect(hWnd), st), RGB(235, 185, 100),
+            DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
 
     BackendAnalogTelemetry t{};
     Backend_GetAnalogTelemetry(&t);
@@ -9407,22 +11604,8 @@ static void Config_DrawCustomControls(HWND hWnd, HDC hdc, ConfigPageState* st)
 static void Config_DrawLiveStatus(HWND hWnd, HDC hdc, ConfigPageState* st)
 {
     if (!st || !st->customControls) return;
-    BackendAnalogTelemetry t{};
-    Backend_GetAnalogTelemetry(&t);
-    std::wstring source = L"No analog source connected";
-    if (t.sparkConnected) source = L"SparkLink connected";
-    else if (t.mad68Connected) source = L"MADLIONS native input connected";
-    else if (t.hex80Connected) source = L"Hex80 native input connected";
-    else if (t.addressedConnected) source = L"Addressed analog input connected";
-    else if (t.sayoConnected) source = L"SayoDevice connected";
-    else if (t.sdkInitialised) source = L"Analog SDK active";
-    else if (t.nativeProtocolCount > 0) source = L"Native analog source detected";
-
     RECT row = Config_ToViewRect(Config_CustomStatusRect(hWnd, st), st);
     row.bottom = row.top + S(hWnd, 18);
-    CustomPage_DrawText(hdc, source + L" | Live diagnostics: Gamepad Tester", row,
-        UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-    OffsetRect(&row, 0, S(hWnd, 18));
     if (!st->profileStatusText.empty())
         CustomPage_DrawText(hdc, st->profileStatusText, row, UiTheme::Color_TextMuted(),
             DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
@@ -9541,6 +11724,9 @@ static bool Config_HandleCustomControlsMouse(HWND hWnd, ConfigPageState* st, UIN
     if (hit(Config_CustomToggleRect(hWnd, 0))) hitId = ID_SNAPPY;
     else if (hit(Config_CustomToggleRect(hWnd, 1))) hitId = ID_LAST_KEY_PRIORITY;
     else if (hit(Config_CustomToggleRect(hWnd, 2))) hitId = ID_BLOCK_BOUND_KEYS;
+    else if (Settings_GetBlockBoundKeys() && hit(Config_BlockAllowRect(hWnd))) hitId = ID_BLOCK_KEYS_ALLOW_ALT_TAB;
+    else if (Settings_GetBlockBoundKeys() && hit(Config_BlockShortcutRect(hWnd))) hitId = ID_BLOCK_KEYS_SHORTCUT;
+    else if (Settings_GetBlockBoundKeys() && Settings_GetBlockKeysHotkey() && hit(Config_BlockShortcutClearRect(hWnd))) hitId = ID_BLOCK_KEYS_CLEAR_SHORTCUT;
     else if (st->sparkControlsVisible && hit(Config_CustomSparkModeRect(hWnd))) hitId = ID_SPARK_POLL_MODE;
     else if (st->sparkControlsVisible && hit(Config_CustomSparkRowsRect(hWnd))) hitId = ID_SPARK_ROW_LIMIT;
     else if (hit(Config_CustomLkpSliderRect(hWnd))) hitId = ID_LAST_KEY_PRIORITY_SENS_SLIDER;
@@ -10195,9 +12381,109 @@ static bool DeletePreset_NoPopup_ConfigPage(HWND hWnd, ConfigPageState* st, int 
     return false;
 }
 
+static void Config_EndBlockShortcutCapture(HWND hWnd, ConfigPageState* st)
+{
+    if (!st) return;
+    st->blockShortcutCapturing = false;
+    App_SetBlockKeysHotkeyCapture(false);
+    Config_MarkSurfaceDirty(hWnd, st);
+}
+
+static void Config_CommitBlockShortcut(HWND hWnd, ConfigPageState* st, UINT chord)
+{
+    if (!st) return;
+    Config_EndBlockShortcutCapture(hWnd, st);
+    const DWORD error = App_SetBlockKeysHotkey(chord);
+    if (error) {
+        st->blockShortcutError = error == ERROR_HOTKEY_ALREADY_REGISTERED
+            ? L"Shortcut is already in use. Choose another."
+            : L"This shortcut is unavailable. Choose another.";
+    } else {
+        st->blockShortcutError.clear();
+        HWND root = GetAncestor(hWnd, GA_ROOT);
+        if (root) PostMessageW(root, WM_APP_REQUEST_SAVE, 0, 0);
+    }
+    Config_RecalcContentHeight(hWnd, st);
+    Config_MarkSurfaceDirty(hWnd, st);
+}
+
 LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     auto* st = (ConfigPageState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+    if (msg == halljoy::main_input::QueryExplicitInput())
+        return st && st->blockShortcutCapturing ? 1 : 0;
+    if (st && st->blockShortcutCapturing && !Settings_GetBlockBoundKeys())
+        Config_EndBlockShortcutCapture(hWnd, st);
+    if (msg == WM_APP_BLOCK_KEYS_CHANGED) {
+        if (st) {
+            Config_RefreshFromCurrentSettings(hWnd, st);
+            Config_RecalcContentHeight(hWnd, st);
+            Config_MarkSurfaceDirty(hWnd, st);
+        }
+        return 0;
+    }
+    if (msg == WM_APP_BLOCK_KEYS_CANCEL_CAPTURE) {
+        if (st && st->blockShortcutCapturing) Config_EndBlockShortcutCapture(hWnd, st);
+        return 0;
+    }
+    if (msg == WM_APP_BLOCK_KEYS_CAPTURED) {
+        if (st && st->blockShortcutCapturing)
+            Config_CommitBlockShortcut(hWnd, st, (LOWORD(lParam) << 8) | HIWORD(lParam));
+        return 0;
+    }
+    if (st && st->blockShortcutCapturing) {
+        if (msg == WM_GETDLGCODE) return DLGC_WANTALLKEYS;
+        if (msg == WM_KILLFOCUS || msg == WM_DESTROY || (msg == WM_SHOWWINDOW && !wParam))
+            Config_EndBlockShortcutCapture(hWnd, st);
+        if (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN) {
+            if (wParam == VK_ESCAPE) { Config_EndBlockShortcutCapture(hWnd, st); return 0; }
+            if ((lParam & (1LL << 30)) != 0) return 0; // Auto-repeat is not a new assignment.
+            UINT mods = 0;
+            if (GetKeyState(VK_CONTROL) & 0x8000) mods |= MOD_CONTROL;
+            if (GetKeyState(VK_MENU) & 0x8000) mods |= MOD_ALT;
+            if (GetKeyState(VK_SHIFT) & 0x8000) mods |= MOD_SHIFT;
+            if ((GetKeyState(VK_LWIN) | GetKeyState(VK_RWIN)) & 0x8000) mods |= MOD_WIN;
+            const UINT chord = (mods << 8) | static_cast<UINT>(wParam);
+            if (halljoy::block_keys::ValidShortcut(chord)) Config_CommitBlockShortcut(hWnd, st, chord);
+            return 0;
+        }
+        if (msg == WM_KEYUP || msg == WM_SYSKEYUP) return 0;
+    }
+    if (msg == WM_COMMAND && HIWORD(wParam) == BN_CLICKED && st) {
+        // Ignore queued clicks belonging to controls that have just collapsed.
+        if (!Settings_GetBlockBoundKeys() &&
+            (LOWORD(wParam) == ID_BLOCK_KEYS_ALLOW_ALT_TAB || LOWORD(wParam) == ID_BLOCK_KEYS_SHORTCUT ||
+             LOWORD(wParam) == ID_BLOCK_KEYS_CLEAR_SHORTCUT)) return 0;
+        if (LOWORD(wParam) == ID_BLOCK_KEYS_ALLOW_ALT_TAB) {
+            Settings_SetBlockKeysAllowAltTab(!Settings_GetBlockKeysAllowAltTab());
+            HWND root = GetAncestor(hWnd, GA_ROOT);
+            if (root) PostMessageW(root, WM_APP_REQUEST_SAVE, 0, 0);
+            Config_MarkSurfaceDirty(hWnd, st);
+            return 0;
+        }
+        if (LOWORD(wParam) == ID_BLOCK_KEYS_SHORTCUT) {
+            Config_ClosePopupAnchors(st);
+            SetFocus(hWnd);
+            st->blockShortcutError.clear();
+            st->blockShortcutCapturing = true;
+            App_SetBlockKeysHotkeyCapture(true);
+            Config_RecalcContentHeight(hWnd, st);
+            Config_MarkSurfaceDirty(hWnd, st);
+            return 0;
+        }
+        if (LOWORD(wParam) == ID_BLOCK_KEYS_CLEAR_SHORTCUT) {
+            Config_CommitBlockShortcut(hWnd, st, 0);
+            return 0;
+        }
+    }
+    if (msg == halljoy::input_privilege::kChangedMessage)
+    {
+        if (st) {
+            Config_RecalcContentHeight(hWnd, st);
+            Config_MarkSurfaceDirty(hWnd, st);
+        }
+        return 0;
+    }
 
     if (msg == PremiumCombo::MsgDropStateChanged())
     {
@@ -10214,6 +12500,8 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
     {
         if (st)
             Config_RefreshFromCurrentSettings(hWnd, st);
+        if (st)
+            Config_RecalcContentHeight(hWnd, st);
         if (st)
             Config_MarkSurfaceDirty(hWnd, st);
         return 0;
@@ -10957,83 +13245,8 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:
     {
-        HWND hCombo = GetPresetCombo(hWnd);
-
-        bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
-
-        bool comboOpen = (hCombo && PremiumCombo::GetDroppedState(hCombo));
-        bool comboEditing = (hCombo && PremiumCombo::IsEditingItem(hCombo));
-        bool allowNonCtrl = comboOpen || comboEditing;
-
-        // Ctrl+S = save preset
-        if (ctrl && (wParam == 'S' || wParam == 's'))
-        {
-            if (hCombo)
-            {
-                WPARAM wp = MAKEWPARAM((UINT)PremiumCombo::ExtraIconKind::Save, (UINT)KSP_ID_PROFILE);
-                PostMessageW(hWnd, PremiumCombo::MsgExtraIcon(), wp, (LPARAM)hCombo);
-            }
-            return 0;
-        }
-
-        // Undo/redo shortcuts
-        if (KeySettingsPanel_HandleKey(hWnd, msg, wParam, lParam))
-        {
-            Config_MarkSurfaceDirty(hWnd, st);
-            return 0;
-        }
-
-        // Non-ctrl keys: do nothing unless dropdown is open
-        if (!ctrl && !allowNonCtrl)
-            return 0;
-
-        bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
-
-        // F2 = rename selected (inline) [only when dropdown open]
-        if (wParam == VK_F2)
-        {
-            if (hCombo)
-            {
-                int sel = PremiumCombo::GetCurSel(hCombo);
-                int cnt = PremiumCombo::GetCount(hCombo);
-
-                if (cnt > 0 && sel == cnt - 1)
-                {
-                    PostMessageW(hWnd, WM_APP_PROFILE_BEGIN_CREATE, 0, 0);
-                }
-                else
-                {
-                    PremiumCombo::BeginInlineEditSelected(hCombo, true);
-                    SetProfileStatus(st, L"Type a new name and press Enter.");
-                    Config_MarkSurfaceDirty(hWnd, st);
-                }
-            }
-            return 0;
-        }
-
-        // Delete = delete selected (require Shift) [only when dropdown open]
-        if (wParam == VK_DELETE)
-        {
-            if (hCombo)
-            {
-                int sel = PremiumCombo::GetCurSel(hCombo);
-                int cnt = PremiumCombo::GetCount(hCombo);
-                if (cnt > 0 && sel == cnt - 1)
-                    return 0;
-
-                if (!shift)
-                {
-                    SetProfileStatus(st, L"Hold Shift and press Delete to delete.");
-                    Config_MarkSurfaceDirty(hWnd, st);
-                    return 0;
-                }
-
-                DeletePreset_NoPopup_ConfigPage(hWnd, st, sel, true);
-                Config_MarkSurfaceDirty(hWnd, st);
-            }
-            return 0;
-        }
-
+        // Profile actions are mouse-only. Explicit shortcut capture is handled
+        // above, before the normal page switch; focused EDITs own text input.
         return 0;
     }
 
@@ -11093,8 +13306,13 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             bool on = !Settings_GetBlockBoundKeys();
             SendMessageW(st->chkBlockBoundKeys, BM_SETCHECK, on ? BST_CHECKED : BST_UNCHECKED, 0);
             Settings_SetBlockBoundKeys(on);
+            if (!on) {
+                Config_EndBlockShortcutCapture(hWnd, st);
+                st->hotCustomId = st->pressedCustomId = 0;
+            }
             SnappyToggle_StartAnim(st->chkBlockBoundKeys, on, true);
             RequestSave(hWnd);
+            Config_RecalcContentHeight(hWnd, st);
             Config_MarkSurfaceDirty(hWnd, st);
             return 0;
         }

@@ -289,6 +289,14 @@ NativeAnalogReadResult NativeAnalogBackends_ReadMilli(std::uint16_t hidUsage)
     return result;
 }
 
+bool NativeAnalogBackends_ReadSnapshotV2(
+    std::size_t index, halljoy::native_analog_snapshot::OutputV1 output)
+{
+    if (!DescriptorValidAt(index) || !kCatalog[index]->getSnapshotV2)
+        return false;
+    return kCatalog[index]->getSnapshotV2(output);
+}
+
 std::size_t NativeAnalogBackends_Count()
 {
     return std::size(kCatalog);

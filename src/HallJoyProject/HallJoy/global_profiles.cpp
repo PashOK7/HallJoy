@@ -11,6 +11,10 @@
 #include "app_paths.h"
 #include "file_name_policy.h"
 #include "ini_util.h"
+#include "bounded_ini.h"
+#include "settings_ini.h"
+#include "profile_ini.h"
+#include "profile_runtime_gate.h"
 
 namespace fs = std::filesystem;
 
@@ -184,6 +188,8 @@ std::wstring GlobalProfiles_GetSettingsPath(const std::wstring& name)
 
 std::wstring GlobalProfiles_GetBindingsPath(const std::wstring& name)
 {
+    const auto settings = GlobalProfiles_GetSettingsPath(name);
+    if (halljoy::ini::HasBundle(settings.c_str())) return settings;
     if (GlobalProfiles_IsDefault(name))
         return AppPaths_BindingsIni();
 
@@ -219,13 +225,71 @@ void GlobalProfiles_List(std::vector<std::wstring>& outNames)
 
 bool GlobalProfiles_Delete(const std::wstring& name)
 {
-    if (GlobalProfiles_IsDefault(name))
+    if (GlobalProfiles_IsDefault(name) || FileNamePolicy_Equivalent(name, g_activeProfile))
         return false;
 
     std::wstring s = GlobalProfiles_GetSettingsPath(name);
-    std::wstring b = GlobalProfiles_GetBindingsPath(name);
+    std::wstring b = BuildProfilePath(name, L".bindings.ini");
     std::error_code ec1, ec2;
     bool ok1 = fs::remove(fs::path(s), ec1) || !fs::exists(fs::path(s), ec1);
     bool ok2 = fs::remove(fs::path(b), ec2) || !fs::exists(fs::path(b), ec2);
     return ok1 && ok2;
+}
+
+bool GlobalProfiles_Save(const std::wstring& name) {
+    const auto path = GlobalProfiles_GetSettingsPath(name);
+    return GlobalProfiles_IsDefault(name) ? SettingsIni_Save(path.c_str()) :
+        SettingsIni_SaveProfile(path.c_str());
+}
+bool GlobalProfiles_Prepare(const std::wstring& name, std::function<void()>& apply) {
+    const auto settingsPath = GlobalProfiles_GetSettingsPath(name);
+    // Pin both halves for the entire preparation, including legacy pairs.
+    halljoy::ini::ReadFile settingsFile(settingsPath.c_str());
+    if (!settingsFile) return false;
+    const auto bindingsPath = GlobalProfiles_GetBindingsPath(name);
+    halljoy::ini::ReadFile bindingsFile(bindingsPath.c_str());
+    if (!bindingsFile) return false;
+    std::function<void()> settingsApply;
+    BindingsSnapshot bindings;
+    if (!SettingsIni_PrepareProfile(settingsPath.c_str(), settingsApply) ||
+        !Profile_PrepareIni(bindingsPath.c_str(), bindings)) return false;
+    apply = [settingsApply = std::move(settingsApply), bindings]() mutable {
+        settingsApply();
+        Bindings_Apply(bindings);
+    };
+    return true;
+}
+bool GlobalProfiles_Load(const std::wstring& name) {
+    std::function<void()> apply;
+    if (!GlobalProfiles_Prepare(name, apply)) return false;
+    halljoy::profile_runtime::CommitLease commit;
+    if (!commit) return false;
+    apply();
+    return true;
+}
+bool GlobalProfiles_Switch(const std::wstring& name) {
+    const auto next = GlobalProfiles_SanitizeName(name);
+    if (next.empty()) return false;
+    if (FileNamePolicy_Equivalent(next, g_activeProfile)) return true;
+    std::function<void()> apply;
+    if (!GlobalProfiles_Prepare(next, apply)) return false;
+    const auto previous = g_activeProfile;
+    if (!GlobalProfiles_Save(previous)) return false;
+    GlobalProfiles_SetActiveName(next);
+    if (!GlobalProfiles_SaveActiveToSettingsIni(AppPaths_SettingsIni().c_str())) {
+        GlobalProfiles_SetActiveName(previous);
+        return false;
+    }
+    bool committed = false;
+    {
+        halljoy::profile_runtime::CommitLease commit;
+        if (commit) { apply(); committed = true; }
+    }
+    if (!committed) {
+        GlobalProfiles_SetActiveName(previous);
+        GlobalProfiles_SaveActiveToSettingsIni(AppPaths_SettingsIni().c_str());
+        return false;
+    }
+    g_dirty = false;
+    return true;
 }

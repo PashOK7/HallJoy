@@ -1,7 +1,8 @@
 #pragma once
 #include <cstdint>
 
-// NOTE: We support "many keys per GAMEPAD BUTTON" by storing a HID bitmask (HID < 256).
+// NOTE: We support "many keys per GAMEPAD BUTTON" for the complete HallJoy
+// key-code space, including Soup/UAP extended Fn/OEM codes.
 // Axes and triggers remain single-HID as before.
 
 enum class Axis
@@ -67,21 +68,21 @@ AxisBinding Bindings_GetAxis(Axis a);
 void Bindings_SetTrigger(Trigger t, uint16_t hid);
 uint16_t Bindings_GetTrigger(Trigger t);
 
-// ---- Buttons (NEW: unlimited keys for HID<256) ----
+// ---- Buttons (many source keys per button) ----
 //
-// Stored as 4x uint64 bitmask chunks covering HID 0..255:
-// chunk 0 => HID 0..63, chunk 1 => 64..127, chunk 2 => 128..191, chunk 3 => 192..255
+// Stored as uint64 bitmask chunks covering the complete supported key-code
+// space. Bindings_GetButtonMaskChunkCount() is the iteration bound.
 //
 // HID==0 is treated as "none" and ignored.
 
-void Bindings_AddButtonHid(GameButton b, uint16_t hid);     // add bit (HID<256)
-void Bindings_RemoveButtonHid(GameButton b, uint16_t hid);  // remove bit (HID<256)
+void Bindings_AddButtonHid(GameButton b, uint16_t hid);
+void Bindings_RemoveButtonHid(GameButton b, uint16_t hid);
 
-// Returns true if this HID is bound to the given button (HID<256)
 bool Bindings_ButtonHasHid(GameButton b, uint16_t hid);
 
 // Read-only access for fast iteration (backend/UI):
-uint64_t Bindings_GetButtonMaskChunk(GameButton b, int chunk); // chunk = 0..3
+int Bindings_GetButtonMaskChunkCount();
+uint64_t Bindings_GetButtonMaskChunk(GameButton b, int chunk);
 
 // Legacy convenience:
 // Returns ANY one bound HID (lowest set bit), or 0 if none.
@@ -98,3 +99,16 @@ void Bindings_ClearHid(uint16_t hid);
 // Returns true if HID is used by any gamepad binding (axis/trigger/button).
 // across ALL virtual gamepads.
 bool Bindings_IsHidBound(uint16_t hid);
+
+
+// Complete prepared profile value; publication is guarded by profile_runtime_gate.
+#include <array>
+#include "analog_key_codes.h"
+struct BindingsSnapshot {
+    std::array<std::array<AxisBinding, 4>, BINDINGS_MAX_GAMEPADS> axes{};
+    std::array<std::array<uint16_t, 2>, BINDINGS_MAX_GAMEPADS> triggers{};
+    std::array<std::array<std::array<uint64_t, halljoy::keycode::kMaskChunkCount>, 15>,
+        BINDINGS_MAX_GAMEPADS> buttons{};
+};
+void Bindings_Capture(BindingsSnapshot& out) noexcept;
+void Bindings_Apply(const BindingsSnapshot& snapshot) noexcept;

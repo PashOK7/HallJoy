@@ -51,6 +51,9 @@ packages. The untouched v3.9.0 baseline is stored separately in `../baseline/`.
   gate and the remaining 1000-cycle/soak/hardware boundaries.
 - `V14-12F_S18_INSTALLER_REMOVAL_2026-08-01.txt`: removal of automatic
   download/elevation/wait, pinned manual ViGEm guidance, and build regression.
+- `V14-12F.1_EMBEDDED_VIGEM_INSTALLER_2026-08-21.txt`: D-049 replacement of
+  manual-only recovery with the exact embedded, locked, hash/signature-checked,
+  bounded one-click installer path and final artifact identity.
 - `V14-12G_S20_BUILD_DOCS_2026-08-01.txt`: current build documentation,
   unified Addressed gate, x64-only `/W4` configurations, official build, and
   Irok regression.

@@ -1,5 +1,8 @@
 # HallJoy v1.4 release notes
 
+Historical release notes. For the current candidate see [v1.5.0](RELEASE_NOTES_v1.5.md).
+Installation and runtime descriptions below refer to the older release.
+
 ## v1.4.1 patch update
 
 HallJoy v1.4.1 adds partial native support for the Redragon magnetic-switch

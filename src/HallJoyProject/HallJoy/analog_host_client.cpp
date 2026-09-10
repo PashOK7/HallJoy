@@ -13,6 +13,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cwchar>
+#include <limits>
+#include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <string>
@@ -21,8 +23,12 @@
 #include "analog_host_client.h"
 #include "analog_host_shared.h"
 #include "debug_log.h"
+#include "support_log.h"
 #include "embedded_analog_stack.h"
+#include "halljoy_uap_provider_v2_projection.h"
 #include "monotonic_time.h"
+#include "provider_v2_data_plane_windows.h"
+#include "provider_v2_snapshot_broker.h"
 #include "realtime_loop.h"
 #include "stability_trace.h"
 #include "worker_exception_barrier.h"
@@ -42,6 +48,7 @@ namespace
     constexpr DWORD kHeartbeatTimeoutMs = 2000;
     constexpr DWORD kRestartDelayMs = 750;
     constexpr ULONGLONG kHostStatsIntervalMs = 10000;
+    constexpr DWORD kHostExitProviderPlaneResize = 0xE0485632u;
 #if defined(HALLJOY_DIAGNOSTIC)
     constexpr bool kUseChildDebugger = true;
 #else
@@ -63,11 +70,22 @@ namespace
         HANDLE supervisorThread = nullptr;
         HANDLE supervisorReadyEvent = nullptr;
         HANDLE job = nullptr;
+        halljoy::provider_v2_data_plane::ParentPlaneOwner providerPlane;
+        halljoy::provider_v2_snapshot_broker::ParentSnapshotBroker
+            providerSnapshotBroker;
+        std::uint64_t providerPlaneGenerationCounter = 0;
+        std::uint32_t providerPlaneDeviceCapacity = 0;
+        std::uint32_t providerPlaneSampleCapacity = 0;
         DWORD ownerPid = 0;
         unsigned long long nonce = 0;
         std::wstring privatePluginPath;
         std::atomic<bool> stopping{ false };
         std::atomic<bool> restartBlocked{ false };
+        // Monotonic rather than boolean so the supervisor can distinguish a
+        // notification that arrived before a fresh child launch (already
+        // covered by its normal startup enumeration) from one that arrives
+        // while that child owns plugin state.
+        std::atomic<std::uint64_t> deviceRefreshGeneration{ 0 };
         std::atomic<DWORD> expectedHostPid{ 0 };
         bool injectSupervisorCppFault = false;
         bool injectChildReapTimeout = false;
@@ -287,6 +305,15 @@ namespace
         int (__cdecl* readFullBuffer)(unsigned short*, float*, unsigned int, PluginDeviceId) = nullptr;
         std::uint32_t (__cdecl* getDeviceTelemetry)(HallJoyPluginTelemetry::DeviceV1*, std::uint32_t, std::uint32_t) = nullptr;
         std::uint32_t (__cdecl* getDenseSnapshots)(HallJoyDenseSnapshot::DeviceV1*, std::uint32_t, std::uint32_t) = nullptr;
+        bool (__cdecl* getProviderSnapshotV2)(
+            halljoy::analog_provider_v2::AnalogSnapshotHeaderV2*, std::uint32_t,
+            halljoy::analog_provider_v2::AnalogDeviceV2*, std::uint32_t, std::uint32_t,
+            halljoy::analog_provider_v2::AnalogSampleV2*, std::uint32_t, std::uint32_t) = nullptr;
+        bool (__cdecl* getDualSnapshotV2)(
+            halljoy::analog_provider_v2::AnalogSnapshotHeaderV2*, std::uint32_t,
+            halljoy::analog_provider_v2::AnalogDeviceV2*, std::uint32_t, std::uint32_t,
+            halljoy::analog_provider_v2::AnalogSampleV2*, std::uint32_t, std::uint32_t,
+            HallJoyDenseSnapshot::DeviceV1*, std::uint32_t, std::uint32_t) = nullptr;
         std::uint64_t (__cdecl* waitForSnapshotUpdate)(std::uint64_t, std::uint32_t) = nullptr;
         void (__cdecl* setDiagnosticCheckpoint)(volatile LONG*) = nullptr;
         void (__cdecl* setDiagnosticTransportError)(volatile LONG*) = nullptr;
@@ -319,6 +346,8 @@ namespace
         ok = Resolve(api.module, "read_full_buffer", api.readFullBuffer) && ok;
         Resolve(api.module, "halljoy_get_device_telemetry", api.getDeviceTelemetry);
         Resolve(api.module, "halljoy_get_dense_snapshots", api.getDenseSnapshots);
+        ok = Resolve(api.module, "halljoy_get_provider_snapshot_v2", api.getProviderSnapshotV2) && ok;
+        ok = Resolve(api.module, "halljoy_get_dual_snapshot_v2", api.getDualSnapshotV2) && ok;
         Resolve(api.module, "halljoy_wait_for_snapshot_update", api.waitForSnapshotUpdate);
         Resolve(api.module, "halljoy_set_diagnostic_checkpoint", api.setDiagnosticCheckpoint);
         Resolve(api.module, "halljoy_set_diagnostic_transport_error", api.setDiagnosticTransportError);
@@ -364,6 +393,16 @@ namespace
         InterlockedExchange64(&shared->heartbeatTickMs, static_cast<LONG64>(GetTickCount64()));
     }
 
+    struct ProviderPlaneCommitV1 final
+    {
+        std::uint64_t planeGeneration = 0;
+        std::uint64_t transactionToken = 0;
+        std::uint32_t committedSlot =
+            halljoy::provider_v2_data_plane::kSlotCount;
+        std::uint32_t requiredDeviceCount = 0;
+        std::uint32_t requiredSampleCount = 0;
+    };
+
     void PublishSnapshot(SharedState* shared,
         const unsigned short* codes, const float* values, int count,
         const float* denseValues,
@@ -371,6 +410,7 @@ namespace
         std::uint64_t snapshotTimestampUs,
         int rawResult, unsigned long long polls, unsigned long long successful,
         const HallJoyPluginTelemetry::DeviceV1* deviceTelemetry, int deviceTelemetryCount,
+        const ProviderPlaneCommitV1* providerPlaneCommit,
         HANDLE snapshotEvent)
     {
         if (!shared) return;
@@ -419,6 +459,33 @@ namespace
             shared->deviceTelemetry[i] = deviceTelemetry[i];
         for (int i = telemetryCount; i < static_cast<int>(kMaxDevices); ++i)
             shared->deviceTelemetry[i] = HallJoyPluginTelemetry::DeviceV1{};
+        if (providerPlaneCommit)
+        {
+            shared->providerV2PlaneDualCoherent = 1;
+            shared->providerV2PlaneGeneration = static_cast<LONG64>(
+                providerPlaneCommit->planeGeneration);
+            shared->providerV2PlaneRequiredDeviceCount = static_cast<LONG>(
+                providerPlaneCommit->requiredDeviceCount);
+            shared->providerV2PlaneRequiredSampleCount = static_cast<LONG>(
+                providerPlaneCommit->requiredSampleCount);
+            shared->providerV2PlaneCommittedSlot = static_cast<LONG>(
+                providerPlaneCommit->committedSlot);
+            shared->providerV2PlaneTransactionToken = static_cast<LONG64>(
+                providerPlaneCommit->transactionToken);
+            shared->providerV2PlaneStatus = ProviderPlane_Committed;
+        }
+        else
+        {
+            shared->providerV2PlaneDualCoherent = 0;
+            const LONG planeStatus = shared->providerV2PlaneStatus;
+            if (planeStatus != ProviderPlane_ResizeRequested &&
+                planeStatus != ProviderPlane_Error)
+            {
+                shared->providerV2PlaneTransactionToken = 0;
+                shared->providerV2PlaneCommittedSlot = -1;
+                shared->providerV2PlaneStatus = ProviderPlane_Unavailable;
+            }
+        }
         const LONG64 now = static_cast<LONG64>(GetTickCount64());
         InterlockedExchange64(&shared->heartbeatTickMs, now);
         InterlockedExchange64(&shared->lastPublishTickMs, now);
@@ -448,6 +515,15 @@ namespace
             shared->values[i] = 0.0f;
             shared->denseValues[i] = 0.0f;
         }
+        shared->providerV2PlaneDualCoherent = 0;
+        const LONG planeStatus = shared->providerV2PlaneStatus;
+        if (planeStatus != ProviderPlane_ResizeRequested)
+        {
+            shared->providerV2PlaneTransactionToken = 0;
+            shared->providerV2PlaneCommittedSlot = -1;
+            if (planeStatus != ProviderPlane_Error)
+                shared->providerV2PlaneStatus = ProviderPlane_Unavailable;
+        }
         shared->lastError = error;
         InterlockedIncrement64(&shared->snapshotGeneration);
         InterlockedExchange64(&shared->snapshotTimestampUs, static_cast<LONG64>(HostNowUs()));
@@ -461,6 +537,63 @@ namespace
             SetEvent(snapshotEvent);
     }
 
+    void PublishProviderPlaneMapped(SharedState* shared,
+        const halljoy::provider_v2_data_plane::ParentPlaneOwner& plane) noexcept
+    {
+        if (!shared)
+            return;
+        InterlockedExchange(&shared->providerV2PlaneDeviceCapacity,
+            static_cast<LONG>(plane.Layout().deviceCapacity));
+        InterlockedExchange(&shared->providerV2PlaneSampleCapacity,
+            static_cast<LONG>(plane.Layout().sampleCapacity));
+        InterlockedExchange(&shared->providerV2PlaneRequiredDeviceCount, 0);
+        InterlockedExchange(&shared->providerV2PlaneRequiredSampleCount, 0);
+        InterlockedExchange(&shared->providerV2PlaneCommittedSlot, -1);
+        InterlockedExchange(&shared->providerV2PlaneDualCoherent, 0);
+        InterlockedExchange64(&shared->providerV2PlaneGeneration,
+            static_cast<LONG64>(plane.PlaneGeneration()));
+        InterlockedExchange64(&shared->providerV2PlaneMappingBytes,
+            static_cast<LONG64>(plane.MappingBytes()));
+        InterlockedExchange64(&shared->providerV2PlaneTransactionToken, 0);
+        InterlockedExchange(&shared->providerV2PlaneParentReadOnly,
+            plane.ParentWriteMappingRejected() ? 1 : 0);
+        MemoryBarrier();
+        InterlockedExchange(&shared->providerV2PlaneStatus,
+            ProviderPlane_Mapped);
+    }
+
+    void PublishProviderPlaneDemand(SharedState* shared,
+        std::uint64_t planeGeneration, std::uint32_t requiredDevices,
+        std::uint32_t requiredSamples) noexcept
+    {
+        if (!shared)
+            return;
+        InterlockedExchange64(&shared->providerV2PlaneGeneration,
+            static_cast<LONG64>(planeGeneration));
+        InterlockedExchange(&shared->providerV2PlaneRequiredDeviceCount,
+            static_cast<LONG>(requiredDevices));
+        InterlockedExchange(&shared->providerV2PlaneRequiredSampleCount,
+            static_cast<LONG>(requiredSamples));
+        InterlockedExchange64(&shared->providerV2PlaneTransactionToken, 0);
+        InterlockedExchange(&shared->providerV2PlaneCommittedSlot, -1);
+        InterlockedExchange(&shared->providerV2PlaneDualCoherent, 0);
+        MemoryBarrier();
+        InterlockedExchange(&shared->providerV2PlaneStatus,
+            ProviderPlane_ResizeRequested);
+    }
+
+    void PublishProviderPlaneError(SharedState* shared, LONG error) noexcept
+    {
+        if (!shared)
+            return;
+        InterlockedIncrement(&shared->providerV2PlaneFailureCount);
+        InterlockedExchange(&shared->providerV2PlaneDualCoherent, 0);
+        InterlockedExchange(&shared->lastError, error);
+        MemoryBarrier();
+        InterlockedExchange(&shared->providerV2PlaneStatus,
+            ProviderPlane_Error);
+    }
+
     struct HostLaunchContext
     {
         DWORD ownerPid = 0;
@@ -469,6 +602,9 @@ namespace
         HANDLE stopEvent = nullptr;
         HANDLE snapshotEvent = nullptr;
         HANDLE ownerProcess = nullptr;
+        HANDLE providerPlaneMapping = nullptr;
+        std::size_t providerPlaneMappingBytes = 0;
+        std::uint64_t providerPlaneGeneration = 0;
         std::wstring privatePluginPath;
     };
 
@@ -482,6 +618,14 @@ namespace
         std::array<HallJoyDenseSnapshot::DeviceV1, kMaxDevices> rawDenseDevices{};
         std::array<HallJoyDenseSnapshot::DeviceV1, kMaxDevices> validDenseDevices{};
         std::array<HallJoyPluginTelemetry::DeviceV1, kMaxDevices> pluginTelemetry{};
+        halljoy::analog_provider_v2::AnalogSnapshotHeaderV2
+            providerPlaneHeader{};
+        std::vector<halljoy::analog_provider_v2::AnalogDeviceV2>
+            providerPlaneDevices;
+        std::vector<halljoy::analog_provider_v2::AnalogSampleV2>
+            providerPlaneSamples;
+        std::vector<HallJoyDenseSnapshot::DeviceV1>
+            providerPlaneDenseDevices;
     };
 
     bool ParseHandleArgument(const wchar_t* text, HANDLE& handle) noexcept
@@ -503,26 +647,39 @@ namespace
         if (!argv)
             return false;
         bool found = false;
-        for (int i = 1; i + 6 < argc; ++i)
+        for (int i = 1; i + 10 < argc; ++i)
         {
             if (_wcsicmp(argv[i], kHostArg) == 0)
             {
                 wchar_t* endPid = nullptr;
                 wchar_t* endNonce = nullptr;
+                wchar_t* endMappingBytes = nullptr;
+                wchar_t* endPlaneGeneration = nullptr;
                 const unsigned long pidValue = wcstoul(argv[i + 1], &endPid, 10);
                 const unsigned long long nonceValue = _wcstoui64(argv[i + 2], &endNonce, 16);
+                const unsigned long long mappingBytesValue =
+                    _wcstoui64(argv[i + 8], &endMappingBytes, 16);
+                const unsigned long long planeGenerationValue =
+                    _wcstoui64(argv[i + 9], &endPlaneGeneration, 16);
                 HANDLE mapping = nullptr;
                 HANDLE stopEvent = nullptr;
                 HANDLE snapshotEvent = nullptr;
                 HANDLE ownerProcess = nullptr;
+                HANDLE providerPlaneMapping = nullptr;
                 if (endPid != argv[i + 1] && *endPid == L'\0' &&
                     endNonce != argv[i + 2] && *endNonce == L'\0' &&
+                    endMappingBytes != argv[i + 8] && *endMappingBytes == L'\0' &&
+                    endPlaneGeneration != argv[i + 9] && *endPlaneGeneration == L'\0' &&
                     pidValue != 0 && nonceValue != 0 &&
+                    mappingBytesValue >= sizeof(
+                        halljoy::provider_v2_data_plane::MappingHeaderV1) &&
+                    mappingBytesValue <= SIZE_MAX && planeGenerationValue != 0 &&
                     ParseHandleArgument(argv[i + 3], mapping) &&
                     ParseHandleArgument(argv[i + 4], stopEvent) &&
                     ParseHandleArgument(argv[i + 5], snapshotEvent) &&
                     ParseHandleArgument(argv[i + 6], ownerProcess) &&
-                    i + 7 < argc && argv[i + 7][0] != L'\0')
+                    ParseHandleArgument(argv[i + 7], providerPlaneMapping) &&
+                    argv[i + 10][0] != L'\0')
                 {
                     launch.ownerPid = static_cast<DWORD>(pidValue);
                     launch.nonce = nonceValue;
@@ -530,7 +687,11 @@ namespace
                     launch.stopEvent = stopEvent;
                     launch.snapshotEvent = snapshotEvent;
                     launch.ownerProcess = ownerProcess;
-                    launch.privatePluginPath = argv[i + 7];
+                    launch.providerPlaneMapping = providerPlaneMapping;
+                    launch.providerPlaneMappingBytes =
+                        static_cast<std::size_t>(mappingBytesValue);
+                    launch.providerPlaneGeneration = planeGenerationValue;
+                    launch.privatePluginPath = argv[i + 10];
                     found = true;
                 }
                 break;
@@ -546,6 +707,18 @@ namespace
         HANDLE stopEvent = launch.stopEvent;
         HANDLE snapshotEvent = launch.snapshotEvent;
         HANDLE ownerProcess = launch.ownerProcess;
+        halljoy::provider_v2_data_plane::ChildPlaneWriter providerPlane;
+        DWORD providerPlaneOpenError = ERROR_SUCCESS;
+        if (!providerPlane.Open(launch.providerPlaneMapping,
+            launch.providerPlaneMappingBytes, launch.providerPlaneGeneration,
+            launch.nonce, &providerPlaneOpenError))
+        {
+            CloseHandle(ownerProcess);
+            CloseHandle(snapshotEvent);
+            CloseHandle(stopEvent);
+            CloseHandle(mapping);
+            return 40;
+        }
         DWORD flags = 0;
         if (!GetHandleInformation(mapping, &flags) ||
             !GetHandleInformation(stopEvent, &flags) ||
@@ -581,12 +754,18 @@ namespace
         InterlockedExchange(&shared->hostPid, static_cast<LONG>(GetCurrentProcessId()));
         InterlockedExchange(&shared->status, Status_Starting);
         InterlockedExchange64(&shared->heartbeatTickMs, static_cast<LONG64>(GetTickCount64()));
-        HostLog(L"session start owner_pid=%lu nonce=%016llX transport=inherited_handles shared=%p",
-            launch.ownerPid, launch.nonce, shared);
+        HostLog(L"session start owner_pid=%lu nonce=%016llX transport=inherited_handles shared=%p provider_plane_generation=%llu provider_plane_bytes=%llu provider_plane_devices=%u provider_plane_samples=%u",
+            launch.ownerPid, launch.nonce, shared,
+            static_cast<unsigned long long>(providerPlane.PlaneGeneration()),
+            static_cast<unsigned long long>(launch.providerPlaneMappingBytes),
+            providerPlane.Layout().deviceCapacity,
+            providerPlane.Layout().sampleCapacity);
 
         HostApi api;
         HostSetCheckpoint(shared, Checkpoint_LoadSdk);
-        if (!LoadHostApi(api, launch.privatePluginPath))
+        HANDLE verifiedPluginLease = nullptr;
+        if (!EmbeddedAnalogStack_OpenVerifiedPrivatePlugin(
+                GetModuleHandleW(nullptr), launch.privatePluginPath.c_str(), &verifiedPluginLease))
         {
             PublishHostError(shared, static_cast<LONG>(GetLastError()), WootingAnalogResult_DLLNotFound);
             g_hostFaultSnapshotEvent.store(nullptr, std::memory_order_release);
@@ -598,6 +777,20 @@ namespace
             CloseHandle(mapping);
             return 34;
         }
+        if (!LoadHostApi(api, launch.privatePluginPath))
+        {
+            CloseHandle(verifiedPluginLease);
+            PublishHostError(shared, static_cast<LONG>(GetLastError()), WootingAnalogResult_DLLNotFound);
+            g_hostFaultSnapshotEvent.store(nullptr, std::memory_order_release);
+            g_hostFaultShared.store(nullptr, std::memory_order_release);
+            CloseHandle(ownerProcess);
+            CloseHandle(snapshotEvent);
+            CloseHandle(stopEvent);
+            UnmapViewOfFile(shared);
+            CloseHandle(mapping);
+            return 34;
+        }
+        CloseHandle(verifiedPluginLease);
 
         if (api.setDiagnosticCheckpoint)
         {
@@ -658,6 +851,14 @@ namespace
         ULONGLONG lastStats = GetTickCount64();
         std::uint64_t observedPluginGeneration = 0;
         auto buffers = std::make_unique<HostPollBuffers>();
+        buffers->providerPlaneDevices.resize(
+            providerPlane.Layout().deviceCapacity);
+        buffers->providerPlaneSamples.resize(
+            providerPlane.Layout().sampleCapacity);
+        buffers->providerPlaneDenseDevices.resize(
+            providerPlane.Layout().deviceCapacity);
+        std::uint64_t providerPlaneTransaction =
+            providerPlane.PlaneGeneration() << 32;
         int validDenseDeviceCount = 0;
         std::uint64_t snapshotTimestampUs = 0;
         int pluginTelemetryCount = 0;
@@ -736,8 +937,12 @@ namespace
             validDenseDeviceCount = 0;
             snapshotTimestampUs = HostNowUs();
             buffers->mergedDense.fill(0.0f);
+            buffers->providerPlaneHeader = halljoy::analog_provider_v2::AnalogSnapshotHeaderV2{};
             for (auto& item : buffers->validDenseDevices)
                 item = HallJoyDenseSnapshot::DeviceV1{};
+            bool providerPlaneDualCoherent = false;
+            ProviderPlaneCommitV1 providerPlaneCommit{};
+            bool providerPlaneCommitted = false;
 
             if (result >= 0)
             {
@@ -759,18 +964,187 @@ namespace
                     ++validCount;
                 }
 
-                if (api.getDenseSnapshots)
+                auto* const planeDevices = buffers->providerPlaneDevices.empty()
+                    ? nullptr : buffers->providerPlaneDevices.data();
+                auto* const planeSamples = buffers->providerPlaneSamples.empty()
+                    ? nullptr : buffers->providerPlaneSamples.data();
+                auto* const planeDenseDevices =
+                    buffers->providerPlaneDenseDevices.empty()
+                    ? nullptr : buffers->providerPlaneDenseDevices.data();
+                const bool hasDynamicCapacity = planeDevices && planeSamples &&
+                    planeDenseDevices;
+                const bool planeCaptureOk = hasDynamicCapacity
+                    ? api.getDualSnapshotV2(
+                        &buffers->providerPlaneHeader,
+                        static_cast<std::uint32_t>(
+                            sizeof(buffers->providerPlaneHeader)),
+                        planeDevices,
+                        static_cast<std::uint32_t>(
+                            buffers->providerPlaneDevices.size()),
+                        static_cast<std::uint32_t>(
+                            sizeof(halljoy::analog_provider_v2::AnalogDeviceV2)),
+                        planeSamples,
+                        static_cast<std::uint32_t>(
+                            buffers->providerPlaneSamples.size()),
+                        static_cast<std::uint32_t>(
+                            sizeof(halljoy::analog_provider_v2::AnalogSampleV2)),
+                        planeDenseDevices,
+                        static_cast<std::uint32_t>(
+                            buffers->providerPlaneDenseDevices.size()),
+                        static_cast<std::uint32_t>(
+                            sizeof(HallJoyDenseSnapshot::DeviceV1)))
+                    : api.getProviderSnapshotV2(
+                    &buffers->providerPlaneHeader,
+                    static_cast<std::uint32_t>(
+                        sizeof(buffers->providerPlaneHeader)),
+                    planeDevices,
+                    static_cast<std::uint32_t>(
+                        buffers->providerPlaneDevices.size()),
+                    static_cast<std::uint32_t>(
+                        sizeof(halljoy::analog_provider_v2::AnalogDeviceV2)),
+                    planeSamples,
+                    static_cast<std::uint32_t>(
+                        buffers->providerPlaneSamples.size()),
+                    static_cast<std::uint32_t>(
+                        sizeof(halljoy::analog_provider_v2::AnalogSampleV2)));
+                if (planeCaptureOk)
                 {
-                    const std::uint32_t rawDenseCount = api.getDenseSnapshots(
-                        buffers->rawDenseDevices.data(),
-                        static_cast<std::uint32_t>(buffers->rawDenseDevices.size()),
-                        static_cast<std::uint32_t>(sizeof(buffers->rawDenseDevices[0])));
-                    const int denseCount = std::clamp(static_cast<int>(rawDenseCount), 0, static_cast<int>(kMaxDevices));
+                    buffers->providerPlaneHeader.providerGeneration =
+                        static_cast<std::uint64_t>(InterlockedCompareExchange64(
+                            &shared->launchNonce, 0, 0));
+                    const auto capacityPlan =
+                        halljoy::provider_v2_data_plane::PlanCapacity(
+                            providerPlane.Layout().deviceCapacity,
+                            providerPlane.Layout().sampleCapacity,
+                            buffers->providerPlaneHeader.requiredDeviceCount,
+                            buffers->providerPlaneHeader.requiredSampleCount);
+                    if (capacityPlan.action ==
+                        halljoy::provider_v2_data_plane::CapacityAction::Replace)
+                    {
+                        PublishProviderPlaneDemand(shared,
+                            providerPlane.PlaneGeneration(),
+                            buffers->providerPlaneHeader.requiredDeviceCount,
+                            buffers->providerPlaneHeader.requiredSampleCount);
+                        hostExitCode = static_cast<int>(
+                            kHostExitProviderPlaneResize);
+                        InvalidateSnapshot(shared, Status_Restarting,
+                            static_cast<LONG>(kHostExitProviderPlaneResize),
+                            snapshotEvent);
+                        HostLog(L"provider plane resize requested generation=%llu current_devices=%u current_samples=%u required_devices=%u required_samples=%u",
+                            static_cast<unsigned long long>(
+                                providerPlane.PlaneGeneration()),
+                            providerPlane.Layout().deviceCapacity,
+                            providerPlane.Layout().sampleCapacity,
+                            buffers->providerPlaneHeader.requiredDeviceCount,
+                            buffers->providerPlaneHeader.requiredSampleCount);
+                        break;
+                    }
+                    if (capacityPlan.action ==
+                        halljoy::provider_v2_data_plane::CapacityAction::Reject)
+                    {
+                        PublishProviderPlaneError(shared,
+                            ERROR_INVALID_DATA);
+                    }
+                    else if (hasDynamicCapacity &&
+                        halljoy::uap_parent_snapshot::ValidateDualViews(
+                            buffers->providerPlaneHeader, planeDevices,
+                            buffers->providerPlaneDevices.size(), planeSamples,
+                            buffers->providerPlaneSamples.size(),
+                            planeDenseDevices,
+                            buffers->providerPlaneHeader.deviceCount) ==
+                            halljoy::uap_parent_snapshot::ValidationError::None &&
+                        halljoy::analog_provider_v2::IsAuthoritative(
+                            buffers->providerPlaneHeader) &&
+                        halljoy::analog_provider_v2::ValidateSnapshot(
+                            buffers->providerPlaneHeader, planeDevices,
+                            buffers->providerPlaneDevices.size(), planeSamples,
+                            buffers->providerPlaneSamples.size()) ==
+                            halljoy::analog_provider_v2::
+                                SnapshotValidationError::None)
+                    {
+                        ++providerPlaneTransaction;
+                        if (providerPlaneTransaction == 0)
+                            ++providerPlaneTransaction;
+                        std::uint32_t committedSlot =
+                            halljoy::provider_v2_data_plane::kSlotCount;
+                        DWORD publishError = ERROR_SUCCESS;
+                        if (providerPlane.Publish(
+                            buffers->providerPlaneHeader, planeDevices,
+                            planeSamples, providerPlaneTransaction,
+                            &committedSlot, &publishError))
+                        {
+                            providerPlaneCommit.planeGeneration =
+                                providerPlane.PlaneGeneration();
+                            providerPlaneCommit.transactionToken =
+                                providerPlaneTransaction;
+                            providerPlaneCommit.committedSlot = committedSlot;
+                            providerPlaneCommit.requiredDeviceCount =
+                                buffers->providerPlaneHeader.requiredDeviceCount;
+                            providerPlaneCommit.requiredSampleCount =
+                                buffers->providerPlaneHeader.requiredSampleCount;
+                            providerPlaneCommitted = true;
+                            providerPlaneDualCoherent = true;
+                        }
+                        else
+                        {
+                            PublishProviderPlaneError(shared,
+                                static_cast<LONG>(publishError));
+                        }
+                    }
+                    else
+                    {
+                        PublishProviderPlaneError(shared,
+                            ERROR_INVALID_DATA);
+                    }
+                }
+
+                if (providerPlaneDualCoherent)
+                {
+                    const std::uint32_t dynamicDenseCount =
+                        buffers->providerPlaneHeader.deviceCount;
+                    const bool fixedDenseFits =
+                        dynamicDenseCount <= buffers->validDenseDevices.size();
+                    for (std::uint32_t di = 0; di < dynamicDenseCount; ++di)
+                    {
+                        const auto& input = planeDenseDevices[di];
+                        if (fixedDenseFits)
+                            buffers->validDenseDevices[di] = input;
+                        for (std::size_t code = 0; code < kMaxKeys; ++code)
+                        {
+                            buffers->mergedDense[code] = (std::max)(
+                                buffers->mergedDense[code], input.values[code]);
+                        }
+                        snapshotTimestampUs = (std::max)(
+                            snapshotTimestampUs, input.timestampUs);
+                    }
+                    validDenseDeviceCount = fixedDenseFits
+                        ? static_cast<int>(dynamicDenseCount) : 0;
+
+                }
+                else
+                {
+                    // The dense compatibility route remains independently
+                    // available, but it cannot qualify or substitute for the
+                    // dynamic Provider V2 generation.
+                    std::uint32_t rawDenseCount = 0;
+                    if (api.getDenseSnapshots)
+                    {
+                        rawDenseCount = api.getDenseSnapshots(
+                            buffers->rawDenseDevices.data(),
+                            static_cast<std::uint32_t>(
+                                buffers->rawDenseDevices.size()),
+                            static_cast<std::uint32_t>(
+                                sizeof(buffers->rawDenseDevices[0])));
+                    }
+                    const int denseCount = std::clamp(
+                        static_cast<int>(rawDenseCount), 0,
+                        static_cast<int>(kMaxDevices));
                     for (int di = 0; di < denseCount; ++di)
                     {
-                        const auto& input =
-                            buffers->rawDenseDevices[static_cast<std::size_t>(di)];
-                        if (input.structSize != sizeof(HallJoyDenseSnapshot::DeviceV1) ||
+                        const auto& input = buffers->rawDenseDevices[
+                            static_cast<std::size_t>(di)];
+                        if (input.structSize != sizeof(
+                                HallJoyDenseSnapshot::DeviceV1) ||
                             input.version != HallJoyDenseSnapshot::kVersion)
                         {
                             InterlockedIncrement(&shared->invalidSnapshotCount);
@@ -786,29 +1160,34 @@ namespace
                             if (!std::isfinite(value))
                             {
                                 value = 0.0f;
-                                InterlockedIncrement(&shared->invalidSnapshotCount);
+                                InterlockedIncrement(
+                                    &shared->invalidSnapshotCount);
                             }
                             value = std::clamp(value, 0.0f, 1.0f);
                             output.values[code] = value;
-                            buffers->mergedDense[code] =
-                                (std::max)(buffers->mergedDense[code], value);
+                            buffers->mergedDense[code] = (std::max)(
+                                buffers->mergedDense[code], value);
                             if (value > 0.0f)
                                 ++active;
                         }
                         output.activeKeyCount = active;
-                        snapshotTimestampUs = (std::max)(snapshotTimestampUs, output.timestampUs);
+                        snapshotTimestampUs = (std::max)(
+                            snapshotTimestampUs, output.timestampUs);
                         ++validDenseDeviceCount;
                     }
-                }
-                else
-                {
-                    for (int i = 0; i < validCount; ++i)
+                    if (denseCount == 0)
                     {
-                        const auto code = buffers->validCodes[static_cast<std::size_t>(i)];
-                        buffers->mergedDense[code] = (std::max)(
-                            buffers->mergedDense[code],
-                            buffers->validValues[static_cast<std::size_t>(i)]);
+                        for (int i = 0; i < validCount; ++i)
+                        {
+                            const auto code = buffers->validCodes[
+                                static_cast<std::size_t>(i)];
+                            buffers->mergedDense[code] = (std::max)(
+                                buffers->mergedDense[code],
+                                buffers->validValues[
+                                    static_cast<std::size_t>(i)]);
+                        }
                     }
+                    InterlockedIncrement(&shared->providerV2DualFailureCount);
                 }
 
                 // Rebuild the compatibility sparse view from the canonical dense
@@ -826,6 +1205,7 @@ namespace
                         ++validCount;
                     }
                 }
+
                 ++successful;
             }
             else
@@ -840,7 +1220,9 @@ namespace
                 buffers->mergedDense.data(), buffers->validDenseDevices.data(),
                 result >= 0 ? validDenseDeviceCount : 0, snapshotTimestampUs,
                 result, polls, successful, buffers->pluginTelemetry.data(),
-                pluginTelemetryCount, snapshotEvent);
+                pluginTelemetryCount,
+                providerPlaneCommitted ? &providerPlaneCommit : nullptr,
+                snapshotEvent);
             InterlockedExchange(&shared->status, Status_Ready);
 
             if (consecutivePluginErrors >= 4)
@@ -1254,6 +1636,89 @@ namespace
         }
     }
 
+    bool WaitForProviderSnapshotBrokerDrain(DWORD timeoutMs) noexcept
+    {
+        const ULONGLONG deadline = GetTickCount64() + timeoutMs;
+        for (;;)
+        {
+            if (g_client.providerSnapshotBroker.IsDrained())
+                return true;
+            if (timeoutMs == 0 || GetTickCount64() >= deadline)
+                return false;
+            Sleep(1);
+        }
+    }
+
+    bool PrepareProviderPlaneForChild(DWORD* win32Error) noexcept
+    {
+        if (win32Error)
+            *win32Error = ERROR_SUCCESS;
+        if (g_client.expectedHostPid.load(std::memory_order_acquire) != 0)
+        {
+            if (win32Error) *win32Error = ERROR_BUSY;
+            SetLastError(ERROR_BUSY);
+            return false;
+        }
+        g_client.providerSnapshotBroker.BeginReconfigure();
+        if (!WaitForProviderSnapshotBrokerDrain(2000))
+        {
+            if (win32Error) *win32Error = ERROR_TIMEOUT;
+            SetLastError(ERROR_TIMEOUT);
+            return false;
+        }
+        DWORD retireError = ERROR_SUCCESS;
+        if (g_client.providerPlane.OwnsResources() &&
+            !g_client.providerPlane.Retire(2000, &retireError))
+        {
+            if (win32Error) *win32Error = retireError;
+            return false;
+        }
+        if (g_client.providerPlaneGenerationCounter ==
+            (std::numeric_limits<std::uint64_t>::max)())
+        {
+            if (win32Error) *win32Error = ERROR_ARITHMETIC_OVERFLOW;
+            SetLastError(ERROR_ARITHMETIC_OVERFLOW);
+            return false;
+        }
+        const std::uint64_t generation =
+            ++g_client.providerPlaneGenerationCounter;
+        DWORD prepareError = ERROR_SUCCESS;
+        if (!g_client.providerPlane.Prepare(generation, g_client.nonce,
+            g_client.providerPlaneDeviceCapacity,
+            g_client.providerPlaneSampleCapacity, &prepareError))
+        {
+            if (win32Error) *win32Error = prepareError;
+            return false;
+        }
+        if (!g_client.providerSnapshotBroker.Prepare(
+                g_client.providerPlane.Layout().deviceCapacity,
+                g_client.providerPlane.Layout().sampleCapacity))
+        {
+            DWORD cleanupError = ERROR_SUCCESS;
+            (void)g_client.providerPlane.Retire(2000, &cleanupError);
+            if (win32Error) *win32Error = ERROR_NOT_ENOUGH_MEMORY;
+            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+            return false;
+        }
+        if (!g_client.providerSnapshotBroker.Activate(generation))
+        {
+            DWORD cleanupError = ERROR_SUCCESS;
+            (void)g_client.providerPlane.Retire(2000, &cleanupError);
+            if (win32Error) *win32Error = ERROR_INVALID_STATE;
+            SetLastError(ERROR_INVALID_STATE);
+            return false;
+        }
+        PublishProviderPlaneMapped(g_client.shared, g_client.providerPlane);
+        StabilityTrace_Write(L"INFO", L"analog-host", L"provider_plane.prepared",
+            L"generation=%llu bytes=%llu devices=%u samples=%u parent_read_only=1 child_writer_handle=1 old_child_reaped=1 broker_slots=%u",
+            static_cast<unsigned long long>(generation),
+            static_cast<unsigned long long>(g_client.providerPlane.MappingBytes()),
+            g_client.providerPlane.Layout().deviceCapacity,
+            g_client.providerPlane.Layout().sampleCapacity,
+            halljoy::provider_v2_snapshot_broker::kBrokerSlotCount);
+        return true;
+    }
+
     bool CreateHostProcess(PROCESS_INFORMATION& pi)
     {
         std::vector<wchar_t> exePath(32768);
@@ -1270,16 +1735,20 @@ namespace
                 L"simulator_only=1 invalid_mapping_handle=1");
         }
 #endif
-        wchar_t identity[384]{};
+        wchar_t identity[640]{};
         _snwprintf_s(identity, _countof(identity), _TRUNCATE,
-            L" %s %lu %016llX %016llX %016llX %016llX %016llX ",
+            L" %s %lu %016llX %016llX %016llX %016llX %016llX %016llX %016llX %016llX ",
             kHostArg,
             g_client.ownerPid,
             g_client.nonce,
             static_cast<unsigned long long>(mappingArgument),
             static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(g_client.stopEvent)),
             static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(g_client.snapshotEvent)),
-            static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(g_client.ownerProcess)));
+            static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(g_client.ownerProcess)),
+            static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(
+                g_client.providerPlane.InheritableWriterHandle())),
+            static_cast<unsigned long long>(g_client.providerPlane.MappingBytes()),
+            static_cast<unsigned long long>(g_client.providerPlane.PlaneGeneration()));
         std::wstring command = halljoy::windows_command_line::QuoteArgument(exePath.data());
         command += identity;
         command += halljoy::windows_command_line::QuoteArgument(g_client.privatePluginPath);
@@ -1293,6 +1762,7 @@ namespace
             g_client.stopEvent,
             g_client.snapshotEvent,
             g_client.ownerProcess,
+            g_client.providerPlane.InheritableWriterHandle(),
         };
         SIZE_T attributeBytes = 0;
         InitializeProcThreadAttributeList(nullptr, 1, 0, &attributeBytes);
@@ -1330,6 +1800,57 @@ namespace
         return ok != FALSE;
     }
 
+    bool ApplyProviderPlaneDemandAfterReap(DWORD processExitCode,
+        bool* immediateRestart) noexcept
+    {
+        if (immediateRestart)
+            *immediateRestart = false;
+        if (processExitCode != kHostExitProviderPlaneResize)
+            return true;
+        SharedState* const shared = g_client.shared;
+        if (!shared)
+            return false;
+        const LONG status = InterlockedCompareExchange(
+            &shared->providerV2PlaneStatus, 0, 0);
+        const std::uint64_t demandGeneration = static_cast<std::uint64_t>(
+            InterlockedCompareExchange64(
+                &shared->providerV2PlaneGeneration, 0, 0));
+        const LONG requiredDevices = InterlockedCompareExchange(
+            &shared->providerV2PlaneRequiredDeviceCount, 0, 0);
+        const LONG requiredSamples = InterlockedCompareExchange(
+            &shared->providerV2PlaneRequiredSampleCount, 0, 0);
+        if (status != ProviderPlane_ResizeRequested ||
+            demandGeneration != g_client.providerPlane.PlaneGeneration() ||
+            requiredDevices < 0 || requiredSamples < 0)
+        {
+            PublishProviderPlaneError(shared, ERROR_INVALID_DATA);
+            return false;
+        }
+        const auto plan = halljoy::provider_v2_data_plane::PlanCapacity(
+            g_client.providerPlaneDeviceCapacity,
+            g_client.providerPlaneSampleCapacity,
+            static_cast<std::uint32_t>(requiredDevices),
+            static_cast<std::uint32_t>(requiredSamples));
+        if (plan.action !=
+            halljoy::provider_v2_data_plane::CapacityAction::Replace)
+        {
+            PublishProviderPlaneError(shared, ERROR_INVALID_DATA);
+            return false;
+        }
+        const auto oldDevices = g_client.providerPlaneDeviceCapacity;
+        const auto oldSamples = g_client.providerPlaneSampleCapacity;
+        g_client.providerPlaneDeviceCapacity = plan.deviceCapacity;
+        g_client.providerPlaneSampleCapacity = plan.sampleCapacity;
+        if (immediateRestart)
+            *immediateRestart = true;
+        StabilityTrace_Write(L"INFO", L"analog-host", L"provider_plane.resize_accepted",
+            L"old_generation=%llu old_devices=%u old_samples=%u required_devices=%ld required_samples=%ld next_devices=%u next_samples=%u child_reaped=1",
+            static_cast<unsigned long long>(demandGeneration),
+            oldDevices, oldSamples, requiredDevices, requiredSamples,
+            plan.deviceCapacity, plan.sampleCapacity);
+        return true;
+    }
+
     DWORD SupervisorThreadProcImpl()
     {
         if constexpr (kUseChildDebugger)
@@ -1354,14 +1875,35 @@ namespace
                 InterlockedExchange(&g_client.shared->transportError, 0);
             }
 
+            DWORD providerPlaneError = ERROR_SUCCESS;
+            if (!PrepareProviderPlaneForChild(&providerPlaneError))
+            {
+                PublishProviderPlaneError(g_client.shared,
+                    static_cast<LONG>(providerPlaneError));
+                StabilityTrace_WriteCritical(L"ERROR", L"analog-host",
+                    L"provider_plane.prepare_failed",
+                    L"win32=%lu restart=%ld old_child_reaped=1",
+                    providerPlaneError, restartCount);
+                if (WaitForSingleObject(g_client.stopEvent,
+                    kRestartDelayMs) == WAIT_OBJECT_0)
+                {
+                    break;
+                }
+                ++restartCount;
+                continue;
+            }
+
             PROCESS_INFORMATION pi{};
             g_client.expectedHostPid.store(0, std::memory_order_release);
-            if (!CreateHostProcess(pi))
+            const bool created = CreateHostProcess(pi);
+            g_client.providerPlane.CloseWriterHandleInParent();
+            if (!created)
             {
                 const DWORD error = GetLastError();
                 if (g_client.shared)
                     PublishHostError(g_client.shared, static_cast<LONG>(error), WootingAnalogResult_Failure);
                 DebugLog_Write(L"[analog.host] CreateProcess failed err=%lu", error);
+                SupportLog_ReportFailure("uap.create_process_failed", error);
                 if (WaitForSingleObject(g_client.stopEvent, kRestartDelayMs) == WAIT_OBJECT_0)
                     break;
                 ++restartCount;
@@ -1389,6 +1931,8 @@ namespace
                 continue;
             }
             g_client.expectedHostPid.store(pi.dwProcessId, std::memory_order_release);
+            const std::uint64_t deviceRefreshGenerationAtLaunch =
+                g_client.deviceRefreshGeneration.load(std::memory_order_acquire);
 
             bool restartAllowed = true;
             if (!AssignProcessToJobObject(g_client.job, pi.hProcess))
@@ -1404,6 +1948,7 @@ namespace
             }
             DebugLog_Write(L"[analog.host] started pid=%lu restart=%ld", pi.dwProcessId, restartCount);
             HostLog(L"supervisor child start pid=%lu restart=%ld", pi.dwProcessId, restartCount);
+            SupportLog_Event("uap.child_started", restartCount);
             StabilityTrace_Write(L"INFO", L"analog-host", L"child.start",
                 L"pid=%lu restart=%ld", pi.dwProcessId, restartCount);
             bool processExited = false;
@@ -1421,6 +1966,27 @@ namespace
                 {
                     SetEvent(g_client.stopEvent);
                     stopDeadline = GetTickCount64() + 2500;
+                }
+
+                // UAP's historical hotplug implementation performed broad
+                // periodic discovery. It remains disabled. A real
+                // WM_DEVICECHANGE instead asks this sole process owner to
+                // replace the child, which gives the plugin a clean startup
+                // enumeration without concurrent discovery/poll/unload I/O.
+                if (!g_client.stopping.load(std::memory_order_acquire) &&
+                    g_client.deviceRefreshGeneration.load(
+                        std::memory_order_acquire) !=
+                        deviceRefreshGenerationAtLaunch)
+                {
+                    InvalidateSnapshot(g_client.shared, Status_Restarting,
+                        0, g_client.snapshotEvent);
+                    StabilityTrace_Write(L"INFO", L"analog-host",
+                        L"child.device_refresh",
+                        L"pid=%lu action=terminate_for_fresh_enumeration",
+                        pi.dwProcessId);
+                    DebugLog_Write(L"[analog.host] device-change refresh; terminating child pid=%lu",
+                        pi.dwProcessId);
+                    TerminateProcess(pi.hProcess, 0xE0484456u);
                 }
 
                 if constexpr (kUseChildDebugger)
@@ -1572,6 +2138,10 @@ namespace
                     L"pid=%lu restart_blocked=1", pi.dwProcessId);
             }
             GetExitCodeProcess(pi.hProcess, &processExitCode);
+            SupportLog_Event("uap.child_exit", processExitCode);
+            if (processExitCode && processExitCode != kHostExitProviderPlaneResize &&
+                !g_client.stopping.load(std::memory_order_acquire))
+                SupportLog_ReportFailure("uap.child_failure", processExitCode);
             if (debugMainThreadHandle && debugMainThreadHandle != pi.hThread)
                 CloseHandle(debugMainThreadHandle);
             if (pi.hThread)
@@ -1579,6 +2149,18 @@ namespace
             if (debugProcessHandle && debugProcessHandle != pi.hProcess)
                 CloseHandle(debugProcessHandle);
             CloseHandle(pi.hProcess);
+
+            bool immediateRestart = false;
+            if (!ApplyProviderPlaneDemandAfterReap(
+                processExitCode, &immediateRestart))
+            {
+                restartAllowed = false;
+                g_client.restartBlocked.store(true, std::memory_order_release);
+                StabilityTrace_WriteCritical(L"ERROR", L"analog-host",
+                    L"provider_plane.resize_rejected",
+                    L"child_exit=0x%08lX restart_blocked=1 child_reaped=1",
+                    processExitCode);
+            }
 
             if (g_client.shared)
             {
@@ -1610,8 +2192,23 @@ namespace
                 g_client.restartBlocked.load(std::memory_order_acquire))
                 break;
             ++restartCount;
-            if (WaitForSingleObject(g_client.stopEvent, kRestartDelayMs) == WAIT_OBJECT_0)
+            if (!immediateRestart &&
+                WaitForSingleObject(g_client.stopEvent,
+                    kRestartDelayMs) == WAIT_OBJECT_0)
                 break;
+        }
+
+        DWORD providerPlaneRetireError = ERROR_SUCCESS;
+        if (!g_client.providerPlane.Retire(2000,
+            &providerPlaneRetireError))
+        {
+            g_client.restartBlocked.store(true, std::memory_order_release);
+            PublishProviderPlaneError(g_client.shared,
+                static_cast<LONG>(providerPlaneRetireError));
+            StabilityTrace_WriteCritical(L"ERROR", L"analog-host",
+                L"provider_plane.retire_timeout",
+                L"win32=%lu restart_blocked=1 child_reaped=1",
+                providerPlaneRetireError);
         }
 
         if (g_client.shared)
@@ -1756,6 +2353,151 @@ namespace
         return true;
     }
 
+    struct ProviderBrokerCommitContext final
+    {
+        SharedState* shared = nullptr;
+        const volatile LONG64* planeSequence = nullptr;
+        LONG denseSequence = 0;
+        LONG committedSlot = -1;
+        std::uint64_t observedPlaneSequence = 0;
+        std::uint64_t planeGeneration = 0;
+        std::uint64_t transactionToken = 0;
+        std::uint64_t publicationGeneration = 0;
+        std::uint64_t publicationTimestampUs = 0;
+    };
+
+    bool ValidateProviderBrokerCommit(void* opaque) noexcept
+    {
+        const auto* const context = static_cast<const
+            ProviderBrokerCommitContext*>(opaque);
+        if (!context || !context->shared || !context->planeSequence)
+            return false;
+
+        MemoryBarrier();
+        // The mapped view is deliberately read-only. Never use an Interlocked
+        // read-modify-write operation against this address.
+        if (static_cast<std::uint64_t>(*context->planeSequence) !=
+            context->observedPlaneSequence)
+        {
+            return false;
+        }
+
+        SharedState* const shared = context->shared;
+        const LONG before = InterlockedCompareExchange(
+            &shared->snapshotSequence, 0, 0);
+        if (before != context->denseSequence || (before & 1))
+            return false;
+        MemoryBarrier();
+        const bool matches =
+            shared->providerV2PlaneDualCoherent == 1 &&
+            shared->providerV2PlaneStatus == ProviderPlane_Committed &&
+            shared->providerV2PlaneCommittedSlot == context->committedSlot &&
+            static_cast<std::uint64_t>(shared->providerV2PlaneGeneration) ==
+                context->planeGeneration &&
+            static_cast<std::uint64_t>(
+                shared->providerV2PlaneTransactionToken) ==
+                context->transactionToken &&
+            static_cast<std::uint64_t>(shared->snapshotGeneration) ==
+                context->publicationGeneration &&
+            static_cast<std::uint64_t>(shared->snapshotTimestampUs) ==
+                context->publicationTimestampUs;
+        MemoryBarrier();
+        const LONG after = InterlockedCompareExchange(
+            &shared->snapshotSequence, 0, 0);
+        return matches && after == before && !(after & 1);
+    }
+
+    bool CaptureProviderPlaneIntoBroker() noexcept
+    {
+        SharedState* const shared = g_client.shared;
+        if (!shared || shared->magic != kMagic || shared->version != kVersion ||
+            shared->structSize != sizeof(SharedState))
+        {
+            return false;
+        }
+
+        for (int attempt = 0; attempt < 5; ++attempt)
+        {
+            ProviderBrokerCommitContext context{};
+            context.shared = shared;
+            const LONG before = InterlockedCompareExchange(
+                &shared->snapshotSequence, 0, 0);
+            if (before & 1)
+            {
+                YieldProcessor();
+                continue;
+            }
+            MemoryBarrier();
+            const bool dualCoherent =
+                shared->providerV2PlaneDualCoherent == 1;
+            const LONG planeStatus = shared->providerV2PlaneStatus;
+            context.committedSlot = shared->providerV2PlaneCommittedSlot;
+            context.planeGeneration = static_cast<std::uint64_t>(
+                shared->providerV2PlaneGeneration);
+            context.transactionToken = static_cast<std::uint64_t>(
+                shared->providerV2PlaneTransactionToken);
+            context.publicationGeneration = static_cast<std::uint64_t>(
+                shared->snapshotGeneration);
+            context.publicationTimestampUs = static_cast<std::uint64_t>(
+                shared->snapshotTimestampUs);
+            MemoryBarrier();
+            const LONG after = InterlockedCompareExchange(
+                &shared->snapshotSequence, 0, 0);
+            if (before != after || (after & 1))
+                continue;
+            if (!dualCoherent || planeStatus != ProviderPlane_Committed ||
+                context.planeGeneration == 0 ||
+                context.transactionToken == 0 ||
+                context.publicationGeneration == 0 ||
+                context.committedSlot < 0 ||
+                context.committedSlot >= static_cast<LONG>(
+                    halljoy::provider_v2_data_plane::kSlotCount))
+            {
+                return false;
+            }
+            context.denseSequence = after;
+
+            auto planeLease = g_client.providerPlane.AcquireRead();
+            if (!planeLease ||
+                planeLease.PlaneGeneration() != context.planeGeneration ||
+                planeLease.LaunchNonce() != g_client.nonce)
+            {
+                return false;
+            }
+            halljoy::provider_v2_data_plane::ConstSlotViewV1 view{};
+            if (planeLease.ValidateSlot(
+                    static_cast<std::uint32_t>(context.committedSlot),
+                    context.transactionToken, &view) !=
+                halljoy::provider_v2_data_plane::ValidationError::None)
+            {
+                continue;
+            }
+            context.planeSequence = reinterpret_cast<const volatile LONG64*>(
+                &view.commit->sequence);
+            context.observedPlaneSequence = view.observedSequence;
+
+            halljoy::provider_v2_snapshot_broker::SnapshotMetadataV1 metadata{};
+            metadata.planeGeneration = context.planeGeneration;
+            metadata.transactionToken = context.transactionToken;
+            metadata.publicationGeneration = context.publicationGeneration;
+            metadata.publicationTimestampUs = context.publicationTimestampUs;
+            const auto published = g_client.providerSnapshotBroker.TryPublish(
+                metadata, *view.snapshot, view.devices, view.samples,
+                ValidateProviderBrokerCommit, &context);
+            if (published == halljoy::provider_v2_snapshot_broker::
+                    PublishResult::Published)
+            {
+                return true;
+            }
+            if (published != halljoy::provider_v2_snapshot_broker::
+                    PublishResult::CommitInvalidated)
+            {
+                return false;
+            }
+        }
+        return false;
+    }
+
     DWORD SnapshotBridgeThreadProcImpl()
     {
 #if defined(HALLJOY_ANALOG_SIMULATOR)
@@ -1774,7 +2516,10 @@ namespace
             if (result == WAIT_OBJECT_0)
                 break;
             if (result == WAIT_OBJECT_0 + 1)
+            {
+                (void)CaptureProviderPlaneIntoBroker();
                 RealtimeLoop_NotifyInputChanged();
+            }
             else
                 break;
         }
@@ -1829,11 +2574,32 @@ namespace
     {
         return g_client.mapping || g_client.shared || g_client.stopEvent ||
             g_client.snapshotEvent || g_client.ownerProcess || g_client.snapshotBridgeThread ||
-            g_client.supervisorThread || g_client.supervisorReadyEvent || g_client.job;
+            g_client.supervisorThread || g_client.supervisorReadyEvent || g_client.job ||
+            g_client.providerPlane.OwnsResources();
     }
 
     void CloseClientResourcesLocked() noexcept
     {
+        g_client.providerSnapshotBroker.BeginReconfigure();
+        const bool brokerDrained = WaitForProviderSnapshotBrokerDrain(2000);
+        if (!brokerDrained)
+        {
+            g_client.restartBlocked.store(true, std::memory_order_release);
+            StabilityTrace_WriteCritical(L"ERROR", L"analog-host",
+                L"provider_broker.close_timeout",
+                L"resources_retained=1 restart_blocked=1");
+        }
+        g_client.providerPlane.CloseWriterHandleInParent();
+        DWORD providerPlaneError = ERROR_SUCCESS;
+        if (brokerDrained &&
+            !g_client.providerPlane.Retire(2000, &providerPlaneError))
+        {
+            g_client.restartBlocked.store(true, std::memory_order_release);
+            StabilityTrace_WriteCritical(L"ERROR", L"analog-host",
+                L"provider_plane.close_timeout",
+                L"win32=%lu resources_retained=1 restart_blocked=1",
+                providerPlaneError);
+        }
         if (g_client.snapshotBridgeThread) CloseHandle(g_client.snapshotBridgeThread);
         if (g_client.supervisorThread) CloseHandle(g_client.supervisorThread);
         if (g_client.shared) UnmapViewOfFile(g_client.shared);
@@ -1853,6 +2619,9 @@ namespace
         g_client.ownerProcess = nullptr;
         g_client.supervisorReadyEvent = nullptr;
         g_client.expectedHostPid.store(0, std::memory_order_release);
+        g_client.providerPlaneDeviceCapacity = 0;
+        g_client.providerPlaneSampleCapacity = 0;
+        g_client.providerPlaneGenerationCounter = 0;
     }
 
     bool WaitForClientWorkers(HANDLE bridge, HANDLE supervisor, DWORD timeoutMs, DWORD* waitResult) noexcept
@@ -1924,6 +2693,9 @@ namespace
             DebugLog_Write(L"[analog.host] secure launch nonce generation failed");
             return false;
         }
+        g_client.providerPlaneGenerationCounter = 0;
+        g_client.providerPlaneDeviceCapacity = 0;
+        g_client.providerPlaneSampleCapacity = 0;
 
         DWORD resourceError = ERROR_SUCCESS;
         g_client.job = CreateJobObjectW(nullptr, nullptr);
@@ -2031,6 +2803,7 @@ namespace
             g_client.shared->diagnosticCrashAfterPolls = 250;
 #endif
         g_client.stopping.store(false, std::memory_order_release);
+        g_client.deviceRefreshGeneration.store(0, std::memory_order_release);
         ResetEvent(g_client.stopEvent);
         ResetEvent(g_client.snapshotEvent);
         g_client.snapshotBridgeThread = CreateThread(nullptr, 0, SnapshotBridgeThreadProc, nullptr, 0, nullptr);
@@ -2194,6 +2967,19 @@ bool AnalogHostClient_IsInitialised()
         static_cast<DWORD>(InterlockedCompareExchange(&g_client.shared->hostPid, 0, 0)) == expectedHostPid;
 }
 
+bool AnalogHostClient_RequestDeviceRefresh() noexcept
+{
+    if (g_client.stopping.load(std::memory_order_acquire) ||
+        g_client.restartBlocked.load(std::memory_order_acquire) ||
+        g_client.lifecycle.State() != halljoy::lifecycle::WorkerState::Running)
+    {
+        return false;
+    }
+    g_client.deviceRefreshGeneration.fetch_add(1,
+        std::memory_order_release);
+    return true;
+}
+
 bool AnalogHostClient_GetTelemetry(AnalogHostTelemetry* out)
 {
     if (!out)
@@ -2215,6 +3001,33 @@ bool AnalogHostClient_GetTelemetry(AnalogHostTelemetry* out)
     result.transportError = InterlockedCompareExchange(&shared->transportError, 0, 0);
     result.restartCount = InterlockedCompareExchange(&shared->restartCount, 0, 0);
     result.invalidSnapshotCount = InterlockedCompareExchange(&shared->invalidSnapshotCount, 0, 0);
+    result.providerV2DualFailureCount =
+        InterlockedCompareExchange(&shared->providerV2DualFailureCount, 0, 0);
+    result.providerV2PlaneStatus = InterlockedCompareExchange(
+        &shared->providerV2PlaneStatus, 0, 0);
+    result.providerV2PlaneParentReadOnly =
+        InterlockedCompareExchange(
+            &shared->providerV2PlaneParentReadOnly, 0, 0) == 1 &&
+        g_client.providerPlane.ParentWriteMappingRejected();
+    result.providerV2PlaneDeviceCapacity = InterlockedCompareExchange(
+        &shared->providerV2PlaneDeviceCapacity, 0, 0);
+    result.providerV2PlaneSampleCapacity = InterlockedCompareExchange(
+        &shared->providerV2PlaneSampleCapacity, 0, 0);
+    result.providerV2PlaneRequiredDeviceCount = InterlockedCompareExchange(
+        &shared->providerV2PlaneRequiredDeviceCount, 0, 0);
+    result.providerV2PlaneRequiredSampleCount = InterlockedCompareExchange(
+        &shared->providerV2PlaneRequiredSampleCount, 0, 0);
+    result.providerV2PlaneFailureCount = InterlockedCompareExchange(
+        &shared->providerV2PlaneFailureCount, 0, 0);
+    result.providerV2PlaneGeneration = static_cast<std::uint64_t>(
+        InterlockedCompareExchange64(
+            &shared->providerV2PlaneGeneration, 0, 0));
+    result.providerV2PlaneMappingBytes = static_cast<std::uint64_t>(
+        InterlockedCompareExchange64(
+            &shared->providerV2PlaneMappingBytes, 0, 0));
+    result.providerV2PlaneTransactionToken = static_cast<std::uint64_t>(
+        InterlockedCompareExchange64(
+            &shared->providerV2PlaneTransactionToken, 0, 0));
     result.totalPolls = static_cast<std::uint64_t>(InterlockedCompareExchange64(&shared->totalPolls, 0, 0));
     result.totalSuccessfulPolls = static_cast<std::uint64_t>(InterlockedCompareExchange64(&shared->totalSuccessfulPolls, 0, 0));
 
@@ -2237,6 +3050,8 @@ bool AnalogHostClient_GetTelemetry(AnalogHostTelemetry* out)
         MemoryBarrier();
         result.activeKeyCount = std::clamp(static_cast<int>(shared->denseActiveKeyCount), 0, static_cast<int>(kMaxKeys));
         result.denseDeviceCount = std::clamp(static_cast<int>(shared->denseDeviceCount), 0, static_cast<int>(kMaxDevices));
+        result.providerV2PlaneDualCoherent =
+            shared->providerV2PlaneDualCoherent == 1;
         result.snapshotGeneration = static_cast<std::uint64_t>(InterlockedCompareExchange64(&shared->snapshotGeneration, 0, 0));
         result.snapshotTimestampUs = static_cast<std::uint64_t>(InterlockedCompareExchange64(&shared->snapshotTimestampUs, 0, 0));
         result.deviceCount = std::clamp(static_cast<int>(shared->deviceTelemetryCount), 0, static_cast<int>(kMaxDevices));
@@ -2250,6 +3065,9 @@ bool AnalogHostClient_GetTelemetry(AnalogHostTelemetry* out)
             break;
         result.deviceCount = 0;
     }
+    result.providerV2PlaneAvailable =
+        result.providerV2PlaneStatus == ProviderPlane_Committed &&
+        result.providerV2PlaneDualCoherent;
 
     AcquireSRWLockExclusive(&g_telemetryRate.lock);
     if (g_telemetryRate.lastSampleMs == 0 ||
@@ -2285,6 +3103,160 @@ bool AnalogHostClient_GetTelemetry(AnalogHostTelemetry* out)
 
     *out = result;
     return true;
+}
+
+bool AnalogHostClient_CaptureTickSnapshot(
+    halljoy::uap_parent_snapshot::SnapshotV1* out)
+{
+    if (!out)
+        return false;
+    using halljoy::uap_parent_snapshot::SnapshotV1;
+    using halljoy::uap_parent_snapshot::ValidationError;
+    SnapshotV1 result{};
+    SharedState* shared = g_client.shared;
+    if (!shared || shared->magic != kMagic || shared->version != kVersion ||
+        shared->structSize != sizeof(SharedState) ||
+        InterlockedCompareExchange(&shared->status, 0, 0) != Status_Ready)
+    {
+        *out = result;
+        return false;
+    }
+
+    for (int attempt = 0; attempt < 5; ++attempt)
+    {
+        const LONG before = InterlockedCompareExchange(&shared->snapshotSequence, 0, 0);
+        if (before & 1)
+        {
+            YieldProcessor();
+            continue;
+        }
+        MemoryBarrier();
+        result.publicationGeneration = static_cast<std::uint64_t>(
+            InterlockedCompareExchange64(&shared->snapshotGeneration, 0, 0));
+        result.publicationTimestampUs = static_cast<std::uint64_t>(
+            InterlockedCompareExchange64(&shared->snapshotTimestampUs, 0, 0));
+        result.providerV2PlaneGeneration = static_cast<std::uint64_t>(
+            InterlockedCompareExchange64(
+                &shared->providerV2PlaneGeneration, 0, 0));
+        result.providerV2PlaneTransactionToken = static_cast<std::uint64_t>(
+            InterlockedCompareExchange64(
+                &shared->providerV2PlaneTransactionToken, 0, 0));
+        const LONG denseDeviceCount = shared->denseDeviceCount;
+        const LONG denseActiveKeyCount = shared->denseActiveKeyCount;
+        const bool denseCountsFit = denseDeviceCount >= 0 &&
+            denseDeviceCount <= static_cast<LONG>(result.denseDevices.size()) &&
+            denseActiveKeyCount >= 0 &&
+            denseActiveKeyCount <= static_cast<LONG>(result.denseValues.size());
+        if (denseCountsFit)
+        {
+            result.denseDeviceCount = static_cast<std::uint32_t>(denseDeviceCount);
+            result.denseActiveKeyCount = static_cast<std::uint32_t>(denseActiveKeyCount);
+            std::copy_n(shared->denseValues, result.denseValues.size(),
+                result.denseValues.begin());
+            for (std::uint32_t i = 0; i < result.denseDeviceCount; ++i)
+                result.denseDevices[i] = shared->denseDevices[i];
+        }
+
+        result.providerV2PlaneDualCoherent = denseCountsFit &&
+            shared->providerV2PlaneDualCoherent == 1 &&
+            result.providerV2PlaneGeneration != 0 &&
+            result.providerV2PlaneTransactionToken != 0;
+        MemoryBarrier();
+        const LONG after = InterlockedCompareExchange(&shared->snapshotSequence, 0, 0);
+        if (before != after || (after & 1))
+        {
+            result = SnapshotV1{};
+            continue;
+        }
+        if (!denseCountsFit ||
+            halljoy::uap_parent_snapshot::Validate(result) != ValidationError::None)
+        {
+            *out = SnapshotV1{};
+            return false;
+        }
+        *out = result;
+        return true;
+    }
+    *out = SnapshotV1{};
+    return false;
+}
+
+bool AnalogHostClient_CaptureProviderV2PlaneHeader(
+    halljoy::analog_provider_v2::AnalogSnapshotHeaderV2* out)
+{
+    if (!out)
+        return false;
+    *out = halljoy::analog_provider_v2::AnalogSnapshotHeaderV2{};
+    SharedState* const shared = g_client.shared;
+    if (!shared || shared->magic != kMagic || shared->version != kVersion ||
+        shared->structSize != sizeof(SharedState) ||
+        InterlockedCompareExchange(
+            &shared->providerV2PlaneDualCoherent, 0, 0) != 1 ||
+        InterlockedCompareExchange(&shared->providerV2PlaneStatus, 0, 0) !=
+            ProviderPlane_Committed)
+    {
+        return false;
+    }
+
+    const std::uint64_t generation = static_cast<std::uint64_t>(
+        InterlockedCompareExchange64(
+            &shared->providerV2PlaneGeneration, 0, 0));
+    const std::uint64_t token = static_cast<std::uint64_t>(
+        InterlockedCompareExchange64(
+            &shared->providerV2PlaneTransactionToken, 0, 0));
+    const LONG slotValue = InterlockedCompareExchange(
+        &shared->providerV2PlaneCommittedSlot, 0, 0);
+    if (generation == 0 || token == 0 || slotValue < 0 ||
+        slotValue >= static_cast<LONG>(
+            halljoy::provider_v2_data_plane::kSlotCount))
+    {
+        return false;
+    }
+
+    auto lease = g_client.providerPlane.AcquireRead();
+    if (!lease || lease.PlaneGeneration() != generation ||
+        lease.LaunchNonce() != g_client.nonce)
+    {
+        return false;
+    }
+    halljoy::provider_v2_data_plane::ConstSlotViewV1 view{};
+    if (lease.ValidateSlot(static_cast<std::uint32_t>(slotValue), token,
+        &view) != halljoy::provider_v2_data_plane::ValidationError::None)
+    {
+        return false;
+    }
+    const auto candidate = *view.snapshot;
+    MemoryBarrier();
+    // The parent view deliberately has no write permission.  Interlocked
+    // read-modify-write operations fault even when their exchange value is
+    // unchanged, so force one aligned read without attempting a write.
+    const volatile LONG64* const sequenceAddress =
+        reinterpret_cast<const volatile LONG64*>(&view.commit->sequence);
+    const auto sequenceAfter = static_cast<std::uint64_t>(
+        *sequenceAddress);
+    if (sequenceAfter != view.observedSequence ||
+        InterlockedCompareExchange(
+            &shared->providerV2PlaneDualCoherent, 0, 0) != 1 ||
+        InterlockedCompareExchange(&shared->providerV2PlaneStatus, 0, 0) !=
+            ProviderPlane_Committed ||
+        static_cast<std::uint64_t>(InterlockedCompareExchange64(
+            &shared->providerV2PlaneGeneration, 0, 0)) != generation ||
+        static_cast<std::uint64_t>(InterlockedCompareExchange64(
+            &shared->providerV2PlaneTransactionToken, 0, 0)) != token ||
+        InterlockedCompareExchange(&shared->providerV2PlaneCommittedSlot,
+            0, 0) != slotValue ||
+        !halljoy::analog_provider_v2::IsAuthoritative(candidate))
+    {
+        return false;
+    }
+    *out = candidate;
+    return true;
+}
+
+AnalogHostProviderV2ReadLease
+AnalogHostClient_AcquireProviderV2Snapshot() noexcept
+{
+    return g_client.providerSnapshotBroker.Acquire();
 }
 
 WootingAnalogResult AnalogHostClient_Uninitialise()
@@ -2358,6 +3330,7 @@ WootingAnalogResult AnalogHostClient_Uninitialise()
             snapshotBridge ? 1 : 0, supervisor ? 1 : 0, job ? 1 : 0);
         DebugLog_Write(L"[analog.host] parent worker group did not join; resources retained and restart blocked");
         HostLog(L"client shutdown poisoned; deferred process cleanup");
+        SupportLog_ReportFailure("uap.shutdown_poisoned", waitError);
         return WootingAnalogResult_Failure;
     }
     CloseClientResourcesLocked();

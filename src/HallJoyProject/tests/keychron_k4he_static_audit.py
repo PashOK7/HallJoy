@@ -42,6 +42,18 @@ require("kbd.hid.product_id == 0x0B50 || kbd.hid.product_id == 0x0E40" in plugin
         "private UAP telemetry reports the K4 HE 6x19 topology")
 require("bc56b3c611dcc1a8ed9a2acb8bdc4da5e1a80c27" in text,
         "matrix provenance is pinned to an immutable official Keychron commit")
+require(
+    "report.size() < 3" in text
+    and "report.size() <= travel_index" in text
+    and "const bool request_sent = hid.sendReport" in text,
+    "Keychron version and per-key replies are length-gated before field access",
+)
+require(
+    "b0.size() != 32 || b1.size() != 32 || b2.size() != 32 || b3.size() != 32" in text
+    and "combined.append(b0.data() + 2, 32 - 2);" in text
+    and "combined.append(b3.data() + 2, 32 - 2);" in text,
+    "the A9/31 ABI accepts four exact 32-byte fragments and fixed payload spans",
+)
 
 if failures:
     print("KEYCHRON_K4HE_STATIC_AUDIT=FAIL", file=sys.stderr)

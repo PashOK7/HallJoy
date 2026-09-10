@@ -1,0 +1,380 @@
+[
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k10_he_ansi_rgb_v1.1_250526.json.zip?v=1755741703",
+    "file": ".local/research/keychron-catalog/k10_he_ansi_rgb_v1.1_250526.json.zip.json",
+    "sha256": "b44ed0f5694d10466eafa6662254824ee13236ec26a1791f8523f2acadea6bd0",
+    "name": "Keychron K10 HE ANSI RGB",
+    "vid": "0x3434",
+    "pid": "0x0EA0",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k10_he_iso_rgb_v1.0_250527.json.zip?v=1752051261",
+    "file": ".local/research/keychron-catalog/k10_he_iso_rgb_v1.0_250527.json.zip.json",
+    "sha256": "5595e0c53605dbf28a96b3173d6e258e3724db526249521c65b8ed5416aca844",
+    "name": "Keychron K10 HE ISO RGB",
+    "vid": "0x3434",
+    "pid": "0x0EA1",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k2_he_ansi_rgb_v1.1_20250521.json.zip?v=1755741110",
+    "file": ".local/research/keychron-catalog/k2_he_ansi_rgb_v1.1_20250521.json.zip.json",
+    "sha256": "716048913553eed2394bc01783bab325bae4051145eb29e0f082b6e00725a1c9",
+    "name": "Keychron K2 HE ANSI RGB",
+    "vid": "0x3434",
+    "pid": "0x0E20",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k2_he_iso_rgb_v1.0.json.zip?v=1727424461",
+    "file": ".local/research/keychron-catalog/k2_he_iso_rgb_v1.0.json.zip.json",
+    "sha256": "b51c8a700b0cec62642c121307c6075e36bbbc31e0c707a9391ac027c54c4404",
+    "name": "Keychron K2 HE ISO RGB",
+    "vid": "0x3434",
+    "pid": "0x0E21",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k2_he_iso_rgb_v1.1_250527.json.zip?v=1755741171",
+    "file": ".local/research/keychron-catalog/k2_he_iso_rgb_v1.1_250527.json.zip.json",
+    "sha256": "495a56a4fe382395ad571260c4294a6317609709e909da5e7048945d378cc41b",
+    "name": "Keychron K2 HE ISO RGB",
+    "vid": "0x3434",
+    "pid": "0x0E21",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k2_he_jis_rgb_v1.0-20240920.json.zip?v=1731913744",
+    "file": ".local/research/keychron-catalog/k2_he_jis_rgb_v1.0-20240920.json.zip.json",
+    "sha256": "60457b917be2690d338affa6e95d4ce686b4201f41a6dc509312a7134dee39a3",
+    "name": "Keychron K2 HE JIS RGB",
+    "vid": "0x3434",
+    "pid": "0x0E22",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k2_he_jis_rgb_v1.1_250527.json.zip?v=1755741254",
+    "file": ".local/research/keychron-catalog/k2_he_jis_rgb_v1.1_250527.json.zip.json",
+    "sha256": "212315d364efc193cc4b915be7a71e90208c659be5f8cfaacd1e2dc7a94d98cf",
+    "name": "Keychron K2 HE JIS RGB",
+    "vid": "0x3434",
+    "pid": "0x0E22",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k4_he_ansi_v1.1_20250527.json.zip?v=1755741332",
+    "file": ".local/research/keychron-catalog/k4_he_ansi_v1.1_20250527.json.zip.json",
+    "sha256": "49c2bd00f96f2eeb18f89ce60cb1cae97fcb15eb9e9e9d6c16381075324bc3fe",
+    "name": "Keychron K4 HE ANSI",
+    "vid": "0x3434",
+    "pid": "0x0E40",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k4_he_iso_v1.1_250526.json.zip?v=1755741412",
+    "file": ".local/research/keychron-catalog/k4_he_iso_v1.1_250526.json.zip.json",
+    "sha256": "4fa3a9fa94166552bcfc2c4ef45d07a59f6d6070df673969dff9ba46e09b605d",
+    "name": "Keychron K4 HE ISO",
+    "vid": "0x3434",
+    "pid": "0x0E41",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k4_he_jis_v1.0_250603.json.zip?v=1757991084",
+    "file": ".local/research/keychron-catalog/k4_he_jis_v1.0_250603.json.zip.json",
+    "sha256": "8ddb97ce29690745c2adf0b287241cfa8fad412ca5fc08e9cdfdbe7a05c30683",
+    "name": "Keychron K4 HE JIS",
+    "vid": "0x3434",
+    "pid": "0x0E42",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k6_he_ansi_v1.1_250523.json.zip?v=1749529928",
+    "file": ".local/research/keychron-catalog/k6_he_ansi_v1.1_250523.json.zip.json",
+    "sha256": "d52f634f0db80d0051f3513cbba59bac539ce2336285aa08c76809d9f52800c2",
+    "name": "Keychron K6 HE ANSI",
+    "vid": "0x3434",
+    "pid": "0x0E60",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k6_he_iso_v1.0_250714.json.zip?v=1757388618",
+    "file": ".local/research/keychron-catalog/k6_he_iso_v1.0_250714.json.zip.json",
+    "sha256": "fbdb2e09a6b96b30a0e37cce7f532951e0a3c2e9053f563d36c56620c8088d0e",
+    "name": "Keychron K6 HE ISO",
+    "vid": "0x3434",
+    "pid": "0x0E61",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k8_he_ansi_v1.1_250522.json.zip?v=1755741517",
+    "file": ".local/research/keychron-catalog/k8_he_ansi_v1.1_250522.json.zip.json",
+    "sha256": "ea2fd68cc4b62180dea451668b0beb3d77f27ee47e05a4a0ccbfb424e5268de8",
+    "name": "Keychron K8 HE ANSI",
+    "vid": "0x3434",
+    "pid": "0x0E80",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k8_he_iso_v1.1_250527.json.zip?v=1752051122",
+    "file": ".local/research/keychron-catalog/k8_he_iso_v1.1_250527.json.zip.json",
+    "sha256": "a16fdd61420b7bfaecf124e253e37a709a50a32e90fd8510b54607a26cb8e57f",
+    "name": "Keychron K8 HE ISO",
+    "vid": "0x3434",
+    "pid": "0x0E81",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/k8_he_jis_v1.1_250528.json.zip?v=1752051133",
+    "file": ".local/research/keychron-catalog/k8_he_jis_v1.1_250528.json.zip.json",
+    "sha256": "7308955ae75c62361b41225ac051de4d1009158e46e1c471e0410bae245af61c",
+    "name": "Keychron K8 HE JIS",
+    "vid": "0x3434",
+    "pid": "0x0E82",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q0_he_encoder_v1.1_250522.json.zip?v=1749528934",
+    "file": ".local/research/keychron-catalog/q0_he_encoder_v1.1_250522.json.zip.json",
+    "sha256": "703043bd346c0aed6e21a806452b780d185c2541ef2ab138881c075b24d3d9b9",
+    "name": "Keychron Q0 HE Knob",
+    "vid": "0x3434",
+    "pid": "0x0B00",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q12_he_ansi_encoder_v1.1_250529.json.zip?v=1749529292",
+    "file": ".local/research/keychron-catalog/q12_he_ansi_encoder_v1.1_250529.json.zip.json",
+    "sha256": "c8eaab6337de833d03cd4329751c1a503534fc0349c8ffad53794d4ae4122e21",
+    "name": "Keychron Q12 HE ANSI Knob",
+    "vid": "0x3434",
+    "pid": "0x0BC0",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q1_he_8k_iso_v1.0.0_2503131132.json.zip?v=1761102411",
+    "file": ".local/research/keychron-catalog/q1_he_8k_iso_v1.0.0_2503131132.json.zip.json",
+    "sha256": "100779678765171db169551632eac2a607debddc0e9ce4b1d31d565ec206866b",
+    "name": "Keychron Q1 HE 8K ISO",
+    "vid": "0x3434",
+    "pid": "0x1011",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q1_he_8k_jis_v1.0.0_2509081456.json.zip?v=1761102460",
+    "file": ".local/research/keychron-catalog/q1_he_8k_jis_v1.0.0_2509081456.json.zip.json",
+    "sha256": "16f8d65053c9ac5db5a6efc7c2f09edcfbad049d16dfc9ead4122a1ed606b783",
+    "name": "Keychron Q1 HE 8K JIS",
+    "vid": "0x3434",
+    "pid": "0x1012",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q1_he_8k_v1.0.0_2502181121.json.zip?v=1752053170",
+    "file": ".local/research/keychron-catalog/q1_he_8k_v1.0.0_2502181121.json.zip.json",
+    "sha256": "da12082d33fee03365cdd8162ee2ac0856622f865086d50ea9bf71caa832cdc3",
+    "name": "Keychron Q1 HE 8K ANSI",
+    "vid": "0x3434",
+    "pid": "0x1010",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q1_he_ansi_encoder_v1.1.json.zip?v=1755683525",
+    "file": ".local/research/keychron-catalog/q1_he_ansi_encoder_v1.1.json.zip.json",
+    "sha256": "2faf449bf19339c2633d73095075eeea187c09331ab35ee4482f61d302a812a8",
+    "name": "Keychron Q1 HE ANSI Knob",
+    "vid": "0x3434",
+    "pid": "0x0b10",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q1_he_iso_encoder_v1.0.json.zip?v=1720169902",
+    "file": ".local/research/keychron-catalog/q1_he_iso_encoder_v1.0.json.zip.json",
+    "sha256": "56d490dd4255d9fc390f78061843b24ec425edf992cf39ebcfa5052a4b4f8c5e",
+    "name": "Keychron Q1 HE ISO Knob",
+    "vid": "0x3434",
+    "pid": "0x0b11",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q1_he_iso_encoder_v1.1_250527.json.zip?v=1755683645",
+    "file": ".local/research/keychron-catalog/q1_he_iso_encoder_v1.1_250527.json.zip.json",
+    "sha256": "5cf5b523aea839867818b7407b3a1fc617fd206aba551ec6b01afb95ef704d47",
+    "name": "Keychron Q1 HE ISO Knob",
+    "vid": "0x3434",
+    "pid": "0x0b11",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q1_he_jis_encoder_v1.0.json.zip?v=1723702704",
+    "file": ".local/research/keychron-catalog/q1_he_jis_encoder_v1.0.json.zip.json",
+    "sha256": "575ad863f9572b3b690f1ccbe021ffde8d4a2e436b378c687f390d8325db1e8e",
+    "name": "Keychron Q1 HE JIS Knob",
+    "vid": "0x3434",
+    "pid": "0x0b12",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q1_he_jis_encoder_v1.1_250604.json.zip?v=1755683750",
+    "file": ".local/research/keychron-catalog/q1_he_jis_encoder_v1.1_250604.json.zip.json",
+    "sha256": "94f80b854714d986be15a3fd63354727c0525eb80363c51e1c02bb257ec11d2d",
+    "name": "Keychron Q1 HE JIS Knob",
+    "vid": "0x3434",
+    "pid": "0x0b12",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q2_he_ansi_encoder_v1.1_250527.json.zip?v=1755683856",
+    "file": ".local/research/keychron-catalog/q2_he_ansi_encoder_v1.1_250527.json.zip.json",
+    "sha256": "0ceea4c0f7eff4137c9208c05acc8d2d14786103918ecd433e8b295a47bf2f49",
+    "name": "Keychron Q2 HE ANSI Knob",
+    "vid": "0x3434",
+    "pid": "0x0B20",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q3_he_8k_iso_v1.0.0_2509121111.json.zip?v=1761106885",
+    "file": ".local/research/keychron-catalog/q3_he_8k_iso_v1.0.0_2509121111.json.zip.json",
+    "sha256": "f0f797d2a2809baca13dbf82a96ecfb92cf30ad65aabe747dc14edc04684056a",
+    "name": "Keychron Q3 HE 8K ISO",
+    "vid": "0x3434",
+    "pid": "0x1031",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q3_he_8k_jis_v1.0.0_2509171711.json.zip?v=1761106945",
+    "file": ".local/research/keychron-catalog/q3_he_8k_jis_v1.0.0_2509171711.json.zip.json",
+    "sha256": "97feb68c53f0c26538c060ace5337e61b556d489463171e6b4188061885f359a",
+    "name": "Keychron Q3 HE 8K JIS",
+    "vid": "0x3434",
+    "pid": "0x1032",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q3_he_8k_v1.0.0_2502061416.json.zip?v=1752053177",
+    "file": ".local/research/keychron-catalog/q3_he_8k_v1.0.0_2502061416.json.zip.json",
+    "sha256": "930ea4f331d922dae16cef0d6ab9b2bd03f0b5ab2b12225627d5958e52fd2256",
+    "name": "Keychron Q3 HE 8K ANSI",
+    "vid": "0x3434",
+    "pid": "0x1030",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q3_he_ansi_encoder_v1.1_250521.json.zip?v=1755740115",
+    "file": ".local/research/keychron-catalog/q3_he_ansi_encoder_v1.1_250521.json.zip.json",
+    "sha256": "69e7b3265329f858b0b6bdecc76fcd816bdcab3d37eeb71895a975fb71413428",
+    "name": "Keychron Q3 HE ANSI Knob",
+    "vid": "0x3434",
+    "pid": "0x0B30",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q3_he_iso_encoder_v1.0-20241015.json.zip?v=1730770385",
+    "file": ".local/research/keychron-catalog/q3_he_iso_encoder_v1.0-20241015.json.zip.json",
+    "sha256": "9948c8ed9a63c7786cb8377e56549ffacf81a599889f385a9f727d41c3165664",
+    "name": "Keychron Q3 HE ISO Knob",
+    "vid": "0x3434",
+    "pid": "0x0B31",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q3_he_iso_encoder_v1.1_250603.json.zip?v=1755740234",
+    "file": ".local/research/keychron-catalog/q3_he_iso_encoder_v1.1_250603.json.zip.json",
+    "sha256": "300e6ff431f2d3f90b8b7a28bd4c3c888ca825f8a585125cc70c35a350cf5ed7",
+    "name": "Keychron Q3 HE ISO Knob",
+    "vid": "0x3434",
+    "pid": "0x0B31",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q3_he_jis_encoder_v1.0-20241105.json.zip?v=1731910661",
+    "file": ".local/research/keychron-catalog/q3_he_jis_encoder_v1.0-20241105.json.zip.json",
+    "sha256": "76e888a3f3dd66438142b03d03182a9975424c494d86594b9dc848151019d779",
+    "name": "Keychron Q3 HE JIS Knob",
+    "vid": "0x3434",
+    "pid": "0x0B32",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q3_he_jis_encoder_v1.1_250604.json.zip?v=1755740324",
+    "file": ".local/research/keychron-catalog/q3_he_jis_encoder_v1.1_250604.json.zip.json",
+    "sha256": "0b0d3a293df114581c14356e6d74ff3c790234f1b6084630756b10fa65dab15c",
+    "name": "Keychron Q3 HE JIS Knob",
+    "vid": "0x3434",
+    "pid": "0x0B32",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q4_he_ansi_v1.1_250527.json.zip?v=1755740500",
+    "file": ".local/research/keychron-catalog/q4_he_ansi_v1.1_250527.json.zip.json",
+    "sha256": "d05025b4f6f94d7c7f8d0abd42e3abe4efbde659a32925b13347cb07115cbd29",
+    "name": "Keychron Q4 HE ANSI",
+    "vid": "0x3434",
+    "pid": "0x0B40",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q5_he_ansi_encoder_v1.1_250521.json.zip?v=1755740559",
+    "file": ".local/research/keychron-catalog/q5_he_ansi_encoder_v1.1_250521.json.zip.json",
+    "sha256": "7132233337b0e935fabc7947dbf95e77ea10d8f6939de9b59dfe632ce6a7343d",
+    "name": "Keychron Q5 HE ANSI Knob",
+    "vid": "0x3434",
+    "pid": "0x0B50",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q5_he_iso_encoder_v1.1_2150610.json.zip?v=1755740626",
+    "file": ".local/research/keychron-catalog/q5_he_iso_encoder_v1.1_2150610.json.zip.json",
+    "sha256": "6a5399bc1b9eed78e54b467e10fa04ab684d5fe6c04d12afa06291eff3a386d3",
+    "name": "Keychron Q5 HE ISO Knob",
+    "vid": "0x3434",
+    "pid": "0x0B51",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q5_he_jis_encoder_v1.1_250606.json.zip?v=1755740686",
+    "file": ".local/research/keychron-catalog/q5_he_jis_encoder_v1.1_250606.json.zip.json",
+    "sha256": "22bc2f76b00559b6b32607d46d2f646d44d95c4e44acc6b5f621f50e681bdae6",
+    "name": "Keychron Q5 HE JIS Knob",
+    "vid": "0x3434",
+    "pid": "0x0B52",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q6_he_8k_ansi_v1.0.0_2503141732.json.zip?v=1752053186",
+    "file": ".local/research/keychron-catalog/q6_he_8k_ansi_v1.0.0_2503141732.json.zip.json",
+    "sha256": "3eacac46c4e31a69d0d565d5397f7eb89253b35715d92863b0d9c4871b9f6570",
+    "name": "Keychron Q6 HE 8K ANSI",
+    "vid": "0x3434",
+    "pid": "0x1060",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q6_he_ansi_encoder_v1.1_250521.json.zip?v=1755740745",
+    "file": ".local/research/keychron-catalog/q6_he_ansi_encoder_v1.1_250521.json.zip.json",
+    "sha256": "c75b6e98a1a003e0f8c70ac50f29e654c410a339dcf04268954f2c7978dbad6e",
+    "name": "Keychron Q6 HE ANSI Knob",
+    "vid": "0x3434",
+    "pid": "0x0B60",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q6_he_iso_encoder_v1.0_20241203.json.zip?v=1733539203",
+    "file": ".local/research/keychron-catalog/q6_he_iso_encoder_v1.0_20241203.json.zip.json",
+    "sha256": "3483fe0ba2a236275d53091ac1bb7456d770cff500b04a464e69e63f29cf6aec",
+    "name": "Keychron Q6 HE ISO Knob",
+    "vid": "0x3434",
+    "pid": "0x0B61",
+    "vpid": null
+  },
+  {
+    "url": "https://cdn.shopify.com/s/files/1/0059/0630/1017/files/q6_he_jis_encoder_v1.0_20241213.json_61bee845-683e-42ac-87e4-60f41cf4c7ab.zip?v=1735025717",
+    "file": ".local/research/keychron-catalog/q6_he_jis_encoder_v1.0_20241213.json_61bee845-683e-42ac-87e4-60f41cf4c7ab.zip.json",
+    "sha256": "829808fc77cccd81664664ca39e99952fdcbd563320729afa2f43952e36e9dcf",
+    "name": "Keychron Q6 HE JIS Knob",
+    "vid": "0x3434",
+    "pid": "0x0B62",
+    "vpid": null
+  }
+]

@@ -7,6 +7,7 @@
 
 #include "aula_w669_backend.h"
 #include "aula_w669_protocol.h"
+#include "generated/layout_pipeline/identities.h"
 #include "debug_log.h"
 #include "hid_io_operation.h"
 #include "native_analog_routing.h"
@@ -88,6 +89,7 @@ struct Proof
 
 std::atomic<bool> g_prepared{ false }, g_running{ false }, g_stop{ false };
 std::atomic<bool> g_present{ false }, g_connected{ false };
+std::atomic<std::uint64_t> g_verifiedLayoutToken{0};
 std::mutex g_serviceMutex, g_routeMutex, g_handleMutex, g_signalMutex;
 std::vector<std::uint16_t> g_routedPids;
 HANDLE g_thread = nullptr, g_wake = nullptr, g_activeHandle = INVALID_HANDLE_VALUE;
@@ -423,6 +425,7 @@ void Publish(std::uint8_t row, std::uint8_t column, std::uint16_t travel,
 
 void Clear()
 {
+    g_verifiedLayoutToken.store(0, std::memory_order_release);
     bool changed = false;
     for (auto& v : g_milli) if (v.exchange(0, std::memory_order_relaxed)) changed = true;
     for (auto& v : g_owned) v.store(0, std::memory_order_relaxed);
@@ -465,6 +468,9 @@ bool Run(const Candidate& c)
         if (proof.map[pos]) mask[pos % aula_w669::kColumns] |= static_cast<std::uint8_t>(1u << (pos / aula_w669::kColumns));
     Clear();
     if (!s.Send(aula_w669::BuildSubscriptionRequest(mask))) return false;
+    g_verifiedLayoutToken.store(proof.firmwareIdentity ?
+        halljoy::layout_identity::Token("aula-w669",proof.deviceInfo.product.data()) : 0,
+        std::memory_order_release);
     g_connected.store(true, std::memory_order_release);
     DebugLog_Write(L"[aula.w669.session] connected vid=%04X pid=%04X firmware_product=%hs profile=%ls max=%u mapped=%u mode=%ls exclusive=%d strategy=live_subscription_only snapshot_publish=disabled",
         c.attributes.VendorID, c.attributes.ProductID,
@@ -664,7 +670,10 @@ bool Owns(std::uint16_t hid) { return hid < g_owned.size() && g_connected.load()
 std::uint16_t Get(std::uint16_t hid) { return Owns(hid) ? g_milli[hid].load() : 0; }
 void Telemetry(NativeAnalogBackendTelemetry* out)
 {
+    const auto identity = g_verifiedLayoutToken.load(std::memory_order_acquire);
     if (!out) return; *out = {}; out->present = g_present.load(); out->connected = g_connected.load();
+    if (out->connected && identity == g_verifiedLayoutToken.load(std::memory_order_acquire))
+        out->verifiedLayoutToken = identity;
     out->vendorId = g_vid.load(); out->productId = g_pid.load(); out->usagePage = kUsagePage; out->usage = kUsage;
     out->mappedKeys = g_mapped.load(); out->activeKeys = g_active.load(); out->nominalRawLevels = g_maxTravel.load() + 1u;
     out->inputReportBytes = g_inputBytes.load(); out->outputReportBytes = g_outputBytes.load(); out->updateHz10 = g_hz10.load();

@@ -214,7 +214,6 @@ def main() -> int:
             ]),
             ("runtime_arithmetic", [tests / "runtime_arithmetic_test.cpp"]),
             ("runtime_command_state", [tests / "runtime_command_state_test.cpp"]),
-            ("bounded_ini_numeric", [tests / "bounded_ini_numeric_test.cpp"]),
             ("curve_math", [tests / "curve_math_test.cpp", hall / "curve_math.cpp"]),
             ("engine_runtime_transaction", [tests / "engine_runtime_transaction_test.cpp"]),
             ("raw_input_packet_size", [tests / "raw_input_packet_size_test.cpp"]),
@@ -255,6 +254,9 @@ def main() -> int:
             ]),
         ]
         if os.name == "nt":
+            # This suite now includes real Win32 INI file roundtrips, not only
+            # the original platform-independent numeric conversion cases.
+            fixed_tests.append(("bounded_ini_numeric", [tests / "bounded_ini_numeric_test.cpp"]))
             # Uses the real Windows ViGEm SDK ABI (including Windows packing
             # headers), even with fake device calls. Keep mandatory coverage in
             # the Windows build rather than substituting a fake SDK on Linux.

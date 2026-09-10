@@ -28,3 +28,7 @@ ViGEm child transport ABI test was incorrectly scheduled on Linux. It includes
 the actual Windows SDK header (pshpack1.h), even with fake device calls. The test
 now runs in the mandatory Windows test group; portable protocol/state tests stay
 on Linux. No fake replacement SDK, skipped Windows coverage or EXE change.
+
+Run 34510636301 also identifies bounded_ini_numeric as Windows-only: its newer
+tests exercise GetPrivateProfileString/temporary files, not just numeric parsing.
+Moved that entire test to the same mandatory Windows group, retaining all cases.

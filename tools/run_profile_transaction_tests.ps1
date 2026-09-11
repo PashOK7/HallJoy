@@ -33,7 +33,7 @@ if ($process.ExitCode -ne 0 -or -not $evidence.Contains('PROFILE_TRANSACTION_WIN
 }
 
 
-# Rejected startup must preserve both files even during main's final shutdown.
+# Recovery must start successfully and preserve original files in a verified backup.
 $badRoot = Join-Path $testRoot 'rejected-startup'
 New-Item -ItemType Directory -Path $badRoot | Out-Null
 $badSettings = Join-Path $badRoot 'settings.ini'
@@ -50,8 +50,13 @@ if (-not $rejected.WaitForExit(30000)) {
     Stop-Process -Id $rejected.Id
     throw 'Rejected startup did not exit.'
 }
-if ($rejected.ExitCode -ne 1 -or (Get-FileHash -LiteralPath $badSettings).Hash -ne $beforeSettings -or
-    (Get-FileHash -LiteralPath $badBindings).Hash -ne $beforeBindings) {
-    throw 'Rejected startup changed persisted files or returned an unexpected exit code.'
+if ($rejected.ExitCode -ne 0 -or (Get-FileHash -LiteralPath $badBindings).Hash -ne $beforeBindings) {
+    throw 'Recovery failed to start or changed original legacy bindings.'
 }
-Write-Output 'REJECTED_STARTUP_PRESERVES_FILES=PASS'
+$recoverySettings = @(Get-ChildItem -LiteralPath (Join-Path $badRoot '.internal/ProfileRecovery') -Recurse -Filter settings.ini)
+if ($recoverySettings.Count -ne 1 -or (Get-FileHash $recoverySettings[0].FullName).Hash -ne $beforeSettings) {
+    throw 'Original settings were not preserved exactly.'
+}
+Write-Output 'RECOVERY_STARTUP_PRESERVES_FILES=PASS'
+& python (Join-Path $root 'tools/test_profile_startup_recovery.py') --exe $exe
+if ($LASTEXITCODE -ne 0) { throw 'Startup recovery regression tests failed.' }

@@ -15,6 +15,7 @@
 #include "settings_ini.h"
 #include "profile_ini.h"
 #include "profile_runtime_gate.h"
+#include "stability_trace.h"
 
 namespace fs = std::filesystem;
 
@@ -292,4 +293,147 @@ bool GlobalProfiles_Switch(const std::wstring& name) {
     }
     g_dirty = false;
     return true;
+}
+
+namespace {
+    bool MissingFile(const std::wstring& path) {
+        if (GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES) return false;
+        const DWORD error = GetLastError();
+        return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
+    }
+
+    // Empty files must also be preserved. Reject reparse points and unreadable
+    // or oversized files rather than assuming they are absent and overwriting.
+    bool ReadRecoveryBytes(const std::wstring& path, std::vector<unsigned char>& bytes) {
+        HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+            OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
+        if (file == INVALID_HANDLE_VALUE) return false;
+        BY_HANDLE_FILE_INFORMATION info{};
+        LARGE_INTEGER size{};
+        bool ok = GetFileInformationByHandle(file, &info) &&
+            !(info.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) &&
+            GetFileSizeEx(file, &size) && size.QuadPart >= 0 &&
+            size.QuadPart <= static_cast<LONGLONG>(halljoy::ini::kMaxFileBytes);
+        if (ok) {
+            bytes.resize(static_cast<size_t>(size.QuadPart));
+            DWORD read = 0;
+            ok = bytes.empty() || (ReadFile(file, bytes.data(), static_cast<DWORD>(bytes.size()),
+                &read, nullptr) && read == bytes.size());
+        }
+        CloseHandle(file);
+        return ok;
+    }
+
+    bool PlainRecoveryDirectory(const fs::path& path) {
+        if (!CreateDirectoryW(path.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS) return false;
+        const DWORD attributes = GetFileAttributesW(path.c_str());
+        return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) &&
+            !(attributes & FILE_ATTRIBUTE_REPARSE_POINT);
+    }
+
+    bool PreserveStartupFiles(std::wstring& backupPath) {
+        const std::wstring paths[] = { AppPaths_SettingsIni(), AppPaths_BindingsIni() };
+        std::vector<unsigned char> originals[2];
+        bool exists[2]{};
+        uint64_t hash = 14695981039346656037ull;
+        for (int i = 0; i < 2; ++i) {
+            exists[i] = !MissingFile(paths[i]);
+            if (exists[i] && !ReadRecoveryBytes(paths[i], originals[i])) return false;
+            hash = (hash ^ static_cast<uint64_t>(exists[i])) * 1099511628211ull;
+            for (unsigned char byte : originals[i]) hash = (hash ^ byte) * 1099511628211ull;
+            hash = (hash ^ static_cast<uint64_t>(originals[i].size())) * 1099511628211ull;
+        }
+        if (!exists[0] && !exists[1]) return true;
+        const auto internal = fs::path(AppPaths_DataRoot()) / L".internal";
+        const auto parent = internal / L"ProfileRecovery";
+        const auto directory = parent / std::to_wstring(hash);
+        if (!PlainRecoveryDirectory(internal) || !PlainRecoveryDirectory(parent) ||
+            !PlainRecoveryDirectory(directory)) return false;
+        backupPath = directory.wstring();
+        for (int i = 0; i < 2; ++i) {
+            if (!exists[i]) continue;
+            const auto destination = directory / fs::path(paths[i]).filename();
+            // Content-derived directory prevents duplicate backups on failed
+            // retries. Hashes are only names: verify actual bytes, even on reuse.
+            if (!CopyFileW(paths[i].c_str(), destination.c_str(), TRUE) &&
+                GetLastError() != ERROR_FILE_EXISTS) return false;
+            HANDLE saved = CreateFileW(destination.c_str(), GENERIC_WRITE, FILE_SHARE_READ,
+                nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
+            if (saved == INVALID_HANDLE_VALUE) return false;
+            const bool flushed = FlushFileBuffers(saved) != FALSE;
+            CloseHandle(saved);
+            std::vector<unsigned char> check;
+            if (!flushed || !ReadRecoveryBytes(destination.wstring(), check) || check != originals[i] ||
+                !ReadRecoveryBytes(paths[i], check) || check != originals[i]) return false;
+        }
+        return true;
+    }
+
+    bool PrepareStartupBindings(const std::wstring& settings, BindingsSnapshot& bindings) {
+        const std::wstring path = halljoy::ini::HasBundle(settings.c_str())
+            ? settings : AppPaths_BindingsIni();
+        return Profile_PrepareIni(path.c_str(), bindings);
+    }
+}
+
+ProfileStartupResult GlobalProfiles_InitializeStartup() {
+    ProfileStartupResult result;
+    const auto settings = AppPaths_SettingsIni();
+    const bool missingSettings = MissingFile(settings);
+    const bool missingBindings = MissingFile(AppPaths_BindingsIni());
+    result.firstRun = missingSettings && missingBindings;
+
+    // Validate both halves before applying anything. A rejected profile must
+    // not leave partially applied settings behind for the recovery/default path.
+    const bool baseValid = SettingsIni_CanLoad(settings.c_str());
+    if (baseValid) {
+        GlobalProfiles_InitFromSettingsIni(settings.c_str());
+        std::function<void()> apply;
+        if (GlobalProfiles_Prepare(GlobalProfiles_GetActiveName(), apply) &&
+            SettingsIni_Load(settings.c_str())) {
+            halljoy::profile_runtime::CommitLease commit;
+            if (commit) { apply(); return result; }
+        }
+    }
+
+    result.recovered = !result.firstRun;
+    if (result.recovered) StabilityTrace_WriteCritical(L"WARN", L"profile-recovery", L"startup.fallback",
+        L"settings_valid=%d settings_missing=%d bindings_missing=%d active=%ls",
+        baseValid ? 1 : 0, missingSettings ? 1 : 0, missingBindings ? 1 : 0,
+        GlobalProfiles_GetActiveName().c_str());
+
+    // Nothing is removed. Only root settings is atomically replaced, after a
+    // verified backup; named profiles/layouts and original bindings stay intact.
+    result.writable = PreserveStartupFiles(result.backupPath);
+    std::wstring source;
+    BindingsSnapshot bindings{};
+    const std::wstring candidates[] = { settings, settings + L".pre-bundle.bak", settings + L".bak" };
+    bool complete = false;
+    for (const auto& candidate : candidates) {
+        if (SettingsIni_CanLoad(candidate.c_str()) && PrepareStartupBindings(candidate, bindings)) {
+            source = candidate;
+            complete = true;
+            break;
+        }
+    }
+    if (!complete) {
+        // Preserve independently valid settings or bindings, but do not turn a
+        // broken modern bundle into unrelated stale legacy bindings.
+        for (const auto& candidate : candidates) {
+            if (SettingsIni_CanLoad(candidate.c_str())) { source = candidate; break; }
+        }
+        const auto& bindingSource = source.empty() ? settings : source;
+        if (!PrepareStartupBindings(bindingSource, bindings)) bindings = {};
+    }
+    if (!source.empty()) SettingsIni_Load(source.c_str());
+    Bindings_Apply(bindings);
+    GlobalProfiles_SetActiveName(L"Default");
+    GlobalProfiles_SetDirty(false);
+    if (result.writable) result.writable = SettingsIni_SaveRecovered(settings.c_str());
+    if (!result.writable) IniUtil_SetSessionReadOnly();
+    if (result.recovered || !result.writable) StabilityTrace_WriteCritical(L"WARN", L"profile-recovery", L"startup.ready",
+        L"recovered=%d writable=%d complete_profile=%d source=%ls backup=%ls",
+        result.recovered ? 1 : 0, result.writable ? 1 : 0, complete ? 1 : 0,
+        source.empty() ? L"defaults" : source.c_str(), result.backupPath.c_str());
+    return result;
 }

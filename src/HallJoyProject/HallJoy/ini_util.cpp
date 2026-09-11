@@ -8,6 +8,10 @@
 #include "ini_util.h"
 #include "stability_trace.h"
 
+static std::atomic<bool> g_sessionReadOnly{ false };
+void IniUtil_SetSessionReadOnly() noexcept { g_sessionReadOnly.store(true); }
+bool IniUtil_IsSessionReadOnly() noexcept { return g_sessionReadOnly.load(); }
+
 #if defined(HALLJOY_ANALOG_SIMULATOR)
 static thread_local HallJoyPersistence::SaveStage g_testFailureStage = HallJoyPersistence::SaveStage::None;
 void IniUtil_TestSetFailureStage(HallJoyPersistence::SaveStage stage) noexcept { g_testFailureStage = stage; }
@@ -255,6 +259,8 @@ HallJoyPersistence::SaveResult IniUtil_SaveAtomic(
     void* context)
 {
     Win32TransactionAdapter adapter(destinationPath, writer, validator, context);
+    if (IniUtil_IsSessionReadOnly())
+        return { HallJoyPersistence::SaveStage::Prepare, ERROR_WRITE_PROTECT };
     return HallJoyPersistence::SaveTransaction(adapter);
 }
 

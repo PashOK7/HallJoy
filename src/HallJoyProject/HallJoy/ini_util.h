@@ -7,6 +7,9 @@
 #include "transactional_file_store.h"
 
 using IniUtilWriteCallback = bool (*)(const wchar_t* temporaryPath, void* context, DWORD* errorOut);
+// Recovery may run in memory if original files cannot safely be backed up.
+void IniUtil_SetSessionReadOnly() noexcept;
+bool IniUtil_IsSessionReadOnly() noexcept;
 using IniUtilValidateCallback = bool (*)(const wchar_t* temporaryPath, void* context, DWORD* errorOut);
 
 // Forces WritePrivateProfile* buffers to be flushed to disk for this INI file.

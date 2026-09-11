@@ -663,6 +663,12 @@ bool SettingsIni_Load(const wchar_t* path)
     return SettingsIni_Load_Core(path, true, true, true);
 }
 
+bool SettingsIni_CanLoad(const wchar_t* path)
+{
+    std::function<void()> ignored;
+    return SettingsIni_Load_Core(path, true, true, true, &ignored);
+}
+
 bool SettingsIni_LoadProfile(const wchar_t* path)
 {
     return SettingsIni_Load_Core(path, false, false, false);
@@ -872,12 +878,14 @@ namespace
         return ok;
     }
 
-    bool SaveSettingsTransaction(const wchar_t* path, SettingsTransactionKind kind, const wchar_t* displayKind)
+    bool SaveSettingsTransaction(const wchar_t* path, SettingsTransactionKind kind, const wchar_t* displayKind,
+        bool preserveLegacy = true)
     {
+        if (IniUtil_IsSessionReadOnly()) return false;
         if (!path || !*path) return false;
         // Preserve the readable legacy document before its first bundle commit.
         // Legacy bindings remain untouched beside it; no rollback needs an older EXE.
-        if (kind != SettingsTransactionKind::OverlayUpdate && kind != SettingsTransactionKind::WindowUpdate &&
+        if (preserveLegacy && kind != SettingsTransactionKind::OverlayUpdate && kind != SettingsTransactionKind::WindowUpdate &&
             GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES && !halljoy::ini::HasBundle(path)) {
             const std::wstring backup = std::wstring(path) + L".pre-bundle.bak";
             if (!CopyFileW(path, backup.c_str(), TRUE) && GetLastError() != ERROR_FILE_EXISTS) {
@@ -900,6 +908,11 @@ namespace
 bool SettingsIni_Save(const wchar_t* path)
 {
     return SaveSettingsTransaction(path, SettingsTransactionKind::FullSettings, L"settings");
+}
+
+bool SettingsIni_SaveRecovered(const wchar_t* path)
+{
+    return SaveSettingsTransaction(path, SettingsTransactionKind::FullSettings, L"recovered settings", false);
 }
 
 bool SettingsIni_SaveProfile(const wchar_t* path)

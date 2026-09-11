@@ -57,7 +57,7 @@ if delete_marker < 0 or create_defaults < 0 or delete_marker < create_defaults:
 print("PASS: marker is removed only after fresh state directories exist")
 
 apply_position = app.find("FactoryReset_ApplyPending()")
-load_position = app.find("SettingsIni_Load(")
+load_position = app.find("GlobalProfiles_InitializeStartup(")
 if apply_position < 0 or load_position < 0 or apply_position > load_position:
     raise SystemExit("FAIL: pending reset is not applied before settings load")
 print("PASS: pending reset applies before any settings load")

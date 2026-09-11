@@ -2,7 +2,11 @@
 #include <windows.h>
 
 bool SettingsIni_Load(const wchar_t* path);
+// Validate application preferences without changing any runtime state.
+bool SettingsIni_CanLoad(const wchar_t* path);
 bool SettingsIni_Save(const wchar_t* path);
+// Startup only, after verified recovery backup; no redundant legacy backup.
+bool SettingsIni_SaveRecovered(const wchar_t* path);
 bool SettingsIni_LoadProfile(const wchar_t* path);
 bool SettingsIni_SaveProfile(const wchar_t* path);
 bool SettingsIni_SaveOverlay(const wchar_t* path);

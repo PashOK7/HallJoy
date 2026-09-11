@@ -5,6 +5,8 @@
 
 ## Текущая работа и правила
 
+- [Восстановление профиля при запуске 1.5.1](current/STARTUP_PROFILE_RECOVERY_2026-09-11.md).
+
 - [Подготовка релиза 1.5.0](current/RELEASE_PREPARATION_2026-09-10.md).
 - [Объединение одинаковых раскладок](current/LAYOUT_DUPLICATION_REVIEW.md).
 - [Шаблон обращения в Discord](SUPPORT_REPORT.md).

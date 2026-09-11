@@ -1963,29 +1963,9 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     }
 #endif
 
-    // Reject damaged persisted data before window creation or autosave.
-    // A missing settings file is the only first-run case that creates defaults.
-    auto profileStartupFailure = [] {
-        DebugLog_Write(L"[app] profile load rejected; existing files preserved");
-#if !defined(HALLJOY_ANALOG_SIMULATOR)
-        MessageBoxW(nullptr, L"HallJoy could not load a complete profile. Your files have been preserved. Restore a valid settings/profile INI and its bindings from backup, or move the damaged files aside before restarting.",
-            L"HallJoy profile could not be loaded", MB_ICONERROR);
-#endif
-        return 1;
-    };
-    bool initialProfileSaved = true;
-    if (!SettingsIni_Load(AppPaths_SettingsIni().c_str())) {
-        if (GetFileAttributesW(AppPaths_SettingsIni().c_str()) != INVALID_FILE_ATTRIBUTES)
-            return profileStartupFailure();
-        if (GetFileAttributesW(AppPaths_BindingsIni().c_str()) != INVALID_FILE_ATTRIBUTES &&
-            !Profile_LoadIni(AppPaths_BindingsIni().c_str())) return profileStartupFailure();
-        initialProfileSaved = SettingsIni_Save(AppPaths_SettingsIni().c_str());
-        KeyboardLayout_ArmFirstRunSelection();
-    }
-    // Load both settings and bindings as one prepared runtime transaction.
-    if (initialProfileSaved && !GlobalProfiles_Load(GlobalProfiles_GetActiveName())) return profileStartupFailure();
-
-    g_profileReadyForAutosave = true;
+    const auto startupProfile = GlobalProfiles_InitializeStartup();
+    if (startupProfile.firstRun) KeyboardLayout_ArmFirstRunSelection();
+    g_profileReadyForAutosave = startupProfile.writable;
 #if defined(HALLJOY_ANALOG_SIMULATOR)
     if (wcsstr(GetCommandLineW(), L"--halljoy-test-profile-startup-only")) {
         g_profileReadyForAutosave = false;
@@ -2095,6 +2075,17 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     if (!halljoy::window_placement::Apply(hwnd, initial, showCmd, startMaximized)) ShowWindow(hwnd, showCmd);
     g_windowPlacementReady = true;
     DebugLog_Write(L"[app] ShowWindow done");
+#if !defined(HALLJOY_ANALOG_SIMULATOR)
+    if (startupProfile.recovered || !startupProfile.writable) {
+        std::wstring message = startupProfile.writable
+            ? L"HallJoy recovered the settings it could read and reset any unavailable data.\n\n"
+              L"Please check your bindings before playing. Other saved profiles and layouts were not removed."
+            : L"HallJoy is running, but Windows prevented safe recovery or saving.\n\n"
+              L"Your existing files were not replaced without a backup. Changes in this session will not be saved.";
+        if (!startupProfile.backupPath.empty()) message += L"\n\nRecovery files:\n" + startupProfile.backupPath;
+        MessageBoxW(hwnd, message.c_str(), L"HallJoy settings recovery", MB_OK | MB_ICONINFORMATION);
+    }
+#endif
 
     if (factoryReset.status == FactoryResetApplyStatus::Applied)
     {

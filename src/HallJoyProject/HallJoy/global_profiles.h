@@ -25,3 +25,12 @@ bool GlobalProfiles_Save(const std::wstring& name);
 bool GlobalProfiles_Prepare(const std::wstring& name, std::function<void()>& apply);
 bool GlobalProfiles_Load(const std::wstring& name);
 bool GlobalProfiles_Switch(const std::wstring& name);
+
+struct ProfileStartupResult {
+    bool recovered = false;
+    bool writable = true;
+    bool firstRun = false;
+    std::wstring backupPath;
+};
+// Called once before UI/backends. Never terminates startup for invalid INI data.
+ProfileStartupResult GlobalProfiles_InitializeStartup();

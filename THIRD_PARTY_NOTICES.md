@@ -51,8 +51,8 @@ publishes it as accompanying license documentation; it is not a runtime
 dependency. Users can download and run HallJoy.exe without placing this document
 beside it. Redistributors must preserve the applicable notices and source access.
 
-HallJoy source for release 1.5.0:
-https://github.com/PashOK7/HallJoy/tree/v1.5.0
+HallJoy source for release 1.5.1:
+https://github.com/PashOK7/HallJoy/tree/v1.5.1
 HallJoy's AGPL-3.0 license is supplied as the separate LICENSE release asset.
 
 ## Wooting Analog SDK/common library

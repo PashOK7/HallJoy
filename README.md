@@ -1,6 +1,7 @@
 # HallJoy
 
-**1.5.0** — [changes and known limitations](RELEASE_NOTES_v1.5.md).
+**1.5.1** — [startup recovery fix](RELEASE_NOTES_v1.5.1.md).
+See also [1.5 features and known limitations](RELEASE_NOTES_v1.5.md).
 Support and keyboard requests: [HallJoy Discord](https://discord.gg/5FQ297yZh).
 
 2026-09-06: current build/layout contract: [project layout](docs/current/PROJECT_LAYOUT.md).

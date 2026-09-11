@@ -60,3 +60,13 @@ Pre-change source/EXE backup: .local/backups/startup-recovery-20260911/.
 - Owner confirmed this EXE starts successfully on the affected second PC and
   authorized publication of 1.5.1. This is owner-reported validation; the original
   problematic files were not supplied for local reproduction.
+
+## Published
+
+https://github.com/PashOK7/HallJoy/releases/tag/v1.5.1 is the latest stable release.
+Tag/source commit: e72cca95d1e1d4cb091768889e8aa4eb4645b037.
+Linux and full Windows CI both passed:
+https://github.com/PashOK7/HallJoy/actions/runs/34576922500.
+Uploaded EXE and a downloaded copy match the owner-tested SHA-256 above.
+Assets are HallJoy.exe, THIRD_PARTY_NOTICES.md and LICENSE; no application ZIP.
+v1.5.0 remains available. Automatic CI uploaded zero Actions artifacts.

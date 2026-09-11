@@ -172,3 +172,6 @@ SHA-256 EXE: F6CF016FA3D8B15D80EB2AF83BCAE1D8E16F989FE142EBC92D96CA454232079B.
 Владелец подтвердил запуск исправленного EXE на проблемном ПК и разрешил
 публикацию 1.5.1. Выпускать именно проверенный EXE с SHA-256
 4BA1CD93D1F1BED775B67DB9B65DBB9EE294F03D47AFE6EC948147303DF776C4.
+
+1.5.1 опубликован как Latest: https://github.com/PashOK7/HallJoy/releases/tag/v1.5.1.
+Windows/Linux CI успешно прошли на e72cca95d1e1d4cb091768889e8aa4eb4645b037.

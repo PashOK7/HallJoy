@@ -74,6 +74,15 @@ Some other models may work, but compatibility is not guaranteed.
 
 Not every listed model or hardware revision has been physically tested with HallJoy.
 
+## Support
+
+Join [HallJoy Discord](https://discord.gg/5FQ297yZh) for help, keyboard support
+requests, feedback, and updates. Include your keyboard model, HallJoy version,
+and a short description of the problem.
+
+Choose **Open HallJoy folder** in Global settings to find `HallJoy.log`.
+Attach it to your report; do not upload your entire data folder or personal text.
+
 ## Input Overlay for OBS
 
 Input Overlay renders the current keyboard layout and real HE key travel on a
@@ -135,15 +144,6 @@ If HallJoy starts but every analogue value remains at zero:
 Do not manually install Wooting Analog SDK or Universal Analog Plugin as a
 troubleshooting step. HallJoy verifies and prepares its own private plugin
 runtime.
-
-## Support
-
-Join [HallJoy Discord](https://discord.gg/5FQ297yZh) for help, keyboard support
-requests, feedback, and updates. Include your keyboard model, HallJoy version,
-and a short description of the problem.
-
-Choose **Open HallJoy folder** in Global settings to find `HallJoy.log`.
-Attach it to your report; do not upload your entire data folder or personal text.
 
 ## License
 

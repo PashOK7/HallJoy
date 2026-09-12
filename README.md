@@ -1,12 +1,3 @@
-# HallJoy
-
-**1.5.1** — [startup recovery fix](RELEASE_NOTES_v1.5.1.md).
-See also [1.5 features and known limitations](RELEASE_NOTES_v1.5.md).
-Support and keyboard requests: [HallJoy Discord](https://discord.gg/5FQ297yZh).
-
-2026-09-06: current build/layout contract: [project layout](docs/current/PROJECT_LAYOUT.md).
-One ordinary distribution: `build/release/HallJoy.exe`. Historical paths below
-must be interpreted through that document; they are not additional release outputs.
 
 HallJoy turns an analogue Hall Effect keyboard into a fully configurable virtual
 Xbox controller with low-latency analogue input. HallJoy includes:

@@ -38,7 +38,8 @@ checks = {
     "file version uses the central tuple": "FILEVERSION HALLJOY_VERSION_TUPLE" in resource,
     "product version uses the central tuple": "PRODUCTVERSION HALLJOY_VERSION_TUPLE" in resource,
     "about dialog uses the central version": "HALLJOY_ABOUT_VERSION_STRING,IDC_STATIC" in resource,
-    "README uses the version-independent product name": readme.startswith("# HallJoy\n"),
+    # The owner removed the heading; the introductory product sentence is valid.
+    "README uses the version-independent product name": readme.lstrip().startswith(("# HallJoy\n", "HallJoy turns ")),
     "README omits the obsolete Russian-only validation links":
         "v1.4 release notes (Russian)" not in readme and
         "detailed hardware matrix (Russian)" not in readme and

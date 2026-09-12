@@ -1,5 +1,54 @@
 # Block Bound Keys controls
 
+## 2026-09-12 — keypad identity and input-pump correction
+
+Supersedes the WM_HOTKEY-driven toggle mechanism described below. Capture and
+runtime normalize non-E0 keypad scan codes to VK_NUMPAD0..9 / VK_DECIMAL, independent
+of Num Lock; E0 navigation keys stay distinct. Labels explicitly distinguish keypad
+digits and navigation keys. Legacy Num-Lock-off bindings only stored a navigation
+VK, so cannot safely be migrated (it could mean a real arrow): rebind once.
+
+The low-level keyboard hook now owns a dedicated message-pump thread. UI saving
+was synchronous on the old hook thread; moving only the toggle or changing the
+350 ms save delay would not prevent release events waiting behind disk work.
+The shortcut is matched once per physical down and changes the atomic blocking
+setting inside the hook before the next keyboard event. Only UI refresh, dirty
+marking and the existing debounced save are posted to the UI. RegisterHotKey is
+retained for conflict detection/reservation and capture; WM_HOTKEY never performs
+a second toggle. Injected events do not toggle. Repeats and releases belong to the
+original shortcut press, including modifier/capture/settings changes while held.
+
+PressRoutes remains hook-thread-owned and preserves down/up routing across changes.
+Hook installation remains alive until shutdown to avoid losing held-key ownership.
+UI privilege detection receives hook timestamps through an atomic mailbox; the
+UI-only Detector is not accessed concurrently. IPC publishing stays on the UI.
+Pause passes new presses while completing already-owned releases consistently.
+
+Checkpoint: `.local/backups/block-keys-input-20260912/` (source and previous EXE).
+Expanded portable tests cover all eleven Num Lock aliases, separate E0 navigation,
+repeat suppression, capture/assignment changes and toggle-then-W press/release.
+Windows integration test installs the real hook on the production thread owner,
+and confirms its message pump responds while the calling thread does not pump.
+These tests send no keyboard input to user applications and are not a physical
+keyboard/game verification. Source guards prevent returning the hook to the UI.
+Also corrected an obsolete README-heading assertion to accept the owner's existing
+heading-free introduction; README itself was not changed.
+
+Validation: complete native/static/portable suite PASS; final direct policy and
+Windows hook-thread tests PASS; source integration guards PASS. The initial
+production-linked profile run failed the overlay-edit event test; an unchanged
+simulator rerun passed all profile/event checks and startup recovery. This is an
+unresolved intermittent test failure, not a proven fix to that test. Evidence:
+`.local/block-keys-input-build.log`, `.local/block-keys-profile-recheck.log`.
+Production build/packaging resumed at the unchanged build script's MSBuild stage
+after those gates completed; embedded ViGEm and telemetry checks PASS, no unexpected
+production warnings (existing ViGEm PDB LNK4099 only). Local release SHA256:
+`E2C10BDF4738565443090E51D79A6EBFA27FD92A847B78B403572CCCAD85C54C`.
+At that checkpoint, no GitHub publication or physical gameplay verification had
+been performed. The owner subsequently confirmed both fixes work and authorized
+release 1.5.2 with a short English patch note and no README changes. The release
+rebuild changes only version identity to 1.5.2; no further input logic changes.
+
 ## Collapsible child group
 
 The exception and shortcut controls are visible only while Block Bound Keys is

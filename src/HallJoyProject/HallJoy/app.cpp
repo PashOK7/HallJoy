@@ -56,6 +56,7 @@
 #include "input_privilege_warning.h"
 #include "input_privilege_windows.h"
 #include "block_keys_hotkey.h"
+#include "keyboard_hook_thread.h"
 #include "keyboard_ui_state.h"
 #include "addressed_analog_backend.h"
 #include "mad68pr_backend.h"
@@ -97,7 +98,7 @@ static bool g_windowPlacementDirty = false;
 
 static HWND g_hPageMain = nullptr;
 static HWND g_hMainWnd = nullptr;
-static HHOOK g_hKeyboardHook = nullptr;
+static halljoy::block_keys::KeyboardHookThread g_keyboardHookThread;
 static HHOOK g_hMouseHook = nullptr;
 // Written by the serialized engine owner and observed by UI presentation only.
 static std::atomic<bool> g_backendReady{ false };
@@ -265,8 +266,13 @@ static void App_ParseCommandLine()
 
 static halljoy::block_keys::PressRoutes g_blockPressRoutes;
 static halljoy::block_keys::HotkeyRegistration g_blockHotkey;
-static bool g_blockHotkeyCapture = false;
+static std::atomic<bool> g_blockHotkeyCapture{false};
+static std::atomic<UINT> g_hookShortcut{0};
+static halljoy::block_keys::ShortcutPress g_shortcutPress;
+static std::array<std::atomic<ULONGLONG>, 256> g_hookDigital{};
+static constexpr UINT WM_APP_BLOCK_TOGGLED = WM_APP + 368;
 static DWORD g_blockHotkeyError = ERROR_SUCCESS;
+static DWORD g_keyboardHookError = ERROR_SUCCESS;
 static UINT g_blockHotkeyAttempt = UINT_MAX;
 static void SeedBlockPressRoutes();
 
@@ -274,13 +280,14 @@ DWORD App_SetBlockKeysHotkey(UINT chord)
 {
     const DWORD error = g_blockHotkey.Apply(g_hMainWnd, chord);
     if (!error) {
+        g_hookShortcut.store(chord, std::memory_order_release);
         Settings_SetBlockKeysHotkey(chord);
         g_blockHotkeyAttempt = chord;
         g_blockHotkeyError = ERROR_SUCCESS;
     }
     return error;
 }
-DWORD App_BlockKeysHotkeyError() { return g_blockHotkeyError; }
+DWORD App_BlockKeysHotkeyError() { return g_keyboardHookError ? g_keyboardHookError : g_blockHotkeyError; }
 void App_SetBlockKeysHotkeyCapture(bool capturing) { g_blockHotkeyCapture = capturing; }
 
 static void RefreshBlockKeysHotkey()
@@ -289,19 +296,8 @@ static void RefreshBlockKeysHotkey()
     if (chord == g_blockHotkeyAttempt || !g_hMainWnd) return;
     g_blockHotkeyAttempt = chord;
     g_blockHotkeyError = g_blockHotkey.Apply(g_hMainWnd, chord);
+    g_hookShortcut.store(g_blockHotkey.Chord(), std::memory_order_release);
     if (g_hPageConfig) PostMessageW(g_hPageConfig, WM_APP_BLOCK_KEYS_CHANGED, 0, 0);
-}
-
-static bool NeedKeyboardHookNow()
-{
-    // Keyboard LL hook is needed only for features that depend on global key events.
-    // Native QBZ analogue polling is independent and does not require this hook.
-    return !g_engineUiInputPassThrough.load(std::memory_order_acquire) &&
-           (Settings_GetBlockBoundKeys() ||
-           g_blockPressRoutes.HasHeld() ||
-           g_blockHotkey.Chord() != 0 ||
-           Settings_GetDigitalFallbackInput() ||
-           Settings_GetMouseToStickEnabled());
 }
 
 static bool NeedMouseHookNow()
@@ -314,19 +310,13 @@ static bool NeedMouseHookNow()
 
 static void RefreshLowLevelHooks()
 {
-    const bool wantKb = NeedKeyboardHookNow();
-    if (wantKb && !g_hKeyboardHook)
-    {
-        g_hKeyboardHook = SetWindowsHookExW(WH_KEYBOARD_LL, KeyboardBlockHookProc, GetModuleHandleW(nullptr), 0);
-        if (g_hKeyboardHook) SeedBlockPressRoutes();
-        DebugLog_Write(L"[app] keyboard hook install=%p", g_hKeyboardHook);
-    }
-    else if (!wantKb && g_hKeyboardHook)
-    {
-        UnhookWindowsHookEx(g_hKeyboardHook);
-        g_hKeyboardHook = nullptr;
-        g_blockPressRoutes.Reset();
-        DebugLog_Write(L"[app] keyboard hook removed");
+    // Keep press ownership through pause/settings changes. Installation and the
+    // event pump belong to a dedicated thread, never the saving/rendering UI.
+    const DWORD hookError = g_keyboardHookThread.Start(KeyboardBlockHookProc, SeedBlockPressRoutes);
+    if (hookError != g_keyboardHookError) {
+        g_keyboardHookError = hookError;
+        DebugLog_Write(L"[app] keyboard hook thread error=%lu", hookError);
+        if (g_hPageConfig) PostMessageW(g_hPageConfig, WM_APP_BLOCK_KEYS_CHANGED, 0, 0);
     }
 
     const bool wantMouse = NeedMouseHookNow();
@@ -725,7 +715,9 @@ static void SeedBlockPressRoutes()
     for (UINT vk = 8; vk < 255; ++vk) {
         if (!(GetAsyncKeyState(vk) & 0x8000)) continue;
         const UINT scan = MapVirtualKeyW(vk, MAPVK_VK_TO_VSC_EX);
-        g_blockPressRoutes.SeedPassed(HidFromKeyboardScanCode(scan & 255, (scan & 0xff00) == 0xe000, vk));
+        const auto hid = HidFromKeyboardScanCode(scan & 255, (scan & 0xff00) == 0xe000, vk);
+        g_blockPressRoutes.SeedPassed(hid);
+        g_shortcutPress.SeedDown(hid);
     }
 }
 
@@ -797,6 +789,8 @@ static void UpdateInputPrivilegeWarning()
         if (telemetry.sdkInitialised && telemetry.deviceCount > 0) {
             for (unsigned hid = 4; hid < 232; ++hid) {
                 const auto press = analogPresses.Latest(hid);
+                const auto hookTime = g_hookDigital[hid].load(std::memory_order_acquire);
+                if (hookTime > sessionStarted) detector.Digital(hid, true, hookTime);
                 detector.Sample(hid, press > sessionStarted ? press : 0, now,
                     higher, Settings_GetBlockBoundKeys() && pid != GetCurrentProcessId());
             }
@@ -808,8 +802,6 @@ static void UpdateInputPrivilegeWarning()
 
 static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
-    if (g_engineUiInputPassThrough.load(std::memory_order_acquire))
-        return CallNextHookEx(g_hKeyboardHook, nCode, wParam, lParam);
     if (nCode == HC_ACTION && lParam)
     {
         if (wParam == WM_KEYDOWN || wParam == WM_KEYUP || wParam == WM_SYSKEYDOWN || wParam == WM_SYSKEYUP)
@@ -817,9 +809,10 @@ static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM l
             const KBDLLHOOKSTRUCT* k = (const KBDLLHOOKSTRUCT*)lParam;
             const bool ext = (k->flags & LLKHF_EXTENDED) != 0;
             const bool isDown = (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
+            const bool paused = g_engineUiInputPassThrough.load(std::memory_order_acquire);
             uint16_t hid = HidFromKeyboardScanCode(k->scanCode, ext, k->vkCode);
             if (isDown && !(k->flags & LLKHF_INJECTED))
-                halljoy::input_privilege::detector.Digital(hid, true, GetTickCount64());
+                if (hid < g_hookDigital.size()) g_hookDigital[hid].store(GetTickCount64(), std::memory_order_release);
             Backend_NotifyKeyboardEvent(
                 hid,
                 (uint16_t)(k->scanCode & 0xFFFFu),
@@ -830,18 +823,16 @@ static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM l
             if (hid == 229)
             {
                 g_mouseBlockPauseByRShift.store(isDown, std::memory_order_relaxed);
-                PublishMouseIpcState();
+                // The UI timer publishes IPC; no IPC or disk work in the hook.
             }
 
-            if (isDown && k->vkCode == VK_DELETE)
+            if (!paused && isDown && !(k->flags & LLKHF_INJECTED) && k->vkCode == VK_DELETE)
             {
                 const bool ctrlDown = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
                 const bool altDown = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
                 if (ctrlDown && altDown && Settings_GetMouseToStickEnabled())
                 {
                     Settings_SetMouseToStickEnabled(false);
-                    DebugLog_Write(L"[app] Ctrl+Alt+Del detected: Mouse->Stick disabled");
-                    PublishMouseIpcState();
                     if (g_hMainWnd && IsWindow(g_hMainWnd))
                         PostMessageW(g_hMainWnd, WM_APP_REQUEST_SAVE, 0, 0);
                 }
@@ -849,16 +840,38 @@ static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM l
 
             if ((k->flags & LLKHF_INJECTED) == 0)
             {
+                const UINT chord = g_hookShortcut.load(std::memory_order_acquire);
+                UINT mods = 0;
+                if (GetAsyncKeyState(VK_CONTROL) & 0x8000) mods |= MOD_CONTROL;
+                if (GetAsyncKeyState(VK_MENU) & 0x8000) mods |= MOD_ALT;
+                if (GetAsyncKeyState(VK_SHIFT) & 0x8000) mods |= MOD_SHIFT;
+                if ((GetAsyncKeyState(VK_LWIN) | GetAsyncKeyState(VK_RWIN)) & 0x8000) mods |= MOD_WIN;
+                bool toggle = false;
+                if (g_shortcutPress.Filter(hid, isDown,
+                    halljoy::block_keys::ShortcutKey(k->vkCode, k->scanCode, ext), mods,
+                    chord, !paused && !g_blockHotkeyCapture.load(), toggle)) {
+                    if (toggle) {
+                        Settings_SetBlockBoundKeys(!Settings_GetBlockBoundKeys());
+                        PostMessageW(g_hMainWnd, WM_APP_BLOCK_TOGGLED, 0, 0);
+                    }
+                    return 1;
+                }
                 const bool rescueShift = hid == 229 && Settings_GetBlockMouseInput() && Settings_GetMouseToStickEnabled();
-                const bool reserved = g_blockHotkey.Reserves(k->vkCode) ||
+                const unsigned shortcutMods = chord >> 8;
+                const bool modifierReserved =
+                    ((shortcutMods & MOD_ALT) && (hid == 226 || hid == 230)) ||
+                    ((shortcutMods & MOD_CONTROL) && (hid == 224 || hid == 228)) ||
+                    ((shortcutMods & MOD_SHIFT) && (hid == 225 || hid == 229)) ||
+                    ((shortcutMods & MOD_WIN) && (hid == 227 || hid == 231));
+                const bool reserved = modifierReserved ||
                     (Settings_GetBlockKeysAllowAltTab() && halljoy::block_keys::IsAltOrTab(hid));
-                const bool block = Settings_GetBlockBoundKeys() && !IsOwnForegroundWindow() &&
+                const bool block = !paused && Settings_GetBlockBoundKeys() && !IsOwnForegroundWindow() &&
                     !rescueShift && !reserved && hid && Bindings_IsHidBound(hid);
                 if (g_blockPressRoutes.Filter(hid, isDown, block)) return 1;
             }
         }
     }
-    return CallNextHookEx(g_hKeyboardHook, nCode, wParam, lParam);
+    return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 
 static LRESULT CALLBACK MouseBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam)
@@ -1349,11 +1362,7 @@ static void AppShutdownNoThrow(HWND hwnd) noexcept
         KillTimer(hwnd, WINDOW_SAVE_TIMER_ID);
         KillTimer(hwnd, WINDOW_REFIT_TIMER_ID);
     }
-    if (g_hKeyboardHook)
-    {
-        UnhookWindowsHookEx(g_hKeyboardHook);
-        g_hKeyboardHook = nullptr;
-    }
+    g_keyboardHookThread.Stop();
     if (g_hMouseHook)
     {
         UnhookWindowsHookEx(g_hMouseHook);
@@ -1767,9 +1776,12 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             if (g_hPageConfig) PostMessageW(g_hPageConfig, WM_APP_BLOCK_KEYS_CAPTURED, 0, lParam);
             return 0;
         }
-        if (g_blockHotkey.Matches(wParam, lParam) && !g_blockHotkeyCapture)
+        // Actual toggles happen synchronously in the keyboard hook. Never
+        // replay queued/injected WM_HOTKEY messages as a second toggle.
+        return 0;
+
+    case WM_APP_BLOCK_TOGGLED:
         {
-            Settings_SetBlockBoundKeys(!Settings_GetBlockBoundKeys());
             GlobalProfiles_SetDirty(true);
             if (g_hPageConfig) PostMessageW(g_hPageConfig, WM_APP_BLOCK_KEYS_CHANGED, 0, 0);
             if (g_hPageGlobal) PostMessageW(g_hPageGlobal, WM_APP + 122, 0, 0);
@@ -2128,11 +2140,7 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
         DebugLog_SetCheckpoint(L"ui: message loop idle");
     }
 
-    if (g_hKeyboardHook)
-    {
-        UnhookWindowsHookEx(g_hKeyboardHook);
-        g_hKeyboardHook = nullptr;
-    }
+    g_keyboardHookThread.Stop();
     if (g_hMouseHook)
     {
         UnhookWindowsHookEx(g_hMouseHook);

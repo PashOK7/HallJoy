@@ -11055,10 +11055,16 @@ static std::wstring Config_BlockShortcutText()
     if (mods & MOD_ALT) text += L"Alt + ";
     if (mods & MOD_SHIFT) text += L"Shift + ";
     if (mods & MOD_WIN) text += L"Win + ";
+    const UINT vk = chord & 255;
+    if (vk >= VK_NUMPAD0 && vk <= VK_NUMPAD9)
+        return text + L"Num " + std::to_wstring(vk - VK_NUMPAD0);
+    if (vk == VK_DECIMAL) return text + L"Num Decimal";
     const UINT scan = MapVirtualKeyW(chord & 255, MAPVK_VK_TO_VSC_EX);
     wchar_t key[64]{};
     LONG flags = (scan & 255) << 16;
-    if ((scan & 0xff00) == 0xe000) flags |= 1 << 24;
+    if ((scan & 0xff00) == 0xe000 ||
+        (vk >= VK_PRIOR && vk <= VK_DOWN) || vk == VK_INSERT || vk == VK_DELETE)
+        flags |= 1 << 24;
     if (!GetKeyNameTextW(flags, key, _countof(key))) swprintf_s(key, L"Key %u", chord & 255);
     return text + key;
 }
@@ -12443,7 +12449,9 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             if (GetKeyState(VK_MENU) & 0x8000) mods |= MOD_ALT;
             if (GetKeyState(VK_SHIFT) & 0x8000) mods |= MOD_SHIFT;
             if ((GetKeyState(VK_LWIN) | GetKeyState(VK_RWIN)) & 0x8000) mods |= MOD_WIN;
-            const UINT chord = (mods << 8) | static_cast<UINT>(wParam);
+            const UINT chord = (mods << 8) | halljoy::block_keys::ShortcutKey(
+                static_cast<UINT>(wParam), (static_cast<UINT_PTR>(lParam) >> 16) & 255,
+                (lParam & (1LL << 24)) != 0);
             if (halljoy::block_keys::ValidShortcut(chord)) Config_CommitBlockShortcut(hWnd, st, chord);
             return 0;
         }

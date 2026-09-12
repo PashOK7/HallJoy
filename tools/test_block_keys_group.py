@@ -38,3 +38,14 @@ assert "st->blockShortcutCapturing && !Settings_GetBlockBoundKeys()" in page
 assert "Ignore queued clicks belonging to controls that have just collapsed" in page
 assert "Settings_SetBlockKeysHotkey" not in toggle  # Hiding never clears the binding.
 print("BLOCK_KEYS_GROUP_SOURCE_TEST=PASS")
+
+# Runtime integration: persistence/painting must not own the keyboard hook pump.
+app = (root / "src/HallJoyProject/HallJoy/app.cpp").read_text(encoding="utf-8-sig")
+hook = body("static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM lParam)\n", app)
+assert "g_shortcutPress.Filter" in hook
+assert hook.index("Settings_SetBlockBoundKeys") < hook.index("WM_APP_BLOCK_TOGGLED")
+assert "SaveSettings" not in hook and "RequestSettingsSave" not in hook
+assert "detector.Digital" not in hook  # UI-only detector consumes atomic timestamps.
+assert "SetWindowsHookExW(WH_KEYBOARD_LL" not in app
+assert "ShortcutKey(" in page
+print("BLOCK_KEYS_INPUT_INTEGRATION_TEST=PASS")

@@ -36,12 +36,10 @@ file was written by chatgpt completely except for this paragraph 🙂
 ## Quick start
 
 1. Download `HallJoy.exe` from [GitHub Releases](https://github.com/PashOK7/HallJoy/releases)
-   or build it from source.
+   and run it. No archive extraction is needed.
 2. Run HallJoy. If ViGEmBus is missing, choose **Install ViGEmBus 1.22.0**.
-   HallJoy verifies and starts the official installer embedded in the same EXE;
-   no download, link copying, or browser is required. Approve the normal Windows
-   UAC prompt and complete the setup. HallJoy retries the virtual controller in
-   the same process; it asks for a restart only when Windows actually requires it.
+   The installer is included in HallJoy. Approve the Windows permission prompt
+   and follow the setup instructions.
 3. Close any connected keyboard web-driver tabs; they commonly conflict with
    HallJoy. Desktop software such as Razer Synapse does not necessarily conflict
    and can stay open if everything works.
@@ -49,20 +47,12 @@ file was written by chatgpt completely except for this paragraph 🙂
 5. Assign controls on the **Remap** tab, tune curves and behavior in
    **Configuration**, and verify the result in **Gamepad Tester**.
 
-You do not need to install the Wooting Analog SDK or Universal Analog Plugin.
-HallJoy carries its own verified private Universal Analog Plugin runtime and
-prepares it automatically without UAC. ViGEmBus is the only system-wide runtime
-dependency. Its pinned official 1.22.0 installer is embedded for one-click setup,
-with an exact SHA-256 and publisher-signature check before elevation. A separate
-button still opens the
-[official release page](https://github.com/nefarius/ViGEmBus/releases/tag/v1.22.0)
-for users who prefer manual installation.
+Wooting Analog SDK and Universal Analog Plugin do not need to be installed separately.
 
 ## Compatible keyboards
 
 If your model is not listed, that does not necessarily mean it is unsupported.
-HallJoy can identify some compatible devices from live protocol responses rather
-than a fixed model or PID table.
+Some other models may work, but compatibility is not guaranteed.
 
 ### Supported models
 
@@ -70,7 +60,7 @@ than a fixed model or PID table.
 |---|---|---|
 | Aula | **WIN 60 HE MAX**, **WIN 60 HE**, **WIN 68 HE**, **KP-TE153** | — |
 | Irok | **MG75 Max**, **MG75 Pro** | **MG75 v2 is not supported.** |
-| Redragon | **K673RGB-M (BR firmware)** — confirmed working | Other compatible magnetic-switch models are expected to work but have not been physically tested with HallJoy. See the [extended compatibility list](SUPPORTED_HARDWARE.md#redragon-magnetic-switch-family). |
+| Redragon | **K673RGB-M (BR firmware)** — confirmed working | Other compatible magnetic-switch models are expected to work but have not been physically tested with HallJoy. |
 | MADLIONS | **MAD 68 Pro R**, **MAD60HE**, **MAD68HE**, **MAD68R** | — |
 | ATK | **Hex80** | — |
 | SayoDevice | **O3C** | O3C is tested; other SayoDevice models may also work but are not confirmed. |
@@ -82,26 +72,7 @@ than a fixed model or PID table.
 | DrunkDeer | **A75**, **A75 Pro**, **G60**, **G65**, **G75** | — |
 | Wooting | Analogue Wooting keyboards supported by the bundled runtime | — |
 
-You do not need to install Universal Analog Plugin separately. Not every model
-or hardware revision has been physically tested with HallJoy. The
-[detailed compatibility reference](SUPPORTED_HARDWARE.md) records confirmed
-devices, firmware requirements, and untested variants.
-
-### If your keyboard is not listed
-
-For an unlisted keyboard or a detection problem, see [Support](#support).
-A missing-keyboard diagnostic report is collected automatically; ordinary
-continuous logging does not need to be enabled.
-
-Some keyboards do not expose a separate analogue protocol at all: their firmware
-may never provide key travel to external applications. In that case, HallJoy
-cannot create full analogue support on its own.
-
-> **Experimental firmware route:** If you are brave enough, your keyboard can
-> load a custom firmware update, and you accept all the risks, the author is
-> willing to try modifying its firmware for HallJoy support. There is no promise
-> of success. A failed or incompatible image can permanently brick the keyboard,
-> so proceed entirely at your own risk and be prepared for that outcome.
+Not every listed model or hardware revision has been physically tested with HallJoy.
 
 ## Input Overlay for OBS
 
@@ -136,14 +107,7 @@ protocol used to obtain analogue values.
 
 HallJoy stores user data under `%LOCALAPPDATA%\HallJoy` by default:
 
-- `settings.ini` contains the Default global profile, including its bindings;
-  named profiles likewise store settings and bindings together in their
-  `.settings.ini` file, committed atomically. Existing legacy pairs with a
-  separate `bindings.ini` / `.bindings.ini` are read until their first successful
-  save. That save preserves the old settings as `.pre-bundle.bak` and leaves the
-  legacy bindings file untouched; subsequent loads use the combined file.
-  To roll back to an older executable, restore the legacy settings backup
-  together with its matching legacy bindings;
+- `settings.ini` contains the main settings and Default profile, including bindings;
 - `GlobalProfiles\` contains additional profile settings and bindings;
 - `Layouts\` contains keyboard layout presets;
 - `CurvePresets\` contains response-curve presets.
@@ -175,8 +139,8 @@ runtime.
 ## Support
 
 Join [HallJoy Discord](https://discord.gg/5FQ297yZh) for help, keyboard support
-requests, feedback, and updates. Use the [report template](docs/SUPPORT_REPORT.md)
-so the relevant information is collected in one place.
+requests, feedback, and updates. Include your keyboard model, HallJoy version,
+and a short description of the problem.
 
 Choose **Open HallJoy folder** in Global settings to find `HallJoy.log`.
 Attach it to your report; do not upload your entire data folder or personal text.
@@ -193,254 +157,8 @@ Commercial licensing inquiries: Discord **`pash.ok`**. Third-party components
 and their licenses are listed in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-> **For most users, this is the end of the guide.** Everything below is intended
-> for developers, contributors, and advanced troubleshooting.
-
-
-
 ## Building from source
 
-Requirements:
-
-- Visual Studio 2022 Build Tools with **Desktop development with C++** and the
-  x64 Clang tools component;
-- Python 3.12;
-- Git;
-- PowerShell 5.1 or newer.
-
-1. Clone or extract the repository into a fresh directory.
-2. Run `BUILD.cmd`.
-3. The release executable will be created at:
-
-```text
-build\release\HallJoy.exe
-```
-
-The official build uses the pinned versions in
-[tools/dependency-lock.json](tools/dependency-lock.json) and runs the same static
-and portable C++20 gate used by CI before producing the x64 executable.
-
-## Runtime dependencies
-
-HallJoy contains its own pinned ABI1 build of Universal Analog Plugin. It does
-not require a system Wooting Analog SDK or a global Universal Analog Plugin
-installation. In writable or portable locations, the private runtime is verified
-beside the EXE. In a protected location it is automatically placed, without UAC,
-in a versioned `%LOCALAPPDATA%\HallJoy\Runtime` directory. Before the isolated
-child host starts, the runtime is checked byte-for-byte against the embedded
-resource.
-
-ViGEmBus remains the only external system dependency required for the virtual
-Xbox controller.
-
-## Supported analogue routes
-
-| Family | Protocol | Discovery |
-|---|---|---|
-| MAD68 Pro R and compatible MAD68 devices | Native asynchronous A0 | Exact HID fingerprint, 68-key layout boundary, and either audited PID/firmware or a valid reversible A9 acknowledgement |
-| ATK Hex80 and compatible devices | Native `0x96` matrix polling | `VID 373B`, `FF60:0061`, and valid GET `02 96 24` / `02 96 1C` responses; the PID does not need to be pre-registered |
-| IPI/QBZ75 and compatible devices | Addressed Analog `09/94/02` | `FF60:0061`, reports of at least 64 bytes, valid checksum, and a response for the exact requested key IDs; up to nine keys per request |
-| Sayo and compatible brand models | Native depth `0x22` | Audited `8089:0009` or a valid depth response from another `VID 8089` PID |
-| Irok/SparkLink-compatible devices | Native matrix/route polling | Capability fingerprint and valid protocol response |
-| Aula WIN 60 HE MAX and compatible 6×21 family | Native read-only `5C/12/23/2B` polling | Brand-scoped prefilter, `FFA0:0001`, 65-byte HID envelope, and complete dynamic proof; `1CA2:1902 / App V1.1.6` is physically validated |
-| Aula WIN 60/68 HE Standard and KP-TE153 | Native W669 `0D/18/21` event stream | `FF1B:0091`, 64-byte report-ID-1 envelope, read-only firmware identity, travel descriptor, complete 132-position override generation, and an exact official SI2825/SI2828/SI2851 factory profile; an unknown product must prove enough explicit mappings and never inherits a guessed layout |
-| Compatible revisions of the listed Redragon magnetic-switch models | Native analogue event stream | **K673RGB-M is physically tested.** Compatible revisions of K673WB-RGB-M, K580-M, K552 family, K556 family, K617 family, K618RGB-M, K686 family, K707-RGB-M, K721 family, M82/M82 SE, and RS82 RT are official-driver-derived and expected to work, but are not yet physically validated with HallJoy. |
-| Wooting, selected MADLIONS devices, and others | Universal Analog Plugin | Support provided by HallJoy's pinned embedded runtime |
-
-Brand or VID alone is not enough. A native backend receives a device only after
-proving its protocol. An unproven device remains available to Universal Analog
-Plugin or continues to operate as a normal digital Windows keyboard.
-
-## Native/Universal Analog Plugin arbitration
-
-At startup, HallJoy classifies devices in a fixed safe order:
-
-1. MAD68 native A0;
-2. Hex80-compatible `0x96`;
-3. Addressed Analog `09/94/02`;
-4. Aula MAX-family and Standard/W669 complete read-only proofs on their separate
-   vendor interfaces;
-5. SparkLink and Sayo capability checks inside the shared backend initialization;
-6. Universal Analog Plugin starts only after the exact proven native HID
-   interface paths have been published.
-
-Every native backend:
-
-- verifies its HID fingerprint;
-- performs only its known capability probe;
-- claims an exact SetupAPI interface path only after a valid response;
-- publishes the confirmed native path list to the isolated plugin host before
-  Universal Analog Plugin HID enumeration begins.
-
-The embedded plugin patch applies the exclusion before `CreateFileW`, so
-Universal Analog Plugin never opens an endpoint already proven by a native
-protocol. The first protocol to prove a path owns only that exact path; sibling
-interfaces with the same `VID:PID` remain independent.
-
-A newly connected device may require a HallJoy restart so arbitration can occur
-before Universal Analog Plugin starts. Reconnecting an already classified exact
-interface within the current session is supported by its native worker.
-
-## Addressed Analog
-
-The Addressed backend supports the QBZ75-compatible family and other devices
-that prove the same protocol:
-
-```text
-Usage Page: FF60
-Usage:      0061
-Reports:    at least 64 bytes
-Map:        09 83 00
-Analogue:   09 94 02
-Batch:      up to 9 key IDs per request
-```
-
-The backend first requests a dynamic `0x83` map. A complete map is used directly;
-the validated QBZ-compatible family retains a canonical fallback. A `09/94/02`
-response is accepted only with a correct checksum, the exact record count,
-matching requested key IDs without duplicates, and plausible Hall values.
-
-The scheduler prioritizes bound keys, moving or held keys, recently released
-keys, and then background coverage of the remaining positions. Every actual
-value change immediately wakes the shared realtime pipeline. Production does
-not write Addressed per-key or trace files.
-
-## MADLIONS protocol arbitration
-
-Devices using `VID 373B` may expose different protocols:
-
-- Universal Analog Plugin;
-- MAD68 native A0;
-- Hex80-compatible `0x96`;
-- potentially Addressed `09/94/02`, if the device proves that fingerprint.
-
-HallJoy does not route them by brand alone. MAD68 requires the compatible 68-key
-family boundary and a valid A9 acknowledgement. Hex80 requires two valid GET
-responses. Addressed requires a valid `09/94/02` response for the exact requested
-key IDs. All other `373B` devices remain available to Universal Analog Plugin.
-
-The MAD68 runtime allow-list remains limited to A8/A9. HallJoy does not modify
-the keyboard firmware.
-
-## Native ATK Hex80 `0x96`
-
-Known Hex80 devices have used PID `1176`, `1177`, and `1250`, but v1.4 is not
-limited to that list. Another `VID 373B` PID is accepted only when it has the
-exact `FF60:0061` fingerprint and returns valid GET responses:
-
-```text
-02 96 24 — travel_max
-02 96 1C — matrix block
-```
-
-After revalidating the open device, the backend sends the documented `03 96 19`
-once to leave calibration mode. HallJoy never sends the `03 96 18` command that
-enters calibration mode. It reads 104 slots in blocks of four and publishes 82
-standard HID keyboard keys.
-
-## Shared low-latency ViGEm output
-
-All input sources use one output scheduler:
-
-1. The first changed state after idle is sent to ViGEm immediately.
-2. Changes inside the next 1 ms window are coalesced into the freshest complete
-   XInput state.
-3. A deferred state is guaranteed to be sent at its fixed deadline; a newer
-   packet does not move that deadline.
-4. Curves, bindings, and last-key priority are applied before the actual output
-   submission.
-5. Unchanged keepalive reports are not sent.
-
-HallJoy does not use interpolation, prediction, digital fallback, or republish an
-old value as a new measurement.
-
-## Interface and diagnostics
-
-Live in-memory diagnostic information is available on **Configuration** and
-**Gamepad Tester**. It covers MAD68 A0, Hex80 `0x96`, Addressed `09/94/02`, Aula
-WIN60HE, SparkLink, Sayo, and Universal Analog Plugin/Wooting. Blue analogue
-bars and green digital
-preview indicators are retained. Digital events are UI-only and do not drive
-analogue ViGEm controls.
-
-Continuous diagnostic logging is off by default and can be enabled in Global
-settings. Crash and missing-keyboard reports remain automatic. Diagnostics are
-collected in `HallJoy.log`; see [Support](#support). The MAD68 emergency A9 recovery
-watchdog remains enabled.
-
-## Limitations
-
-- HallJoy does not infer a completely unknown protocol from arbitrary packets;
-  it safely proves only known protocol families.
-- MAD68 A0 uses a validated 68-position table. Incompatible MADLIONS devices
-  remain available to Universal Analog Plugin.
-- An unknown Addressed device without a sufficiently complete `0x83` map must
-  match the canonical QBZ key-ID mapping or its capability probe is rejected.
-- Aula WIN60HE with `App V1.1.6 / Feb 4 2026` has physical validation for real
-  analogue matrices, 10+ rollover, measured polling rate, release-to-zero, and
-  repeated disconnect/reconnect. Other Aula-compatible PIDs, firmware builds,
-  and 6×21 maps may connect as protocol-compatible devices after a complete
-  structural proof, but are not automatically considered physically validated.
-- Aula Standard/W669 is a different protocol. The official product catalog and
-  layout files provide exact built-in maps for four SI2825 variants (61 keys),
-  two SI2828 variants (68 keys), and SI2851/KP-TE153 UK (69 keys). HallJoy asks
-  the keyboard for that firmware product on every proof and reconnect. Future
-  W669 products can use a sufficiently explicit device map, but a stock unknown
-  product whose firmware reports only “inherit factory layout” is rejected until
-  its factory map is known; key count alone is not enough to map HID usages safely.
-- Connected web drivers commonly conflict with HallJoy. Desktop configurators
-  may coexist; close them only when troubleshooting a suspected conflict.
-- Redragon K673RGB-M is physically validated for early analogue travel, full
-  scale, balanced release-to-zero, and multi-key streaming. Compatible
-  magnetic-switch revisions of the other Redragon models named in the table
-  come from the same official driver family and are expected to work, but
-  remain physically unverified by HallJoy.
-
-## Adding a new protocol
-
-The v1.4 architecture uses independent protocol modules. A new backend should
-not add special cases to application lifecycle, the shared raw-input path, UI,
-or ViGEm output.
-
-Start with:
-
-```text
-python tools/new_native_backend.py --help
-python tools/new_native_backend.py ^
-  --slug foo_matrix ^
-  --prefix FooMatrix ^
-  --enum FooMatrix ^
-  --protocol-value 7 ^
-  --display-name "Foo Matrix" ^
-  --start-phase AfterRealtime
-```
-
-The generator creates separate parser/backend files, a portable unit test, a
-protocol document, a unique enum, and one entry in the central catalog. After
-implementing the protocol, run:
-
-```text
-python tools/run_native_backend_checks.py --require-compiler
-BUILD.cmd
-```
-
-The shared catalog provides safe discovery ordering relative to Universal Analog
-Plugin, exact path
-ownership after capability proof, lifecycle and device-change dispatch,
-max-aggregation across real analogue devices, digital-fallback blocking only for
-authoritatively owned HID keys, the shared curve/last-key-priority/low-latency
-ViGEm path,
-automatic Configuration and Gamepad Tester integration, and reverse-order
-shutdown with state cleanup.
-
-Begin with [Architecture Overview](docs/development/ARCHITECTURE_OVERVIEW.md) and
-[New Protocol Worksheet](docs/development/NEW_PROTOCOL_WORKSHEET.md). A new
-protocol pull request should follow
-[the protocol PR template](.github/PULL_REQUEST_TEMPLATE/new-protocol.md).
-
-## Development and validation records
-
-The current v1.4 roadmap, decisions, risks, validation matrix, and worklog are
-under [`docs/v1.4`](docs/v1.4/README.md). Documents under `docs/stability` are
-preserved as historical evidence and do not define the current version or
-release readiness.
+Install Visual Studio 2022 C++ Build Tools (including x64 Clang), Python 3.12,
+Git and PowerShell. Clone the repository and run `BUILD.cmd`.
+The executable is created at `build\release\HallJoy.exe`.

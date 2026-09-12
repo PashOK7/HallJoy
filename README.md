@@ -66,7 +66,7 @@ Some other models may work, but compatibility is not guaranteed.
 | SayoDevice | **O3C** | O3C is tested; other SayoDevice models may also work but are not confirmed. |
 | IPI / QBZ | **QBZ75** | — |
 | Razer | **Huntsman V2 Analog**, **Huntsman Mini Analog**, **Huntsman V3 Pro**, **Huntsman V3 Pro Mini**, **Huntsman V3 Pro Tenkeyless** | — |
-| Keychron | **Q1 HE**, **Q3 HE**, **Q5 HE**, **K2 HE**, **K4 HE ANSI** | Compatible custom firmware is required for the Keychron HE support described here. Stock K4 HE firmware is not supported for gaming. |
+| Keychron | **Q1 HE**, **Q3 HE**, **Q5 HE**, **K2 HE**, **K4 HE ANSI** | Requires [custom firmware](https://analogsense.org/firmware/). The page includes ready-made images, source changes and build instructions for preparing firmware for other Keychron HE models. Always use firmware matching your exact model and ANSI/ISO/JIS variant. |
 | Lemokey | **P1 HE ANSI**, **P1 HE ISO** | — |
 | NuPhy | **Air60 HE**, **Air75 HE** | — |
 | DrunkDeer | **A75**, **A75 Pro**, **G60**, **G65**, **G75** | — |

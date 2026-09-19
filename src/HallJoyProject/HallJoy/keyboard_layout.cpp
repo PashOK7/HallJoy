@@ -17,14 +17,25 @@
 #include "analog_key_codes.h"
 #include "file_name_policy.h"
 #include "ini_util.h"
+#include "ini_write_batch.h"
 #include "bounded_ini.h"
+#include "layout_ini_section.h"
+#include "stability_trace.h"
 #include "backend.h"
 #include "first_run_layout.h"
+#include "native_layout_state.h"
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+#include "generated/ipi_models.h"
+#endif
 #include "imported_layouts.h"
 #include "keychron_catalog_layouts.h"
 #include "keychron_catalog_presets.h"
 #include "lemokey_catalog_layouts.h"
 #include "drunkdeer_catalog_layouts.h"
+#include "irok_na87_layout.h"
+#include "irok_na87_identity.h"
+#include "aula_mini60_native_model.h"
+#include "aula_mini60_layout.h"
 #include "generated/layout_pipeline/layouts.h"
 #include "generated/layout_pipeline/identities.h"
 
@@ -56,15 +67,10 @@ namespace
     // Revision 2 establishes the visually validated 87 px tall-key contract.
     static constexpr int kBuiltinGeometryRevision = 2;
 
-    static bool ReadOptionalLayoutInteger(const wchar_t* path, const wchar_t* key,
+    static bool ReadOptionalLayoutInteger(const halljoy::layout_storage::Section& section, const wchar_t* key,
         int minimum, int maximum, int defaultValue, int& out)
     {
-        std::int32_t parsed = defaultValue;
-        if (!halljoy::ini::ReadSigned(path, L"LayoutPreset", key, minimum, maximum,
-                defaultValue, parsed))
-            return false;
-        out = static_cast<int>(parsed);
-        return true;
+        return section.Integer(key, minimum, maximum, defaultValue, out);
     }
 
     static const KeyDef g_a75Keys[] =
@@ -347,6 +353,12 @@ namespace
         { L"DrunkDeer G75 ANSI", g_drunkdeer_G75Ansi, (int)std::size(g_drunkdeer_G75Ansi), L"DrunkDeer" },
         { L"DrunkDeer G75 JIS", g_drunkdeer_G75Jis, (int)std::size(g_drunkdeer_G75Jis), L"DrunkDeer" },
 #include "generated/layout_pipeline/presets.inc"
+#if defined(HALLJOY_AULA_MINI60_NATIVE)
+        { halljoy::mini60::Preset, g_aula_mini60_ansi, (int)std::size(g_aula_mini60_ansi), L"Aula" },
+#endif
+#if defined(HALLJOY_IROK_NA87_NATIVE)
+        { irok_na87::kAnsiPreset, g_irok_na87_ansi, (int)std::size(g_irok_na87_ansi), L"IROK" },
+#endif
     };
 
     // Reviewed geometry aliases, not protocol aliases. Keep original definitions
@@ -402,6 +414,11 @@ namespace
     static int g_activeUniformGap = 8;
     static int g_currentPresetIdx = 0;
     static bool g_customEdited = false;
+    static bool g_automaticLocked = false;
+    static std::wstring g_manualPreset;
+    static std::uint64_t g_automaticToken = 0, g_automaticRevision = 0;
+    enum class AutomaticStatus { Disabled, Searching, Missing, Multiple, Matched, Remapped, MapFailed };
+    static AutomaticStatus g_automaticStatus = AutomaticStatus::Searching;
     static halljoy::layout_selection::FirstRun g_firstRunLayout;
 
     static int ClampUniformGap(int v);
@@ -412,10 +429,7 @@ namespace
 
     static std::wstring GetLayoutsDir()
     {
-        const std::wstring& dir = AppPaths_LayoutsDir();
-        std::error_code ec;
-        fs::create_directories(dir, ec);
-        return dir;
+        return AppPaths_LayoutsDir();
     }
 
     static std::wstring BuildPresetPath(const std::wstring& name)
@@ -553,16 +567,21 @@ namespace
         return out;
     }
 
-    static bool LoadPresetFile(const wchar_t* path, PresetStore& out)
+    static bool LoadPresetFile(const wchar_t* path, PresetStore& out, bool requireSchema = false)
     {
         if (!path || !path[0]) return false;
         halljoy::ini::ReadFile inputFile(path);
         if (!inputFile) return false;
-        std::wstring countText;
+        halljoy::layout_storage::Section section;
+        if (!section.Load(path, L"LayoutPreset")) return false;
+        if (requireSchema) {
+            halljoy::layout_storage::Section schema;
+            if (!schema.Load(path, L"HallJoyPersistence") || schema.Get(L"SchemaVersion") != L"1" ||
+                schema.Get(L"Kind") != L"LayoutPreset") return false;
+        }
         std::uint32_t parsedCount = 0;
-        if (!halljoy::ini::Read(path, L"LayoutPreset", L"Count", countText) ||
-            !halljoy::ini::Unsigned(countText, static_cast<std::uint32_t>(halljoy::ini::kMaxLayoutKeys), parsedCount) ||
-            parsedCount == 0) return false;
+        if (!halljoy::ini::Unsigned(section.Get(L"Count"),
+            static_cast<std::uint32_t>(halljoy::ini::kMaxLayoutKeys), parsedCount) || parsedCount == 0) return false;
         const int count = static_cast<int>(parsedCount);
 
         std::vector<KeyDef> keys;
@@ -574,19 +593,19 @@ namespace
         {
             wchar_t k[64]{};
             swprintf_s(k, L"K%d", i);
-            wchar_t packed[1024]{};
-            if (GetPrivateProfileStringW(L"LayoutPreset", k, L"", packed, (DWORD)_countof(packed), path) >= _countof(packed) - 1) return false;
+            const auto& packed = section.Get(k);
+            if (packed.size() >= 1023) return false;
 
             KeyDef kd{};
             std::wstring label;
-            if (ParsePackedKeyEntry(packed, kd, label))
+            if (ParsePackedKeyEntry(packed.c_str(), kd, label))
             {
                 swprintf_s(k, L"Y%d", i);
-                if (!ReadOptionalLayoutInteger(path, k, -1, 4000, -1, kd.y)) return false;
+                if (!ReadOptionalLayoutInteger(section, k, -1, 4000, -1, kd.y)) return false;
                 swprintf_s(k, L"NotchW%d", i);
-                if (!ReadOptionalLayoutInteger(path, k, 0, 600, 0, kd.notchW)) return false;
+                if (!ReadOptionalLayoutInteger(section, k, 0, 600, 0, kd.notchW)) return false;
                 swprintf_s(k, L"NotchY%d", i);
-                if (!ReadOptionalLayoutInteger(path, k, 0, 600, 0, kd.notchY) || !KeyboardLayout_ValidShape(kd)) return false;
+                if (!ReadOptionalLayoutInteger(section, k, 0, 600, 0, kd.notchY) || !KeyboardLayout_ValidShape(kd)) return false;
                 keys.push_back(kd);
                 labels.push_back(std::move(label));
             }
@@ -597,13 +616,11 @@ namespace
 
         out.name = fs::path(path).stem().wstring();
         out.filePath = path;
-        wchar_t brand[128]{};
-        if (GetPrivateProfileStringW(L"LayoutPreset", L"Brand", L"", brand, (DWORD)std::size(brand), path) >= std::size(brand) - 1)
-            return false;
-        out.brand = brand;
+        out.brand = section.Get(L"Brand");
+        if (out.brand.size() >= 127) return false;
         // Only exact built-in identities have a legacy category. Never guess a
         // user's manufacturer from an arbitrary filename.
-        if (out.brand.empty()) {
+        if (out.brand.empty() && !requireSchema) {
             out.brand = L"Custom";
             for (const auto& builtin : g_builtinPresets)
                 if (FileNamePolicy_Equivalent(out.name, builtin.name)) out.brand = builtin.brand;
@@ -613,9 +630,9 @@ namespace
         int uniformSpacing = 0;
         int uniformGap = 8;
         int geometryRevision = 0;
-        if (!ReadOptionalLayoutInteger(path, L"UniformSpacing", 0, 1, 0, uniformSpacing) ||
-            !ReadOptionalLayoutInteger(path, L"UniformGap", 0, 4096, 8, uniformGap) ||
-            !ReadOptionalLayoutInteger(path, L"BuiltinGeometryRevision", 0, INT_MAX, 0, geometryRevision))
+        if (!ReadOptionalLayoutInteger(section, L"UniformSpacing", 0, 1, 0, uniformSpacing) ||
+            !ReadOptionalLayoutInteger(section, L"UniformGap", 0, 4096, 8, uniformGap) ||
+            !ReadOptionalLayoutInteger(section, L"BuiltinGeometryRevision", 0, INT_MAX, 0, geometryRevision))
             return false;
         out.uniformSpacing = uniformSpacing != 0;
         out.uniformGap = ClampUniformGap(uniformGap);
@@ -632,91 +649,44 @@ namespace
 
     static bool LayoutPresetTransactionWrite(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
     {
-        auto* context = static_cast<LayoutPresetSaveContext*>(rawContext);
-        const PresetStore& p = *context->preset;
-        bool ok = WritePrivateProfileStringW(L"HallJoyPersistence", L"SchemaVersion", L"1", temporaryPath) != FALSE;
-        ok &= WritePrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"LayoutPreset", temporaryPath) != FALSE;
-        ok &= WritePrivateProfileStringW(L"LayoutPreset", nullptr, nullptr, temporaryPath) != FALSE;
-        ok &= WritePrivateProfileStringW(L"LayoutPreset", L"Brand", p.brand.c_str(), temporaryPath) != FALSE;
-
-        wchar_t v[64]{};
-        swprintf_s(v, L"%d", (int)p.keys.size());
-        ok &= WritePrivateProfileStringW(L"LayoutPreset", L"Count", v, temporaryPath) != FALSE;
-        ok &= WritePrivateProfileStringW(L"LayoutPreset", L"UniformSpacing", p.uniformSpacing ? L"1" : L"0", temporaryPath) != FALSE;
-        swprintf_s(v, L"%d", ClampUniformGap(p.uniformGap));
-        ok &= WritePrivateProfileStringW(L"LayoutPreset", L"UniformGap", v, temporaryPath) != FALSE;
-        swprintf_s(v, L"%d", p.builtinGeometryRevision > 0 ? p.builtinGeometryRevision : 0);
-        ok &= WritePrivateProfileStringW(L"LayoutPreset", L"BuiltinGeometryRevision", v, temporaryPath) != FALSE;
-
-        for (int i = 0; i < (int)p.keys.size(); ++i)
-        {
-            const KeyDef& k = p.keys[i];
-            wchar_t key[64]{};
-            swprintf_s(key, L"K%d", i);
-            std::wstring packed = BuildPackedKeyEntry(k);
-            ok &= WritePrivateProfileStringW(L"LayoutPreset", key, packed.c_str(), temporaryPath) != FALSE;
-            swprintf_s(key, L"Y%d", i);
-            swprintf_s(v, L"%d", k.y);
-            ok &= WritePrivateProfileStringW(L"LayoutPreset", key, v, temporaryPath) != FALSE;
-            // The section was cleared above: rectangles need no extra writes.
+        const auto& p = *static_cast<LayoutPresetSaveContext*>(rawContext)->preset;
+        std::wstring document;
+        document.reserve(256 + p.keys.size() * 96);
+        document = L"[HallJoyPersistence]\r\nSchemaVersion=1\r\nKind=LayoutPreset\r\n\r\n[LayoutPreset]\r\n";
+        const auto number = [&](const wchar_t* name, int value) {
+            document += name; document += L"="; document += std::to_wstring(value); document += L"\r\n";
+        };
+        // Outer quotes preserve leading/trailing spaces and literal quote labels.
+        document += L"Brand=\"" + p.brand + L"\"\r\n";
+        number(L"Count", static_cast<int>(p.keys.size()));
+        number(L"UniformSpacing", p.uniformSpacing ? 1 : 0);
+        number(L"UniformGap", ClampUniformGap(p.uniformGap));
+        number(L"BuiltinGeometryRevision", (std::max)(p.builtinGeometryRevision, 0));
+        for (size_t i = 0; i < p.keys.size(); ++i) {
+            const auto& k = p.keys[i];
+            const auto index = std::to_wstring(i);
+            document += L"K" + index + L"=\"" + BuildPackedKeyEntry(k) + L"\"\r\n";
+            number((L"Y" + index).c_str(), k.y);
             if (k.notchW) {
-                swprintf_s(key, L"NotchW%d", i);
-                swprintf_s(v, L"%d", k.notchW);
-                ok &= WritePrivateProfileStringW(L"LayoutPreset", key, v, temporaryPath) != FALSE;
-                swprintf_s(key, L"NotchY%d", i);
-                swprintf_s(v, L"%d", k.notchY);
-                ok &= WritePrivateProfileStringW(L"LayoutPreset", key, v, temporaryPath) != FALSE;
+                number((L"NotchW" + index).c_str(), k.notchW);
+                number((L"NotchY" + index).c_str(), k.notchY);
             }
         }
-        if (!ok && errorOut)
-        {
-            const DWORD error = GetLastError();
-            *errorOut = error != ERROR_SUCCESS ? error : ERROR_WRITE_FAULT;
-        }
-        return ok;
+        return halljoy::layout_storage::WriteUtf16(temporaryPath, document, errorOut);
     }
 
     static bool LayoutPresetTransactionValidate(const wchar_t* temporaryPath, void* rawContext, DWORD* errorOut)
     {
-        auto* context = static_cast<LayoutPresetSaveContext*>(rawContext);
-        const PresetStore& p = *context->preset;
-        wchar_t schema[32]{};
-        wchar_t kind[32]{};
-        GetPrivateProfileStringW(L"HallJoyPersistence", L"SchemaVersion", L"{missing}", schema, (DWORD)_countof(schema), temporaryPath);
-        GetPrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"{missing}", kind, (DWORD)_countof(kind), temporaryPath);
-        bool ok = wcscmp(schema, L"1") == 0 && wcscmp(kind, L"LayoutPreset") == 0;
-        wchar_t brand[128]{};
-        GetPrivateProfileStringW(L"LayoutPreset", L"Brand", L"", brand, (DWORD)std::size(brand), temporaryPath);
-        ok &= p.brand == brand;
-        int count = -1;
-        int uniformSpacing = -1;
-        int uniformGap = -1;
-        int geometryRevision = -1;
-        ok &= ReadOptionalLayoutInteger(temporaryPath, L"Count", 0,
-            static_cast<int>(halljoy::ini::kMaxLayoutKeys), -1, count) &&
-            count == static_cast<int>(p.keys.size());
-        ok &= ReadOptionalLayoutInteger(temporaryPath, L"UniformSpacing", 0, 1, -1, uniformSpacing) &&
-            uniformSpacing == (p.uniformSpacing ? 1 : 0);
-        ok &= ReadOptionalLayoutInteger(temporaryPath, L"UniformGap", 0, 4096, -1, uniformGap) &&
-            uniformGap == ClampUniformGap(p.uniformGap);
-        ok &= ReadOptionalLayoutInteger(temporaryPath, L"BuiltinGeometryRevision", 0, INT_MAX, -1, geometryRevision) &&
-            geometryRevision == (p.builtinGeometryRevision > 0 ? p.builtinGeometryRevision : 0);
-
-        for (int i = 0; ok && i < (int)p.keys.size(); ++i)
-        {
-            wchar_t key[64]{};
-            swprintf_s(key, L"K%d", i);
-            wchar_t packed[4096]{};
-            GetPrivateProfileStringW(L"LayoutPreset", key, L"{missing}", packed, (DWORD)_countof(packed), temporaryPath);
-            ok &= BuildPackedKeyEntry(p.keys[(size_t)i]) == packed;
-            swprintf_s(key, L"Y%d", i);
-            int y = -2;
-            ok &= ReadOptionalLayoutInteger(temporaryPath, key, -1, 4000, -2, y) && y == p.keys[(size_t)i].y;
-            int notch = -1;
-            swprintf_s(key, L"NotchW%d", i);
-            ok &= ReadOptionalLayoutInteger(temporaryPath, key, 0, 600, 0, notch) && notch == p.keys[i].notchW;
-            swprintf_s(key, L"NotchY%d", i);
-            ok &= ReadOptionalLayoutInteger(temporaryPath, key, 0, 600, 0, notch) && notch == p.keys[i].notchY;
+        const auto& expected = *static_cast<LayoutPresetSaveContext*>(rawContext)->preset;
+        PresetStore actual;
+        bool ok = LoadPresetFile(temporaryPath, actual, true) &&
+            actual.brand == expected.brand && actual.keys.size() == expected.keys.size() &&
+            actual.uniformSpacing == expected.uniformSpacing && actual.uniformGap == ClampUniformGap(expected.uniformGap) &&
+            actual.builtinGeometryRevision == (std::max)(expected.builtinGeometryRevision, 0);
+        for (size_t i = 0; ok && i < actual.keys.size(); ++i) {
+            const auto& a = actual.keys[i]; const auto& e = expected.keys[i];
+            ok = BuildPackedKeyEntry(a) == BuildPackedKeyEntry(e) && a.y == e.y &&
+                a.notchW == e.notchW && a.notchY == e.notchY;
         }
         if (!ok && errorOut) *errorOut = ERROR_INVALID_DATA;
         return ok;
@@ -1027,23 +997,11 @@ namespace
                 // Leave legacy files recoverable on disk, but do not re-register
                 // untouched duplicates or overwrite an edited combined preset.
                 if (IsUneditedMergedLegacy(p)) continue;
-                const bool legacyChanged=ApplyBuiltinGeometryMigrations(p);
-                if (UpgradeUneditedDrunkDeer(p) || legacyChanged)
-                    SavePresetFile(p);
+                // Migrations affect memory; explicit saves persist them later.
+                ApplyBuiltinGeometryMigrations(p);
+                UpgradeUneditedDrunkDeer(p);
                 AddOrReplacePreset(p);
             }
-        }
-    }
-
-    static void EnsurePresetFilesExist()
-    {
-        for (auto& p : g_presets)
-        {
-            BindPresetLabels(p);
-            if (p.filePath.empty())
-                p.filePath = BuildPresetPath(p.name);
-            if (GetFileAttributesW(p.filePath.c_str()) == INVALID_FILE_ATTRIBUTES)
-                SavePresetFile(p);
         }
     }
 
@@ -1051,13 +1009,17 @@ namespace
     {
         std::call_once(g_initOnce, []()
         {
+            const ULONGLONG started = GetTickCount64();
+            // Built-ins live in memory. Existing files are optional overrides.
             // Register every shipped preset for both fresh and existing users.
             // Files loaded afterwards intentionally override same-name built-ins,
             // preserving user edits while newly shipped presets remain discoverable.
             AddBuiltinDefaults();
             LoadPresetsFromDir();
-            EnsurePresetFilesExist();
+
             ActivatePreset(0);
+            StabilityTrace_Write(L"INFO", L"layout-catalog", L"init.complete",
+                L"presets=%zu duration_ms=%llu builtin_files_created=0", g_presets.size(), GetTickCount64() - started);
         });
     }
 }
@@ -1168,19 +1130,23 @@ int KeyboardLayout_GetCurrentPresetIndex()
 
 void KeyboardLayout_SetPresetIndex(int idx)
 {
-    g_firstRunLayout.Cancel(); // User choice always wins, including the default.
+    if (g_automaticLocked) return;
+    g_firstRunLayout.Cancel();
     EnsureInit();
     ActivatePreset(idx);
+    g_manualPreset = g_presets[g_currentPresetIdx].name;
 }
 
 void KeyboardLayout_ResetActiveToPreset()
 {
+    if (g_automaticLocked) return;
     EnsureInit();
     ActivatePreset(g_currentPresetIdx);
 }
 
 bool KeyboardLayout_SetKeyGeometry(int idx, int row, int x, int w)
 {
+    if (g_automaticLocked) return false;
     EnsureInit();
     if (idx < 0 || idx >= (int)g_activeKeys.size()) return false;
 
@@ -1397,6 +1363,7 @@ bool KeyboardLayout_GetKey(int idx, KeyDef& out)
 
 bool KeyboardLayout_AddKey(uint16_t hid, const wchar_t* label, int row, int x, int w)
 {
+    if (g_automaticLocked) return false;
     EnsureInit();
 
     KeyDef kd{};
@@ -1422,6 +1389,7 @@ bool KeyboardLayout_AddKey(uint16_t hid, const wchar_t* label, int row, int x, i
 
 bool KeyboardLayout_RemoveKey(int idx)
 {
+    if (g_automaticLocked) return false;
     EnsureInit();
     if (idx < 0 || idx >= (int)g_activeKeys.size()) return false;
 
@@ -1439,6 +1407,7 @@ bool KeyboardLayout_RemoveKey(int idx)
 
 bool KeyboardLayout_SetKeyLabel(int idx, const wchar_t* label)
 {
+    if (g_automaticLocked) return false;
     EnsureInit();
     if (idx < 0 || idx >= (int)g_activeKeys.size()) return false;
     if (idx >= (int)g_ownedLabels.size()) return false;
@@ -1452,6 +1421,7 @@ bool KeyboardLayout_SetKeyLabel(int idx, const wchar_t* label)
 
 bool KeyboardLayout_SetKeyHid(int idx, uint16_t hid)
 {
+    if (g_automaticLocked) return false;
     EnsureInit();
     if (idx < 0 || idx >= (int)g_activeKeys.size()) return false;
     g_activeKeys[idx].hid = hid;
@@ -1462,6 +1432,7 @@ bool KeyboardLayout_SetKeyHid(int idx, uint16_t hid)
 
 bool KeyboardLayout_SaveActivePreset()
 {
+    if (g_automaticLocked) return false;
     EnsureInit();
     int idx = ClampPreset(g_currentPresetIdx);
     if (idx < 0 || idx >= (int)g_presets.size()) return false;
@@ -1523,13 +1494,14 @@ bool KeyboardLayout_CreatePreset(const wchar_t* name, int* outIndex, int sourceP
     ++g_catalogRevision;
     BindPresetLabels(g_presets.back());
     int idx = (int)g_presets.size() - 1;
-    if (activate) ActivatePreset(idx);
+    if (activate && !g_automaticLocked) { ActivatePreset(idx);g_manualPreset=g_presets[idx].name; }
     if (outIndex) *outIndex = idx;
     return true;
 }
 
 bool KeyboardLayout_DeletePreset(int idx)
 {
+    if (g_automaticLocked && idx==g_currentPresetIdx) return false;
     EnsureInit();
     if (idx < 0 || idx >= (int)g_presets.size()) return false;
     if ((int)g_presets.size() <= 1) return false;
@@ -1630,8 +1602,9 @@ bool KeyboardLayout_StorePresetSnapshot(int presetIdx, const std::vector<KeyDef>
     g_presets[presetIdx] = std::move(candidate);
     BindPresetLabels(g_presets[presetIdx]);
     RefreshOverlaySnapshot();
+    if (g_automaticLocked && presetIdx==g_currentPresetIdx) g_automaticRevision=~std::uint64_t{0};
     const PresetStore& p = g_presets[presetIdx];
-    if (applyIfActive && presetIdx == g_currentPresetIdx)
+    if (applyIfActive && presetIdx == g_currentPresetIdx && !g_automaticLocked)
     {
         g_activeKeys = p.keys;
         g_ownedLabels = p.labels;
@@ -1675,9 +1648,16 @@ bool KeyboardLayout_TestSaveActivePresetToPath(const wchar_t* path)
 
 bool KeyboardLayout_LoadFromIni(const wchar_t* path)
 {
-    g_firstRunLayout.Cancel(); // A saved configuration is never a first run.
     if (!path) return false;
+    std::uint32_t automatic=1;
+    if (!halljoy::ini::ReadUnsigned(path,L"KeyboardLayout",L"Automatic",1,1,automatic)) return false;
+    g_firstRunLayout.Cancel(); // A saved configuration is never a first run.
     EnsureInit();
+    g_automaticLocked = false;
+    g_automaticToken = g_automaticRevision = 0;
+    halljoy::native_layout::activeToken.store(0);
+    halljoy::native_layout::enabled.store(automatic!=0);
+    g_automaticStatus = KeyboardLayout_GetAutomatic() ? AutomaticStatus::Searching : AutomaticStatus::Disabled;
 
     wchar_t nameBuf[128]{};
     GetPrivateProfileStringW(L"KeyboardLayout", L"PresetName", L"", nameBuf, 128, path);
@@ -1687,11 +1667,13 @@ bool KeyboardLayout_LoadFromIni(const wchar_t* path)
         if (idx >= 0)
         {
             ActivatePreset(idx);
+            g_manualPreset = g_presets[g_currentPresetIdx].name;
             return true;
         }
     }
 
     ActivatePreset(0);
+    g_manualPreset = g_presets[g_currentPresetIdx].name;
     return true;
 }
 
@@ -1700,14 +1682,305 @@ bool KeyboardLayout_SaveToIni(const wchar_t* path)
     if (!path) return false;
     EnsureInit();
 
-    bool ok = WritePrivateProfileStringW(L"KeyboardLayout", nullptr, nullptr, path) != FALSE;
-    ok &= WritePrivateProfileStringW(
+    bool ok = halljoy::ini::WriteBatch::Put(L"KeyboardLayout", nullptr, nullptr, path) != FALSE;
+    ok &= halljoy::ini::WriteBatch::Put(
         L"KeyboardLayout",
         L"PresetName",
-        g_presets[ClampPreset(g_currentPresetIdx)].name.c_str(),
+        (g_automaticLocked && !g_manualPreset.empty() ? g_manualPreset : g_presets[ClampPreset(g_currentPresetIdx)].name).c_str(),
         path) != FALSE;
+    ok &= halljoy::ini::WriteBatch::Put(L"KeyboardLayout", L"Automatic", KeyboardLayout_GetAutomatic() ? L"1" : L"0", path) != FALSE;
     return ok;
 }
+
+bool KeyboardLayout_GetAutomatic() { return halljoy::native_layout::enabled.load(); }
+bool KeyboardLayout_IsAutomaticLocked() { return g_automaticLocked; }
+const wchar_t* KeyboardLayout_GetAutomaticStatus()
+{
+    switch (g_automaticStatus) {
+    case AutomaticStatus::Disabled: return L"Manual layout; device remapping is ignored.";
+    case AutomaticStatus::Searching: return L"Searching for a supported keyboard...";
+    case AutomaticStatus::Multiple: return L"Multiple HallJoy-supported devices connected. Choose a layout manually.";
+    case AutomaticStatus::Matched: return L"Automatic layout selected. Device remapping is unavailable.";
+    case AutomaticStatus::Remapped: return L"Automatic layout selected; device key assignments applied.";
+    case AutomaticStatus::MapFailed: return L"Device assignments could not be matched. Choose a layout manually.";
+    default: return L"No matching layout found. Choose a layout manually.";
+    }
+}
+void KeyboardLayout_SetAutomatic(bool enabled)
+{
+    EnsureInit();
+    halljoy::native_layout::enabled.store(enabled);
+    halljoy::native_layout::activeToken.store(0);
+    if (g_automaticLocked) {
+        const auto index=FindPresetByName(g_manualPreset);
+        ActivatePreset(index>=0 ? index : 0);
+    }
+    g_automaticLocked=false;g_automaticToken=g_automaticRevision=0;
+    g_automaticStatus=enabled ? AutomaticStatus::Searching : AutomaticStatus::Disabled;
+    g_firstRunLayout.Cancel();
+}
+bool KeyboardLayout_UpdateAutomatic(bool searchCompleted, const BackendAnalogTelemetry& t)
+{
+    EnsureInit();
+    const auto oldStatus=g_automaticStatus;
+    const auto oldPreset=g_currentPresetIdx;
+    const bool oldLocked=g_automaticLocked;
+    const auto oldRevision=g_automaticRevision, oldToken=g_automaticToken;
+    const wchar_t* name=nullptr;
+    std::uint64_t token=0;
+    int nativeCount=0;
+    for (int i=0;i<t.nativeProtocolCount && i<kBackendMaxNativeProtocols;++i)
+        if (t.nativeProtocols[i].connected) ++nativeCount;
+    const int count=(std::max)(int(t.deviceCount),int(t.pluginDeviceCount)+nativeCount);
+    // Neither read contention nor adjacent telemetry generations prove a disconnect.
+    if (KeyboardLayout_GetAutomatic() && searchCompleted && t.pluginHostReady &&
+        t.pluginHostLastPublishAgeMs<=1000 &&
+        (!t.pluginDeviceSnapshotValid || t.pluginDeviceCount!=t.pluginHostDenseDeviceCount ||
+         t.deviceCount!=t.pluginDeviceCount+nativeCount)) return false;
+    if (!KeyboardLayout_GetAutomatic()) g_automaticStatus=AutomaticStatus::Disabled;
+    else if (!searchCompleted) g_automaticStatus=AutomaticStatus::Searching;
+    else if (count>1 || (nativeCount && t.nativeIdentityDeviceCount>1)) g_automaticStatus=AutomaticStatus::Multiple;
+    else if (nativeCount && t.nativeIdentityDeviceCount==-1) g_automaticStatus=AutomaticStatus::Searching;
+    else if (nativeCount && t.nativeIdentityDeviceCount<=0) g_automaticStatus=AutomaticStatus::Missing;
+    else {
+        g_automaticStatus=AutomaticStatus::Missing;
+        if (count==1 && t.pluginDeviceCount==1 && nativeCount==0) {
+            const auto& d=t.pluginDevices[0];
+            if (d.present && (d.flags & BackendAnalogDeviceFlag_Connected) &&
+                t.pluginHostReady && t.pluginHostLastPublishAgeMs<=1000) {
+                name=halljoy::layout_selection::Match(d.vendorId,d.productId,d.usagePage,d.usage,d.rows,d.columns);
+                if (!name) name=halljoy::layout_selection::MatchDrunkDeer(d.vendorId,d.productId,d.rows,d.columns,
+                    (d.flags & BackendAnalogDeviceFlag_VerifiedModel)!=0,std::string_view(d.name,strnlen_s(d.name,sizeof(d.name))));
+            }
+        }
+        if (count==1 && nativeCount==1 && t.pluginDeviceCount==0)
+            for (int i=0;i<t.nativeProtocolCount && i<kBackendMaxNativeProtocols;++i) if (t.nativeProtocols[i].connected) {
+                token=t.nativeProtocols[i].verifiedLayoutToken;
+                name=halljoy::layout_identity::Match(token);
+#if defined(HALLJOY_AULA_MINI60_NATIVE)
+                if(token==halljoy::mini60::LayoutToken)name=halljoy::mini60::Preset;
+#endif
+#if defined(HALLJOY_IROK_NA87_NATIVE)
+                if (token==irok_na87::kAnsiLayoutToken) name=irok_na87::kAnsiPreset;
+#endif
+            }
+    }
+    int target=name ? FindPresetByName(name) : -1;
+    const auto remaps=target>=0 && token ? halljoy::native_layout::Read(token) : halljoy::native_layout::Snapshot{};
+    if (target>=0 && remaps.complete && (!g_automaticLocked || target!=g_currentPresetIdx ||
+        token!=g_automaticToken || remaps.revision!=g_automaticRevision)) {
+        // Validate the complete geometry association before changing any key.
+        for (const auto& key:g_presets[target].keys) {
+            bool found=false;
+            for (std::size_t i=0;i<remaps.count;++i) if (remaps.keys[i].factory==key.hid) {found=true;break;}
+            if (!found) {target=-1;g_automaticStatus=AutomaticStatus::MapFailed;break;}
+        }
+    }
+    if (target<0) {
+        halljoy::native_layout::activeToken.store(0);
+        if (g_automaticLocked) {
+            const auto manual=FindPresetByName(g_manualPreset);
+            ActivatePreset(manual>=0 ? manual : 0);
+        }
+        g_automaticLocked=false;g_automaticToken=g_automaticRevision=0;
+    } else {
+        if (!g_automaticLocked) g_manualPreset=g_presets[g_currentPresetIdx].name;
+        const auto revision=remaps.complete ? remaps.revision : 0;
+        if (!g_automaticLocked || target!=g_currentPresetIdx || token!=g_automaticToken || revision!=g_automaticRevision) {
+            halljoy::native_layout::activeToken.store(0);
+            ActivatePreset(target);
+            if (remaps.complete) {
+                for (std::size_t k=0;k<g_activeKeys.size();++k) {
+                    const auto factory=g_activeKeys[k].hid;
+                    for (std::size_t i=0;i<remaps.count;++i) if (remaps.keys[i].factory==factory) {
+                        const auto assigned=remaps.keys[i].assigned;
+                        if (factory!=assigned) {
+                            std::wstring label=assigned ? L"" : L"Unassigned";
+                            if (assigned) for (const auto& preset:g_presets) {
+                                for (std::size_t j=0;j<preset.keys.size();++j)
+                                    if (preset.keys[j].hid==assigned) {label=preset.labels[j];break;}
+                                if (!label.empty()) break;
+                            }
+                            if (label.empty()) {wchar_t text[32]{};swprintf_s(text,L"HID %03X",unsigned(assigned));label=text;}
+                            g_ownedLabels[k]=label;g_activeKeys[k].hid=assigned;
+                        }
+                        break;
+                    }
+                }
+                EnsureActiveLabelsBound(g_activeKeys,g_ownedLabels);
+                RefreshActiveRenderKeys();
+            }
+        }
+        g_automaticLocked=true;g_automaticToken=token;g_automaticRevision=revision;
+        halljoy::native_layout::activeToken.store(remaps.complete ? token : 0);
+        g_automaticStatus=remaps.complete ? AutomaticStatus::Remapped : AutomaticStatus::Matched;
+    }
+    const bool changed=oldStatus!=g_automaticStatus || oldPreset!=g_currentPresetIdx || oldLocked!=g_automaticLocked ||
+        oldRevision!=g_automaticRevision || oldToken!=g_automaticToken;
+    if (changed) {
+        const auto& device=t.pluginDevices[0];
+        StabilityTrace_Write(L"INFO",L"layout",L"automatic.selection",
+            L"enabled=%u status=%u locked=%u sources=%d plugin=%d native=%d vid=%04X pid=%04X page=%04X usage=%04X rows=%u columns=%u flags=%08X",
+            unsigned(KeyboardLayout_GetAutomatic()),unsigned(g_automaticStatus),unsigned(g_automaticLocked),
+            count,t.pluginDeviceCount,nativeCount,unsigned(device.vendorId),unsigned(device.productId),
+            unsigned(device.usagePage),unsigned(device.usage),unsigned(device.rows),unsigned(device.columns),unsigned(device.flags));
+    }
+    return changed;
+}
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool KeyboardLayout_TestAutomatic()
+{
+    EnsureInit();
+    const bool savedEnabled=KeyboardLayout_GetAutomatic();
+    const int savedPreset=g_currentPresetIdx;
+    const auto savedManual=g_manualPreset;
+    KeyboardLayout_SetAutomatic(false);
+    KeyboardLayout_SetPresetIndex(0);
+    KeyboardLayout_SetAutomatic(true);
+    BackendAnalogTelemetry t{};
+    bool ok=KeyboardLayout_GetAutomatic() && !g_automaticLocked;
+    KeyboardLayout_UpdateAutomatic(false,t);
+    ok &= g_automaticStatus==AutomaticStatus::Searching;
+    KeyboardLayout_UpdateAutomatic(true,t);
+    ok &= !g_automaticLocked && g_automaticStatus==AutomaticStatus::Missing;
+    t.deviceCount=t.pluginDeviceCount=t.pluginHostDenseDeviceCount=1;
+    t.pluginHostReady=true;t.pluginDeviceSnapshotValid=true;t.pluginHostSnapshotGeneration=1;
+    auto& d=t.pluginDevices[0];
+    d.present=true;d.flags=BackendAnalogDeviceFlag_Connected | BackendAnalogDeviceFlag_DuplicateSafeId;
+    d.vendorId=0x3434;d.productId=0x0E40;d.usagePage=0xFF60;d.usage=0x61;d.rows=6;d.columns=19;
+    KeyboardLayout_UpdateAutomatic(true,t);
+    ok &= g_automaticLocked && g_currentPresetIdx!=0;
+    // Real UAP devices with a HID path carry DuplicateSafeId; it is not ambiguity.
+    for (const auto& identity:halljoy::layout_selection::kKeychronLayouts) {
+        d.productId=static_cast<std::uint16_t>(identity.pid);
+        d.rows=identity.rows;d.columns=identity.columns;
+        KeyboardLayout_UpdateAutomatic(true,t);
+        ok &= g_automaticLocked && g_currentPresetIdx==FindPresetByName(identity.name);
+    }
+    d.vendorId=0x362d;d.productId=0x0611;d.rows=6;d.columns=15;
+    KeyboardLayout_UpdateAutomatic(true,t);
+    ok &= g_automaticLocked && g_currentPresetIdx==FindPresetByName(L"Lemokey P1 HE ISO");
+    for(unsigned i=1;i<=7;++i) {
+        const auto model=static_cast<halljoy::drunkdeer_identity::Model>(i);
+        d.vendorId=0x352d;d.productId=halljoy::drunkdeer_identity::Product(model);
+        d.rows=6;d.columns=21;
+        strcpy_s(d.name,halljoy::drunkdeer_identity::Name(model));
+        d.flags=BackendAnalogDeviceFlag_Connected | BackendAnalogDeviceFlag_DuplicateSafeId | BackendAnalogDeviceFlag_VerifiedModel;
+        KeyboardLayout_UpdateAutomatic(true,t);
+        ok &= g_automaticLocked && KeyboardLayout_GetPresetBrand(g_currentPresetIdx)==L"DrunkDeer";
+    }
+    d.flags=BackendAnalogDeviceFlag_Connected | BackendAnalogDeviceFlag_DuplicateSafeId;
+    d.vendorId=0x3434;d.productId=0x0e40;d.rows=6;d.columns=19;
+    KeyboardLayout_UpdateAutomatic(true,t);
+    const int automatic=g_currentPresetIdx;
+    const auto stableSnapshot=KeyboardLayout_GetSnapshot();
+    const auto stableTelemetry=t;
+    // Reproduce the real log: SDK still sees one device while a contended
+    // telemetry read cannot provide its inventory. This is not an unplug.
+    for(int i=0;i<10000;++i) {
+        t=stableTelemetry;
+        if(i%3==0) {t.pluginDeviceSnapshotValid=false;t.pluginDeviceCount=0;}
+        if(i%3==1) {t.pluginDeviceCount=0;t.pluginHostDenseDeviceCount=1;}
+        if(i%3==2) {t.deviceCount=0;}
+        ok &= !KeyboardLayout_UpdateAutomatic(true,t) && g_automaticLocked &&
+            KeyboardLayout_GetSnapshot()==stableSnapshot && g_currentPresetIdx==automatic;
+    }
+    t=stableTelemetry;
+    ok &= !KeyboardLayout_UpdateAutomatic(true,t) && KeyboardLayout_GetSnapshot()==stableSnapshot;
+    t.deviceCount=t.pluginDeviceCount=t.pluginHostDenseDeviceCount=0;
+    KeyboardLayout_UpdateAutomatic(true,t);
+    ok &= !g_automaticLocked && g_currentPresetIdx==0;
+    t=stableTelemetry;KeyboardLayout_UpdateAutomatic(true,t);
+    KeyboardLayout_SetPresetIndex(2);
+    ok &= g_currentPresetIdx==automatic;
+    t.deviceCount=t.pluginDeviceCount=t.pluginHostDenseDeviceCount=2;
+    KeyboardLayout_UpdateAutomatic(true,t);
+    ok &= !g_automaticLocked && g_currentPresetIdx==0 && g_automaticStatus==AutomaticStatus::Multiple;
+    KeyboardLayout_SetPresetIndex(2);
+    t.deviceCount=t.pluginDeviceCount=t.pluginHostDenseDeviceCount=1;
+    KeyboardLayout_UpdateAutomatic(true,t);
+    KeyboardLayout_SetAutomatic(false);
+    ok &= !g_automaticLocked && g_currentPresetIdx==2;
+    KeyboardLayout_SetAutomatic(true);
+    t={};t.deviceCount=1;t.nativeIdentityDeviceCount=1;t.nativeProtocolCount=1;t.nativeProtocols[0].connected=true;
+    const auto token=halljoy::layout_identity::Token("hex80","HEX80-ANSI");
+    t.nativeProtocols[0].verifiedLayoutToken=token;
+    t.nativeIdentityDeviceCount=2;
+    KeyboardLayout_UpdateAutomatic(true,t);
+    ok &= !g_automaticLocked && g_automaticStatus==AutomaticStatus::Multiple;
+    t.nativeIdentityDeviceCount=-1;
+    KeyboardLayout_UpdateAutomatic(true,t);
+    ok &= !g_automaticLocked && g_automaticStatus==AutomaticStatus::Searching;
+    t.nativeIdentityDeviceCount=-2;
+    KeyboardLayout_UpdateAutomatic(true,t);
+    ok &= !g_automaticLocked && g_automaticStatus==AutomaticStatus::Missing;
+    t.nativeIdentityDeviceCount=1;
+    const int index=FindPresetByName(L"ATK Hex80 ANSI");
+    ok &= token && index>=0;
+    if (index>=0 && token) {
+        const auto factory=g_presets[index].keys;
+        std::vector<halljoy::native_layout::Key> keys;
+        for (const auto& key:factory) keys.push_back({key.hid,key.hid});
+        keys[0].assigned=keys[1].factory;keys[1].assigned=keys[0].factory;
+        keys[2].assigned=0;keys[3].assigned=keys[1].factory;
+        ok &= halljoy::native_layout::Publish(token,keys.data(),keys.size());
+        KeyboardLayout_UpdateAutomatic(true,t);
+        ok &= g_automaticLocked && halljoy::native_layout::UsesRemapping(token) &&
+            g_automaticStatus==AutomaticStatus::Remapped && g_activeKeys.size()==factory.size();
+        for (std::size_t i=0;i<factory.size();++i)
+            ok &= g_activeKeys[i].hid==keys[i].assigned && g_activeKeys[i].x==factory[i].x &&
+                g_activeKeys[i].y==factory[i].y && g_activeKeys[i].w==factory[i].w &&
+                g_presets[index].keys[i].hid==factory[i].hid;
+        ok &= !KeyboardLayout_UpdateAutomatic(true,t);
+        ok &= !KeyboardLayout_SetKeyHid(0,5) && !KeyboardLayout_SaveActivePreset();
+        const auto path=(fs::path(AppPaths_SettingsIni()).parent_path()/L"automatic-roundtrip.ini").wstring();
+        ok &= KeyboardLayout_SaveToIni(path.c_str());
+        wchar_t name[256]{};GetPrivateProfileStringW(L"KeyboardLayout",L"PresetName",L"",name,256,path.c_str());
+        std::uint32_t preference=0;
+        ok &= std::wstring(name)==g_presets[2].name &&
+            halljoy::ini::ReadUnsigned(path.c_str(),L"KeyboardLayout",L"Automatic",1,0,preference) && preference==1;
+        KeyboardLayout_SetAutomatic(false);
+        ok &= !halljoy::native_layout::UsesRemapping(token) && g_currentPresetIdx==2;
+        KeyboardLayout_LoadFromIni(path.c_str());
+        ok &= KeyboardLayout_GetAutomatic() && g_currentPresetIdx==2 && !g_automaticLocked;
+        KeyboardLayout_UpdateAutomatic(true,t);
+        ok &= g_automaticLocked;
+        keys.pop_back();
+        ok &= halljoy::native_layout::Publish(token,keys.data(),keys.size());
+        KeyboardLayout_UpdateAutomatic(true,t);
+        ok &= !g_automaticLocked && g_currentPresetIdx==2 && g_automaticStatus==AutomaticStatus::MapFailed;
+        halljoy::native_layout::Clear(token);
+        KeyboardLayout_UpdateAutomatic(true,t);
+        ok &= g_automaticLocked && g_automaticStatus==AutomaticStatus::Matched;
+        t={};KeyboardLayout_UpdateAutomatic(true,t);
+        ok &= !g_automaticLocked && g_currentPresetIdx==2;
+        KeyboardLayout_SetAutomatic(false);KeyboardLayout_SaveToIni(path.c_str());
+        KeyboardLayout_SetAutomatic(true);KeyboardLayout_LoadFromIni(path.c_str());
+        ok &= !KeyboardLayout_GetAutomatic();
+        DeleteFileW(path.c_str());
+        KeyboardLayout_LoadFromIni(path.c_str());
+        ok &= KeyboardLayout_GetAutomatic();
+    }
+    for (const auto& model:ipi::models) {
+        KeyboardLayout_SetAutomatic(true);
+        t={};t.deviceCount=1;t.nativeIdentityDeviceCount=1;t.nativeProtocolCount=1;t.nativeProtocols[0].connected=true;
+        const auto modelToken=halljoy::layout_identity::Token("ipi-addressed",model.product);
+        t.nativeProtocols[0].verifiedLayoutToken=modelToken;
+        std::vector<halljoy::native_layout::Key> map;
+        for(std::size_t i=0;i<model.count;++i) {
+            const auto hid=ipi::factoryHids[model.ids[i]];map.push_back({hid,hid});
+        }
+        ok &= halljoy::native_layout::Publish(modelToken,map.data(),map.size());
+        KeyboardLayout_UpdateAutomatic(true,t);
+        ok &= g_automaticLocked && g_automaticStatus==AutomaticStatus::Remapped;
+        halljoy::native_layout::Clear(modelToken);
+    }
+    KeyboardLayout_SetAutomatic(false);KeyboardLayout_SetPresetIndex(savedPreset);
+    KeyboardLayout_SetAutomatic(savedEnabled);g_manualPreset=savedManual;
+    return ok;
+}
+#endif
 
 void KeyboardLayout_ArmFirstRunSelection()
 {
@@ -1729,8 +2002,7 @@ bool KeyboardLayout_TryFirstRunSelection(bool searchCompleted, const BackendAnal
     if (t.deviceCount == 1 && t.pluginDeviceCount == 1)
     {
         const auto& d = t.pluginDevices[0];
-        if (d.present && (d.flags & BackendAnalogDeviceFlag_Connected) &&
-            !(d.flags & BackendAnalogDeviceFlag_DuplicateSafeId))
+        if (d.present && (d.flags & BackendAnalogDeviceFlag_Connected))
         {
             preset = halljoy::layout_selection::Match(d.vendorId, d.productId,
                 d.usagePage, d.usage, d.rows, d.columns);
@@ -1743,7 +2015,16 @@ bool KeyboardLayout_TryFirstRunSelection(bool searchCompleted, const BackendAnal
     if (t.deviceCount == 1 && nativeCount == 1 && t.pluginDeviceCount == 0)
         for (int i=0;i<t.nativeProtocolCount && i<kBackendMaxNativeProtocols;++i)
             if (t.nativeProtocols[i].connected)
-                preset = halljoy::layout_identity::Match(t.nativeProtocols[i].verifiedLayoutToken);
+            {
+                const auto token=t.nativeProtocols[i].verifiedLayoutToken;
+                preset = halljoy::layout_identity::Match(token);
+#if defined(HALLJOY_AULA_MINI60_NATIVE)
+                if(token==halljoy::mini60::LayoutToken)preset=halljoy::mini60::Preset;
+#endif
+#if defined(HALLJOY_IROK_NA87_NATIVE)
+                if (token==irok_na87::kAnsiLayoutToken) preset=irok_na87::kAnsiPreset;
+#endif
+            }
     if (!g_firstRunLayout.Consume(true, (unsigned)t.deviceCount, preset != nullptr)) return false;
     EnsureInit();
     const int index = FindPresetByName(preset);
@@ -1751,3 +2032,99 @@ bool KeyboardLayout_TryFirstRunSelection(bool searchCompleted, const BackendAnal
     ActivatePreset(index); // Shared overlay snapshot follows unless explicitly selected.
     return true;
 }
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+int KeyboardLayout_RunStorageBenchmark()
+{
+    // Only called by an isolated file-only role before any logger/UI/device work.
+    if (!wcsstr(GetCommandLineW(), L"--halljoy-test-data-root ") ||
+        !wcsstr(GetCommandLineW(), L"--halljoy-test-legacy-root ")) return 70;
+    if (!AppPaths_Initialize()) return 71;
+    if (wcsstr(GetCommandLineW(), L"--profile-storage-verify")) {
+        extern bool HallJoy_RunProfileTransactionTests();
+        return HallJoy_RunProfileTransactionTests() ? 0 : 74;
+    }
+    LARGE_INTEGER frequency{}, start{}, end{};
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&start);
+    EnsureInit();
+    QueryPerformanceCounter(&end);
+    const double initMs = 1000.0 * (end.QuadPart - start.QuadPart) / frequency.QuadPart;
+    size_t files = 0;
+    std::error_code ec;
+    for (const auto& entry : fs::directory_iterator(AppPaths_LayoutsDir(), ec))
+        if (entry.path().extension() == L".ini") ++files;
+    bool verified = true;
+    double saveMs = 0;
+    if (wcsstr(GetCommandLineW(), L"--layout-storage-verify")) {
+        verified = KeyboardLayout_TestFirstRunSelection();
+        PresetStore candidate = g_presets.front();
+        candidate.filePath = (fs::path(AppPaths_LayoutsDir()).parent_path() / L"storage-roundtrip.ini").wstring();
+        candidate.brand = L"  Unicode \x0416 \x65E5  ";
+        candidate.labels[0] = L"  \"quote\"|slash\\\n\x0416\x65E5  ";
+        candidate.keys[0].y = 117;
+        BindPresetLabels(candidate);
+        QueryPerformanceCounter(&start);
+        verified &= SavePresetFile(candidate);
+        QueryPerformanceCounter(&end);
+        saveMs = 1000.0 * (end.QuadPart - start.QuadPart) / frequency.QuadPart;
+        PresetStore loaded;
+        verified &= LoadPresetFile(candidate.filePath.c_str(), loaded, true) &&
+            loaded.labels[0] == candidate.labels[0] && loaded.brand == candidate.brand && loaded.keys[0].y == 117;
+        const auto previousLabel = candidate.labels[0];
+        candidate.labels[0] = L"Rejected edit";
+        BindPresetLabels(candidate);
+        for (const auto stage : {HallJoyPersistence::SaveStage::Prepare, HallJoyPersistence::SaveStage::Write,
+            HallJoyPersistence::SaveStage::Flush, HallJoyPersistence::SaveStage::Validate, HallJoyPersistence::SaveStage::Replace}) {
+            IniUtil_TestSetFailureStage(stage);
+            verified &= !SavePresetFile(candidate);
+            IniUtil_TestSetFailureStage(HallJoyPersistence::SaveStage::None);
+            verified &= LoadPresetFile(candidate.filePath.c_str(), loaded, true) && loaded.labels[0] == previousLabel;
+        }
+        // Production editor operations with a previously memory-only source.
+        int created = -1;
+        verified &= KeyboardLayout_CreatePreset(L"Storage custom", &created, 0, true, L"Custom");
+        verified &= created >= 0 && KeyboardLayout_SetKeyGeometry(0, 0, 123, 42) && KeyboardLayout_SaveActivePreset();
+        PresetStore edited;
+        verified &= created >= 0 && LoadPresetFile(g_presets[created].filePath.c_str(), edited) && edited.keys[0].x == 123;
+        verified &= KeyboardLayout_DeletePreset(created);
+        candidate.filePath = (fs::path(AppPaths_LayoutsDir()) / L"Storage restart.ini").wstring();
+        candidate.labels[0] = previousLabel;
+        candidate.keys[0].x = 123;
+        BindPresetLabels(candidate);
+        verified &= SavePresetFile(candidate);
+    }
+    if (wcsstr(GetCommandLineW(), L"--layout-storage-check-restart")) {
+        const int index = FindPresetByName(L"Storage restart");
+        verified &= index >= 0;
+        if (index >= 0) {
+            const auto& restored = g_presets[index];
+            verified &= restored.keys[0].x == 123 && restored.keys[0].y == 117 &&
+                restored.brand == L"  Unicode \x0416 \x65E5  " &&
+                restored.labels[0] == L"  \"quote\"|slash\\\n\x0416\x65E5  ";
+        }
+    }
+    if (wcsstr(GetCommandLineW(), L"--settings-storage-verify")) {
+        extern bool SettingsIni_Save(const wchar_t*);
+        const auto settingsPath = (fs::path(AppPaths_LayoutsDir()).parent_path() / L"settings-benchmark.ini").wstring();
+        QueryPerformanceCounter(&start);
+        verified &= SettingsIni_Save(settingsPath.c_str());
+        QueryPerformanceCounter(&end);
+        saveMs = 1000.0 * (end.QuadPart - start.QuadPart) / frequency.QuadPart;
+    }
+    wchar_t text[512]{};
+    swprintf_s(text, L"init_ms=%.3f\r\npresets=%zu\r\nlayout_files=%zu\r\nsave_ms=%.3f\r\nverified=%d\r\n",
+        initMs, g_presets.size(), files, saveMs, verified ? 1 : 0);
+    const auto path = (fs::path(AppPaths_LayoutsDir()).parent_path() / L"layout-storage-result.txt").wstring();
+    HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return 72;
+    DWORD written = 0;
+    std::wstring reportText = text;
+    if (wcsstr(GetCommandLineW(), L"--layout-storage-catalog"))
+        for (const auto& preset : g_presets) reportText += L"preset=" + preset.name + L"\r\n";
+    const DWORD bytes = static_cast<DWORD>(reportText.size() * sizeof(wchar_t));
+    const bool ok = WriteFile(file, reportText.data(), bytes, &written, nullptr) && written == bytes;
+    CloseHandle(file);
+    return ok && verified ? 0 : 73;
+}
+#endif

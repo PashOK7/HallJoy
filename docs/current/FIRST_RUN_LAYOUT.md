@@ -1,5 +1,12 @@
 # First-run exact layout selection — 2026-09-09
 
+> Correction: DuplicateSafeId denotes a device ID that distinguishes identical
+> devices; it is not an ambiguity flag. See [UAP fix](AUTOMATIC_LAYOUT_UAP_FIX_2026-09-14.md).
+
+> Superseded on 2026-09-14 by [Automatic layout](AUTOMATIC_LAYOUT_2026-09-14.md).
+> The owner now requests a persisted checkbox, enabled by default, with ongoing
+> exact selection and manual fallback. The one-shot policy below is historical.
+
 Catalog update: 36 exact Keychron variants, generated in
 `keychron_layout_identities.h`; see `KEYCHRON_COMPOUND_LAYOUTS.md`. The original
 two-device description below is historical; the one-shot policy is unchanged.

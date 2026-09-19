@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cwchar>
+#include "public_diagnostic_fields.h"
 
 #define HALLJOY_STABILITY_TRACE_IMPLEMENTATION 1
 #include "stability_trace.h"
@@ -16,11 +17,11 @@
 namespace
 {
 #if defined(HALLJOY_STABILITY_TRACE)
-#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC) || (defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG))
 constexpr std::uint64_t kTraceSchema = 2;
 #else
 constexpr std::uint64_t kTraceSchema = 1;
-#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE) || defined(HALLJOY_IROK_ND75_DIAGNOSTIC)
+#if (defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG)) || defined(HALLJOY_AULA_AGGRESSIVE_TRACE) || defined(HALLJOY_IROK_ND75_DIAGNOSTIC) || defined(HALLJOY_IROK_NA87_DIAGNOSTIC) || defined(HALLJOY_IROK_NA87_NATIVE)
 constexpr std::uint64_t kMaxTraceBytes = 64u * 1024u * 1024u;
 #else
 constexpr std::uint64_t kMaxTraceBytes = 1024u * 1024u;
@@ -64,6 +65,9 @@ bool BuildPathNearExe(const wchar_t* fileName, wchar_t* out, std::size_t outCoun
 
 void SanitizeText(wchar_t* value) noexcept
 {
+#if (defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG)) || defined(HALLJOY_IROK_NA87_NATIVE)
+    halljoy::public_diagnostic::Redact(value);
+#endif
     if (!value)
         return;
     for (wchar_t* p = value; *p; ++p)
@@ -93,7 +97,7 @@ void SanitizeText(wchar_t* value) noexcept
             if (!slash || (forwardSlash && forwardSlash > slash))
                 slash = forwardSlash;
             if (slash)
-                slash[1] = L'\0';
+                slash[0] = L'\0';
             else
                 result.applicationDirectory[0] = L'\0';
         }
@@ -187,7 +191,7 @@ bool AppendBytesLocked(const char* bytes, std::size_t length) noexcept
 {
     if (!bytes || length == 0)
         return false;
-#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC) || (defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG))
     if (g_traceFile == INVALID_HANDLE_VALUE ||
         length > static_cast<std::size_t>(MAXDWORD) ||
         length > UINT64_MAX - g_traceBytes)
@@ -215,7 +219,7 @@ bool AppendBytesLocked(const char* bytes, std::size_t length) noexcept
 bool WriteRawLocked(const wchar_t* line) noexcept
 {
     if (!line
-#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC) || (defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG))
         || g_traceFile == INVALID_HANDLE_VALUE
 #else
         || !g_traceView
@@ -236,7 +240,7 @@ bool WriteRawLocked(const wchar_t* line) noexcept
     utf8[utf8Length++] = '\r';
     utf8[utf8Length++] = '\n';
 
-#if !defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+#if !defined(HALLJOY_DRUNKDEER_DIAGNOSTIC) && !(defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG))
     if (g_traceBytes + static_cast<std::uint64_t>(utf8Length) >
         kMaxTraceBytes - kTraceCapReserveBytes)
     {
@@ -303,6 +307,9 @@ void WriteFormatted(const wchar_t* level, const wchar_t* component,
             level, component, event,
             fields[0] ? L" " : L"", fields);
         const bool written = WriteRawLocked(line);
+#if (defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG))
+        if (!written) g_traceEnabled.store(false, std::memory_order_release);
+#endif
 #if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
         if (written && flush && g_traceFile != INVALID_HANDLE_VALUE)
             (void)FlushFileBuffers(g_traceFile);
@@ -328,7 +335,7 @@ void StabilityTrace_Init() noexcept
         return;
     }
 
-#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+#if (defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG)) || defined(HALLJOY_AULA_AGGRESSIVE_TRACE) || defined(HALLJOY_IROK_NA87_DIAGNOSTIC) || defined(HALLJOY_IROK_NA87_NATIVE)
     if (!BuildPathNearExe(L"HallJoy.log", g_tracePath, _countof(g_tracePath)))
     {
         ReleaseSRWLockExclusive(&g_traceLock);
@@ -356,7 +363,7 @@ void StabilityTrace_Init() noexcept
         nullptr);
     if (g_traceFile != INVALID_HANDLE_VALUE)
     {
-#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC) || (defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG))
         // This diagnostic is an evidence recorder, not a high-rate production
         // trace. Direct append keeps the on-disk length authoritative after an
         // abnormal process exit and avoids a preallocated NUL tail.
@@ -366,7 +373,7 @@ void StabilityTrace_Init() noexcept
     }
 
     if (g_traceFile == INVALID_HANDLE_VALUE
-#if !defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+#if !defined(HALLJOY_DRUNKDEER_DIAGNOSTIC) && !(defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG))
         || !g_traceMapping || !g_traceView
 #endif
         )
@@ -406,7 +413,7 @@ void StabilityTrace_Init() noexcept
         L"INFO", L"main", L"session.start",
         L"schema=%llu stage=%s compiled_date=%S compiled_time=%S",
         static_cast<unsigned long long>(kTraceSchema), kTraceStage, __DATE__, __TIME__);
-#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC) || (defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG))
     StabilityTrace_WriteCritical(
         L"INFO", L"trace", L"trace.growth_policy",
         L"hard_cap=0 storage=direct_append critical_flush=1 preallocation=0 volume_control=event_aggregation privacy_redaction=userprofile");
@@ -428,7 +435,7 @@ void StabilityTrace_Shutdown(int exitCode) noexcept
     unsigned char* view = g_traceView;
     HANDLE mapping = g_traceMapping;
     HANDLE file = g_traceFile;
-#if !defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+#if !defined(HALLJOY_DRUNKDEER_DIAGNOSTIC) && !(defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG))
     const std::uint64_t finalBytes = g_traceBytes;
 #endif
     g_traceView = nullptr;
@@ -448,7 +455,7 @@ void StabilityTrace_Shutdown(int exitCode) noexcept
         CloseHandle(mapping);
     if (file != INVALID_HANDLE_VALUE)
     {
-#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC) || (defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG))
         (void)FlushFileBuffers(file);
 #else
         LARGE_INTEGER end{};
@@ -497,12 +504,17 @@ void StabilityTrace_AppendPlain(const wchar_t* line) noexcept
         return;
     AcquireSRWLockExclusive(&g_traceLock);
     if (g_traceEnabled.load(std::memory_order_relaxed))
-#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
+#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC) || (defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG)) || defined(HALLJOY_IROK_NA87_NATIVE)
     {
         wchar_t safeLine[4096]{};
         wcsncpy_s(safeLine, line, _TRUNCATE);
         SanitizeText(safeLine);
-        WriteRawLocked(safeLine);
+        const bool written = WriteRawLocked(safeLine);
+#if (defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG))
+        if (!written) g_traceEnabled.store(false, std::memory_order_release);
+#else
+        (void)written;
+#endif
     }
 #else
         WriteRawLocked(line);

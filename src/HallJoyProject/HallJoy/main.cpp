@@ -1,6 +1,10 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include "support_log.h"
+#include "irok_na87_diagnostic.h"
+#include "aula_mini60_diagnostic.h"
+#include "attackshark_pro_diagnostic.h"
+#include "irok_na87_backend.h"
 #include <objidl.h>
 #include <gdiplus.h>
 #include <strsafe.h>
@@ -186,10 +190,31 @@ int WINAPI wWinMain(
     if (DebugLog_TryRunExitWatchdogCommand())
         return 0;
 
+    int na87Exit = 0;
+    if (SharkDiagnostic_TryRunCommand(na87Exit)) return na87Exit;
+    if (Mini60Diagnostic_TryRunCommand(na87Exit)) return na87Exit;
+    if (Na87Diagnostic_TryRunCommand(na87Exit)) return na87Exit;
+    if (IrokNa87_TryRunSelfTest(na87Exit)) return na87Exit;
+
     // This is deliberately after every same-image child-role branch above,
     // but before a provider, data root, logger or qualification report can be
     // opened. The per-user global namespace also covers concurrent sessions
     // of one Windows account without blocking other users.
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    if (wcsstr(GetCommandLineW(), L"--halljoy-test-layout-storage"))
+    {
+        extern int KeyboardLayout_RunStorageBenchmark();
+        // The optional control-event suite renders on a private test desktop.
+        // It needs GDI+, but no application window, logger or device services.
+        Gdiplus::GdiplusStartupInput testGdiInput;
+        ULONG_PTR testGdiToken = 0;
+        if (wcsstr(GetCommandLineW(), L"--profile-storage-verify") &&
+            Gdiplus::GdiplusStartup(&testGdiToken, &testGdiInput, nullptr) != Gdiplus::Ok) return 75;
+        const int testResult = KeyboardLayout_RunStorageBenchmark();
+        if (testGdiToken) Gdiplus::GdiplusShutdown(testGdiToken);
+        return testResult;
+    }
+#endif
     halljoy::instance_guard::Guard instanceGuard;
     const auto instanceResult = instanceGuard.AcquireForCurrentUser();
     if (instanceResult != halljoy::instance_guard::AcquireResult::Acquired)
@@ -330,6 +355,9 @@ int WINAPI wWinMain(
         StabilityTrace_WriteCritical(L"ERROR", L"main", L"app.exception", L"kind=unknown");
         DebugLog_Write(L"[main] App_Run unknown exception");
     }
+    SharkDiagnostic_Stop();
+    Mini60Diagnostic_Stop();
+    Na87Diagnostic_Stop();
     StabilityTrace_Write(L"INFO", L"main", L"final_shutdown.begin");
     App_ForceFinalShutdown();
     StabilityTrace_Write(L"INFO", L"main", L"final_shutdown.end");

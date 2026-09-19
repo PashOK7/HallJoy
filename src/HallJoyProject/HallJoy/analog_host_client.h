@@ -30,6 +30,8 @@ struct AnalogHostTelemetry
 {
     bool available = false;
     bool ready = false;
+    bool deviceSnapshotValid = false;
+    bool deviceSnapshotReused = false;
     int status = 0;
     int initResult = 0;
     int lastError = 0;
@@ -63,6 +65,9 @@ struct AnalogHostTelemetry
 };
 
 bool AnalogHostClient_GetTelemetry(AnalogHostTelemetry* out);
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool AnalogHostClient_TestTelemetryCoherence();
+#endif
 
 // Copies the dense compatibility plane and optional coherent Provider V2 plane
 // under one shared publication sequence. This performs no device I/O. A stable

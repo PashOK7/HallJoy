@@ -38,8 +38,12 @@ require(len(entries) == 6 * 19, "K4 HE ANSI matrix contains exactly 114 matrix c
 require(entries.count("KEY_NONE") == 14, "K4 HE ANSI matrix contains exactly 100 physical keys")
 require("kbd.keychron.layout = layout_keychron_k4_he_ansi;" in text,
         "K4 HE PID is routed to its dedicated matrix")
-require("kbd.hid.product_id == 0x0B50 || kbd.hid.product_id == 0x0E40" in plugin,
-        "private UAP telemetry reports the K4 HE 6x19 topology")
+identities = (REPO / "src/HallJoyProject/HallJoy/keychron_layout_identities.h").read_text(encoding="utf-8")
+require('"keychron_layout_identities.h"' in plugin and
+        'for (const auto& identity : halljoy::layout_selection::kKeychronLayouts)' in plugin and
+        'telemetry_rows=identity.rows;telemetry_columns=identity.columns;' in plugin and
+        '{0x0E40,6,19,' in identities,
+        "private UAP telemetry uses the shared reviewed K4 HE 6x19 identity")
 require("bc56b3c611dcc1a8ed9a2acb8bdc4da5e1a80c27" in text,
         "matrix provenance is pinned to an immutable official Keychron commit")
 require(

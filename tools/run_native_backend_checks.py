@@ -49,6 +49,8 @@ def compile_and_run(cxx: str, output: Path, sources: list[Path], include: Path) 
         if output.name == "vigem_child_transport"
         else []
     )
+    if output.name == "aula_mini60_log_windows":
+        extra_compile_args += ["-DHALLJOY_AULA_MINI60_DIAGNOSTIC", "-DHALLJOY_DIAGNOSTIC", "-DHALLJOY_STABILITY_TRACE"]
     command = [
         cxx,
         "-std=c++20",
@@ -64,7 +66,7 @@ def compile_and_run(cxx: str, output: Path, sources: list[Path], include: Path) 
         # MinGW often supplies this implicitly; clang/MSVC does not. Windows
         # token/SID integration tests must link their actual system dependency.
         *(["-ladvapi32", "-luser32"] if os.name == "nt" else []),
-        *(["-lsetupapi", "-lhid", "-lshell32", "-lole32", "-luuid"] if output.name == "support_log_windows" else []),
+        *(["-lsetupapi", "-lhid", "-lshell32", "-lole32", "-luuid"] if output.name in ("support_log_windows", "native_layout_devices_windows") else []),
         "-o",
         str(output),
     ]
@@ -87,8 +89,14 @@ def main() -> int:
     ET.parse(hall / "HallJoy.vcxproj.filters")
 
     run([sys.executable, str(root / "tools" / "test_block_keys_group.py")])
+    run([sys.executable, str(root / "tools" / "check_atk_hex80_native_map.py")])
     run([sys.executable, "-m", "unittest", "discover", "-s", str(root / "tools" / "tests"), "-p", "test_layout_pipeline.py"])
-    for brand in ("Keychron", "Lemokey", "DrunkDeer", "Aula", "Redragon", "Razer", "NuPhy", "Wooting"):
+    run([sys.executable, str(root / "tools" / "build_irok_mg75_layouts.py")])
+    run([sys.executable, str(root / "tools" / "prepare_madlions_layouts.py")])
+    run([sys.executable, str(root / "tools" / "prepare_atk_hex80_layout.py")])
+    run([sys.executable, str(root / "tools" / "prepare_ipi_layouts.py")])
+    run([sys.executable, str(root / "tools" / "build_ipi_native_catalog.py")])
+    for brand in ("Keychron", "Lemokey", "DrunkDeer", "Aula", "Redragon", "Razer", "NuPhy", "Wooting", "IROK", "MADLIONS", "ATK", "IPI"):
         run([sys.executable, str(root / "tools" / "layout_pipeline.py"), "check", brand])
     run([sys.executable, str(project_root / "tools" / "validate_addressed_protocol_backend.py")])
 
@@ -112,6 +120,11 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="halljoy-native-tests-", dir=build_temp) as temp:
         out = Path(temp)
         fixed_tests: list[tuple[str, list[Path]]] = [
+            ("diagnostic_rate_limit", [tests / "diagnostic_rate_limit_test.cpp"]),
+            ("aula_mini60_native_model", [tests / "aula_mini60_native_model_test.cpp"]),
+            ("attackshark_pro_diagnostic_model", [tests / "attackshark_pro_diagnostic_model_test.cpp"]),
+            ("public_diagnostic_fields", [tests / "public_diagnostic_fields_test.cpp"]),
+            ("irok_na87_protocol", [tests / "irok_na87_protocol_test.cpp", hall / "irok_nd75_protocol.cpp"]),
             ("window_placement", [tests / "window_placement_test.cpp"]),
             ("overlay_text_edit", [tests / "overlay_text_edit_test.cpp"]),
             ("layout_editor_model", [tests / "layout_editor_model_test.cpp"]),
@@ -189,6 +202,9 @@ def main() -> int:
                 hall / "xusb_output_adapter.cpp",
             ]),
             ("native_contract", [tests / "native_analog_backend_contract_test.cpp"]),
+            ("ipi_native", [tests / "ipi_native_test.cpp"]),
+            ("native_layout_state", [tests / "native_layout_state_test.cpp"]),
+            ("coherent_telemetry_cache", [tests / "coherent_telemetry_cache_test.cpp"]),
             ("native_hid_interface_claim", [tests / "native_hid_interface_claim_test.cpp"]),
             ("native_lifecycle_registry", [tests / "native_backend_lifecycle_registry_test.cpp"]),
             ("worker_lifecycle", [tests / "worker_lifecycle_test.cpp"]),
@@ -247,6 +263,9 @@ def main() -> int:
             ]),
         ]
         if os.name == "nt":
+            fixed_tests.append(("aula_mini60_log_windows", [
+                tests / "aula_mini60_log_windows_test.cpp", hall / "stability_trace.cpp"
+            ]))
             # Production settings expose Win32 types; test the actual linked
             # implementation on Windows, keeping pure curve math portable.
             fixed_tests.append(("key_settings_domain", [
@@ -255,7 +274,10 @@ def main() -> int:
             ]))
             # This suite now includes real Win32 INI file roundtrips, not only
             # the original platform-independent numeric conversion cases.
+            fixed_tests.append(("native_layout_devices_windows", [tests / "native_layout_devices_windows_test.cpp", hall / "native_layout_devices.cpp"]))
             fixed_tests.append(("bounded_ini_numeric", [tests / "bounded_ini_numeric_test.cpp"]))
+            fixed_tests.append(("layout_ini_section", [tests / "layout_ini_section_windows_test.cpp"]))
+            fixed_tests.append(("ini_write_batch", [tests / "ini_write_batch_windows_test.cpp"]))
             # Uses the real Windows ViGEm SDK ABI (including Windows packing
             # headers), even with fake device calls. Keep mandatory coverage in
             # the Windows build rather than substituting a fake SDK on Linux.
@@ -269,6 +291,9 @@ def main() -> int:
             ]))
             fixed_tests.append(("engine_runtime_notification_windows", [
                 tests / "engine_runtime_notification_windows_test.cpp", hall / "engine_runtime_owner.cpp"
+            ]))
+            fixed_tests.append(("debug_event_handles_windows", [
+                tests / "debug_event_handles_windows_test.cpp"
             ]))
             fixed_tests.append(("instance_guard_windows", [
                 tests / "instance_guard_windows_test.cpp", hall / "instance_guard.cpp"
@@ -287,7 +312,10 @@ def main() -> int:
 
         # Convention used by built-ins and tools/new_native_backend.py:
         # tests/<name>_protocol_test.cpp links HallJoy/<name>_protocol.cpp.
+        explicit_sources = {source.resolve() for _, sources in fixed_tests for source in sources}
         for test in sorted(tests.glob("*_protocol_test.cpp")):
+            if test.resolve() in explicit_sources:
+                continue  # Already linked with its explicitly declared dependencies.
             protocol_source = hall / test.name.replace("_test.cpp", ".cpp")
             if not protocol_source.exists():
                 raise SystemExit(f"Missing pure protocol source for {test.name}: {protocol_source}")

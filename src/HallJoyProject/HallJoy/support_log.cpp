@@ -1,6 +1,7 @@
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #include "support_log.h"
+#include "debug_log.h"
 #include "settings.h"
 #include "backend.h"
 #include "keyboard_support_status.h"
@@ -140,6 +141,10 @@ DWORD WINAPI Run(void*) noexcept {
             const unsigned lost = dropped.exchange(0);
             if (lost) SupportLog_Event("logging.queue_dropped", lost);
             for(size_t i=0;i<count;++i) { history.push_back(batch[i]); if(history.size()>kHistoryLines) history.pop_front(); }
+#if defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_IROK_NA87_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG)
+            for (size_t i=0;i<count;++i) DebugLog_Write(L"[support] %S", batch[i].data());
+            (void)shouldWrite; (void)retryPending; (void)retryAfter; (void)opened; (void)fileBytes;
+#else
             if (((shouldWrite && (count || trigger)) || retryPending) && GetTickCount64() >= retryAfter) {
                 retryPending=true;
                 retryAfter=GetTickCount64()+5000; // Retain failed automatic reports; no tight retry loop.
@@ -176,6 +181,7 @@ DWORD WINAPI Run(void*) noexcept {
                     }
                 }
             }
+#endif
             if (stopping.load()) break;
             if (WaitForSingleObject(stopEvent, 1000) == WAIT_OBJECT_0) stopping=true;
         }

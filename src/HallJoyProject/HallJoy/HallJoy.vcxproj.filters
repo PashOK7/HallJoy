@@ -192,6 +192,8 @@
     <ClCompile Include="drunkdeer_protocol.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="native_layout_devices.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClInclude Include="native_layout_devices.h"><Filter>Header Files</Filter></ClInclude>
     <ClCompile Include="native_analog_routing.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -447,6 +449,22 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="premium_combo_internal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="irok_na87_factory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="coherent_telemetry_cache.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="native_layout_state.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="physical_analog_state.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ipi_protocol.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="generated\ipi_models.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="addressed_analog_backend.h">

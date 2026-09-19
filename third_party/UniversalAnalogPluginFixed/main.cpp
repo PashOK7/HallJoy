@@ -1,3 +1,4 @@
+#include "keychron_layout_identities.h"
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -456,23 +457,16 @@ struct Device
 			halljoy_contains_ascii_ci(combined_name, "Keychron") || halljoy_contains_ascii_ci(combined_name, "Lemokey"))
 		{
 			telemetry_nominal_levels = 236;
-			if (kbd.hid.product_id == 0x0B10 || kbd.hid.product_id == 0x0B11 || kbd.hid.product_id == 0x0B12 ||
-				kbd.hid.product_id == 0x0610 || kbd.hid.product_id == 0x0611)
-			{
-				telemetry_rows = 6;
-				telemetry_columns = 15;
-			}
-			else if (kbd.hid.product_id == 0x0B30 || kbd.hid.product_id == 0x0E20 ||
-				kbd.hid.product_id == 0x0E21 || kbd.hid.product_id == 0x0E22)
-			{
-				telemetry_rows = 6;
-				telemetry_columns = 16;
-			}
-			else if (kbd.hid.product_id == 0x0B50 || kbd.hid.product_id == 0x0E40)
-			{
-				telemetry_rows = 6;
-				telemetry_columns = 19;
-			}
+            // Use the same reviewed matrix identities as automatic layout selection.
+            if (kbd.hid.vendor_id == 0x3434) {
+                for (const auto& identity : halljoy::layout_selection::kKeychronLayouts)
+                    if (kbd.hid.product_id == identity.pid) {
+                        telemetry_rows=identity.rows;telemetry_columns=identity.columns;break;
+                    }
+            } else if (kbd.hid.vendor_id == 0x362d &&
+                (kbd.hid.product_id==0x0610 || kbd.hid.product_id==0x0611)) {
+                telemetry_rows=6;telemetry_columns=15;
+            }
 			telemetry_layout_key_slots = telemetry_rows * telemetry_columns;
 		}
 		else if (kbd.hid.vendor_id == 0x373b || halljoy_contains_ascii_ci(combined_name, "Madlions") || halljoy_contains_ascii_ci(kbd.name, "MAD"))

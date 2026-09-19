@@ -21,6 +21,8 @@
 #include <vector>
 
 #include "analog_host_client.h"
+#include "coherent_telemetry_cache.h"
+#include "debug_event_handles.h"
 #include "analog_host_shared.h"
 #include "debug_log.h"
 #include "support_log.h"
@@ -49,6 +51,7 @@ namespace
     constexpr DWORD kRestartDelayMs = 750;
     constexpr ULONGLONG kHostStatsIntervalMs = 10000;
     constexpr DWORD kHostExitProviderPlaneResize = 0xE0485632u;
+    constexpr DWORD kHostExitDeviceRefresh = 0xE0484456u;
 #if defined(HALLJOY_DIAGNOSTIC)
     constexpr bool kUseChildDebugger = true;
 #else
@@ -108,6 +111,13 @@ namespace
     };
 
     TelemetryRateState g_telemetryRate;
+    struct UiDeviceSnapshot {
+        int activeKeyCount=0,denseDeviceCount=0,deviceCount=0;
+        bool dualCoherent=false;
+        std::uint64_t generation=0,timestampUs=0;
+        std::array<HallJoyPluginTelemetry::DeviceV1,kMaxDevices> devices{};
+    };
+    halljoy::telemetry::CoherentCache<UiDeviceSnapshot> g_uiDeviceSnapshots;
 
     struct DeviceInfoCache
     {
@@ -1953,8 +1963,7 @@ namespace
                 L"pid=%lu restart=%ld", pi.dwProcessId, restartCount);
             bool processExited = false;
             bool crashCaptured = false;
-            HANDLE debugProcessHandle = nullptr;
-            HANDLE debugMainThreadHandle = nullptr;
+            // Debug-event process/thread handles are Windows-owned; never retain them for cleanup.
             DWORD processExitCode = STILL_ACTIVE;
             ULONGLONG lastHeartbeatSeen = GetTickCount64();
             LONG64 lastHeartbeatValue = 0;
@@ -1986,7 +1995,7 @@ namespace
                         pi.dwProcessId);
                     DebugLog_Write(L"[analog.host] device-change refresh; terminating child pid=%lu",
                         pi.dwProcessId);
-                    TerminateProcess(pi.hProcess, 0xE0484456u);
+                    TerminateProcess(pi.hProcess, kHostExitDeviceRefresh);
                 }
 
                 if constexpr (kUseChildDebugger)
@@ -1994,22 +2003,18 @@ namespace
                     DEBUG_EVENT event{};
                     if (WaitForDebugEvent(&event, 100))
                     {
+                        halljoy::debug_event_handles::ReleaseOwnedFiles(event);
                         DWORD continueStatus = DBG_CONTINUE;
                         switch (event.dwDebugEventCode)
                         {
                         case CREATE_PROCESS_DEBUG_EVENT:
-                            if (event.u.CreateProcessInfo.hFile)
-                                CloseHandle(event.u.CreateProcessInfo.hFile);
-                            debugProcessHandle = event.u.CreateProcessInfo.hProcess;
-                            debugMainThreadHandle = event.u.CreateProcessInfo.hThread;
+                            // ContinueDebugEvent owns the event process/thread handles.
                             break;
                         case CREATE_THREAD_DEBUG_EVENT:
-                            if (event.u.CreateThread.hThread)
-                                CloseHandle(event.u.CreateThread.hThread);
+                            // Windows closes this handle after the thread's exit event.
                             break;
                         case LOAD_DLL_DEBUG_EVENT:
-                            if (event.u.LoadDll.hFile)
-                                CloseHandle(event.u.LoadDll.hFile);
+                            // The file handle was released above.
                             break;
                         case EXCEPTION_DEBUG_EVENT:
                         {
@@ -2139,15 +2144,13 @@ namespace
             }
             GetExitCodeProcess(pi.hProcess, &processExitCode);
             SupportLog_Event("uap.child_exit", processExitCode);
-            if (processExitCode && processExitCode != kHostExitProviderPlaneResize &&
+            const bool expectedHostRestart = processExitCode == kHostExitProviderPlaneResize ||
+                processExitCode == kHostExitDeviceRefresh;
+            if (processExitCode && !expectedHostRestart &&
                 !g_client.stopping.load(std::memory_order_acquire))
                 SupportLog_ReportFailure("uap.child_failure", processExitCode);
-            if (debugMainThreadHandle && debugMainThreadHandle != pi.hThread)
-                CloseHandle(debugMainThreadHandle);
             if (pi.hThread)
                 CloseHandle(pi.hThread);
-            if (debugProcessHandle && debugProcessHandle != pi.hProcess)
-                CloseHandle(debugProcessHandle);
             CloseHandle(pi.hProcess);
 
             bool immediateRestart = false;
@@ -2166,7 +2169,7 @@ namespace
             {
                 InvalidateSnapshot(g_client.shared,
                     g_client.stopping.load(std::memory_order_acquire) ? Status_Stopped : Status_Restarting,
-                    static_cast<LONG>(processExitCode), g_client.snapshotEvent);
+                    expectedHostRestart ? 0 : static_cast<LONG>(processExitCode), g_client.snapshotEvent);
             }
             g_client.expectedHostPid.store(0, std::memory_order_release);
             DebugLog_Write(L"[analog.host] exited code=0x%08lX captured=%d restart=%d",
@@ -3039,32 +3042,41 @@ bool AnalogHostClient_GetTelemetry(AnalogHostTelemetry* out)
             std::min<ULONGLONG>(nowMs - static_cast<ULONGLONG>(lastPublish), 0xffffffffull));
     }
 
-    for (int attempt = 0; attempt < 5; ++attempt)
-    {
-        const LONG before = InterlockedCompareExchange(&shared->snapshotSequence, 0, 0);
-        if (before & 1)
-        {
-            YieldProcessor();
-            continue;
-        }
+    UiDeviceSnapshot candidate{}, accepted{};
+    bool captured=false;
+    const auto expectedPid=g_client.expectedHostPid.load(std::memory_order_acquire);
+    const halljoy::telemetry::Owner owner{
+        static_cast<std::uint64_t>(InterlockedCompareExchange64(&shared->launchNonce,0,0)),
+        expectedPid,static_cast<std::uint32_t>(result.restartCount)};
+    for (int attempt=0;attempt<5;++attempt) {
+        const LONG before=InterlockedCompareExchange(&shared->snapshotSequence,0,0);
+        if(before & 1) {YieldProcessor();continue;}
         MemoryBarrier();
-        result.activeKeyCount = std::clamp(static_cast<int>(shared->denseActiveKeyCount), 0, static_cast<int>(kMaxKeys));
-        result.denseDeviceCount = std::clamp(static_cast<int>(shared->denseDeviceCount), 0, static_cast<int>(kMaxDevices));
-        result.providerV2PlaneDualCoherent =
-            shared->providerV2PlaneDualCoherent == 1;
-        result.snapshotGeneration = static_cast<std::uint64_t>(InterlockedCompareExchange64(&shared->snapshotGeneration, 0, 0));
-        result.snapshotTimestampUs = static_cast<std::uint64_t>(InterlockedCompareExchange64(&shared->snapshotTimestampUs, 0, 0));
-        result.deviceCount = std::clamp(static_cast<int>(shared->deviceTelemetryCount), 0, static_cast<int>(kMaxDevices));
-        for (int i = 0; i < result.deviceCount; ++i)
-        {
-            result.devices[static_cast<size_t>(i)] = shared->deviceTelemetry[i];
-        }
+        candidate.activeKeyCount=std::clamp(static_cast<int>(shared->denseActiveKeyCount),0,static_cast<int>(kMaxKeys));
+        candidate.denseDeviceCount=std::clamp(static_cast<int>(shared->denseDeviceCount),0,static_cast<int>(kMaxDevices));
+        candidate.dualCoherent=shared->providerV2PlaneDualCoherent==1;
+        candidate.generation=static_cast<std::uint64_t>(InterlockedCompareExchange64(&shared->snapshotGeneration,0,0));
+        candidate.timestampUs=static_cast<std::uint64_t>(InterlockedCompareExchange64(&shared->snapshotTimestampUs,0,0));
+        candidate.deviceCount=std::clamp(static_cast<int>(shared->deviceTelemetryCount),0,static_cast<int>(kMaxDevices));
+        for(int i=0;i<candidate.deviceCount;++i) candidate.devices[i]=shared->deviceTelemetry[i];
         MemoryBarrier();
-        const LONG after = InterlockedCompareExchange(&shared->snapshotSequence, 0, 0);
-        if (before == after && !(after & 1))
-            break;
-        result.deviceCount = 0;
+        const LONG after=InterlockedCompareExchange(&shared->snapshotSequence,0,0);
+        if(before==after && !(after & 1) && candidate.deviceCount==candidate.denseDeviceCount) {captured=true;break;}
     }
+    const bool healthy=result.ready && expectedPid &&
+        expectedPid==g_client.expectedHostPid.load(std::memory_order_acquire) &&
+        expectedPid==static_cast<DWORD>(InterlockedCompareExchange(&shared->hostPid,0,0)) &&
+        InterlockedCompareExchange(&shared->status,0,0)==Status_Ready && result.lastPublishAgeMs<=1000;
+    result.deviceSnapshotValid=g_uiDeviceSnapshots.Resolve(owner,healthy,captured,candidate,nowMs,
+        accepted,result.deviceSnapshotReused);
+    result.activeKeyCount=accepted.activeKeyCount;
+    result.denseDeviceCount=accepted.denseDeviceCount;
+    result.deviceCount=accepted.deviceCount;
+    result.snapshotGeneration=accepted.generation;
+    result.snapshotTimestampUs=accepted.timestampUs;
+    result.devices=accepted.devices;
+    // Cached metadata cannot establish a new cross-plane transaction's coherence.
+    result.providerV2PlaneDualCoherent=result.deviceSnapshotValid && !result.deviceSnapshotReused && accepted.dualCoherent;
     result.providerV2PlaneAvailable =
         result.providerV2PlaneStatus == ProviderPlane_Committed &&
         result.providerV2PlaneDualCoherent;
@@ -3104,6 +3116,54 @@ bool AnalogHostClient_GetTelemetry(AnalogHostTelemetry* out)
     *out = result;
     return true;
 }
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool AnalogHostClient_TestTelemetryCoherence()
+{
+    if(g_client.shared || !wcsstr(GetCommandLineW(),L"--halljoy-test-forbid-backend-init")) return false;
+    auto storage=std::make_unique<SharedState>();
+    auto* shared=storage.get();
+    const auto previousPid=g_client.expectedHostPid.load();
+    struct Restore {
+        DWORD pid;
+        ~Restore(){g_client.shared=nullptr;g_client.expectedHostPid.store(pid);}
+    } restore{previousPid};
+    g_client.shared=shared;g_client.expectedHostPid=GetCurrentProcessId();
+    shared->magic=kMagic;shared->version=kVersion;shared->structSize=sizeof(SharedState);
+    shared->hostPid=GetCurrentProcessId();shared->launchNonce=123;shared->status=Status_Ready;
+    shared->lastPublishTickMs=GetTickCount64();shared->snapshotSequence=2;shared->snapshotGeneration=1;
+    shared->deviceTelemetryCount=shared->denseDeviceCount=1;
+    shared->deviceTelemetry[0].vendorId=0x3434;shared->deviceTelemetry[0].productId=0x0e40;
+    AnalogHostTelemetry result{};
+    bool ok=AnalogHostClient_GetTelemetry(&result) && result.deviceSnapshotValid &&
+        !result.deviceSnapshotReused && result.deviceCount==1;
+    shared->snapshotSequence=3;
+    shared->deviceTelemetryCount=0;shared->deviceTelemetry[0].vendorId=0xffff;
+    for(int i=0;i<1000;++i) {
+        ok &= AnalogHostClient_GetTelemetry(&result) && result.deviceSnapshotValid &&
+            result.deviceSnapshotReused && result.deviceCount==1 && result.denseDeviceCount==1 &&
+            result.devices[0].vendorId==0x3434;
+    }
+    // Even sequence alone is insufficient when descriptive/dense counts differ.
+    shared->snapshotSequence=4;
+    ok &= AnalogHostClient_GetTelemetry(&result) && result.deviceSnapshotReused && result.deviceCount==1;
+    shared->denseDeviceCount=0;shared->snapshotGeneration=2;
+    ok &= AnalogHostClient_GetTelemetry(&result) && result.deviceSnapshotValid &&
+        !result.deviceSnapshotReused && result.deviceCount==0;
+    shared->status=Status_Error;
+    ok &= AnalogHostClient_GetTelemetry(&result) && !result.deviceSnapshotValid;
+    shared->status=Status_Ready;shared->snapshotSequence=5;
+    ok &= AnalogHostClient_GetTelemetry(&result) && !result.deviceSnapshotValid;
+    shared->snapshotSequence=6;shared->snapshotGeneration=3;
+    shared->deviceTelemetryCount=shared->denseDeviceCount=1;
+    ok &= AnalogHostClient_GetTelemetry(&result) && result.deviceSnapshotValid;
+    shared->hostPid=GetCurrentProcessId()+1;g_client.expectedHostPid=GetCurrentProcessId()+1;
+    shared->snapshotSequence=7;
+    ok &= AnalogHostClient_GetTelemetry(&result) && !result.deviceSnapshotValid;
+    shared->status=Status_Stopped;AnalogHostClient_GetTelemetry(&result);
+    return ok;
+}
+#endif
 
 bool AnalogHostClient_CaptureTickSnapshot(
     halljoy::uap_parent_snapshot::SnapshotV1* out)

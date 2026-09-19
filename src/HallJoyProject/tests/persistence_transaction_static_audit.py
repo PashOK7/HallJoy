@@ -93,7 +93,6 @@ layout_init = layout.find("static void EnsureInit()")
 layout_init_order = [
     layout.find("AddBuiltinDefaults();", layout_init),
     layout.find("LoadPresetsFromDir();", layout_init),
-    layout.find("EnsurePresetFilesExist();", layout_init),
     layout.find("ActivatePreset(0);", layout_init),
 ]
 if any(position < 0 for position in layout_init_order) or layout_init_order != sorted(layout_init_order):
@@ -170,3 +169,7 @@ for probe in ("KNOWN_GOOD_LAYOUT_PROBE", "KNOWN_GOOD_CURVE_PROBE", "KNOWN_GOOD_C
 require(project, '<ClInclude Include="transactional_file_store.h" />', "transaction header is part of the MSVC project")
 
 print("PERSISTENCE_TRANSACTION_STATIC_AUDIT=PASS")
+
+assert "EnsurePresetFilesExist" not in layout
+startup = layout.split("static void LoadPresetsFromDir()", 1)[1].split("std::shared_ptr<const KeyboardLayoutSnapshot>", 1)[0]
+assert "SavePresetFile(" not in startup and "WritePrivateProfile" not in startup

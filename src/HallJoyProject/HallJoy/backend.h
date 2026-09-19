@@ -175,6 +175,7 @@ struct BackendAnalogTelemetry
     int nativeProtocolCount = 0;
     BackendNativeProtocolTelemetry nativeProtocols[kBackendMaxNativeProtocols]{};
     bool sdkInitialised = false;         // true when Wooting SDK or any native HID path is active
+    int nativeIdentityDeviceCount = -1; // background physical inventory: -1 pending, -2 incomplete
     int deviceCount = 0;                 // connected analog sources (SDK devices + native HID paths)
     bool mad68Present = false;           // MAD68 Pro R vendor interface detected
     bool mad68Connected = false;         // validated native A0 stream is publishing
@@ -266,6 +267,7 @@ struct BackendAnalogTelemetry
     uint32_t sparkRowLimit = 0;           // 0 auto, 1..8 experimental cap
     bool pluginHostAvailable = false;
     bool pluginHostReady = false;
+    bool pluginDeviceSnapshotValid = false;
     int pluginHostStatus = 0;
     int pluginHostLastError = 0;
     int pluginHostTransportError = 0;

@@ -31,7 +31,7 @@ void DebugLog_StartExitWatchdog();
 void DebugLog_LogAnalogModules();
 
 #if defined(NDEBUG) && !defined(HALLJOY_DIAGNOSTIC) && \
-    !defined(HALLJOY_ANALOG_SIMULATOR) && !defined(HALLJOY_DEBUG_LOG_IMPLEMENTATION)
+    !defined(HALLJOY_ANALOG_SIMULATOR) && !defined(HALLJOY_DEVICE_SUPPORT_LOG) && !defined(HALLJOY_DEBUG_LOG_IMPLEMENTATION)
 // Ordinary production logging is absent at the call site: arguments are not
 // evaluated and no hot-path function call survives compilation. Shutdown,
 // crash reporting and the native emergency watchdog remain real functions.

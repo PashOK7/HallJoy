@@ -17,6 +17,8 @@
 #include "settings.h"
 #include "key_settings.h"
 #include "ini_util.h"
+#include "ini_write_batch.h"
+#include "stability_trace.h"
 #include "keyboard_layout.h"
 #include "global_profiles.h"
 #include "overlay_server.h"
@@ -36,7 +38,7 @@ static bool IniWriteFloat1000(const wchar_t* section, const wchar_t* key, float 
     int iv = (int)lroundf(v * 1000.0f);
     wchar_t buf[32]{};
     swprintf_s(buf, L"%d", iv);
-    return WritePrivateProfileStringW(section, key, buf, path) != FALSE;
+    return halljoy::ini::WriteBatch::Put(section, key, buf, path) != FALSE;
 }
 
 static float IniReadFloat1000(const wchar_t* section, const wchar_t* key, float def, const wchar_t* path)
@@ -54,7 +56,7 @@ static bool IniWriteU32(const wchar_t* section, const wchar_t* key, UINT v, cons
 {
     wchar_t buf[32]{};
     swprintf_s(buf, L"%u", (unsigned)v);
-    return WritePrivateProfileStringW(section, key, buf, path) != FALSE;
+    return halljoy::ini::WriteBatch::Put(section, key, buf, path) != FALSE;
 }
 
 static UINT IniReadU32(const wchar_t* section, const wchar_t* key, UINT def, const wchar_t* path)
@@ -70,7 +72,7 @@ static bool IniWriteI32(const wchar_t* section, const wchar_t* key, int v, const
 {
     wchar_t buf[32]{};
     swprintf_s(buf, L"%d", v);
-    return WritePrivateProfileStringW(section, key, buf, path) != FALSE;
+    return halljoy::ini::WriteBatch::Put(section, key, buf, path) != FALSE;
 }
 
 static int IniReadI32(const wchar_t* section, const wchar_t* key, int def, const wchar_t* path)
@@ -111,7 +113,7 @@ static bool OverlaySettingsIni_SaveToSettingsIni(const wchar_t* path)
 {
     bool ok = true;
     ok &= IniWriteI32(L"InputOverlay", L"StrengthScaleVersion", 5, path);
-    ok &= WritePrivateProfileStringW(L"InputOverlay", L"LayoutPresetName",
+    ok &= halljoy::ini::WriteBatch::Put(L"InputOverlay", L"LayoutPresetName",
         KeyboardLayout_GetOverlayPresetName(), path) != FALSE;
     ok &= IniWriteI32(L"InputOverlay", L"AutoStart", OverlayServer_GetAutoStart() ? 1 : 0, path);
     ok &= IniWriteI32(L"InputOverlay", L"UseRawDepth", OverlayServer_GetUseRawDepth() ? 1 : 0, path);
@@ -192,7 +194,7 @@ static bool KeySettingsIni_SaveToSettingsIni(const wchar_t* path)
 {
     bool ok = true;
     // rewrite the whole section
-    ok &= WritePrivateProfileStringW(L"KeyDeadzone", nullptr, nullptr, path) != FALSE;
+    ok &= halljoy::ini::WriteBatch::Put(L"KeyDeadzone", nullptr, nullptr, path) != FALSE;
 
     std::vector<std::pair<uint16_t, KeyDeadzone>> all;
     KeySettings_Enumerate(all);
@@ -682,9 +684,9 @@ static bool SettingsIni_WriteWindow(const wchar_t* tmpPath)
     ok &= IniWriteI32(L"Window", L"Height", Settings_GetMainWindowHeightPx(), tmpPath);
     const int x = Settings_GetMainWindowPosXPx(), y = Settings_GetMainWindowPosYPx();
     if (x != std::numeric_limits<int>::min()) ok &= IniWriteI32(L"Window", L"PosX", x, tmpPath);
-    else ok &= WritePrivateProfileStringW(L"Window", L"PosX", nullptr, tmpPath) != FALSE;
+    else ok &= halljoy::ini::WriteBatch::Put(L"Window", L"PosX", nullptr, tmpPath) != FALSE;
     if (y != std::numeric_limits<int>::min()) ok &= IniWriteI32(L"Window", L"PosY", y, tmpPath);
-    else ok &= WritePrivateProfileStringW(L"Window", L"PosY", nullptr, tmpPath) != FALSE;
+    else ok &= halljoy::ini::WriteBatch::Put(L"Window", L"PosY", nullptr, tmpPath) != FALSE;
     ok &= IniWriteI32(L"Window", L"PlacementVersion", Settings_GetMainWindowPlacementVersion(), tmpPath);
     ok &= IniWriteI32(L"Window", L"Dpi", Settings_GetMainWindowDpi(), tmpPath);
     ok &= IniWriteI32(L"Window", L"Maximized", Settings_GetMainWindowMaximized() ? 1 : 0, tmpPath);
@@ -702,7 +704,7 @@ static bool SettingsIni_Save_Internal(
     bool ok = true;
 
     ok &= IniWriteI32(L"HallJoyPersistence", L"SchemaVersion", 1, tmpPath);
-    ok &= WritePrivateProfileStringW(L"HallJoyPersistence", L"Kind", persistenceKind, tmpPath) != FALSE;
+    ok &= halljoy::ini::WriteBatch::Put(L"HallJoyPersistence", L"Kind", persistenceKind, tmpPath) != FALSE;
 
     ok &= IniWriteFloat1000(L"Input", L"DeadzoneLow", Settings_GetInputDeadzoneLow(), tmpPath);
     ok &= IniWriteFloat1000(L"Input", L"DeadzoneHigh", Settings_GetInputDeadzoneHigh(), tmpPath);
@@ -733,10 +735,10 @@ static bool SettingsIni_Save_Internal(
     ok &= IniWriteI32(L"Main", L"DigitalFallbackInput", Settings_GetDigitalFallbackInput() ? 1 : 0, tmpPath);
     ok &= IniWriteU32(L"Main", L"SparkPollMode", Settings_GetSparkPollMode(), tmpPath);
     ok &= IniWriteU32(L"Main", L"SparkRowLimit", Settings_GetSparkRowLimit(), tmpPath);
-    ok &= WritePrivateProfileStringW(L"Main", L"SparkMissedHidDebug", nullptr, tmpPath) != FALSE;
-    ok &= WritePrivateProfileStringW(L"Main", L"SparkTelemetryDebug", nullptr, tmpPath) != FALSE;
-    ok &= WritePrivateProfileStringW(L"Main", L"SparkExperimentFlags", nullptr, tmpPath) != FALSE;
-    ok &= WritePrivateProfileStringW(L"Main", L"VendorProtocolMode", nullptr, tmpPath) != FALSE;
+    ok &= halljoy::ini::WriteBatch::Put(L"Main", L"SparkMissedHidDebug", nullptr, tmpPath) != FALSE;
+    ok &= halljoy::ini::WriteBatch::Put(L"Main", L"SparkTelemetryDebug", nullptr, tmpPath) != FALSE;
+    ok &= halljoy::ini::WriteBatch::Put(L"Main", L"SparkExperimentFlags", nullptr, tmpPath) != FALSE;
+    ok &= halljoy::ini::WriteBatch::Put(L"Main", L"VendorProtocolMode", nullptr, tmpPath) != FALSE;
     ok &= IniWriteI32(L"Main", L"MouseToStickEnabled", Settings_GetMouseToStickEnabled() ? 1 : 0, tmpPath);
     ok &= IniWriteI32(L"Main", L"MouseToStickTarget", Settings_GetMouseToStickTarget(), tmpPath);
     ok &= IniWriteFloat1000(L"Main", L"MouseToStickSensitivity", Settings_GetMouseToStickSensitivity(), tmpPath);
@@ -746,7 +748,7 @@ static bool SettingsIni_Save_Internal(
     if (saveWindow)
         ok &= OverlaySettingsIni_SaveToSettingsIni(tmpPath);
     if (saveActiveProfileKey)
-        ok &= WritePrivateProfileStringW(L"Main", L"ActiveGlobalProfile", GlobalProfiles_GetActiveName().c_str(), tmpPath) != FALSE;
+        ok &= halljoy::ini::WriteBatch::Put(L"Main", L"ActiveGlobalProfile", GlobalProfiles_GetActiveName().c_str(), tmpPath) != FALSE;
 
     if (saveWindow)
     {
@@ -798,11 +800,12 @@ namespace
             if (!IniUtil_CopyExistingForUpdate(context->destinationPath, temporaryPath, errorOut))
                 return false;
             ok = IniWriteI32(L"HallJoyPersistence", L"SchemaVersion", 1, temporaryPath);
-            ok &= WritePrivateProfileStringW(L"HallJoyPersistence", L"Kind", L"Settings", temporaryPath) != FALSE;
+            ok &= halljoy::ini::WriteBatch::Put(L"HallJoyPersistence", L"Kind", L"Settings", temporaryPath) != FALSE;
             ok &= OverlaySettingsIni_SaveToSettingsIni(temporaryPath);
         }
         else
         {
+            halljoy::ini::WriteBatch batch(temporaryPath);
             const bool full = context->kind == SettingsTransactionKind::FullSettings;
             ok = SettingsIni_Save_Internal(
                 temporaryPath,
@@ -810,6 +813,7 @@ namespace
                 full,
                 full,
                 PersistenceKindName(context->kind));
+            if (ok) ok = batch.Finish(errorOut);
         }
 
         if (!ok && errorOut)
@@ -894,8 +898,11 @@ namespace
                 return false;
             }
         }
+        const ULONGLONG started = GetTickCount64();
         SettingsTransactionContext context{ path, kind };
         const auto result = IniUtil_SaveAtomic(path, SettingsTransactionWrite, SettingsTransactionValidate, &context);
+        StabilityTrace_Write(result.Succeeded() ? L"INFO" : L"WARN", L"settings", L"save.complete",
+            L"kind=%ls duration_ms=%llu success=%d", displayKind, GetTickCount64() - started, result.Succeeded() ? 1 : 0);
         if (!result.Succeeded())
         {
             IniUtil_ReportSaveFailure(displayKind, path, result);

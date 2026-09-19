@@ -80,3 +80,8 @@ third_party/UniversalAnalogPluginFixed/build/
 
 # Pinned resource input, not a generated executable. Required by BUILD.cmd/CI.
 !src/HallJoyProject/third_party/ViGEmBus/ViGEmBus_1.22.0_x64_x86_arm64.exe
+
+# Local downloaded installer archives and reproducible disassembly dumps.
+/docs/research/ipi-firmware-20260914/*.zip
+/docs/research/ipi-firmware-20260914/*-firmware-thumb.txt
+/docs/research/remaining-layout-sources-20260914/atk-index-M8vylvoC.js

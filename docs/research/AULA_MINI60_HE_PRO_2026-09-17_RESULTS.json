@@ -1,0 +1,98 @@
+{
+  "image_sha256": "c070e514ff1bef20a71abff12a6c30b04f152892b0fa22e1b5e0709be63eb7cd",
+  "scope": "Real dispatcher and reporting-tail code; synthetic already-computed travel, endpoints and register state. USB send is a stub. Normal processing entry only. No full scanner, ADC, timing, radio, or physical USB validation.",
+  "checks": [
+    {
+      "case": "command",
+      "command": "0x66",
+      "simulation": 1,
+      "calibration": 0,
+      "result": "PASS"
+    },
+    {
+      "case": "command",
+      "command": "0x67",
+      "simulation": 0,
+      "calibration": 0,
+      "result": "PASS"
+    },
+    {
+      "case": "command",
+      "command": "0x60",
+      "simulation": 0,
+      "calibration": 0,
+      "result": "PASS"
+    },
+    {
+      "case": "command",
+      "command": "0x68",
+      "simulation": 0,
+      "calibration": 0,
+      "result": "PASS"
+    },
+    {
+      "case": "command",
+      "command": "0x66",
+      "simulation": 1,
+      "calibration": 0,
+      "result": "PASS"
+    },
+    {
+      "case": "reporting tail",
+      "key": 7,
+      "adc": 2050,
+      "supplied_travel": 170,
+      "send_attempts": 1,
+      "result": "PASS"
+    },
+    {
+      "case": "reporting tail",
+      "key": 16,
+      "adc": 2100,
+      "supplied_travel": 93,
+      "send_attempts": 1,
+      "result": "PASS"
+    },
+    {
+      "case": "reporting tail",
+      "key": 7,
+      "adc": 2150,
+      "supplied_travel": 43,
+      "send_attempts": 1,
+      "result": "PASS"
+    },
+    {
+      "case": "reporting tail",
+      "key": 7,
+      "adc": 2188,
+      "supplied_travel": 1,
+      "send_attempts": 1,
+      "result": "PASS"
+    },
+    {
+      "case": "reporting tail",
+      "key": 7,
+      "adc": 2189,
+      "supplied_travel": 0,
+      "send_attempts": 0,
+      "result": "PASS"
+    },
+    {
+      "case": "reporting tail",
+      "key": 7,
+      "adc": 2200,
+      "supplied_travel": 0,
+      "send_attempts": 0,
+      "result": "PASS"
+    },
+    {
+      "case": "USB busy result returns from reporting tail without retry",
+      "result": "PASS"
+    },
+    {
+      "case": "calibration-off continuation reaches normal processing with simulation enabled",
+      "result": "PASS"
+    }
+  ],
+  "status": "PASS"
+}

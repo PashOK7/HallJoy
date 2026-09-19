@@ -98,9 +98,10 @@ checks = {
         "AddressedAnalog_GetNativeBackendDescriptor" in catalog
         and "NativeAnalogProtocol::Addressed09402" in addressed
         and "RealtimeLoop_NotifyInputChanged" in addressed),
-    "Addressed accepts protocol family rather than one VID/PID": (
-        "attrs.VendorID !=" not in addressed
-        and "attrs.ProductID !=" not in addressed
+    "Addressed retains protocol proof and exact IPI UUID profiles": (
+        "IpiProfileResult::Unidentified" in addressed
+        and "ipi::FindModel(uuid)" in addressed
+        and "ipi::Calibrations(reply" in addressed
         and "ProbeAddressedResponse" in addressed),
     "Aula/SparkPlayJoy 6x21 protocol family is independently catalogued": (
         "AulaWin60He_GetNativeBackendDescriptor" in catalog

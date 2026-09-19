@@ -253,6 +253,21 @@ struct OutputRuntime::Implementation
         return self ? self->OwnerThreadBody() : ERROR_INVALID_PARAMETER;
     }
 
+#if defined(_WIN32)
+    bool WaitForCommand(DWORD timeout, DWORD& result) noexcept
+    {
+        result = WaitForSingleObject(commandEvent, timeout);
+        if (result == WAIT_OBJECT_0 || result == WAIT_TIMEOUT) return true;
+        const DWORD error = result == WAIT_FAILED ? GetLastError() : ERROR_INVALID_STATE;
+        lastError.store(error, std::memory_order_release);
+        accessAdmission.store(false, std::memory_order_release);
+        state.store(OutputRuntimeState::Faulted, std::memory_order_release);
+        StabilityTrace_WriteCritical(L"ERROR", L"vigem-output", L"command.wait_failed",
+            L"win32=%lu restart_blocked=1", error);
+        return false;
+    }
+
+#endif
     DWORD OwnerThreadBody() noexcept
     {
 #if !defined(_WIN32)
@@ -268,12 +283,14 @@ struct OutputRuntime::Implementation
                 activeGeneration.store(0u, std::memory_order_release);
                 childPid.store(0u, std::memory_order_release);
                 state.store(OutputRuntimeState::Disabled, std::memory_order_release);
-                (void)WaitForSingleObject(commandEvent, INFINITE);
+                DWORD wait = 0;
+                if (!WaitForCommand(INFINITE, wait)) break;
                 continue;
             }
 
             // Drain a stale coalesced request, then prove that no newer desired
             // revision arrived between the snapshot and the drain.
+            bool commandValid = true;
             std::uint64_t revision = 0u;
             std::uint32_t padCount = 1u;
             for (;;)
@@ -281,15 +298,17 @@ struct OutputRuntime::Implementation
                 revision = desiredRevision.load(std::memory_order_acquire);
                 padCount = ClampPadCount(
                     desiredPadCount.load(std::memory_order_acquire));
-                while (WaitForSingleObject(commandEvent, 0u) == WAIT_OBJECT_0)
-                {
-                }
+                DWORD wait = 0;
+                do {
+                    commandValid = WaitForCommand(0u, wait);
+                } while (commandValid && wait == WAIT_OBJECT_0);
+                if (!commandValid) break;
                 if (!run.load(std::memory_order_acquire))
                     break;
                 if (revision == desiredRevision.load(std::memory_order_acquire))
                     break;
             }
-            if (!run.load(std::memory_order_acquire))
+            if (!commandValid || !run.load(std::memory_order_acquire))
                 break;
             if (!desiredEnabled.load(std::memory_order_acquire))
                 continue;
@@ -350,7 +369,8 @@ struct OutputRuntime::Implementation
             }
 
             state.store(OutputRuntimeState::Recovering, std::memory_order_release);
-            (void)WaitForSingleObject(commandEvent, kRecoveryBackoffMs);
+            DWORD recoveryWait = 0;
+            if (!WaitForCommand(kRecoveryBackoffMs, recoveryWait)) break;
         }
         accessAdmission.store(false, std::memory_order_release);
         state.store(run.load(std::memory_order_acquire)

@@ -52,7 +52,7 @@ int main()
     static_assert(kTotalSlots == 104);
     static_assert(kChunkSize == 4);
     static_assert(kSlotToHid.size() == kTotalSlots);
-    static_assert(MappedKeyCount() == 82);
+    static_assert(MappedKeyCount() == 87);
 
     assert(IsKnownProductId(0x1176));
     assert(IsKnownProductId(0x1177));
@@ -64,8 +64,19 @@ int main()
     assert(kSlotToHid[53] == 0x16); // S
     assert(kSlotToHid[54] == 0x07); // D
     assert(kSlotToHid[90] == 0x2C); // Space
-    assert(kSlotToHid[95] == 0);    // vendor Fn 0x409 is intentionally omitted
+    assert(kSlotToHid[96] == 0x409); // Fn at physical row5/col11.
     assert(kSlotToHid[102] == 0 && kSlotToHid[103] == 0);
+
+    assert(kSlotToHid[13] == 0 && kSlotToHid[14] == 0x46); // Mute gap, PrintScreen.
+    assert(kSlotToHid[15] == 0x47 && kSlotToHid[16] == 0x48);
+    assert(kSlotToHid[32] == 0x4A && kSlotToHid[33] == 0x4B); // Home/PageUp.
+    assert(kSlotToHid[48] == 0x4C && kSlotToHid[49] == 0x4D && kSlotToHid[50] == 0x4E);
+    assert(kSlotToHid[64] == 0 && kSlotToHid[65] == 0x28); // Enter's physical gap.
+    assert(kSlotToHid[83] == 0x52 && kSlotToHid[82] == 0);
+    assert(kSlotToHid[95] == 0xE7 && kSlotToHid[98] == 0xE4); // Right Win/Ctrl.
+    assert(kSlotToHid[99] == 0x50 && kSlotToHid[100] == 0x51 && kSlotToHid[101] == 0x4F);
+    assert(!IsFresh(0, 100) && !IsFresh(100, 99));
+    assert(IsFresh(100, 600) && !IsFresh(100, 601));
 
     const auto finish = BuildCalibrationFinishPayload();
     assert(finish[0] == kSetValue && finish[1] == kCustomCommand && finish[2] == kCalibrationFinish);
@@ -74,6 +85,19 @@ int main()
     const auto chunkRequest = BuildTravelBufferPayload(100, 4);
     assert(chunkRequest[0] == kGetValue && chunkRequest[1] == kCustomCommand && chunkRequest[2] == kTravelBuffer);
     assert(chunkRequest[5] == 0 && chunkRequest[6] == 100 && chunkRequest[7] == 4);
+
+    std::array<std::uint8_t,33> smallReport{};
+    std::array<std::uint8_t,129> legacyReport{};
+    assert(EncodeOutputReport(chunkRequest,smallReport.data(),smallReport.size()));
+    assert(EncodeOutputReport(chunkRequest,legacyReport.data(),legacyReport.size()));
+    assert(std::equal(smallReport.begin(),smallReport.end(),legacyReport.begin()));
+    assert(smallReport[0]==0 && smallReport[1]==2 && smallReport[8]==4);
+    assert(!EncodeOutputReport(chunkRequest,smallReport.data(),32));
+    assert(!EncodeOutputReport(chunkRequest,nullptr,33));
+    auto tooLong=chunkRequest;tooLong[32]=1;const auto savedReport=smallReport;
+    assert(!EncodeOutputReport(tooLong,smallReport.data(),smallReport.size()));
+    assert(smallReport==savedReport);
+    assert(EncodeOutputReport(tooLong,legacyReport.data(),legacyReport.size()));
 
     assert(NormalizeTravelToMilli(0, 3300) == 0);
     assert(NormalizeTravelToMilli(8, 3300) == 0);
@@ -117,6 +141,31 @@ int main()
     chunk[8 + 3] = 0xFF;
     assert(!DecodeTravelChunk(chunk.data(), chunk.size(), 52, 4, 3300, entries, count));
 
-    std::cout << "hex80 protocol tests passed: 104 slots, 82 mapped HID keys\n";
+    // A malformed last record must not expose any preceding partial records.
+    chunk = MakeChunk(52, 4, values);
+    chunk[8 + 3*5 + 2] = 0xFF; chunk[8 + 3*5 + 3] = 0xFF;
+    assert(!DecodeTravelChunk(chunk.data(), chunk.size(), 52, 4, 3300, entries, count));
+    assert(count == 0);
+    for (const auto& entry : entries) assert(entry.hid == 0 && entry.milli == 0);
+    unsigned mapped = 0;
+    for (std::uint16_t offset=0; offset<kTotalSlots; offset+=kChunkSize) {
+        const auto request=BuildTravelBufferPayload(offset,4);
+        chunk=MakeChunk(offset,4,values);
+        assert(MatchesRequest(request,chunk.data(),chunk.size()));
+        assert(!MatchesRequest(BuildTravelBufferPayload((offset+4)%kTotalSlots,4),chunk.data(),chunk.size()));
+        assert(!MatchesRequest(request,chunk.data(),8));
+        std::array<std::uint8_t,kPayloadBytes+1> report{};
+        std::copy(chunk.begin(),chunk.end(),report.begin()+1);
+        assert(MatchesRequest(request,report.data(),report.size()));
+        assert(DecodeTravelChunk(report.data(),report.size(),offset,4,3300,entries,count));
+        for (const auto& entry : entries) {
+            assert(entry.hid==kSlotToHid[entry.slot]);
+            assert(entry.hid<kHidCount);
+            mapped+=entry.hid!=0;
+        }
+    }
+    assert(mapped==87);
+
+    std::cout << "hex80 protocol tests passed: 104 slots, 87 mapped HID keys\n";
     return 0;
 }

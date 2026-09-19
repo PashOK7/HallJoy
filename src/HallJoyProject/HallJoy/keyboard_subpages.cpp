@@ -7226,6 +7226,7 @@ struct GlobalSettingsPageState
     RECT rcGlobalProfile{};
     RECT rcLayout{};
     RECT rcLayoutBrand{}, rcLayoutTitle{}, rcLayoutVariant{};
+    RECT rcAutomaticLayout{}, rcAutomaticLayoutStatus{};
     RECT rcLayoutEditor{};
     RECT rcPollSlider{};
     RECT rcPollChip{};
@@ -7255,6 +7256,7 @@ static constexpr int GLOB_ID_UIREFRESH_SLIDER = 7602;
 static constexpr int GLOB_ID_LAYOUT_COMBO = 7603;
 static constexpr int GLOB_ID_LAYOUT_EDITOR = 7604;
 static constexpr int GLOB_ID_LAYOUT_BRAND = 7690;
+static constexpr int GLOB_ID_AUTOMATIC_LAYOUT = 7692;
 static constexpr int GLOB_ID_LAYOUT_VARIANT = 7691;
 static constexpr int GLOB_ID_GLOBAL_PROFILE_COMBO = 7606;
 static constexpr int GLOB_ID_GLOBAL_PROFILE_SAVE = 7610;
@@ -7562,6 +7564,12 @@ static void Global_RefreshLayoutCombo(GlobalSettingsPageState* st)
 
     const bool hadVariants = st->layoutPicker.HasVariants();
     st->layoutPicker.Refresh(KeyboardLayout_GetCurrentPresetIndex());
+    const bool unlocked=!KeyboardLayout_IsAutomaticLocked();
+    for (HWND control : {st->cmbLayout,st->layoutPicker.brand,st->layoutPicker.variant}) {
+        if (!unlocked) PremiumCombo::ShowDropDown(control,false);
+        EnableWindow(control,unlocked);
+    }
+    if (st->btnLayoutEditor) EnableWindow(st->btnLayoutEditor,unlocked);
     if (hadVariants != st->layoutPicker.HasVariants()) Global_Layout(GetParent(st->cmbLayout), st);
 }
 
@@ -7779,6 +7787,9 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
     y += labelH + S(hWnd, 6);
     st->rcLayoutTitle = RECT{ x, y, x + sliderW + gap + chipW, y + labelH };
     y += labelH + S(hWnd, 10);
+    st->rcAutomaticLayout=RECT{x,y,x+sliderW+gap+chipW,y+S(hWnd,28)};
+    st->rcAutomaticLayoutStatus=RECT{x,y+S(hWnd,32),x+sliderW+gap+chipW,y+S(hWnd,86)};
+    y+=S(hWnd,110);
     const int brandW = std::min(S(hWnd, 160), (sliderW + chipW) / 2);
     st->rcLayoutBrand = RECT{ x, y, x + brandW, y + comboVisibleH };
     const int variantW = st->layoutPicker.HasVariants() ? S(hWnd, 96) + gap : 0;
@@ -7893,7 +7904,7 @@ static void Global_RenderContent(HWND hWnd, HDC hdc, const RECT&, void* user)
     auto button = [&](int id, const RECT& r, const wchar_t* text)
     {
         CustomPage_DrawButton(g, hdc, r, text, st->hotId == id,
-            st->pressedId == id, true);
+            st->pressedId == id, id!=GLOB_ID_LAYOUT_EDITOR || !KeyboardLayout_IsAutomaticLocked());
     };
 
     labelAbove(st->rcGlobalProfile,
@@ -7901,6 +7912,9 @@ static void Global_RenderContent(HWND hWnd, HDC hdc, const RECT&, void* user)
     PremiumCombo::PaintRetainedFace(st->cmbGlobalProfile, hdc, st->rcGlobalProfile,
         st->hotId == GLOB_ID_GLOBAL_PROFILE_COMBO || st->hotId == GLOB_ID_GLOBAL_PROFILE_SAVE);
     labelAbove(st->rcLayoutTitle, L"Layout");
+    CustomPage_DrawCheckbox(g,hdc,hWnd,st->rcAutomaticLayout,L"Automatic layout",KeyboardLayout_GetAutomatic(),true);
+    CustomPage_DrawText(hdc,KeyboardLayout_GetAutomaticStatus(),st->rcAutomaticLayoutStatus,
+        UiTheme::Color_TextMuted(),DT_LEFT | DT_WORDBREAK);
     labelAbove(st->rcLayoutBrand, L"Brand");
     labelAbove(st->rcLayout, L"Model");
     PremiumCombo::PaintRetainedFace(st->layoutPicker.brand, hdc, st->rcLayoutBrand,
@@ -8044,6 +8058,7 @@ static int Global_HitTest(GlobalSettingsPageState* st, POINT clientPoint)
         return GLOB_ID_GLOBAL_PROFILE_SAVE;
     const std::pair<int, RECT*> hits[] = {
         { GLOB_ID_GLOBAL_PROFILE_COMBO, &st->rcGlobalProfile },
+        { GLOB_ID_AUTOMATIC_LAYOUT, &st->rcAutomaticLayout },
         { GLOB_ID_LAYOUT_COMBO, &st->rcLayout },
         { GLOB_ID_LAYOUT_BRAND, &st->rcLayoutBrand },
         { GLOB_ID_LAYOUT_VARIANT, &st->rcLayoutVariant },
@@ -8056,8 +8071,11 @@ static int Global_HitTest(GlobalSettingsPageState* st, POINT clientPoint)
         { GLOB_ID_DISCORD, &st->rcDiscord },
         { GLOB_ID_FACTORY_RESET, &st->rcFactoryReset }
     };
-    for (const auto& hit : hits)
+    for (const auto& hit : hits) {
+        if (KeyboardLayout_IsAutomaticLocked() && (hit.first==GLOB_ID_LAYOUT_COMBO ||
+            hit.first==GLOB_ID_LAYOUT_BRAND || hit.first==GLOB_ID_LAYOUT_VARIANT || hit.first==GLOB_ID_LAYOUT_EDITOR)) continue;
         if (PtInRect(hit.second, pt)) return hit.first;
+    }
     return 0;
 }
 
@@ -8075,7 +8093,8 @@ static void Global_CloseComboAnchors(GlobalSettingsPageState* st)
 
 static void Global_OpenComboAnchor(HWND hWnd, GlobalSettingsPageState* st, HWND combo, const RECT& contentRect)
 {
-    if (!st || !combo) return;
+    if (!st || !combo || !IsWindowEnabled(combo)) return;
+    if (KeyboardLayout_IsAutomaticLocked() && combo!=st->cmbGlobalProfile) return;
     Global_CloseComboAnchors(st);
     RECT view = CustomPageSurface_ContentToClient(&st->surface, contentRect);
     SetWindowPos(combo, HWND_TOP, view.left, view.top,
@@ -8687,6 +8706,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
 
         if (LOWORD(wParam) == GLOB_ID_LAYOUT_BRAND && HIWORD(wParam) == CBN_SELCHANGE)
         {
+            if (KeyboardLayout_IsAutomaticLocked()) return 0;
             st->layoutPicker.Browse(KeyboardLayout_GetCurrentPresetIndex());
             Global_Layout(hWnd, st);
             Global_CloseComboAnchors(st);
@@ -8695,6 +8715,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         }
         if ((LOWORD(wParam) == GLOB_ID_LAYOUT_COMBO || LOWORD(wParam) == GLOB_ID_LAYOUT_VARIANT) && HIWORD(wParam) == CBN_SELCHANGE)
         {
+            if (KeyboardLayout_IsAutomaticLocked()) return 0;
             GlobalDeleteConfirm_Clear(hWnd, st);
             int sel = LOWORD(wParam) == GLOB_ID_LAYOUT_COMBO ? st->layoutPicker.ChooseModel() : st->layoutPicker.Selected();
             if (sel >= 0 && sel < KeyboardLayout_GetPresetCount() && sel != KeyboardLayout_GetCurrentPresetIndex())
@@ -8712,11 +8733,23 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
 
         if (LOWORD(wParam) == (UINT)GLOB_ID_LAYOUT_EDITOR && HIWORD(wParam) == BN_CLICKED)
         {
+            if (KeyboardLayout_IsAutomaticLocked()) return 0;
             GlobalDeleteConfirm_Clear(hWnd, st);
             LayoutEditor_OpenWindow(hWnd);
             return 0;
         }
 
+        if (LOWORD(wParam)==GLOB_ID_AUTOMATIC_LAYOUT && HIWORD(wParam)==BN_CLICKED) {
+            KeyboardLayout_SetAutomatic(!KeyboardLayout_GetAutomatic());
+            BackendAnalogTelemetry telemetry{}; Backend_GetAnalogTelemetry(&telemetry);
+            KeyboardLayout_UpdateAutomatic(Backend_IsRuntimeAdmissionOpen(),telemetry);
+            Global_RefreshLayoutCombo(st);
+            Global_NotifyMainPage(hWnd);
+            GlobalProfiles_SetDirty(true);
+            Global_RequestSave(hWnd);
+            CustomPageSurface_MarkDirty(hWnd,&st->surface);
+            return 0;
+        }
         if (LOWORD(wParam) == GLOB_ID_DIAGNOSTIC_LOGGING && HIWORD(wParam) == BN_CLICKED)
         {
             Settings_SetDiagnosticLogging(!Settings_GetDiagnosticLogging());
@@ -9014,6 +9047,30 @@ bool KeyboardSubpages_TestLayoutPicker()
         } else ok=false;
         g_layoutTestDecision=0;
         ok &= KeyboardLayout_DeletePreset(ansi);
+        const bool automaticWasEnabled=KeyboardLayout_GetAutomatic();
+        KeyboardLayout_SetAutomatic(true);
+        BackendAnalogTelemetry automaticTelemetry{};
+        automaticTelemetry.deviceCount=automaticTelemetry.pluginDeviceCount=automaticTelemetry.pluginHostDenseDeviceCount=1;
+        automaticTelemetry.pluginHostReady=true;automaticTelemetry.pluginDeviceSnapshotValid=true;automaticTelemetry.pluginHostSnapshotGeneration=1;
+        auto& device=automaticTelemetry.pluginDevices[0];
+        device.present=true;device.flags=BackendAnalogDeviceFlag_Connected;
+        device.vendorId=0x3434;device.productId=0x0E40;device.usagePage=0xFF60;device.usage=0x61;
+        device.rows=6;device.columns=19;
+        KeyboardLayout_UpdateAutomatic(true,automaticTelemetry);
+        SendMessageW(page,WM_APP_KEYBOARD_LAYOUT_CHANGED,0,0);
+        ok &= KeyboardLayout_IsAutomaticLocked() && !IsWindowEnabled(picker.model) && !IsWindowEnabled(picker.brand);
+        Global_OpenComboAnchor(page,st,picker.model,st->rcLayout);
+        ok &= !PremiumComboInternal::Get(picker.model)->dropped;
+        SendMessageW(page,WM_COMMAND,MAKEWPARAM(GLOB_ID_AUTOMATIC_LAYOUT,BN_CLICKED),0);
+        ok &= !KeyboardLayout_GetAutomatic() && !KeyboardLayout_IsAutomaticLocked() && IsWindowEnabled(picker.model);
+        KeyboardLayout_SetAutomatic(true);
+        automaticTelemetry.deviceCount=automaticTelemetry.pluginDeviceCount=automaticTelemetry.pluginHostDenseDeviceCount=2;
+        KeyboardLayout_UpdateAutomatic(true,automaticTelemetry);
+        SendMessageW(page,WM_APP_KEYBOARD_LAYOUT_CHANGED,0,0);
+        ok &= !KeyboardLayout_IsAutomaticLocked() && IsWindowEnabled(picker.model) &&
+            wcsstr(KeyboardLayout_GetAutomaticStatus(),L"Multiple HallJoy-supported devices")!=nullptr;
+        KeyboardLayout_SetAutomatic(automaticWasEnabled);
+
     }
     if (owner) DestroyWindow(owner);
     UnregisterClassW(wc.lpszClassName, wc.hInstance);

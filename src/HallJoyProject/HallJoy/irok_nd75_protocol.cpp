@@ -46,7 +46,7 @@ Report BuildIdentityRequest() noexcept
 
 Report BuildCapabilityRequest() noexcept
 {
-    auto report = Base(kHostAnalogCommand);
+    auto report = Base(kWireAnalogCommand);
     report[5] = kAnalogChannel;
     report[6] = 0x04;
     return report;
@@ -55,7 +55,7 @@ Report BuildCapabilityRequest() noexcept
 Report BuildSubscriptionRequest(
     const std::array<std::uint8_t, kColumns>& mask) noexcept
 {
-    auto report = Base(kHostAnalogCommand);
+    auto report = Base(kWireAnalogCommand);
     report[5] = kAnalogChannel;
     report[6] = 0x02;
     std::copy(mask.begin(), mask.end(), report.begin() + 7);
@@ -64,7 +64,7 @@ Report BuildSubscriptionRequest(
 
 Report BuildUnsubscribeRequest() noexcept
 {
-    auto report = Base(kHostAnalogCommand);
+    auto report = Base(kWireAnalogCommand);
     report[5] = kAnalogChannel;
     report[6] = 0x03;
     return report;
@@ -151,7 +151,7 @@ bool DecodeCapabilityInfo(const std::uint8_t* r, std::size_t bytes,
     CapabilityInfo* out) noexcept
 {
     if (out) *out = {};
-    if (!out || !IsResponse(r, bytes, kDeviceAnalogCommand) ||
+    if (!out || !IsResponse(r, bytes, kWireAnalogCommand) ||
         r[5] < 2u || r[6] != 0x04)
         return false;
     out->sensitivity = r[7];
@@ -162,7 +162,7 @@ bool DecodeLiveEvent(const std::uint8_t* r, std::size_t bytes,
     LiveEvent* out) noexcept
 {
     if (out) *out = {};
-    if (!out || !IsResponse(r, bytes, kDeviceAnalogCommand) ||
+    if (!out || !IsResponse(r, bytes, kWireAnalogCommand) ||
         r[5] < 3u || r[6] != 0x01)
         return false;
     LiveEvent event{};
@@ -180,6 +180,14 @@ ReadFailureAction ClassifyReadFailure(bool stopping, bool timedOut,
     if (stopping || deviceLost || (!timedOut && consecutiveErrors >= 3u))
         return ReadFailureAction::EndSession;
     return ReadFailureAction::Continue;
+}
+
+bool TryTravelToMilli(std::uint8_t travel, std::uint16_t* out) noexcept
+{
+    if (out) *out = 0;
+    if (!out || travel > kNominalTravelMaximum) return false;
+    *out = ToMilli(travel);
+    return true;
 }
 
 std::uint16_t ToMilli(std::uint8_t travel) noexcept

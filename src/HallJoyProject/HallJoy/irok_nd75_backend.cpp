@@ -484,9 +484,12 @@ void Publish(const irok_nd75::LiveEvent& event, const Proof& proof,
         irok_nd75::kColumns + event.column;
     const std::uint8_t hid = proof.map[position];
     if (hid == 0) return;
-    if (event.travel > irok_nd75::kNominalTravelMaximum)
+    std::uint16_t milli = 0;
+    if (!irok_nd75::TryTravelToMilli(event.travel, &milli))
+    {
         g_outOfRange.fetch_add(1, std::memory_order_relaxed);
-    const auto milli = irok_nd75::ToMilli(event.travel);
+        return;
+    }
     const auto old = g_milli[hid].exchange(milli, std::memory_order_relaxed);
     if ((old == 0) != (milli == 0))
     {
@@ -540,6 +543,7 @@ bool Run(const Candidate& candidate, Proof proof)
 #if defined(HALLJOY_DIAGNOSTIC)
     std::array<std::uint64_t, 256> diagnosticEvents{};
     std::array<std::uint64_t, 256> diagnosticReleases{};
+    std::array<bool, 256> diagnosticPressed{};
     std::array<std::uint8_t, 256> diagnosticMin{};
     std::array<std::uint8_t, 256> diagnosticMax{};
     diagnosticMin.fill(0xff);
@@ -623,16 +627,21 @@ bool Run(const Candidate& candidate, Proof proof)
             if (diagnosticHid)
             {
                 ++diagnosticEvents[diagnosticHid];
-                if (event.travel && diagnosticMax[diagnosticHid] == 0)
+                std::uint16_t diagnosticMilli = 0;
+                const bool validTravel = irok_nd75::TryTravelToMilli(
+                    event.travel, &diagnosticMilli);
+                if (validTravel && event.travel && !diagnosticPressed[diagnosticHid])
+                {
+                    diagnosticPressed[diagnosticHid] = true;
                     ++diagnosticUnique;
+                }
                 diagnosticMin[diagnosticHid] = std::min(
                     diagnosticMin[diagnosticHid], event.travel);
                 diagnosticMax[diagnosticHid] = std::max(
                     diagnosticMax[diagnosticHid], event.travel);
-                const auto diagnosticMilli = irok_nd75::ToMilli(event.travel);
-                if (diagnosticOld == 0 && diagnosticMilli != 0)
+                if (validTravel && diagnosticOld == 0 && diagnosticMilli != 0)
                     ++diagnosticPositiveEdges;
-                if (diagnosticOld != 0 && diagnosticMilli == 0)
+                if (validTravel && diagnosticOld != 0 && diagnosticMilli == 0)
                 {
                     ++diagnosticZeroEdges;
                     ++diagnosticReleases[diagnosticHid];

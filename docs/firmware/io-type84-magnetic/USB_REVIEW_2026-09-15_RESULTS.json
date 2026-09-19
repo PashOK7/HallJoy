@@ -1,0 +1,176 @@
+{
+  "scope": "Original RAM scatter initialization and USB class code; synthetic enumeration state. Control send, receive and stall helpers are stubs. No hardware or USB timing test.",
+  "checks": [
+    {
+      "color": "Black",
+      "case": "GET_REPORT class dispatch",
+      "requests": 3072,
+      "accepted_interface_type_id": [
+        [
+          0,
+          3,
+          0
+        ],
+        [
+          0,
+          3,
+          2
+        ],
+        [
+          3,
+          3,
+          0
+        ],
+        [
+          3,
+          3,
+          2
+        ]
+      ],
+      "live_depth_reads": 0,
+      "callbacks": [
+        "0x0",
+        "0x12c95",
+        "0x1376d"
+      ],
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "feature SET then GET echoes payload without starting simulation; independent of live depths",
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "no pointers to extra transmit buffers or flags in initialized data",
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "selected-key counterexample survives firmware RAM initialization",
+      "trace": [
+        {
+          "index": 0,
+          "travel": 93,
+          "serialized_keys": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 1,
+          "travel": 167,
+          "serialized_keys": [
+            16,
+            16
+          ]
+        },
+        {
+          "index": 0,
+          "travel": 43,
+          "serialized_keys": []
+        },
+        {
+          "index": 1,
+          "travel": 167,
+          "serialized_keys": [
+            16,
+            16
+          ]
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "vendor-type setup rejected by this HID class handler",
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "GET_REPORT class dispatch",
+      "requests": 3072,
+      "accepted_interface_type_id": [
+        [
+          0,
+          3,
+          0
+        ],
+        [
+          0,
+          3,
+          2
+        ],
+        [
+          3,
+          3,
+          0
+        ],
+        [
+          3,
+          3,
+          2
+        ]
+      ],
+      "live_depth_reads": 0,
+      "callbacks": [
+        "0x0",
+        "0x12c95",
+        "0x1376d"
+      ],
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "feature SET then GET echoes payload without starting simulation; independent of live depths",
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "no pointers to extra transmit buffers or flags in initialized data",
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "selected-key counterexample survives firmware RAM initialization",
+      "trace": [
+        {
+          "index": 0,
+          "travel": 93,
+          "serialized_keys": [
+            0,
+            0
+          ]
+        },
+        {
+          "index": 1,
+          "travel": 167,
+          "serialized_keys": [
+            16,
+            16
+          ]
+        },
+        {
+          "index": 0,
+          "travel": 43,
+          "serialized_keys": []
+        },
+        {
+          "index": 1,
+          "travel": 167,
+          "serialized_keys": [
+            16,
+            16
+          ]
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "vendor-type setup rejected by this HID class handler",
+      "result": "PASS"
+    }
+  ],
+  "status": "PASS"
+}

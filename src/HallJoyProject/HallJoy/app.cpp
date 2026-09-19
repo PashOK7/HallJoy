@@ -7,6 +7,11 @@
 #define NOMINMAX
 #include <windows.h>
 #include "support_log.h"
+#include "irok_na87_diagnostic.h"
+#include "aula_mini60_diagnostic.h"
+#include "attackshark_pro_diagnostic.h"
+#include "irok_na87_backend.h"
+#include "native_layout_devices.h"
 #include "window_placement_windows.h"
 #include "main_keyboard_input.h"
 #include <dbt.h>
@@ -1537,6 +1542,9 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 
     case WM_INPUT:
     {
+        Na87Diagnostic_ObserveRawInput((HRAWINPUT)lParam);
+        Mini60Diagnostic_ObserveRawInput((HRAWINPUT)lParam);
+        SharkDiagnostic_ObserveRawInput((HRAWINPUT)lParam);
         if (g_engineUiInputPassThrough.load(std::memory_order_acquire) ||
             !Backend_IsRuntimeAdmissionOpen())
             return 0;
@@ -1635,6 +1643,8 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     case WM_INPUT_DEVICE_CHANGE:
     {
         const HANDLE changed = reinterpret_cast<HANDLE>(lParam);
+        Mini60Diagnostic_DeviceChanged(changed);
+        SharkDiagnostic_DeviceChanged(changed);
         if (wParam == GIDC_REMOVAL)
             halljoy::digital_keyboard::state.Remove(reinterpret_cast<std::uintptr_t>(changed));
 #if defined(HALLJOY_MAD68PR_NATIVE)
@@ -1663,6 +1673,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     }
 
     case WM_DEVICECHANGE:
+        NativeLayoutDevices_Invalidate();
         SupportLog_InventoryChanged();
         SupportLog_Event("device.change", wParam);
         if (wParam == DBT_DEVNODES_CHANGED ||
@@ -1698,6 +1709,10 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         }
         if (wParam == UI_TIMER_ID)
         {
+            Na87Diagnostic_UpdateWindow(hwnd);
+            IrokNa87_UpdateWindow(hwnd);
+            Mini60Diagnostic_UpdateWindow(hwnd);
+            SharkDiagnostic_UpdateWindow(hwnd);
             uint32_t tick = g_uiTimerTickCount.fetch_add(1u, std::memory_order_relaxed) + 1u;
             if (tick <= 8 || (tick % 120u) == 0u)
                 DebugLog_Write(L"[app.timer] ui tick=%u", tick);
@@ -2064,6 +2079,11 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
 
     if (!hwnd) { DebugLog_Write(L"[app] CreateWindowEx failed err=%lu", GetLastError()); return 2; }
     g_hMainWnd = hwnd;
+    Na87Diagnostic_Start();
+    SharkDiagnostic_Start();
+#if !defined(HALLJOY_AULA_MINI60_NATIVE)
+    Mini60Diagnostic_Start();
+#endif
     DebugLog_Write(L"[app] main window created hwnd=%p pos=(%d,%d) size=(%d,%d)", hwnd, x, y, w, h);
 
     if (wc.hIcon)

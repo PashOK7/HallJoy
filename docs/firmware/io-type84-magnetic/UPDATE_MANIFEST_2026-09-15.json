@@ -1,0 +1,146 @@
+[
+	{
+		"productId": 598,
+		"productName": "IO Type 68 Magnetic BL",
+		"v": "1.37",
+		"file_name": "IO_Type68_Magnetic_BL_V1.37.hex",
+		"isHex": true,
+		"hexType": 0
+	},
+	{
+		"productId": 598,
+		"productName": "IO Type 68 Magnetic WH",
+		"v": "1.37",
+		"file_name": "IO_Type68_Magnetic_WH_V1.37.hex",
+		"isHex": true,
+		"hexType": 0
+	},
+	{
+		"productId": 32790,
+		"productName": "IO Type 68 SE WH",
+		"v": "1.30",
+		"file_name": "IO_Type_68_SE_WH_V1.30.hex",
+		"hexType": 2,
+		"isHex": true,
+		"csType": 1
+	},
+	{
+		"productId": 32790,
+		"productName": "IO Type 68 SE BL",
+		"v": "1.30",
+		"file_name": "IO_Type_68_SE_BL_V1.30.hex",
+		"hexType": 2,
+		"isHex": true,
+		"csType": 1
+	},
+	{
+		"productId": 591,
+		"productName": "IO Type 68 Pro ICE",
+		"v": "1.63",
+		"file_name": "IO Type 68 Pro ICE_V1.63.hex",
+		"isHex": true,
+		"hexType": 255
+	},
+	{
+    	"productId": 591,
+    	"productName": "IO Type 68 Pro WH",
+    	"v": "1.63",
+    	"file_name": "IO Type 68 Pro WH_V1.63.hex",
+			"isHex": true,
+			"hexType": 255
+    },
+  {
+	"productId": 591,
+	"productName": "IO Type 68 Pro BL",
+	"v": "1.63",
+	"file_name": "IO Type 68 Pro BL_V1.63.hex",
+	"isHex": true,
+	"hexType": 255
+},
+{
+	"productId": 32777,
+	"productName": "IO Type 84 Pro Wireless Black",
+	"v": "1.32",
+	"file_name": "IO-Type-84-Pro-Wireless-Black_V1.32.hex",
+	"isHex": true,
+	"csType": 0,
+	"hexType": 3
+},
+{
+	"productId": 32777,
+	"productName": "IO Type 84 Pro Wireless White",
+	"v": "1.32",
+	"file_name": "IO-Type-84-Pro-Wireless-White_V1.32.hex",
+	"isHex": true,
+	"csType": 0,
+	"hexType": 3
+},
+{
+	"productId": 32777,
+	"productName": "IO Type 84 Pro Wireless Ice Cream",
+	"v": "1.32",
+	"file_name": "IO-Type-84-Pro-Wireless-Ice-Cream_V1.32.hex",
+	"isHex": true,
+	"csType": 0,
+	"hexType": 3
+},
+{
+	"productId": 32982,
+	"productName": "IO Type 84 Magnetic White",
+	"v": "1.17",
+	"file_name": "IO_Type_84_Magnetic_White_V1.17.hex",
+	"isHex": true
+},
+{
+	"productId": 32982,
+	"productName": "IO Type 84 Magnetic Black",
+	"v": "1.17",
+	"file_name": "IO_Type_84_Magnetic_Black_V1.17.hex",
+	"isHex": true
+},
+{
+	"productId": 32777,
+	"productName": "IO Type 84 White",
+	"v": "1.21",
+	"file_name": "IO_Type_84_White_V1.21.hex",
+	"isHex": true,
+	"csType": 0,
+	"hexType": 1
+},
+{
+	"productId": 32777,
+	"productName": "IO Type 84 Black",
+	"v": "1.21",
+	"file_name": "IO_Type_84_Black_V1.21.hex",
+	"isHex": true,
+	"csType": 0,
+	"hexType": 1
+},
+{
+	"productId": 32777,
+	"productName": "IO Type 84 Ice Cream",
+	"v": "1.21",
+	"file_name": "IO_Type_84_Cream_V1.21.hex",
+	"isHex": true,
+	"csType": 0,
+	"hexType": 1
+},
+{
+	"productId": 598,
+	"productName": "IO Type 68 Pro ICE",
+	"v": "1.58",
+	"file_name": "IO Type 68 Pro ICE_V1.58.exe"
+},
+{
+		"productId": 598,
+		"productName": "IO Type 68 Pro WH",
+		"v": "1.58",
+		"file_name": "IO Type 68 Pro WH_V1.58.exe"
+	},
+{
+"productId": 598,
+"productName": "IO Type 68 Pro BL",
+"v": "1.58",
+"file_name": "IO Type 68 Pro BL_V1.58.exe"
+}
+]

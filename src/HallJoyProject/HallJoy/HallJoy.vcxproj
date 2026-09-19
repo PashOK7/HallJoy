@@ -21,6 +21,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalOptions>/utf-8 /we4828 %(AdditionalOptions)</AdditionalOptions>
+      <PreprocessorDefinitions>HALLJOY_IROK_NA87_NATIVE;HALLJOY_AULA_MINI60_NATIVE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -81,6 +82,10 @@
   <PropertyGroup Condition="'$(HallJoyIrokNd75Diagnostic)'=='true'">
     <TargetName>HallJoy-IROK-ND75-Test</TargetName>
     <HallJoyBuildVariant>IrokNd75Diagnostic</HallJoyBuildVariant>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(HallJoyIrokNa87Diagnostic)'=='true'">
+    <TargetName>HallJoy</TargetName>
+    <HallJoyBuildVariant>IrokNa87Diagnostic</HallJoyBuildVariant>
   </PropertyGroup>
   <PropertyGroup Condition="'$(HallJoyDrunkDeerDiagnostic)'=='true'">
     <TargetName>HallJoy-DrunkDeer-Diagnostic</TargetName>
@@ -205,6 +210,25 @@
       <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
     </Link>
   </ItemDefinitionGroup>
+  <PropertyGroup Condition="'$(HallJoyAttackSharkProDiagnostic)'=='true'">
+    <OutDir>$(HallJoyBuildRoot)bin\$(Configuration)\$(Platform)\</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyAttackSharkProDiagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_ATTACKSHARK_PRO_DIAGNOSTIC;HALLJOY_DEVICE_SUPPORT_LOG;HALLJOY_SINGLE_LOG_DIAGNOSTIC;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <PropertyGroup Condition="'$(HallJoyAulaMini60Diagnostic)'=='true'">
+    <TargetName>HallJoy</TargetName>
+    <IntDir>$(ProjectDir)..\..\..\build\obj\IrokNa87Diagnostic\$(Configuration)\$(Platform)\</IntDir>
+    <OutDir>$(ProjectDir)..\..\..\build\bin\IrokNa87Diagnostic\$(Configuration)\$(Platform)\</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyAulaMini60Diagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_MAD68PR_NATIVE;HALLJOY_AULA_MINI60_NATIVE;HALLJOY_AULA_MINI60_DIAGNOSTIC;HALLJOY_DIAGNOSTIC;HALLJOY_SINGLE_LOG_DIAGNOSTIC;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/MP8 /FS %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(HallJoySingleLogDiagnostic)'=='true'">
     <ClCompile>
       <PreprocessorDefinitions>HALLJOY_SINGLE_LOG_DIAGNOSTIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -223,6 +247,12 @@
       <GenerateMapFile>true</GenerateMapFile>
       <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
     </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyIrokNa87Diagnostic)'=='true'">
+    <ClCompile>
+      <AdditionalOptions>/MP8 /FS %(AdditionalOptions)</AdditionalOptions>
+      <PreprocessorDefinitions>HALLJOY_MAD68PR_NATIVE;HALLJOY_IROK_NA87_NATIVE;HALLJOY_DIAGNOSTIC;HALLJOY_SINGLE_LOG_DIAGNOSTIC;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(HallJoyDrunkDeerDiagnostic)'=='true'">
     <ClCompile>
@@ -306,6 +336,8 @@
   <ItemGroup>
     <ClInclude Include="app.h" />
     <ClInclude Include="bounded_ini.h" />
+    <ClInclude Include="layout_ini_section.h" />
+    <ClInclude Include="ini_write_batch.h" />
     <ClInclude Include="profile_runtime_gate.h" />
     <ClInclude Include="analog_host_client.h" />
     <ClInclude Include="analog_host_shared.h" />
@@ -368,6 +400,12 @@
     <ClInclude Include="premium_combo.h" />
     <ClInclude Include="premium_combo_internal.h" />
     <ClInclude Include="profile_ini.h" />
+    <ClInclude Include="native_layout_state.h" />
+    <ClInclude Include="coherent_telemetry_cache.h" />
+    <ClInclude Include="irok_na87_factory.h" />
+    <ClInclude Include="physical_analog_state.h" />
+    <ClInclude Include="ipi_protocol.h" />
+    <ClInclude Include="generated\ipi_models.h" />
     <ClInclude Include="addressed_analog_backend.h" />
     <ClInclude Include="mad68pr_backend.h" />
     <ClInclude Include="mad68pr_protocol.h" />
@@ -380,8 +418,22 @@
     <ClInclude Include="aula_win60he_session_policy.h" />
     <ClInclude Include="aula_w669_backend.h" />
     <ClInclude Include="aula_w669_protocol.h" />
+    <ClInclude Include="irok_na87_backend.h" />
+    <ClInclude Include="irok_na87_protocol.h" />
+    <ClInclude Include="irok_na87_layout.h" />
+    <ClInclude Include="irok_na87_identity.h" />
+    <ClInclude Include="public_diagnostic_fields.h" />
     <ClInclude Include="irok_nd75_backend.h" />
     <ClInclude Include="irok_nd75_protocol.h" />
+    <ClInclude Include="irok_na87_diagnostic.h" />
+    <ClInclude Include="aula_mini60_diagnostic.h" />
+    <ClInclude Include="attackshark_pro_diagnostic.h" />
+    <ClInclude Include="attackshark_pro_diagnostic_model.h" />
+    <ClInclude Include="aula_mini60_native_model.h" />
+    <ClInclude Include="aula_mini60_layout.h" />
+    <ClInclude Include="aula_mini60_diagnostic_protocol.h" />
+    <ClInclude Include="debug_event_handles.h" />
+    <ClInclude Include="diagnostic_rate_limit.h" />
     <ClInclude Include="drunkdeer_backend.h" />
     <ClInclude Include="drunkdeer_protocol.h" />
     <ClInclude Include="mchose_ace68_diagnostic_backend.h" />
@@ -510,8 +562,12 @@
     <ClCompile Include="aula_win60he_session_policy.cpp" />
     <ClCompile Include="aula_w669_backend.cpp" />
     <ClCompile Include="aula_w669_protocol.cpp" />
+    <ClCompile Include="irok_na87_backend.cpp" />
     <ClCompile Include="irok_nd75_backend.cpp" />
     <ClCompile Include="irok_nd75_protocol.cpp" />
+    <ClCompile Include="irok_na87_diagnostic.cpp" />
+    <ClCompile Include="aula_mini60_diagnostic.cpp" />
+    <ClCompile Include="attackshark_pro_diagnostic.cpp" />
     <ClCompile Include="drunkdeer_backend.cpp">
       <ExcludedFromBuild Condition="'$(HallJoyDrunkDeerDiagnostic)'!='true'">true</ExcludedFromBuild>
     </ClCompile>
@@ -521,9 +577,7 @@
     <ClCompile Include="rog_azoth96he_diagnostic_backend.cpp">
       <ExcludedFromBuild Condition="'$(HallJoyRogAzoth96HeDiagnostic)'!='true'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="aula_hero84he_backend.cpp">
-      <ExcludedFromBuild Condition="'$(HallJoyAulaHero84HeExperimental)'!='true'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="aula_hero84he_backend.cpp" />
     <ClCompile Include="aula_hero84he_diagnostic_backend.cpp">
       <ExcludedFromBuild Condition="'$(HallJoyAulaHero84HeDiagnostic)'!='true'">true</ExcludedFromBuild>
     </ClCompile>
@@ -535,6 +589,8 @@
       <ExcludedFromBuild Condition="'$(HallJoyDrunkDeerDiagnostic)'!='true'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="native_analog_routing.cpp" />
+    <ClCompile Include="native_layout_devices.cpp" />
+    <ClInclude Include="native_layout_devices.h" />
     <ClCompile Include="addressed_poll_scheduler.cpp" />
     <ClCompile Include="realtime_loop.cpp" />
     <ClCompile Include="vigem_child_transport.cpp" />

@@ -1,0 +1,26 @@
+[
+  {
+    "url": "https://keebforce.com/wp-content/uploads/2026/09/IPI-QBZ65-Firmware-V1.20-20260527.zip",
+    "file": "IPI-QBZ65-Firmware-V1.20-20260527.zip",
+    "bytes": 7122334,
+    "sha256": "ffbaed014816cd7531a8b9f11673ca550c96d50f40f0f7f584c322c97907c5e6"
+  },
+  {
+    "url": "https://keebforce.com/wp-content/uploads/2026/04/Update_MK25055_QBZ75_0.005_B19_8K_ARGB_32K_20260320_V1.132.zip",
+    "file": "Update_MK25055_QBZ75_0.005_B19_8K_ARGB_32K_20260320_V1.132.zip",
+    "bytes": 5915152,
+    "sha256": "3cefd59cde5ed6a9ab8b25ae9c324f42d890fba5bfbbddd1715a17c6e4638dfe"
+  },
+  {
+    "url": "https://keebforce.com/wp-content/uploads/2026/01/Update_G75_0.005_B19_8K_ARGB_32K_20260122_V1.24.zip",
+    "file": "Update_G75_0.005_B19_8K_ARGB_32K_20260122_V1.24.zip",
+    "bytes": 5914931,
+    "sha256": "4addea4d05360b4bf0eeff8d05ee61d7f36a923e28f908c9606d782890f382a8"
+  },
+  {
+    "url": "https://keebforce.com/wp-content/uploads/2026/01/Update_G75_0.005_B19_8K_ARGB_32K_20260116_V1.22.zip",
+    "file": "Update_G75_0.005_B19_8K_ARGB_32K_20260116_V1.22.zip",
+    "bytes": 5914891,
+    "sha256": "3aafe6794855eb0173ea37d53d354d5e7a9c7f1a97208a9e28dd62c10fe5175a"
+  }
+]

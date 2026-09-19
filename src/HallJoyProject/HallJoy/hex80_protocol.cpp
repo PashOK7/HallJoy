@@ -37,6 +37,18 @@ std::array<std::uint8_t, kPayloadBytes> BuildTravelBufferPayload(
     return payload;
 }
 
+bool EncodeOutputReport(const std::array<std::uint8_t, kPayloadBytes>& payload,
+    std::uint8_t* report, std::size_t reportBytes) noexcept
+{
+    if (!report || reportBytes < kMinPayloadBytes + 1u) return false;
+    const auto count = std::min(payload.size(), reportBytes - 1u);
+    if (std::any_of(payload.begin() + count, payload.end(), [](std::uint8_t v) { return v != 0; }))
+        return false;
+    std::fill(report, report + reportBytes, std::uint8_t{0});
+    std::copy_n(payload.begin(), count, report + 1u);
+    return true;
+}
+
 std::uint16_t NormalizeTravelToMilli(std::uint16_t travel, std::uint16_t travelMax) noexcept
 {
     if (travel <= kRawDeadzone || travelMax <= kRawDeadzone)
@@ -71,6 +83,20 @@ const std::uint8_t* FindPayload(
         return data + 1u;
     }
     return nullptr;
+}
+
+bool MatchesRequest(const std::array<std::uint8_t, kPayloadBytes>& request,
+    const std::uint8_t* data, std::size_t bytes) noexcept
+{
+    if (request[0] != kGetValue || request[1] != kCustomCommand ||
+        (request[2] != kTravelInfo && request[2] != kTravelBuffer)) return false;
+    std::size_t length = 0;
+    const auto* reply = FindPayload(data, bytes, request[0], request[2], &length);
+    if (!reply) return false;
+    if (request[2] == kTravelInfo) return length >= 5;
+    return length >= 8u + std::size_t(request[7]) * 5u &&
+        request[7] > 0 && request[7] <= kChunkSize &&
+        reply[5] == request[5] && reply[6] == request[6] && reply[7] == request[7];
 }
 
 bool DecodeTravelInfo(
@@ -118,6 +144,7 @@ bool DecodeTravelChunk(
 
     const std::uint32_t plausibleLimit = std::min<std::uint32_t>(
         0xFFFFu, std::max<std::uint32_t>(travelMax, kDefaultTravelMax) * 2u);
+    std::array<TravelEntry, kChunkSize> staged{};
     std::size_t cursor = 8;
     for (std::size_t index = 0; index < returnedSize; ++index, cursor += 5)
     {
@@ -132,8 +159,9 @@ bool DecodeTravelChunk(
         entry.status = payload[cursor + 4];
         if (entry.travel > plausibleLimit) return false;
         entry.milli = NormalizeTravelToMilli(entry.travel, travelMax);
-        outEntries[index] = entry;
+        staged[index] = entry;
     }
+    outEntries = staged;
     outCount = returnedSize;
     return true;
 }

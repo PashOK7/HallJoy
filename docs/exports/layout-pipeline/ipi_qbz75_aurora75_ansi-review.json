@@ -1,0 +1,715 @@
+{
+  "schema": 1,
+  "id": "ipi_qbz75_aurora75_ansi",
+  "brand": "IPI",
+  "model": "QBZ75 / Aurora 75",
+  "variant": "ANSI",
+  "name": "IPI QBZ75 + Aurora 75 ANSI",
+  "status": "ready",
+  "unresolved": [],
+  "keys": [
+    {
+      "hid": 41,
+      "label": "Esc",
+      "x": 0,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 58,
+      "label": "F1",
+      "x": 58,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 59,
+      "label": "F2",
+      "x": 104,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 60,
+      "label": "F3",
+      "x": 150,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 61,
+      "label": "F4",
+      "x": 196,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 62,
+      "label": "F5",
+      "x": 253,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 63,
+      "label": "F6",
+      "x": 299,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 64,
+      "label": "F7",
+      "x": 345,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 65,
+      "label": "F8",
+      "x": 391,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 66,
+      "label": "F9",
+      "x": 449,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 67,
+      "label": "F10",
+      "x": 495,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 68,
+      "label": "F11",
+      "x": 541,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 69,
+      "label": "F12",
+      "x": 587,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 70,
+      "label": "PrtSc",
+      "x": 644,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 74,
+      "label": "Home",
+      "x": 690,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 76,
+      "label": "Del",
+      "x": 690,
+      "y": 0,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 53,
+      "label": "`",
+      "x": 0,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 30,
+      "label": "1",
+      "x": 46,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 31,
+      "label": "2",
+      "x": 92,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 32,
+      "label": "3",
+      "x": 138,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 33,
+      "label": "4",
+      "x": 184,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 34,
+      "label": "5",
+      "x": 230,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 35,
+      "label": "6",
+      "x": 276,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 36,
+      "label": "7",
+      "x": 322,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 37,
+      "label": "8",
+      "x": 368,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 38,
+      "label": "9",
+      "x": 414,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 39,
+      "label": "0",
+      "x": 460,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 45,
+      "label": "-",
+      "x": 506,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 46,
+      "label": "=",
+      "x": 552,
+      "y": 46,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 42,
+      "label": "Back",
+      "x": 598,
+      "y": 46,
+      "w": 88,
+      "h": 42
+    },
+    {
+      "hid": 43,
+      "label": "Tab",
+      "x": 0,
+      "y": 92,
+      "w": 65,
+      "h": 42
+    },
+    {
+      "hid": 20,
+      "label": "Q",
+      "x": 69,
+      "y": 92,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 26,
+      "label": "W",
+      "x": 115,
+      "y": 92,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 8,
+      "label": "E",
+      "x": 161,
+      "y": 92,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 21,
+      "label": "R",
+      "x": 207,
+      "y": 92,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 23,
+      "label": "T",
+      "x": 253,
+      "y": 92,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 28,
+      "label": "Y",
+      "x": 299,
+      "y": 92,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 24,
+      "label": "U",
+      "x": 345,
+      "y": 92,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 12,
+      "label": "I",
+      "x": 391,
+      "y": 92,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 18,
+      "label": "O",
+      "x": 437,
+      "y": 92,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 19,
+      "label": "P",
+      "x": 483,
+      "y": 92,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 47,
+      "label": "[",
+      "x": 529,
+      "y": 92,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 48,
+      "label": "]",
+      "x": 575,
+      "y": 92,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 77,
+      "label": "End",
+      "x": 690,
+      "y": 92,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 57,
+      "label": "Caps",
+      "x": 0,
+      "y": 138,
+      "w": 77,
+      "h": 42
+    },
+    {
+      "hid": 4,
+      "label": "A",
+      "x": 81,
+      "y": 138,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 22,
+      "label": "S",
+      "x": 127,
+      "y": 138,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 7,
+      "label": "D",
+      "x": 173,
+      "y": 138,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 9,
+      "label": "F",
+      "x": 219,
+      "y": 138,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 10,
+      "label": "G",
+      "x": 265,
+      "y": 138,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 11,
+      "label": "H",
+      "x": 311,
+      "y": 138,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 13,
+      "label": "J",
+      "x": 357,
+      "y": 138,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 14,
+      "label": "K",
+      "x": 403,
+      "y": 138,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 15,
+      "label": "L",
+      "x": 449,
+      "y": 138,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 51,
+      "label": ";",
+      "x": 495,
+      "y": 138,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 52,
+      "label": "'",
+      "x": 541,
+      "y": 138,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 40,
+      "label": "Enter",
+      "x": 587,
+      "y": 138,
+      "w": 99,
+      "h": 42
+    },
+    {
+      "hid": 225,
+      "label": "Shift",
+      "x": 0,
+      "y": 184,
+      "w": 100,
+      "h": 42
+    },
+    {
+      "hid": 29,
+      "label": "Z",
+      "x": 104,
+      "y": 184,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 27,
+      "label": "X",
+      "x": 150,
+      "y": 184,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 6,
+      "label": "C",
+      "x": 196,
+      "y": 184,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 25,
+      "label": "V",
+      "x": 242,
+      "y": 184,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 5,
+      "label": "B",
+      "x": 288,
+      "y": 184,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 17,
+      "label": "N",
+      "x": 334,
+      "y": 184,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 16,
+      "label": "M",
+      "x": 380,
+      "y": 184,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 54,
+      "label": ",",
+      "x": 426,
+      "y": 184,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 55,
+      "label": ".",
+      "x": 472,
+      "y": 184,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 75,
+      "label": "PgUp",
+      "x": 690,
+      "y": 138,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 229,
+      "label": "Shift",
+      "x": 564,
+      "y": 184,
+      "w": 76,
+      "h": 42
+    },
+    {
+      "hid": 224,
+      "label": "Ctrl",
+      "x": 0,
+      "y": 230,
+      "w": 54,
+      "h": 42
+    },
+    {
+      "hid": 227,
+      "label": "Win",
+      "x": 58,
+      "y": 230,
+      "w": 53,
+      "h": 42
+    },
+    {
+      "hid": 226,
+      "label": "Alt",
+      "x": 115,
+      "y": 230,
+      "w": 54,
+      "h": 42
+    },
+    {
+      "hid": 44,
+      "label": "Space",
+      "x": 173,
+      "y": 230,
+      "w": 283,
+      "h": 42
+    },
+    {
+      "hid": 230,
+      "label": "Alt",
+      "x": 460,
+      "y": 230,
+      "w": 54,
+      "h": 42
+    },
+    {
+      "hid": 1033,
+      "label": "Fn",
+      "x": 518,
+      "y": 230,
+      "w": 53,
+      "h": 42
+    },
+    {
+      "hid": 80,
+      "label": "Left",
+      "x": 598,
+      "y": 230,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 49,
+      "label": "\\",
+      "x": 621,
+      "y": 92,
+      "w": 65,
+      "h": 42
+    },
+    {
+      "hid": 56,
+      "label": "/",
+      "x": 518,
+      "y": 184,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 82,
+      "label": "Up",
+      "x": 644,
+      "y": 184,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 78,
+      "label": "PgDn",
+      "x": 690,
+      "y": 184,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 81,
+      "label": "Down",
+      "x": 644,
+      "y": 230,
+      "w": 42,
+      "h": 42
+    },
+    {
+      "hid": 79,
+      "label": "Right",
+      "x": 690,
+      "y": 230,
+      "w": 42,
+      "h": 42
+    }
+  ],
+  "identity": {
+    "protocol": "ipi-addressed",
+    "products": [
+      "11000000002C",
+      "110000000013"
+    ]
+  },
+  "sources": [
+    {
+      "path": "docs/research/remaining-layout-sources-20260914/ipi-vendor-bytech-Dmk7DNgV.js",
+      "sha256": "5c51ebb210ae87614d9ab5412695e592066a535489687e480e464878d43ea022",
+      "url": "https://qbz.ipigame.cn/keyboard/assets/vendor-bytech-Dmk7DNgV.js"
+    },
+    {
+      "path": "docs/research/remaining-layout-sources-20260914/ipi-demo-device-session-CMlZtzIh.js",
+      "sha256": "1e1ba311bfde0eb24183847b582a73a7d2331efbe3fa1e5bb490ce044f1f4c26",
+      "url": "https://qbz.ipigame.cn/keyboard/assets/demo-device-session-CMlZtzIh.js"
+    },
+    {
+      "path": "docs/research/remaining-layout-sources-20260914/ipi-keyboard-index-DgQeyrdV.js",
+      "sha256": "10a6804779ef9d0d6fd83ff579468dcbfed1445877d5f54a453b280492c521e0",
+      "url": "https://qbz.ipigame.cn/keyboard/assets/index-DgQeyrdV.js"
+    },
+    {
+      "path": "docs/research/remaining-layout-sources-20260914/ipi-devices.json",
+      "sha256": "9a0a83cf312faff353efeced08cc4611dcefedd9fd1d7ac4dd5d9afecd240f01",
+      "url": "https://api.hubx.pro/v1/device/devices"
+    },
+    {
+      "path": "docs/research/remaining-layout-sources-20260914/ipi-0x11000000002c-jdvj5dvW.js",
+      "sha256": "8e5922f37a1ec69f079d3c7771f4de39d6f1833b1bc48fbac4c7959372fa89c7",
+      "url": "https://qbz.ipigame.cn/keyboard/assets/0x11000000002c-jdvj5dvW.js"
+    },
+    {
+      "path": "docs/research/remaining-layout-sources-20260914/ipi-0x110000000013-jdvj5dvW.js",
+      "sha256": "4c49f95f62165502d66b56400e8087bf56baadfc7e2e52c84a65a75bd9da5feb",
+      "url": "https://qbz.ipigame.cn/keyboard/assets/0x110000000013-jdvj5dvW.js"
+    }
+  ],
+  "notes": [
+    "Physical UUID-specific geometry with official demo default ID/keycode association; not a captured user keymap.",
+    "Manufacturer units normalized to HallJoy 46px pitch and 4px gap; no row reflow.",
+    "Identical physical ID/geometry lists are merged after exact comparison.",
+    "Exact UUID identities are eligible only after native session proof; wireless forwarding is not inferred.",
+    "The IPI native route reads an explicit live map and per-key calibration; no shared-PID calibration seeds.",
+    "Vendor Fn maps to 0x409 in the native IPI route. Plus revisions remain excluded."
+  ]
+}

@@ -267,6 +267,8 @@ New-Item -ItemType Directory -Path $WorkRoot -Force | Out-Null
 Get-ChildItem -LiteralPath $Root -File | Where-Object {
     $_.Extension -in @('.cpp', '.h', '.hpp', '.sun', '.lib', '.a')
 } | Copy-Item -Destination $WorkRoot
+# Share reviewed matrix metadata with the application; do not maintain a second PID table.
+Copy-Item -LiteralPath (Join-Path $RepoRoot 'src\HallJoyProject\HallJoy\keychron_layout_identities.h') -Destination $WorkRoot
 $WorkSoup = Join-Path $WorkRoot 'Soup'
 & robocopy $SoupRoot $WorkSoup /E /XJ /XD .git int /XF *.obj *.a *.lib /R:0 /W:0 /NFL /NDL /NJH /NJS /NP
 if ($LASTEXITCODE -ge 8) { throw "Cannot stage Soup: $LASTEXITCODE" }

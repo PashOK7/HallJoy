@@ -1,4 +1,4 @@
-﻿// keyboard_ui.cpp
+// keyboard_ui.cpp
 #ifndef _WIN32_IE
 #define _WIN32_IE 0x0600
 #endif
@@ -23,6 +23,8 @@
 #include "keyboard_ui_internal.h"
 #include "keyboard_ui_state.h"
 #include "keyboard_support_status.h"
+#include "native_layout_devices.h"
+#include "irok_na87_identity.h"
 #include "settings.h"
 #include "profile_ini.h"
 #include "app_paths.h"
@@ -256,9 +258,6 @@ void KeyboardUI_OnTimerTick(HWND)
 {
     HWND root = nullptr;
     if (g_hPageRemap) root = GetAncestor(g_hPageRemap, GA_ROOT);
-    if (!root || !IsWindowVisible(root) || IsIconic(root))
-        return;
-
     BackendAnalogTelemetry telemetry{};
     Backend_GetAnalogTelemetry(&telemetry);
     // The engine owner opens admission only after its startup generation has
@@ -266,19 +265,34 @@ void KeyboardUI_OnTimerTick(HWND)
     // have all reached a coherent state. Before that point an empty telemetry
     // snapshot means "still starting", not "no supported keyboard".
     const bool searchCompleted = Backend_IsRuntimeAdmissionOpen();
-    if (KeyboardLayout_TryFirstRunSelection(searchCompleted, telemetry))
+    const auto previousLayout=KeyboardLayout_GetSnapshot();
+    if (KeyboardLayout_UpdateAutomatic(searchCompleted, telemetry))
     {
         if (g_hSubTab)
-            PostMessageW(GetParent(g_hSubTab), WM_APP_KEYBOARD_LAYOUT_CHANGED, 0, 0);
-        PostMessageW(root, WM_APP + 1, 0, 0); // Existing coalesced profile save request.
+            PostMessageW(GetParent(g_hSubTab), WM_APP_KEYBOARD_LAYOUT_CHANGED,
+                previousLayout==KeyboardLayout_GetSnapshot() ? KeyboardLayoutChange_StatusOnly : 0, 0);
+        // Automatic selection never replaces the saved manual preset.
     }
+    if (!root || !IsWindowVisible(root) || IsIconic(root)) return;
     const bool analogSourceConnected = HasSupportedAnalogSource(telemetry);
     const bool publishedAnalogSourceConnected = searchCompleted && analogSourceConnected;
+    unsigned frozenModels = NativeLayoutDevices_QueryFrozen();
+    for (int i=0;i<std::clamp(telemetry.nativeProtocolCount,0,kBackendMaxNativeProtocols);++i) {
+        const auto& device=telemetry.nativeProtocols[i];
+        if(device.present && device.protocol==static_cast<std::uint16_t>(NativeAnalogProtocol::AulaHero84He))
+            frozenModels |= halljoy::keyboard_support::Hero84;
+    }
+    // An ambiguous USB family is advisory only when no working source exists.
+    // It must not mark a verified active sibling model as frozen.
+    if(analogSourceConnected || (frozenModels & ~halljoy::keyboard_support::FamilyCandidate))
+        frozenModels &= ~halljoy::keyboard_support::FamilyCandidate;
+    if(!searchCompleted) frozenModels=0;
     const auto previousObservation = halljoy::keyboard_support::GetStatusSnapshot();
     if (searchCompleted != previousObservation.searchCompleted ||
-        publishedAnalogSourceConnected != previousObservation.analogSourceConnected)
+        publishedAnalogSourceConnected != previousObservation.analogSourceConnected ||
+        frozenModels != previousObservation.frozenModels)
     {
-        halljoy::keyboard_support::SetSearchObservation(searchCompleted, analogSourceConnected);
+        halljoy::keyboard_support::SetSearchObservation(searchCompleted, analogSourceConnected, frozenModels);
         if (g_hSubTab)
         {
             HWND hMainPage = GetParent(g_hSubTab);

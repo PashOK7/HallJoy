@@ -51,6 +51,32 @@
 static constexpr UINT WM_APP_SYNC_MOUSE_SLOTS = WM_APP + 360;
 static constexpr UINT WM_APP_ANALOG_SOURCE_STATUS_CHANGED = WM_APP + 361;
 static constexpr int kSupportBannerHeightPx = 100;
+static bool FrozenSupportVisible() { return halljoy::keyboard_support::GetStatusSnapshot().frozenModels != 0; }
+static int SupportBannerHeight() { return FrozenSupportVisible() ? 154 : kSupportBannerHeightPx; }
+static const wchar_t* FrozenSupportTitle() {
+    using namespace halljoy::keyboard_support;
+    switch(GetStatusSnapshot().frozenModels) {
+    case FamilyCandidate: return L"Keyboard support is unverified";
+    case NA87: return L"IROK NA87: testing incomplete";
+    case NA87Pro: return L"IROK NA87 Pro: support frozen";
+    case ND75: return L"IROK ND75: support frozen";
+    case Hero84: return L"AULA HERO84 HE: testing incomplete";
+    case Azoth96: return L"ROG Azoth 96 HE: support frozen";
+    case X68: return L"Attack Shark X68 HE: support frozen";
+    default: return L"Connected keyboards: support needs testing";
+    }
+}
+static const wchar_t* FrozenSupportBody() {
+    const auto models=halljoy::keyboard_support::GetStatusSnapshot().frozenModels;
+    if(models==halljoy::keyboard_support::FamilyCandidate)
+        return L"This USB identity is shared with frozen experimental keyboards. Exact model support is unverified. Join Discord to help identify and test it.";
+    constexpr unsigned available=halljoy::keyboard_support::NA87 | halljoy::keyboard_support::Hero84;
+    if(models && !(models & ~available))
+        return L"Support is available, but testing is incomplete. It may be unstable or not work. Join Discord to help test it.";
+    if(models & available)
+        return L"Some connected keyboards have unverified support and may not work reliably. Other frozen support is unavailable in this build. Join Discord to help test.";
+    return L"Experimental support is frozen and unavailable in this build. Join Discord to help with testing and development.";
+}
 // Mouse settings currently work poorly and are disabled in the UI.
 // Keep the implementation as a foundation for future fixes; do not delete it.
 static constexpr bool kMouseSettingsPageEnabled = false;
@@ -138,6 +164,11 @@ static SupportBannerLayout SupportBanner_GetLayout(HWND hWnd, const RECT& rc)
     result.join = { buttonX, buttonY, buttonX + joinW, buttonY + S(hWnd, 32) };
     result.copy = { result.join.right + gap, buttonY, result.join.right + gap + copyW, result.join.bottom };
     if (inlineButtons) result.body.right = result.join.left - gap;
+    if (FrozenSupportVisible()) {
+        result.body = {pad, result.title.bottom + S(hWnd,4), textRight, S(hWnd,108)};
+        result.join = {pad, S(hWnd,114), pad + joinW, S(hWnd,146)};
+        result.copy = {result.join.right + gap, result.join.top, result.join.right + gap + copyW, result.join.bottom};
+    }
     return result;
 }
 
@@ -175,14 +206,14 @@ static void DrawSupportQr(Gdiplus::Graphics& g, HWND hWnd, const RECT& tile)
 {
     // Warm rose paper and burgundy ink match the card. Keep the required
     // quiet zone, without an extra decorative frame or padding.
-    CustomPage_DrawRoundRect(g, tile, RGB(239, 209, 216), RGB(239, 209, 216), (float)S(hWnd, 5));
+    CustomPage_DrawRoundRect(g, tile, FrozenSupportVisible() ? RGB(250, 229, 186) : RGB(239, 209, 216), FrozenSupportVisible() ? RGB(250, 229, 186) : RGB(239, 209, 216), (float)S(hWnd, 5));
     constexpr int kModules = 29, kQuiet = 4;
     // Snap every boundary to a pixel instead of rounding the module size down:
     // the code fills its tile at every DPI, with no blur or gaps between cells.
     constexpr int total = kModules + kQuiet * 2;
     const int size = static_cast<int>(tile.right - tile.left);
     const auto edge = [size](int module) { return MulDiv(module, size, total); };
-    Gdiplus::SolidBrush ink(Gdiplus::Color(255, 73, 31, 43));
+    Gdiplus::SolidBrush ink(FrozenSupportVisible() ? Gdiplus::Color(255, 62, 42, 12) : Gdiplus::Color(255, 73, 31, 43));
     const auto smoothing = g.GetSmoothingMode();
     g.SetSmoothingMode(Gdiplus::SmoothingModeNone);
     for (int y = 0; y < kModules; ++y)
@@ -231,16 +262,16 @@ static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LP
         SelectObject(hdc, headingFont ? headingFont : GetStockObject(SYSTEM_FONT));
         Gdiplus::Graphics g(hdc);
         g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-        CustomPage_DrawRoundRect(g, rc, RGB(51, 30, 35), RGB(118, 61, 72),
+        CustomPage_DrawRoundRect(g, rc, FrozenSupportVisible() ? RGB(53, 42, 24) : RGB(51, 30, 35), FrozenSupportVisible() ? RGB(140, 102, 40) : RGB(118, 61, 72),
             (float)S(hWnd, 8));
         RECT accent{S(hWnd, 1), S(hWnd, 13), S(hWnd, 4), rc.bottom - S(hWnd, 13)};
-        CustomPage_DrawRoundRect(g, accent, RGB(214, 103, 122), RGB(214, 103, 122), 1.0f);
-        CustomPage_DrawText(hdc, L"No supported analogue keyboard detected", layout.title,
-            RGB(245, 164, 182), DT_LEFT | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
+        CustomPage_DrawRoundRect(g, accent, FrozenSupportVisible() ? RGB(239, 179, 70) : RGB(214, 103, 122), FrozenSupportVisible() ? RGB(239, 179, 70) : RGB(214, 103, 122), 1.0f);
+        CustomPage_DrawText(hdc, FrozenSupportVisible() ? FrozenSupportTitle() : L"No supported analogue keyboard detected", layout.title,
+            FrozenSupportVisible() ? RGB(255, 205, 112) : RGB(245, 164, 182), DT_LEFT | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
 
         SelectObject(hdc, bodyFont ? bodyFont : GetStockObject(SYSTEM_FONT));
-        CustomPage_DrawText(hdc, kSupportPrompt, layout.body, UiTheme::Color_Text(),
-            DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        CustomPage_DrawText(hdc, FrozenSupportVisible() ? FrozenSupportBody() : kSupportPrompt, layout.body, UiTheme::Color_Text(),
+            FrozenSupportVisible() ? DT_LEFT | DT_TOP | DT_WORDBREAK : DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
         CustomPage_DrawButton(g, hdc, layout.join, L"Join Discord",
             g_supportBannerHot == SupportBannerAction::Join, g_supportBannerPressed == SupportBannerAction::Join, true);
         CustomPage_DrawButton(g, hdc, layout.copy, L"Copy link",
@@ -770,13 +801,13 @@ static void LayoutKeyboardButtons(HWND hWnd)
         {
             hdwp = DeferWindowPos(
                 hdwp, b, nullptr, px, py, pw, ph,
-                SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOCOPYBITS | SWP_NOREDRAW);
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOCOPYBITS | SWP_NOREDRAW | SWP_SHOWWINDOW);
         }
         else
         {
             SetWindowPos(
                 b, nullptr, px, py, pw, ph,
-                SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOCOPYBITS | SWP_NOREDRAW);
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOCOPYBITS | SWP_NOREDRAW | SWP_SHOWWINDOW);
         }
     }
 
@@ -804,9 +835,10 @@ static void RebuildKeyboardButtons(HWND hWnd)
     {
         const auto& k = keys[i];
 
+        // Show the button only after subclassing and final placement.
         HWND b = CreateWindowW(L"BUTTON", k.label,
-            WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-            0, 0, 10, 10,
+            WS_CHILD | BS_OWNERDRAW,
+            0, 0, 0, 0,
             hWnd, nullptr, hInst, nullptr);
 
         SetWindowLongPtrW(b, GWLP_USERDATA, (LONG_PTR)k.hid);
@@ -890,9 +922,9 @@ static void ResizeSubUi(HWND hWnd)
     int kbBottom = KeyboardBottomPx(hWnd);
     int x = S(hWnd, 12);
     const auto supportStatus = halljoy::keyboard_support::GetStatusSnapshot();
-    const bool showBanner = supportStatus.searchCompleted && !supportStatus.analogSourceConnected;
+    const bool showBanner = supportStatus.searchCompleted && (!supportStatus.analogSourceConnected || supportStatus.frozenModels != 0);
     static bool previousBanner = false;
-    if (showBanner && !previousBanner) SupportLog_ReportMissingSource();
+    if (showBanner && !previousBanner && !supportStatus.frozenModels) SupportLog_ReportMissingSource();
     previousBanner = showBanner;
     const int bannerY = kbBottom + S(hWnd, 8);
     if (g_hSupportBanner)
@@ -901,10 +933,10 @@ static void ResizeSubUi(HWND hWnd)
         if (showBanner)
         {
             SetWindowPos(g_hSupportBanner, nullptr, x, bannerY, (rc.right - rc.left) - S(hWnd, 24),
-                S(hWnd, kSupportBannerHeightPx), SWP_NOZORDER);
+                S(hWnd, SupportBannerHeight()), SWP_NOZORDER);
         }
     }
-    int y = showBanner ? bannerY + S(hWnd, kSupportBannerHeightPx + 8) : kbBottom + S(hWnd, 12);
+    int y = showBanner ? bannerY + S(hWnd, SupportBannerHeight() + 8) : kbBottom + S(hWnd, 12);
 
     int w = (rc.right - rc.left) - S(hWnd, 24);
     int h = (rc.bottom - rc.top) - y - S(hWnd, 12);
@@ -2669,6 +2701,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         return 0;
 
     case WM_APP_ANALOG_SOURCE_STATUS_CHANGED:
+        if (g_hSupportBanner) InvalidateRect(g_hSupportBanner, nullptr, FALSE);
         ResizeSubUi(hWnd);
         InvalidateRect(hWnd, nullptr, FALSE);
         return 0;
@@ -2881,6 +2914,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 
     case WM_APP_KEYBOARD_LAYOUT_CHANGED:
         if (g_hPageGlobal) PostMessageW(g_hPageGlobal, WM_APP_KEYBOARD_LAYOUT_CHANGED, 0, 0);
+        if (wParam==KeyboardLayoutChange_StatusOnly) return 0;
         // Rebuild visible keyboard immediately when layout preset changes from subpages.
         KeyDrag_Stop();
         if (g_kdel.running) KeyDel_Stop();

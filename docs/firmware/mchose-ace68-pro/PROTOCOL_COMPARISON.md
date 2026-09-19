@@ -35,7 +35,9 @@ device.
 
 The independently reverse-engineered IO Type 84 magnetic firmware is a useful
 counterexample: `AA 66` / `AA 67` enable/disable a simulation-test state, and
-its raw `55 FB` coordinate packets are gated by that state. That proves why a
+its simulation `55 FB` packets carry selected-key telemetry. The September 15
+[IO review](../io-type84-magnetic/DEEP_REVERSE.md) corrects the earlier claim
+that all such packets require simulation: calibration has another producer. That proves why a
 packet containing Hall values is insufficient evidence of a usable runtime
 stream. No corresponding state gate, `FB` producer, `66`, or `67` discriminator
 has been recovered from the Pro image.

@@ -1,0 +1,247 @@
+{
+  "firmware_sha256": {
+    "Black": "4f2e8b8b406a72ed4a4d4b34502478aa9b8b5d874c4a3cdfa1381acaea00ec44",
+    "White": "8f5ef507771c6795258eb7521cfc1b46269a5b301548767ae87a3f1a83a50d45"
+  },
+  "mapped_difference_addresses": [
+    "0x10ba8",
+    "0x10ba9",
+    "0x10baa",
+    "0x10bab",
+    "0x10bac"
+  ],
+  "scope": "Synthetic component execution. ADC filter is identity; USB send and normal-key processing are stubs. No physical keyboard, timing or full typing test.",
+  "checks": [
+    {
+      "color": "Black",
+      "command": "0x66",
+      "test_flag": 1,
+      "calibration_flag": 0,
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "command": "0x67",
+      "test_flag": 0,
+      "calibration_flag": 0,
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "command": "0x60",
+      "test_flag": 0,
+      "calibration_flag": 0,
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "command": "0x68",
+      "test_flag": 0,
+      "calibration_flag": 0,
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "command": "0x66",
+      "test_flag": 1,
+      "calibration_flag": 1,
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "command": "0x67",
+      "test_flag": 0,
+      "calibration_flag": 1,
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "command": "0x60",
+      "test_flag": 0,
+      "calibration_flag": 1,
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "command": "0x68",
+      "test_flag": 0,
+      "calibration_flag": 1,
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "serializer and scheduler",
+      "bytes": 64,
+      "prefix": "55fb070198086c870208aa002200",
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "pending mailbox overwritten before send",
+      "received_keys": [
+        16
+      ],
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "weaker key depth changes without serialization; normal path reached on and off",
+      "trace": [
+        {
+          "matrix_index": 0,
+          "adc": 2100,
+          "travel": 93,
+          "selected_index": 0,
+          "serialized_keys": [
+            0,
+            0
+          ]
+        },
+        {
+          "matrix_index": 1,
+          "adc": 2000,
+          "travel": 167,
+          "selected_index": 1,
+          "serialized_keys": [
+            16,
+            16
+          ]
+        },
+        {
+          "matrix_index": 0,
+          "adc": 2150,
+          "travel": 43,
+          "selected_index": 1,
+          "serialized_keys": []
+        },
+        {
+          "matrix_index": 1,
+          "adc": 2000,
+          "travel": 167,
+          "selected_index": 1,
+          "serialized_keys": [
+            16,
+            16
+          ]
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "command": "0x66",
+      "test_flag": 1,
+      "calibration_flag": 0,
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "command": "0x67",
+      "test_flag": 0,
+      "calibration_flag": 0,
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "command": "0x60",
+      "test_flag": 0,
+      "calibration_flag": 0,
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "command": "0x68",
+      "test_flag": 0,
+      "calibration_flag": 0,
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "command": "0x66",
+      "test_flag": 1,
+      "calibration_flag": 1,
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "command": "0x67",
+      "test_flag": 0,
+      "calibration_flag": 1,
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "command": "0x60",
+      "test_flag": 0,
+      "calibration_flag": 1,
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "command": "0x68",
+      "test_flag": 0,
+      "calibration_flag": 1,
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "serializer and scheduler",
+      "bytes": 64,
+      "prefix": "55fb070198086c870208aa002200",
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "pending mailbox overwritten before send",
+      "received_keys": [
+        16
+      ],
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "weaker key depth changes without serialization; normal path reached on and off",
+      "trace": [
+        {
+          "matrix_index": 0,
+          "adc": 2100,
+          "travel": 93,
+          "selected_index": 0,
+          "serialized_keys": [
+            0,
+            0
+          ]
+        },
+        {
+          "matrix_index": 1,
+          "adc": 2000,
+          "travel": 167,
+          "selected_index": 1,
+          "serialized_keys": [
+            16,
+            16
+          ]
+        },
+        {
+          "matrix_index": 0,
+          "adc": 2150,
+          "travel": 43,
+          "selected_index": 1,
+          "serialized_keys": []
+        },
+        {
+          "matrix_index": 1,
+          "adc": 2000,
+          "travel": 167,
+          "selected_index": 1,
+          "serialized_keys": [
+            16,
+            16
+          ]
+        }
+      ],
+      "result": "PASS"
+    }
+  ],
+  "status": "PASS"
+}

@@ -1,5 +1,10 @@
 # Hex80 Protocol
 
+> 2026-09-14: [ATK Hex80 native fixes](../current/ATK_HEX80_NATIVE_FIXES_2026-09-14.md).
+> Corrected19 matrix slots;87 factory keys including Fn now publish analog.
+> Supports32/128-byte payloads, per-key freshness and correlated chunk replies.
+> Historical82-key table/report-size assumptions below are superseded.
+
 ## 1. Device Identity
 
 The Hex80 exposes a vendor-defined HID interface used for analog travel data.

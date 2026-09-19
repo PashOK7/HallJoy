@@ -1,32 +1,58 @@
 {
   "schema": 1,
   "brands": {
-    "Keychron": {"adapter": "keychron", "guide": "docs/current/KEYCHRON_COMPOUND_LAYOUTS.md"},
-    "Lemokey": {"adapter": "lemokey", "guide": "docs/current/LEMOKEY_LAYOUTS.md"},
-    "DrunkDeer": {"adapter": "drunkdeer", "guide": "docs/current/DRUNKDEER_LAYOUTS.md"},
+    "Keychron": {
+      "adapter": "keychron",
+      "guide": "docs/current/KEYCHRON_COMPOUND_LAYOUTS.md"
+    },
+    "Lemokey": {
+      "adapter": "lemokey",
+      "guide": "docs/current/LEMOKEY_LAYOUTS.md"
+    },
+    "DrunkDeer": {
+      "adapter": "drunkdeer",
+      "guide": "docs/current/DRUNKDEER_LAYOUTS.md"
+    },
     "Aula": {
       "adapter": "aula-w669",
       "runtime": true,
       "guide": "docs/current/AULA_LAYOUT_PIPELINE.md",
       "models": [
         {
-          "id": "aula_win60_standard_ansi", "model": "WIN 60 HE Standard", "variant": "ANSI", "count": 61,
+          "id": "aula_win60_standard_ansi",
+          "model": "WIN 60 HE Standard",
+          "variant": "ANSI",
+          "count": 61,
           "source": "docs/research/aula-layout-sources/SI2825HEARGB.json",
           "url": "https://hed.aulacn.com/config/keys/SI2825HEARGB.json",
           "sha256": "04e2fda00fdb1645c74d42121102c1cf233658ddf43fb2611ace57460cfcb448",
           "factory": "Win60FactoryMap",
-          "products": ["SI2825HEARGB", "SI2825KRT12HEARGB", "SI2825KR-AHEARGB", "SI2825KZHEARGB"]
+          "products": [
+            "SI2825HEARGB",
+            "SI2825KRT12HEARGB",
+            "SI2825KR-AHEARGB",
+            "SI2825KZHEARGB"
+          ]
         },
         {
-          "id": "aula_win68_standard_ansi", "model": "WIN 68 HE Standard", "variant": "ANSI", "count": 68,
+          "id": "aula_win68_standard_ansi",
+          "model": "WIN 68 HE Standard",
+          "variant": "ANSI",
+          "count": 68,
           "source": "docs/research/aula-layout-sources/SI2828HEARGB.json",
           "url": "https://hed.aulacn.com/config/keys/SI2828HEARGB.json",
           "sha256": "cc2cbbc9c051230279ba8ce3b52054739446dc19c78cf1a38adfd2d7c6cdf9e1",
           "factory": "Win68FactoryMap",
-          "products": ["SI2828HEARGB", "SI2828KZHEARGB"]
-        }
-        ,{
-          "id": "aula_win60_max_ansi", "model": "WIN 60 HE MAX", "variant": "ANSI", "count": 61,
+          "products": [
+            "SI2828HEARGB",
+            "SI2828KZHEARGB"
+          ]
+        },
+        {
+          "id": "aula_win60_max_ansi",
+          "model": "WIN 60 HE MAX",
+          "variant": "ANSI",
+          "count": 61,
           "adapter": "aula-max",
           "source": "docs/research/aula-max-layout-sources/index-C7aUVaaC.js",
           "url": "https://magnet.aulastar.com/assets/index-C7aUVaaC.js",
@@ -34,42 +60,67 @@
           "css": "docs/research/aula-max-layout-sources/index-lKmrC98y.css",
           "cssUrl": "https://magnet.aulastar.com/assets/index-lKmrC98y.css",
           "cssSha256": "214f2f2161b9e092210f8c8b801b851b01e8da83774fb4e220db16720c46980e",
-          "products": ["0A021902"]
+          "products": [
+            "0A021902"
+          ]
         }
       ],
       "pending": [
-        {"model": "KP-TE153", "reason": "Protocol profile exists; brand attribution and compound geometry require a separate review."}
+        {
+          "model": "KP-TE153",
+          "reason": "Protocol profile exists; brand attribution and compound geometry require a separate review."
+        }
       ],
-      "excluded": ["HERO84 HE: frozen, not supported"]
+      "excluded": [
+        "HERO84 HE: unverified analog backend enabled; dedicated layout not yet registered"
+      ]
     },
     "Redragon": {
-      "adapter": "redragon-w669", "runtime": true,
+      "adapter": "redragon-w669",
+      "runtime": true,
       "guide": "docs/current/REDRAGON_LAYOUTS.md",
       "models": [
         {
-          "id": "redragon_k673_us_ansi", "model": "K673WB-RGB-M", "variant": "ANSI", "count": 80,
+          "id": "redragon_k673_us_ansi",
+          "model": "K673WB-RGB-M",
+          "variant": "ANSI",
+          "count": 80,
           "source": "docs/research/redragon-layout-sources/7272USHEXYXK673JCARGB.json",
           "url": "https://www.illumipc.com/config/keys/7272USHEXYXK673JCARGB.json",
           "sha256": "3793c15e57e7b2f70f158eefb746d85da4d9a3ca04d625100b6888a3b64e06cd",
           "css": "docs/research/redragon-layout-sources/mainIndex8.min.css",
           "cssUrl": "https://www.illumipc.com/css/mainIndex8.min.css",
           "cssSha256": "e90906657ed201b9cfbde5de88d082920e9184c8a0d4a807f630065752f62c43",
-          "factory": "K673UsFactoryMap", "products": ["7272USHEXYXK673JCARGB"]
+          "factory": "K673UsFactoryMap",
+          "products": [
+            "7272USHEXYXK673JCARGB"
+          ]
         },
         {
-          "id": "redragon_k673_uk_iso", "model": "K673RGB-M", "variant": "ISO", "count": 81,
+          "id": "redragon_k673_uk_iso",
+          "model": "K673RGB-M",
+          "variant": "ISO",
+          "count": 81,
           "source": "docs/research/redragon-layout-sources/7272UKHEXYXBJCARGB.json",
           "url": "https://www.illumipc.com/config/keys/7272UKHEXYXBJCARGB.json",
           "sha256": "95caecc35b88f7d5bb489ff00b966d5a027e525450898fb7066b8dc4c72e12a7",
           "css": "docs/research/redragon-layout-sources/mainIndex8.min.css",
           "cssUrl": "https://www.illumipc.com/css/mainIndex8.min.css",
           "cssSha256": "e90906657ed201b9cfbde5de88d082920e9184c8a0d4a807f630065752f62c43",
-          "factory": "K673UkFactoryMap", "products": ["7272UKHEXYXBJCARGB"]
+          "factory": "K673UkFactoryMap",
+          "products": [
+            "7272UKHEXYXBJCARGB"
+          ]
         }
       ],
-      "pending": [{"model": "K673 BR", "reason": "Official position 100 publishes IntlRo (0x87) instead of Right Shift; no guessed substitution or protocol change. Fn/encoder have no published HID."}]
+      "pending": [
+        {
+          "model": "K673 BR",
+          "reason": "Official position 100 publishes IntlRo (0x87) instead of Right Shift; no guessed substitution or protocol change. Fn/encoder have no published HID."
+        }
+      ]
     },
-  "Razer": {
+    "Razer": {
       "adapter": "reviewed-report",
       "runtime": true,
       "guide": "docs/current/FINAL_LAYOUT_BATCH.md",
@@ -299,6 +350,179 @@
           "model": "60HE v2 / split variants / UwU",
           "reason": "Outside reviewed v4 keyboard layout batch; no guessed geometry."
         }
+      ]
+    },
+    "IROK": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/IROK_MG75_LAYOUTS.md",
+      "models": [
+        {
+          "id": "irok_mg75_max_ansi",
+          "model": "MG75 Max",
+          "brand": "IROK",
+          "variant": "ANSI",
+          "count": 81,
+          "source": "docs/research/irok-mg75-layout-reports/irok_mg75_max_ansi.json",
+          "sha256": "e461551f155e444acc38c233e57201493c963619adb0addf45f90038ba28123b",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "irok_mg75_pro_ansi",
+          "model": "MG75 Pro",
+          "brand": "IROK",
+          "variant": "ANSI",
+          "count": 81,
+          "source": "docs/research/irok-mg75-layout-reports/irok_mg75_pro_ansi.json",
+          "sha256": "1ee976f84c2bcb4149d6dc733bdc76fc208de2124f38ca64dbddf31032403a9f",
+          "products": [],
+          "url": ""
+        }
+      ],
+      "excluded": [
+        "MG75 v2: different unsupported hardware; not included"
+      ]
+    },
+    "MADLIONS": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/MADLIONS_LAYOUTS.md",
+      "models": [
+        {
+          "id": "madlions_mad60he_ansi",
+          "model": "MAD60HE",
+          "brand": "MADLIONS",
+          "variant": "ANSI",
+          "count": 61,
+          "source": "docs/research/madlions-layout-reports/madlions_mad60he_ansi.json",
+          "sha256": "e68e8263a0f860d4c5c7b7fe34286cd334565ab5520127bf3ae86390542ffd55",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "madlions_mad68he_ansi",
+          "model": "MAD68HE",
+          "brand": "MADLIONS",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/madlions-layout-reports/madlions_mad68he_ansi.json",
+          "sha256": "967b01af1a245968cd0605cd806130a5bff77bf148f3c5c971761a6f1a44615a",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "madlions_mad68r_ansi",
+          "model": "MAD68R",
+          "brand": "MADLIONS",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/madlions-layout-reports/madlions_mad68r_ansi.json",
+          "sha256": "bc95d5760bf2e3227f2571e65636fc7eb7a255c412f74e1d1b7e2cae258ac0f8",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "madlions_mad_68_pro_r_ansi",
+          "model": "MAD 68 Pro R",
+          "brand": "MADLIONS",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/madlions-layout-reports/madlions_mad_68_pro_r_ansi.json",
+          "sha256": "eb4a2c839addfafb9045c9a6799b7c46106dbb0d6b368ab524e0a86331e975b2",
+          "products": [],
+          "url": ""
+        }
+      ],
+      "excluded": [
+        "Titan68 Turbo, MAD60/68 V2, LIGHT, FIRE and other revisions: outside this four-model layout batch; support is not inferred from brand."
+      ]
+    },
+    "ATK": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/REMAINING_LAYOUTS_2026-09-14.md",
+      "models": [
+        {
+          "id": "atk_hex80_ansi",
+          "model": "Hex80",
+          "brand": "ATK",
+          "variant": "ANSI",
+          "count": 87,
+          "source": "docs/research/remaining-layout-reports-20260914/atk_hex80_ansi.json",
+          "sha256": "30f4bd422a07d7b9ae9d60538d08b401b22b3b07ef7da68e0f5755bbb06e9629",
+          "products": ["HEX80-ANSI"],
+          "url": ""
+        }
+      ],
+      "excluded": [
+        "Other ATK models and Hex80 V2: not inferred from shared branding or similar geometry."
+      ]
+    },
+    "IPI": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/IPI_LAYOUTS_2026-09-14.md",
+      "models": [
+        {
+          "id": "ipi_aurora75_pro_ansi",
+          "model": "Aurora75 PRO",
+          "brand": "IPI",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/remaining-layout-reports-20260914/ipi_aurora75_pro_ansi.json",
+          "sha256": "c34e6e7087be78aa77b6e6ea5fb991e3555e04bacc0a5abeeed8e29ebd1a67b1",
+          "products": [
+            "110000000040"
+          ],
+          "url": ""
+        },
+        {
+          "id": "ipi_flash68_ansi",
+          "model": "flash68",
+          "brand": "IPI",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/remaining-layout-reports-20260914/ipi_flash68_ansi.json",
+          "sha256": "b79412005a09d3774871e81ff1241baacb4c01b938e118dfafc129f86f26f48e",
+          "products": [
+            "110000000006"
+          ],
+          "url": ""
+        },
+        {
+          "id": "ipi_qbz65_aurora65_rain65_ansi",
+          "model": "QBZ65 / AURORA65 / AURORA65W / RAIN65",
+          "brand": "IPI",
+          "variant": "ANSI",
+          "count": 67,
+          "source": "docs/research/remaining-layout-reports-20260914/ipi_qbz65_aurora65_rain65_ansi.json",
+          "sha256": "ec2c99f61487d628acfe02eb0067cd566627a71ccf3514f9e01251f3c694ff2d",
+          "products": [
+            "110000000023",
+            "110000000010",
+            "120000000003",
+            "11000000001F"
+          ],
+          "url": ""
+        },
+        {
+          "id": "ipi_qbz75_aurora75_ansi",
+          "model": "QBZ75 / Aurora 75",
+          "brand": "IPI",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/remaining-layout-reports-20260914/ipi_qbz75_aurora75_ansi.json",
+          "sha256": "8232c5a3a445545197790bad94c42a493310a342b6c8552c8de52f26a903d34f",
+          "products": [
+            "11000000002C",
+            "110000000013"
+          ],
+          "url": ""
+        }
+      ],
+      "excluded": [
+        "Plus revisions and other UUIDs are not inferred; no new analog route or transport is enabled."
       ]
     }
   }

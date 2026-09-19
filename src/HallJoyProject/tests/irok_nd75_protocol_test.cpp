@@ -14,12 +14,19 @@ int main()
     assert(std::count(identityRequest.begin() + 2, identityRequest.end(), 0) == 62);
 
     const auto capabilityRequest = BuildCapabilityRequest();
-    assert(capabilityRequest[0] == 1 && capabilityRequest[1] == 0x29);
+    assert(capabilityRequest[0] == 1 && capabilityRequest[1] == 0x21);
     assert(capabilityRequest[5] == 0x18 && capabilityRequest[6] == 0x04);
 
     const auto unsubscribe = BuildUnsubscribeRequest();
-    assert(unsubscribe[1] == 0x29 && unsubscribe[5] == 0x18 &&
+    assert(unsubscribe[1] == 0x21 && unsubscribe[5] == 0x18 &&
         unsubscribe[6] == 0x03);
+
+    // Golden wire reports: pinned ND75 firmware dispatcher and SDK translation.
+    // See docs/research/IROK_WITMOD_OFFLINE_CLOSURE_2026-09-13.md.
+    const Report expectedCapability{1, 0x21, 0, 0, 0, 0x18, 4};
+    const Report expectedUnsubscribe{1, 0x21, 0, 0, 0, 0x18, 3};
+    assert(capabilityRequest == expectedCapability);
+    assert(unsubscribe == expectedUnsubscribe);
 
     Report identity{};
     const char csv[] = "M484,01,KB,ABT,X86HERGB,V1.00.09";
@@ -65,6 +72,33 @@ int main()
     capability[7] = 41;
     assert(!DecodeCapabilityInfo(capability.data(), capability.size(),
         &decodedCapability));
+
+    // Actual scanner serializer envelope: byte5 is 3, despite four fields
+    // following the subcommand. Zero padding is part of the 64-byte report.
+    const Report scannerEvent{1, 0x21, 0, 0, 0, 3, 1, 3, 0, 31};
+    LiveEvent scannerDecoded{};
+    assert(DecodeLiveEvent(scannerEvent.data(), scannerEvent.size(), &scannerDecoded));
+    assert(scannerDecoded.row == 3 && scannerDecoded.column == 0 &&
+        scannerDecoded.travel == 31);
+    auto release = scannerEvent;
+    release[9] = 0;
+    assert(DecodeLiveEvent(release.data(), release.size(), &scannerDecoded));
+    assert(scannerDecoded.travel == 0);
+
+    // Exhaustive byte-domain validation: malformed depth never becomes input.
+    for (unsigned raw = 0; raw <= 255; ++raw)
+    {
+        auto report = scannerEvent;
+        report[9] = static_cast<std::uint8_t>(raw);
+        LiveEvent rawEvent{};
+        assert(DecodeLiveEvent(report.data(), report.size(), &rawEvent));
+        assert(rawEvent.travel == raw); // retain raw diagnostic evidence
+        std::uint16_t milli = 999;
+        const bool valid = TryTravelToMilli(rawEvent.travel, &milli);
+        assert(valid == (raw <= 40));
+        assert(milli == (raw <= 40 ? raw * 25 : 0));
+    }
+    assert(!TryTravelToMilli(0, nullptr));
 
     Report live{};
     live[0] = 1;
@@ -122,9 +156,15 @@ int main()
     };
     assert(mask == expectedMask);
     const auto subscribe = BuildSubscriptionRequest(mask);
-    assert(subscribe[1] == 0x29 && subscribe[5] == 0x18 &&
+    assert(subscribe[1] == 0x21 && subscribe[5] == 0x18 &&
         subscribe[6] == 0x02);
     assert(std::equal(mask.begin(), mask.end(), subscribe.begin() + 7));
+    const Report expectedSubscribe{
+        1, 0x21, 0, 0, 0, 0x18, 2,
+        0x3f, 0x26, 0x3f, 0x1f, 0x1f, 0x1f, 0x3e, 0x1f, 0x1f, 0x3f, 0x3f,
+        0x1f, 0x3f, 0x21, 0x3f, 0x2f, 0, 0, 0, 0, 0, 0,
+    };
+    assert(subscribe == expectedSubscribe);
 
     std::uint32_t state = 0x04167372u;
     for (std::size_t length = 0; length <= kReportBytes; ++length)

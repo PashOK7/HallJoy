@@ -26,6 +26,15 @@ checks = {
         "0x1176", "0x1177", "0x1250", "kUsagePage = 0xFF60", "kUsage = 0x0061")),
     "Hex80 matrix and chunk contract are fixed": all(token in hex_protocol for token in (
         "kTotalSlots = 104", "kChunkSize = 4", "kSlotToHid", "MappedKeyCount")),
+    "Hex80 extended Fn and per-key freshness reach publication": (
+        "hex80::kHidCount> g_milli" in hex_backend
+        and "hex80::EncodeOutputReport(payload" in hex_backend
+        and "!hex80::IsKnownProductId(candidate.attributes.ProductID)" in hex_backend
+        and "InputReportByteLength >= hex80::kMinPayloadBytes + 1u" in hex_backend
+        and "g_sampleMs[entry.hid].store" in hex_backend
+        and "!hex80::IsFresh(g_sampleMs[hidUsage]" in hex_backend
+        and "!hex80::MatchesRequest(payload" in hex_backend
+    ),
     "routing probe is GET-only": (
         "ProbeCandidate" in hex_backend
         and "BuildTravelInfoPayload" in hex_backend

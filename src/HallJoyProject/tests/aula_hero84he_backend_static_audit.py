@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression guard for the frozen, explicitly opt-in AULA HERO84 HE route."""
+"""Regression guard for enabled, unverified AULA HERO84 HE support."""
 
 from pathlib import Path
 import re
@@ -21,15 +21,14 @@ def has(pattern: str, text: str = source) -> bool:
 checks = {
     "separate production descriptor": "AulaHero84He_GetNativeBackendDescriptor" in header and "aula-hero84he-9402-experimental" in source,
     "independent routing identity": "AulaHero84He = 12" in routing and "NativeAnalogProtocol::AulaHero84He" in source,
-    "ordinary catalog excludes frozen route": (
-        "#if defined(HALLJOY_AULA_HERO84HE_EXPERIMENTAL)\n"
-        "HALLJOY_NATIVE_BACKEND(AulaHero84He_GetNativeBackendDescriptor)\n"
-        "#endif" in catalog),
-    "MSVC keeps shared parser and opt-in production module": all(marker in project for marker in (
-        '<ClCompile Include="aula_hero84he_backend.cpp">',
+    "ordinary catalog includes exact HERO84 before generic Addressed": (
+        "HALLJOY_NATIVE_BACKEND(AulaHero84He_GetNativeBackendDescriptor)" in catalog and
+        "#if defined(HALLJOY_AULA_HERO84HE_EXPERIMENTAL)" not in catalog and
+        catalog.index("HALLJOY_NATIVE_BACKEND(AulaHero84He_GetNativeBackendDescriptor)") <
+        catalog.index("HALLJOY_NATIVE_BACKEND(AddressedAnalog_GetNativeBackendDescriptor)")),
+    "MSVC compiles backend and shared parser": all(marker in project for marker in (
+        '<ClCompile Include="aula_hero84he_backend.cpp" />',
         '<ClCompile Include="aula_hero84he_diagnostic_protocol.cpp" />')),
-    "production module is excluded unless explicit test target is selected": (
-        "'$(HallJoyAulaHero84HeExperimental)'!='true'" in project),
     "isolated experimental target enables the route": all(marker in project for marker in (
         "HallJoyAulaHero84HeExperimental", "HallJoy-AULA-HERO84HE-Experimental",
         "HALLJOY_AULA_HERO84HE_EXPERIMENTAL;HALLJOY_PRODUCTION;HALLJOY_STABILITY_TRACE")),
@@ -39,14 +38,14 @@ checks = {
     "identity before routing claim": source.index("Identity(s)") < source.index("NativeAnalogRouting_Claim"),
     "exact UUID admission": has(r"kExpectedUuid\s*\{\{0x11,\s*0,\s*0,\s*0,\s*0,\s*0x05\}\}") and has(r"uuid\s*==\s*kExpectedUuid"),
     "live map is read-only 83": "BuildAssignmentRead(0" in source and "ParseAssignmentResponse" in source,
-    "macro/internal values fail closed": has(r"\(a\.value\s*&\s*0xffffff00u\)\s*!=\s*0") and "nextHas[hid]" in source,
+    "macro/internal values fail closed": has(r"\(a\.value\s*&\s*0xffffff00u\)\s*!=\s*0") and "|| nextHas[hid]" not in source and "g_physical.Bind" in source,
     "only approved transmit builders": all(marker in source for marker in (
         "BuildIdentityRead", "BuildAssignmentRead", "BuildDirectRead")),
     "forbidden builders absent": all(marker not in source + protocol for marker in (
         "Build(0x94, 0x00", "Build(0x94, 0x03", "Build(0x94, 0x04",
         "Build(0x94, 0x05", "Build(0x98", "HidD_SetFeature", "HidD_SetOutputReport")),
     "selected-key one-request loop": has(r"Plan\(\s*&positions\s*\)") and has(r"s\.Exchange\(q,\s*&r,\s*&us\)") and has(r"next\s*\+=\s*std::chrono::milliseconds\(1\)"),
-    "freshness fails neutral": "kFreshMs = 750" in source and has(r"now\s*-\s*sample\s*<=\s*kFreshMs"),
+    "freshness fails neutral": "kFreshMs = 750" in source and "g_physical.Read(hid, GetTickCount64(), kFreshMs)" in source and "return g_has[hid].load();" in source,
     "adaptive range is observed": "g_top" in source and "g_bottom" in source and has(r"top\s*>\s*bottom\s*\+\s*32"),
     "bounded stop cancels active I/O": has(r"CancelIoEx\(g_active,\s*nullptr\)") and "kStopTimeoutMs = 3000" in source,
     "read-only descriptor flags": has(r"NativeAnalogBackendFlag_PolledTransport\s*\|\s*NativeAnalogBackendFlag_ReadOnlyProbe"),
@@ -55,5 +54,5 @@ checks = {
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise SystemExit("AULA HERO84 HE PRODUCTION STATIC AUDIT FAILED\n" + "\n".join(f" - {name}" for name in failed))
-print("AULA HERO84 HE FROZEN-ROUTE STATIC AUDIT PASSED")
-print("ordinary builds exclude it; opt-in target admission: exact 372E:103E/FF60:0061/report-09/UUID")
+print("AULA HERO84 HE UNVERIFIED-SUPPORT STATIC AUDIT PASSED")
+print("ordinary builds include it with exact admission: exact 372E:103E/FF60:0061/report-09/UUID")

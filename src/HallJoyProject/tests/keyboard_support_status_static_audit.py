@@ -35,7 +35,7 @@ def main() -> int:
             "pluginHostDenseDeviceCount > 0" in timer_ui,
             "UI derives connected status from HallJoy native/UAP telemetry")
     require("Backend_IsRuntimeAdmissionOpen" in timer_ui and
-            "searchCompleted && !supportStatus.analogSourceConnected" in page,
+            "searchCompleted && (!supportStatus.analogSourceConnected || supportStatus.frozenModels != 0)" in page,
             "banner stays hidden until the engine startup generation has completed")
     require("WM_APP_ANALOG_SOURCE_STATUS_CHANGED" in timer_ui and
             "WM_APP_ANALOG_SOURCE_STATUS_CHANGED" in page,
@@ -66,6 +66,14 @@ def main() -> int:
             "production project compiles the status implementation")
     require("keyboard_support_status_test.cpp" in runner,
             "portable pure-policy regression is executed")
+    inventory = (HALL / "native_layout_devices.cpp").read_text(encoding="utf-8-sig")
+    frozen_inventory = inventory[inventory.index("unsigned EnumerateFrozen()"):]
+    require("CreateFile" not in frozen_inventory and "HidD_" not in frozen_inventory and
+            "GetTickCount" not in frozen_inventory and "topology.load" in frozen_inventory,
+            "frozen inventory uses cached topology metadata, without polling or device opens")
+    require("frozenModels |= halljoy::keyboard_support::NA87" not in timer_ui and
+            "FamilyCandidate" in timer_ui and "FrozenSupportBody" in page and "DT_WORDBREAK" in page,
+            "promoted NA87 is not frozen; remaining ambiguous families retain warnings")
     print("KEYBOARD_SUPPORT_STATUS_STATIC_AUDIT=PASS")
     return 0
 

@@ -74,3 +74,8 @@ runtime/wooting_analog_test_plugin.dll
 
 # Local third-party source/build cache restored by tools/ensure_blend2d.ps1
 third_party/blend2d/
+
+# Required NA87 runtime and regression sources, not scratch probes.
+!HallJoy/irok_na87_backend.cpp
+!HallJoy/irok_na87_diagnostic.cpp
+!tests/irok_na87_protocol_test.cpp

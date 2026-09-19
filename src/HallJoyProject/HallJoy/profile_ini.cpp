@@ -15,6 +15,7 @@
 #include "analog_key_codes.h"
 #include "bindings.h"
 #include "ini_util.h"
+#include "ini_write_batch.h"
 #include "bounded_ini.h"
 #include "profile_runtime_gate.h"
 
@@ -272,24 +273,24 @@ bool Profile_LoadIni(const wchar_t* path) {
 // Writes into the caller-owned temporary settings file: one atomic replacement
 // commits settings and bindings together. Never truncates or replaces the file.
 bool Profile_WriteBindingsSections(const wchar_t* path) {
-    bool ok = WritePrivateProfileStringW(L"HallJoyProfile", L"BundleVersion", L"1", path) != FALSE;
+    bool ok = halljoy::ini::WriteBatch::Put(L"HallJoyProfile", L"BundleVersion", L"1", path) != FALSE;
     const auto pads = std::to_wstring(BINDINGS_MAX_GAMEPADS);
-    ok &= WritePrivateProfileStringW(L"General", L"Pads", pads.c_str(), path) != FALSE;
+    ok &= halljoy::ini::WriteBatch::Put(L"General", L"Pads", pads.c_str(), path) != FALSE;
     for (int p=0; p<BINDINGS_MAX_GAMEPADS; ++p) {
         const auto prefix = L"Pad" + std::to_wstring(p+1);
         const auto axes = prefix + L"_Axes", triggers = prefix + L"_Triggers", buttons = prefix + L"_Buttons";
         for (int a=0; a<4; ++a) {
             const auto binding = Bindings_GetAxisForPad(p, static_cast<Axis>(a));
-            ok &= WritePrivateProfileStringW(axes.c_str(), (std::wstring(kAxes[a])+L"_Minus").c_str(),
+            ok &= halljoy::ini::WriteBatch::Put(axes.c_str(), (std::wstring(kAxes[a])+L"_Minus").c_str(),
                 std::to_wstring(binding.minusHid).c_str(), path) != FALSE;
-            ok &= WritePrivateProfileStringW(axes.c_str(), (std::wstring(kAxes[a])+L"_Plus").c_str(),
+            ok &= halljoy::ini::WriteBatch::Put(axes.c_str(), (std::wstring(kAxes[a])+L"_Plus").c_str(),
                 std::to_wstring(binding.plusHid).c_str(), path) != FALSE;
         }
         for (int t=0; t<2; ++t)
-            ok &= WritePrivateProfileStringW(triggers.c_str(), t == 0 ? L"LT" : L"RT",
+            ok &= halljoy::ini::WriteBatch::Put(triggers.c_str(), t == 0 ? L"LT" : L"RT",
                 std::to_wstring(Bindings_GetTriggerForPad(p, static_cast<Trigger>(t))).c_str(), path) != FALSE;
         for (int b=0; b<15; ++b)
-            ok &= WritePrivateProfileStringW(buttons.c_str(), kButtons[b],
+            ok &= halljoy::ini::WriteBatch::Put(buttons.c_str(), kButtons[b],
                 MaskToCsvForPad(p, static_cast<GameButton>(b)).c_str(), path) != FALSE;
     }
     return ok;

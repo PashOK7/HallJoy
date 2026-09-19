@@ -25,3 +25,15 @@ required = ini.split('static bool ValidateProfileNumbers',1)[1].split('static bo
 assert 'DiagnosticLogging' not in required, 'Application preference must not become a mandatory profile field'
 assert 'if (saveWindow)\n    {\n        ok &= IniWriteI32(L"Main", L"DiagnosticLogging"' in ini
 print('SUPPORT_LOG_STATIC_AUDIT=PASS')
+
+# Native keyboard support must never force the verification trace into releases.
+import xml.etree.ElementTree as ET
+project=ET.parse(root/'HallJoy.vcxproj').getroot()
+ns={'m':'http://schemas.microsoft.com/developer/msbuild/2003'}
+for group in project.findall('m:ItemDefinitionGroup',ns):
+ if not group.get('Condition'):
+  definitions=group.find('m:ClCompile/m:PreprocessorDefinitions',ns)
+  if definitions is not None:
+   assert all(flag not in definitions.text for flag in ['HALLJOY_DEVICE_SUPPORT_LOG','HALLJOY_STABILITY_TRACE','HALLJOY_SINGLE_LOG_DIAGNOSTIC'])
+assert '|| defined(HALLJOY_IROK_NA87_NATIVE)' not in log
+print('SUPPORT_LOG_RELEASE_ISOLATION=PASS')

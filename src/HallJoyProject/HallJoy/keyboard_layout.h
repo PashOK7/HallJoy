@@ -49,6 +49,7 @@ struct KeyboardLayoutSnapshot
     std::vector<std::wstring> labels;
 };
 
+inline constexpr unsigned KeyboardLayoutChange_StatusOnly=1;
 std::shared_ptr<const KeyboardLayoutSnapshot> KeyboardLayout_GetSnapshot();
 // Worker-safe immutable view. Selection/catalog mutations remain on the UI thread.
 std::shared_ptr<const KeyboardLayoutSnapshot> KeyboardLayout_GetOverlaySnapshot();
@@ -91,3 +92,13 @@ bool KeyboardLayout_SaveToIni(const wchar_t* path);
 struct BackendAnalogTelemetry;
 void KeyboardLayout_ArmFirstRunSelection();
 bool KeyboardLayout_TryFirstRunSelection(bool searchCompleted, const BackendAnalogTelemetry& telemetry);
+
+// Automatic choice is transient; manual fallback and preference are persisted.
+bool KeyboardLayout_GetAutomatic();
+void KeyboardLayout_SetAutomatic(bool enabled);
+bool KeyboardLayout_IsAutomaticLocked();
+const wchar_t* KeyboardLayout_GetAutomaticStatus();
+bool KeyboardLayout_UpdateAutomatic(bool searchCompleted, const BackendAnalogTelemetry& telemetry);
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool KeyboardLayout_TestAutomatic();
+#endif

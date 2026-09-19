@@ -1,5 +1,22 @@
 # Layout progress — 2026-09-10
 
+> 2026-09-14 follow-up: [IPI layouts](IPI_LAYOUTS_2026-09-14.md): four merged ANSI presets for
+> eight models. Official demo defaults resolve the previously missing labels;
+> the separate Addressed fallback discrepancy remains documented at its table.
+> O3C and Plus revisions remain excluded. No new analog routes enabled.
+
+> 2026-09-14: [добавлена ATK Hex80 ANSI](REMAINING_LAYOUTS_2026-09-14.md), 87 отображаемых клавиш.
+> O3C исключён владельцем; другие кандидаты требуют отдельного разбора и отложены.
+> Только раскладка: текущая Hex80-таблица аналоговых слотов отличается от официального
+> профиля, протокол не изменён. Проверки/сборка PASS; основной HallJoy.exe обновлён.
+
+> 2026-09-14: добавлены [четыре раскладки MADLIONS](MADLIONS_LAYOUTS.md) по запросу владельца:
+> MAD60HE, MAD68HE, MAD68R (поддерживаемая ревизия10A7) и MAD 68 Pro R, ANSI.
+> Проверки и сборка PASS; выбор вручную в MADLIONS. Визуал оценивает владелец.
+
+> 2026-09-13: по новому запросу владельца добавлены [IROK MG75 Max / Pro ANSI](IROK_MG75_LAYOUTS.md),
+> по81 клавише, выбор в каталоге IROK. Проверки/сборка пройдены; визуал оценивает владелец.
+
 Owner accepted both Redragon ANSI/ISO layouts on this date.
 Installed manufacturer presets: 68 (not user-created or technical presets).
 Latest +18 and explicit limits: `FINAL_LAYOUT_BATCH.md`. Owner has not yet

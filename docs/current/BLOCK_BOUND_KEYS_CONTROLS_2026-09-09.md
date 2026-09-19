@@ -120,3 +120,29 @@ profile suite and rejected-startup preservation PASS. Inventory check PASS
 Previous release EXE is backed up byte-for-byte in the source checkpoint above.
 Deployed release SHA256:
 `4B11F5272E71CF4A7BB2F29155EEEF34112A03E8F8CC1FD82D9D2BFF7AAC304C`.
+
+
+## 2026-09-14 — CS2 duplicate character investigation (open)
+
+Owner reports deterministic duplicate characters for bound keys in the CS2
+console while Block Bound Keys is OFF, and ineffective suppression while ON.
+Owner confirms that HallJoy Pause removes the duplication. This does not isolate
+the output controller: Pause also stops analog providers and releases backend
+leases (engine_runtime_transaction.h).
+
+Source inspection: KeyboardBlockHookProc forwards each admitted keyboard event
+once to Backend_NotifyKeyboardEvent (internal state only). PressRoutes only
+chooses pass/suppress and preserves the first-down route through release.
+The inspected production source has no SendInput/keybd_event keyboard injection;
+synthetic WM_KEY/WM_CHAR calls found in tests target HallJoy controls. The ViGEm
+transport publishes Xbox 360 reports. Block Bound Keys does not disable this
+controller output. No direct keyboard-replay defect has been established.
+
+The local Steam controller log at 20:06 on September 14 records an Xbox 360
+controller and profile activation for app 730; this establishes involvement of
+Steam controller routing, not the origin of duplicate characters. An older
+account's saved CS2 mapping must not be treated as the currently active mapping.
+A temporary per-game Steam Input OFF comparison after restarting CS2 has been
+requested. No Steam settings, game files, production code or EXE were changed.
+Do not claim a fix, blame Steam conclusively, or claim comprehensive game-input
+compatibility on the basis of existing isolated hook tests.

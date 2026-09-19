@@ -18,7 +18,10 @@ for source in (settings, profiles, layout):
 assert "IniReadI32" in settings and "halljoy::ini::ReadSigned" in settings
 assert "ReadM01" in profiles and "halljoy::ini::ReadSigned" in profiles
 assert "halljoy::ini::ReadFile inputFile(path.c_str());" in profiles
-assert "ReadOptionalLayoutInteger" in layout and "halljoy::ini::ReadSigned" in layout
+section = (hall / "layout_ini_section.h").read_text(encoding="utf-8")
+assert "ReadOptionalLayoutInteger" in layout and "section.Integer(" in layout
+assert "namespace halljoy::layout_storage" in section and "ini::Signed(" in section
+assert "halljoy::ini::ReadFile inputFile(path);" in layout
 assert "_wtoi" not in bindings
 assert "halljoy::ini::Unsigned(pads, BINDINGS_MAX_GAMEPADS, parsedPads)" in bindings
 print("Bounded INI numeric static audit passed")

@@ -1,4 +1,4 @@
-﻿#define WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 #include <tlhelp32.h>
@@ -44,7 +44,7 @@ static PVOID g_vectoredExceptionHandler = nullptr;
 static std::atomic<bool> g_vectoredFatalReportWritten{ false };
 static constexpr DWORD kBufferedFlushIntervalMs = 250;
 
-#if defined(NDEBUG) && !defined(HALLJOY_DIAGNOSTIC) && !defined(HALLJOY_ANALOG_SIMULATOR)
+#if defined(NDEBUG) && !defined(HALLJOY_DIAGNOSTIC) && !defined(HALLJOY_ANALOG_SIMULATOR) && !defined(HALLJOY_DEVICE_SUPPORT_LOG)
 #define HALLJOY_LOG_DISABLED 1
 #else
 #define HALLJOY_LOG_DISABLED 0
@@ -174,7 +174,11 @@ static std::wstring SanitizeDiagnosticText(const wchar_t* text)
 
 static bool KeepSingleLogDiagnosticLine(const std::wstring& line) noexcept
 {
-#if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
+#if defined(HALLJOY_AULA_MINI60_DIAGNOSTIC)
+    return line.find(L"] [mini60]") != std::wstring::npos || line.find(L"] [support]") != std::wstring::npos;
+#elif defined(HALLJOY_IROK_NA87_NATIVE)
+    return line.find(L"] [irok.na87.") != std::wstring::npos;
+#elif defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
     // The structured trace already owns application lifecycle evidence. Keep
     // only the protocol family's supplementary plain diagnostics so unrelated
     // Raw Input/Spark/device inventories cannot enter a GravaStar/Aula log.
@@ -578,6 +582,10 @@ void DebugLog_Write(const wchar_t* fmt, ...)
 
     if (!fmt || !*fmt) return;
     if (!g_logReady.load(std::memory_order_acquire)) return;
+#if defined(HALLJOY_DEVICE_SUPPORT_LOG)
+    // Drop unrelated diagnostics before formatting, timestamping or queueing.
+    if (!wcsstr(fmt,L"[mini60]") && !wcsstr(fmt,L"[irok.na87.") && !wcsstr(fmt,L"[support]")) return;
+#endif
 
     wchar_t msg[2048]{};
     va_list ap;
@@ -618,6 +626,10 @@ void DebugLog_WriteBuffered(const wchar_t* fmt, ...)
 
     if (!fmt || !*fmt) return;
     if (!g_logReady.load(std::memory_order_acquire)) return;
+#if defined(HALLJOY_DEVICE_SUPPORT_LOG)
+    // Drop unrelated diagnostics before formatting, timestamping or queueing.
+    if (!wcsstr(fmt,L"[mini60]") && !wcsstr(fmt,L"[irok.na87.") && !wcsstr(fmt,L"[support]")) return;
+#endif
 
     wchar_t msg[2048]{};
     va_list ap;
@@ -837,7 +849,12 @@ static LONG CALLBACK DiagnosticVectoredExceptionHandler(EXCEPTION_POINTERS* ep)
 
 static LONG WINAPI DiagnosticUnhandledExceptionFilter(EXCEPTION_POINTERS* ep)
 {
-#if !defined(HALLJOY_DIAGNOSTIC) && !defined(HALLJOY_PRODUCTION)
+#if defined(HALLJOY_AULA_MINI60_DIAGNOSTIC)
+    // The external watchdog appends the terminal code after this process exits.
+    // Avoid allocating, locking or collecting process memory in the faulting thread.
+    (void)ep;
+    return EXCEPTION_EXECUTE_HANDLER;
+#elif !defined(HALLJOY_DIAGNOSTIC) && !defined(HALLJOY_PRODUCTION)
     (void)ep;
     return EXCEPTION_CONTINUE_SEARCH;
 #else
@@ -898,7 +915,9 @@ static LONG WINAPI DiagnosticUnhandledExceptionFilter(EXCEPTION_POINTERS* ep)
 
 void DebugLog_InstallCrashHandler()
 {
-#if defined(HALLJOY_DIAGNOSTIC)
+#if defined(HALLJOY_AULA_MINI60_DIAGNOSTIC)
+    SetUnhandledExceptionFilter(DiagnosticUnhandledExceptionFilter);
+#elif defined(HALLJOY_DIAGNOSTIC)
     if (!g_vectoredExceptionHandler)
         g_vectoredExceptionHandler = AddVectoredExceptionHandler(1, DiagnosticVectoredExceptionHandler);
     LPTOP_LEVEL_EXCEPTION_FILTER previous = SetUnhandledExceptionFilter(DiagnosticUnhandledExceptionFilter);
@@ -1006,7 +1025,24 @@ bool DebugLog_TryRunExitWatchdogCommand()
     mad68EmergencyRestoreSent = Mad68ProR_EmergencyRestoreInputOnce();
 #endif
 
-#if defined(HALLJOY_DIAGNOSTIC)
+#if defined(HALLJOY_AULA_MINI60_DIAGNOSTIC)
+    if (!normalExit || exitCode != 0)
+    {
+        const auto path = BuildPathNearExe(L"HallJoy.log");
+        HANDLE file = CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
+            nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (file != INVALID_HANDLE_VALUE)
+        {
+            wchar_t line[256]{};
+            _snwprintf_s(line, _countof(line), _TRUNCATE,
+                L"[mini60] parent_exit code=0x%08lX normal=%u open_error=%lu reconnect_keyboard_if_needed=1",
+                exitCode, normalExit ? 1u : 0u, openError);
+            WriteUtf8Line(file, line);
+            FlushFileBuffers(file);
+            CloseHandle(file);
+        }
+    }
+#elif defined(HALLJOY_DIAGNOSTIC)
     // A clean diagnostic run already ends with session.end in HallJoy.log.
     // Keep the sidecar exit report crash-only so ordinary testing has exactly
     // one evidence file and stale successful reports cannot be misread later.

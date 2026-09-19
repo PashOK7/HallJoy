@@ -18,6 +18,8 @@ enum class NativeAnalogProtocol : std::uint8_t
     AulaHero84He = 12,
     Titan68TurboDiagnostic = 13,
     RogAzoth96HeDiagnostic = 14,
+    IrokNa87M484 = 15,
+    AulaMini60HePro = 16,
     Simulator = 250,
 };
 

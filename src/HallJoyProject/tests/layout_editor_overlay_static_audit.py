@@ -55,7 +55,7 @@ assert 'KeyboardLayout_CreatePreset(name, &created, st->editingPresetIdx, false,
 assert 'LayoutEditor_DeletePreset(preset, true)' in ui
 assert 'source == st->cmbPreset ? st->layoutPicker.PresetAt(index) : st->layoutPicker.VariantAt(index)' in ui
 assert 'KeyboardLayout_SetPresetIndex' not in picker
-assert 'L"Brand", p.brand.c_str()' in layout and 'ok &= p.brand == brand;' in layout
+assert 'document += L"Brand=' in layout and 'actual.brand == expected.brand' in layout
 assert 'g_keychronK4HeKeys' not in layout
 assert 'FindPresetByName(ResolveSavedPresetName(nameBuf))' in layout
 assert 'FindPresetByName(ResolveSavedPresetName(name))' in layout

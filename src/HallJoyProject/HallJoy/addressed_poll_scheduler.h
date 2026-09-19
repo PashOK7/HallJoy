@@ -54,6 +54,7 @@ public:
 
     void Reset(std::uint64_t nowUs);
     void SetBound(std::uint16_t hidUsage, bool bound);
+    void SetPhysicalBound(std::uint8_t keyId, bool bound);
     void OnSample(std::uint8_t keyId, std::uint16_t raw, std::uint16_t milli, std::uint64_t nowUs);
     PollPlan BuildPlan(std::uint64_t nowUs);
     PollSchedulerStats GetStats(std::uint64_t nowUs) const;

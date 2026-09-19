@@ -41,7 +41,8 @@ assert "WriteFile" not in write_formatted
 assert "FlushViewOfFile" not in write_formatted
 shutdown = source[source.index("void StabilityTrace_Shutdown"):source.index("void StabilityTrace_Write(")]
 assert "FlushViewOfFile(" not in shutdown
-assert "#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)\n        (void)FlushFileBuffers(file);\n#else" in shutdown
+# Both evidence recorders use direct append, with an explicit final flush.
+assert "#if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC) || (defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG))\n        (void)FlushFileBuffers(file);\n#else" in shutdown
 assert 'ClCompile Include="stability_trace.cpp"' in project
 assert 'ClInclude Include="stability_trace.h"' in project
 assert "HallJoyStabilityTrace" in project

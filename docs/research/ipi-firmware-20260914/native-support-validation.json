@@ -1,0 +1,31 @@
+{
+  "date": "2026-09-14",
+  "scope": "IPI exact UUID native support, eight models",
+  "hardware_tested": false,
+  "checks": "Full static suite PASS; all fixed C++ tests PASS before duplicate-discovery runner error; remaining protocol tests resumed and PASS; runner duplicate registration fixed. Profile controls PASS with documented invocation.",
+  "sha256": {
+    "src/HallJoyProject/HallJoy/addressed_analog_backend.cpp": "8f79e5629b9f64bdc01d91d7232af9f4047237741a9d5e914ad4d9fe483c9ced",
+    "src/HallJoyProject/HallJoy/ipi_protocol.h": "7997566e138effddc8e4c6d66be00b305a2f1458234d10ef08d798ed27b89dcc",
+    "src/HallJoyProject/HallJoy/generated/ipi_models.h": "7d9fcad5a13940ce907d98109a12b99550a8f635a689421a1982aefc0657b967",
+    "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.h": "0ea9cb8b3547eb9d4c1f947b20552dda19f88ccdd70c7a095026b4cb3345a27d",
+    "src/HallJoyProject/HallJoy/HallJoy.vcxproj": "4989085c203b6835d150cb397acee31c7b486c308ef5c78ae48c1e41baa7a603",
+    "src/HallJoyProject/HallJoy/HallJoy.vcxproj.filters": "70cce07dc019c65e70bd3b7bfc7b2eaa3872024a1066c2f4358d47e4a9f6692e",
+    "src/HallJoyProject/tests/ipi_native_test.cpp": "9448664982961d33c975881da0404b6b71d94851945aee9e7fe47595e450443b",
+    "tools/build_ipi_native_catalog.py": "33bacce3f1019597c2d8bcffbaf4708357d2d42b54196233a0ba6b2017d071b6",
+    "tools/prepare_ipi_layouts.py": "528b27e2ae2a79a117fc77fd9444ccf290fc3bd6e26f2fcc204428bc89a979ea",
+    "tools/layout_catalog.json": "ca8d1c2baa16e3ed74d18443778c9ca5619ff1d1c349d0f4a05e0996a994425f",
+    "tools/run_native_backend_checks.py": "25f0ff2b57f5379d68af45aec71d46d4352d508227abf416defe1e83cf867715",
+    "tools/test_ipi_calibration_records.py": "1e7b299c211d61e560aa63d3ad1f84e7e82ca545f47dd615f3606e11fbd4b576",
+    "src/HallJoyProject/tools/validate_addressed_protocol_backend.py": "fc14791775c464efc52730878671f70178d99dd13b76dae602cdce7b58bd48a4",
+    "src/HallJoyProject/tests/protocol_family_routing_static_audit.py": "f615c471560615fd0dfa15e8d1484bd738b2695f5d52b1d6151dfe1f34109e5f",
+    ".local/ipi-native-checks-3.txt": "b8c4e3b5aba90ca998b758b4a2dc70120de94d90f18284772ab342f1b4e59059",
+    ".local/ipi-remaining-protocol-tests.txt": "b69f327f089af547e784ac365528f2b33bf0cc1f7c5114b88dc6b87f1cf60be5",
+    ".local/ipi-static-final.txt": "5a127656f4b739e2b57ab45f2eced95524114cb9d1f52d933eebab484aad1190",
+    ".local/ipi-release-build-final.txt": "0916e9e6e2b8ba52ad79a1992a3f330ab0aa0f3d543978729e3344290b134ce2",
+    ".local/ipi-simulator-build.txt": "507352670a9216f09d1225e8bc5336530cf373a9634f54f081999cf73e89cf5e",
+    ".local/ipi-native-profile-recheck/profile-test-result.txt": "dd489d283270768ccdb81669007a50188737c2fca963fde21f01eb11be9ee2a1",
+    "docs/research/ipi-firmware-20260914/calibration-record-emulation.json": "5e840bf1c18a8822de8aa48913a1cbf17554ca3064c61c7939eb33bf6a45b96c",
+    "docs/research/ipi-firmware-20260914/record-and-sample-emulation.json": "8e54676d75037ca985cc8429b71000550e0d7129b5da96939c4ff7604a8b2cbb",
+    "build/bin/IrokNa87Diagnostic/Release/x64/HallJoy.exe": "435178ae6091bef246c3e9f7ac7c0b997e36747780cf91ce78a0b999e70153be"
+  }
+}

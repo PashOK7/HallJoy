@@ -23,11 +23,10 @@ checks = {
     "firmware identity must match controller and product":
         '"M484"' in protocol and '"X86HERGB"' in protocol and
         "IsExpectedDevice" in backend,
-    "admission validates the asymmetric M484 capability response":
+    "admission requires a decoded M484 capability response":
         "BuildCapabilityRequest" in backend and
         "DecodeCapabilityInfo" in backend and
-        "kHostAnalogCommand" in protocol and
-        "kDeviceAnalogCommand" in protocol and
+        "kWireAnalogCommand" in protocol and
         "capability_soft_fallback" not in backend and
         "capabilityProved" not in backend and
         "if (!ReceiveCapability(session, &proof.capability))" in backend,
@@ -38,9 +37,6 @@ checks = {
         "BuildUnsubscribeRequest" in backend and
         "BuildKeyMapRequest" not in backend and
         "BuildSnapshotRequest" not in backend,
-    "all mapped keys are authoritative immediately after subscription":
-        "PublishOwnership(proof.map)" in backend and
-        "g_owned[hid].store(1" in backend,
     "hotplug worker remains available without a startup device":
         "hotplug_ready=1" in backend and
         "const auto candidates = Enumerate(false, true)" in backend and

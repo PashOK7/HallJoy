@@ -23,6 +23,10 @@
 
 #include "addressed_analog_backend.h"
 #include "addressed_poll_scheduler.h"
+#include "ipi_protocol.h"
+#include "native_layout_state.h"
+#include "generated/ipi_models.h"
+#include "generated/layout_pipeline/identities.h"
 #include "bindings.h"
 #include "debug_log.h"
 #include "stability_trace.h"
@@ -55,10 +59,11 @@ constexpr ULONGLONG kBindingRefreshMs = 25;
 constexpr ULONGLONG kSummaryMs = 10000;
 constexpr std::size_t kTraceCount = 256;
 
-// Canonical key-id map shared by the verified QBZ75 firmware and the captured
-// compatible 84-key platform map. A successful 0x83 map response overrides this table. Keeping
-// the fallback allows QBZ65/QBZ75-class firmware to work even when 0x83 is not
-// exposed by a particular updater build.
+// Historical fallback for unidentified non-IPI addressed devices only.
+// Its zero assignments and ID69 Right Alt differ from IPI vendor defaults.
+// IPI shared USB identities never enter this path: exact UUID, full live map
+// and stored calibration must pass ReadIpiProfile before any session is claimed.
+// See docs/current/IPI_NATIVE_SUPPORT_2026-09-14.md.
 constexpr std::array<addressed::PollKeyConfig, 82> kCanonicalKeys = {{
     { 0x01, 0x29 }, { 0x02, 0x3A }, { 0x03, 0x3B }, { 0x04, 0x3C },
     { 0x05, 0x3D }, { 0x06, 0x3E }, { 0x07, 0x3F }, { 0x08, 0x40 },
@@ -128,7 +133,8 @@ struct DeviceProfile
     std::vector<addressed::PollKeyConfig> keys;
     std::wstring source;
     std::size_t mapEntries = 0;
-    bool verifiedCalibrationSeed = false;
+    const ipi::Model* ipiModel = nullptr;
+    std::array<ipi::Calibration, 256> calibration{};
 };
 
 struct ClaimState
@@ -182,10 +188,12 @@ std::atomic<std::uint64_t> g_pollAttempts{0};
 std::atomic<std::uint64_t> g_pollSuccess{0};
 std::atomic<std::uint64_t> g_pollFail{0};
 std::atomic<ULONGLONG> g_lastResponseMs{0};
-std::array<std::atomic<std::uint16_t>, 256> g_milli{};
+ipi::Publication g_factoryPublication;
+ipi::Publication g_publication;
 std::array<std::atomic<std::uint16_t>, 256> g_releaseRawByKey{};
 std::array<std::atomic<std::uint16_t>, 256> g_bottomRawByKey{};
-std::array<std::atomic<ULONGLONG>, 256> g_sampleMs{};
+std::atomic<std::uint64_t> g_ipiUuid{0};
+std::atomic<std::uint64_t> g_verifiedLayoutToken{0};
 HANDLE g_wakeEvent = nullptr;
 HANDLE g_responseEvent = nullptr;
 HANDLE g_readerExitEvent = nullptr;
@@ -471,6 +479,92 @@ bool ReadNextPayload(HANDLE handle, const HidPath& path, DWORD timeoutMs,
     return true;
 }
 
+enum class IpiProfileResult { Unidentified, Ready, Rejected };
+IpiProfileResult ReadIpiProfile(const HidPath& path, Transport& transport,
+                                HANDLE handle, DeviceProfile& profile)
+{
+    // Other addressed devices retain their previous protocol proof path.
+    if (path.attrs.VendorID != 0x372E ||
+        (path.attrs.ProductID != 0x105C && path.attrs.ProductID != 0x106C))
+        return IpiProfileResult::Unidentified;
+    std::uint64_t uuid = 0;
+    for (unsigned attempt = 0; attempt < 2 && !uuid; ++attempt)
+    {
+        if (!transport.Send(ipi::UuidRequest())) break;
+        const auto deadline = GetTickCount64() + 40;
+        while (GetTickCount64() < deadline)
+        {
+            ipi::Frame reply{};
+            const auto remaining = halljoy::monotonic_time::RemainingTimeoutMs(GetTickCount64(), deadline);
+            if (!remaining) break;
+            if (ReadNextPayload(handle, path, remaining, reply)) uuid = ipi::ParseUuid(reply);
+            if (uuid) break;
+        }
+    }
+    if (!uuid)
+    {
+        SupportLog(L"IPI UUID unavailable; generic mapping disabled for this shared USB identity");
+        return IpiProfileResult::Rejected;
+    }
+    const auto* model = ipi::FindModel(uuid);
+    if (!model)
+    {
+        SupportLog(L"IPI UUID not in verified catalog uuid=%012llX", static_cast<unsigned long long>(uuid));
+        return IpiProfileResult::Rejected;
+    }
+    std::array<std::uint16_t, 256> mapping{};
+    std::array<ipi::Calibration, 256> calibration{};
+    for (std::size_t start = 0; start < model->count; start += ipi::kBatchKeys)
+    {
+        const auto count = std::min(ipi::kBatchKeys, model->count - start);
+        const auto* ids = model->ids + start;
+        for (unsigned phase = 0; phase < 2; ++phase)
+        {
+            ipi::Frame request{};
+            if (!ipi::Request(phase ? 0x94 : 0x83, phase ? 5 : 0, ids, count, request))
+                return IpiProfileResult::Rejected;
+            bool accepted = false;
+            for (unsigned attempt = 0; attempt < 2 && !accepted; ++attempt)
+            {
+                if (!transport.Send(request)) break;
+                const auto deadline = GetTickCount64() + 40;
+                while (GetTickCount64() < deadline)
+                {
+                    const auto remaining = halljoy::monotonic_time::RemainingTimeoutMs(GetTickCount64(), deadline);
+                    if (!remaining) break;
+                    ipi::Frame reply{};
+                    if (!ReadNextPayload(handle, path, remaining, reply)) continue;
+                    accepted = phase ? ipi::Calibrations(reply, ids, count, calibration)
+                                     : ipi::Map(reply, ids, count, mapping);
+                    if (accepted) break;
+                }
+            }
+            if (!accepted)
+            {
+                SupportLog(L"IPI setup incomplete uuid=%012llX stage=%s first_id=%u count=%u",
+                    static_cast<unsigned long long>(uuid), phase ? L"calibration-read" : L"keymap-read",
+                    unsigned(ids[0]), unsigned(count));
+                return IpiProfileResult::Rejected;
+            }
+        }
+    }
+    profile = DeviceProfile{};
+    profile.ipiModel = model;
+    profile.calibration = calibration;
+    profile.source = L"IPI UUID + complete live map + device calibration";
+    profile.mapEntries = model->count;
+    unsigned unassigned = 0;
+    for (std::size_t i = 0; i < model->count; ++i)
+    {
+        const auto id = model->ids[i];
+        profile.keys.push_back({id, mapping[id]});
+        if (!mapping[id]) ++unassigned;
+    }
+    SupportLog(L"IPI profile prepared uuid=%012llX physical_keys=%u nonkeyboard_bindings=%u",
+        static_cast<unsigned long long>(uuid), unsigned(model->count), unassigned);
+    return IpiProfileResult::Ready;
+}
+
 std::size_t ParseMapPacket(
     const std::array<std::uint8_t, kProtocolReportBytes>& packet,
     std::array<std::uint16_t, 256>& keyToHid)
@@ -546,7 +640,7 @@ bool ProbeAddressedResponse(
             seen[keyId] = true;
             const std::uint16_t raw = static_cast<std::uint16_t>(
                 (static_cast<std::uint16_t>(packet[9 + off] & 0x7Fu) << 8) | packet[10 + off]);
-            if (raw >= 500 && raw <= 20000) ++plausible;
+            if (raw > 0 && raw <= 0x7FFF) ++plausible;
         }
         if (!valid || plausible == 0) continue;
         if (outRttUs)
@@ -566,7 +660,6 @@ DeviceProfile BuildProfile(const HidPath& path, const std::array<std::uint16_t, 
 {
     DeviceProfile profile{};
     profile.mapEntries = dynamicEntries;
-    profile.verifiedCalibrationSeed = path.attrs.VendorID == 0x372E && path.attrs.ProductID == 0x105C;
     std::array<std::uint16_t, 256> merged{};
     for (const auto& key : kCanonicalKeys) merged[key.keyId] = key.hidUsage;
     for (std::size_t keyId = 1; keyId < dynamicMap.size(); ++keyId)
@@ -598,10 +691,26 @@ bool ProbeCandidate(const HidPath& path, DeviceProfile& outProfile, std::uint32_
         SupportLog(L"probe input-buffer tuning unavailable err=%lu", GetLastError());
     Transport transport(path);
 
+    DeviceProfile ipiProfile{};
+    const auto ipiResult = ReadIpiProfile(path, transport, read.value, ipiProfile);
+    if (ipiResult == IpiProfileResult::Rejected) return false;
+    if (ipiResult == IpiProfileResult::Ready)
+    {
+        std::array<std::uint8_t, addressed::kMaxKeysPerPacket> ids{};
+        const auto count = std::min<std::size_t>(4, ipiProfile.keys.size());
+        for (std::size_t i = 0; i < count; ++i) ids[i] = ipiProfile.keys[i].keyId;
+        if (!ProbeAddressedResponse(path, transport, read.value, ids, count, &outRttUs)) return false;
+        outProfile = std::move(ipiProfile);
+        return true;
+    }
+
     std::array<std::uint16_t, 256> dynamicMap{};
     std::size_t dynamicEntries = 0;
     for (int attempt = 0; attempt < 3; ++attempt)
     {
+        // Firmware audit: recent QBZ65/QBZ75/Aurora75 images require explicit
+        // IDs here; an empty request does not enumerate the full map.
+        // See docs/current/IPI_FIRMWARE_REVERSE_2026-09-14.md before changing framing.
         if (!transport.Send(MakePacket(0x83, 0x00))) break;
         const ULONGLONG deadline = GetTickCount64() + kProbeMapWindowMs;
         std::size_t before = dynamicEntries;
@@ -721,18 +830,36 @@ void ClearClaimForPath(const std::wstring& path)
 
 void ResetPublished(const DeviceProfile* profile = nullptr) noexcept
 {
-    bool analogueChanged = false;
-    for (auto& v : g_milli)
-        analogueChanged = v.exchange(0, std::memory_order_acq_rel) != 0 || analogueChanged;
+    g_connected.store(false, std::memory_order_release);
+    halljoy::native_layout::Clear(g_verifiedLayoutToken.load(std::memory_order_acquire));
+    const bool factoryChanged = g_factoryPublication.Clear();
+    const bool analogueChanged = g_publication.Clear() || factoryChanged;
     for (auto& v : g_releaseRawByKey) v.store(0, std::memory_order_relaxed);
     for (auto& v : g_bottomRawByKey) v.store(0, std::memory_order_relaxed);
-    for (auto& v : g_sampleMs) v.store(0, std::memory_order_relaxed);
-    if (profile && profile->verifiedCalibrationSeed)
+    g_ipiUuid.store(profile && profile->ipiModel ? profile->ipiModel->uuid : 0, std::memory_order_release);
+    g_verifiedLayoutToken.store(profile && profile->ipiModel
+        ? halljoy::layout_identity::Token("ipi-addressed", profile->ipiModel->product) : 0, std::memory_order_release);
+    if (profile)
     {
-        g_releaseRawByKey[0x1E].store(10112); g_bottomRawByKey[0x1E].store(1796);
-        g_releaseRawByKey[0x2B].store(10351); g_bottomRawByKey[0x2B].store(1881);
-        g_releaseRawByKey[0x2C].store(10129); g_bottomRawByKey[0x2C].store(1935);
-        g_releaseRawByKey[0x2D].store(10564); g_bottomRawByKey[0x2D].store(2033);
+        std::vector<halljoy::native_layout::Key> remaps;
+        for (const auto& key : profile->keys)
+        {
+            if (key.hidUsage && key.hidUsage < ipi::kHidCount)
+            {
+                g_publication.Bind(key.keyId, key.hidUsage);
+            }
+            const auto factory = profile->ipiModel ? ipi::factoryHids[key.keyId] : key.hidUsage;
+            g_factoryPublication.Bind(key.keyId, factory);
+            if (profile->ipiModel && factory) remaps.push_back({factory,key.hidUsage});
+            if (profile->ipiModel)
+            {
+                const auto c = profile->calibration[key.keyId];
+                g_releaseRawByKey[key.keyId].store(c.released, std::memory_order_relaxed);
+                g_bottomRawByKey[key.keyId].store(c.bottom, std::memory_order_relaxed);
+            }
+        }
+        if (profile->ipiModel && !remaps.empty())
+            halljoy::native_layout::Publish(g_verifiedLayoutToken.load(), remaps.data(), remaps.size());
     }
     g_lastResponseMs.store(0, std::memory_order_release);
     g_connected.store(false, std::memory_order_release);
@@ -745,6 +872,9 @@ void ResetPublished(const DeviceProfile* profile = nullptr) noexcept
 
 std::uint16_t Normalise(std::uint8_t keyId, std::uint16_t raw)
 {
+    if (g_ipiUuid.load(std::memory_order_acquire))
+        return ipi::Normalise(raw, {g_releaseRawByKey[keyId].load(std::memory_order_relaxed),
+                                   g_bottomRawByKey[keyId].load(std::memory_order_relaxed)});
     if (!keyId || raw < 500 || raw > 20000) return 0;
     auto& releaseAtomic = g_releaseRawByKey[keyId];
     auto& bottomAtomic = g_bottomRawByKey[keyId];
@@ -911,6 +1041,18 @@ void PublishResponse(const std::uint8_t* data, std::size_t size, std::uint64_t r
         return;
     }
 
+    if (g_ipiUuid.load(std::memory_order_acquire))
+    {
+        ipi::Frame frame{};
+        std::copy(packet, packet + frame.size(), frame.begin());
+        std::array<ipi::Sample, ipi::kBatchKeys> samples{};
+        if (!ipi::Samples(frame, plan.keyIds.data(), plan.count, samples))
+        {
+            std::lock_guard<std::mutex> statsLock(g_statsMutex);
+            ++g_stats.invalidResponses;
+            return;
+        }
+    }
     std::array<bool, 256> expected{};
     std::array<bool, 256> seen{};
     for (std::size_t i = 0; i < plan.count; ++i) expected[plan.keyIds[i]] = true;
@@ -955,11 +1097,11 @@ void PublishResponse(const std::uint8_t* data, std::size_t size, std::uint64_t r
             if (g_scheduler) hid = g_scheduler->HidForKeyId(keyId);
         }
         const std::uint16_t milli = Normalise(keyId, raw);
-        if (hid && hid < 256)
+        analogueChanged = g_factoryPublication.Publish(keyId, milli, nowMs) || analogueChanged;
+        if (hid && hid < ipi::kHidCount)
         {
-            const std::uint16_t previous = g_milli[hid].exchange(milli, std::memory_order_acq_rel);
-            analogueChanged = analogueChanged || previous != milli;
-            g_sampleMs[hid].store(nowMs, std::memory_order_release);
+            const bool changed = g_publication.Publish(keyId, milli, nowMs);
+            analogueChanged = analogueChanged || changed;
         }
         {
             std::lock_guard<std::mutex> schedulerLock(g_schedulerMutex);
@@ -1089,8 +1231,11 @@ void RefreshBindings(const DeviceProfile& profile)
 {
     std::lock_guard<std::mutex> schedulerLock(g_schedulerMutex);
     if (!g_scheduler) return;
-    for (const auto& key : profile.keys)
-        if (key.hidUsage) g_scheduler->SetBound(key.hidUsage, Bindings_IsHidBound(key.hidUsage));
+    const bool remapped=halljoy::native_layout::UsesRemapping(g_verifiedLayoutToken.load());
+    for (const auto& key : profile.keys) {
+        const auto hid=profile.ipiModel && !remapped ? ipi::factoryHids[key.keyId] : key.hidUsage;
+        g_scheduler->SetPhysicalBound(key.keyId,hid && Bindings_IsHidBound(hid));
+    }
 }
 
 void LogSummary(std::uint64_t windowStartUs, std::uint64_t nowUs, const SessionStats& before)
@@ -1601,16 +1746,14 @@ bool AddressedAnalog_IsConnected()
 
 bool AddressedAnalog_OwnsHid(std::uint16_t hidUsage)
 {
-    if (!hidUsage || hidUsage >= 256 || !AddressedAnalog_IsConnected()) return false;
-    const ULONGLONG sample = g_sampleMs[hidUsage].load(std::memory_order_acquire);
-    const ULONGLONG now = GetTickCount64();
-    return sample && now >= sample && now - sample <= kFreshMs;
+    return AddressedAnalog_IsConnected() && (halljoy::native_layout::UsesRemapping(g_verifiedLayoutToken.load())
+        ? g_publication : g_factoryPublication).Read(hidUsage, GetTickCount64()).fresh;
 }
 
 std::uint16_t AddressedAnalog_GetMilli(std::uint16_t hidUsage)
 {
-    if (!AddressedAnalog_OwnsHid(hidUsage)) return 0;
-    return g_milli[hidUsage].load(std::memory_order_acquire);
+    return AddressedAnalog_IsConnected() ? (halljoy::native_layout::UsesRemapping(g_verifiedLayoutToken.load())
+        ? g_publication : g_factoryPublication).Read(hidUsage, GetTickCount64()).milli : 0;
 }
 
 void AddressedAnalog_GetTelemetry(AddressedAnalogTelemetry* out)
@@ -1632,8 +1775,7 @@ void AddressedAnalog_GetTelemetry(AddressedAnalogTelemetry* out)
     if (last != 0 && now >= last)
         t.lastResponseAgeMs = static_cast<std::uint32_t>(
             std::min<ULONGLONG>(now - last, 0xffffffffull));
-    for (const auto& value : g_milli)
-        if (value.load(std::memory_order_relaxed) != 0) ++t.activeKeys;
+    t.activeKeys = g_publication.Active(now);
     *out = t;
 }
 
@@ -1644,8 +1786,11 @@ void AddressedAnalog_FillGenericTelemetry(NativeAnalogBackendTelemetry* out)
 {
     if (!out) return;
     *out = NativeAnalogBackendTelemetry{};
+    const auto identity = g_verifiedLayoutToken.load(std::memory_order_acquire);
     AddressedAnalogTelemetry t{};
     AddressedAnalog_GetTelemetry(&t);
+    if (t.connected && identity == g_verifiedLayoutToken.load(std::memory_order_acquire))
+        out->verifiedLayoutToken = identity;
     out->present = t.present;
     out->connected = t.connected;
     out->vendorId = t.vendorId;

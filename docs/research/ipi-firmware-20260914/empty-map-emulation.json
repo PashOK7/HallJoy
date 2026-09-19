@@ -1,0 +1,30 @@
+[
+  {
+    "file": "package0-firmware.bin",
+    "handler": "0x80207f2",
+    "exit": "0x8020798",
+    "response_payload_length": 0,
+    "input_payload_length": 0
+  },
+  {
+    "file": "package1-firmware.bin",
+    "handler": "0x802084a",
+    "exit": "0x8020cee",
+    "response_payload_length": 0,
+    "input_payload_length": 0
+  },
+  {
+    "file": "package2-firmware.bin",
+    "handler": "0x802089e",
+    "exit": "0x8020d42",
+    "response_payload_length": 0,
+    "input_payload_length": 0
+  },
+  {
+    "file": "package3-firmware.bin",
+    "handler": "0x8020896",
+    "exit": "0x8020d3a",
+    "response_payload_length": 0,
+    "input_payload_length": 0
+  }
+]

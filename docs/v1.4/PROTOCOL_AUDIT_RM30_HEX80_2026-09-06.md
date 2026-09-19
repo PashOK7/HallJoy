@@ -1,5 +1,10 @@
 # RM-30-HEX80 — ATK x QK Hex80 `0x96` protocol review
 
+> 2026-09-14: [ATK Hex80 native fixes](../current/ATK_HEX80_NATIVE_FIXES_2026-09-14.md).
+> Corrected19 matrix slots;87 factory keys including Fn now publish analog.
+> Supports32/128-byte payloads, per-key freshness and correlated chunk replies.
+> Historical82-key table/report-size assumptions below are superseded.
+
 Date: 2026-09-06
 
 ## Admission and wire contract
@@ -20,6 +25,10 @@ idempotent restoration to ordinary mode. A new path never receives it before
 travel scale and first matrix chunk have been re-proven.
 
 ## Parser/publication contract
+
+2026-09-14 follow-up: the official current Hex80 demo disagrees with this legacy
+slot table. See [the layout source review](../current/REMAINING_LAYOUTS_2026-09-14.md).
+The 82 mapped usages below describe implementation, not verified complete coverage.
 
 - The fixed layout has 104 slots and 82 published HID usages. Unmapped and
   vendor-only slots, including Fn, are never aliases for another key.

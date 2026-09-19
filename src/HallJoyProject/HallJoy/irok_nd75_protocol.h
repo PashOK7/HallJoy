@@ -12,8 +12,9 @@ constexpr std::size_t kColumns = 22;
 constexpr std::size_t kMatrixSlots = kRows * kColumns;
 constexpr std::uint8_t kReportId = 1;
 constexpr std::uint8_t kIdentityCommand = 0x0d;
-constexpr std::uint8_t kHostAnalogCommand = 0x29;
-constexpr std::uint8_t kDeviceAnalogCommand = 0x21;
+// Direct HID uses 0x21 in both directions. Witmod SDK input 0x29 is
+// translated by the SDK and must not be sent directly to the keyboard.
+constexpr std::uint8_t kWireAnalogCommand = 0x21;
 constexpr std::uint8_t kAnalogChannel = 0x18;
 constexpr std::uint8_t kNominalTravelMaximum = 40;
 
@@ -64,6 +65,8 @@ bool DecodeLiveEvent(const std::uint8_t* report, std::size_t bytes,
     LiveEvent* out) noexcept;
 ReadFailureAction ClassifyReadFailure(bool stopping, bool timedOut,
     bool deviceLost, std::uint32_t consecutiveErrors) noexcept;
+// DecodeLiveEvent preserves raw travel for diagnostics; validate before publication.
+bool TryTravelToMilli(std::uint8_t travel, std::uint16_t* out) noexcept;
 std::uint16_t ToMilli(std::uint8_t travel) noexcept;
 std::size_t MappedKeyCount(const PositionToHid& map) noexcept;
 }

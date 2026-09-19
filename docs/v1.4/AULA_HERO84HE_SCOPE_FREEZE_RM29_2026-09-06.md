@@ -1,5 +1,10 @@
 # RM-29 — AULA HERO84 HE release-scope freeze
 
+> Superseded for build scope on 2026-09-15 by explicit owner authorization.
+> See [enabled unverified support](../current/HERO84_ENABLED_UNVERIFIED_2026-09-15.md).
+> Historical protocol evidence and the absence of a physical test remain unchanged.
+
+
 Date: 2026-09-06
 
 ## Owner decision

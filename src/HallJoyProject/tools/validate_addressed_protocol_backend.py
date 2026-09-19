@@ -62,11 +62,15 @@ def main() -> int:
     require("MakePacket(0x83, 0x00" in backend, "read-only key-map query missing")
     require("MakePacket(0x98, 0x02" in backend, "last-key diagnostic stop command missing")
     require("MakePacket(0x94, 0x00" not in backend, "service stream command must not be sent")
-    require("MakePacket(0x94, 0x05" not in backend, "old registration command must not be sent")
+    require("MakePacket(0x94, 0x05" not in backend, "calibration reads must use the validated IPI request constructor")
     require("kProtocolUsagePage = 0xFF60" in backend and "kProtocolUsage = 0x0061" in backend,
             "HID usage fingerprint changed")
-    require("attrs.VendorID !=" not in backend and "attrs.ProductID !=" not in backend,
-            "backend must remain capability-probed rather than VID/PID hard-coded")
+    require("ReadIpiProfile" in backend and "ipi::FindModel(uuid)" in backend and
+            "ipi::Map(reply" in backend and "ipi::Calibrations(reply" in backend,
+            "IPI shared USB identity must resolve exact UUID, live map and calibration")
+    require("IPI UUID unavailable; generic mapping disabled" in backend and
+            "verifiedCalibrationSeed" not in backend,
+            "IPI must not use generic mapping or PID-selected calibration seeds")
     require("ProbeAddressedResponse" in backend and "probe accepted" in backend,
             "capability proof is missing")
     require("NativeAnalogRouting_Claim" in backend,

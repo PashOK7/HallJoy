@@ -7,6 +7,7 @@
 
 #include "hex80_backend.h"
 #include "hex80_protocol.h"
+#include "generated/layout_pipeline/identities.h"
 #include "native_analog_routing.h"
 #include "hid_io_operation.h"
 #include "realtime_loop.h"
@@ -89,9 +90,10 @@ std::mutex g_signalMutex;
 std::mutex g_activeSessionMutex;
 HANDLE g_activeSessionHandle = INVALID_HANDLE_VALUE;
 
-std::array<std::atomic<std::uint16_t>, 256> g_milli{};
-std::array<std::atomic<std::uint16_t>, 256> g_travel{};
-std::array<std::atomic<std::uint8_t>, 256> g_observed{};
+std::array<std::atomic<std::uint16_t>, hex80::kHidCount> g_milli{};
+std::array<std::atomic<std::uint64_t>, hex80::kHidCount> g_sampleMs{};
+std::array<std::atomic<std::uint16_t>, hex80::kHidCount> g_travel{};
+std::array<std::atomic<std::uint8_t>, hex80::kHidCount> g_observed{};
 std::atomic<std::uint32_t> g_observedCount{ 0 };
 
 std::atomic<std::uint16_t> g_detectedPid{ 0 };
@@ -160,9 +162,9 @@ bool ActiveSessionHandleIsRegistered()
     return g_activeSessionHandle && g_activeSessionHandle != INVALID_HANDLE_VALUE;
 }
 
-constexpr std::array<std::uint8_t, 256> BuildOwnedHids()
+constexpr std::array<std::uint8_t, hex80::kHidCount> BuildOwnedHids()
 {
-    std::array<std::uint8_t, 256> owned{};
+    std::array<std::uint8_t, hex80::kHidCount> owned{};
     for (const auto hid : hex80::kSlotToHid)
         if (hid < owned.size()) owned[hid] = hid != 0 ? 1u : 0u;
     return owned;
@@ -281,7 +283,8 @@ std::vector<Candidate> EnumerateCandidates(bool routedOnly)
         candidate.path = detail->DevicePath;
         candidate.attributes.Size = sizeof(candidate.attributes);
         if (!HidD_GetAttributes(metadata.value, &candidate.attributes) ||
-            candidate.attributes.VendorID != hex80::kVendorId)
+            candidate.attributes.VendorID != hex80::kVendorId ||
+            !hex80::IsKnownProductId(candidate.attributes.ProductID))
             continue;
 
         PHIDP_PREPARSED_DATA preparsed = nullptr;
@@ -294,8 +297,8 @@ std::vector<Candidate> EnumerateCandidates(bool routedOnly)
         candidate.usage = candidate.caps.Usage;
         const bool exactInterface = candidate.usagePage == hex80::kUsagePage &&
             candidate.usage == hex80::kUsage;
-        const bool reportSizes = candidate.caps.InputReportByteLength >= hex80::kPayloadBytes &&
-            candidate.caps.OutputReportByteLength >= hex80::kPayloadBytes + 1u;
+        const bool reportSizes = candidate.caps.InputReportByteLength >= hex80::kMinPayloadBytes + 1u &&
+            candidate.caps.OutputReportByteLength >= hex80::kMinPayloadBytes + 1u;
         if (exactInterface && reportSizes)
             candidates.push_back(std::move(candidate));
     }
@@ -370,9 +373,7 @@ public:
 
     bool SendOnly(const std::array<std::uint8_t, hex80::kPayloadBytes>& payload)
     {
-        std::fill(writeBuffer_.begin(), writeBuffer_.end(), std::uint8_t{ 0 });
-        if (writeBuffer_.size() < payload.size() + 1u) return false;
-        std::copy(payload.begin(), payload.end(), writeBuffer_.begin() + 1u);
+        if (!hex80::EncodeOutputReport(payload, writeBuffer_.data(), writeBuffer_.size())) return false;
         DWORD sent = 0, error = ERROR_SUCCESS;
         return RunTimedIo(handle_.value, true, writeBuffer_.data(),
             static_cast<DWORD>(writeBuffer_.size()), kIoWriteTimeoutMs, &sent, &error) &&
@@ -407,6 +408,7 @@ public:
             if (!hex80::FindPayload(readBuffer_.data(), got,
                 expectedOperation, expectedSubcommand, nullptr))
                 continue;
+            if (!hex80::MatchesRequest(payload, readBuffer_.data(), got)) continue;
             if (outData) *outData = readBuffer_.data();
             if (outBytes) *outBytes = got;
             return true;
@@ -480,6 +482,7 @@ void ClearPublishedValues() noexcept
         if (g_milli[hid].exchange(0, std::memory_order_relaxed) != 0)
             changed = true;
         g_travel[hid].store(0, std::memory_order_relaxed);
+        g_sampleMs[hid].store(0, std::memory_order_release);
     }
     if (changed) RealtimeLoop_NotifyInputChanged();
 }
@@ -571,9 +574,10 @@ bool RunSession(const Candidate& candidate)
             for (std::size_t index = 0; index < count; ++index)
             {
                 const auto& entry = entries[index];
-                if (entry.hid == 0 || entry.hid >= 256) continue;
+                if (entry.hid == 0 || entry.hid >= hex80::kHidCount) continue;
                 g_travel[entry.hid].store(entry.travel, std::memory_order_relaxed);
                 const auto previous = g_milli[entry.hid].exchange(entry.milli, std::memory_order_relaxed);
+                g_sampleMs[entry.hid].store(GetTickCount64(), std::memory_order_release);
                 if (previous != entry.milli) changed = true;
                 if (g_observed[entry.hid].exchange(1, std::memory_order_relaxed) == 0)
                     g_observedCount.fetch_add(1, std::memory_order_relaxed);
@@ -877,7 +881,10 @@ bool Hex80_OwnsHid(std::uint16_t hidUsage)
 
 std::uint16_t Hex80_GetMilli(std::uint16_t hidUsage)
 {
-    if (!Hex80_OwnsHid(hidUsage)) return 0;
+    // Keep native ownership while connected: a stale analog sample must not
+    // fall through to a full-depth digital key press.
+    if (!Hex80_OwnsHid(hidUsage) ||
+        !hex80::IsFresh(g_sampleMs[hidUsage].load(std::memory_order_acquire), GetTickCount64())) return 0;
     return g_milli[hidUsage].load(std::memory_order_relaxed);
 }
 
@@ -920,7 +927,8 @@ void Hex80_GetTelemetry(Hex80Telemetry* out)
     telemetry.pollFail = g_pollFail.load(std::memory_order_relaxed);
     telemetry.matrixCycles = g_matrixCycles.load(std::memory_order_relaxed);
     for (std::size_t hid = 1; hid < g_milli.size(); ++hid)
-        if (kOwnedHids[hid] && g_milli[hid].load(std::memory_order_relaxed) != 0)
+        if (kOwnedHids[hid] && hex80::IsFresh(g_sampleMs[hid].load(std::memory_order_acquire), GetTickCount64()) &&
+            g_milli[hid].load(std::memory_order_relaxed) != 0)
             ++telemetry.activeKeys;
     *out = telemetry;
 }
@@ -935,6 +943,7 @@ void Hex80_FillGenericTelemetry(NativeAnalogBackendTelemetry* out)
     Hex80_GetTelemetry(&t);
     out->present = t.present;
     out->connected = t.connected;
+    if (t.connected) out->verifiedLayoutToken=halljoy::layout_identity::Token("hex80","HEX80-ANSI");
     out->vendorId = t.vendorId;
     out->productId = t.productId;
     out->usagePage = 0xFF60;

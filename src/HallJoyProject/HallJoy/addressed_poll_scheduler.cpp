@@ -36,6 +36,12 @@ void PollScheduler::Reset(std::uint64_t nowUs)
     }
 }
 
+void PollScheduler::SetPhysicalBound(std::uint8_t keyId, bool bound)
+{
+    for (std::size_t i=0;i<count_;++i)
+        if (keys_[i].config.keyId==keyId) { keys_[i].bound=bound;return; }
+}
+
 void PollScheduler::SetBound(std::uint16_t hidUsage, bool bound)
 {
     if (!hidUsage) return;

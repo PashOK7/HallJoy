@@ -1,0 +1,29 @@
+{
+    "app_title": "BeiYing_PixArt_8K 0.3.5",
+    "config_version": "0.3.8",
+    "develop_mode": false,
+    "device_type": "device_usb24g",
+    "dongles": [
+        {
+            "packet_time": 100,
+            "pid": "1000",
+            "retry_cnt": 1000,
+            "usage": "0001",
+            "usage_page": "ff00",
+            "vid": "372e"
+        }
+    ],
+    "factory_mode": false,
+    "language": "zh_CN",
+    "name": "default",
+    "packet_time": 1,
+    "pass": "110000000013",
+    "pid": "105c",
+    "retry_cnt": 20,
+    "test_mode": true,
+    "upgrade_method": "GEEHY_USB_V2",
+    "usage": "0001",
+    "usage_page": "ff00",
+    "version": "0122",
+    "vid": "372e"
+}

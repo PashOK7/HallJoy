@@ -10,6 +10,7 @@
 #include "debug_log.h"
 #include "hid_io_operation.h"
 #include "native_analog_routing.h"
+#include "physical_analog_state.h"
 
 #include <algorithm>
 #include <array>
@@ -88,8 +89,9 @@ std::atomic<std::uint64_t> g_ok{0}, g_bad{0};
 std::atomic<ULONGLONG> g_last{};
 std::array<std::atomic<std::uint8_t>, 256> g_hidAt{};
 std::array<std::atomic<bool>, 256> g_has{};
-std::array<std::atomic<ULONGLONG>, 256> g_demand{}, g_sample{};
-std::array<std::atomic<std::uint16_t>, 256> g_milli{}, g_top{}, g_bottom{};
+std::array<std::atomic<ULONGLONG>, 256> g_demand{};
+halljoy::physical_analog::Publication g_physical;
+std::array<std::atomic<std::uint16_t>, 256> g_top{}, g_bottom{};
 std::atomic<std::uint16_t> g_cursor{1};
 std::mutex g_service, g_activeLock;
 HANDLE g_thread = nullptr, g_wake = nullptr, g_active = INVALID_HANDLE_VALUE;
@@ -268,16 +270,17 @@ class Session
 void Clear()
 {
     g_mapReady.store(false);
+    g_physical.Clear();
     g_mapped.store(0);
     g_last.store(0);
     for (std::size_t i = 0; i < 256; ++i)
     {
         g_hidAt[i].store(0);
         g_has[i].store(false);
-        g_milli[i].store(0);
+        g_demand[i].store(0);
         g_top[i].store(0);
         g_bottom[i].store(0);
-        g_sample[i].store(0);
+
     }
 }
 bool Identity(Session &s)
@@ -306,7 +309,7 @@ bool Map(Session &s)
         {
             const auto &a = values[i];
             const auto hid = static_cast<std::uint8_t>(a.value & 0xffu);
-            if ((a.value & 0xffffff00u) != 0 || !hid || hid > 0xe7 || nextHas[hid])
+            if ((a.value & 0xffffff00u) != 0 || !hid || hid > 0xe7)
             {
                 DebugLog_Write(L"[aula.hero84.production.map] skip pos=%04X assignment=%08X", a.position, a.value);
                 continue;
@@ -322,6 +325,7 @@ bool Map(Session &s)
     for (std::size_t i = 0; i < 256; ++i)
     {
         g_hidAt[i].store(nextAt[i]);
+        if(nextAt[i]) g_physical.Bind(static_cast<std::uint8_t>(i), nextAt[i]);
         g_has[i].store(nextHas[i]);
     }
     g_mapped.store(count);
@@ -364,17 +368,18 @@ void Publish(const hero::DirectSample &x)
     if (!hid || !g_has[hid].load() || !x.current)
         return;
     const auto raw = x.current;
-    auto top = g_top[hid].load();
+    const auto position = x.position;
+    auto top = g_top[position].load();
     if (!top || raw > top)
     {
         top = raw;
-        g_top[hid].store(top);
+        g_top[position].store(top);
     }
-    auto bottom = g_bottom[hid].load();
+    auto bottom = g_bottom[position].load();
     if (!bottom || raw < bottom)
     {
         bottom = raw;
-        g_bottom[hid].store(bottom);
+        g_bottom[position].store(bottom);
     }
     std::uint16_t milli = 0;
     // Firmware exports episode-minimum with current; its scanner path and the
@@ -387,8 +392,7 @@ void Publish(const hero::DirectSample &x)
         if (milli < 8)
             milli = 0;
     }
-    g_milli[hid].store(milli);
-    g_sample[hid].store(GetTickCount64());
+    g_physical.Publish(static_cast<std::uint8_t>(position), milli, GetTickCount64());
 }
 bool Run(const Candidate &c)
 {
@@ -450,8 +454,8 @@ bool Run(const Candidate &c)
         else
             next = now;
     }
-    Clear();
     g_connected.store(false);
+    Clear();
     return false;
 }
 unsigned __stdcall Worker(void *)
@@ -550,8 +554,8 @@ halljoy::lifecycle::StopResult Stop(halljoy::lifecycle::GenerationId generation)
     if (g_wake)
         CloseHandle(g_wake);
     g_wake = nullptr;
-    Clear();
     g_connected.store(false);
+    Clear();
     return NativeAnalogBackendStopJoined(generation);
 }
 void Notify()
@@ -572,12 +576,12 @@ bool Owns(std::uint16_t hid)
     if (!hid || hid >= 256 || !Connected())
         return false;
     g_demand[hid].store(GetTickCount64());
-    const auto sample = g_sample[hid].load(), now = GetTickCount64();
-    return g_has[hid].load() && sample && now >= sample && now - sample <= kFreshMs;
+    // Ownership is a session property; a stale sample must not fall back to digital input.
+    return g_has[hid].load();
 }
 std::uint16_t Get(std::uint16_t hid)
 {
-    return Owns(hid) ? g_milli[hid].load() : 0;
+    return Owns(hid) ? g_physical.Read(hid, GetTickCount64(), kFreshMs).milli : 0;
 }
 void Telemetry(NativeAnalogBackendTelemetry *out)
 {
@@ -625,3 +629,31 @@ const NativeAnalogBackendDescriptor &AulaHero84He_GetNativeBackendDescriptor()
                                                  &Telemetry};
     return d;
 }
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool AulaHero84He_TestPublication() {
+    // Production publication functions, synthetic samples only; no HID or worker.
+    if(g_thread || g_connected.load()) return false;
+    struct Reset {~Reset(){g_connected.store(false);Clear();}} reset;
+    Clear();
+    g_hidAt[30].store(26);g_hidAt[43].store(26);g_has[26].store(true);
+    g_physical.Bind(30,26);g_physical.Bind(43,26);
+    g_mapReady.store(true);g_connected.store(true);
+    Publish({30,10000,0,false});Publish({43,12000,0,false});
+    if(!Owns(26) || Get(26)!=0) return false;
+    Publish({30,5000,0,false});Publish({43,6000,0,false});
+    if(Get(26)!=1000) return false;
+    Publish({30,10000,0,false});
+    if(Get(26)!=1000) return false;
+    Publish({43,12000,0,false});
+    if(Get(26)!=0) return false;
+    Publish({30,7500,0,false});
+    if(Get(26)!=500) return false;
+    const auto now=GetTickCount64();
+    g_physical.Publish(30,1000,now>kFreshMs ? now-kFreshMs-1 : 0);
+    g_physical.Publish(43,1000,now>kFreshMs ? now-kFreshMs-1 : 0);
+    if(!Owns(26) || Get(26)!=0) return false;
+    g_connected.store(false);Clear();
+    return !Owns(26) && Get(26)==0;
+}
+#endif

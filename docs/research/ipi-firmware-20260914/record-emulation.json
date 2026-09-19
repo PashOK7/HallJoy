@@ -1,0 +1,1370 @@
+[
+  {
+    "file": "vendor-0013b2866640c78d694dc4ae7503e7d7-0-0.bin",
+    "uuid": "0x120000000003",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "vendor-063d20c5488802e611533ffc59e2f7aa-0-0.bin",
+    "uuid": "0x110000000013",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "vendor-16235907b003d97bd15c2541aa09dddc-0-0.bin",
+    "uuid": "0x110000000010",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "vendor-1af361a4bf28e9ea517b02837d603783-0-0.bin",
+    "uuid": "0x110000000006",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "vendor-1c097aecd3cb5c413bde351336bf195a-0-0.bin",
+    "uuid": "0x110000000006",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "vendor-211e02f538a1b5c0f1c59a11987bb7a0-0-0.bin",
+    "uuid": "0x11000000001f",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "vendor-29e74b0d0b1e1ed5a3360751fdbeba80-0-0.bin",
+    "uuid": "0x110000000006",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "vendor-4f019f99b4ca0d460efbfe164097cfa0-0-0.bin",
+    "uuid": "0x110000000040",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "vendor-7e8f8a700bbc99aff4a3da6191b34326-0-0.bin",
+    "uuid": "0x110000000023",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "vendor-93db7497790cc46cbc22dd6dae5cb3d8-0-0.bin",
+    "uuid": "0x110000000010",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "vendor-b88e40c05a4e27254cca378183a1c049-0-0.bin",
+    "uuid": "0x110000000006",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "vendor-bbb89e79bc76731cac50473fab7a4b30-0-0.bin",
+    "uuid": "0x110000000013",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "vendor-df5505cdc4e1f6a422a98411012e5aa7-0-0.bin",
+    "uuid": "0x11000000001f",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "vendor-e4c703022c7a22b43b049e0db1538e1e-0-0.bin",
+    "uuid": "0x110000000006",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "package0-firmware.bin",
+    "uuid": "0x110000000023",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "package1-firmware.bin",
+    "uuid": "0x110000000013",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "package2-firmware.bin",
+    "uuid": "0x110000000013",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  },
+  {
+    "file": "package3-firmware.bin",
+    "uuid": "0x11000000002c",
+    "cases": [
+      {
+        "variant": "official",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1
+        ],
+        "sample_calls": 1,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "sample_calls": 4,
+        "exact_records": true
+      },
+      {
+        "variant": "official",
+        "requested": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      },
+      {
+        "variant": "halljoy",
+        "requested": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "sample_calls": 9,
+        "exact_records": true
+      }
+    ]
+  }
+]

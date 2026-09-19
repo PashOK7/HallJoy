@@ -30,6 +30,19 @@ claim only the exact HID interface that completes their protocol proof.
   candidate exists, but the model is not production-supported until its
   physical gate passes.
 
+## New native support in 1.5.3
+
+- **IROK NA87** (ordinary model, not NA87 Pro): wired `0416:7372`, validated
+  M484/GK8260HERGB identity; independent analog change events and automatic layout.
+  Tester reported working input; logs confirm independent values and releases.
+- **AULA MINI60 HE Pro**: wired `0C45:80A2`, tested firmware V1.52; native analog
+  input and supported assignment mapping. The `0C45:FEFE` wireless receiver is
+  not supported by this route. Vendor-only Fn actions are not ordinary HID keys.
+
+These results do not establish every revision or long-session behavior. See
+[implementation and evidence](docs/current/NA87_MINI60_STANDARD_SUPPORT_2026-09-19.md).
+ATTACK SHARK Pro diagnostics remain excluded from the ordinary release.
+
 ## Physically tested devices
 
 | Device | Identity | Route | Evidence |
@@ -122,6 +135,11 @@ sold under the same model name. Firmware-specific evidence is recorded above.
 
 ### ATK Hex80-compatible `0x96`
 
+2026-09-14 limitation: the existing slot map differs from the official driver
+demo matrix and lacks Home/Delete/End/Right Win/Right Ctrl/Fn analog publication.
+The new physical layout does not confirm complete analog support. See
+[the source comparison](docs/current/REMAINING_LAYOUTS_2026-09-14.md).
+
 Known Hex80 devices have used PIDs `1176`, `1177`, and `1250`, but acceptance is
 not limited to that list. A candidate requires `VID 373B`, `FF60:0061`, matching
 report lengths, and valid GET responses for `02 96 24` and `02 96 1C`.
@@ -132,6 +150,12 @@ ATK Hex80 is the named supported model; another proved PID is reported as
 protocol-compatible rather than physically tested.
 
 ### Addressed Analog `09/94/02`
+
+2026-09-14: [IPI physical layouts](docs/current/IPI_LAYOUTS_2026-09-14.md)
+cover eight catalog models in four manual presets. This does not extend this
+route to additional devices or transports. The canonical fallback still differs
+from official demo defaults at Left Alt and has unassigned entries; complete
+live maps remain authoritative.
 
 This route supports QBZ75-compatible and other dynamically mapped devices. It
 requires `FF60:0061`, reports of at least 64 bytes, a valid checksum, an exact

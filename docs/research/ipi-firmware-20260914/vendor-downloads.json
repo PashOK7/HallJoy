@@ -1,0 +1,271 @@
+[
+  {
+    "id": 42,
+    "version": "0x0107",
+    "date": "202503261818",
+    "hash_sum": "29e74b0d0b1e1ed5a3360751fdbeba80",
+    "channel": "Release",
+    "changes": [
+      "\u4fee\u590d\u82e5\u5e72\u95ee\u9898"
+    ],
+    "device_uuid": "0x110000000006",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=29e74b0d0b1e1ed5a3360751fdbeba80",
+    "is_delete": 0,
+    "filename": "Update_KG18_0.01_B07_8K_ARGB_32K_20250325_V1.712_DAC.zip",
+    "local": "vendor-29e74b0d0b1e1ed5a3360751fdbeba80.zip",
+    "bytes": 5880538,
+    "sha256": "42b5727a60f9d6f241e7e3fac91191f55f5c92d0d7cbf49d4dac3aaf52afdaba",
+    "md5_matches": true
+  },
+  {
+    "id": 45,
+    "version": "0x0108",
+    "date": "202503291825",
+    "hash_sum": "1af361a4bf28e9ea517b02837d603783",
+    "channel": "Release",
+    "changes": [
+      "\u4fee\u590d\u6309\u952e\u5931\u7075\u95ee\u9898"
+    ],
+    "device_uuid": "0x110000000006",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=1af361a4bf28e9ea517b02837d603783",
+    "is_delete": 0,
+    "filename": "Update_KG18_0.01_B07_8K_ARGB_32K_20250329_V1.812_DAC.zip",
+    "local": "vendor-1af361a4bf28e9ea517b02837d603783.zip",
+    "bytes": 5874415,
+    "sha256": "9c3cbe96a46ff9a2398f32cb393bf166aee14f67767cc5e993e3b1c91fffbcd2",
+    "md5_matches": true
+  },
+  {
+    "id": 55,
+    "version": "0x0114",
+    "date": "202505091628",
+    "hash_sum": "e4c703022c7a22b43b049e0db1538e1e",
+    "channel": "Release",
+    "changes": [
+      "\u4fee\u590d\u5df2\u77e5bug"
+    ],
+    "device_uuid": "0x110000000006",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=e4c703022c7a22b43b049e0db1538e1e",
+    "is_delete": 0,
+    "filename": "Update_KG18_0.01_B07_8K_ARGB_32K_20250509_V1.1412_DAC.zip",
+    "local": "vendor-e4c703022c7a22b43b049e0db1538e1e.zip",
+    "bytes": 5894877,
+    "sha256": "b4ea5e428d5e829a03b103be331952a245c79b4580ea00e9cdb01a3f6f7cc3ec",
+    "md5_matches": true
+  },
+  {
+    "id": 58,
+    "version": "0x0116",
+    "date": "202506061738",
+    "hash_sum": "b88e40c05a4e27254cca378183a1c049",
+    "channel": "Release",
+    "changes": [
+      "\u65b0\u589e\u78c1\u7389PRO",
+      "\u4fee\u590d\u5df2\u77e5BUG"
+    ],
+    "device_uuid": "0x110000000006",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=b88e40c05a4e27254cca378183a1c049",
+    "is_delete": 0,
+    "filename": "Update_KG18_0.01_B07_8K_ARGB_32K_20250605_V1.1613.zip",
+    "local": "vendor-b88e40c05a4e27254cca378183a1c049.zip",
+    "bytes": 5895472,
+    "sha256": "534911b2ec26a3bb82f88873161811f4c62258c1eab94f52ddf164c3691ee2cb",
+    "md5_matches": true
+  },
+  {
+    "id": 64,
+    "version": "0x0118",
+    "date": "202507041804",
+    "hash_sum": "1c097aecd3cb5c413bde351336bf195a",
+    "channel": "Release",
+    "changes": [
+      "\u4fee\u590d\u6309\u952e\u5076\u5c14\u51fa\u73b0\u5ef6\u8fdf"
+    ],
+    "device_uuid": "0x110000000006",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=1c097aecd3cb5c413bde351336bf195a",
+    "is_delete": 0,
+    "filename": "Update_KG18_0.01_B07_8K_ARGB_32K_20250630_V1.1813.zip",
+    "local": "vendor-1c097aecd3cb5c413bde351336bf195a.zip",
+    "bytes": 5895733,
+    "sha256": "898b5296ebcc4c9fdc3720bc6c41f874b520397af08eaf6a9e109f641b54ce04",
+    "md5_matches": true
+  },
+  {
+    "id": 59,
+    "version": "0x0113",
+    "date": "202506111833",
+    "hash_sum": "93db7497790cc46cbc22dd6dae5cb3d8",
+    "channel": "Release",
+    "changes": [
+      "\u4fee\u590d\u5f8b\u52a8\u4e0b\u4e0e\u706f\u6548\u51b2\u7a81\u7684\u95ee\u9898",
+      "\u4fee\u590d\u5df2\u77e5BUG"
+    ],
+    "device_uuid": "0x110000000010",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=93db7497790cc46cbc22dd6dae5cb3d8",
+    "is_delete": 0,
+    "filename": "Update_KB_G67_0.01_B07_8K_ARGB_32K_20250610_V1.13_16.zip",
+    "local": "vendor-93db7497790cc46cbc22dd6dae5cb3d8.zip",
+    "bytes": 5896866,
+    "sha256": "c2fe70aeb9d72c22f0a17fb3f0769fef71e94ec00ebbcf0281a0d4627c6ccdcc",
+    "md5_matches": true
+  },
+  {
+    "id": 73,
+    "version": "0x0113",
+    "date": "202507281549",
+    "hash_sum": "16235907b003d97bd15c2541aa09dddc",
+    "channel": "Release",
+    "changes": [
+      "\u4fee\u590d\u5df2\u77e5BUG"
+    ],
+    "device_uuid": "0x110000000010",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=16235907b003d97bd15c2541aa09dddc",
+    "is_delete": 0,
+    "filename": "Update_KB_G67_0.01_B07_8K_ARGB_32K_20250610_V1.13_16.zip",
+    "local": "vendor-16235907b003d97bd15c2541aa09dddc.zip",
+    "bytes": 5896866,
+    "sha256": "977ed1b382ba3d078ce2ded301b3184d9a14ef205e2befeac57a7f379c640587",
+    "md5_matches": true
+  },
+  {
+    "id": 57,
+    "version": "0x0108",
+    "date": "202506041850",
+    "hash_sum": "063d20c5488802e611533ffc59e2f7aa",
+    "channel": "Release",
+    "changes": [
+      "\u4fee\u590d\u81ea\u5b9a\u4e49\u706f\u5149\u4e0b\uff0c\u7a7a\u683c\u952e\u4e0d\u4eae",
+      "\u4fee\u590d\u82b1\u5f00\u5bcc\u8d35\u4e0b\u53f3ALT\u4e0d\u4eae"
+    ],
+    "device_uuid": "0x110000000013",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=063d20c5488802e611533ffc59e2f7aa",
+    "is_delete": 0,
+    "filename": "Update_G75_0.01_B19_8K_ARGB_32K_20250604_V1.8.zip",
+    "local": "vendor-063d20c5488802e611533ffc59e2f7aa.zip",
+    "bytes": 5899840,
+    "sha256": "52ac6bf6fec5ac60914a24cf52b6ed591f2bcb71ec905656de7a3389acc51107",
+    "md5_matches": true
+  },
+  {
+    "id": 72,
+    "version": "0x0111",
+    "date": "202507281547",
+    "hash_sum": "bbb89e79bc76731cac50473fab7a4b30",
+    "channel": "Release",
+    "changes": [
+      "\u4fee\u590d\u5df2\u77e5BUG"
+    ],
+    "device_uuid": "0x110000000013",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=bbb89e79bc76731cac50473fab7a4b30",
+    "is_delete": 0,
+    "filename": "Update_G75_0.01_B19_8K_ARGB_32K_20250709_V1.11.zip",
+    "local": "vendor-bbb89e79bc76731cac50473fab7a4b30.zip",
+    "bytes": 5900045,
+    "sha256": "d5c2b181a3476ff8e1764983d24d9984dee9ecf9d28ab9013fd4e00bd49970e8",
+    "md5_matches": true
+  },
+  {
+    "id": 78,
+    "version": "0x0105",
+    "date": "202508301819",
+    "hash_sum": "df5505cdc4e1f6a422a98411012e5aa7",
+    "channel": "Release",
+    "changes": [
+      "\u589e\u52a0FN+I\u8fdb\u5165\u9a71\u52a8\u529f\u80fd"
+    ],
+    "device_uuid": "0x11000000001f",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=df5505cdc4e1f6a422a98411012e5aa7",
+    "is_delete": 0,
+    "filename": "Update_Rain_65_0.01_B19_8K_ARGB_32K_20250830_V1.5.zip",
+    "local": "vendor-df5505cdc4e1f6a422a98411012e5aa7.zip",
+    "bytes": 5901323,
+    "sha256": "1c5513322ef17d51f821db5078afc56211f957dc2951a3328cd0142119f556a0",
+    "md5_matches": true
+  },
+  {
+    "id": 91,
+    "version": "0x0106",
+    "date": "202511051740",
+    "hash_sum": "211e02f538a1b5c0f1c59a11987bb7a0",
+    "channel": "Release",
+    "changes": [
+      "\u66f4\u6539\u4e86FN+I\u8fdb\u9a71\u52a8\u7684\u57df\u540d"
+    ],
+    "device_uuid": "0x11000000001f",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=211e02f538a1b5c0f1c59a11987bb7a0",
+    "is_delete": 0,
+    "filename": "Update_TK52Y_0.005_B19_8K_ARGB_32K_20251028_V1.24.zip",
+    "local": "vendor-211e02f538a1b5c0f1c59a11987bb7a0.zip",
+    "bytes": 5901683,
+    "sha256": "e369ae6ab77ee5ec84565737bffc3b8029e0696aa2bb167df92d452adc225211",
+    "md5_matches": true
+  },
+  {
+    "id": 94,
+    "version": "0x0108",
+    "date": "202512251040",
+    "hash_sum": "7e8f8a700bbc99aff4a3da6191b34326",
+    "channel": "Release",
+    "changes": [
+      "\u4fee\u590d\u7535\u8111\u4f11\u7720\u540e\uff0c\u4f1a\u81ea\u52a8\u5524\u9192\u7684\u95ee\u9898"
+    ],
+    "device_uuid": "0x110000000023",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=7e8f8a700bbc99aff4a3da6191b34326",
+    "is_delete": 0,
+    "filename": "Update_QBZ65_0.01_B19_8K_ARGB_32K_20251025_V1.8.zip",
+    "local": "vendor-7e8f8a700bbc99aff4a3da6191b34326.zip",
+    "bytes": 5902149,
+    "sha256": "7f3fe77ce0ab5c28de59587e391b4529e3713d8a4d18d6843fcdb0e28bb5e3cc",
+    "md5_matches": true
+  },
+  {
+    "id": 100,
+    "version": "0x0110",
+    "date": "202601161556",
+    "hash_sum": "4f019f99b4ca0d460efbfe164097cfa0",
+    "channel": "Release",
+    "changes": [
+      "\u4fee\u590d\u67d0\u4e9b\u706f\u6548\u4e0b\uff0c\u6821\u51c6\u65f6\u706f\u5149\u5f02\u5e38"
+    ],
+    "device_uuid": "0x110000000040",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=4f019f99b4ca0d460efbfe164097cfa0",
+    "is_delete": 0,
+    "filename": "Update_G75_PRO_0.005_B19_8K_ARGB_32K_20260116_V1.10.zip",
+    "local": "vendor-4f019f99b4ca0d460efbfe164097cfa0.zip",
+    "bytes": 5918455,
+    "sha256": "9dafe94326b7db3d1cb0e0b6b55b84ce860bd4b3e530933c19767a7fe208cc34",
+    "md5_matches": true
+  },
+  {
+    "id": 103,
+    "version": "0x0119",
+    "date": "202606271353",
+    "hash_sum": "0013b2866640c78d694dc4ae7503e7d7",
+    "channel": "Release",
+    "changes": [
+      "\u4fee\u590d\u5145\u7535\u663e\u793a\u95ee\u9898"
+    ],
+    "device_uuid": "0x120000000003",
+    "type": "EXE",
+    "path": "https://hubx.pro/api/v1/file/fetch?object=0013b2866640c78d694dc4ae7503e7d7",
+    "is_delete": 0,
+    "filename": "\u4e09\u6a21_KB_G67_JHX_8_8_0.01_B_8K_ARGB_32K_20260627_V1.19.zip",
+    "local": "vendor-0013b2866640c78d694dc4ae7503e7d7.zip",
+    "bytes": 5907051,
+    "sha256": "12f8da931465ae3fdb53a879be23af5de2d4120f203c1d7a082b9b4e44c405c0",
+    "md5_matches": true
+  }
+]

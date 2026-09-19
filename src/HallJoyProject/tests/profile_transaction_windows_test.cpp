@@ -6,6 +6,8 @@
 #include "../HallJoy/profile_ini.h"
 #include "../HallJoy/key_settings.h"
 #include "../HallJoy/keyboard_layout.h"
+#include "../HallJoy/analog_host_client.h"
+#include "../HallJoy/aula_hero84he_backend.h"
 #include "../HallJoy/bounded_ini.h"
 #include "../HallJoy/ini_util.h"
 #include "../HallJoy/profile_runtime_gate.h"
@@ -38,6 +40,7 @@ bool HallJoy_RunProfileTransactionTests() {
     if (AppPaths_Mode() != AppDataMode::SimulatorOverride) return false;
     const fs::path root(AppPaths_DataRoot());
     std::ofstream result(root / "profile-test-result.txt");
+    result << std::unitbuf;
     try {
         Check(!fs::exists(AppPaths_SettingsIni()) && !fs::exists(AppPaths_BindingsIni()), "test root is not fresh");
         fs::create_directories(AppPaths_LayoutsDir());
@@ -350,6 +353,12 @@ bool HallJoy_RunProfileTransactionTests() {
         KeyboardLayout_SetPresetIndex(0);
         Check(KeyboardSubpages_TestLayoutEditor(), "layout editor production event test failed");
         Check(KeyboardSubpages_TestLayoutPicker(), "brand/model picker production event test failed");
+        Check(AulaHero84He_TestPublication(), "HERO84 production publication regression");
+        result << "hero84_publication_alias_release_freshness=PASS\n";
+        Check(AnalogHostClient_TestTelemetryCoherence(), "production telemetry reader lost coherent inventory");
+        result << "production_telemetry_coherence_contention=PASS attempts=1000\n";
+        Check(KeyboardLayout_TestAutomatic(), "automatic layout transitions/remapping/persistence failed");
+        result << "automatic_layout_transitions_remapping_persistence=PASS\n";
         result << "layout_brand_model_production_events=PASS metadata_roundtrip=PASS\n";
         result << "overlay_layout_selection_and_persistence=PASS layout_editor_production_events=PASS\n";
         result << "bundle_failure_stages=5 PASS backend_init_attempts=0\nPROFILE_TRANSACTION_WINDOWS_TEST=PASS\n";

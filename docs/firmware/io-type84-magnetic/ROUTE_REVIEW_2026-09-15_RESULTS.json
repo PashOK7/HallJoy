@@ -1,0 +1,148 @@
+{
+  "scope": "Pinned V1.17 components only; receive helper is stubbed. Not a USB control-transfer or whole-firmware reachability proof. Command 10 excluded because its reader has a conditional flash-write side effect.",
+  "checks": [
+    {
+      "color": "Black",
+      "case": "66 payload position variations preserve selected key and travel",
+      "variations": 62,
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x11",
+      "base": "0x9200",
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x12",
+      "base": "0x9600",
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x14",
+      "base": "0x9a00",
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x15",
+      "base": "0x9c00",
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x16",
+      "base": "0xb000",
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x17",
+      "base": "0xb600",
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x18",
+      "base": "0xb200",
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x1c",
+      "base": "0xbc00",
+      "result": "PASS"
+    },
+    {
+      "color": "Black",
+      "case": "application RX bridge feeds vendor dispatcher",
+      "channels": [
+        0,
+        2
+      ],
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "66 payload position variations preserve selected key and travel",
+      "variations": 62,
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x11",
+      "base": "0x9200",
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x12",
+      "base": "0x9600",
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x14",
+      "base": "0x9a00",
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x15",
+      "base": "0x9c00",
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x16",
+      "base": "0xb000",
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x17",
+      "base": "0xb600",
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x18",
+      "base": "0xb200",
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "configuration read unaffected by live depths",
+      "command": "0x1c",
+      "base": "0xbc00",
+      "result": "PASS"
+    },
+    {
+      "color": "White",
+      "case": "application RX bridge feeds vendor dispatcher",
+      "channels": [
+        0,
+        2
+      ],
+      "result": "PASS"
+    }
+  ],
+  "status": "PASS"
+}

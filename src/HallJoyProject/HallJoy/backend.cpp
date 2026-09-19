@@ -30,10 +30,12 @@
 #include <ViGEm/Client.h>
 
 #include "backend.h"
+#include "native_layout_devices.h"
 #include "analog_key_codes.h"
 #include "bindings.h"
 #include "settings.h"
 #include "debug_log.h"
+#include "diagnostic_rate_limit.h"
 #include "stability_trace.h"
 #include "mouse_bind_codes.h"
 #include "backend_curve.h"
@@ -173,7 +175,8 @@ static std::atomic<bool>         g_vigemOk{ false };
 static std::atomic<VIGEM_ERROR>  g_vigemLastErr{ VIGEM_ERROR_NONE };
 static std::atomic<uint32_t>     g_lastInitIssues{ BackendInitIssue_None };
 static std::atomic<int>          g_lastAnalogErrorCode{ 0 };
-static std::atomic<ULONGLONG>    g_lastAnalogErrorLogMs{ 0 };
+static halljoy::DiagnosticRateLimit g_analogErrorLogBudget;
+static halljoy::DiagnosticRateLimit g_analogFallbackLogBudget;
 static std::atomic<ULONGLONG>    g_lastWootingStateLogMs{ 0 };
 static std::atomic<ULONGLONG>    g_lastInputStateLogMs{ 0 };
 static std::atomic<int>          g_keycodeMode{ (int)WootingAnalog_KeycodeType_HID };
@@ -888,15 +891,17 @@ static float ReadAnalogByCodeWithDeviceFallback(uint16_t code, uint16_t hidForLo
             best = dv;
     }
 
-    if (best > base + 0.0005f)
+#if !defined(NDEBUG) || defined(HALLJOY_DIAGNOSTIC) || defined(HALLJOY_ANALOG_SIMULATOR)
+    std::uint64_t suppressed = 0;
+    if (best >= 0.0f && best > base + 0.0005f &&
+        g_analogFallbackLogBudget.Take(GetTickCount64(), 5000, suppressed))
     {
         DebugLog_Write(
-            L"[backend.analog] device_fallback improved hid=%u code=%u base=%.3f best=%.3f",
-            (unsigned)hidForLog,
-            (unsigned)code,
-            base,
-            best);
+            L"[backend.analog] device_fallback improved hid=%u code=%u base=%.3f best=%.3f suppressed=%llu",
+            (unsigned)hidForLog, (unsigned)code, base, best,
+            static_cast<unsigned long long>(suppressed));
     }
+#endif
 
     return best;
 }
@@ -1561,21 +1566,16 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
                 providerAvailable = false;
                 const int error = static_cast<int>(std::lround(sdk));
                 const ULONGLONG now = GetTickCount64();
-                const int previous =
-                    g_lastAnalogErrorCode.load(std::memory_order_relaxed);
-                const ULONGLONG previousMs =
-                    g_lastAnalogErrorLogMs.load(std::memory_order_relaxed);
-                if (error != previous || now - previousMs >= 5000)
+                g_lastAnalogErrorCode.store(error, std::memory_order_relaxed);
+                std::uint64_t suppressed = 0;
+                if (g_analogErrorLogBudget.Take(now, 5000, suppressed))
                 {
                     DebugLog_Write(
-                        L"[backend.analog] read_analog key_code=%u mode_code=%u mode=%s err=%d",
+                        L"[backend.analog] read_analog key_code=%u mode_code=%u mode=%s err=%d suppressed=%llu",
                         static_cast<unsigned>(hidKeycode),
                         static_cast<unsigned>(modeCode),
-                        KeycodeModeName(static_cast<int>(cache.mode)), error);
-                    g_lastAnalogErrorCode.store(error,
-                        std::memory_order_relaxed);
-                    g_lastAnalogErrorLogMs.store(now,
-                        std::memory_order_relaxed);
+                        KeycodeModeName(static_cast<int>(cache.mode)), error,
+                        static_cast<unsigned long long>(suppressed));
                 }
                 sdk = 0.0f;
             }
@@ -4042,6 +4042,7 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
     {
         t.pluginHostAvailable = host.available;
         t.pluginHostReady = host.ready;
+        t.pluginDeviceSnapshotValid = host.deviceSnapshotValid;
         t.pluginHostStatus = host.status;
         t.pluginHostLastError = host.lastError;
         t.pluginHostTransportError = host.transportError;
@@ -4098,6 +4099,11 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
         }
     }
 
+    std::uint32_t nativeIdentities[kBackendMaxNativeProtocols]{};
+    std::size_t identityCount=0;
+    for(int i=0;i<t.nativeProtocolCount;++i) if(t.nativeProtocols[i].connected)
+        nativeIdentities[identityCount++]=(std::uint32_t(t.nativeProtocols[i].vendorId)<<16)|t.nativeProtocols[i].productId;
+    t.nativeIdentityDeviceCount=NativeLayoutDevices_Query(nativeIdentities,identityCount);
     t.keycodeMode = g_keycodeMode.load(std::memory_order_relaxed);
     t.keyboardEventSeq = g_keyboardEventSeq.load(std::memory_order_acquire);
     t.trackedMaxRawMilli = g_tmTrackedMaxRawMilli.load(std::memory_order_relaxed);

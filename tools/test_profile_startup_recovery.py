@@ -1,6 +1,8 @@
 """Real startup and shutdown, isolated storage, no UI or keyboard/gamepad init."""
 import argparse
 import configparser
+import ctypes
+from ctypes import wintypes
 import pathlib
 import subprocess
 import tempfile
@@ -32,6 +34,20 @@ def main():
         raw = (folder / 'settings.ini').read_bytes()
         ini = configparser.ConfigParser(interpolation=None, strict=False)
         ini.read_string(raw.decode('utf-16' if raw.startswith(b'\xff\xfe') else 'utf-8-sig'))
+        # Match HallJoy's Win32 reader: ConfigParser retains the surrounding
+        # quotes emitted by WriteBatch, while GetPrivateProfileStringW removes them.
+        read = ctypes.WinDLL('kernel32', use_last_error=True).GetPrivateProfileStringW
+        read.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.LPCWSTR,
+                         wintypes.LPWSTR, wintypes.DWORD, wintypes.LPCWSTR]
+        read.restype = wintypes.DWORD
+        for section in ini.sections():
+            for key in ini[section]:
+                buffer = ctypes.create_unicode_buffer(32768)
+                count = read(section, key, '{missing}', buffer, len(buffer),
+                             str((folder / 'settings.ini').resolve()))
+                assert count < len(buffer) - 1, (section, key, 'truncated value')
+                assert buffer.value != '{missing}', (section, key, 'missing value')
+                ini[section][key] = buffer.value
         return ini
 
     def backup(folder, leaf, expected):

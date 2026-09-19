@@ -66,3 +66,25 @@ Incremental Release build and source encoding gate passed. No visual run.
 Backup: .local/backups/keyboard-page-before-initial-button-visibility.cpp.
 Updated artifact hash above supersedes the logging-fix artifact; that fix remains.
 Publication is still pending owner confirmation.
+
+
+## Publication qualification after owner approval
+
+Owner approved the tested EXE and publication. Sources were pushed in60b402b,
+then6e0f3e0 corrected an outdated Hex80 preflight expectation to require the
+reviewed exact-product allowlist. The v1.5.3 release is currently a draft with
+the exact owner-tested EXE above; no runtime change or replacement binary.
+
+CI run35443206554 passed portable checks and production-linked profile
+transaction tests, then failed Python startup-recovery verification. Its
+ConfigParser reader retained quotes from WriteBatch (PollingMs="3"), unlike
+HallJoy's GetPrivateProfileStringW reader. Updated only the test reader to use
+Win32 value semantics; retained all recovery assertions. Local quoted UTF-16
+and unquoted legacy UTF-8 reader checks pass. Full recovery awaits isolated CI.
+Local simulator recovery tests hit the per-user instance guard while the owner's
+ordinary HallJoy was open; the test process timed out and was terminated. The
+owner's application was left running. This is not evidence of settings loss.
+
+Actions uses standard windows-2022/ubuntu-24.04 runners in this PUBLIC repository;
+compute is free for public repositories. Push runs do not upload artifacts
+(confirmed zero for35443206554). No billing settings were changed.

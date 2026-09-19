@@ -1,6 +1,6 @@
 # HallJoy — навигация по документации
 
-- [HallJoy 1.5.3 candidate: owner EXE test before publication](current/RELEASE_1.5.3_CANDIDATE_2026-09-19.md).
+- [HallJoy 1.5.3 published: artifact and release verification](current/RELEASE_1.5.3_CANDIDATE_2026-09-19.md).
 
 - [ATTACK SHARK Pro: integrated X65 Pro tester build, continuous capture and validation](current/ATTACK_SHARK_PRO_DIAGNOSTIC_2026-09-19.md).
 

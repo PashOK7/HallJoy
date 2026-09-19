@@ -463,3 +463,22 @@ with the tested ordinary EXE SHA256
 5481aa57e84ae7378193ef559d530b20cd34f771f8904d615e3e39afbbd26621.
 Keep ATTACK SHARK diagnostic disabled. Verify source and CI before publication;
 ship HallJoy.exe with license notices, no application ZIP.
+
+
+## 2026-09-19 — standing authorization to close HallJoy
+
+Owner explicitly authorizes closing running HallJoy whenever needed for builds,
+EXE replacement, diagnosis or automated tests, without asking again. Prefer
+graceful window closure and wait for shutdown; if hung, terminate the verified
+HallJoy process and its children. Do not create extra build directories merely
+to avoid closing a running EXE. This permission persists across sessions.
+The ordinary HallJoy and its children closed gracefully before local release
+profile checks; no additional owner confirmation is required.
+
+
+## 2026-09-19 — v1.5.3 published
+
+Stable/latest GitHub release v1.5.3 is public, at source2d9cf1395aeaa3b2bf02966bbe1b55e5fa194186.
+Both jobs in CI35444148705 passed. Published EXE matches the owner-tested
+SHA2565481aa57e84ae7378193ef559d530b20cd34f771f8904d615e3e39afbbd26621.
+See RELEASE_1.5.3_CANDIDATE_2026-09-19.md for final verification and history.

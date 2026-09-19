@@ -1,3 +1,17 @@
+# HallJoy 1.5.3 — published
+
+Current status (2026-09-19): owner approved, public stable/latest release published:
+https://github.com/PashOK7/HallJoy/releases/tag/v1.5.3
+Tag/source commit: 2d9cf1395aeaa3b2bf02966bbe1b55e5fa194186.
+CI: https://github.com/PashOK7/HallJoy/actions/runs/35444148705
+Both portable and windows-release jobs passed. No Actions artifacts uploaded.
+Published HallJoy.exe SHA256:
+5481aa57e84ae7378193ef559d530b20cd34f771f8904d615e3e39afbbd26621
+This is the unchanged owner-tested EXE (9211392 bytes). Accompanying assets:
+LICENSE and THIRD_PARTY_NOTICES.md. Release API and tag target verified after
+publication. No new hardware validation is claimed. Historical preparation
+entries below retain the earlier pending states for chronology.
+
 # HallJoy 1.5.3 candidate — owner test pending
 
 Owner authorized GitHub publication, then explicitly required receiving and
@@ -88,3 +102,11 @@ owner's application was left running. This is not evidence of settings loss.
 Actions uses standard windows-2022/ubuntu-24.04 runners in this PUBLIC repository;
 compute is free for public repositories. Push runs do not upload artifacts
 (confirmed zero for35443206554). No billing settings were changed.
+
+
+Local follow-up: after closing ordinary HallJoy under the owner's standing
+permission, the current simulator passed PROFILE_TRANSACTION_WINDOWS_TEST,
+RECOVERY_STARTUP_PRESERVES_FILES and all16 PROFILE_STARTUP_RECOVERY scenarios
+including repeated startup. Evidence: .local/release153-profiles-after-close.txt.
+The earlier failure was the test reader's quote handling, not settings loss.
+Owner-tested production EXE remains unchanged. Final CI run35444148705 pending.

@@ -1,3 +1,5 @@
+> 2026-09-21 Owner rejected the unsolicited support-report guide and long user instructions. Public support guidance must simply invite users to Discord for problems or new keyboard requests. README simplified; report template removed from the support page. Do not restore checklists, required fields or log-collection instructions in this flow without owner request.
+
 > 2026-09-21 Owner requested alphabetic brand ordering in the README compatibility table. Sorted all 15 rows case-insensitively; model descriptions unchanged.
 
 > 2026-09-21 Owner explicitly removed Known limits from the 1.6.0 public changelog. Do not add that section back to release notes without owner instruction. Published release body and maintained RELEASE_NOTES_v1.6.0.md updated; binary unchanged.

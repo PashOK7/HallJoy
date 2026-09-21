@@ -17,7 +17,7 @@ are not all active requirements. Later owner decisions take precedence.
 - [1.6.0 candidate release notes](../RELEASE_NOTES_v1.6.0.md).
 - [Application README](../README.md) and [hardware compatibility](../SUPPORTED_HARDWARE.md).
 - [Built-in layout catalog](KEYBOARD_LAYOUTS.md): 121 source variants / 98 visible variants.
-- [Support report template and logging](SUPPORT_REPORT.md).
+- [Support on Discord](https://discord.gg/5FQ297yZh).
 
 ## Build and regression evidence
 

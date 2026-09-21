@@ -92,6 +92,6 @@ IROK NA87 Pro, IROK ND75 and ROG Azoth 96 HE are not enabled in ordinary builds.
 Their retained research and device notices are not working support claims.
 
 See the [complete layout catalog](docs/KEYBOARD_LAYOUTS.md) for exact regional
-variants and the [support report guide](docs/SUPPORT_REPORT.md) for reporting a
+variants and the [HallJoy Discord](https://discord.gg/5FQ297yZh) for reporting a
 specific device result. Historical audits are evidence at their recorded date;
 later integration records and owner decisions supersede their status statements.

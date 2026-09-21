@@ -80,17 +80,8 @@ notice where applicable. If your keyboard is not listed, ask in [Discord](https:
 
 ## Support
 
-Join [HallJoy Discord](https://discord.gg/5FQ297yZh) for help, keyboard support
-requests, feedback, and updates. Include your keyboard model, HallJoy version,
-and a short description of the problem.
-
-Choose **Open HallJoy folder** in Global settings to find `HallJoy.log`.
-Crash, missing-keyboard and recognized failure reports are automatic, even with
-**Enable logging** off. For an issue HallJoy does not detect, enable logging,
-reproduce it and attach the log. With logging enabled, a second `HallJoy.log` is
-also saved beside the EXE when that folder is writable. See the [support report guide](docs/SUPPORT_REPORT.md)
-for what to include and the distinction between ordinary and diagnostic reports.
-Do not upload your entire data folder or personal text.
+Have a problem or want support for another keyboard? Write to us on
+[HallJoy Discord](https://discord.gg/5FQ297yZh).
 
 ## Input Overlay for OBS
 

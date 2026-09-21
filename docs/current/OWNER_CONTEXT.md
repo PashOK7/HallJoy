@@ -1,3 +1,5 @@
+> 2026-09-21 HallJoy has one author, not a team. Public copy must address the author in the singular ("write to me"), never imply a team with "us" or "we".
+
 > 2026-09-21 Owner rejected the unsolicited support-report guide and long user instructions. Public support guidance must simply invite users to Discord for problems or new keyboard requests. README simplified; report template removed from the support page. Do not restore checklists, required fields or log-collection instructions in this flow without owner request.
 
 > 2026-09-21 Owner requested alphabetic brand ordering in the README compatibility table. Sorted all 15 rows case-insensitively; model descriptions unchanged.

@@ -80,7 +80,7 @@ notice where applicable. If your keyboard is not listed, ask in [Discord](https:
 
 ## Support
 
-Have a problem or want support for another keyboard? Write to us on
+Have a problem or want support for another keyboard? Write to me on
 [HallJoy Discord](https://discord.gg/5FQ297yZh).
 
 ## Input Overlay for OBS

@@ -38,18 +38,3 @@ Includes IROK NA87 and AULA MINI 60 HE Pro support introduced in 1.5.3.
   If one destination is unavailable, the other continues independently.
 - With logging off, bounded in-memory failure history remains; automatic incident
   and crash reports use the app data folder. Portable user-data storage is unchanged.
-
-## Known limits
-
-ATTACK SHARK uses factory assignments; custom remaps/macros and wireless receivers
-are not enabled. Normalization still has provisional and switch-bank limits.
-Broader family investigation remains deferred. One tester reported input-mode
-switching in Forza/Roblox, then confirmed normal operation without a HallJoy
-change. The cause is unknown; no specific fix is claimed.
-
-MG75 Pro, HERO84, GravaStar and new O3C/Wooting paths retain the validation limits
-in the [hardware table](SUPPORTED_HARDWARE.md). NA87 Pro, ND75 and ROG Azoth 96 HE
-remain disabled. A visual preset does not prove support for every device revision.
-
-See [release readiness](docs/current/RELEASE_1.6.0_READINESS_2026-09-20.md) for the
-exact artifact and automated checks.

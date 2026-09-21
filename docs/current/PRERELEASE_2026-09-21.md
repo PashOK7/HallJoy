@@ -5,8 +5,8 @@
 - Ordinary Windows x64: `build/bin/Release/x64/HallJoy.exe`.
 - File/product version: 1.6.0.0; application version: 1.6.0.
 - Size: 9466368 bytes.
-- SHA256: `77e944e662be330834211d3989dd70e19d2d003c7c9a9aa6e90672ccea7ffd55`.
-- Local candidate only; no GitHub publication performed.
+- SHA256: `9d42bc7cc087404d29fcc8a7459b3c923ad16ba431e11764563be3b966e15358`.
+- Owner approved stable v1.6.0 publication; final Linux and Windows CI passed.
 
 ## Changes and owner decision
 
@@ -105,3 +105,21 @@ embedded installer resource check PASS. No visual, hardware, keyboard-specific
 or induced-crash test. Build log: `.local/dual-log-build.log`; existing C4267 and
 ViGEm LNK4099 warnings only. Delivered candidate bytes verified; latest size/hash
 above. Backup: `.local/backups/dual-log-20260921-173252.zip`.
+
+## Publication preparation
+
+GitHub inspection confirmed NA87/MINI60 were already published in v1.5.3 on
+2026-09-19; earlier local-only statements were stale. Public 1.6.0 notes corrected.
+First CI run 35614588675 passed Linux and all Windows functional/profile tests,
+then rejected compiler warning C4267 in the three-key O3C binding loop. Added an
+explicit uint16_t conversion for codes 0x470..0x472; no mapping/policy change.
+Rebuilt locally with only the allowed ViGEm PDB warning. Final candidate hash/size
+above supersede the earlier dual-log binary. Resource check and exact GitHub
+roundtrip download PASS. Final source CI: 35615925037: Linux and Windows PASS.
+Three stale documentation audits were updated for the current output path and
+current hardware-test guidance; their checks remain enabled. All 114 static
+audits pass after these corrections. No runtime logging preference was changed.
+
+Final code revision: `eda5f3e5f2cf57929bb5c27924a09cf606bc8a1a`.
+CI: https://github.com/PashOK7/HallJoy/actions/runs/35615925037.
+Release uses the locally built, hash-verified EXE, not a replacement CI artifact.

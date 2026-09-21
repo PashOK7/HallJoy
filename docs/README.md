@@ -6,6 +6,8 @@ are not all active requirements. Later owner decisions take precedence.
 
 ## Current release and user documentation
 
+- [Published 1.6.0 release](current/RELEASE_1.6.0_PUBLICATION_2026-09-21.md).
+
 - [Firmware research foundation](current/FIRMWARE_FOUNDATION.md): architecture, evidence contract and acceptance gates.
 - [Firmware corpus and batch research](current/FIRMWARE_CORPUS.md): current tools, pinned environment, recovery, image inventory and exact-image emulator evidence.
 - [Firmware audit handoff](current/FIRMWARE_AUDIT_HANDOFF_2026-09-20.md): owner requirements, exact state and continuation for a fresh chat.

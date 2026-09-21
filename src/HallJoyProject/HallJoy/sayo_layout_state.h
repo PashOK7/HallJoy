@@ -7,7 +7,7 @@ inline bool Active() noexcept { return native_layout::UsesRemapping(token.load(s
 template<class IsBound> bool IsWindowsBound(std::uint16_t hid,IsBound bound) noexcept {
     if(!hid || !Active()) return false;
     for(std::size_t i=0;i<3;++i)
-        if(windowsHid[i].load(std::memory_order_relaxed)==hid && bound(keycode::kO3cFirst+i)) return true;
+        if(windowsHid[i].load(std::memory_order_relaxed)==hid && bound(static_cast<std::uint16_t>(keycode::kO3cFirst+i))) return true;
     return false;
 }
 }

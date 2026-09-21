@@ -1,3 +1,5 @@
+> 2026-09-21 Owner explicitly removed Known limits from the 1.6.0 public changelog. Do not add that section back to release notes without owner instruction. Published release body and maintained RELEASE_NOTES_v1.6.0.md updated; binary unchanged.
+
 > 2026-09-21 Published stable/latest v1.6.0 after owner approval and passing Linux/Windows CI. Final EXE SHA256 9d42bc7c, release tag 1c244bdb. NA87/MINI60 were already public in 1.5.3. See [publication record](RELEASE_1.6.0_PUBLICATION_2026-09-21.md). Bounded failure prehistory retained per owner confirmation; no further logging optimization requested.
 
 > 2026-09-21 Owner requested dual continuous logging: with Enable logging on, write HallJoy.log to the normal AppData root and beside EXE; OFF stops the EXE-side copy. Portable mode keeps one data-root log beside EXE. Implemented independent bounded writer destinations and retry/error state; production HallJoyCrash.txt now uses the app data root too. No forced logging or keyboard-specific tests. See latest [prerelease record](PRERELEASE_2026-09-21.md).

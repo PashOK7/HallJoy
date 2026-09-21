@@ -1253,35 +1253,6 @@ static void OverlayPage_Update(InputOverlayPageState* st)
     OverlayPage_UpdateSliderControls(st);
 }
 
-static void OverlayPage_SetControlRedraw(InputOverlayPageState* st, bool enabled)
-{
-    if (!st) return;
-    HWND controls[] = {
-        st->lblTitle, st->lblPort, st->edtPort, st->lblDirection, st->btnDirection,
-        st->lblDepthSource, st->btnDepthSource,
-        st->lblEffects, st->chkSmoothing, st->chkGlass, st->chkBloom,
-        st->chkEdge, st->chkScale, st->chkLabel, st->chkRimLight,
-        st->sldSmoothingStrength, st->chipSmoothingStrength,
-        st->sldGlassStrength, st->chipGlassStrength,
-        st->sldBloomStrength, st->chipBloomStrength,
-        st->sldEdgeStrength, st->chipEdgeStrength,
-        st->sldScaleStrength, st->chipScaleStrength,
-        st->sldLabelStrength, st->chipLabelStrength,
-        st->sldRimLightStrength, st->chipRimLightStrength,
-        st->lblRefreshMs, st->sldRefreshMs, st->chipRefreshMs,
-        st->lblColor,
-        st->colorPreview, st->hueBar, st->lblHex, st->edtHex,
-        st->lblUrlCaption, st->lblUrl, st->lblStatusCaption, st->lblStatus,
-        st->btnToggle, st->btnOpen, st->btnCopy, st->lblHint
-    };
-    WPARAM value = enabled ? TRUE : FALSE;
-    for (HWND control : controls)
-    {
-        if (control)
-            SendMessageW(control, WM_SETREDRAW, value, 0);
-    }
-}
-
 static int OverlayPage_ScrollbarWidthPx(HWND hWnd) { return S(hWnd, 12); }
 static int OverlayPage_ScrollbarMarginPx(HWND hWnd) { return S(hWnd, 8); }
 
@@ -3382,6 +3353,7 @@ bool KeyboardSubpages_TestOverlayTextEditing()
         PremiumCombo::SetCurSel(st->comboLayout, st->layoutPicker.Row(1), false);
         SendMessageW(page, WM_COMMAND, MAKEWPARAM(OVERLAY_ID_LAYOUT, CBN_SELCHANGE), (LPARAM)st->comboLayout);
         ok &= KeyboardLayout_GetOverlayPresetIndex() == 1 && KeyboardLayout_GetCurrentPresetIndex() == mainLayout;
+        if (!ok) throw std::runtime_error("overlay edit: model selection failed");
         int iso=-1;
         for (int i=0;i<KeyboardLayout_GetPresetCount();++i)
             if (KeyboardLayout_GetPresetDisplayName(i)==L"DrunkDeer A75 ISO") iso=i;
@@ -3410,6 +3382,7 @@ bool KeyboardSubpages_TestOverlayTextEditing()
         ok &= !st->layoutPicker.groups.empty();
         for (int preset : st->layoutPicker.presets) ok &= preset >= 0;
         ok &= std::any_of(st->items.begin(), st->items.end(), [](const OverlayCustomItem& item) { return item.id == OVERLAY_ID_LAYOUT; });
+        if (!ok) throw std::runtime_error("overlay edit: follow/browse transition failed");
         // Real catalog selection must publish every overlay-only key, including keypad.
         KeyboardLayout_SetOverlayPresetName(L"Keychron K4 HE"); // stable saved-name alias
         const auto fullOverlay = KeyboardLayout_GetOverlaySnapshot();
@@ -3419,6 +3392,7 @@ bool KeyboardSubpages_TestOverlayTextEditing()
             if (halljoy::keycode::IsSupported(key.hid)) ok &= BackendUI_TestIsTracked(key.hid);
         }
         ok &= hasKeypad && KeyboardLayout_GetCurrentPresetIndex() == mainLayout;
+        if (!ok) throw std::runtime_error("overlay edit: full layout tracking failed");
         KeyboardLayout_SetOverlayPresetIndex(oldLayout);
     }
     SetKeyboardState(originalKeys);
@@ -7982,8 +7956,13 @@ static void Global_RenderContent(HWND hWnd, HDC hdc, const RECT&, void* user)
     CustomPage_DrawText(hdc, L"Pause releases your keyboard so you can use its web configurator without a device-access conflict.",
         pauseHint, UiTheme::Color_TextMuted(), DT_LEFT | DT_TOP | DT_WORDBREAK | DT_NOPREFIX);
 
+#if defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
+    CustomPage_DrawCheckbox(g, hdc, hWnd, st->rcDiagnosticLogging, L"Automatic diagnostic logging",
+        true, false);
+#else
     CustomPage_DrawCheckbox(g, hdc, hWnd, st->rcDiagnosticLogging, L"Enable logging",
         Settings_GetDiagnosticLogging(), true);
+#endif
     CustomPage_DrawButton(g, hdc, st->rcHallJoyFolder, L"Open HallJoy folder",
         st->hotId == GLOB_ID_HALLJOY_FOLDER, st->pressedId == GLOB_ID_HALLJOY_FOLDER, true);
     if (st->loggingError != ERROR_SUCCESS) {
@@ -8752,8 +8731,10 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         }
         if (LOWORD(wParam) == GLOB_ID_DIAGNOSTIC_LOGGING && HIWORD(wParam) == BN_CLICKED)
         {
+#if !defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
             Settings_SetDiagnosticLogging(!Settings_GetDiagnosticLogging());
             Global_RequestSave(hWnd);
+#endif
             CustomPageSurface_MarkDirty(hWnd, &st->surface);
             return 0;
         }

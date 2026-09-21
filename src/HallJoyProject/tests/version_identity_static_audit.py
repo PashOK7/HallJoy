@@ -45,7 +45,7 @@ checks = {
         "detailed hardware matrix (Russian)" not in readme and
         "file+.vscode-resource.vscode-cdn.net" not in readme,
     "production target is HallJoy.exe": "<TargetName>HallJoy</TargetName>" in project and
-        "$targetName = 'HallJoy'" in build and "build\\release\\HallJoy.exe" in readme,
+        "$targetName = 'HallJoy'" in build and "build\\bin\\Release\\x64\\HallJoy.exe" in readme,
     "trace collector uses the production process name": "Get-Process -Name 'HallJoy'" in collector,
     "legacy backend-specific executable name is absent": "HallJoyMAD68ProRNative" not in active_text,
     "active product surfaces do not identify 3.9.0": "3.9.0" not in active_text,

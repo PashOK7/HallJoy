@@ -10,7 +10,10 @@ tested on their own hardware.
 Firmware-proven exact candidates additionally include GravaStar Mercury V75
 `1CA5:2201 / 16052201`, V75 Pro `1CA5:2202 / 16052202`, and V75 Lite
 `1CA2:2201 / 2E022201`. Their HallJoy implementation and compiler gates pass,
-but physical HID/runtime validation is still pending.
+but full runtime validation is still pending. The first physical V75 trace
+confirmed its identity, map, scale and non-zero travel; corrected publication,
+sustained operation and reconnect remain unverified. Pro/Lite have firmware
+evidence only. See [the V75 evidence](../research/GRAVASTAR_MERCURY_V75_FIRMWARE_STATIC_ANALYSIS_2026-08-22.md).
 
 ## Physically proven identity
 

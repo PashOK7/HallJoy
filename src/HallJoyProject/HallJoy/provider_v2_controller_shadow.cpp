@@ -127,11 +127,6 @@ ArbitrationResultV1 Arbitrate(const ArbitrationInputV1& input) noexcept
     {
         add(input.provider, ArbitrationSource_Provider);
     }
-    if (input.allowDigitalFallback && keycode::IsStandardHid(input.keyCode) &&
-        !input.native.owned && result.value <= 0.001f)
-    {
-        add(input.digitalFallback, ArbitrationSource_DigitalFallback);
-    }
     return result;
 }
 
@@ -141,8 +136,7 @@ float MergeWithNative(std::uint16_t keyCode,
 {
     return Arbitrate({ keyCode,
         { nativeOwned, nativeOwned, nativeOwned, nativeValue },
-        { providerOwned, providerOwned, providerOwned, providerValue },
-        {}, false }).value;
+        { providerOwned, providerOwned, providerOwned, providerValue } }).value;
 }
 
 std::uint32_t CompareFrames(

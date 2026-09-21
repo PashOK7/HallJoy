@@ -1,4 +1,4 @@
-﻿// keyboard_render.cpp
+// keyboard_render.cpp
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
@@ -402,7 +402,8 @@ int KeyboardRender_GetAnimatingHids(uint16_t* outHids, int cap)
         }
 
         if (!halljoy::keycode::IsStandardHid(hid) &&
-            hid != halljoy::keycode::kOem1 && hid != halljoy::keycode::kFn)
+            hid != halljoy::keycode::kOem1 && hid != halljoy::keycode::kFn &&
+            !halljoy::wooting_physical::IsCode(hid) && !halljoy::keycode::IsO3c(hid))
             continue;
         // gear state (fast-path)
         bool overrideOn = KeySettings_GetUseUnique(hid);

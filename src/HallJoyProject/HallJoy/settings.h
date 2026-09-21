@@ -93,8 +93,6 @@ UINT Settings_GetBlockKeysHotkey();
 void Settings_SetBlockKeysHotkey(UINT chord);
 
 // Allow digital compatibility fallback when analog SDK stream is unavailable.
-void Settings_SetDigitalFallbackInput(bool on);
-bool Settings_GetDigitalFallbackInput();
 
 enum SettingsSparkPollMode : UINT
 {

@@ -63,17 +63,36 @@
           "products": [
             "0A021902"
           ]
-        }
-      ],
-      "pending": [
+        },
         {
+          "id": "aula_hero84_he_ansi",
+          "model": "HERO84 HE",
+          "variant": "ANSI",
+          "count": 84,
+          "adapter": "reviewed-report",
+          "source": "docs/research/aula-additional-layout-reports/aula_hero84_he_ansi.json",
+          "sha256": "9623592c7d92aee1137fa1d6ab87de3c57f2d42bbdece4cb3809fafd5bac4806",
+          "products": [
+            "110000000005"
+          ],
+          "brand": "Aula"
+        },
+        {
+          "id": "aula_kp_te153_iso",
           "model": "KP-TE153",
-          "reason": "Protocol profile exists; brand attribution and compound geometry require a separate review."
+          "variant": "ISO",
+          "count": 69,
+          "adapter": "reviewed-report",
+          "source": "docs/research/aula-additional-layout-reports/aula_kp_te153_iso.json",
+          "sha256": "4a702182b7de0c60bf659e60fbd283e605bfd3a3478763018e19978c8f00de81",
+          "products": [
+            "SI2851UKKZHEARGB"
+          ],
+          "brand": "Aula"
         }
       ],
-      "excluded": [
-        "HERO84 HE: unverified analog backend enabled; dedicated layout not yet registered"
-      ]
+      "pending": [],
+      "excluded": []
     },
     "Redragon": {
       "adapter": "redragon-w669",
@@ -111,19 +130,30 @@
           "products": [
             "7272UKHEXYXBJCARGB"
           ]
+        },
+        {
+          "id": "redragon_k673_br_abnt2",
+          "model": "K673RGB-M",
+          "variant": "ABNT2",
+          "count": 81,
+          "source": "docs/research/redragon-layout-sources/7272BRHEXYXK673JCARGB.json",
+          "url": "https://www.illumipc.com/config/keys/7272BRHEXYXK673JCARGB.json",
+          "sha256": "e2ed942977639d2c925c083f186f8285045c212238bd54ca3dfa462b388e85b5",
+          "css": "docs/research/redragon-layout-sources/mainIndex8.min.css",
+          "cssUrl": "https://www.illumipc.com/css/mainIndex8.min.css",
+          "cssSha256": "e90906657ed201b9cfbde5de88d082920e9184c8a0d4a807f630065752f62c43",
+          "factory": "K673BrFactoryMap",
+          "products": [
+            "7272BRHEXYXK673JCARGB"
+          ]
         }
       ],
-      "pending": [
-        {
-          "model": "K673 BR",
-          "reason": "Official position 100 publishes IntlRo (0x87) instead of Right Shift; no guessed substitution or protocol change. Fn/encoder have no published HID."
-        }
-      ]
+      "pending": []
     },
     "Razer": {
       "adapter": "reviewed-report",
       "runtime": true,
-      "guide": "docs/current/FINAL_LAYOUT_BATCH.md",
+      "guide": "docs/current/RAZER_REGIONAL_LAYOUTS_2026-09-19.md",
       "models": [
         {
           "id": "razer_huntsman_v3_pro_mini_ansi",
@@ -157,12 +187,104 @@
           "sha256": "7219b279c7d3eefea6a2034e8cc5a9d477d463553ca535e29a6f921017d363bc",
           "products": [],
           "url": ""
+        },
+        {
+          "id": "razer_huntsman_mini_analog_ansi",
+          "model": "Huntsman Mini Analog",
+          "variant": "ANSI",
+          "brand": "Razer",
+          "count": 61,
+          "source": "docs/research/razer-layout-reports-20260919/razer_huntsman_mini_analog_ansi.json",
+          "sha256": "981adb7bb1188b545797424a399bfed6ea8ab56ab2e3aef2f11732dd641ba943",
+          "products": [],
+          "url": "https://dl.razerzone.com/master-guides/RazerSynapse3/HUNTSMANMINIANALOG-00000642-en.pdf"
+        },
+        {
+          "id": "razer_huntsman_v2_analog_ansi",
+          "model": "Huntsman V2 Analog",
+          "variant": "ANSI",
+          "brand": "Razer",
+          "count": 104,
+          "source": "docs/research/razer-layout-reports-20260919/razer_huntsman_v2_analog_ansi.json",
+          "sha256": "6d458d4681627f9341d8ec2418511bcae710f135cd974739fa888aaa00387a60",
+          "products": [],
+          "url": "https://dl.razerzone.com/master-guides/RazerSynapse3/HUNTSMANV2ANALOG-00000614-en.pdf"
+        },
+        {
+          "id": "razer_huntsman_v3_pro_ansi",
+          "model": "Huntsman V3 Pro",
+          "variant": "ANSI",
+          "brand": "Razer",
+          "count": 104,
+          "source": "docs/research/razer-layout-reports-20260919/razer_huntsman_v3_pro_ansi.json",
+          "sha256": "0c297837fcbdf639e67c958b5f5566786b229376f469462bcd259a223f7545c7",
+          "products": [],
+          "url": "https://dl.razerzone.com/master-guides/RazerSynapse3/HUNTSMANV3PRO-00000678-en.pdf"
+        },
+        {
+          "id": "razer_huntsman_v3_pro_tenkeyless_ansi",
+          "model": "Huntsman V3 Pro Tenkeyless",
+          "variant": "ANSI",
+          "brand": "Razer",
+          "count": 84,
+          "source": "docs/research/razer-layout-reports-20260919/razer_huntsman_v3_pro_tenkeyless_ansi.json",
+          "sha256": "abeb42a5389e02d17ef76b98092b710393267d7436338eef3c0cccfb638f559d",
+          "products": [],
+          "url": "https://dl.razerzone.com/master-guides/RazerSynapse3/HUNTSMANV3PROTENKEYLESS-00000679-en.pdf"
+        },
+        {
+          "id": "razer_huntsman_v2_analog_jis",
+          "model": "Huntsman V2 Analog",
+          "variant": "JIS",
+          "brand": "Razer",
+          "count": 108,
+          "source": "docs/research/razer-layout-reports-20260919/razer_huntsman_v2_analog_jis.json",
+          "sha256": "88ef2061d3b99c15c3eff5d590bc6d52830749b89af8f117a63b772332343782",
+          "products": [],
+          "url": "https://cdn.shopify.com/s/files/1/0814/7284/8167/files/4589967506245_caacfc27-154e-4695-a4e9-833dbb5f1073.jpg?v=1710464084"
+        },
+        {
+          "id": "razer_huntsman_v3_pro_jis",
+          "model": "Huntsman V3 Pro",
+          "variant": "JIS",
+          "brand": "Razer",
+          "count": 108,
+          "source": "docs/research/razer-layout-reports-20260919/razer_huntsman_v3_pro_jis.json",
+          "sha256": "1fa0fc1ace0c750fba6b0dceced51bf1bb1c18720f65aed49ca826520f098c12",
+          "products": [],
+          "url": "https://cdn.shopify.com/s/files/1/0814/7284/8167/files/HuntsmanV3Pro_2023_Japanese_2000_2000.jpg?v=1710469265"
+        },
+        {
+          "id": "razer_huntsman_v3_pro_tenkeyless_jis",
+          "model": "Huntsman V3 Pro Tenkeyless",
+          "variant": "JIS",
+          "brand": "Razer",
+          "count": 88,
+          "source": "docs/research/razer-layout-reports-20260919/razer_huntsman_v3_pro_tenkeyless_jis.json",
+          "sha256": "ca9b6fe6ce3326c9d00e49f8d1d27878551017f3ce222c157e32e157851d0de6",
+          "products": [],
+          "url": "https://cdn.shopify.com/s/files/1/0814/7284/8167/files/HuntsmanV3ProTKL_2023_Japan_2000_2000_2.jpg?v=1710469279"
+        },
+        {
+          "id": "razer_huntsman_v3_pro_iso",
+          "model": "Huntsman V3 Pro",
+          "variant": "ISO",
+          "brand": "Razer",
+          "count": 105,
+          "source": "docs/research/razer-layout-reports-20260919/razer_huntsman_v3_pro_iso.json",
+          "sha256": "02952cdbd3437d5bbff4e7688801126dfbbba4fe9b51e525d43fa666bff5d92c",
+          "products": [],
+          "url": "https://pics.computerbase.de/1/1/3/0/7/3-b0923fc26dd72251/20-1080.86b49fd0.jpg"
         }
       ],
       "pending": [
         {
-          "model": "Huntsman V2 Analog / Mini Analog / V3 Pro / V3 Pro Tenkeyless",
-          "reason": "Exact source geometry unavailable in reviewed Synapse Web product catalog; existing analog support unchanged."
+          "model": "Huntsman V2 Analog / Mini Analog / V3 Pro Tenkeyless ISO",
+          "reason": "Exact regional photographs remain unverified; translated guides and some regional storefronts show ANSI."
+        },
+        {
+          "model": "Huntsman Mini Analog JIS",
+          "reason": "An exact JIS product/revision has not been established; no preset is fabricated."
         }
       ]
     },
@@ -199,7 +321,7 @@
     "Wooting": {
       "adapter": "reviewed-report",
       "runtime": true,
-      "guide": "docs/current/FINAL_LAYOUT_BATCH.md",
+      "guide": "docs/current/WOOTING_EXTENDED_LAYOUTS_2026-09-19.md",
       "models": [
         {
           "id": "wooting_60he_ansi",
@@ -343,14 +465,64 @@
           "sha256": "8457cf5695b114896612f96582c64b4b0aca56382eebb876dff0fad14c49c19e",
           "products": [],
           "url": ""
+        },
+        {
+          "id": "wooting_60he_v2_ansi",
+          "model": "60HE v2",
+          "variant": "ANSI",
+          "brand": "Wooting",
+          "count": 61,
+          "source": "docs/research/wooting-extended-layout-reports-20260919/wooting_60he_v2_ansi.json",
+          "sha256": "82a12d4818ba641a8c3176be00d203c11c91fd7327c178b1ae722cb196eb9044",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_60he_v2_iso",
+          "model": "60HE v2",
+          "variant": "ISO",
+          "brand": "Wooting",
+          "count": 62,
+          "source": "docs/research/wooting-extended-layout-reports-20260919/wooting_60he_v2_iso.json",
+          "sha256": "f883ada702dbfbd774809a524109ddac2717177c0e27a302f0153169e680283b",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_60he_v2_split_ansi",
+          "model": "60HE v2 Split",
+          "variant": "ANSI",
+          "brand": "Wooting",
+          "count": 63,
+          "source": "docs/research/wooting-extended-layout-reports-20260919/wooting_60he_v2_split_ansi.json",
+          "sha256": "6037a625b343ad3e1a3b06160919edbc096291c9f89ead69bcfce5168e489fef",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_60he_v2_split_iso",
+          "model": "60HE v2 Split",
+          "variant": "ISO",
+          "brand": "Wooting",
+          "count": 64,
+          "source": "docs/research/wooting-extended-layout-reports-20260919/wooting_60he_v2_split_iso.json",
+          "sha256": "0df19e497abd738b0da5050f8d29c61715656609903ec49c543e18243168d9d8",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_uwu_uwu_rgb_ansi",
+          "model": "UwU + UwU RGB",
+          "variant": "ANSI",
+          "brand": "Wooting",
+          "count": 3,
+          "source": "docs/research/wooting-extended-layout-reports-20260919/wooting_uwu_uwu_rgb_ansi.json",
+          "sha256": "df499547a7df0d8927f4fe3bfcfe66dadc04eacabe6a819b761dac13296a0b3d",
+          "products": [],
+          "url": ""
         }
       ],
-      "pending": [
-        {
-          "model": "60HE v2 / split variants / UwU",
-          "reason": "Outside reviewed v4 keyboard layout batch; no guessed geometry."
-        }
-      ]
+      "pending": []
     },
     "IROK": {
       "adapter": "reviewed-report",
@@ -364,7 +536,7 @@
           "variant": "ANSI",
           "count": 81,
           "source": "docs/research/irok-mg75-layout-reports/irok_mg75_max_ansi.json",
-          "sha256": "e461551f155e444acc38c233e57201493c963619adb0addf45f90038ba28123b",
+          "sha256": "6e5545c13965a3eec9d1b2f60f0c026319af58be4cebd183c6bab5a02aa44bee",
           "products": [],
           "url": ""
         },
@@ -375,8 +547,10 @@
           "variant": "ANSI",
           "count": 81,
           "source": "docs/research/irok-mg75-layout-reports/irok_mg75_pro_ansi.json",
-          "sha256": "1ee976f84c2bcb4149d6dc733bdc76fc208de2124f38ca64dbddf31032403a9f",
-          "products": [],
+          "sha256": "836d55fe2223b59f1beed77de355279b2f3db6cd28f08ee1c5b828d0f769ff7d",
+          "products": [
+            "MG75PRO-1CA5-0807"
+          ],
           "url": ""
         }
       ],
@@ -451,7 +625,9 @@
           "count": 87,
           "source": "docs/research/remaining-layout-reports-20260914/atk_hex80_ansi.json",
           "sha256": "30f4bd422a07d7b9ae9d60538d08b401b22b3b07ef7da68e0f5755bbb06e9629",
-          "products": ["HEX80-ANSI"],
+          "products": [
+            "HEX80-ANSI"
+          ],
           "url": ""
         }
       ],
@@ -523,6 +699,275 @@
       ],
       "excluded": [
         "Plus revisions and other UUIDs are not inferred; no new analog route or transport is enabled."
+      ]
+    },
+    "SayoDevice": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/SAYO_O3C_CONFIG_2026-09-19.md",
+      "models": [
+        {
+          "id": "sayodevice_o3c_ansi",
+          "brand": "SayoDevice",
+          "model": "O3C",
+          "variant": "ANSI",
+          "count": 3,
+          "source": "docs/research/sayo-config-sources/o3c-layout.json",
+          "url": "https://a.sayobot.cn/firmware/update/9/firmware/app_O3C.bin",
+          "sha256": "c1e8524e45216b60a9a12621d063dbb89adbbdabf137cfe935236742bb5b7d06",
+          "products": [
+            "O3C-8089-0009"
+          ]
+        }
+      ]
+    },
+    "GravaStar": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/GRAVASTAR_LAYOUTS_2026-09-19.md",
+      "models": [
+        {
+          "id": "gravastar_v75_ansi",
+          "model": "Mercury V75",
+          "variant": "ANSI",
+          "count": 79,
+          "source": "docs/research/gravastar-layout-sources/gravastar_v75_ansi.json",
+          "url": "https://hub.gravastar1.com/gravastar/assets/index-cN7FiIv6.js",
+          "sha256": "539ebc9dd480ea536dd2bb51f0551f8e7c8f90ff6365a0d0ee2545a34cafd69a",
+          "products": [
+            "16052201"
+          ],
+          "brand": "GravaStar"
+        },
+        {
+          "id": "gravastar_v75_pro_ansi",
+          "model": "Mercury V75 Pro",
+          "variant": "ANSI",
+          "count": 79,
+          "source": "docs/research/gravastar-layout-sources/gravastar_v75_pro_ansi.json",
+          "url": "https://hub.gravastar1.com/gravastar/assets/index-cN7FiIv6.js",
+          "sha256": "d1a88dfc58f15df81a90a9e743cbde6f2028cc1791f620d7d4e7d6b185d7e66e",
+          "products": [
+            "16052202"
+          ],
+          "brand": "GravaStar"
+        },
+        {
+          "id": "gravastar_v75_lite_ansi",
+          "model": "Mercury V75 Lite",
+          "variant": "ANSI",
+          "count": 79,
+          "source": "docs/research/gravastar-layout-sources/gravastar_v75_lite_ansi.json",
+          "url": "https://hub.gravastar1.com/gravastar/assets/index-cN7FiIv6.js",
+          "sha256": "c0bdee5d99fd58a23d2e45e208e24af162b8904f7c928b2a74ac40c9af8ced4c",
+          "products": [
+            "2E022201"
+          ],
+          "brand": "GravaStar"
+        }
+      ]
+    },
+    "ATTACK SHARK": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ATTACK_SHARK_FAMILY_LAYOUTS_2026-09-20.md",
+      "models": [
+        {
+          "id": "attackshark_3737_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "R98 GT + R98 HE + R98 Pro + R98 Ultra",
+          "variant": "ANSI",
+          "count": 98,
+          "source": "docs/research/attackshark-layout-sources/attackshark_3737_ansi.json",
+          "sha256": "d113d0cb21fd052693455322f102740732930985d1ee5738f8bd664315287e99",
+          "products": [
+            "3737",
+            "3743",
+            "3748",
+            "3754"
+          ]
+        },
+        {
+          "id": "attackshark_2268_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "X65 HE",
+          "variant": "ANSI",
+          "count": 67,
+          "source": "docs/research/attackshark-layout-sources/attackshark_2268_ansi.json",
+          "sha256": "0f328148b41fd9e586b0468372759579230efc55955195ca619ab1ac606ac0a2",
+          "products": [
+            "2268",
+            "2942"
+          ]
+        },
+        {
+          "id": "attackshark_2270_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "R68 HE + X68 HE",
+          "variant": "ANSI",
+          "count": 66,
+          "source": "docs/research/attackshark-layout-sources/attackshark_2270_ansi.json",
+          "sha256": "c0e785b34d552a11d3e5dabb2b744b82f10077f303878204543dbfe81de6984e",
+          "products": [
+            "2270",
+            "2472",
+            "2902",
+            "3650"
+          ]
+        },
+        {
+          "id": "attackshark_2633_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "Beat75",
+          "variant": "ANSI",
+          "count": 81,
+          "source": "docs/research/attackshark-layout-sources/attackshark_2633_ansi.json",
+          "sha256": "df163901a6164e694fe156e2b21116c42905421c186424e518b21321c561219b",
+          "products": [
+            "2633"
+          ]
+        },
+        {
+          "id": "attackshark_2660_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "X87 Ultra",
+          "variant": "ANSI",
+          "count": 84,
+          "source": "docs/research/attackshark-layout-sources/attackshark_2660_ansi.json",
+          "sha256": "e0622a48213301182b6ccb2ddf16565a28d4ecf5ec30e59cdeb5084f07af881b",
+          "products": [
+            "2660",
+            "2852"
+          ]
+        },
+        {
+          "id": "attackshark_3086_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "X82 HE",
+          "variant": "ANSI",
+          "count": 83,
+          "source": "docs/research/attackshark-layout-sources/attackshark_3086_ansi.json",
+          "sha256": "7c135a4e500e68e05930acf5f0bbe23fd12a3efb5ea9d278235d2d4e0c504a1c",
+          "products": [
+            "3086"
+          ]
+        },
+        {
+          "id": "attackshark_2650_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "X68 MAX + X68 Ultra",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/attackshark-layout-sources/attackshark_2650_ansi.json",
+          "sha256": "35d4d6bdcf8ce5d830ea13ac376eb42d948d1d3c8b8dde692327b2e06178fb64",
+          "products": [
+            "2650",
+            "2755",
+            "2833"
+          ]
+        },
+        {
+          "id": "attackshark_2769_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "X85 Ultra",
+          "variant": "ANSI",
+          "count": 81,
+          "source": "docs/research/attackshark-layout-sources/attackshark_2769_ansi.json",
+          "sha256": "27561d183b9fcb774cb983b83a348b9e5c8f391b9f4b058df18514a3e7b76130",
+          "products": [
+            "2769"
+          ]
+        },
+        {
+          "id": "attackshark_2793_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "R86 Pro HE",
+          "variant": "ANSI",
+          "count": 87,
+          "source": "docs/research/attackshark-layout-sources/attackshark_2793_ansi.json",
+          "sha256": "9dc2295d146868dc7fca9913ea81611e75943e80f7e1b28977da934c10bdb200",
+          "products": [
+            "2793",
+            "2982"
+          ]
+        },
+        {
+          "id": "attackshark_2798_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "R82 HE + R82 Pro HE",
+          "variant": "ANSI",
+          "count": 80,
+          "source": "docs/research/attackshark-layout-sources/attackshark_2798_ansi.json",
+          "sha256": "e7ea8e0db237680b5da18bbd49ada7c70dcd96e8e3d5256ead42f879e990afa5",
+          "products": [
+            "2798",
+            "2844"
+          ]
+        },
+        {
+          "id": "attackshark_2552_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "K85 + K85 Pro HE",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/attackshark-layout-sources/attackshark_2552_ansi.json",
+          "sha256": "6529c7fef22104b3a08a880ca97d8ec9877bbc592785361f292f724cd22b5819",
+          "products": [
+            "2552",
+            "2978",
+            "3334"
+          ]
+        },
+        {
+          "id": "attackshark_2929_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "X60 HE",
+          "variant": "ANSI",
+          "count": 61,
+          "source": "docs/research/attackshark-layout-sources/attackshark_2929_ansi.json",
+          "sha256": "bcda37ac7c071665ab888e6c9d8c9f73579d2152b2112c4c3849876e1cce5a33",
+          "products": [
+            "2929"
+          ]
+        },
+        {
+          "id": "attackshark_2792_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "X96 HE + X98 HE",
+          "variant": "ANSI",
+          "count": 102,
+          "source": "docs/research/attackshark-layout-sources/attackshark_2792_ansi.json",
+          "sha256": "3c77bef9ab71b8e736d32fa7c7dae183f61d038440da39a59b6378672f34042e",
+          "products": [
+            "2792",
+            "2964"
+          ]
+        },
+        {
+          "id": "attackshark_2968_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "R85 HE + R85 Ultra",
+          "variant": "ANSI",
+          "count": 79,
+          "source": "docs/research/attackshark-layout-sources/attackshark_2968_ansi.json",
+          "sha256": "fefa38822e11fb2be0128d5ef79597f17132da982dab1d0fc5aede3bdc6aa89c",
+          "products": [
+            "2968",
+            "3123"
+          ]
+        },
+        {
+          "id": "attackshark_3221_ansi",
+          "brand": "ATTACK SHARK",
+          "model": "X820 Pro",
+          "variant": "ANSI",
+          "count": 80,
+          "source": "docs/research/attackshark-layout-sources/attackshark_3221_ansi.json",
+          "sha256": "2db93534382fe8c013857c0db2cedee8dcbf67126207da763d4873dcd8c17c66",
+          "products": [
+            "3221"
+          ]
+        }
       ]
     }
   }

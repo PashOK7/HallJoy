@@ -331,6 +331,13 @@
     <ClInclude Include="sayo_letter_matcher.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="sayo_o3c_protocol.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sparkplayjoy_layout.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="sayo_layout_state.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="backend_curve.h">
       <Filter>Header Files</Filter>
     </ClInclude>

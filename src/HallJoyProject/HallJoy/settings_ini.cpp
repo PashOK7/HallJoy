@@ -359,7 +359,7 @@ static bool ValidateProfileNumbers(const wchar_t* path, bool complete)
         return true;
     };
     return validate(L"Main", {L"PollingMs", L"UIRefreshMs", L"VirtualGamepads",
-        L"VirtualGamepadsEnabled", L"DigitalFallbackInput", L"SparkPollMode", L"SparkRowLimit",
+        L"VirtualGamepadsEnabled", L"SparkPollMode", L"SparkRowLimit",
         L"MouseToStickEnabled", L"MouseToStickTarget", L"MouseToStickSensitivity",
         L"MouseToStickAggressiveness", L"MouseToStickMaxOffset", L"MouseToStickFollowSpeed"}) &&
         validate(L"Input", {L"DeadzoneLow", L"DeadzoneHigh", L"AntiDeadzone", L"OutputCap",
@@ -426,7 +426,6 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     UINT uiDef = profileOnly ? 1u : Settings_GetUIRefreshMs();
     int padsDef = profileOnly ? 1 : Settings_GetVirtualGamepadCount();
     int padsEnabledDef = profileOnly ? 1 : (Settings_GetVirtualGamepadsEnabled() ? 1 : 0);
-    int fallbackDef = profileOnly ? 0 : (Settings_GetDigitalFallbackInput() ? 1 : 0);
     UINT sparkPollModeDef = profileOnly ? 0u : Settings_GetSparkPollMode();
     UINT sparkRowLimitDef = profileOnly ? 0u : Settings_GetSparkRowLimit();
     int mouseToStickEnabledDef = profileOnly ? 0 : (Settings_GetMouseToStickEnabled() ? 1 : 0);
@@ -482,7 +481,6 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     UINT uiMs = IniReadU32(L"Main", L"UIRefreshMs", uiDef, path);
     int vpadCount = IniReadI32(L"Main", L"VirtualGamepads", padsDef, path);
     int vpadEnabled = IniReadI32(L"Main", L"VirtualGamepadsEnabled", padsEnabledDef, path);
-    int digitalFallbackInput = IniReadI32(L"Main", L"DigitalFallbackInput", fallbackDef, path);
     UINT sparkPollMode = IniReadU32(L"Main", L"SparkPollMode", sparkPollModeDef, path);
     UINT sparkRowLimit = IniReadU32(L"Main", L"SparkRowLimit", sparkRowLimitDef, path);
     int mouseToStickEnabled = IniReadI32(L"Main", L"MouseToStickEnabled", mouseToStickEnabledDef, path);
@@ -596,7 +594,6 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     Settings_SetUIRefreshMs(uiMs);
     Settings_SetVirtualGamepadCount(vpadCount);
     Settings_SetVirtualGamepadsEnabled(vpadEnabled != 0);
-    Settings_SetDigitalFallbackInput(digitalFallbackInput != 0);
     Settings_SetSparkPollMode(sparkPollMode);
     Settings_SetSparkRowLimit(sparkRowLimit);
     Settings_SetMouseToStickEnabled(mouseToStickEnabled != 0);
@@ -732,7 +729,6 @@ static bool SettingsIni_Save_Internal(
     ok &= IniWriteU32(L"Main", L"UIRefreshMs", Settings_GetUIRefreshMs(), tmpPath);
     ok &= IniWriteI32(L"Main", L"VirtualGamepads", std::clamp(Settings_GetVirtualGamepadCount(), 1, 4), tmpPath);
     ok &= IniWriteI32(L"Main", L"VirtualGamepadsEnabled", Settings_GetVirtualGamepadsEnabled() ? 1 : 0, tmpPath);
-    ok &= IniWriteI32(L"Main", L"DigitalFallbackInput", Settings_GetDigitalFallbackInput() ? 1 : 0, tmpPath);
     ok &= IniWriteU32(L"Main", L"SparkPollMode", Settings_GetSparkPollMode(), tmpPath);
     ok &= IniWriteU32(L"Main", L"SparkRowLimit", Settings_GetSparkRowLimit(), tmpPath);
     ok &= halljoy::ini::WriteBatch::Put(L"Main", L"SparkMissedHidDebug", nullptr, tmpPath) != FALSE;

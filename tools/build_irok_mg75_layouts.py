@@ -77,8 +77,8 @@ def prepare():
             k['x']-=minx;k['y']-=miny
             for field in ('x','y','w','h'):k[field]=int((k[field]*Decimal(42)/Decimal('36.5')).quantize(Decimal(1),rounding=ROUND_HALF_UP))
         report=dict(schema=1,id='irok_'+model.lower().replace(' ','_')+'_ansi',brand='IROK',model=model,variant='ANSI',name='IROK '+model+' ANSI',status='ready',unresolved=[],keys=keys,
-            identity=dict(protocol='sparklink',products=[]),sources=[dict(path=str(SOURCE.relative_to(ROOT)).replace('\\','/'),sha256=HASH,url='https://hid.irok.cn/assets/index-BQvZQSA6.js')],
-            notes=['Official model geometry, normalized to 42 px standard keys.','Manual preset selection: no new exact-model identity published by SparkLink.','Fn uses HallJoy reserved Fn code 0x409; current SparkLink byte map does not publish this extended code.','MG75 v2 is excluded.'])
+            identity=dict(protocol='sparklink' if model=='MG75 Max' else 'irok-mg75-pro',products=[] if model=='MG75 Max' else ['MG75PRO-1CA5-0807']),sources=[dict(path=str(SOURCE.relative_to(ROOT)).replace('\\','/'),sha256=HASH,url='https://hid.irok.cn/assets/index-BQvZQSA6.js')],
+            notes=['Official model geometry, normalized to 42 px standard keys.',('Manual preset selection: no new exact-model identity published by SparkLink.' if model=='MG75 Max' else 'Automatic selection after exact product, factory matrix and travel response proof; live base-layer remaps.'),('Fn action 0xF101 now maps to HallJoy 0x409 through SparkLink; hardware validation pending.' if model=='MG75 Max' else 'SparkLink V1 native independent 6x21 travel; Fn compact matrix index 116. Experimental until tested on hardware.'),'MG75 v2 is excluded.'])
         common.require(len(keys)==81,'Unexpected MG75 key count');pipeline.validate_report(report);reports.append(report)
     return reports
 

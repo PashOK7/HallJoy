@@ -1,0 +1,275 @@
+{
+  "date": "2026-09-20",
+  "sheetId": "1ueQ4labXpuBOmGjCkUcJllNJ68Jzx4py2MuQm-p-R7c",
+  "previousRecords": 266,
+  "totalRecords": 304,
+  "totalBrands": 39,
+  "additions": [
+    {
+      "brand": "Womier",
+      "model": "M68 HE",
+      "status": "Not investigated",
+      "source": "https://womierkeyboard.com/collections/hall-effect-keyboards",
+      "evidence": "Manufacturer magnetic catalog; M68 HE Pro product specifications explicitly name Haimu Ice Jade magnetic switches. SK75 TMR is a hybrid board; conventional SK75 excluded."
+    },
+    {
+      "brand": "Womier",
+      "model": "M68 HE V2",
+      "status": "Not investigated",
+      "source": "https://womierkeyboard.com/collections/hall-effect-keyboards",
+      "evidence": "Manufacturer magnetic catalog; M68 HE Pro product specifications explicitly name Haimu Ice Jade magnetic switches. SK75 TMR is a hybrid board; conventional SK75 excluded."
+    },
+    {
+      "brand": "Womier",
+      "model": "M68 HE Pro",
+      "status": "Not investigated",
+      "source": "https://womierkeyboard.com/collections/hall-effect-keyboards",
+      "evidence": "Manufacturer magnetic catalog; M68 HE Pro product specifications explicitly name Haimu Ice Jade magnetic switches. SK75 TMR is a hybrid board; conventional SK75 excluded."
+    },
+    {
+      "brand": "Womier",
+      "model": "SK61 HE",
+      "status": "Not investigated",
+      "source": "https://womierkeyboard.com/collections/hall-effect-keyboards",
+      "evidence": "Manufacturer magnetic catalog; M68 HE Pro product specifications explicitly name Haimu Ice Jade magnetic switches. SK75 TMR is a hybrid board; conventional SK75 excluded."
+    },
+    {
+      "brand": "Womier",
+      "model": "SK75 TMR",
+      "status": "Not investigated",
+      "source": "https://womierkeyboard.com/collections/hall-effect-keyboards",
+      "evidence": "Manufacturer magnetic catalog; M68 HE Pro product specifications explicitly name Haimu Ice Jade magnetic switches. SK75 TMR is a hybrid board; conventional SK75 excluded."
+    },
+    {
+      "brand": "Womier",
+      "model": "WD75 HE",
+      "status": "Not investigated",
+      "source": "https://womierkeyboard.com/collections/hall-effect-keyboards",
+      "evidence": "Manufacturer magnetic catalog; M68 HE Pro product specifications explicitly name Haimu Ice Jade magnetic switches. SK75 TMR is a hybrid board; conventional SK75 excluded."
+    },
+    {
+      "brand": "YUNZII",
+      "model": "RT68",
+      "status": "Not investigated",
+      "source": "https://www.yunzii.com/collections/magnetic-keyboard",
+      "evidence": "Manufacturer lists these RT models as magnetic. Regional/color duplicates and MADLIONS collaborations excluded from this new-brand batch."
+    },
+    {
+      "brand": "YUNZII",
+      "model": "RT75",
+      "status": "Not investigated",
+      "source": "https://www.yunzii.com/collections/magnetic-keyboard",
+      "evidence": "Manufacturer lists these RT models as magnetic. Regional/color duplicates and MADLIONS collaborations excluded from this new-brand batch."
+    },
+    {
+      "brand": "YUNZII",
+      "model": "RT75 Pro",
+      "status": "Not investigated",
+      "source": "https://www.yunzii.com/collections/magnetic-keyboard",
+      "evidence": "Manufacturer lists these RT models as magnetic. Regional/color duplicates and MADLIONS collaborations excluded from this new-brand batch."
+    },
+    {
+      "brand": "YUNZII",
+      "model": "RT80",
+      "status": "Not investigated",
+      "source": "https://www.yunzii.com/collections/magnetic-keyboard",
+      "evidence": "Manufacturer lists these RT models as magnetic. Regional/color duplicates and MADLIONS collaborations excluded from this new-brand batch."
+    },
+    {
+      "brand": "IQUNIX",
+      "model": "EZ60",
+      "status": "Not investigated",
+      "source": "https://iqunix.com/pages/iqunix-ez60-ez63-magnetic-switch-gaming-he-keyboard",
+      "evidence": "Manufacturer specifies magnetic Hall sensing and independently adjustable actuation."
+    },
+    {
+      "brand": "IQUNIX",
+      "model": "EZ63",
+      "status": "Not investigated",
+      "source": "https://iqunix.com/pages/iqunix-ez60-ez63-magnetic-switch-gaming-he-keyboard",
+      "evidence": "Manufacturer specifies magnetic Hall sensing and independently adjustable actuation."
+    },
+    {
+      "brand": "LUMINKEY",
+      "model": "Magger60 HE",
+      "status": "Not investigated",
+      "source": "https://www.luminkey.com/collections/hall-effects-magnetic-keyboards",
+      "evidence": "Manufacturer Hall Effect catalog identifies each keyboard. Standalone switches excluded. LUMINKEY65 HE Ultra is offered as a magnetic barebones board."
+    },
+    {
+      "brand": "LUMINKEY",
+      "model": "Magger68 HE Performance",
+      "status": "Not investigated",
+      "source": "https://www.luminkey.com/collections/hall-effects-magnetic-keyboards",
+      "evidence": "Manufacturer Hall Effect catalog identifies each keyboard. Standalone switches excluded. LUMINKEY65 HE Ultra is offered as a magnetic barebones board."
+    },
+    {
+      "brand": "LUMINKEY",
+      "model": "Magger68 HE Professional",
+      "status": "Not investigated",
+      "source": "https://www.luminkey.com/collections/hall-effects-magnetic-keyboards",
+      "evidence": "Manufacturer Hall Effect catalog identifies each keyboard. Standalone switches excluded. LUMINKEY65 HE Ultra is offered as a magnetic barebones board."
+    },
+    {
+      "brand": "LUMINKEY",
+      "model": "Magger68 HE Plus",
+      "status": "Not investigated",
+      "source": "https://www.luminkey.com/collections/hall-effects-magnetic-keyboards",
+      "evidence": "Manufacturer Hall Effect catalog identifies each keyboard. Standalone switches excluded. LUMINKEY65 HE Ultra is offered as a magnetic barebones board."
+    },
+    {
+      "brand": "LUMINKEY",
+      "model": "Magger68 HE Ultra",
+      "status": "Not investigated",
+      "source": "https://www.luminkey.com/collections/hall-effects-magnetic-keyboards",
+      "evidence": "Manufacturer Hall Effect catalog identifies each keyboard. Standalone switches excluded. LUMINKEY65 HE Ultra is offered as a magnetic barebones board."
+    },
+    {
+      "brand": "LUMINKEY",
+      "model": "LUMINKEY65 HE Ultra",
+      "status": "Not investigated",
+      "source": "https://www.luminkey.com/collections/hall-effects-magnetic-keyboards",
+      "evidence": "Manufacturer Hall Effect catalog identifies each keyboard. Standalone switches excluded. LUMINKEY65 HE Ultra is offered as a magnetic barebones board."
+    },
+    {
+      "brand": "LUMINKEY",
+      "model": "LUMINKEY75 V2 HE",
+      "status": "Not investigated",
+      "source": "https://www.luminkey.com/collections/hall-effects-magnetic-keyboards",
+      "evidence": "Manufacturer Hall Effect catalog identifies each keyboard. Standalone switches excluded. LUMINKEY65 HE Ultra is offered as a magnetic barebones board."
+    },
+    {
+      "brand": "LUMINKEY",
+      "model": "Titan75 HE",
+      "status": "Not investigated",
+      "source": "https://www.luminkey.com/collections/hall-effects-magnetic-keyboards",
+      "evidence": "Manufacturer Hall Effect catalog identifies each keyboard. Standalone switches excluded. LUMINKEY65 HE Ultra is offered as a magnetic barebones board."
+    },
+    {
+      "brand": "Meletrix",
+      "model": "BOOG75",
+      "status": "Not investigated",
+      "source": "https://meletrix.com/pages/boog75",
+      "evidence": "Manufacturer identifies BOOG75 and Zoom75 with HE module as magnetic keyboard configurations."
+    },
+    {
+      "brand": "Meletrix",
+      "model": "Zoom75 HE",
+      "status": "Not investigated",
+      "source": "https://meletrix.com/pages/boog75",
+      "evidence": "Manufacturer identifies BOOG75 and Zoom75 with HE module as magnetic keyboard configurations."
+    },
+    {
+      "brand": "Meletrix",
+      "model": "Zoom65 V3 HE",
+      "status": "Not investigated",
+      "source": "https://meletrix.com/products/zoom65-v3-he-module",
+      "evidence": "Magnetic configuration requires the optional HE module, supplied with RAESHA Rouge magnetic switches. Ordinary Zoom65 V3 is not claimed magnetic."
+    },
+    {
+      "brand": "Arbiter Studio",
+      "model": "Polar 65 HE",
+      "status": "Not investigated",
+      "source": "https://arbiterstudio.com/collections/keyboards",
+      "evidence": "Manufacturer catalog explicitly describes Hall sensors or magnetic switches for these lines. TENKO appears as a series on the Arbiter storefront, not a separately merged external brand. Cosmetic editions and dual-rail switch-only editions are not separate rows."
+    },
+    {
+      "brand": "Arbiter Studio",
+      "model": "Polar 65 Pro",
+      "status": "Not investigated",
+      "source": "https://arbiterstudio.com/collections/keyboards",
+      "evidence": "Manufacturer catalog explicitly describes Hall sensors or magnetic switches for these lines. TENKO appears as a series on the Arbiter storefront, not a separately merged external brand. Cosmetic editions and dual-rail switch-only editions are not separate rows."
+    },
+    {
+      "brand": "Arbiter Studio",
+      "model": "Polar 75 Pro",
+      "status": "Not investigated",
+      "source": "https://arbiterstudio.com/collections/keyboards",
+      "evidence": "Manufacturer catalog explicitly describes Hall sensors or magnetic switches for these lines. TENKO appears as a series on the Arbiter storefront, not a separately merged external brand. Cosmetic editions and dual-rail switch-only editions are not separate rows."
+    },
+    {
+      "brand": "Arbiter Studio",
+      "model": "Polar 65+ HE",
+      "status": "Not investigated",
+      "source": "https://arbiterstudio.com/collections/keyboards",
+      "evidence": "Manufacturer catalog explicitly describes Hall sensors or magnetic switches for these lines. TENKO appears as a series on the Arbiter storefront, not a separately merged external brand. Cosmetic editions and dual-rail switch-only editions are not separate rows."
+    },
+    {
+      "brand": "Arbiter Studio",
+      "model": "Polar 75+ HE",
+      "status": "Not investigated",
+      "source": "https://arbiterstudio.com/collections/keyboards",
+      "evidence": "Manufacturer catalog explicitly describes Hall sensors or magnetic switches for these lines. TENKO appears as a series on the Arbiter storefront, not a separately merged external brand. Cosmetic editions and dual-rail switch-only editions are not separate rows."
+    },
+    {
+      "brand": "Arbiter Studio",
+      "model": "ARC 65 HE",
+      "status": "Not investigated",
+      "source": "https://arbiterstudio.com/collections/keyboards",
+      "evidence": "Manufacturer catalog explicitly describes Hall sensors or magnetic switches for these lines. TENKO appears as a series on the Arbiter storefront, not a separately merged external brand. Cosmetic editions and dual-rail switch-only editions are not separate rows."
+    },
+    {
+      "brand": "Glorious",
+      "model": "GMMK 3 HE 65%",
+      "status": "Not investigated",
+      "source": "https://www.gloriousgaming.com/pages/hall-effect-technology",
+      "evidence": "Manufacturer lists HE version in 65/75/100 percent sizes. Hybrid MX/HE compatibility does not make installed mechanical switches analog."
+    },
+    {
+      "brand": "Glorious",
+      "model": "GMMK 3 Pro HE 65%",
+      "status": "Not investigated",
+      "source": "https://www.gloriousgaming.com/en-ca/pages/guide-gmmk3-pro-he",
+      "evidence": "Manufacturer guide covers wired/wireless HE keyboards in all three sizes. Mechanical GMMK 3 versions excluded."
+    },
+    {
+      "brand": "Glorious",
+      "model": "GMMK 3 Pro HE Wireless 65%",
+      "status": "Not investigated",
+      "source": "https://www.gloriousgaming.com/en-ca/pages/guide-gmmk3-pro-he",
+      "evidence": "Manufacturer guide covers wired/wireless HE keyboards in all three sizes. Mechanical GMMK 3 versions excluded."
+    },
+    {
+      "brand": "Glorious",
+      "model": "GMMK 3 HE 75%",
+      "status": "Not investigated",
+      "source": "https://www.gloriousgaming.com/pages/hall-effect-technology",
+      "evidence": "Manufacturer lists HE version in 65/75/100 percent sizes. Hybrid MX/HE compatibility does not make installed mechanical switches analog."
+    },
+    {
+      "brand": "Glorious",
+      "model": "GMMK 3 Pro HE 75%",
+      "status": "Not investigated",
+      "source": "https://www.gloriousgaming.com/en-ca/pages/guide-gmmk3-pro-he",
+      "evidence": "Manufacturer guide covers wired/wireless HE keyboards in all three sizes. Mechanical GMMK 3 versions excluded."
+    },
+    {
+      "brand": "Glorious",
+      "model": "GMMK 3 Pro HE Wireless 75%",
+      "status": "Not investigated",
+      "source": "https://www.gloriousgaming.com/en-ca/pages/guide-gmmk3-pro-he",
+      "evidence": "Manufacturer guide covers wired/wireless HE keyboards in all three sizes. Mechanical GMMK 3 versions excluded."
+    },
+    {
+      "brand": "Glorious",
+      "model": "GMMK 3 HE 100%",
+      "status": "Not investigated",
+      "source": "https://www.gloriousgaming.com/pages/hall-effect-technology",
+      "evidence": "Manufacturer lists HE version in 65/75/100 percent sizes. Hybrid MX/HE compatibility does not make installed mechanical switches analog."
+    },
+    {
+      "brand": "Glorious",
+      "model": "GMMK 3 Pro HE 100%",
+      "status": "Not investigated",
+      "source": "https://www.gloriousgaming.com/en-ca/pages/guide-gmmk3-pro-he",
+      "evidence": "Manufacturer guide covers wired/wireless HE keyboards in all three sizes. Mechanical GMMK 3 versions excluded."
+    },
+    {
+      "brand": "Glorious",
+      "model": "GMMK 3 Pro HE Wireless 100%",
+      "status": "Not investigated",
+      "source": "https://www.gloriousgaming.com/en-ca/pages/guide-gmmk3-pro-he",
+      "evidence": "Manufacturer guide covers wired/wireless HE keyboards in all three sizes. Mechanical GMMK 3 versions excluded."
+    }
+  ]
+}

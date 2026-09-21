@@ -93,23 +93,20 @@ def main() -> int:
     for stale in ("V11.0.2", "bench.ps1", "run_tests.ps1", "HallJoyTests", "ensure_blend2d.ps1"):
         require(stale not in testing, f"stale testing reference returned: {stale}")
     require("run_native_backend_checks.py --require-compiler" in testing and
-            "run_release_qualification.ps1" in testing and
-            "Aula WIN 60 HE MAX has completed three physical" in testing and
-            "the tester confirmed" in testing and
-            "Return-after-disconnect evidence" in testing and
-            "hold 10 keys for 10 seconds" in testing,
-            "TESTING.md does not describe the current automated/hardware gates")
-
+            "build_release.ps1" in testing and "Hardware and visual limits" in testing and
+            "TESTING_BEFORE_2026-09-20.md" in testing and
+            "not visual runs" in testing,
+            "TESTING.md must describe current automated gates and preserve historical hardware evidence")
     require("Madlions V6 SafeHID branch" not in readme and
             "Settings saved next to the executable" not in readme,
             "project README returned to the V6/storage story")
-    require("Windows x64 only" in readme and "build\\release\\HallJoy.exe" in readme and
-            "%LOCALAPPDATA%\\HallJoy" in readme,
-            "project README is missing the current target/output/storage contract")
-    require("BUILD.cmd" in build_readme and "build\\release\\HallJoy.exe" in build_readme and
-            "build\\release" in build_readme and
-            "Win32/x86 is not supported" in build_readme,
-            "build guide is missing the current x64 build contract")
+    require("Windows x64" in readme and "build/bin/Release/x64/HallJoy.exe" in readme and
+            "README.md" in readme,
+            "project README is missing current target/output and product documentation link")
+    require("BUILD.cmd" in build_readme and "build\\bin\\Release\\x64\\HallJoy.exe" in build_readme and
+            "Windows x64 is the supported target" in build_readme and
+            "Ordinary builds support optional continuous logging" in build_readme,
+            "build guide is missing current output, architecture or logging contract")
 
     require(historical.startswith("HISTORICAL RECORD ONLY - NOT CURRENT v1.4 RELEASE EVIDENCE"),
             "v3.9 validation record lacks the historical warning")

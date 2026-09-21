@@ -1,3 +1,4 @@
+#include "input_path_diagnostics.h"
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #include "support_log.h"
@@ -32,6 +33,7 @@ std::atomic<bool> failurePending{false};
 std::atomic<HWND> uiWindow{nullptr};
 std::atomic<DWORD> lastError{0};
 HANDLE worker = nullptr, stopEvent = nullptr;
+std::wstring testMirrorDirectory;
 std::wstring testDirectory; // Optional isolated destination for real writer tests.
 
 void Error(DWORD error) noexcept {
@@ -108,16 +110,44 @@ DWORD WINAPI Run(void*) noexcept {
     try {
         std::deque<Line> history;
         std::vector<Line> batch(kQueueLines);
-        bool previousIncident = false, previousContinuous = false, opened = false;
-        bool retryPending = false;
-        ULONGLONG retryAfter = 0;
-        DWORD fileBytes = 0;
-        auto directory = testDirectory.empty() ? SupportLog_Directory() : testDirectory;
-        const auto path = directory + L"\\HallJoy.log";
+        bool previousIncident = false, previousContinuous = false;
+        struct Destination {
+            std::wstring directory;
+            bool opened = false, retryPending = false;
+            ULONGLONG retryAfter = 0;
+            DWORD fileBytes = 0, error = 0;
+        };
+        const auto primary = testDirectory.empty() ? SupportLog_Directory() : testDirectory;
+        const auto mirror = testDirectory.empty() ? AppPaths_LegacyDataRoot() : testMirrorDirectory;
+        std::array<Destination, 2> destinations{{{primary}, {mirror}}};
+        const bool distinctMirror = !mirror.empty() && _wcsicmp(primary.c_str(), mirror.c_str()) != 0;
         unsigned ticks = 0;
         Enqueue("session.begin version=" HALLJOY_VERSION_STRING_FULL " schema=1 privacy=no_keys_no_input_values_no_serials_no_paths; support absence is not proof of an unsupported keyboard");
         for (;;) {
+#if defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
+            const bool continuous = true;
+            char pathLine[kLineBytes]{};
+            DWORD foregroundPid=0;
+            const HWND foreground=GetForegroundWindow();
+            if(foreground)GetWindowThreadProcessId(foreground,&foregroundPid);
+            sprintf_s(pathLine,"path.mode build=input-path-20260919-r1 diagnostic=1 automatic_logging=1 block=%u engine_running=%u foreground=%s cumulative=1 aggregate_only=1",
+                unsigned(Settings_GetBlockBoundKeys()),unsigned(halljoy::engine_runtime::EngineRuntimeOwner_IsRunning()),
+                !foreground ? "none" : foregroundPid==GetCurrentProcessId() ? "own" : "external");
+            Enqueue(pathLine);
+            for(unsigned bank=0;bank<2;++bank) {
+                using namespace halljoy::input_path;
+                sprintf_s(pathLine,"path.counts block=%u source_frames=%llu source_positive=%llu fn_unavailable=%llu configured_reads=%llu raw_positive=%llu filtered_positive=%llu frames=%llu active_frames=%llu published=%llu rejected=%llu bound_passed=%llu bound_blocked=%llu",
+                    bank,Read(bank,SourceFrames),Read(bank,SourcePositive),Read(bank,FnUnavailable),
+                    Read(bank,ConfiguredReads),Read(bank,RawPositive),Read(bank,FilteredPositive),
+                    Read(bank,BuiltFrames),Read(bank,ActiveFrames),Read(bank,Published),Read(bank,PublishRejected),
+                    Read(bank,BoundPassed),Read(bank,BoundBlocked));
+                Enqueue(pathLine);
+            }
+            Backend_InputPathStatus(pathLine,sizeof(pathLine));Enqueue(pathLine);
+            if(ticks%5==0)Snapshot(true);
+#else
             const bool continuous = Settings_GetDiagnosticLogging();
+#endif
             const auto s = halljoy::keyboard_support::GetStatusSnapshot();
             const bool incident = s.searchCompleted && !s.analogSourceConnected;
             const bool requested = incidentPending.exchange(false);
@@ -130,6 +160,7 @@ DWORD WINAPI Run(void*) noexcept {
             if (trigger || changed) { Inventory(); Snapshot(true); }
             else if (ticks % 30 == 0) Snapshot(continuous || incident);
             const bool shouldWrite = failure || requested || continuous || incident || (previousIncident && !incident) || (previousContinuous && !continuous);
+            const bool mirrorEnabled = continuous || previousContinuous;
             previousIncident = incident; previousContinuous = continuous;
             ++ticks;
             size_t count;
@@ -143,44 +174,58 @@ DWORD WINAPI Run(void*) noexcept {
             for(size_t i=0;i<count;++i) { history.push_back(batch[i]); if(history.size()>kHistoryLines) history.pop_front(); }
 #if defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_IROK_NA87_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG)
             for (size_t i=0;i<count;++i) DebugLog_Write(L"[support] %S", batch[i].data());
-            (void)shouldWrite; (void)retryPending; (void)retryAfter; (void)opened; (void)fileBytes;
+            (void)shouldWrite; (void)mirrorEnabled; (void)destinations; (void)distinctMirror;
 #else
-            if (((shouldWrite && (count || trigger)) || retryPending) && GetTickCount64() >= retryAfter) {
-                retryPending=true;
-                retryAfter=GetTickCount64()+5000; // Retain failed automatic reports; no tight retry loop.
-                if (directory.empty()) { Error(ERROR_PATH_NOT_FOUND); }
-                else {
-                    CreateDirectoryW(directory.c_str(), nullptr);
-                    const bool reset = !opened || trigger || fileBytes + count*kLineBytes > kFileLimit;
-                    const auto destination = reset ? path + L".tmp" : path;
-                    HANDLE file = CreateFileW(destination.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr,
-                        reset ? CREATE_ALWAYS : OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-                    if (file == INVALID_HANDLE_VALUE) { Error(GetLastError()); opened=false; }
+            for (size_t sink = 0; sink < destinations.size(); ++sink) {
+                auto& state = destinations[sink];
+                if (sink == 1 && (!distinctMirror || !mirrorEnabled)) {
+                    state.retryPending = false; state.retryAfter = 0; state.error = 0;
+                    continue;
+                }
+                auto& directory = state.directory;
+                auto& opened = state.opened;
+                auto& retryPending = state.retryPending;
+                auto& retryAfter = state.retryAfter;
+                auto& fileBytes = state.fileBytes;
+                const auto path = directory + L"\\HallJoy.log";
+                if (((shouldWrite && (count || trigger)) || retryPending) && GetTickCount64() >= retryAfter) {
+                    retryPending=true;
+                    retryAfter=GetTickCount64()+5000; // Retain failed automatic reports; no tight retry loop.
+                    if (directory.empty()) { state.error = ERROR_PATH_NOT_FOUND; }
                     else {
-                        bool ok = true;
-                        if (reset) {
-                            fileBytes=0;
-                            Line header{};
-                            SYSTEMTIME utc{}; GetSystemTime(&utc);
-                            sprintf_s(header.data(),header.size(),"HallJoy " HALLJOY_VERSION_STRING_FULL " support report schema=1 utc=%04u-%02u-%02uT%02u:%02u:%02uZ bounded_history=512 no_keyboard_text=1",utc.wYear,utc.wMonth,utc.wDay,utc.wHour,utc.wMinute,utc.wSecond);
-                            ok=WriteLine(file,header); fileBytes=DWORD(strlen(header.data())+2);
-                            for (const auto& line : history) { if (!ok || !(ok=WriteLine(file,line))) break; fileBytes += DWORD(strlen(line.data())+2); }
-                        } else {
-                            SetFilePointer(file, 0, nullptr, FILE_END);
-                            for(size_t i=0;i<count;++i) { if(!(ok=WriteLine(file,batch[i]))) break; fileBytes += DWORD(strlen(batch[i].data())+2); }
+                        CreateDirectoryW(directory.c_str(), nullptr);
+                        const bool reset = !opened || trigger || fileBytes + count*kLineBytes > kFileLimit;
+                        const auto destination = reset ? path + L".tmp" : path;
+                        HANDLE file = CreateFileW(destination.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr,
+                            reset ? CREATE_ALWAYS : OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+                        if (file == INVALID_HANDLE_VALUE) { state.error = GetLastError(); opened=false; }
+                        else {
+                            bool ok = true;
+                            if (reset) {
+                                fileBytes=0;
+                                Line header{};
+                                SYSTEMTIME utc{}; GetSystemTime(&utc);
+                                sprintf_s(header.data(),header.size(),"HallJoy " HALLJOY_VERSION_STRING_FULL " support report schema=1 utc=%04u-%02u-%02uT%02u:%02u:%02uZ bounded_history=512 no_keyboard_text=1",utc.wYear,utc.wMonth,utc.wDay,utc.wHour,utc.wMinute,utc.wSecond);
+                                ok=WriteLine(file,header); fileBytes=DWORD(strlen(header.data())+2);
+                                for (const auto& line : history) { if (!ok || !(ok=WriteLine(file,line))) break; fileBytes += DWORD(strlen(line.data())+2); }
+                            } else {
+                                SetFilePointer(file, 0, nullptr, FILE_END);
+                                for(size_t i=0;i<count;++i) { if(!(ok=WriteLine(file,batch[i]))) break; fileBytes += DWORD(strlen(batch[i].data())+2); }
+                            }
+                            DWORD error = ok ? 0 : GetLastError();
+                            CloseHandle(file);
+                            if(ok && reset && !MoveFileExW(destination.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+                                ok=false; error=GetLastError();
+                            }
+                            if(reset && !ok) DeleteFileW(destination.c_str()); // Only our exact transient file.
+                            opened=ok;
+                            if(ok) { retryPending=false; retryAfter=0; }
+                            state.error = ok ? 0 : (error ? error : ERROR_WRITE_FAULT);
                         }
-                        DWORD error = ok ? 0 : GetLastError();
-                        CloseHandle(file);
-                        if(ok && reset && !MoveFileExW(destination.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
-                            ok=false; error=GetLastError();
-                        }
-                        if(reset && !ok) DeleteFileW(destination.c_str()); // Only our exact transient file.
-                        opened=ok;
-                        if(ok) { retryPending=false; retryAfter=0; }
-                        Error(ok ? 0 : (error ? error : ERROR_WRITE_FAULT));
                     }
                 }
             }
+            Error(destinations[0].error ? destinations[0].error : destinations[1].error);
 #endif
             if (stopping.load()) break;
             if (WaitForSingleObject(stopEvent, 1000) == WAIT_OBJECT_0) stopping=true;
@@ -190,11 +235,23 @@ DWORD WINAPI Run(void*) noexcept {
 }
 }
 std::wstring SupportLog_Directory() {
+#if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
+    wchar_t executable[32768]{};
+    const DWORD size=GetModuleFileNameW(nullptr,executable,_countof(executable));
+    if (!size || size>=_countof(executable)) return {};
+    std::wstring directory(executable,size);
+    const auto separator=directory.find_last_of(L"\\/");
+    if (separator==std::wstring::npos) return {};
+    directory.resize(separator+1);
+    return directory;
+#else
     return AppPaths_DataRoot(); // Respects portable mode and isolated test roots.
+#endif
 }
-bool SupportLog_Start(const wchar_t* directoryOverride) noexcept {
+bool SupportLog_Start(const wchar_t* directoryOverride, const wchar_t* mirrorOverride) noexcept {
     if(worker) return true;
-    try { testDirectory=directoryOverride ? directoryOverride : L""; }
+    try { testDirectory=directoryOverride ? directoryOverride : L"";
+          testMirrorDirectory=mirrorOverride ? mirrorOverride : L""; }
     catch(...) { Error(ERROR_NOT_ENOUGH_MEMORY); return false; }
     inventoryDirty=true;
     stopping=false;

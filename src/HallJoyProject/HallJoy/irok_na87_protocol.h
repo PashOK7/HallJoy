@@ -18,7 +18,9 @@ class MapReader {
     PositionToHid map_{};
     unsigned rows_ = 0;
     bool conflict_ = false;
+    bool allowDuplicateHids_ = false;
 public:
+    explicit MapReader(bool allowDuplicateHids = false) : allowDuplicateHids_(allowDuplicateHids) {}
     bool Feed(const Report& r) noexcept {
         if (r[0]!=1 || r[1]!=0x10 || r[2]!=0 || r[5]!=22) return false;
         unsigned row=6;
@@ -36,7 +38,7 @@ public:
         std::array<bool,256> seen{}; unsigned count=0;
         for (auto hid:map_) {
             if (!hid) continue;
-            if (hid<4 || (hid>0xe7 && hid!=0xfa) || seen[hid]) return false;
+            if (hid<4 || (hid>0xe7 && hid!=0xfa) || (!allowDuplicateHids_ && seen[hid])) return false;
             seen[hid]=true; ++count;
         }
         return count>=60 && count<=110;

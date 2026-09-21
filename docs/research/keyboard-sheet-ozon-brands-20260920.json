@@ -1,0 +1,152 @@
+{
+  "date": "2026-09-20",
+  "additions": [
+    {
+      "brand": "CIDOO",
+      "model": "C75",
+      "status": "Not investigated",
+      "source": "https://cdn.shopify.com/s/files/1/0691/8337/3602/files/C75Manual.pdf?v=1725254702",
+      "evidence": "Manufacturer manual linked from official downloads explicitly names C75 Magnetic Keyboard."
+    },
+    {
+      "brand": "CIDOO",
+      "model": "C80",
+      "status": "Not investigated",
+      "source": "https://cidootech.com/blogs/software/cidoo-c80-driver",
+      "evidence": "Manufacturer confirms model and online configurator. Magnetic switches and depth-controlled joystick demonstrated in hands-on video https://www.youtube.com/watch?v=7K6tfPoq_bw ; no HallJoy compatibility inferred."
+    },
+    {
+      "brand": "Chilkey",
+      "model": "ND65 CS HE",
+      "status": "Not investigated",
+      "source": "https://chilkey.com/products/nd65-cs-he",
+      "evidence": "Manufacturer HE product and console listings; ordinary ND65, ND75 and ND104 excluded."
+    },
+    {
+      "brand": "Chilkey",
+      "model": "SF60 HE",
+      "status": "Not investigated",
+      "source": "https://chilkey.com/products/sf-60-he-keyboard",
+      "evidence": "Manufacturer HE product and console listings; ordinary ND65, ND75 and ND104 excluded."
+    },
+    {
+      "brand": "Chilkey",
+      "model": "Slice68 HE",
+      "status": "Not investigated",
+      "source": "https://chilkey.com/products/slice68-he-keyboard",
+      "evidence": "Manufacturer HE product and console listings; ordinary ND65, ND75 and ND104 excluded."
+    },
+    {
+      "brand": "Chilkey",
+      "model": "Slice75 HE",
+      "status": "Not investigated",
+      "source": "https://chilkey.com/products/slice75-he-keyboard",
+      "evidence": "Manufacturer HE product and console listings; ordinary ND65, ND75 and ND104 excluded."
+    },
+    {
+      "brand": "FuryCube",
+      "model": "M30HE",
+      "status": "Not investigated",
+      "source": "https://www.furycube.com/collections/he-keyboards",
+      "evidence": "Manufacturer explicitly lists Hall Effect magnetic-switch models."
+    },
+    {
+      "brand": "FuryCube",
+      "model": "M35HE",
+      "status": "Not investigated",
+      "source": "https://www.furycube.com/collections/he-keyboards",
+      "evidence": "Manufacturer explicitly lists Hall Effect magnetic-switch models."
+    },
+    {
+      "brand": "FuryCube",
+      "model": "M68HE",
+      "status": "Not investigated",
+      "source": "https://www.furycube.com/collections/he-keyboards",
+      "evidence": "Manufacturer explicitly lists Hall Effect magnetic-switch models."
+    },
+    {
+      "brand": "DarkBeacon",
+      "model": "Flux 68",
+      "status": "Not investigated",
+      "source": "https://darkbeacon.ai/collections/all",
+      "evidence": "Manufacturer Hall Effect magnetic-switch product; colors and switch-color editions consolidated."
+    },
+    {
+      "brand": "DarkBeacon",
+      "model": "Flux 84",
+      "status": "Not investigated",
+      "source": "https://darkbeacon.ai/collections/all",
+      "evidence": "Manufacturer Hall Effect magnetic-switch product; colors and switch-color editions consolidated."
+    },
+    {
+      "brand": "DarkBeacon",
+      "model": "Flux 87",
+      "status": "Not investigated",
+      "source": "https://darkbeacon.ai/collections/all",
+      "evidence": "Manufacturer Hall Effect magnetic-switch product; colors and switch-color editions consolidated."
+    },
+    {
+      "brand": "DarkBeacon",
+      "model": "Devil Breaker HE",
+      "status": "Not investigated",
+      "source": "https://darkbeacon.ai/products/devil-breaker-one-handed-gaming-keyboard",
+      "evidence": "Only HE Magnetic Switch option; mechanical versions excluded."
+    },
+    {
+      "brand": "DarkBeacon",
+      "model": "Devil Breaker TMR (theme editions)",
+      "status": "Not investigated",
+      "source": "https://darkbeacon.ai/products/devil-breaker-starry-night-dragon-ii",
+      "evidence": "Manufacturer TMR one-handed keypad; Starry Night Dragon II, Wild Lotus II, Anarchy and Print Codex grouped as theme editions. Last two advertised as preorders; family already offered."
+    },
+    {
+      "brand": "Dark Project",
+      "model": "KD83A Magnetite",
+      "status": "Not investigated",
+      "source": "https://darkproject.ru/products/DP-KD-83A-100100-GMN",
+      "evidence": "Manufacturer specifies g3ms Magnetite / Magnetite Ice magnetic switches."
+    },
+    {
+      "brand": "Dark Project",
+      "model": "ALU68A Relic",
+      "status": "Not investigated",
+      "source": "https://darkproject.eu/product/ALU68ARelic",
+      "evidence": "Manufacturer specifies g3ms Magnetite / Magnetite Ice magnetic switches."
+    },
+    {
+      "brand": "Dark Project",
+      "model": "ALU87B Gamma",
+      "status": "Not investigated",
+      "source": "https://darkproject.eu/product/87bGamma",
+      "evidence": "Manufacturer specifies g3ms Magnetite / Magnetite Ice magnetic switches."
+    },
+    {
+      "brand": "Dark Project",
+      "model": "Terra Praesentis V2",
+      "status": "Not investigated",
+      "source": "https://darkproject.eu/product/TerraPraesentisV2Black",
+      "evidence": "Manufacturer specifies g3ms Magnetite / Magnetite Ice magnetic switches."
+    },
+    {
+      "brand": "CyberLynx",
+      "model": "M68HE",
+      "status": "Not investigated",
+      "source": "https://reviews.yandex.ru/product/magnitnaia-klaviatura-cyberlynx-model-m68he-s-keikapami-v-podarok--1414152783",
+      "evidence": "Retail catalog and owner reviews establish marketed magnetic model. Manufacturer product/driver entry not found; lower evidence confidence, no identity equivalence to FuryCube M68HE assumed."
+    },
+    {
+      "brand": "Red Square",
+      "model": "Alumix 68 Yotei (Magnetite Ice)",
+      "status": "Not investigated",
+      "source": "https://club.dns-shop.ru/amp/review/t-69-igrovyie-klaviaturyi/175684-obzor-magnitnoi-klaviaturyi-red-square-alumix-68-yotei/",
+      "evidence": "Hands-on review and owner-provided Ozon product screenshot 3618392118 confirm magnetic switches. RSQ-20058 keyboard / RSQ-20060 mousepad bundle combined. Sapphire variants excluded."
+    },
+    {
+      "brand": "Red Square",
+      "model": "Alumix 104 Yotei (Magnetite Ice)",
+      "status": "Not investigated",
+      "source": "https://m.integration.vs.market.yandex.net/card/klaviatura-provodnaya-red-square-alumix-104-yotei-magnitnaya-siniy-zheltyy/6256881878",
+      "evidence": "Retail magnetic product listing RSQ-20069; model independently present in hands-on review https://rutube.ru/video/f0fa68eff7b5dfe74abdae6b864dd9ab/ . Manufacturer product page not located."
+    }
+  ]
+}

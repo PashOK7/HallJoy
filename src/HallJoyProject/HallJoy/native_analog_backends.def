@@ -7,6 +7,9 @@
 #if defined(HALLJOY_ROG_AZOTH96HE_DIAGNOSTIC)
 HALLJOY_NATIVE_BACKEND(RogAzoth96HeDiagnostic_GetNativeBackendDescriptor)
 #elif !defined(HALLJOY_AULA_HERO84HE_DIAGNOSTIC) && !defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC) && !defined(HALLJOY_TITAN68_TURBO_EXPERIMENTAL)
+#if defined(HALLJOY_ATTACKSHARK_PRO_DIAGNOSTIC) || defined(HALLJOY_ATTACKSHARK_NATIVE)
+HALLJOY_NATIVE_BACKEND(Shark_GetNativeBackendDescriptor)
+#endif
 #if defined(HALLJOY_AULA_MINI60_NATIVE)
 HALLJOY_NATIVE_BACKEND(Mini60_GetNativeBackendDescriptor)
 #endif
@@ -29,6 +32,7 @@ HALLJOY_NATIVE_BACKEND(DrunkDeer_GetNativeBackendDescriptor)
 HALLJOY_NATIVE_BACKEND(MchoseAce68Diagnostic_GetNativeBackendDescriptor)
 #endif
 HALLJOY_NATIVE_BACKEND(AulaW669_GetNativeBackendDescriptor)
+HALLJOY_NATIVE_BACKEND(Mg75Pro_GetNativeBackendDescriptor)
 HALLJOY_NATIVE_BACKEND(BackendNative_GetSparkDescriptor)
 HALLJOY_NATIVE_BACKEND(BackendNative_GetSayoDescriptor)
 #if defined(HALLJOY_ANALOG_SIMULATOR)

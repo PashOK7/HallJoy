@@ -1,0 +1,1349 @@
+{
+  "date": "2026-09-20",
+  "scope": "149 additions; magnetic hardware class, not all-key or USB analog support",
+  "checked": 149,
+  "removed": 0,
+  "records": [
+    {
+      "brand": "AULA",
+      "model": "AG60",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.aulastar.com/magnetic-keyboard/",
+      "evidence": "Manufacturer's Magnetic Keyboard catalog explicitly lists each selected model as magnetic."
+    },
+    {
+      "brand": "AULA",
+      "model": "AG75",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.aulastar.com/magnetic-keyboard/",
+      "evidence": "Manufacturer's Magnetic Keyboard catalog explicitly lists each selected model as magnetic."
+    },
+    {
+      "brand": "AULA",
+      "model": "F75 HE",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.aulastar.com/magnetic-keyboard/",
+      "evidence": "Manufacturer's Magnetic Keyboard catalog explicitly lists each selected model as magnetic."
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO 68 HE",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.aulastar.com/magnetic-keyboard/",
+      "evidence": "Manufacturer's Magnetic Keyboard catalog explicitly lists each selected model as magnetic."
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO 68 HE Ultra",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.aulastar.com/magnetic-keyboard/",
+      "evidence": "Manufacturer's Magnetic Keyboard catalog explicitly lists each selected model as magnetic."
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO 75 HE",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.aulastar.com/magnetic-keyboard/",
+      "evidence": "Manufacturer's Magnetic Keyboard catalog explicitly lists each selected model as magnetic."
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO 99 HE",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.aulastar.com/magnetic-keyboard/",
+      "evidence": "Manufacturer's Magnetic Keyboard catalog explicitly lists each selected model as magnetic."
+    },
+    {
+      "brand": "AULA",
+      "model": "MINI 60 HE",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.aulastar.com/magnetic-keyboard/",
+      "evidence": "Manufacturer's Magnetic Keyboard catalog explicitly lists each selected model as magnetic."
+    },
+    {
+      "brand": "DrunkDeer",
+      "model": "A75 Ultra",
+      "status": "Not investigated",
+      "source": "https://drunkdeer.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://drunkdeer.com/collections/all",
+      "evidence": "Manufacturer catalog explicitly identifies each as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "DrunkDeer",
+      "model": "X60 HE",
+      "status": "Not investigated",
+      "source": "https://drunkdeer.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://drunkdeer.com/collections/all",
+      "evidence": "Manufacturer catalog explicitly identifies each as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "DrunkDeer",
+      "model": "X60 Future",
+      "status": "Not investigated",
+      "source": "https://drunkdeer.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://drunkdeer.com/collections/all",
+      "evidence": "Manufacturer catalog explicitly identifies each as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "Keychron",
+      "model": "C0 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-c0-he-one-handed-magnetic-switch-gaming-keyboard",
+      "evidence": "Keychron C0 HE One Handed Magnetic Switch Gaming Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "C3 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-c3-he-magnetic-switch-keyboard",
+      "evidence": "Keychron C3 HE Wired Magnetic Switch Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "C4 HE 8K",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-c4-he-magnetic-switch-keyboard",
+      "evidence": "Keychron C4 HE 8K Magnetic Switch Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J2 HE 8K",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-j2-he-8k-magnetic-switch-keyboard",
+      "evidence": "Keychron J2 HE 8K Magnetic Switch Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J4 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-j4-he-wireless-magnetic-switch-keyboard",
+      "evidence": "Keychron J4 HE Wireless Magnetic Switch Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J5 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-j5-he-wireless-magnetic-switch-keyboard",
+      "evidence": "Keychron J5 HE Wireless Magnetic Switch Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J8 HE 8K",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-j8-he-8k-magnetic-switch-keyboard",
+      "evidence": "Keychron J8 HE 8K Magnetic Switch Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J12 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-j12-he-wireless-magnetic-switch-custom-keyboard",
+      "evidence": "Keychron J12 HE Wireless Magnetic Switch Custom Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J14 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-j14-he-wireless-magnetic-switch-custom-keyboard",
+      "evidence": "Keychron J14 HE Wireless Magnetic Switch Custom Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J15 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-j15-he-wireless-custom-magnetic-keyboard",
+      "evidence": "Keychron J15 HE Wireless Custom Magnetic Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "K6 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-k6-he-wireless-magnetic-switch-keyboard",
+      "evidence": "Keychron K6 HE Wireless Magnetic Switch Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "Q0 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-q0-he-qmk-wireless-custom-number-pad",
+      "evidence": "Keychron Q0 HE QMK Wireless Custom Number Pad"
+    },
+    {
+      "brand": "Keychron",
+      "model": "Q2 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-q2-he-qmk-wireless-custom-keyboard",
+      "evidence": "Manufacturer Q2 HE (non-8K) product entry explicitly specifies Gateron double-rail magnetic switches."
+    },
+    {
+      "brand": "Keychron",
+      "model": "Q2 HE 8K",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-q2-he-8k-magnetic-switch-keyboard",
+      "evidence": "Keychron Q2 HE 8K Magnetic Switch Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "Q4 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-q4-he-qmk-wireless-custom-keyboard",
+      "evidence": "Keychron Q4 HE QMK Wireless Custom Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "Q16 HE 8K",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-q16-he-8k-magnetic-switch-keyboard",
+      "evidence": "Keychron Q16 HE 8K Magnetic Switch Keyboard"
+    },
+    {
+      "brand": "Keychron",
+      "model": "V1 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-v1-he-magnetic-switch-keyboard",
+      "evidence": "Keychron V1 HE Magnetic Switch Keyboard (Limited Edition to Specific Region)"
+    },
+    {
+      "brand": "Keychron",
+      "model": "V6 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-v6-he-magnetic-switch-keyboard",
+      "evidence": "Keychron V6 HE Magnetic Switch Keyboard (Limited Edition to Specific Region)"
+    },
+    {
+      "brand": "Keychron",
+      "model": "V6 Ultra Hybrid 8K",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/keychron-v6-ultra-hybrid-8k-wireless-custom-magnetic-mechanical-keyboard",
+      "evidence": "Keychron V6 Ultra Hybrid 8K Wireless Magnetic & Mechanical Keyboard; hybrid supports mechanical switches too; analog requires magnetic switches."
+    },
+    {
+      "brand": "Lemokey",
+      "model": "L0 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/lemokey-l0-he-one-handed-magnetic-switch-gaming-keyboard",
+      "evidence": "Lemokey L0 HE One Handed Magnetic Switch Gaming Keyboard"
+    },
+    {
+      "brand": "Lemokey",
+      "model": "L1 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/lemokey-l1-he-wireless-magnetic-switch-custom-gaming-keyboard",
+      "evidence": "Lemokey L1 HE Wireless Magnetic Switch Custom Gaming Keyboard"
+    },
+    {
+      "brand": "Lemokey",
+      "model": "L5 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/lemokey-l5-he-magnetic-switch-custom-gaming-keyboard",
+      "evidence": "Lemokey L5 HE Magnetic Switch Custom Gaming Keyboard"
+    },
+    {
+      "brand": "Lemokey",
+      "model": "P2 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/lemokey-p2-he-wireless-magnetic-switch-custom-gaming-keyboard",
+      "evidence": "Lemokey P2 HE Wireless Magnetic Switch Custom Gaming Keyboard"
+    },
+    {
+      "brand": "Lemokey",
+      "model": "P3 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.keychron.com/products/lemokey-p3-he-wireless-magnetic-switch-custom-gaming-keyboard",
+      "evidence": "Lemokey P3 HE Wireless Magnetic Switch Custom Gaming Keyboard"
+    },
+    {
+      "brand": "NuPhy",
+      "model": "BH65",
+      "status": "Not investigated",
+      "source": "https://nuphy.com/pages/user-manual",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://nuphy.com/products/bh65",
+      "evidence": "Manufacturer names BH65 All-Aluminum Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "NuPhy",
+      "model": "Field75 HE",
+      "status": "Not investigated",
+      "source": "https://nuphy.com/pages/user-manual",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://nuphy.com/products/nuphy-field75-he-v2-1",
+      "evidence": "Manufacturer comparison specifies magnetic switches in both original and V2."
+    },
+    {
+      "brand": "NuPhy",
+      "model": "Field75 HE V2",
+      "status": "Not investigated",
+      "source": "https://nuphy.com/pages/user-manual",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://nuphy.com/products/nuphy-field75-he-v2-1",
+      "evidence": "Manufacturer comparison specifies magnetic switches in both original and V2."
+    },
+    {
+      "brand": "NuPhy",
+      "model": "Halo65 HE",
+      "status": "Not investigated",
+      "source": "https://nuphy.com/pages/user-manual",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://nuphy.com/products/nuphy-halo65-he",
+      "evidence": "Manufacturer specifies magnetic Coral/Jade Pro switches and adjustable actuation."
+    },
+    {
+      "brand": "NuPhy",
+      "model": "WH80",
+      "status": "Not investigated",
+      "source": "https://nuphy.com/pages/user-manual",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://nuphy.com/products/nuphy-wh80-gaming-keyboard",
+      "evidence": "Manufacturer names tri-mode magnetic keyboard."
+    },
+    {
+      "brand": "IO",
+      "model": "Type 84 Magnetic",
+      "status": "No usable analog found (FW 1.17)",
+      "source": "docs/firmware/io-type84-magnetic/DEEP_REVERSE.md",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "docs/firmware/io-type84-magnetic/SOURCE.md",
+      "evidence": "Official Type84 Magnetic firmware identity and documented deepest-key travel serializer."
+    },
+    {
+      "brand": "IO",
+      "model": "Type 68 Magnetic",
+      "status": "Research incomplete",
+      "source": "docs/firmware/io-type84-magnetic/DEEP_REVERSE.md",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "docs/firmware/io-type84-magnetic/DEEP_REVERSE.md",
+      "evidence": "Type68 Magnetic V1.37 firmware identity and preliminary matching sensor/travel code."
+    },
+    {
+      "brand": "Pwnage",
+      "model": "Zenblade 65",
+      "status": "Research incomplete",
+      "source": "docs/v1.4/PWNAGE_ZENBLADE_65_V2_PROTOCOL_RECON.md",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://pwnage.com/products/zenblade-65",
+      "evidence": "Manufacturer names magnetic Hall Effect Zenblade; current page and official V2 announcement corroborate local revision research."
+    },
+    {
+      "brand": "Pwnage",
+      "model": "Zenblade 65 V2",
+      "status": "Research incomplete",
+      "source": "docs/v1.4/PWNAGE_ZENBLADE_65_V2_PROTOCOL_RECON.md",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://pwnage.com/products/zenblade-65",
+      "evidence": "Manufacturer names magnetic Hall Effect Zenblade; current page and official V2 announcement corroborate local revision research."
+    },
+    {
+      "brand": "IROK",
+      "model": "NA87 Pro",
+      "status": "Research frozen; tester needed",
+      "source": "docs/current/FROZEN_SUPPORT_NOTICES_2026-09-15.md",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "docs/current/IROK_REVERSE_HANDOFF_2026-09-13.md",
+      "evidence": "Exact NA87 PRO firmware identity and sensor-to-travel lookup. This is magnetic Pro, not conventional mechanical NA87."
+    },
+    {
+      "brand": "IROK",
+      "model": "ND75",
+      "status": "Research frozen; tester needed",
+      "source": "docs/current/FROZEN_SUPPORT_NOTICES_2026-09-15.md",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "docs/research/IROK_ND75_M484_STATIC_ANALYSIS_2026-08-17.md",
+      "evidence": "Exact ND75 firmware live-travel event analysis and physical travel metadata."
+    },
+    {
+      "brand": "IROK",
+      "model": "MG75 V2",
+      "status": "Research frozen; tester needed",
+      "source": "docs/current/MG75_PRO_V2_REVIEW_2026-09-19.md",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "docs/current/MG75_PRO_V2_REVIEW_2026-09-19.md",
+      "evidence": "Existing exact firmware review identifies current-depth monitor; selected/deepest-key limitation does not make sensing non-analog."
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 60",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "evidence": "Manufacturer compliance document explicitly classifies all eleven models as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 60 Pro",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "evidence": "Manufacturer compliance document explicitly classifies all eleven models as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "GOD 60",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "evidence": "Manufacturer compliance document explicitly classifies all eleven models as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 68 V2",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "evidence": "Manufacturer compliance document explicitly classifies all eleven models as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 68 Air",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "evidence": "Manufacturer compliance document explicitly classifies all eleven models as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 68 GT",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "evidence": "Manufacturer compliance document explicitly classifies all eleven models as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 68 Turbo",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "evidence": "Manufacturer compliance document explicitly classifies all eleven models as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Jet 75",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "evidence": "Manufacturer compliance document explicitly classifies all eleven models as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 75",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "evidence": "Manufacturer compliance document explicitly classifies all eleven models as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Mix 87",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity",
+      "evidence": "Manufacturer compliance document explicitly classifies all eleven models as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 68",
+      "status": "No usable analog found",
+      "source": "docs/firmware/mchose-ace68/PROTOCOL_ASSESSMENT.md",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "docs/firmware/mchose-ace68/PROTOCOL_ASSESSMENT.md",
+      "evidence": "Manufacturer compliance document explicitly classifies all eleven models as Magnetic Switch Keyboard."
+    },
+    {
+      "brand": "ASUS ROG",
+      "model": "Azoth 96 HE",
+      "status": "Research frozen; tester needed",
+      "source": "docs/current/FROZEN_SUPPORT_NOTICES_2026-09-15.md",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://rog.asus.com/us/keyboards/keyboards/pbt-keycaps/rog-falchion-ace-75-he/overview/rog-keyboard-switch/",
+      "evidence": "Manufacturer switch comparison lists these exact keyboard names and HFX magnetic switch generations."
+    },
+    {
+      "brand": "ASUS ROG",
+      "model": "Falchion Ace HFX",
+      "status": "Not investigated",
+      "source": "https://rog.asus.com/us/keyboards/keyboards/pbt-keycaps/rog-falchion-ace-75-he/overview/rog-keyboard-switch/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://rog.asus.com/us/keyboards/keyboards/pbt-keycaps/rog-falchion-ace-75-he/overview/rog-keyboard-switch/",
+      "evidence": "Manufacturer switch comparison lists these exact keyboard names and HFX magnetic switch generations."
+    },
+    {
+      "brand": "ASUS ROG",
+      "model": "Falchion Ace 75 HE",
+      "status": "Not investigated",
+      "source": "https://rog.asus.com/us/keyboards/keyboards/pbt-keycaps/rog-falchion-ace-75-he/overview/rog-keyboard-switch/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://rog.asus.com/us/keyboards/keyboards/pbt-keycaps/rog-falchion-ace-75-he/overview/rog-keyboard-switch/",
+      "evidence": "Manufacturer switch comparison lists these exact keyboard names and HFX magnetic switch generations."
+    },
+    {
+      "brand": "ASUS ROG",
+      "model": "Falcata",
+      "status": "Not investigated",
+      "source": "https://rog.asus.com/us/keyboards/keyboards/pbt-keycaps/rog-falchion-ace-75-he/overview/rog-keyboard-switch/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://rog.asus.com/us/keyboards/keyboards/pbt-keycaps/rog-falchion-ace-75-he/overview/rog-keyboard-switch/",
+      "evidence": "Manufacturer switch comparison lists these exact keyboard names and HFX magnetic switch generations."
+    },
+    {
+      "brand": "Logitech G",
+      "model": "PRO X TKL RAPID",
+      "status": "Not investigated",
+      "source": "https://www.logitechg.com/en-in/shop/p/pro-x-tkl-rapid",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.logitechg.com/en-in/shop/p/pro-x-tkl-rapid",
+      "evidence": "Manufacturer explicitly states magnetic-analog switches."
+    },
+    {
+      "brand": "Corsair",
+      "model": "K70 MAX",
+      "status": "Not investigated",
+      "source": "https://www.corsair.com/us/en/c/keyboards/mgx-switch-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.corsair.com/us/en/p/keyboards/ch-910961g-na/k70-max-rgb-magnetic-mechanical-gaming-keyboard-adjustable-corsair-mgx-switches-steel-grey-ch-910961g-na",
+      "evidence": "Manufacturer specifies adjustable MGX magnetic switches."
+    },
+    {
+      "brand": "Corsair",
+      "model": "K70 PRO TKL",
+      "status": "Not investigated",
+      "source": "https://www.corsair.com/us/en/c/keyboards/mgx-switch-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.corsair.com/us/en/explorer/gamer/keyboards/k70-pro-tkl/",
+      "evidence": "Manufacturer manual specifies only 61 ANSI / 62 ISO / 65 JP magnetic keys; other keys are conventional. Do not claim all keys analog."
+    },
+    {
+      "brand": "Corsair",
+      "model": "VANGUARD PRO 96",
+      "status": "Not investigated",
+      "source": "https://www.corsair.com/us/en/c/keyboards/mgx-switch-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.corsair.com/uk/en/p/keyboards/ch-91e911g-uk/vanguard-pro-96-hall-effect-gaming-keyboard-ch-91e911g-uk",
+      "evidence": "Manufacturer specifies MGX Hyperdrive magnetic switches; additional G keys are not evidence of all-key analog sensing."
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro Gen 3",
+      "status": "Not investigated",
+      "source": "https://steelseries.com/press/152-steelseries-expands-its-apex-pro-gen-3-series-keyboard-lineup",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://steelseries.com/press/152-steelseries-expands-its-apex-pro-gen-3-series-keyboard-lineup",
+      "evidence": "Manufacturer Gen 3 announcement specifies adjustable OmniPoint 3.0 and the four Gen 3 form factors."
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro TKL Gen 3",
+      "status": "Not investigated",
+      "source": "https://steelseries.com/press/152-steelseries-expands-its-apex-pro-gen-3-series-keyboard-lineup",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://steelseries.com/press/152-steelseries-expands-its-apex-pro-gen-3-series-keyboard-lineup",
+      "evidence": "Manufacturer Gen 3 announcement specifies adjustable OmniPoint 3.0 and the four Gen 3 form factors."
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro TKL Wireless Gen 3",
+      "status": "Not investigated",
+      "source": "https://steelseries.com/press/152-steelseries-expands-its-apex-pro-gen-3-series-keyboard-lineup",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://steelseries.com/press/152-steelseries-expands-its-apex-pro-gen-3-series-keyboard-lineup",
+      "evidence": "Manufacturer Gen 3 announcement specifies adjustable OmniPoint 3.0 and the four Gen 3 form factors."
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro Mini Gen 3",
+      "status": "Not investigated",
+      "source": "https://steelseries.com/press/152-steelseries-expands-its-apex-pro-gen-3-series-keyboard-lineup",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://steelseries.com/press/152-steelseries-expands-its-apex-pro-gen-3-series-keyboard-lineup",
+      "evidence": "Manufacturer Gen 3 announcement specifies adjustable OmniPoint 3.0 and the four Gen 3 form factors."
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro TKL",
+      "status": "Not investigated",
+      "source": "https://support.steelseries.com/hc/en-us/sections/9637593545229-Apex-Pro-TKL-2023",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://steelseries.com/fr-be/blog/omnipoint-10-vs-20-what-are-the-differences-879",
+      "evidence": "Manufacturer identifies legacy Apex Pro TKL OmniPoint 1.0 switches and separates later 2.0 generation."
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro TKL (2023)",
+      "status": "Not investigated",
+      "source": "https://support.steelseries.com/hc/en-us/sections/9637593545229-Apex-Pro-TKL-2023",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://support.steelseries.com/hc/en-us/articles/9644740151181-Does-the-Apex-Pro-TKL-2023-Wired-Wireless-feature-OmniPoint-Switches",
+      "evidence": "Manufacturer explicitly specifies Hall sensors for 64 face keys; remaining keys are conventional red switches."
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro TKL Wireless (2023)",
+      "status": "Not investigated",
+      "source": "https://support.steelseries.com/hc/en-us/sections/9637593545229-Apex-Pro-TKL-2023",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://support.steelseries.com/hc/en-us/articles/9644740151181-Does-the-Apex-Pro-TKL-2023-Wired-Wireless-feature-OmniPoint-Switches",
+      "evidence": "Manufacturer explicitly specifies Hall sensors for 64 face keys; remaining keys are conventional red switches."
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro Mini",
+      "status": "Not investigated",
+      "source": "https://support.steelseries.com/hc/en-us/sections/7087574605325-Apex-Pro-Mini-Mini-Wireless",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://steelseries.com/gaming-keyboards/apex-pro?language=taiwanese",
+      "evidence": "Manufacturer names Apex Pro Mini with OmniPoint 2.0 Adjustable HyperMagnetic switches."
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro Mini Wireless",
+      "status": "Not investigated",
+      "source": "https://support.steelseries.com/hc/en-us/sections/7087574605325-Apex-Pro-Mini-Mini-Wireless",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://steelseries.com/en-gb/gaming-keyboards/apex-pro?connectivityType=wireless&keyboardLanguage=english&keyboardSize=mini",
+      "evidence": "Manufacturer names Apex Pro Mini Wireless with OmniPoint 2.0 HyperMagnetic switches."
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M1 HE",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/",
+      "evidence": "Manufacturer manual index explicitly identifies HE/TMR model; product naming distinguished from mechanical siblings. M1 HE also supports conventional 3-pin switches; analog requires magnetic switches."
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M1W-SP HE",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.monsgeek.com/download/",
+      "evidence": "Manufacturer manual index explicitly identifies HE/TMR model; product naming distinguished from mechanical siblings."
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "MG75S HE",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.monsgeek.com/download/",
+      "evidence": "Manufacturer manual index explicitly identifies HE/TMR model; product naming distinguished from mechanical siblings."
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M1 V5 TMR",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/",
+      "evidence": "Manufacturer manual index explicitly identifies HE/TMR model; product naming distinguished from mechanical siblings. M1 V5 TMR also accepts conventional mechanical switches."
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M3 V5 HE",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.monsgeek.com/download/",
+      "evidence": "Manufacturer manual index explicitly identifies HE/TMR model; product naming distinguished from mechanical siblings."
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "FUN68 HE",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.monsgeek.com/download/",
+      "evidence": "Manufacturer manual index explicitly identifies HE/TMR model; product naming distinguished from mechanical siblings."
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "Verve68 HE",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.monsgeek.com/download/",
+      "evidence": "Manufacturer manual index explicitly identifies HE/TMR model; product naming distinguished from mechanical siblings."
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "FUN60 Pro",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/",
+      "evidence": "Manufacturer explicitly separates FUN60 Ultra/Pro/Max Hall Effect from Ultra TMR; TMR also accepts mechanical switches."
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "FUN60 Max",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/",
+      "evidence": "Manufacturer explicitly separates FUN60 Ultra/Pro/Max Hall Effect from Ultra TMR; TMR also accepts mechanical switches."
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "FUN60 Ultra",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/",
+      "evidence": "Manufacturer explicitly separates FUN60 Ultra/Pro/Max Hall Effect from Ultra TMR; TMR also accepts mechanical switches."
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "FUN60 Ultra TMR",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/",
+      "evidence": "Manufacturer explicitly separates FUN60 Ultra/Pro/Max Hall Effect from Ultra TMR; TMR also accepts mechanical switches."
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE68",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.melgeek.com/products/melgeek-made68-magnetic-switch-gaming-keyboard",
+      "evidence": "Manufacturer specifies Hornet magnetic switches for original MADE68."
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE68 Air",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.melgeek.com/en-jp/products/made68-air-low-profile-hall-effect-gaming-keyboard",
+      "evidence": "Manufacturer specifies TTC KOM MINI low-profile magnetic switches and adjustable actuation."
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE68 Pro",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.melgeek.com/pages/made68-pro-hall-effect-rapid-trigger-keyboard",
+      "evidence": "Original Pro landing page confirms magnetic switches; current product pages have Pro+ naming. Historical original preserved, not conflated with new revision."
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE68 Ultra",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.melgeek.com/products/made68-ultra-aluminum-case-magnetic-keyboard",
+      "evidence": "Magnetic switch product; URL/title retain Ultra while current body uses Ultra+. Original record magnetic but revision naming needs clarification."
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE68 Ultra V2",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.melgeek.com/collections/magnetic-gaming-keyboard",
+      "evidence": "Manufacturer catalog explicitly names HE keyboard."
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE84 Pro",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.melgeek.com/products/made84-pro",
+      "evidence": "Manufacturer specifies TTC Magneto magnetic switches."
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE84 Ultra",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.melgeek.com/products/melgeek-made84-ultra-hall-effect-gaming-keyboard",
+      "evidence": "Magnetic switch product; URL/title retain Ultra while current body uses Ultra+. Original record magnetic but revision naming needs clarification."
+    },
+    {
+      "brand": "MelGeek",
+      "model": "Centauri 80",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.melgeek.com/collections/magnetic-gaming-keyboard",
+      "evidence": "Manufacturer catalog explicitly names HE keyboard."
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE30",
+      "status": "Not investigated",
+      "source": "https://epomaker.com/pages/he-series",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://epomaker.com/pages/he-series",
+      "evidence": "Manufacturer HE series table lists exact models with adjustable actuation or TMR sensing; HE75 V2 TMR is hybrid magnetic/mechanical."
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE68 Lite",
+      "status": "Not investigated",
+      "source": "https://epomaker.com/pages/he-series",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://epomaker.com/pages/he-series",
+      "evidence": "Manufacturer HE series table lists exact models with adjustable actuation or TMR sensing; HE75 V2 TMR is hybrid magnetic/mechanical."
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE75 V2 TMR",
+      "status": "Not investigated",
+      "source": "https://epomaker.com/pages/he-series",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://epomaker.com/pages/he-series",
+      "evidence": "Manufacturer HE series table lists exact models with adjustable actuation or TMR sensing; HE75 V2 TMR is hybrid magnetic/mechanical. Hybrid magnetic/mechanical compatibility does not make conventional switches analog."
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE80",
+      "status": "Not investigated",
+      "source": "https://epomaker.com/pages/he-series",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://epomaker.com/pages/he-series",
+      "evidence": "Manufacturer HE series table lists exact models with adjustable actuation or TMR sensing; HE75 V2 TMR is hybrid magnetic/mechanical."
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "G84 HE",
+      "status": "Not investigated",
+      "source": "https://epomaker.com/pages/he-series",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://epomaker.com/pages/he-series",
+      "evidence": "Manufacturer HE series table lists exact models with adjustable actuation or TMR sensing; HE75 V2 TMR is hybrid magnetic/mechanical."
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "TITAN 68 Turbo",
+      "status": "No usable analog found",
+      "source": "docs/firmware/madlions-titan68-turbo/STATIC_AUDIT.md",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "docs/firmware/madlions-titan68-turbo/STATIC_AUDIT.md",
+      "evidence": "Existing firmware analysis proves raw analog sensor transport for exact device; USB gameplay support remains separate."
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "MAD60 V2",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://madlionskeyboard.com/",
+      "evidence": "Brand storefront lists these models as magnetic/Hall Effect."
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "MAD60 Pro",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://madlionskeyboard.com/product/mad60-pro/",
+      "evidence": "Product page explicitly names esports magnetic keyboard."
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "MAD LIGHT 60 HE",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://madlionskeyboard.com/",
+      "evidence": "Brand storefront lists these models as magnetic/Hall Effect."
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "MAD LIGHT 60 quattro",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://madlionskeyboard.com/product/mad-light-60-quattro/",
+      "evidence": "Product page explicitly names 8K Hall Effect keyboard."
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "TITAN75 Turbo",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://madlionskeyboard.com/",
+      "evidence": "Brand storefront lists these models as magnetic/Hall Effect."
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "FIRE68 Ultra",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://madlionskeyboard.com/",
+      "evidence": "Brand storefront lists these models as magnetic/Hall Effect."
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "NANO68 Pro",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://madlionskeyboard.com/product/nano68-pro/",
+      "evidence": "Brand storefront names NANO68 Pro Hall Effect / magnetic keyboard."
+    },
+    {
+      "brand": "Redragon",
+      "model": "K556 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "evidence": "Exact HE versions listed under magnetic switches; conventional same-number siblings excluded."
+    },
+    {
+      "brand": "Redragon",
+      "model": "K580 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "evidence": "Exact HE versions listed under magnetic switches; conventional same-number siblings excluded."
+    },
+    {
+      "brand": "Redragon",
+      "model": "K585 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "evidence": "Exact HE versions listed under magnetic switches; conventional same-number siblings excluded."
+    },
+    {
+      "brand": "Redragon",
+      "model": "K617 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "evidence": "Exact HE versions listed under magnetic switches; conventional same-number siblings excluded."
+    },
+    {
+      "brand": "Redragon",
+      "model": "K618 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "evidence": "Exact HE versions listed under magnetic switches; conventional same-number siblings excluded."
+    },
+    {
+      "brand": "Redragon",
+      "model": "K683 (M61)",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://redragonshop.com/collections/advanced-gaming-gear",
+      "evidence": "FIDD K683 (M61) explicitly identified as Magnetic Hall Effect Keyboard."
+    },
+    {
+      "brand": "Redragon",
+      "model": "K686 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "evidence": "Exact HE versions listed under magnetic switches; conventional same-number siblings excluded."
+    },
+    {
+      "brand": "Redragon",
+      "model": "K736 Pro",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://redragonshop.com/products/nephrite-k736-pro-magnetic-hall-effect-keyboard",
+      "evidence": "Manufacturer names exact K736 PRO magnetic HE model."
+    },
+    {
+      "brand": "Redragon",
+      "model": "K745 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "evidence": "Exact HE versions listed under magnetic switches; conventional same-number siblings excluded."
+    },
+    {
+      "brand": "Redragon",
+      "model": "K769 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://redragonshop.com/collections/magnetic-switch-keyboards",
+      "evidence": "Exact HE versions listed under magnetic switches; conventional same-number siblings excluded."
+    },
+    {
+      "brand": "Akko",
+      "model": "5075 V3 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/collections/akko-he-keyboards",
+      "evidence": "Manufacturer HE/TMR product catalog lists the exact model as magnetic; mechanical sibling names excluded."
+    },
+    {
+      "brand": "Akko",
+      "model": "5087 V3 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/collections/akko-he-keyboards",
+      "evidence": "Manufacturer HE/TMR product catalog lists the exact model as magnetic; mechanical sibling names excluded."
+    },
+    {
+      "brand": "Akko",
+      "model": "5075 V5 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/collections/akko-he-keyboards",
+      "evidence": "Manufacturer HE/TMR product catalog lists the exact model as magnetic; mechanical sibling names excluded."
+    },
+    {
+      "brand": "Akko",
+      "model": "5075 V5 TMR",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/collections/akko-he-keyboards",
+      "evidence": "Manufacturer HE/TMR product catalog lists the exact model as magnetic; mechanical sibling names excluded."
+    },
+    {
+      "brand": "Akko",
+      "model": "5087 V5 TMR",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/collections/akko-he-keyboards",
+      "evidence": "Manufacturer HE/TMR product catalog lists the exact model as magnetic; mechanical sibling names excluded."
+    },
+    {
+      "brand": "Akko",
+      "model": "MOD68 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/collections/akko-he-keyboards",
+      "evidence": "Manufacturer HE/TMR product catalog lists the exact model as magnetic; mechanical sibling names excluded."
+    },
+    {
+      "brand": "Akko",
+      "model": "MOD 007B HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/collections/akko-he-keyboards",
+      "evidence": "Manufacturer HE/TMR product catalog lists the exact model as magnetic; mechanical sibling names excluded."
+    },
+    {
+      "brand": "Akko",
+      "model": "MOD 007 HE Year of Dragon",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/collections/akko-he-keyboards",
+      "evidence": "Manufacturer HE/TMR product catalog lists the exact model as magnetic; mechanical sibling names excluded."
+    },
+    {
+      "brand": "Akko",
+      "model": "MOD 007 V5 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/collections/akko-he-keyboards",
+      "evidence": "Manufacturer HE/TMR product catalog lists the exact model as magnetic; mechanical sibling names excluded."
+    },
+    {
+      "brand": "Akko",
+      "model": "Ray68 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/collections/akko-he-keyboards",
+      "evidence": "Manufacturer HE/TMR product catalog lists the exact model as magnetic; mechanical sibling names excluded."
+    },
+    {
+      "brand": "Akko",
+      "model": "Shine60 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/de/products/shine60-he-magnetic-keyboard",
+      "evidence": "Manufacturer regional storefront names Akko Shine60 HE magnetic keyboard; also listed through MonsGeek."
+    },
+    {
+      "brand": "Akko",
+      "model": "TAC75 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/collections/akko-he-keyboards",
+      "evidence": "Manufacturer HE/TMR product catalog lists the exact model as magnetic; mechanical sibling names excluded."
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M1 V5 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/collections/akko-he-keyboards",
+      "evidence": "Manufacturer HE/TMR product catalog lists the exact model as magnetic; mechanical sibling names excluded."
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M2 V5 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://akkogear.eu/collections/akko-he-keyboards",
+      "evidence": "Manufacturer HE/TMR product catalog lists the exact model as magnetic; mechanical sibling names excluded."
+    },
+    {
+      "brand": "Varmilo",
+      "model": "Victory65",
+      "status": "Not investigated",
+      "source": "https://varmilo.com/pages/keyboard-model",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://varmilo.com/pages/keyboard-model",
+      "evidence": "Manufacturer model matrix places these five models in Magnetic switch (wired), separately from mechanical and EC."
+    },
+    {
+      "brand": "Varmilo",
+      "model": "Victory75",
+      "status": "Not investigated",
+      "source": "https://varmilo.com/pages/keyboard-model",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://varmilo.com/pages/keyboard-model",
+      "evidence": "Manufacturer model matrix places these five models in Magnetic switch (wired), separately from mechanical and EC."
+    },
+    {
+      "brand": "Varmilo",
+      "model": "Muse65 HE",
+      "status": "Not investigated",
+      "source": "https://varmilo.com/pages/keyboard-model",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://varmilo.com/pages/keyboard-model",
+      "evidence": "Manufacturer model matrix places these five models in Magnetic switch (wired), separately from mechanical and EC."
+    },
+    {
+      "brand": "Varmilo",
+      "model": "Muse75 HE",
+      "status": "Not investigated",
+      "source": "https://varmilo.com/pages/keyboard-model",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://varmilo.com/pages/keyboard-model",
+      "evidence": "Manufacturer model matrix places these five models in Magnetic switch (wired), separately from mechanical and EC."
+    },
+    {
+      "brand": "Varmilo",
+      "model": "Minilo75 HE",
+      "status": "Not investigated",
+      "source": "https://varmilo.com/pages/keyboard-model",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://varmilo.com/pages/keyboard-model",
+      "evidence": "Manufacturer model matrix places these five models in Magnetic switch (wired), separately from mechanical and EC."
+    },
+    {
+      "brand": "Turtle Beach",
+      "model": "Vulcan II TKL Pro",
+      "status": "Not investigated",
+      "source": "https://eu.turtlebeach.com/collections/tkl-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://eu.turtlebeach.com/collections/tkl-keyboards",
+      "evidence": "Manufacturer collection explicitly specifies Hall Effect switches for these exact products; non-Pro Vulcan II TKL excluded."
+    },
+    {
+      "brand": "Turtle Beach",
+      "model": "Command Series KB7",
+      "status": "Not investigated",
+      "source": "https://eu.turtlebeach.com/collections/tkl-keyboards",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://eu.turtlebeach.com/collections/tkl-keyboards",
+      "evidence": "Manufacturer collection explicitly specifies Hall Effect switches for these exact products; non-Pro Vulcan II TKL excluded."
+    },
+    {
+      "brand": "NZXT",
+      "model": "Function Elite MiniTKL",
+      "status": "Not investigated",
+      "source": "https://nzxt.com/products/function-elite-minitkl-lift-elite-wireless",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://nzxt.com/product/function-elite-minitkl-lift-elite-wireless",
+      "evidence": "Manufacturer specifications explicitly identify Hall effect sensors and NZXT Magnetic Switches."
+    },
+    {
+      "brand": "Endgame Gear",
+      "model": "KB65HE",
+      "status": "Not investigated",
+      "source": "https://img.endgamegear.com/assets/8/b/d/9/8bd91db974058fc6872a30cfc068ef094392ef51_KB65he_8k_endgamegear_de_en_fr_es_it_sv_pl_du_pt_fi_hu.pdf",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.endgamegear.com/nl-be/toetsenborden/kb65he",
+      "evidence": "Manufacturer specifies Hall Effect Gateron KS-37B magnetic switches."
+    },
+    {
+      "brand": "Endgame Gear",
+      "model": "KB65HE 8K",
+      "status": "Not investigated",
+      "source": "https://img.endgamegear.com/assets/8/b/d/9/8bd91db974058fc6872a30cfc068ef094392ef51_KB65he_8k_endgamegear_de_en_fr_es_it_sv_pl_du_pt_fi_hu.pdf",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://endgamegear.com/products/kb65he-8k-hall-effect-gaming-keyboard-ansi-us",
+      "evidence": "Manufacturer explicitly specifies Hall Effect sensing and Raesha Silent Magnetic switches for 8K version."
+    },
+    {
+      "brand": "Wooting",
+      "model": "80HE+",
+      "status": "Not investigated",
+      "source": "https://wooting.io/",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://wooting.io/wooting-80he-plus",
+      "evidence": "Manufacturer announces 80HE+ with Lekker Tikken switches; preorder, not physical support evidence."
+    },
+    {
+      "brand": "GamaKay",
+      "model": "TK68 HE",
+      "status": "Not investigated",
+      "source": "https://gamakay.com/en-gb/products/gamakay-tk75-he-hall-effect-wireless-custom-keyboard",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://gamakay.com/products/gamakay-tk68-he-65-hall-effect-wireless-custom-keyboard",
+      "evidence": "Manufacturer specifies Hall Effect magnetic Mercury/Phoenix switches."
+    },
+    {
+      "brand": "GamaKay",
+      "model": "TK75 HE",
+      "status": "Not investigated",
+      "source": "https://gamakay.com/en-gb/products/gamakay-tk75-he-hall-effect-wireless-custom-keyboard",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://gamakay.com/en-gb/products/gamakay-tk75-he-hall-effect-wireless-custom-keyboard",
+      "evidence": "Exact TK75 HE product page explicitly identifies magnetic Hall Effect switches."
+    },
+    {
+      "brand": "GamaKay",
+      "model": "TK75 HE V2",
+      "status": "Not investigated",
+      "source": "https://gamakay.com/en-gb/products/gamakay-tk75-he-hall-effect-wireless-custom-keyboard",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://gamakay.com/en-gb/blogs/news/tk75-buying-guide-socd-vs-he-v2-vs-tmr",
+      "evidence": "Manufacturer comparison separates HE V2 and magnetic TMR from conventional TK75 SOCD; TMR accepts mechanical switches too."
+    },
+    {
+      "brand": "GamaKay",
+      "model": "NS68",
+      "status": "Not investigated",
+      "source": "https://gamakay.com/en-gb/products/gamakay-tk75-he-hall-effect-wireless-custom-keyboard",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://gamakay.com/products/gamakay-x-naughshark-ns68-8k-polling-rate-0-01mm-rt-accuracy-hall-effect-magnetic-keyboard",
+      "evidence": "Manufacturer specifies Outemu Peach magnetic Hall Effect switches; GamaKay x NaughShark collaboration."
+    },
+    {
+      "brand": "GamaKay",
+      "model": "TK75 TMR",
+      "status": "Not investigated",
+      "source": "https://gamakay.com/en-gb/blogs/news/tk75-buying-guide-socd-vs-he-v2-vs-tmr",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://gamakay.com/en-gb/blogs/news/tk75-buying-guide-socd-vs-he-v2-vs-tmr",
+      "evidence": "Manufacturer comparison separates HE V2 and magnetic TMR from conventional TK75 SOCD; TMR accepts mechanical switches too."
+    },
+    {
+      "brand": "CHERRY XTRFY",
+      "model": "MX 8.2 Pro TMR Wireless",
+      "status": "Not investigated",
+      "source": "https://www.cherry.de/en-gb/company/news/press/article/cherry-xtrfy-introduces-magnetic-switch-keyboards-with-tmr-technology",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.cherry.de/en-gb/company/news/press/article/cherry-xtrfy-introduces-magnetic-switch-keyboards-with-tmr-technology",
+      "evidence": "Manufacturer announcement explicitly identifies both models as TMR magnetic keyboards."
+    },
+    {
+      "brand": "CHERRY XTRFY",
+      "model": "K5 Pro TMR",
+      "status": "Not investigated",
+      "source": "https://www.cherry.de/en-gb/company/news/press/article/cherry-xtrfy-introduces-magnetic-switch-keyboards-with-tmr-technology",
+      "result": "Magnetic sensing confirmed",
+      "verificationSource": "https://www.cherry.de/en-gb/company/news/press/article/cherry-xtrfy-introduces-magnetic-switch-keyboards-with-tmr-technology",
+      "evidence": "Manufacturer announcement explicitly identifies both models as TMR magnetic keyboards."
+    }
+  ]
+}

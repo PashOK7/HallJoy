@@ -15,7 +15,7 @@ const wchar_t* DebugLog_Path();
 
 // Installs crash-only reporting. Production does not start the asynchronous
 // logger or create files during normal operation; HallJoyCrash.txt is written
-// synchronously only for an unhandled process exception. Diagnostic builds add
+// in the app data root only for an unhandled process exception. Diagnostic builds add
 // their richer first-chance report and checkpoints.
 void DebugLog_InstallCrashHandler();
 void DebugLog_SetCheckpoint(const wchar_t* fmt, ...);

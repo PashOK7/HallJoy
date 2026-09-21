@@ -73,7 +73,7 @@ class LayoutPipelineTests(unittest.TestCase):
         a=p.normalized_products('Aula',self.reports)
         self.assertEqual(a,p.normalized_products('Aula',self.reports))
         self.assertIn(b'SI2828KZHEARGB',a['generated/identities.inc'])
-        self.assertEqual(len([k for k in a if k.endswith('.ini')]),3)
+        self.assertEqual(len([k for k in a if k.endswith('.ini')]),5)
 
     def test_max_independent_geometry(self):
         report=self.reports[2]
@@ -103,12 +103,13 @@ class LayoutPipelineTests(unittest.TestCase):
         with patch('urllib.request.urlopen',side_effect=AssertionError('Unexpected network')):
             p.fetch_sources(spec)
             reports=p.reports_for(spec)
-        self.assertEqual([len(r['keys']) for r in reports],[80,81])
+        self.assertEqual([len(r['keys']) for r in reports],[80,81,81])
         for report in reports:
             p.validate_report(report)
             self.assertEqual([o['index'] for o in report['omitted']],[15,121])
-            self.assertIn(0xe5,[k['hid'] for k in report['keys']])
-            self.assertNotIn(0x87,[k['hid'] for k in report['keys']])
+            if report['variant'] != 'ABNT2':
+                self.assertIn(0xe5,[k['hid'] for k in report['keys']])
+                self.assertNotIn(0x87,[k['hid'] for k in report['keys']])
         ansi={k['hid']:k for k in reports[0]['keys']}
         iso={k['hid']:k for k in reports[1]['keys']}
         self.assertEqual(ansi[49]['matrix'],[2,14])
@@ -122,7 +123,14 @@ class LayoutPipelineTests(unittest.TestCase):
         presets=generated['src/HallJoyProject/HallJoy/generated/layout_pipeline/presets.inc']
         self.assertLess(presets.index(b'Aula'),presets.index(b'Redragon'))
         identities=generated['src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.h']
-        self.assertNotIn(b'7272BRHEXYXK673JCARGB',identities)
+        self.assertIn(b'7272BRHEXYXK673JCARGB',identities)
+        br={k['hid']:k for k in reports[2]['keys']}
+        self.assertNotIn(0xe5,br)
+        self.assertEqual(br[0x87]['matrix'],[4,12])
+        self.assertEqual(br[0x87]['label'],'Intl /')
+        self.assertGreater(br[0x87]['w'],br[0x38]['w'])
+        self.assertGreater(br[40]['notchW'],0)
+        self.assertEqual(reports[2]['identity']['products'],['7272BRHEXYXK673JCARGB'])
 
     def test_redragon_rejects_wrong_profile(self):
         spec=copy.deepcopy(p.read_catalog()['Redragon'])
@@ -142,8 +150,8 @@ class LayoutPipelineTests(unittest.TestCase):
 
 class FinalLayoutBatchTests(unittest.TestCase):
     def test_reviewed_reports_offline(self):
-        expected={'Razer':[61,62,65],'NuPhy':[61,83],
-                  'Wooting':[61,62,61,62,84,85,88,87,88,108,109,108,109]}
+        expected={'Razer':[61,62,65,104,61,104,84,108,108,88,105],'NuPhy':[61,83],
+                  'Wooting':[61,62,61,62,84,85,88,87,88,108,109,108,109,61,62,63,64,3]}
         catalog=p.read_catalog()
         with patch('urllib.request.urlopen',side_effect=AssertionError('Unexpected network')):
             for brand,counts in expected.items():
@@ -153,7 +161,14 @@ class FinalLayoutBatchTests(unittest.TestCase):
                     p.validate_report(r)
                     self.assertEqual(r['identity']['products'],[]) # No guessed regional auto-match.
                     by_hid={k['hid']:k for k in r['keys']}
-                    self.assertIn(0x409,by_hid)
+                    if r['model']=='UwU + UwU RGB':
+                        self.assertEqual(set(by_hid),{29,27,6})
+                        continue
+                    if r['model']=='60HE v2 Split':
+                        self.assertTrue({0x480,0x481,0x482,0x483}<=set(by_hid))
+                        self.assertNotIn(44,by_hid)
+                        self.assertNotIn(0x409,by_hid)
+                    else: self.assertIn(0x409,by_hid)
                     self.assertIn(4,by_hid)
                     if r['variant']!='ANSI':
                         self.assertGreater(by_hid[40]['notchW'],0)
@@ -161,9 +176,55 @@ class FinalLayoutBatchTests(unittest.TestCase):
                         self.assertGreater(by_hid[40]['h'],by_hid[4]['h'])
                     else: self.assertNotIn('notchW',by_hid[40])
 
+    def test_razer_legacy_exact_model_geometry(self):
+        import prepare_razer_legacy_layouts as reviewed
+        reports = {r['model']: r for r in reviewed.reports()}
+        self.assertEqual(len(reports), 4)
+        mini = {k['hid']: k for k in reports['Huntsman Mini Analog']['keys']}
+        tkl = {k['hid']: k for k in reports['Huntsman V3 Pro Tenkeyless']['keys']}
+        full = {k['hid']: k for k in reports['Huntsman V3 Pro']['keys']}
+        self.assertEqual(len(tkl), 84)
+        for hid in (70, 71, 72):
+            self.assertNotIn(hid, tkl)
+            self.assertIn(hid, full)
+        self.assertIn(1033, mini)
+        self.assertIn(101, mini)
+        self.assertNotIn(58, mini)
+        self.assertNotIn(83, tkl)
+        self.assertGreater(full[87]['h'], full[89]['h'])
+        self.assertGreater(full[98]['w'], full[89]['w'])
+        for report in reports.values():
+            self.assertEqual(report['identity']['products'], [])
+            p.validate_report(report)
+
+    def test_razer_regional_physical_keys(self):
+        import prepare_razer_regional_layouts as reviewed
+        reports = reviewed.reports()
+        self.assertEqual(len(reports), 4)
+        for r in reports:
+            keys = {k['hid']: k for k in r['keys']}
+            self.assertIn(50, keys)
+            self.assertNotIn(49, keys)
+            self.assertEqual(keys[40]['notchW'], 11)
+            self.assertEqual(keys[40]['notchY'], 42)
+            self.assertEqual(r['identity']['products'], [])
+            if r['variant'] == 'JIS':
+                self.assertTrue({135,136,137,138,139} <= set(keys))
+                self.assertNotIn(101, keys)
+                self.assertNotIn(100, keys)
+                self.assertEqual(keys[44]['w'], 157)
+                self.assertEqual(keys[42]['w'], 42)
+            else:
+                self.assertIn(100, keys)
+                self.assertIn(101, keys)
+                self.assertLess(keys[225]['w'], keys[229]['w'])
+            if 'Tenkeyless' in r['model']:
+                self.assertFalse({70,71,72,83} & set(keys))
+            p.validate_report(r)
+
     def test_plus_identity_is_distinct(self):
         reports=p.reports_for(p.read_catalog()['Wooting'])
-        self.assertEqual(len({r['id'] for r in reports}),13)
+        self.assertEqual(len({r['id'] for r in reports}),18)
         self.assertTrue(any('60he_plus' in r['id'] for r in reports))
 
     def test_review_reader_rejects_metadata_drift(self):

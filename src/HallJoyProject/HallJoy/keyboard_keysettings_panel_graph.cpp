@@ -148,10 +148,10 @@ static std::wstring g_lastInfoText;
 static void SetStaticText_NoFlicker(HWND hStatic, const wchar_t* text)
 {
     if (!hStatic) return;
-    SendMessageW(hStatic, WM_SETREDRAW, FALSE, 0);
+    // Updating a hidden backing label must not make it visible.
     SetWindowTextW(hStatic, text ? text : L"");
-    SendMessageW(hStatic, WM_SETREDRAW, TRUE, 0);
-    RedrawWindow(hStatic, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_UPDATENOW);
+    if (IsWindowVisible(hStatic))
+        RedrawWindow(hStatic, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE);
 }
 
 static float EvalLinear(float x, const KeyDeadzone& ks)
@@ -1122,3 +1122,49 @@ void KeySettingsPanel_Shutdown()
 
     GraphCache_Free();
 }
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+#include "keyboard_layout.h"
+#include "app_paths.h"
+extern LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND, UINT, WPARAM, LPARAM);
+bool KeySettingsPanel_TestHiddenControls()
+{
+    if (AppPaths_Mode() != AppDataMode::SimulatorOverride || IsWindow(g_kspParent)) return false;
+    const int savedLayout = KeyboardLayout_GetCurrentPresetIndex();
+    WNDCLASSW wc{};
+    wc.lpfnWndProc = KeyboardSubpages_ConfigPageProc;
+    wc.hInstance = GetModuleHandleW(nullptr);
+    wc.lpszClassName = L"HallJoyHiddenConfigRegression";
+    RegisterClassW(&wc);
+    // Never display the test window. Inspect the child's own WS_VISIBLE bit,
+    // since IsWindowVisible would mask this defect beneath a hidden parent.
+    HWND page = CreateWindowW(wc.lpszClassName, L"", WS_POPUP,
+        0, 0, 800, 700, nullptr, nullptr, wc.hInstance, nullptr);
+    bool ok = page != nullptr;
+    HWND controls[] = { g_kspChkUnique, g_kspChkInvert, g_kspTxtInfo,
+        g_kspLblMode, g_kspComboMode, g_kspLblProfile, g_kspComboProfile };
+    auto checkHidden = [&]() {
+        for (HWND control : controls)
+            ok &= IsWindow(control) && !(GetWindowLongPtrW(control, GWL_STYLE) & WS_VISIBLE);
+    };
+    checkHidden();
+    for (int i = 0; page && i < 6; ++i) {
+        KeyboardLayout_SetPresetIndex(i % 2);
+        KeySettingsPanel_SetSelectedHid(i % 2 ? 26 : 0);
+        KeySettingsPanel_HandleCommand(page, 9999, 0);
+        UpdateInfoLabelIfNeeded(true);
+        SendMessageW(page, WM_SIZE, 0, MAKELPARAM(800, 700 - i * 10));
+        checkHidden();
+        // Selection refresh must neither replace nor duplicate backing controls.
+        ok &= GetDlgItem(page, KSP_ID_MODE) == g_kspComboMode &&
+            GetDlgItem(page, KSP_ID_PROFILE) == g_kspComboProfile;
+    }
+    if (page) DestroyWindow(page);
+    g_kspParent = nullptr;
+    g_kspChkUnique = g_kspChkInvert = g_kspTxtInfo = nullptr;
+    g_kspLblMode = g_kspComboMode = g_kspLblProfile = g_kspComboProfile = nullptr;
+    KeyboardLayout_SetPresetIndex(savedLayout);
+    UnregisterClassW(wc.lpszClassName, wc.hInstance);
+    return ok;
+}
+#endif

@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "id": "sayodevice_o3c_ansi",
+  "brand": "SayoDevice",
+  "model": "O3C",
+  "variant": "ANSI",
+  "name": "SayoDevice O3C ANSI",
+  "status": "ready",
+  "unresolved": [],
+  "keys": [
+    {
+      "hid": 29,
+      "label": "Z",
+      "x": 0,
+      "y": 0,
+      "w": 42,
+      "h": 42,
+      "matrix": [
+        0,
+        0
+      ]
+    },
+    {
+      "hid": 27,
+      "label": "X",
+      "x": 47,
+      "y": 0,
+      "w": 42,
+      "h": 42,
+      "matrix": [
+        0,
+        1
+      ]
+    },
+    {
+      "hid": 6,
+      "label": "C",
+      "x": 94,
+      "y": 0,
+      "w": 42,
+      "h": 42,
+      "matrix": [
+        0,
+        2
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "code": "encoder",
+      "reason": "Encoder actions are digital-only and have no magnetic depth."
+    }
+  ],
+  "sources": [
+    {
+      "path": "docs/research/sayo-config-sources/app_O3C.decrypted.bin",
+      "sha256": "283611106fc9504f8ffc03a8604c9ec81daade1f2d67960684076b6766b6fd21",
+      "url": "https://a.sayobot.cn/firmware/update/9/firmware/app_O3C.bin"
+    }
+  ],
+  "geometryEvidence": "O3C v1 firmware geometry at 0x1E388/0x1E3AC: width/height 1800, x 1000/3000/5000, y 3000. Pixel-normalized; defaults Z/X/C at 0x1C778.",
+  "identity": {
+    "protocol": "sayo-o3c",
+    "products": [
+      "O3C-8089-0009"
+    ]
+  }
+}

@@ -34,7 +34,7 @@ struct LayoutPicker
         // User/technical names are opaque; never merge them by a guessed suffix.
         const auto maker = KeyboardLayout_GetPresetBrand(preset);
         if (maker == L"Custom" || maker == L"Other") return L"";
-        for (const auto* suffix : {L"ANSI", L"ISO", L"JIS"}) {
+        for (const auto* suffix : {L"ANSI", L"ISO", L"JIS", L"ABNT2"}) {
             const std::wstring tail = std::wstring(L" ") + suffix;
             if (name.size() > tail.size() && name.compare(name.size()-tail.size(),tail.size(),tail)==0)
                 return suffix;

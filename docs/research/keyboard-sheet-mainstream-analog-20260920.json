@@ -1,0 +1,75 @@
+{
+  "date": "2026-09-20",
+  "additions": [
+    {
+      "brand": "Acer Predator",
+      "model": "Aethon 750 TKL (announced)",
+      "status": "Not investigated",
+      "source": "https://news.acer.com/acer-introduces-predator-helios-18-ai-the-ultimate-gaming-laptop",
+      "evidence": "Official announcement specifies magnetic switches and adjustable actuation. Regional availability planned Q3/Q4 2026; shipping not established in this pass."
+    },
+    {
+      "brand": "HyperX",
+      "model": "Origins 2 Pro 65",
+      "status": "Not investigated",
+      "source": "https://hyperx.com/products/hyperx-origins-2-pro-65-gaming-keyboard",
+      "evidence": "Manufacturer explicitly calls this a magnetic gaming keyboard; ordinary Origins 2 65/1800 and Alloy Rise excluded."
+    },
+    {
+      "brand": "Ducky",
+      "model": "One X Wireless (inductive)",
+      "status": "Not investigated",
+      "source": "https://ducky.global/products/one-x-wireless",
+      "evidence": "Manufacturer specifies next-generation analog inductive switches with adjustable actuation and Rapid Trigger."
+    },
+    {
+      "brand": "Ducky",
+      "model": "One X Mini Wireless (inductive)",
+      "status": "Not investigated",
+      "source": "https://ducky.global/products/one-x-mini-wireless",
+      "evidence": "Manufacturer specifies 60% layout with analog inductive switches. Regional layouts/colorways combined."
+    },
+    {
+      "brand": "Cooler Master",
+      "model": "ControlPad (Aimpad)",
+      "status": "Not investigated",
+      "source": "https://landing.coolermaster.com/pages/controlpad/",
+      "evidence": "Official page describes full analog keypad control through Aimpad; inclusion does not establish HallJoy protocol support."
+    },
+    {
+      "brand": "Cooler Master",
+      "model": "MK850 (8 analog keys)",
+      "status": "Not investigated",
+      "source": "https://legacy.coolermaster.com/en-au/products/mk850/",
+      "evidence": "Manufacturer specifies Aimpad analog control. Hands-on review confirms Q W E R A S D F subset: https://www.pcworld.com/article/398139/cooler-master-mk850-review.html . Not all keys analog; not Logitech MK850."
+    },
+    {
+      "brand": "Pulsar",
+      "model": "PCMK 2 HE TKL",
+      "status": "Not investigated",
+      "source": "https://www.pulsar.gg/pages/download",
+      "evidence": "Official support and keyboard catalog identify Hall Effect switches. ANSI/ISO/JIS combined."
+    },
+    {
+      "brand": "Pulsar",
+      "model": "PCMK 3 HE 60",
+      "status": "Not investigated",
+      "source": "https://www.pulsar.gg/collections/keyboard",
+      "evidence": "Manufacturer catalog explicitly names Hall Effect magnetic keyboard, distinct from TKL."
+    },
+    {
+      "brand": "Pulsar",
+      "model": "PCMK 3 HE TKL",
+      "status": "Not investigated",
+      "source": "https://www.pulsar.gg/products/pcmk-3-he-gaming-keyboard-ansi",
+      "evidence": "Official specs: 87-key magnetic keyboard. Bruce Lee 85th and Something editions consolidated under base model; switch/artwork differences do not establish a new base model."
+    },
+    {
+      "brand": "Pulsar",
+      "model": "eS HE 70",
+      "status": "Not investigated",
+      "source": "https://www.pulsar.gg/blogs/news/pulsar-es70",
+      "evidence": "Official launch and catalog identify 70% HE magnetic gaming keyboard."
+    }
+  ]
+}

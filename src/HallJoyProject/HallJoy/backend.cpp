@@ -1,3 +1,4 @@
+#include "input_path_diagnostics.h"
 #include "profile_runtime_gate.h"
 #include "input_privilege_warning.h"
 // backend.cpp
@@ -201,13 +202,11 @@ static std::atomic<int>          g_tmFullBufferRet{ 0 };
 static std::atomic<uint16_t>     g_tmFullBufferMaxMilli{ 0 };
 static std::atomic<int>          g_tmFullBufferDeviceBestRet{ 0 };
 static std::atomic<uint16_t>     g_tmFullBufferDeviceBestMaxMilli{ 0 };
-static std::atomic<bool>         g_digitalFallbackWarnPending{ false };
 static std::atomic<bool>         g_providerV2ShadowAvailable{ false };
 static std::atomic<std::uint64_t> g_providerV2ShadowEligibleTicks{ 0 };
 static std::atomic<std::uint64_t> g_providerV2ShadowMatchedReports{ 0 };
 static std::atomic<std::uint64_t> g_providerV2ShadowMismatchedReports{ 0 };
 static std::atomic<std::uint64_t> g_providerV2ShadowUnavailableTicks{ 0 };
-static std::atomic<std::uint64_t> g_providerV2ShadowDigitalFallbackTicks{ 0 };
 static std::atomic<std::uint64_t> g_providerV2ShadowCurveMutationTicks{ 0 };
 static std::array<std::atomic<std::uint64_t>, 7>
     g_providerV2ShadowFieldMismatches{};
@@ -1345,7 +1344,6 @@ struct HidCache
     bool addressedConnected = false;
     bool mad68Connected = false;
     bool hex80Connected = false;
-    bool allowFallback = false;
     bool wootingReady = false;
     WootingAnalog_KeycodeType mode = WootingAnalog_KeycodeType_HID;
     bool hasFullBuffer = false;
@@ -1364,15 +1362,6 @@ struct ProviderV2ShadowTick
     bool eligible = false;
     bool curveCoherent = true;
 };
-
-struct SimulatedKeyState
-{
-    bool down = false;
-    float value = 0.0f;
-    ULONGLONG lastUpdateMs = 0;
-};
-
-static std::array<SimulatedKeyState, 256> g_simulatedKeys{};
 
 // Persistent curve cache shared across realtime ticks. The old tick-local cache
 // avoided duplicate work only inside one report build; a MAD68 A0 wake therefore
@@ -1396,58 +1385,6 @@ static void ResetPersistentFilteredCache()
         value = {};
     g_persistentCurveCacheHits = 0;
     g_persistentCurveCacheMisses = 0;
-}
-
-static bool IsHidDownViaAsyncState(uint16_t hidKeycode)
-{
-    if (hidKeycode == 0 || hidKeycode >= 256) return false;
-
-    uint16_t vk = g_hidToVk[hidKeycode].load(std::memory_order_relaxed);
-    if (vk == 0)
-        vk = HidFallbackToVk(hidKeycode);
-    if (vk == 0)
-        return false;
-
-    return (GetAsyncKeyState((int)vk) & 0x8000) != 0;
-}
-
-static float ReadDigitalFallback01(uint16_t hidKeycode)
-{
-    if (hidKeycode == 0 || hidKeycode >= 256)
-        return 0.0f;
-
-    SimulatedKeyState& s = g_simulatedKeys[hidKeycode];
-
-    ULONGLONG now = GetTickCount64();
-    ULONGLONG prev = s.lastUpdateMs;
-    float dtMs = 1.0f;
-    if (prev != 0 && now > prev)
-    {
-        dtMs = (float)(now - prev);
-        dtMs = std::clamp(dtMs, 0.5f, 40.0f);
-    }
-    s.lastUpdateMs = now;
-
-    const bool down = IsHidDownViaAsyncState(hidKeycode);
-    s.down = down;
-
-    // Two-stage press curve:
-    // 0.00 -> 0.70 in ~50 ms, then 0.70 -> 1.00 in ~50 ms.
-    // Release is slightly smoother to avoid harsh jitter on quick taps.
-    if (down)
-    {
-        if (s.value < 0.70f)
-            s.value += (0.70f / 50.0f) * dtMs;
-        else
-            s.value += (0.30f / 50.0f) * dtMs;
-    }
-    else
-    {
-        s.value -= (1.00f / 80.0f) * dtMs;
-    }
-
-    s.value = std::clamp(s.value, 0.0f, 1.0f);
-    return s.value;
 }
 
 static float ReadMouseBindRaw01(uint16_t hidKeycode)
@@ -1611,27 +1548,8 @@ static float ReadRaw01Cached(uint16_t hidKeycode, HidCache& cache)
     const auto providerSource = halljoy::provider_v2_shadow::AnalogSourceStateV1{
         providerAvailable, providerOwned, providerAvailable, providerValue };
     auto arbitration = halljoy::provider_v2_shadow::Arbitrate({ hidKeycode,
-        nativeSource, providerSource, {}, false });
+        nativeSource, providerSource });
     float v = arbitration.value;
-
-    // Extended Fn/OEM keys never have a Windows digital fallback. Native
-    // matrix ownership therefore preserves their travel from the first sample.
-    if (halljoy::keycode::IsStandardHid(hidKeycode) &&
-        cache.allowFallback && !native.owned && v <= 0.001f)
-    {
-        const float sim = ReadDigitalFallback01(hidKeycode);
-        arbitration = halljoy::provider_v2_shadow::Arbitrate({ hidKeycode,
-            nativeSource, providerSource,
-            { true, true, true, sim }, true });
-        if ((arbitration.sourceMask &
-                halljoy::provider_v2_shadow::ArbitrationSource_DigitalFallback) != 0 &&
-            arbitration.value > v)
-        {
-            v = arbitration.value;
-            if (v >= 0.05f)
-            g_digitalFallbackWarnPending.store(true, std::memory_order_release);
-        }
-    }
 
     cache.raw[hidKeycode] = v;
     cache.hasRaw.set(hidKeycode);
@@ -2082,6 +2000,14 @@ static PadFramePair BuildReportFramesForPad(int padIndex, HidCache& cache,
         {
             ReadFilteredPair(hid, cache, shadowTick,
                 &qualifiedInput.filtered[hid], &shadowInput.filtered[hid]);
+#if defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
+            if (hid && !MouseBind_IsPseudoHid(hid)) {
+                const bool block = Settings_GetBlockBoundKeys();
+                halljoy::input_path::Add(block, halljoy::input_path::ConfiguredReads);
+                if (cache.raw[hid] > 0) halljoy::input_path::Add(block, halljoy::input_path::RawPositive);
+                if (qualifiedInput.filtered[hid] > 0) halljoy::input_path::Add(block, halljoy::input_path::FilteredPositive);
+            }
+#endif
         }
     };
 
@@ -2184,6 +2110,11 @@ static PadFramePair BuildReportFramesForPad(int padIndex, HidCache& cache,
     }
     pair.qualified = halljoy::configured_xusb::BuildReport(configuration,
         qualifiedInput, g_qualifiedReportBuilderState[stateIndex]);
+#if defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
+    halljoy::input_path::Add(Settings_GetBlockBoundKeys(), halljoy::input_path::BuiltFrames);
+    if (halljoy::provider_v2_shadow::CompareFrames(pair.qualified, {}))
+        halljoy::input_path::Add(Settings_GetBlockBoundKeys(), halljoy::input_path::ActiveFrames);
+#endif
     pair.shadow = halljoy::configured_xusb::BuildReport(configuration,
         shadowInput, g_providerV2ShadowReportBuilderState[stateIndex]);
     if (shadowTick.eligible)
@@ -3135,12 +3066,6 @@ void Backend_Tick()
     cache.addressedConnected = AddressedAnalog_IsConnected();
     cache.mad68Connected = Mad68ProR_IsConnected();
     cache.hex80Connected = Hex80_IsConnected();
-    cache.allowFallback = Settings_GetDigitalFallbackInput() &&
-        !cache.sparkConnected &&
-        !cache.sayoConnected &&
-        !cache.hex80Connected &&
-        !cache.addressedConnected &&
-        !cache.mad68Connected;
     // The plugin runs in the crash-isolated child, so it can safely coexist with
     // native SparkLink/Sayo/addressed backends. This also allows simultaneous rate
     // comparison instead of silently disabling Wooting/Madlions when IROK is present.
@@ -3209,14 +3134,7 @@ void Backend_Tick()
     }
     g_providerV2ShadowAvailable.store(providerV2Projected,
         std::memory_order_relaxed);
-    if (providerV2Projected && cache.allowFallback)
-    {
-        // A Windows key edge is neither Provider V2 input nor an analogue
-        // ownership signal. Never let it qualify or train the shadow route.
-        g_providerV2ShadowDigitalFallbackTicks.fetch_add(1,
-            std::memory_order_relaxed);
-    }
-    providerV2Shadow.eligible = providerV2Projected && !cache.allowFallback;
+    providerV2Shadow.eligible = providerV2Projected;
 
     // Build the raw map from the isolated host's shared-memory snapshot. V9
     // reads it on every realtime tick; no blocking device I/O occurs here.
@@ -3446,6 +3364,11 @@ void Backend_Tick()
                 bestHid = hid;
             }
         };
+        // Prefer visible physical split keys on equal depth. Their legacy
+        // Space/Fn aliases remain available for older ordinary-layout bindings.
+        if (tracked) for (int i = 0; i < tracked->count; ++i)
+            if (halljoy::wooting_physical::IsCode(tracked->keys[i]) || halljoy::keycode::IsO3c(tracked->keys[i]))
+                consider(tracked->keys[i]);
         for (uint16_t hid = 1; hid < 256; ++hid)
             consider(hid);
         consider(halljoy::keycode::kOem1);
@@ -3624,6 +3547,12 @@ void Backend_Tick()
             const auto publishResult = g_vigemOutputRuntime.TryPublish(
                 outputReports.data(), outputCount, validMask,
                 BackendQpcTimestampUs(publishQpc), &publicationSequence);
+#if defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
+            const bool diagnosticPublished = publishResult == halljoy::vigem_output::OutputPublishResult::Published;
+            halljoy::input_path::Add(Settings_GetBlockBoundKeys(), diagnosticPublished ?
+                halljoy::input_path::Published : halljoy::input_path::PublishRejected);
+            if (diagnosticPublished) halljoy::input_path::latestPublication.store(publicationSequence);
+#endif
             if (publishResult ==
                 halljoy::vigem_output::OutputPublishResult::Published)
             {
@@ -3945,8 +3874,8 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
     t.sayoPollSuccess = g_sayoPollSuccess.load(std::memory_order_relaxed);
     t.sayoPollFail = g_sayoPollFail.load(std::memory_order_relaxed);
     t.sayoDepthPackets = g_sayoDepthPackets.load(std::memory_order_relaxed);
-    for (const auto& mapped : g_sayoIndexToHid)
-        if (mapped.load(std::memory_order_relaxed) != 0) ++t.sayoMappedKeys;
+    for (size_t i=0;i<3;++i)
+        if (SayoMappedHid(i)) ++t.sayoMappedKeys;
     t.sayoInputReportBytes = g_sayoMaxInputReportBytes.load(std::memory_order_relaxed);
     t.sayoOutputReportBytes = g_sayoMaxOutputReportBytes.load(std::memory_order_relaxed);
     t.sayoWriteCapableReaders = g_sayoWriteCapableReaders.load(std::memory_order_relaxed);
@@ -3994,7 +3923,7 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
     UINT pollMs = std::max<UINT>(1u, Settings_GetPollingMs());
     t.sdkPollHz10 = std::min<uint32_t>(1000000u, (uint32_t)(10000u / pollMs));
 
-    bool sparkSeen[256]{};
+    bool sparkSeen[kSparkKeyCount]{};
     uint32_t sparkMapped = 0;
     uint32_t rawMin = UINT32_MAX;
     uint32_t rawMax = 0;
@@ -4007,7 +3936,7 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
             continue;
         for (int col = 0; col < kSparkColsPerRow; ++col)
         {
-            uint8_t hid = g_sparkRowColToHid[(size_t)row * kSparkColsPerRow + (size_t)col].load(std::memory_order_relaxed);
+            uint16_t hid = g_sparkRowColToHid[(size_t)row * kSparkColsPerRow + (size_t)col].load(std::memory_order_relaxed);
             if (hid == 0 || sparkSeen[hid])
                 continue;
             sparkSeen[hid] = true;
@@ -4123,8 +4052,7 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
         g_providerV2ShadowMismatchedReports.load(std::memory_order_relaxed);
     t.providerV2ShadowUnavailableTicks =
         g_providerV2ShadowUnavailableTicks.load(std::memory_order_relaxed);
-    t.providerV2ShadowDigitalFallbackTicks =
-        g_providerV2ShadowDigitalFallbackTicks.load(std::memory_order_relaxed);
+    t.providerV2ShadowDigitalFallbackTicks = 0; // Retained report schema; emulation is prohibited.
     t.providerV2ShadowCurveMutationTicks =
         g_providerV2ShadowCurveMutationTicks.load(std::memory_order_relaxed);
     for (std::size_t field = 0;
@@ -4173,18 +4101,6 @@ void Backend_GetMouseStickDebug(BackendMouseStickDebug* out)
     d.radius = std::max(0.001f, (float)g_mouseDbgRadius1000.load(std::memory_order_relaxed) / 1000.0f);
     *out = d;
 }
-
-bool Backend_ConsumeDigitalFallbackWarning()
-{
-    if (!Settings_GetDigitalFallbackInput())
-    {
-        g_digitalFallbackWarnPending.store(false, std::memory_order_release);
-        return false;
-    }
-    return g_digitalFallbackWarnPending.exchange(false, std::memory_order_acq_rel);
-}
-
-
 
 void Backend_NotifyDeviceChange()
 {
@@ -4349,7 +4265,7 @@ bool BackendNative_SparkPresent()
 
 bool BackendNative_SparkOwnsHid(std::uint16_t hidUsage)
 {
-    if (hidUsage == 0 || hidUsage >= 256 || !BackendNative_SparkPresent())
+    if (hidUsage == 0 || hidUsage >= kSparkKeyCount || !BackendNative_SparkPresent())
         return false;
     for (const auto& mapped : g_sparkRowColToHid)
     {
@@ -4370,8 +4286,8 @@ bool BackendNative_SparkGetSnapshotV2(halljoy::native_analog_snapshot::OutputV1 
 {
     using namespace halljoy::native_analog_snapshot;
     const std::uint64_t providerId = StableProviderId("native.sparklink.v2");
-    std::array<std::uint8_t, 256> owned{};
-    std::array<std::uint16_t, 256> milli{};
+    std::array<std::uint8_t, kSparkKeyCount> owned{};
+    std::array<std::uint16_t, kSparkKeyCount> milli{};
     LegacyMilliSourceV1 source{};
     std::uint64_t publication = 0;
 
@@ -4396,6 +4312,7 @@ bool BackendNative_SparkGetSnapshotV2(halljoy::native_analog_snapshot::OutputV1 
         // whole-keyboard acquisition; leave V2 Complete clear intentionally.
         source.topologyComplete = false;
         source.ownedHid = owned.data();
+        source.codeCount = owned.size();
         source.milli = milli.data();
         if (connected)
         {
@@ -4414,7 +4331,7 @@ bool BackendNative_SparkGetSnapshotV2(halljoy::native_analog_snapshot::OutputV1 
                 {
                     const auto index = static_cast<std::size_t>(row) *
                         kSparkColsPerRow + static_cast<std::size_t>(col);
-                    const std::uint8_t hid = g_sparkRowColToHid[index]
+                    const std::uint16_t hid = g_sparkRowColToHid[index]
                         .load(std::memory_order_relaxed);
                     if (hid != 0)
                         owned[hid] = 1;
@@ -4477,21 +4394,22 @@ bool BackendNative_SayoPresent()
 
 bool BackendNative_SayoOwnsHid(std::uint16_t hidUsage)
 {
-    if (hidUsage == 0 || hidUsage >= 256 || !BackendNative_SayoPresent())
+    if (hidUsage == 0 || !halljoy::keycode::IsSupported(hidUsage) || !BackendNative_SayoPresent())
         return false;
-    for (const auto& mapped : g_sayoIndexToHid)
-    {
-        if (mapped.load(std::memory_order_relaxed) == hidUsage)
-            return true;
-    }
+    for (size_t i=0;i<3;++i) if (SayoMatchesHid(i,hidUsage)) return true;
     return false;
 }
 
 std::uint16_t BackendNative_SayoGetMilli(std::uint16_t hidUsage)
 {
-    return hidUsage < g_sayoAnalogMilli.size()
-        ? g_sayoAnalogMilli[hidUsage].load(std::memory_order_relaxed)
-        : 0;
+    const auto last = g_sayoLastDepthMs.load(std::memory_order_acquire);
+    if (!BackendNative_SayoPresent() || !last ||
+        halljoy::monotonic_time::SaturatingAgeMs(GetTickCount64(), last) > kSayoDepthFreshMs)
+        return 0;
+    uint16_t value=0;
+    for (size_t i=0;i<3;++i) if (hidUsage && SayoMatchesHid(i,hidUsage))
+        value=std::max(value,g_sayoPhysicalMilli[i].load(std::memory_order_relaxed));
+    return value;
 }
 
 void BackendNative_SayoTelemetry(NativeAnalogBackendTelemetry* out)
@@ -4502,11 +4420,11 @@ void BackendNative_SayoTelemetry(NativeAnalogBackendTelemetry* out)
     out->connected = out->present;
     out->vendorId = g_sayoConnectedVid.load(std::memory_order_relaxed);
     out->productId = g_sayoConnectedPid.load(std::memory_order_relaxed);
-    out->mappedKeys = 0;
-    for (const auto& mapped : g_sayoIndexToHid)
-        if (mapped.load(std::memory_order_relaxed) != 0) ++out->mappedKeys;
-    for (const auto& value : g_sayoAnalogMilli)
-        if (value.load(std::memory_order_relaxed) != 0) ++out->activeKeys;
+    out->verifiedLayoutToken=out->connected ? g_sayoLayoutToken.load(std::memory_order_acquire) : 0;
+    for (size_t i=0;i<3;++i) {
+        if (SayoMappedHid(i)) ++out->mappedKeys;
+        if (g_sayoPhysicalMilli[i].load()!=0) ++out->activeKeys;
+    }
     out->nominalRawLevels = kSayoRawFullScale + 1u;
     out->inputReportBytes = g_sayoMaxInputReportBytes.load(std::memory_order_relaxed);
     out->outputReportBytes = g_sayoMaxOutputReportBytes.load(std::memory_order_relaxed);
@@ -4521,9 +4439,9 @@ void BackendNative_SayoTelemetry(NativeAnalogBackendTelemetry* out)
     if (out->averageIntervalUs != 0)
         out->updateHz10 = static_cast<std::uint32_t>(10000000ull / out->averageIntervalUs);
     _snwprintf_s(out->status, kNativeAnalogBackendStatusChars, _TRUNCATE,
-        L"depth polling, %d readers, %u mapped keys",
-        g_sayoReaderCount.load(std::memory_order_relaxed),
-        static_cast<unsigned>(out->mappedKeys));
+        L"depth polling, %u mapped keys, %ls",
+        static_cast<unsigned>(out->mappedKeys),
+        g_sayoConfigRead.load() ? L"device config read" : L"binding labels unavailable");
 }
 }
 
@@ -4595,3 +4513,68 @@ const NativeAnalogBackendDescriptor& BackendNative_GetSayoDescriptor()
     };
     return descriptor;
 }
+
+#if defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
+void Backend_InputPathStatus(char* text, std::size_t capacity) noexcept {
+    const auto s = g_vigemOutputRuntime.GetStatus();
+    _snprintf_s(text,capacity,_TRUNCATE,
+        "path.output state=%u enabled=%u ready=%u pads=%u generation=%llu applied=%llu published=%llu error=%u outcome=%u restarts=%llu rebuilds=%llu heartbeat_age_ms=%llu",
+        unsigned(s.state),unsigned(s.desiredEnabled),unsigned(s.ready),s.desiredPadCount,
+        s.activeGeneration,s.appliedPublicationSequence,halljoy::input_path::latestPublication.load(),
+        s.lastError,unsigned(s.lastOutcome),s.restartCount,s.sessionRebuildCount,
+        s.heartbeatTickMs ? GetTickCount64()-s.heartbeatTickMs : 0);
+}
+bool Backend_TestSharkConfiguredPath(float w, float a) {
+    // Called before app initialization by the isolated Shark self-test only.
+    Bindings_SetAxisMinusForPad(0,Axis::LX,4);
+    Bindings_SetAxisPlusForPad(0,Axis::LX,7);
+    Bindings_SetAxisMinusForPad(0,Axis::LY,22);
+    Bindings_SetAxisPlusForPad(0,Axis::LY,26);
+    Settings_SetInputDeadzoneLow(0.0f);
+    Settings_SetInputDeadzoneHigh(1.0f);
+    Settings_SetInputAntiDeadzone(0.0f);
+    BackendCurve_Invalidate();
+    const bool savedBlock=Settings_GetBlockBoundKeys();
+    halljoy::controller::VirtualControllerFrameV1 frames[2]{};
+    for(unsigned block=0;block<2;++block) {
+        Settings_SetBlockBoundKeys(block!=0);
+        HidCache cache{};
+        ProviderV2ShadowTick shadow{};
+        BackendCurve_BeginTick();
+        frames[block]=BuildReportFramesForPad(0,cache,shadow,false,false,0.5f,false,0).qualified;
+        if(cache.raw[26]!=w || cache.raw[4]!=a || cache.raw[7]!=0.0f) {
+            Settings_SetBlockBoundKeys(savedBlock);return false;
+        }
+    }
+    Settings_SetBlockBoundKeys(savedBlock);
+    return (a>0 ? frames[0].leftStickX<0 : frames[0].leftStickX==0) &&
+        (w>0 ? frames[0].leftStickY>0 : frames[0].leftStickY==0) &&
+        halljoy::provider_v2_shadow::CompareFrames(frames[0],frames[1])==0;
+}
+#endif
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool Backend_TestSparkFnPublication() {
+    if (g_sparkConnected.load()) return false;
+    Spark_ResetKeyState();
+    const auto fn=halljoy::sparklink::DecodeKey(0xF101);
+    if(fn!=0x409 || halljoy::sparklink::DecodeKey(0xF102)!=0) return false;
+    struct Reset { ~Reset() { g_sparkConnected.store(false); Spark_ResetKeyState(); } } reset;
+    g_sparkRowColToHid[5*kSparkColsPerRow+11].store(fn);
+    g_sparkRowColToHid[4*kSparkColsPerRow+1].store(fn);
+    g_sparkRowActive[5].store(1);g_sparkRowActive[4].store(1);g_sparkRowCount.store(6);
+    g_sparkConnected.store(true);
+    std::array<uint16_t,kSparkColsPerRow> row{};
+    auto now=GetTickCount64();
+    SparkRecordRouteResult(5,true,now);row[11]=1750;SparkCommitRouteRow(5,row,now,6);
+    if(!BackendNative_SparkOwnsHid(fn) || BackendNative_SparkGetMilli(fn)!=500) return false;
+    row.fill(0);row[1]=3500;SparkRecordRouteResult(4,true,now);SparkCommitRouteRow(4,row,now,6);
+    row.fill(0);SparkRecordRouteResult(5,true,now);SparkCommitRouteRow(5,row,now,6);
+    if(BackendNative_SparkGetMilli(fn)!=1000) return false;
+    SparkRecordRouteResult(4,true,now);SparkCommitRouteRow(4,row,now,6);
+    if(BackendNative_SparkGetMilli(fn)!=0) return false;
+    row[11]=3500;SparkRecordRouteResult(5,true,now);SparkCommitRouteRow(5,row,now,6);
+    SparkReconcileRowFreshness(now+kSparkRowFreshnessMs+1,6);
+    return BackendNative_SparkGetMilli(fn)==0 && BackendNative_SparkGetMilli(1)==0;
+}
+#endif

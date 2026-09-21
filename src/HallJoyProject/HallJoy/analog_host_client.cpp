@@ -2972,6 +2972,13 @@ bool AnalogHostClient_IsInitialised()
 
 bool AnalogHostClient_RequestDeviceRefresh() noexcept
 {
+#if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
+    // This focused build keeps UAP's initial discovery, but does not restart it
+    // on generic Windows topology noise. Native HID discovery remains active.
+    // This is diagnostic isolation, not a production hotplug fix.
+    return false;
+#endif
+
     if (g_client.stopping.load(std::memory_order_acquire) ||
         g_client.restartBlocked.load(std::memory_order_acquire) ||
         g_client.lifecycle.State() != halljoy::lifecycle::WorkerState::Running)

@@ -7,5 +7,5 @@
 const NativeAnalogBackendDescriptor &AulaHero84He_GetNativeBackendDescriptor();
 
 #if defined(HALLJOY_ANALOG_SIMULATOR)
-bool AulaHero84He_TestPublication();
+bool AulaHero84He_TestPublication(int* failedLine = nullptr);
 #endif

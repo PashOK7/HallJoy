@@ -1,0 +1,641 @@
+{
+  "sourceVariants": 95,
+  "visibleVariants": 77,
+  "groups": [
+    {
+      "brand": "DrunkDeer",
+      "display": "DrunkDeer A75 Pro",
+      "sources": [
+        "DrunkDeer A75 Pro"
+      ],
+      "keyCount": 82
+    },
+    {
+      "brand": "DrunkDeer",
+      "display": "DrunkDeer G65 ANSI",
+      "sources": [
+        "DrunkDeer G65 ANSI"
+      ],
+      "keyCount": 68
+    },
+    {
+      "brand": "Other",
+      "display": "WASD Only",
+      "sources": [
+        "WASD Only"
+      ],
+      "keyCount": 4
+    },
+    {
+      "brand": "Other",
+      "display": "Generic 100% ANSI",
+      "sources": [
+        "Generic 100% ANSI"
+      ],
+      "keyCount": 103
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron K4 HE ANSI",
+      "sources": [
+        "Keychron K4 HE ANSI - Imported"
+      ],
+      "keyCount": 100
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q1 HE / Q1 HE 8K ANSI",
+      "sources": [
+        "Keychron Q1 HE ANSI - Imported",
+        "Keychron Q1 HE 8K ANSI"
+      ],
+      "keyCount": 81
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron K2 HE / K3 HE ANSI",
+      "sources": [
+        "Keychron K2 HE ANSI",
+        "Keychron K3 HE ANSI"
+      ],
+      "keyCount": 84
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q3 HE / Q3 HE 8K ANSI",
+      "sources": [
+        "Keychron Q3 HE ANSI",
+        "Keychron Q3 HE 8K ANSI"
+      ],
+      "keyCount": 87
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q5 HE / Q5 HE 8K ANSI",
+      "sources": [
+        "Keychron Q5 HE ANSI",
+        "Keychron Q5 HE 8K ANSI"
+      ],
+      "keyCount": 101
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron K2 HE / K3 HE ISO",
+      "sources": [
+        "Keychron K2 HE ISO",
+        "Keychron K3 HE ISO"
+      ],
+      "keyCount": 85
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron K2 HE JIS",
+      "sources": [
+        "Keychron K2 HE JIS"
+      ],
+      "keyCount": 87
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron K4 HE ISO",
+      "sources": [
+        "Keychron K4 HE ISO"
+      ],
+      "keyCount": 101
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron K4 HE JIS",
+      "sources": [
+        "Keychron K4 HE JIS"
+      ],
+      "keyCount": 103
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron K8 HE ANSI",
+      "sources": [
+        "Keychron K8 HE ANSI"
+      ],
+      "keyCount": 87
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron K8 HE ISO",
+      "sources": [
+        "Keychron K8 HE ISO"
+      ],
+      "keyCount": 88
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron K8 HE JIS",
+      "sources": [
+        "Keychron K8 HE JIS"
+      ],
+      "keyCount": 91
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron K10 HE ANSI",
+      "sources": [
+        "Keychron K10 HE ANSI"
+      ],
+      "keyCount": 104
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron K10 HE ISO",
+      "sources": [
+        "Keychron K10 HE ISO"
+      ],
+      "keyCount": 105
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q1 HE / Q1 HE 8K ISO",
+      "sources": [
+        "Keychron Q1 HE ISO",
+        "Keychron Q1 HE 8K ISO"
+      ],
+      "keyCount": 82
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q1 HE JIS",
+      "sources": [
+        "Keychron Q1 HE JIS"
+      ],
+      "keyCount": 85
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q3 HE / Q3 HE 8K ISO",
+      "sources": [
+        "Keychron Q3 HE ISO",
+        "Keychron Q3 HE 8K ISO"
+      ],
+      "keyCount": 88
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q3 HE / Q3 HE 8K JIS",
+      "sources": [
+        "Keychron Q3 HE JIS",
+        "Keychron Q3 HE 8K JIS"
+      ],
+      "keyCount": 91
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q5 HE ISO",
+      "sources": [
+        "Keychron Q5 HE ISO"
+      ],
+      "keyCount": 102
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q5 HE JIS",
+      "sources": [
+        "Keychron Q5 HE JIS"
+      ],
+      "keyCount": 105
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q6 HE / Q6 HE 8K ANSI",
+      "sources": [
+        "Keychron Q6 HE ANSI",
+        "Keychron Q6 HE 8K ANSI"
+      ],
+      "keyCount": 108
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q6 HE ISO",
+      "sources": [
+        "Keychron Q6 HE ISO"
+      ],
+      "keyCount": 109
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q6 HE JIS",
+      "sources": [
+        "Keychron Q6 HE JIS"
+      ],
+      "keyCount": 112
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q12 HE ANSI",
+      "sources": [
+        "Keychron Q12 HE ANSI"
+      ],
+      "keyCount": 102
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q12 HE ISO",
+      "sources": [
+        "Keychron Q12 HE ISO"
+      ],
+      "keyCount": 103
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron Q1 HE 8K JIS",
+      "sources": [
+        "Keychron Q1 HE 8K JIS"
+      ],
+      "keyCount": 85
+    },
+    {
+      "brand": "Keychron",
+      "display": "Keychron K3 HE JIS",
+      "sources": [
+        "Keychron K3 HE JIS"
+      ],
+      "keyCount": 87
+    },
+    {
+      "brand": "Lemokey",
+      "display": "Lemokey P1 HE ANSI",
+      "sources": [
+        "Lemokey P1 HE ANSI"
+      ],
+      "keyCount": 81
+    },
+    {
+      "brand": "Lemokey",
+      "display": "Lemokey P1 HE ISO",
+      "sources": [
+        "Lemokey P1 HE ISO"
+      ],
+      "keyCount": 82
+    },
+    {
+      "brand": "DrunkDeer",
+      "display": "DrunkDeer A75 ANSI",
+      "sources": [
+        "DrunkDeer A75 ANSI"
+      ],
+      "keyCount": 82
+    },
+    {
+      "brand": "DrunkDeer",
+      "display": "DrunkDeer A75 ISO",
+      "sources": [
+        "DrunkDeer A75 ISO"
+      ],
+      "keyCount": 83
+    },
+    {
+      "brand": "DrunkDeer",
+      "display": "DrunkDeer G60 ANSI",
+      "sources": [
+        "DrunkDeer G60 ANSI"
+      ],
+      "keyCount": 61
+    },
+    {
+      "brand": "DrunkDeer",
+      "display": "DrunkDeer G75 ANSI",
+      "sources": [
+        "DrunkDeer G75 ANSI"
+      ],
+      "keyCount": 84
+    },
+    {
+      "brand": "DrunkDeer",
+      "display": "DrunkDeer G75 JIS",
+      "sources": [
+        "DrunkDeer G75 JIS"
+      ],
+      "keyCount": 86
+    },
+    {
+      "brand": "Aula",
+      "display": "Aula WIN 60 HE Standard ANSI",
+      "sources": [
+        "Aula WIN 60 HE Standard ANSI"
+      ],
+      "keyCount": 61
+    },
+    {
+      "brand": "Aula",
+      "display": "Aula WIN 68 HE Standard ANSI",
+      "sources": [
+        "Aula WIN 68 HE Standard ANSI"
+      ],
+      "keyCount": 68
+    },
+    {
+      "brand": "Aula",
+      "display": "Aula WIN 60 HE MAX ANSI",
+      "sources": [
+        "Aula WIN 60 HE MAX ANSI"
+      ],
+      "keyCount": 61
+    },
+    {
+      "brand": "Redragon",
+      "display": "Redragon K673WB-RGB-M ANSI",
+      "sources": [
+        "Redragon K673WB-RGB-M ANSI"
+      ],
+      "keyCount": 80
+    },
+    {
+      "brand": "Redragon",
+      "display": "Redragon K673RGB-M ISO",
+      "sources": [
+        "Redragon K673RGB-M ISO"
+      ],
+      "keyCount": 81
+    },
+    {
+      "brand": "Razer",
+      "display": "Razer Huntsman V3 Pro Mini ANSI",
+      "sources": [
+        "Razer Huntsman V3 Pro Mini ANSI"
+      ],
+      "keyCount": 61
+    },
+    {
+      "brand": "Razer",
+      "display": "Razer Huntsman V3 Pro Mini ISO",
+      "sources": [
+        "Razer Huntsman V3 Pro Mini ISO"
+      ],
+      "keyCount": 62
+    },
+    {
+      "brand": "Razer",
+      "display": "Razer Huntsman V3 Pro Mini JIS",
+      "sources": [
+        "Razer Huntsman V3 Pro Mini JIS"
+      ],
+      "keyCount": 65
+    },
+    {
+      "brand": "Razer",
+      "display": "Razer Huntsman Mini Analog ANSI",
+      "sources": [
+        "Razer Huntsman Mini Analog ANSI"
+      ],
+      "keyCount": 61
+    },
+    {
+      "brand": "Razer",
+      "display": "Razer Huntsman V2 Analog / Huntsman V3 Pro ANSI",
+      "sources": [
+        "Razer Huntsman V2 Analog ANSI",
+        "Razer Huntsman V3 Pro ANSI"
+      ],
+      "keyCount": 104
+    },
+    {
+      "brand": "Razer",
+      "display": "Razer Huntsman V3 Pro Tenkeyless ANSI",
+      "sources": [
+        "Razer Huntsman V3 Pro Tenkeyless ANSI"
+      ],
+      "keyCount": 84
+    },
+    {
+      "brand": "NuPhy",
+      "display": "NuPhy Air60 HE ANSI",
+      "sources": [
+        "NuPhy Air60 HE ANSI"
+      ],
+      "keyCount": 61
+    },
+    {
+      "brand": "NuPhy",
+      "display": "NuPhy Air75 HE ANSI",
+      "sources": [
+        "NuPhy Air75 HE ANSI"
+      ],
+      "keyCount": 83
+    },
+    {
+      "brand": "Wooting",
+      "display": "Wooting 60HE / 60HE+ / 60HE v2 ANSI",
+      "sources": [
+        "Wooting 60HE ANSI",
+        "Wooting 60HE+ ANSI",
+        "Wooting 60HE v2 ANSI"
+      ],
+      "keyCount": 61
+    },
+    {
+      "brand": "Wooting",
+      "display": "Wooting 60HE / 60HE+ / 60HE v2 ISO",
+      "sources": [
+        "Wooting 60HE ISO",
+        "Wooting 60HE+ ISO",
+        "Wooting 60HE v2 ISO"
+      ],
+      "keyCount": 62
+    },
+    {
+      "brand": "Wooting",
+      "display": "Wooting 80HE ANSI",
+      "sources": [
+        "Wooting 80HE ANSI"
+      ],
+      "keyCount": 84
+    },
+    {
+      "brand": "Wooting",
+      "display": "Wooting 80HE ISO",
+      "sources": [
+        "Wooting 80HE ISO"
+      ],
+      "keyCount": 85
+    },
+    {
+      "brand": "Wooting",
+      "display": "Wooting 80HE JIS",
+      "sources": [
+        "Wooting 80HE JIS"
+      ],
+      "keyCount": 88
+    },
+    {
+      "brand": "Wooting",
+      "display": "Wooting One ANSI",
+      "sources": [
+        "Wooting One ANSI"
+      ],
+      "keyCount": 87
+    },
+    {
+      "brand": "Wooting",
+      "display": "Wooting One ISO",
+      "sources": [
+        "Wooting One ISO"
+      ],
+      "keyCount": 88
+    },
+    {
+      "brand": "Wooting",
+      "display": "Wooting Two / Two HE ANSI",
+      "sources": [
+        "Wooting Two ANSI",
+        "Wooting Two HE ANSI"
+      ],
+      "keyCount": 108
+    },
+    {
+      "brand": "Wooting",
+      "display": "Wooting Two / Two HE ISO",
+      "sources": [
+        "Wooting Two HE ISO",
+        "Wooting Two ISO"
+      ],
+      "keyCount": 109
+    },
+    {
+      "brand": "Wooting",
+      "display": "Wooting 60HE v2 Split ANSI",
+      "sources": [
+        "Wooting 60HE v2 Split ANSI"
+      ],
+      "keyCount": 63
+    },
+    {
+      "brand": "Wooting",
+      "display": "Wooting 60HE v2 Split ISO",
+      "sources": [
+        "Wooting 60HE v2 Split ISO"
+      ],
+      "keyCount": 64
+    },
+    {
+      "brand": "Wooting",
+      "display": "Wooting UwU + UwU RGB ANSI",
+      "sources": [
+        "Wooting UwU + UwU RGB ANSI"
+      ],
+      "keyCount": 3
+    },
+    {
+      "brand": "IROK",
+      "display": "IROK MG75 Max ANSI",
+      "sources": [
+        "IROK MG75 Max ANSI"
+      ],
+      "keyCount": 81
+    },
+    {
+      "brand": "IROK",
+      "display": "IROK MG75 Pro ANSI",
+      "sources": [
+        "IROK MG75 Pro ANSI"
+      ],
+      "keyCount": 81
+    },
+    {
+      "brand": "MADLIONS",
+      "display": "MADLIONS MAD60HE ANSI",
+      "sources": [
+        "MADLIONS MAD60HE ANSI"
+      ],
+      "keyCount": 61
+    },
+    {
+      "brand": "MADLIONS",
+      "display": "MADLIONS MAD68HE / MAD68R ANSI",
+      "sources": [
+        "MADLIONS MAD68HE ANSI",
+        "MADLIONS MAD68R ANSI"
+      ],
+      "keyCount": 68
+    },
+    {
+      "brand": "MADLIONS",
+      "display": "MADLIONS MAD 68 Pro R ANSI",
+      "sources": [
+        "MADLIONS MAD 68 Pro R ANSI"
+      ],
+      "keyCount": 68
+    },
+    {
+      "brand": "ATK",
+      "display": "ATK Hex80 ANSI",
+      "sources": [
+        "ATK Hex80 ANSI"
+      ],
+      "keyCount": 87
+    },
+    {
+      "brand": "IPI",
+      "display": "IPI QBZ75 / Aurora 75 / Aurora75 PRO ANSI",
+      "sources": [
+        "IPI Aurora75 PRO ANSI",
+        "IPI QBZ75 + Aurora 75 ANSI"
+      ],
+      "keyCount": 82
+    },
+    {
+      "brand": "IPI",
+      "display": "IPI flash68 ANSI",
+      "sources": [
+        "IPI flash68 ANSI"
+      ],
+      "keyCount": 68
+    },
+    {
+      "brand": "IPI",
+      "display": "IPI QBZ65 + AURORA65 + AURORA65W + RAIN65 ANSI",
+      "sources": [
+        "IPI QBZ65 + AURORA65 + AURORA65W + RAIN65 ANSI"
+      ],
+      "keyCount": 67
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "display": "ATTACK SHARK X65 Pro HE ANSI",
+      "sources": [
+        "ATTACK SHARK X65 Pro HE ANSI"
+      ],
+      "keyCount": 66
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "display": "ATTACK SHARK X68 Pro HE ANSI",
+      "sources": [
+        "ATTACK SHARK X68 Pro HE ANSI"
+      ],
+      "keyCount": 66
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "display": "ATTACK SHARK X82 Pro HE ANSI",
+      "sources": [
+        "ATTACK SHARK X82 Pro HE ANSI"
+      ],
+      "keyCount": 83
+    },
+    {
+      "brand": "Aula",
+      "display": "Aula MINI60 HE Pro ANSI",
+      "sources": [
+        "Aula MINI60 HE Pro ANSI"
+      ],
+      "keyCount": 61
+    },
+    {
+      "brand": "IROK",
+      "display": "IROK NA87 Mag ANSI",
+      "sources": [
+        "IROK NA87 Mag ANSI"
+      ],
+      "keyCount": 87
+    }
+  ],
+  "crossBrandGeometryKeptSeparate": []
+}

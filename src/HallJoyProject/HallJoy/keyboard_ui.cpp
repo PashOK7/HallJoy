@@ -23,6 +23,7 @@
 #include "keyboard_ui_internal.h"
 #include "keyboard_ui_state.h"
 #include "keyboard_support_status.h"
+#include "attackshark_pro_layout_identity.h"
 #include "native_layout_devices.h"
 #include "irok_na87_identity.h"
 #include "settings.h"
@@ -230,12 +231,11 @@ bool KeyboardUI_SaveBindingsAfterUserChange(HWND sourceWindow)
     return true;
 }
 
-static uint64_t HashAnalogTelemetry()
+static uint64_t HashAnalogTelemetry(const BackendAnalogTelemetry& telemetry)
 {
-    // The destination is value-initialized so any padding remains stable.
+    // Reuse this UI tick's value-initialized snapshot. Collecting it again
+    // repeats backend/IPC work and can compare a different inventory generation.
     // A changed hash means that at least one published telemetry byte changed.
-    BackendAnalogTelemetry telemetry{};
-    Backend_GetAnalogTelemetry(&telemetry);
     const auto* bytes = reinterpret_cast<const unsigned char*>(&telemetry);
     uint64_t hash = 1469598103934665603ull;
     for (size_t i = 0; i < sizeof(telemetry); ++i)
@@ -281,6 +281,12 @@ void KeyboardUI_OnTimerTick(HWND)
         const auto& device=telemetry.nativeProtocols[i];
         if(device.present && device.protocol==static_cast<std::uint16_t>(NativeAnalogProtocol::AulaHero84He))
             frozenModels |= halljoy::keyboard_support::Hero84;
+        if(device.present && device.protocol==static_cast<std::uint16_t>(NativeAnalogProtocol::IrokMg75Pro))
+            frozenModels |= halljoy::keyboard_support::Mg75Pro;
+        // X65 Pro has ordinary support; other family models retain their testing notice.
+        if(device.present && device.protocol==static_cast<std::uint16_t>(NativeAnalogProtocol::AttackSharkX65Pro) &&
+            device.verifiedLayoutToken != halljoy::sharklayout::Token(2308))
+            frozenModels |= halljoy::keyboard_support::AttackShark;
     }
     // An ambiguous USB family is advisory only when no working source exists.
     // It must not mark a verified active sibling model as frozen.
@@ -339,7 +345,7 @@ void KeyboardUI_OnTimerTick(HWND)
     if ((g_activeSubTab == 1 || g_activeSubTab == 2) && now >= s_nextLiveSampleAt)
     {
         s_nextLiveSampleAt = now + 100;
-        const uint64_t analogHash = HashAnalogTelemetry();
+        const uint64_t analogHash = HashAnalogTelemetry(telemetry);
         if (analogHash != s_lastAnalogHash)
         {
             s_lastAnalogHash = analogHash;

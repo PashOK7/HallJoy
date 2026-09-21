@@ -1,3 +1,4 @@
+#include "input_path_diagnostics.h"
 // app.cpp
 #ifndef _WIN32_IE
 #define _WIN32_IE 0x0600
@@ -107,7 +108,6 @@ static halljoy::block_keys::KeyboardHookThread g_keyboardHookThread;
 static HHOOK g_hMouseHook = nullptr;
 // Written by the serialized engine owner and observed by UI presentation only.
 static std::atomic<bool> g_backendReady{ false };
-static bool g_digitalFallbackWarnShown = false;
 static std::atomic<bool> g_shutdownStarted{ false };
 static std::atomic<bool> g_relaunchAfterExit{ false };
 static std::atomic<bool> g_immediateProcessExitRequired{ false };
@@ -870,9 +870,14 @@ static LRESULT CALLBACK KeyboardBlockHookProc(int nCode, WPARAM wParam, LPARAM l
                     ((shortcutMods & MOD_WIN) && (hid == 227 || hid == 231));
                 const bool reserved = modifierReserved ||
                     (Settings_GetBlockKeysAllowAltTab() && halljoy::block_keys::IsAltOrTab(hid));
-                const bool block = !paused && Settings_GetBlockBoundKeys() && !IsOwnForegroundWindow() &&
-                    !rescueShift && !reserved && hid && Bindings_IsHidBound(hid);
-                if (g_blockPressRoutes.Filter(hid, isDown, block)) return 1;
+                const bool enabled = Settings_GetBlockBoundKeys();
+                const bool bound = halljoy::block_keys::IsWindowsKeyBound(hid, Bindings_IsHidBound);
+                const bool block = halljoy::block_keys::ShouldBlock(paused, enabled,
+                    IsOwnForegroundWindow(), rescueShift, reserved, bound);
+                const bool suppressed = g_blockPressRoutes.Filter(hid, isDown, block);
+                if (bound) halljoy::input_path::Add(enabled, suppressed ?
+                    halljoy::input_path::BoundBlocked : halljoy::input_path::BoundPassed);
+                if (suppressed) return 1;
             }
         }
     }
@@ -1291,10 +1296,13 @@ static bool EngineRuntimeReleaseFailedResume(void*, std::uint32_t& nativeError) 
 {
     Backend_SetRuntimeAdmission(false);
     g_backendReady.store(false, std::memory_order_release);
-    Backend_ResetPublishedStateAfterRealtimeFault();
     if (!EngineRuntimeStopSupervisor(nullptr, nativeError) ||
-        !EngineRuntimeStopRealtime(nullptr, nativeError) ||
-        !EngineRuntimeStopNativeProviders(nullptr, nativeError) ||
+        !EngineRuntimeStopRealtime(nullptr, nativeError))
+        return false;
+    // Failed Resume can already own a realtime worker; join before resetting
+    // state shared with Backend_Tick, just as in the normal Pause transaction.
+    Backend_ResetPublishedStateAfterRealtimeFault();
+    if (!EngineRuntimeStopNativeProviders(nullptr, nativeError) ||
         !EngineRuntimeReleaseBackendLeases(nullptr, nativeError))
         return false;
     nativeError = ERROR_SUCCESS;
@@ -1711,6 +1719,17 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         {
             Na87Diagnostic_UpdateWindow(hwnd);
             IrokNa87_UpdateWindow(hwnd);
+#if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
+            static const auto diagnosticUiStart=GetTickCount64();
+            static bool smokeClosePosted=false;
+            if(!smokeClosePosted && wcsstr(GetCommandLineW(),L"--halljoy-ajazz-startup-smoke") &&
+                GetTickCount64()-diagnosticUiStart>=5000) {
+                smokeClosePosted=true;
+                StabilityTrace_Write(L"INFO",L"ajazz-startup",L"smoke.close",L"automatic_test=1");
+                PostMessageW(hwnd,WM_CLOSE,0,0);
+            }
+#endif
+
             Mini60Diagnostic_UpdateWindow(hwnd);
             SharkDiagnostic_UpdateWindow(hwnd);
             uint32_t tick = g_uiTimerTickCount.fetch_add(1u, std::memory_order_relaxed) + 1u;
@@ -1750,18 +1769,6 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             if (traceTick) DebugLog_Write(L"[app.timer] step ipc begin");
             PublishMouseIpcState();
             if (traceTick) DebugLog_Write(L"[app.timer] step ipc done");
-            if (g_backendReady && !g_digitalFallbackWarnShown && Backend_ConsumeDigitalFallbackWarning())
-            {
-                g_digitalFallbackWarnShown = true;
-                MessageBoxW(
-                    hwnd,
-                    L"HallJoy switched to compatibility input mode.\n\n"
-                    L"Analog stream from HallJoy's private analog runtime is not available right now, "
-                    L"so key input is emulated from digital key states.\n\n"
-                    L"Result: gamepad control works, but this is not true analog precision.",
-                    L"HallJoy Warning",
-                    MB_ICONWARNING | MB_OK);
-            }
             if (g_hPageMain)
             {
                 if (traceTick) DebugLog_Write(L"[app.timer] step ui begin");
@@ -2071,7 +2078,11 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     HWND hwnd = CreateWindowExW(
         0,
         wc.lpszClassName,
+#if defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
+        L"HallJoy - Input path diagnostic (automatic logging)",
+#else
         L"HallJoy",
+#endif
         WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
         x, y,
         w, h,
@@ -2080,7 +2091,9 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     if (!hwnd) { DebugLog_Write(L"[app] CreateWindowEx failed err=%lu", GetLastError()); return 2; }
     g_hMainWnd = hwnd;
     Na87Diagnostic_Start();
+#if !defined(HALLJOY_ATTACKSHARK_NATIVE)
     SharkDiagnostic_Start();
+#endif
 #if !defined(HALLJOY_AULA_MINI60_NATIVE)
     Mini60Diagnostic_Start();
 #endif

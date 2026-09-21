@@ -48,7 +48,7 @@ assert 'ClInclude Include="stability_trace.h"' in project
 assert "HallJoyStabilityTrace" in project
 assert "/p:HallJoyStabilityTrace=false" in build
 assert "/p:HallJoyStabilityTrace=true" not in build
-package_section = build[build.index("Copy-Item -LiteralPath $exe -Destination $releaseDir -Force"):]
+package_section = build[build.index("& (Join-Path $PSScriptRoot 'publish_halljoy_build.ps1')"):]
 assert "COLLECT_STABILITY_TRACE.cmd') -Destination $releaseDir" not in package_section
 assert "HallJoyStabilityTrace.log is enabled" not in build
 assert "HallJoyCrash.txt" in build

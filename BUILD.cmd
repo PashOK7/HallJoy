@@ -15,6 +15,6 @@ if not "%EXITCODE%"=="0" (
 
 echo.
 echo Build complete.
-echo Output: build\output\HallJoy.exe
+echo Output: build\bin\Release\x64\HallJoy.exe
 pause
 exit /b 0

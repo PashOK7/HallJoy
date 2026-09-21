@@ -9,7 +9,7 @@
 #include <cmath>
 #include <cstdint>
 
-// The complete supported semantic domain is compact (0x001..0x409), so all
+// The complete supported semantic domain is compact (0x001..0x483), so all
 // keys use the same prepared table. This deliberately excludes arbitrary
 // 16-bit values and preserves the distinct UAP Fn/OEM identities.
 static std::array<KeyDeadzone, halljoy::keycode::kCount> g_data{};

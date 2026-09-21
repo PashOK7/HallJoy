@@ -34,6 +34,7 @@
 #include "halljoy_dense_snapshot.h"
 #include "halljoy_uap_provider_v2.h"
 #include "halljoy_uap_provider_v2_projection.h"
+#include "halljoy_wooting_physical.h"
 #include "halljoy_native_hid_claim.h"
 #include "halljoy_uap_cabi_guard.h"
 #include "halljoy_uap_device_identity.h"
@@ -1033,6 +1034,10 @@ static soup::Thread discover_thread;
 	case soup::KEY_OEM_3: return 0x405;
 	case soup::KEY_OEM_4: return 0x408;
 	case soup::KEY_FN: return 0x409;
+    case soup::KEY_OEM_7: return halljoy::wooting_physical::kLeftSpace;
+    case soup::KEY_OEM_8: return halljoy::wooting_physical::kRightSpace;
+    case soup::KEY_OEM_9: return halljoy::wooting_physical::kCenterFn;
+    case soup::KEY_OEM_10: return halljoy::wooting_physical::kRightFn;
 	default:;
 	}
 	return soup::soup_key_to_hid_scancode(key);

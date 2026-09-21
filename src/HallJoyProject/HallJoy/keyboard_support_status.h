@@ -4,7 +4,7 @@
 #include <string_view>
 namespace halljoy::keyboard_support
 {
-enum FrozenModel : unsigned { NA87 = 1, NA87Pro = 2, ND75 = 4, Hero84 = 8, Azoth96 = 16, X68 = 32, FamilyCandidate = 64 };
+enum FrozenModel : unsigned { NA87 = 1, NA87Pro = 2, ND75 = 4, Hero84 = 8, Azoth96 = 16, X68 = 32, FamilyCandidate = 64, Mg75Pro = 128, AttackShark = 256 };
 // Metadata-only classification. Shared USB IDs never prove the model alone.
 inline unsigned ClassifyFrozen(unsigned vid, unsigned pid, std::wstring_view name) noexcept {
     if (vid == 0x0416 && pid == 0x7372) {
@@ -15,12 +15,12 @@ inline unsigned ClassifyFrozen(unsigned vid, unsigned pid, std::wstring_view nam
         (name == L"NA87 PRO" || name == L"IROK NA87 PRO")) return NA87Pro;
     if (vid == 0x372e && pid == 0x103e &&
         (name == L"HERO84 HE" || name == L"AULA HERO84 HE" || name == L"HERO84HE")) return Hero84;
+    if (vid == 0x1ca5 && pid == 0x0807 && name == L"IROK MG75 PRO") return Mg75Pro;
     if (vid == 0x0b05 && pid == 0x1c10) return Azoth96;
-    if (vid == 0x3151 && pid == 0x502d &&
-        (name == L"X68 HE" || name == L"X68HE" || name == L"ATTACK SHARK X68 HE")) return X68;
+    if (vid == 0x3151 && (pid == 0x5029 || pid == 0x502d || pid == 0x502f || pid == 0x5030))
+        return FamilyCandidate;
     if ((vid==0x0416 && pid==0x7372) || (vid==0x1c4f && pid==0xee88) ||
-        (vid==0x1ca2 && pid==0x0401) || (vid==0x372e && pid==0x103e) ||
-        (vid==0x3151 && pid==0x502d)) return FamilyCandidate;
+        (vid==0x1ca2 && pid==0x0401) || (vid==0x372e && pid==0x103e)) return FamilyCandidate;
     return 0;
 }
 struct StatusSnapshot final

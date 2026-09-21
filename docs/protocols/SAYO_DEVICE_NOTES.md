@@ -1,5 +1,7 @@
 # SayoDevice OSU O3C Backend Notes
 
+> Superseded on 2026-09-19 by [O3C config integration](../current/SAYO_O3C_CONFIG_2026-09-19.md). The historical digital matcher and F/G/H fallback below are no longer used; actual base assignments are read from firmware and manual mode uses Z/X/C.
+
 Date: 2026-05-14
 
 Source captures:

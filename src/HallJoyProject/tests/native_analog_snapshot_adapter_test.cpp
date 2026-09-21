@@ -43,5 +43,17 @@ int main()
     assert(devices[0].deviceId == StableDeviceId(provider, 0x2222, 0x1111, 0x2222));
     assert(samples[0].value.rawNumerator == 750 && samples[0].value.rawDomain == 1000);
     std::printf("NATIVE_ANALOG_SNAPSHOT_ADAPTER_TEST=PASS distinct_identity=1 disconnect_preserves_other=1 legacy_milli=1\n");
+    std::array<std::uint8_t,0x410> extendedOwned{};
+    std::array<std::uint16_t,0x410> extendedMilli{};
+    extendedOwned[0x409]=1;extendedMilli[0x409]=375;
+    auto extended=pair[0];extended.ownedHid=extendedOwned.data();extended.milli=extendedMilli.data();extended.codeCount=extendedOwned.size();
+    assert(PublishLegacyMilli(provider,1,11,3000,&extended,1,output));
+    assert(header.sampleCount==1 && samples[0].key==UapExtendedKey(0x409));
+    assert(samples[0].value.rawNumerator==375);
+    extendedMilli[0x409]=0;
+    assert(PublishLegacyMilli(provider,1,12,4000,&extended,1,output));
+    assert(samples[0].value.rawNumerator==0);
+    extended.codeCount=0x411;
+    assert(!PublishLegacyMilli(provider,1,13,5000,&extended,1,output));
     return 0;
 }

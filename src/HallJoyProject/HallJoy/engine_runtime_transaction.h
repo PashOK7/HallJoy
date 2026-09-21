@@ -46,9 +46,11 @@ template <typename Operations>
     }
     operations.StateChanged(controller.Snapshot());
 
+    // Admission only prevents new ticks. Join any in-flight producer before
+    // resetting its non-atomic report/scheduler state and publishing neutral.
     if (!operations.StopRecoverySupervisor(nativeError) ||
-        !operations.PublishNeutral(nativeError) ||
         !operations.StopRealtime(nativeError) ||
+        !operations.PublishNeutral(nativeError) ||
         !operations.ReleaseUiInput(nativeError))
     {
         controller.Fault(nativeError);

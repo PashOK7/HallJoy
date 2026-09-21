@@ -8,6 +8,7 @@
 #include "../HallJoy/keyboard_layout.h"
 #include "../HallJoy/analog_host_client.h"
 #include "../HallJoy/aula_hero84he_backend.h"
+#include "../HallJoy/mg75_pro_backend.h"
 #include "../HallJoy/bounded_ini.h"
 #include "../HallJoy/ini_util.h"
 #include "../HallJoy/profile_runtime_gate.h"
@@ -24,6 +25,8 @@ namespace fs = std::filesystem;
 extern bool KeyboardSubpages_TestOverlayTextEditing();
 extern bool KeyboardSubpages_TestLayoutEditor();
 extern bool KeyboardSubpages_TestLayoutPicker();
+extern bool KeyboardLayout_TestCatalogInventory();
+extern bool KeySettingsPanel_TestHiddenControls();
 namespace {
 void Check(bool value, const char* reason) { if (!value) throw std::runtime_error(reason); }
 void Write(const fs::path& path, const std::string& value) {
@@ -178,10 +181,22 @@ bool HallJoy_RunProfileTransactionTests() {
         perKey.cp1_x = .30f; perKey.cp1_y = .27f; perKey.cp2_x = .69f; perKey.cp2_y = .74f;
         perKey.cp1_w = .36f; perKey.cp2_w = .64f;
         KeySettings_Set(4, perKey); KeySettings_Set(halljoy::keycode::kFn, perKey);
+        KeySettings_Set(halljoy::wooting_physical::kRightFn, perKey);
+        Bindings_SetTriggerForPad(3,Trigger::LT,halljoy::wooting_physical::kLeftSpace);
+        Bindings_SetTriggerForPad(3,Trigger::RT,halljoy::wooting_physical::kRightSpace);
         Check(GlobalProfiles_Save(L"ConfigurationRoundtrip"), "configuration write failed");
         Settings_SetDiagnosticLogging(true);
         Check(GlobalProfiles_Load(L"A"), "reset before roundtrip failed");
         Check(Settings_GetDiagnosticLogging(), "gameplay profile changed diagnostic preference");
+        const auto obsoleteFallback = root / "obsolete-fallback.ini";
+        Check(SettingsIni_Save(obsoleteFallback.c_str()), "settings without digital fallback did not save");
+        for (const auto* value : {L"1", L"invalid"}) {
+            Check(WritePrivateProfileStringW(L"Main", L"DigitalFallbackInput", value,
+                obsoleteFallback.c_str()) != 0, "obsolete setting fixture failed");
+            Check(SettingsIni_Load(obsoleteFallback.c_str()), "obsolete emulation setting was not ignored");
+        }
+        result << "obsolete_digital_emulation_setting_ignored=PASS\n";
+
         const auto loggingSettings = (root / L"logging-settings.ini").wstring();
         Check(SettingsIni_Save(loggingSettings.c_str()), "logging preference save failed");
         Settings_SetDiagnosticLogging(false);
@@ -231,6 +246,10 @@ bool HallJoy_RunProfileTransactionTests() {
                 Check(std::fabs(value.*member - perKey.*member) < .0006f, "curve numeric field lost");
         };
         checkCurve(KeySettings_Get(4)); checkCurve(KeySettings_Get(halljoy::keycode::kFn));
+        checkCurve(KeySettings_Get(halljoy::wooting_physical::kRightFn));
+        Check(Bindings_GetTriggerForPad(3,Trigger::LT)==halljoy::wooting_physical::kLeftSpace &&
+            Bindings_GetTriggerForPad(3,Trigger::RT)==halljoy::wooting_physical::kRightSpace,
+            "physical split bindings did not survive profile roundtrip");
         const auto curvePath = fs::path(AppPaths_CurvePresetsDir()) / L"Roundtrip.ini";
         fs::create_directories(curvePath.parent_path());
         Check(KeyboardProfiles::SavePreset(curvePath.wstring(), perKey), "curve preset write failed");
@@ -353,14 +372,25 @@ bool HallJoy_RunProfileTransactionTests() {
         KeyboardLayout_SetPresetIndex(0);
         Check(KeyboardSubpages_TestLayoutEditor(), "layout editor production event test failed");
         Check(KeyboardSubpages_TestLayoutPicker(), "brand/model picker production event test failed");
-        Check(AulaHero84He_TestPublication(), "HERO84 production publication regression");
+        Check(Backend_TestSparkFnPublication(), "Spark Fn real publication regression");
+        result << "spark_fn_depth_alias_release_stale=PASS\n";
+        int mgFailure=0;
+        Check(Mg75Pro_TestPublication(&mgFailure), "MG75 Pro production publication regression");
+        result << "mg75_pro_depth_remap_alias_fn_release_stale=PASS\n";
+        int heroFailure=0;
+        const bool heroPassed=AulaHero84He_TestPublication(&heroFailure);
+        if (!heroPassed) result << "hero84_failure_line=" << heroFailure << "\n";
+        Check(heroPassed, "HERO84 production publication regression");
         result << "hero84_publication_alias_release_freshness=PASS\n";
         Check(AnalogHostClient_TestTelemetryCoherence(), "production telemetry reader lost coherent inventory");
         result << "production_telemetry_coherence_contention=PASS attempts=1000\n";
         Check(KeyboardLayout_TestAutomatic(), "automatic layout transitions/remapping/persistence failed");
+        Check(KeyboardLayout_TestCatalogInventory(), "built-in catalog has unresolved model names");
         result << "automatic_layout_transitions_remapping_persistence=PASS\n";
         result << "layout_brand_model_production_events=PASS metadata_roundtrip=PASS\n";
         result << "overlay_layout_selection_and_persistence=PASS layout_editor_production_events=PASS\n";
+        Check(KeySettingsPanel_TestHiddenControls(), "configuration sync exposed hidden backing controls");
+        result << "configuration_hidden_controls_layout_selection_resize=PASS\n";
         result << "bundle_failure_stages=5 PASS backend_init_attempts=0\nPROFILE_TRANSACTION_WINDOWS_TEST=PASS\n";
         return true;
     } catch (const std::exception& e) {

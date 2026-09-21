@@ -1,0 +1,104 @@
+{
+  "date": "2026-09-20",
+  "scope": "All analog keyboards, including explicitly labeled inductive sensing",
+  "additions": [
+    {
+      "brand": "ARDOR GAMING",
+      "model": "Radiant",
+      "status": "Not investigated",
+      "source": "https://ardor-gaming.com/product/29951344/klaviatura-ardor-gaming-radiant-usb-type-a-chernyj/",
+      "evidence": "Manufacturer specifies magnetic ARDOR switches."
+    },
+    {
+      "brand": "ARDOR GAMING",
+      "model": "Viper",
+      "status": "Not investigated",
+      "source": "https://ardor-gaming.com/product/29663019/klaviatura-ardor-gaming-viper-usb-type-a-chernyj/",
+      "evidence": "Manufacturer specifies Gateron Magnetic switches; colors consolidated."
+    },
+    {
+      "brand": "Royal Kludge",
+      "model": "C68 HE",
+      "status": "Not investigated",
+      "source": "https://rkgamingstore.com/products/c68-magnetic-switch-keyboard",
+      "evidence": "Official store product catalog explicitly identifies Hall Effect magnetic switches."
+    },
+    {
+      "brand": "Royal Kludge",
+      "model": "C84 HE",
+      "status": "Not investigated",
+      "source": "https://rkgamingstore.com/products/c84-magnetic-keyboard",
+      "evidence": "Official store product catalog explicitly identifies Hall Effect magnetic switches."
+    },
+    {
+      "brand": "Royal Kludge",
+      "model": "C87 HE",
+      "status": "Not investigated",
+      "source": "https://rkgamingstore.com/products/c87-80-tkl-magnetic-hall-effect-keyboard",
+      "evidence": "Official store product catalog explicitly identifies Hall Effect magnetic switches."
+    },
+    {
+      "brand": "Royal Kludge",
+      "model": "C96 HE",
+      "status": "Not investigated",
+      "source": "https://rkgamingstore.com/products/c96-96-hall-effect-magnetic-switch-keyboard",
+      "evidence": "Official store product catalog explicitly identifies Hall Effect magnetic switches."
+    },
+    {
+      "brand": "Royal Kludge",
+      "model": "C98 HE",
+      "status": "Not investigated",
+      "source": "https://rkgamingstore.com/products/c98-magnetic-switch-keyboard",
+      "evidence": "Official store product catalog explicitly identifies Hall Effect magnetic switches."
+    },
+    {
+      "brand": "Rapoo",
+      "model": "A67 (inductive)",
+      "status": "Not investigated",
+      "source": "https://www.rapoo.com/en/product/A67",
+      "evidence": "Manufacturer specifies inductive sensing and adjustable Rapid Trigger. Analog inductive, not Hall Effect/TMR; owner explicitly expanded scope to all analog keyboards."
+    },
+    {
+      "brand": "Rapoo",
+      "model": "A83 (inductive)",
+      "status": "Not investigated",
+      "source": "https://www.rapoo.com/en/product/A83",
+      "evidence": "Manufacturer specifies inductive sensing and adjustable Rapid Trigger. Analog inductive, not Hall Effect/TMR; owner explicitly expanded scope to all analog keyboards."
+    },
+    {
+      "brand": "Rapoo",
+      "model": "ESK900-83RT (inductive)",
+      "status": "Not investigated",
+      "source": "https://www.rapoo.com/en/product/ESK900-83RT",
+      "evidence": "Manufacturer specifies inductive sensing and adjustable Rapid Trigger. Analog inductive, not Hall Effect/TMR; owner explicitly expanded scope to all analog keyboards."
+    },
+    {
+      "brand": "Rapoo",
+      "model": "ESK900-75RT (inductive)",
+      "status": "Not investigated",
+      "source": "https://www.rapoo.cn/product/939",
+      "evidence": "Manufacturer specifies inductive switches and adjustable 0.1mm RT. Barebone/color variations consolidated."
+    },
+    {
+      "brand": "Valkyrie",
+      "model": "VK Mag75",
+      "status": "Not investigated",
+      "source": "https://valkyrie.com.cn/",
+      "evidence": "Manufacturer driver list identifies VK Mag75 magnetic-switch family. Individual Pro/Lite revision taxonomy not established in this pass."
+    },
+    {
+      "brand": "Valkyrie",
+      "model": "VK 99 Gaming (Naruto)",
+      "status": "Not investigated",
+      "source": "https://valkyrie.com.cn/en/",
+      "evidence": "Official driver listing explicitly identifies Naruto magnetic keyboard. Mechanical VK99/VK99 Pro and character colorways not added."
+    },
+    {
+      "brand": "Thunderobot",
+      "model": "VIC68",
+      "status": "Not investigated",
+      "source": "https://global.thunderobot.com/products/vic68",
+      "evidence": "Official global catalog confirms model; magnetic Gateron switches corroborated by https://www.infotec.com.pe/teclados-gamer/29534-teclado-gamer-thunderobot-vic68-purple-vic68-magnetico-switch-magnetic-gateron-jade-led-rgb-6932066317201.html . Manufacturer page description is image-only."
+    }
+  ]
+}

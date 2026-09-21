@@ -1,0 +1,78 @@
+{
+  "date": "2026-09-20",
+  "range": "Main!A1:C543",
+  "records": 462,
+  "brands": 81,
+  "additions": [
+    {
+      "brand": "AIM1",
+      "model": "MATATAKI (瞬)",
+      "status": "Not investigated",
+      "source": "https://aim1.gg/products/matataki",
+      "evidence": "Manufacturer specifies Outemu linear magnetic switches; RIDDLE/coalowl editions and US/JIS variants consolidated."
+    },
+    {
+      "brand": "ELECOM",
+      "model": "V custom VK600A",
+      "status": "Not investigated",
+      "source": "https://www.elecom.co.jp/pickup/v-custom/products/keyboard/vk600a/",
+      "evidence": "Manufacturer explicitly specifies magnetic analog-detection switches and adjustable actuation/reset."
+    },
+    {
+      "brand": "ELECOM",
+      "model": "V custom VK720A",
+      "status": "Not investigated",
+      "source": "https://www.elecom.co.jp/products/TK-VK720ABK.html",
+      "evidence": "Manufacturer explicitly specifies magnetic analog-detection switches and adjustable actuation/reset."
+    },
+    {
+      "brand": "ELECOM",
+      "model": "V custom VK720AL",
+      "status": "Not investigated",
+      "source": "https://www.elecom.co.jp/products/TK-VK720ALBK.html",
+      "evidence": "Manufacturer explicitly specifies magnetic analog-detection switches and adjustable actuation/reset."
+    },
+    {
+      "brand": "REALFORCE",
+      "model": "GX1 (capacitive)",
+      "status": "Not investigated",
+      "source": "https://www.realforce.co.jp/en/products/series_gaming_gx1.html",
+      "evidence": "Topre capacitive sensing with continuously updated actuation/reset positions in Dynamic Mode. USB depth access not established; force/layout variants consolidated."
+    },
+    {
+      "brand": "REALFORCE",
+      "model": "GX1 Plus (capacitive)",
+      "status": "Not investigated",
+      "source": "https://www.realforce.co.jp/en/products/series_gaming_gx1.html",
+      "evidence": "Topre capacitive sensing with continuously updated actuation/reset positions in Dynamic Mode. USB depth access not established; force/layout variants consolidated."
+    },
+    {
+      "brand": "Wraith",
+      "model": "W75",
+      "status": "Not investigated",
+      "source": "https://wraith.gg/products/wraith-w75-magnetic-keyboard",
+      "evidence": "Official magnetic keyboard with depth-dependent Dynamic Keystroke; Founder and later cosmetic editions consolidated."
+    },
+    {
+      "brand": "ZENAIM",
+      "model": "KEYBOARD TKL",
+      "status": "Not investigated",
+      "source": "https://zenaim.com/pages/support-keyboard-tkl",
+      "evidence": "Manufacturer specifies contactless magnetic sensing, adjustable actuation and reset; US/JIS consolidated."
+    },
+    {
+      "brand": "ZENAIM",
+      "model": "KEYBOARD 2 TKL",
+      "status": "Not investigated",
+      "source": "https://zenaim.com/pages/support-keyboard2-tkl",
+      "evidence": "Manufacturer specifies contactless magnetic sensing, adjustable actuation and reset; US/JIS consolidated."
+    },
+    {
+      "brand": "ZENAIM",
+      "model": "KEYBOARD 2 mini",
+      "status": "Not investigated",
+      "source": "https://zenaim.com/pages/support-keyboard2-mini",
+      "evidence": "Manufacturer specifies contactless magnetic sensing, adjustable actuation and reset; US/JIS consolidated."
+    }
+  ]
+}

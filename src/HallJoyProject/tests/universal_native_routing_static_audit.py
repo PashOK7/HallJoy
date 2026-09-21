@@ -79,8 +79,8 @@ checks = {
         and "result.milli = std::max" in registry
         and "cache.wootingReady && (modeCode != 0 ||" in backend
         and "cache.providerV2Raw.owned.test(hidKeycode)" in backend),
-    "digital fallback remains excluded from authoritative native values": (
-        "cache.allowFallback && !native.owned" in backend),
+    "digital depth emulation is absent": (
+        "ReadDigitalFallback01" not in backend),
     "generic telemetry reaches UI without per-backend wiring": (
         "nativeProtocolCount" in backend
         and "NativeAnalogBackends_GetTelemetry" in backend

@@ -1,3 +1,7 @@
+# 2026-09-19 update
+
+HERO84 HE ANSI (manual, 84 keys) and KP-TE153 vendor UK/ISO (69 keys, exact firmware identity) are now registered. This supersedes the pending/excluded notes below. [Evidence and limitations](AULA_ADDITIONAL_LAYOUTS_2026-09-19.md).
+
 # Aula: current layout preparation result
 
 ## Runtime integration completed (2026-09-09 follow-up)

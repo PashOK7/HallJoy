@@ -11,12 +11,12 @@ $pluginBuild = Join-Path $pluginRoot 'tools\build_fixed_plugin.ps1'
 $soupPatch = Join-Path $pluginRoot 'tools\Apply-Soup-Madlions-Fix.ps1'
 $project = Join-Path $hallJoyRoot 'HallJoy\HallJoy.vcxproj'
 $runtime = Join-Path $hallJoyRoot '..\..\build\runtime'
-$outDir = Join-Path $hallJoyRoot '..\..\build\bin\MAD68ProRNative\Release\x64'
+$outDir = Join-Path $root 'build\obj\ReleaseCandidate\x64'
 $targetName = 'HallJoy'
 $exe = Join-Path $outDir ($targetName + '.exe')
 $pdb = Join-Path $outDir ($targetName + '.pdb')
 $map = Join-Path $outDir ($targetName + '.map')
-$releaseDir = Join-Path $root 'build\release'
+$releaseDir = Join-Path $root 'build\bin\Release\x64'
 $dependencyLockPath = Join-Path $root 'tools\dependency-lock.json'
 $thirdPartyNoticesPath = Join-Path $root 'THIRD_PARTY_NOTICES.md'
 if (-not (Test-Path -LiteralPath $dependencyLockPath -PathType Leaf)) {
@@ -609,6 +609,7 @@ if (-not $msbuild) {
 Write-Host "Building $targetName.exe with MAD68 + Hex80 + Addressed + Aula + Spark + Sayo + UAP..." -ForegroundColor Cyan
 $buildOutput = @(& $msbuild $project `
     '/t:Rebuild' `
+    "/p:OutDir=$outDir\" `
     '/p:Configuration=Release' `
     '/p:Platform=x64' `
     '/p:HallJoyMad68ProRNative=true' `
@@ -684,7 +685,7 @@ $preservedRuntimeNames = @(
     'GlobalProfiles', 'Layouts', 'CurvePresets', 'HallJoy.portable'
 )
 New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-Copy-Item -LiteralPath $exe -Destination $releaseDir -Force
+& (Join-Path $PSScriptRoot 'publish_halljoy_build.ps1') -CandidatePath $exe -TargetPath (Join-Path $releaseDir 'HallJoy.exe')
 Copy-Item -LiteralPath $dependencyLockPath -Destination $releaseDir -Force
 Copy-Item -LiteralPath $thirdPartyNoticesPath -Destination $releaseDir -Force
 $releaseHash = Get-FileHash -LiteralPath (Join-Path $releaseDir 'HallJoy.exe') -Algorithm SHA256

@@ -19,18 +19,15 @@ private_guidance_body = deps.split("void ShowPrivateRuntimeGuidance", 1)[1].spli
     "enum class VigemUserAction", 1)[0]
 
 checks = {
-    "runtime falls back to versioned per-user storage":
+    "runtime uses versioned per-user storage":
         "CSIDL_LOCAL_APPDATA" in embedded and "\\\\HallJoy\\\\Runtime\\\\v" in embedded,
-    "portable executable-directory runtime remains supported":
-        "EmbeddedAnalogRuntimeLocation::BesideExecutable" in embedded,
+    "executable directory is never a runtime destination":
+        "BuildPathNearExe" not in embedded and "BesideExecutable" not in embedded,
     "resource extraction is atomic and flushed":
         "MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH" in embedded and
         "FlushFileBuffers" in embedded,
     "extracted runtime is compared to exact embedded bytes":
         embedded.count("ResourceEqualsFile") >= 3 and "exact_resource_match=1" in embedded,
-    "fallback injection exists only in trace builds":
-        "HALLJOY_STABILITY_TRACE" in embedded and
-        "--halljoy-test-uap-exe-write-denied" in embedded,
     "verified absolute path is passed to child host":
         "EmbeddedAnalogStack_PrivatePluginPath()" in host and
         "launch.privatePluginPath = argv[i + 10]" in host and
@@ -58,7 +55,7 @@ checks = {
         "EmbeddedVigemInstaller_Run" not in private_guidance_body and
         "if (!plan.showPinnedVigemRelease)" in deps and
         "return InstallPinnedVigem(hInst, hwnd)" in deps,
-    "runtime scenario can force and verify per-user fallback":
+    "legacy runtime scenario still verifies per-user storage":
         "ForceUserUapRuntime" in runner and "location=user" in runner,
 }
 

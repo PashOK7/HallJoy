@@ -451,9 +451,10 @@ void Ksp_SyncUI()
         hist.inContinuousCapture = false;
     }
 
-    // g_kspComboCurve is removed, don't update it
+    // Hidden child controls back the retained surface. WM_SETREDRAW(TRUE)
+    // would add WS_VISIBLE and expose a second native face. These synchronous
+    // updates already coalesce invalidation until the message loop paints.
     HWND controls[] = { g_kspChkUnique, g_kspChkInvert, g_kspTxtInfo, g_kspComboMode };
-    for (HWND h : controls) if (h) SendMessageW(h, WM_SETREDRAW, FALSE, 0);
 
     if (Ksp_IsKeySelected())
     {
@@ -497,8 +498,8 @@ void Ksp_SyncUI()
     if (g_kspTxtInfo)
         SetWindowTextW(g_kspTxtInfo, buf);
 
-    for (HWND h : controls) if (h) SendMessageW(h, WM_SETREDRAW, TRUE, 0);
-    for (HWND h : controls) RedrawNoErase(h);
+    for (HWND h : controls)
+        if (h && IsWindowVisible(h)) RedrawNoErase(h);
     if (KeySettingsPanel_CustomControlsEnabled() && g_kspParent)
         InvalidateRect(g_kspParent, nullptr, FALSE);
 }

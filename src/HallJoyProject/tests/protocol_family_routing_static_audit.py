@@ -63,7 +63,7 @@ checks = {
         and "attr.ProductID != kSayo" not in sayo),
     "Sayo unknown PID requires depth response": (
         "SayoProbeDepthProtocol" in sayo
-        and "response[0] != 0x22" in sayo
+        and "so3c::Parse(response.data(),got,frame) && so3c::Depth(frame,raw)" in sayo
         and "selectedPid" in sayo
         and "if (!selected)" in sayo),
     "Sayo audited PID keeps priority": (

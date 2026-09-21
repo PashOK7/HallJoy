@@ -490,6 +490,8 @@ bool PopulateCaps(HANDLE handle, HidPath& out)
     if (HidP_GetCaps(pp.value, &out.caps) != HIDP_STATUS_SUCCESS) return false;
     out.usagePage = out.caps.UsagePage;
     out.usage = out.caps.Usage;
+    // Only this vendor needs string identity for family matching.
+    if (out.attrs.VendorID != mad68pr::kVid) return true;
     out.manufacturer = ReadHidString(handle, HidD_GetManufacturerString);
     out.product = ReadHidString(handle, HidD_GetProductString);
     out.serial = ReadHidString(handle, HidD_GetSerialNumberString);

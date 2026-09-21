@@ -7,6 +7,7 @@
 
 #include "aula_win60he_backend.h"
 #include "generated/layout_pipeline/identities.h"
+#include "sparkplayjoy_layout.h"
 
 #include "analog_key_codes.h"
 #include "debug_log.h"
@@ -1569,9 +1570,10 @@ bool BuildProbeResult(
     return true;
 }
 
-void ClearPublishedValues(bool clearOwnership)
+void ClearPublishedValues(bool clearOwnership, bool clearLayout = true)
 {
-    g_verifiedLayoutToken.store(0, std::memory_order_release);
+    if (clearLayout)
+        halljoy::native_layout::Clear(g_verifiedLayoutToken.exchange(0, std::memory_order_acq_rel));
     bool changed = false;
     for (std::size_t hid = 0; hid < g_milli.size(); ++hid)
     {
@@ -1587,7 +1589,18 @@ void ClearPublishedValues(bool clearOwnership)
 
 void PublishProof(const ProbeResult& proof)
 {
-    ClearPublishedValues(true);
+    ClearPublishedValues(true, false);
+    const auto token = halljoy::sparkplayjoy_layout::Token(proof.vendorId, proof.productId, proof.capability);
+    const auto previous = g_verifiedLayoutToken.load(std::memory_order_acquire);
+    if (previous && previous != token) halljoy::native_layout::Clear(previous);
+    const bool mapped = token && halljoy::sparkplayjoy_layout::Publish(token, proof.capability);
+    if (token && !mapped) halljoy::native_layout::Clear(token);
+    g_verifiedLayoutToken.store(mapped ? token : 0, std::memory_order_release);
+    if (mapped)
+        for (const auto& row : halljoy::sparkplayjoy_layout::Factory(proof.capability.defaultKeyMap))
+            for (const auto keyCode : row)
+                if (halljoy::keycode::IsSupported(keyCode))
+                    g_owned[keyCode].store(1, std::memory_order_relaxed);
     for (const auto& row : proof.capability.keyMap)
         for (const auto keyCode : row)
             if (halljoy::keycode::IsSupported(keyCode))
@@ -2017,11 +2030,6 @@ std::uint32_t WorkerMain()
 #endif
         SaveValidatedClaim(session, proof);
         PublishProof(proof);
-        g_verifiedLayoutToken.store(
-            capability.profile == aula_win60he::CompatibilityProfile::ExactWin60HeMax &&
-            capability.sync.boardId == 0x0A021902u ?
-                halljoy::layout_identity::Token("aula-rm6x21","0A021902") : 0,
-            std::memory_order_release);
         g_candidatePresent.store(true, std::memory_order_release);
         g_protocolPresent.store(true, std::memory_order_release);
         g_connected.store(true, std::memory_order_release);
@@ -2190,8 +2198,11 @@ std::uint32_t WorkerMain()
             }
 #endif
 
+            const auto layoutToken = g_verifiedLayoutToken.load(std::memory_order_acquire);
+            const auto publicationMap = layoutToken && !halljoy::native_layout::UsesRemapping(layoutToken)
+                ? halljoy::sparkplayjoy_layout::Factory(capability.defaultKeyMap) : capability.keyMap;
             [[maybe_unused]] const bool matrixChanged = PublishMatrix(
-                capability.keyMap,
+                publicationMap,
                 matrix,
                 capability.precision.maximumTravelUm);
             RecordSuccessfulMatrix();

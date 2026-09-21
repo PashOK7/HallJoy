@@ -9,7 +9,9 @@ int main()
     assert(Token("aula-w669","unknown")==0);
     assert(Token("aula-rm6x21","SI2825HEARGB")==0);
     assert(Token("aula-w669","0A021902")==0);
-    assert(Token("aula-w669","7272BRHEXYXK673JCARGB")==0);
+    assert(Token("aula-w669","7272BRHEXYXK673JCARGB")!=0);
+    assert(Token("aula-w669","7272BRHEXYXK673JCARGB")!=Token("aula-w669","7272UKHEXYXBJCARGB"));
+    assert(std::wstring_view(Match(Token("aula-w669","7272BRHEXYXK673JCARGB")))==L"Redragon K673RGB-M ABNT2");
     assert(Token("aula-w669","7272USHEXYXK673JCARGB")!=0);
     assert(Token("aula-w669","7272UKHEXYXBJCARGB")!=0);
     assert(Token("aula-w669","7272UKHEXYXBJCARGB")!=Token("aula-w669","7272USHEXYXK673JCARGB"));

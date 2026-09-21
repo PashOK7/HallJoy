@@ -658,8 +658,10 @@
     }
   ],
   "identity": {
-    "protocol": "sparklink",
-    "products": []
+    "protocol": "irok-mg75-pro",
+    "products": [
+      "MG75PRO-1CA5-0807"
+    ]
   },
   "sources": [
     {
@@ -670,8 +672,8 @@
   ],
   "notes": [
     "Official model geometry, normalized to 42 px standard keys.",
-    "Manual preset selection: no new exact-model identity published by SparkLink.",
-    "Fn uses HallJoy reserved Fn code 0x409; current SparkLink byte map does not publish this extended code.",
+    "Automatic selection after exact product, factory matrix and travel response proof; live base-layer remaps.",
+    "SparkLink V1 native independent 6x21 travel; Fn compact matrix index 116. Experimental until tested on hardware.",
     "MG75 v2 is excluded."
   ]
 }

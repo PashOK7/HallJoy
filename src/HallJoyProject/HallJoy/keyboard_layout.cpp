@@ -12,6 +12,10 @@
 #include <cwctype>
 #include <memory>
 #include <mutex>
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+#include <fstream>
+#include <stdexcept>
+#endif
 
 #include "app_paths.h"
 #include "analog_key_codes.h"
@@ -26,6 +30,7 @@
 #include "native_layout_state.h"
 #if defined(HALLJOY_ANALOG_SIMULATOR)
 #include "generated/ipi_models.h"
+#include "sayo_o3c_protocol.h"
 #endif
 #include "imported_layouts.h"
 #include "keychron_catalog_layouts.h"
@@ -36,6 +41,8 @@
 #include "irok_na87_identity.h"
 #include "aula_mini60_native_model.h"
 #include "aula_mini60_layout.h"
+#include "attackshark_pro_layouts.h"
+#include "attackshark_pro_layout_identity.h"
 #include "generated/layout_pipeline/layouts.h"
 #include "generated/layout_pipeline/identities.h"
 
@@ -353,6 +360,9 @@ namespace
         { L"DrunkDeer G75 ANSI", g_drunkdeer_G75Ansi, (int)std::size(g_drunkdeer_G75Ansi), L"DrunkDeer" },
         { L"DrunkDeer G75 JIS", g_drunkdeer_G75Jis, (int)std::size(g_drunkdeer_G75Jis), L"DrunkDeer" },
 #include "generated/layout_pipeline/presets.inc"
+        { halljoy::sharklayout::X65, g_shark_x65_ansi, (int)std::size(g_shark_x65_ansi), L"ATTACK SHARK" },
+        { halljoy::sharklayout::X68, g_shark_x68_ansi, (int)std::size(g_shark_x68_ansi), L"ATTACK SHARK" },
+        { halljoy::sharklayout::X82, g_shark_x82_ansi, (int)std::size(g_shark_x82_ansi), L"ATTACK SHARK" },
 #if defined(HALLJOY_AULA_MINI60_NATIVE)
         { halljoy::mini60::Preset, g_aula_mini60_ansi, (int)std::size(g_aula_mini60_ansi), L"Aula" },
 #endif
@@ -363,8 +373,18 @@ namespace
 
     // Reviewed geometry aliases, not protocol aliases. Keep original definitions
     // to recognize unedited legacy files; customized old models remain independent.
-    struct LayoutMerge { const wchar_t* first; const wchar_t* second; const wchar_t* name; };
+    struct LayoutMerge {
+        const wchar_t* first; const wchar_t* second; const wchar_t* name;
+        const wchar_t* third = nullptr; const wchar_t* displayName = nullptr;
+    };
     static constexpr LayoutMerge g_layoutMerges[] = {
+        {L"ATTACK SHARK X68 Pro HE ANSI", L"ATTACK SHARK R68 HE + X68 HE ANSI",
+            L"ATTACK SHARK R68 HE + X68 HE + X68 Pro HE ANSI"},
+        {L"ATTACK SHARK X82 Pro HE ANSI", L"ATTACK SHARK X82 HE ANSI",
+            L"ATTACK SHARK X82 HE + X82 Pro HE ANSI"},
+        {L"GravaStar Mercury V75 ANSI", L"GravaStar Mercury V75 Pro ANSI",
+            L"GravaStar Mercury V75 + Mercury V75 Pro + Mercury V75 Lite ANSI",
+            L"GravaStar Mercury V75 Lite ANSI", L"GravaStar Mercury V75 / V75 Pro / V75 Lite ANSI"},
         {L"Keychron K2 HE ANSI", L"Keychron K3 HE ANSI", L"Keychron K2 HE + K3 HE ANSI"},
         {L"Keychron K2 HE ISO", L"Keychron K3 HE ISO", L"Keychron K2 HE + K3 HE ISO"},
         {L"Keychron Q1 HE ANSI - Imported", L"Keychron Q1 HE 8K ANSI", L"Keychron Q1 HE + Q1 HE 8K ANSI"},
@@ -374,14 +394,22 @@ namespace
         {L"Keychron Q3 HE JIS", L"Keychron Q3 HE 8K JIS", L"Keychron Q3 HE + Q3 HE 8K JIS"},
         {L"Keychron Q5 HE ANSI", L"Keychron Q5 HE 8K ANSI", L"Keychron Q5 HE + Q5 HE 8K ANSI"},
         {L"Keychron Q6 HE ANSI", L"Keychron Q6 HE 8K ANSI", L"Keychron Q6 HE + Q6 HE 8K ANSI"},
-        {L"Wooting 60HE ANSI", L"Wooting 60HE+ ANSI", L"Wooting 60HE + 60HE+ ANSI"},
-        {L"Wooting 60HE ISO", L"Wooting 60HE+ ISO", L"Wooting 60HE + 60HE+ ISO"},
+        {L"Wooting 60HE ANSI", L"Wooting 60HE+ ANSI", L"Wooting 60HE + 60HE+ ANSI",
+            L"Wooting 60HE v2 ANSI", L"Wooting 60HE / 60HE+ / 60HE v2 ANSI"},
+        {L"Wooting 60HE ISO", L"Wooting 60HE+ ISO", L"Wooting 60HE + 60HE+ ISO",
+            L"Wooting 60HE v2 ISO", L"Wooting 60HE / 60HE+ / 60HE v2 ISO"},
         {L"Wooting Two ANSI", L"Wooting Two HE ANSI", L"Wooting Two + Two HE ANSI"},
         {L"Wooting Two ISO", L"Wooting Two HE ISO", L"Wooting Two + Two HE ISO"},
+        {L"Razer Huntsman V2 Analog ANSI", L"Razer Huntsman V3 Pro ANSI", L"Razer Huntsman V2 Analog + Huntsman V3 Pro ANSI"},
+        {L"Razer Huntsman V2 Analog JIS", L"Razer Huntsman V3 Pro JIS", L"Razer Huntsman V2 Analog + Huntsman V3 Pro JIS"},
+        {L"MADLIONS MAD68HE ANSI", L"MADLIONS MAD68R ANSI", L"MADLIONS MAD68HE + MAD68R ANSI"},
+        {L"IPI QBZ75 + Aurora 75 ANSI", L"IPI Aurora75 PRO ANSI", L"IPI QBZ75 + Aurora 75 + Aurora75 PRO ANSI",
+            nullptr, L"IPI QBZ75 / Aurora 75 / Aurora75 PRO ANSI"},
     };
     static const LayoutMerge* MergeFor(const std::wstring& name) {
         for (const auto& merge : g_layoutMerges)
-            if (FileNamePolicy_Equivalent(name, merge.first) || FileNamePolicy_Equivalent(name, merge.second)) return &merge;
+            if (FileNamePolicy_Equivalent(name, merge.first) || FileNamePolicy_Equivalent(name, merge.second) ||
+                (merge.third && FileNamePolicy_Equivalent(name, merge.third))) return &merge;
         return nullptr;
     }
     static bool IsUneditedMergedLegacy(const PresetStore& p) {
@@ -1104,10 +1132,13 @@ std::wstring KeyboardLayout_GetPresetDisplayName(int idx)
 {
     std::wstring name = KeyboardLayout_GetPresetName(idx);
     for (const auto& merge : g_layoutMerges) if (name == merge.name) {
-        const auto separator = name.find(L" + ");
-        if (separator != std::wstring::npos) name.replace(separator, 3, L" / ");
+        if (merge.displayName) { name = merge.displayName; break; }
         break;
     }
+    // Use one separator for model groups, including source-defined groups that
+    // do not pass through g_layoutMerges. Attached model suffixes (60HE+) stay.
+    for (size_t separator = 0; (separator = name.find(L" + ", separator)) != std::wstring::npos; separator += 3)
+        name.replace(separator, 3, L" / ");
     const std::wstring suffix = L" - Imported";
     if (KeyboardLayout_GetPresetBrand(idx) == L"Keychron" && name.size() > suffix.size() && name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0)
         name.resize(name.size() - suffix.size());
@@ -1161,6 +1192,61 @@ bool KeyboardLayout_SetKeyGeometry(int idx, int row, int x, int w)
 }
 
 #if defined(HALLJOY_ANALOG_SIMULATOR)
+bool KeyboardLayout_TestCatalogInventory()
+{
+    if (AppPaths_Mode() != AppDataMode::SimulatorOverride) return false;
+    EnsureInit();
+    const auto root = fs::path(AppPaths_DataRoot());
+    const auto original = (root / L"catalog-original-selection.ini").wstring();
+    const auto fixture = (root / L"catalog-selection.ini").wstring();
+    if (!KeyboardLayout_SaveToIni(original.c_str())) return false;
+    bool ok = true;
+    std::wofstream inventory(root / L"layout-catalog.tsv");
+    for (const auto& b : g_builtinPresets) {
+        const int resolved = FindPresetByName(b.name);
+        if (resolved < 0) return false;
+        // Exercise real persistence for every old model name, not only lookup.
+        ok &= WritePrivateProfileStringW(L"KeyboardLayout", L"Automatic", L"0", fixture.c_str()) != FALSE;
+        ok &= WritePrivateProfileStringW(L"KeyboardLayout", L"PresetName", b.name, fixture.c_str()) != FALSE;
+        ok &= KeyboardLayout_LoadFromIni(fixture.c_str()) && g_currentPresetIdx == resolved;
+        ok &= KeyboardLayout_SaveToIni(fixture.c_str());
+        wchar_t savedName[256]{};
+        GetPrivateProfileStringW(L"KeyboardLayout", L"PresetName", L"", savedName, 256, fixture.c_str());
+        ok &= g_presets[resolved].name == savedName;
+        ok &= KeyboardLayout_LoadFromIni(fixture.c_str()) && g_currentPresetIdx == resolved;
+        // An edited old model must override its shared built-in, never disappear.
+        if (MergeFor(b.name)) {
+            const int previousExact = FindExactPresetByName(b.name);
+            PresetStore previous;
+            if (previousExact >= 0) previous = g_presets[previousExact];
+            PresetStore edited{};
+            edited.name = b.name; edited.brand = b.brand;
+            edited.keys.assign(b.keys, b.keys + b.count);
+            for (int i = 0; i < b.count; ++i) edited.labels.emplace_back(b.keys[i].label);
+            ok &= IsUneditedMergedLegacy(edited);
+            edited.keys[0].x += 1;
+            ok &= !IsUneditedMergedLegacy(edited);
+            const auto count = g_presets.size();
+            AddOrReplacePreset(edited);
+            ok &= FindPresetByName(b.name) == FindExactPresetByName(b.name);
+            if (previousExact >= 0) AddOrReplacePreset(previous);
+            else { g_presets.pop_back(); ++g_catalogRevision; }
+            ok &= g_presets.size() == count && FindPresetByName(b.name) == resolved;
+        }
+        for (int i = 0; i < b.count; ++i) {
+            const auto& k = b.keys[i];
+            inventory << b.brand << L'\t' << b.name << L'\t'
+                << KeyboardLayout_GetPresetDisplayName(resolved) << L'\t'
+                << k.hid << L'\t' << k.x << L'\t' << KeyboardLayout_KeyY(k) << L'\t'
+                << k.w << L'\t' << k.h << L'\t' << k.notchW << L'\t' << k.notchY
+                << L'\t' << k.label << L'\n';
+        }
+    }
+    inventory.close();
+    ok &= KeyboardLayout_LoadFromIni(original.c_str());
+    return ok && !inventory.fail();
+}
+
 bool KeyboardLayout_TestFirstRunSelection()
 {
     EnsureInit();
@@ -1199,6 +1285,22 @@ bool KeyboardLayout_TestFirstRunSelection()
             if (std::wstring(b.name) == merge.second) second = &b;
         }
         if (!first || !second || first->count != second->count) return false;
+        if (merge.third) {
+            ok &= FindPresetByName(merge.third) == combined;
+            const PresetDef* third = nullptr;
+            for (const auto& b : g_builtinPresets)
+                if (std::wstring(b.name) == merge.third) third = &b;
+            if (!third || third->count != first->count) return false;
+            for (int i = 0; i < first->count; ++i) {
+                const auto& a = first->keys[i]; const auto& b = third->keys[i];
+                ok &= a.hid == b.hid && a.x == b.x && KeyboardLayout_KeyY(a) == KeyboardLayout_KeyY(b) &&
+                    a.w == b.w && a.h == b.h && a.notchW == b.notchW && a.notchY == b.notchY &&
+                    std::wstring(a.label) == b.label;
+            }
+            KeyboardLayout_SetOverlayPresetName(merge.third);
+            ok &= KeyboardLayout_GetOverlayPresetIndex() == combined &&
+                KeyboardLayout_GetPresetDisplayName(combined) == merge.displayName;
+        }
         for (int i = 0; i < first->count; ++i) {
             const auto& a = first->keys[i];
             const auto end = second->keys + second->count;
@@ -1231,6 +1333,7 @@ bool KeyboardLayout_TestFirstRunSelection()
         ok &= !IsUneditedMergedLegacy(legacy);
         legacy.labels[0] = first->keys[0].label; legacy.uniformSpacing = true;
         ok &= !IsUneditedMergedLegacy(legacy);
+        if (!ok) throw std::runtime_error("Merged layout regression: " + std::string(merge.name, merge.name + wcslen(merge.name)));
     }
     KeyboardLayout_SetOverlayPresetIndex(previousOverlayIndex);
     KeyboardLayout_ArmFirstRunSelection();
@@ -1298,7 +1401,7 @@ bool KeyboardLayout_TestFirstRunSelection()
         native.verifiedLayoutToken=entry.token;
         KeyboardLayout_ArmFirstRunSelection();
         ok &= KeyboardLayout_TryFirstRunSelection(true,t);
-        ok &= std::wstring(KeyboardLayout_GetPresetName(g_currentPresetIdx))==entry.preset;
+        ok &= g_currentPresetIdx == FindPresetByName(entry.preset);
         ok &= !KeyboardLayout_TryFirstRunSelection(true,t);
         t.deviceCount=2; t.nativeProtocolCount=2; t.nativeProtocols[1].connected=true;
         KeyboardLayout_ArmFirstRunSelection();
@@ -1757,6 +1860,7 @@ bool KeyboardLayout_UpdateAutomatic(bool searchCompleted, const BackendAnalogTel
             for (int i=0;i<t.nativeProtocolCount && i<kBackendMaxNativeProtocols;++i) if (t.nativeProtocols[i].connected) {
                 token=t.nativeProtocols[i].verifiedLayoutToken;
                 name=halljoy::layout_identity::Match(token);
+                if(const auto* shark=halljoy::sharklayout::Match(token))name=shark;
 #if defined(HALLJOY_AULA_MINI60_NATIVE)
                 if(token==halljoy::mini60::LayoutToken)name=halljoy::mini60::Preset;
 #endif
@@ -1794,14 +1898,15 @@ bool KeyboardLayout_UpdateAutomatic(bool searchCompleted, const BackendAnalogTel
                     const auto factory=g_activeKeys[k].hid;
                     for (std::size_t i=0;i<remaps.count;++i) if (remaps.keys[i].factory==factory) {
                         const auto assigned=remaps.keys[i].assigned;
-                        if (factory!=assigned) {
-                            std::wstring label=assigned ? L"" : L"Unassigned";
-                            if (assigned) for (const auto& preset:g_presets) {
+                        if (factory!=assigned || remaps.keys[i].labelHid || remaps.keys[i].label[0]) {
+                            const auto display=remaps.keys[i].labelHid ? remaps.keys[i].labelHid : assigned;
+                            std::wstring label=remaps.keys[i].label[0] ? remaps.keys[i].label.data() : assigned ? L"" : L"Unassigned";
+                            if (label.empty() && display) for (const auto& preset:g_presets) {
                                 for (std::size_t j=0;j<preset.keys.size();++j)
-                                    if (preset.keys[j].hid==assigned) {label=preset.labels[j];break;}
+                                    if (preset.keys[j].hid==display) {label=preset.labels[j];break;}
                                 if (!label.empty()) break;
                             }
-                            if (label.empty()) {wchar_t text[32]{};swprintf_s(text,L"HID %03X",unsigned(assigned));label=text;}
+                            if (label.empty()) {wchar_t text[32]{};swprintf_s(text,L"HID %03X",unsigned(display));label=text;}
                             g_ownedLabels[k]=label;g_activeKeys[k].hid=assigned;
                         }
                         break;
@@ -1888,6 +1993,41 @@ bool KeyboardLayout_TestAutomatic()
     }
     t=stableTelemetry;
     ok &= !KeyboardLayout_UpdateAutomatic(true,t) && KeyboardLayout_GetSnapshot()==stableSnapshot;
+    // Exercise the UI selector's freshness boundary, not just the cache.
+    t=stableTelemetry;t.pluginHostLastPublishAgeMs=1000;
+    ok &= !KeyboardLayout_UpdateAutomatic(true,t) && KeyboardLayout_GetSnapshot()==stableSnapshot;
+    t.pluginHostLastPublishAgeMs=1001;
+    KeyboardLayout_UpdateAutomatic(true,t);
+    ok &= !g_automaticLocked && g_currentPresetIdx==0 && g_automaticStatus==AutomaticStatus::Missing;
+    t=stableTelemetry;KeyboardLayout_UpdateAutomatic(true,t);
+    ok &= g_automaticLocked && g_currentPresetIdx==automatic;
+    t.pluginHostReady=false;
+    KeyboardLayout_UpdateAutomatic(true,t);
+    ok &= !g_automaticLocked && g_currentPresetIdx==0;
+    t=stableTelemetry;KeyboardLayout_UpdateAutomatic(true,t);
+    // Repeat full disconnect/reconnect cycles and verify stable inventory does
+    // not recreate the immutable render snapshot between actual transitions.
+    for (int cycle=0;cycle<32;++cycle) {
+        t=stableTelemetry;t.deviceCount=t.pluginDeviceCount=t.pluginHostDenseDeviceCount=0;
+        KeyboardLayout_UpdateAutomatic(true,t);
+        const auto disconnected=KeyboardLayout_GetSnapshot();
+        ok &= !g_automaticLocked && g_currentPresetIdx==0;
+        ok &= !KeyboardLayout_UpdateAutomatic(true,t) && KeyboardLayout_GetSnapshot()==disconnected;
+        t=stableTelemetry;KeyboardLayout_UpdateAutomatic(true,t);
+        const auto reconnected=KeyboardLayout_GetSnapshot();
+        ok &= g_automaticLocked && g_currentPresetIdx==automatic;
+        ok &= !KeyboardLayout_UpdateAutomatic(true,t) && KeyboardLayout_GetSnapshot()==reconnected;
+    }
+    KeyboardLayout_SetAutomatic(false);KeyboardLayout_SetPresetIndex(2);
+    const auto manualSnapshot=KeyboardLayout_GetSnapshot();
+    for (int count=0;count<=2;++count) {
+        t=stableTelemetry;t.deviceCount=t.pluginDeviceCount=t.pluginHostDenseDeviceCount=count;
+        ok &= !KeyboardLayout_UpdateAutomatic(true,t) && !g_automaticLocked &&
+            g_currentPresetIdx==2 && KeyboardLayout_GetSnapshot()==manualSnapshot;
+    }
+    KeyboardLayout_SetPresetIndex(0);KeyboardLayout_SetAutomatic(true);
+    t=stableTelemetry;KeyboardLayout_UpdateAutomatic(true,t);
+    if (!ok) throw std::runtime_error("automatic layout: freshness/reconnect/manual isolation failed");
     t.deviceCount=t.pluginDeviceCount=t.pluginHostDenseDeviceCount=0;
     KeyboardLayout_UpdateAutomatic(true,t);
     ok &= !g_automaticLocked && g_currentPresetIdx==0;
@@ -1962,6 +2102,53 @@ bool KeyboardLayout_TestAutomatic()
         KeyboardLayout_LoadFromIni(path.c_str());
         ok &= KeyboardLayout_GetAutomatic();
     }
+    // HERO84 complete remaps preserve physical geometry, including modifiers and Fn.
+    {
+        const auto heroToken=halljoy::layout_identity::Token("aula-hero84","110000000005");
+        const int heroIndex=FindPresetByName(L"Aula HERO84 HE ANSI");
+        ok &= heroToken && heroIndex>=0;
+        if (heroToken && heroIndex>=0) {
+            std::vector<halljoy::native_layout::Key> map;
+            for (const auto& key:g_presets[heroIndex].keys) map.push_back({key.hid,key.hid});
+            for (auto& key:map) if(key.factory==26) key.assigned=4;
+            ok &= halljoy::native_layout::Publish(heroToken,map.data(),map.size());
+            KeyboardLayout_SetAutomatic(true);
+            t={};t.deviceCount=1;t.nativeIdentityDeviceCount=1;t.nativeProtocolCount=1;
+            t.nativeProtocols[0].connected=true;t.nativeProtocols[0].verifiedLayoutToken=heroToken;
+            KeyboardLayout_UpdateAutomatic(true,t);
+            ok &= g_automaticLocked && g_currentPresetIdx==heroIndex && g_automaticStatus==AutomaticStatus::Remapped;
+            for (std::size_t i=0;i<map.size();++i) ok &= g_activeKeys[i].hid==map[i].assigned;
+            t.nativeIdentityDeviceCount=2;KeyboardLayout_UpdateAutomatic(true,t);
+            ok &= !g_automaticLocked && !halljoy::native_layout::UsesRemapping(heroToken);
+            halljoy::native_layout::Clear(heroToken);
+        }
+    }
+    {
+        const auto o3cToken=halljoy::layout_identity::Token("sayo-o3c","O3C-8089-0009");
+        const int o3cPreset=FindPresetByName(L"SayoDevice O3C ANSI");
+        ok &= o3cToken && o3cPreset>=0;
+        KeyboardLayout_SetAutomatic(false);KeyboardLayout_SetPresetIndex(o3cPreset);
+        for(const auto bindings : {std::array<std::uint16_t,3>{}, {9,0,11}, {9,9,9}}) {
+            KeyboardLayout_SetAutomatic(true);
+            t={};t.deviceCount=1;t.nativeIdentityDeviceCount=1;t.nativeProtocolCount=1;
+            t.nativeProtocols[0].connected=true;t.nativeProtocols[0].verifiedLayoutToken=o3cToken;
+            const auto map=halljoy::sayo::o3c::Layout(bindings);
+            ok &= halljoy::native_layout::Publish(o3cToken,map.data(),map.size());
+            KeyboardLayout_UpdateAutomatic(true,t);
+            ok &= g_automaticLocked && g_activeKeys.size()==3;
+            if(g_activeKeys.size()==3) for(size_t i=0;i<3;++i) {
+                ok &= g_activeKeys[i].hid==halljoy::keycode::kO3cFirst+i;
+                if(!bindings[i]) ok &= g_ownedLabels[i]==L"Key "+std::to_wstring(i+1);
+                else ok &= g_ownedLabels[i]==(bindings[i]==9 ? L"F" : L"H");
+            }
+            ok &= !KeyboardLayout_UpdateAutomatic(true,t);
+            KeyboardLayout_SetAutomatic(false);
+            ok &= !g_automaticLocked && g_activeKeys.size()==3;
+            if(g_activeKeys.size()==3) for(size_t i=0;i<3;++i)
+                ok &= g_activeKeys[i].hid==halljoy::sayo::o3c::Factory[i];
+            halljoy::native_layout::Clear(o3cToken);
+        }
+    }
     for (const auto& model:ipi::models) {
         KeyboardLayout_SetAutomatic(true);
         t={};t.deviceCount=1;t.nativeIdentityDeviceCount=1;t.nativeProtocolCount=1;t.nativeProtocols[0].connected=true;
@@ -2018,6 +2205,7 @@ bool KeyboardLayout_TryFirstRunSelection(bool searchCompleted, const BackendAnal
             {
                 const auto token=t.nativeProtocols[i].verifiedLayoutToken;
                 preset = halljoy::layout_identity::Match(token);
+                if(const auto* shark=halljoy::sharklayout::Match(token))preset=shark;
 #if defined(HALLJOY_AULA_MINI60_NATIVE)
                 if(token==halljoy::mini60::LayoutToken)preset=halljoy::mini60::Preset;
 #endif

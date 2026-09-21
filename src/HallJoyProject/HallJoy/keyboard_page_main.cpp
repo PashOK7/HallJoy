@@ -61,6 +61,8 @@ static const wchar_t* FrozenSupportTitle() {
     case NA87Pro: return L"IROK NA87 Pro: support frozen";
     case ND75: return L"IROK ND75: support frozen";
     case Hero84: return L"AULA HERO84 HE: testing incomplete";
+    case Mg75Pro: return L"IROK MG75 Pro: testing incomplete";
+    case AttackShark: return L"ATTACK SHARK: testing incomplete";
     case Azoth96: return L"ROG Azoth 96 HE: support frozen";
     case X68: return L"Attack Shark X68 HE: support frozen";
     default: return L"Connected keyboards: support needs testing";
@@ -69,8 +71,8 @@ static const wchar_t* FrozenSupportTitle() {
 static const wchar_t* FrozenSupportBody() {
     const auto models=halljoy::keyboard_support::GetStatusSnapshot().frozenModels;
     if(models==halljoy::keyboard_support::FamilyCandidate)
-        return L"This USB identity is shared with frozen experimental keyboards. Exact model support is unverified. Join Discord to help identify and test it.";
-    constexpr unsigned available=halljoy::keyboard_support::NA87 | halljoy::keyboard_support::Hero84;
+        return L"This USB identity is shared by several keyboard models. Exact model support is unverified. Join Discord to help identify and test it.";
+    constexpr unsigned available=halljoy::keyboard_support::NA87 | halljoy::keyboard_support::Hero84 | halljoy::keyboard_support::Mg75Pro | halljoy::keyboard_support::AttackShark;
     if(models && !(models & ~available))
         return L"Support is available, but testing is incomplete. It may be unstable or not work. Join Discord to help test it.";
     if(models & available)

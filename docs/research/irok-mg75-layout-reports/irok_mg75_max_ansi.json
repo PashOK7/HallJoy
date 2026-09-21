@@ -671,7 +671,7 @@
   "notes": [
     "Official model geometry, normalized to 42 px standard keys.",
     "Manual preset selection: no new exact-model identity published by SparkLink.",
-    "Fn uses HallJoy reserved Fn code 0x409; current SparkLink byte map does not publish this extended code.",
+    "Fn action 0xF101 now maps to HallJoy 0x409 through SparkLink; hardware validation pending.",
     "MG75 v2 is excluded."
   ]
 }

@@ -1,0 +1,107 @@
+{
+  "scope": "lookup blocks with injected normalized sensor index, not full ADC/USB emulation",
+  "results": [
+    {
+      "file": "2268_v309.bin",
+      "sha256": "503940d85d865339bf6250a3c1ad464303a760f3b6da6a6f43dd02fab833a2fa",
+      "banks": [
+        {
+          "bank": 0,
+          "table": "0x80147a8",
+          "index_limit": 2000,
+          "raw_ceiling": 350,
+          "sampled_max": 350,
+          "lookup_cases": 2050
+        },
+        {
+          "bank": 1,
+          "table": "0x80157a8",
+          "index_limit": 2020,
+          "raw_ceiling": 350,
+          "sampled_max": 350,
+          "lookup_cases": 2050
+        },
+        {
+          "bank": 2,
+          "table": "0x80167a8",
+          "index_limit": 2020,
+          "raw_ceiling": 350,
+          "sampled_max": 350,
+          "lookup_cases": 2050
+        },
+        {
+          "bank": 3,
+          "table": "0x80177a8",
+          "index_limit": 2020,
+          "raw_ceiling": 350,
+          "sampled_max": 350,
+          "lookup_cases": 2050
+        },
+        {
+          "bank": 4,
+          "table": "0x80187a8",
+          "index_limit": 2020,
+          "raw_ceiling": 350,
+          "sampled_max": 350,
+          "lookup_cases": 2050
+        },
+        {
+          "bank": 5,
+          "table": "0x80197a8",
+          "index_limit": 2020,
+          "raw_ceiling": 350,
+          "sampled_max": 350,
+          "lookup_cases": 2050
+        }
+      ]
+    },
+    {
+      "file": "2755_v504.bin",
+      "sha256": "d9044605e2b5b9447a2b250a5a307b16ca81b6d901f309e4f945eea3f95f3c78",
+      "banks": [
+        {
+          "bank": 0,
+          "table": "0x8017444",
+          "index_limit": 2030,
+          "raw_ceiling": 700,
+          "sampled_max": 700,
+          "lookup_cases": 2050
+        },
+        {
+          "bank": 1,
+          "table": "0x8018444",
+          "index_limit": 1980,
+          "raw_ceiling": 350,
+          "sampled_max": 350,
+          "lookup_cases": 2050
+        },
+        {
+          "bank": 2,
+          "table": "0x8019444",
+          "index_limit": 1980,
+          "raw_ceiling": 350,
+          "sampled_max": 350,
+          "lookup_cases": 2050
+        },
+        {
+          "bank": 3,
+          "table": "0x801a444",
+          "index_limit": 1980,
+          "raw_ceiling": 350,
+          "sampled_max": 350,
+          "lookup_cases": 2050
+        },
+        {
+          "bank": 4,
+          "table": "0x801b444",
+          "index_limit": 1980,
+          "raw_ceiling": 350,
+          "sampled_max": 350,
+          "lookup_cases": 2050
+        }
+      ]
+    }
+  ],
+  "x82_lookup_base": "0x2000000c",
+  "x82_endpoint_verified": false
+}

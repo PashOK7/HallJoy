@@ -2,6 +2,11 @@
 #include <windows.h>
 #include <sddl.h>
 #include <strsafe.h>
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+#include <shellapi.h>
+#include <string>
+#include <cwctype>
+#endif
 
 #include "instance_guard.h"
 
@@ -88,6 +93,42 @@ AcquireResult Guard::AcquireForCurrentUser() noexcept
         lastError_ = error;
         return AcquireResult::Failed;
     }
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    // File-only regression runs own isolated data, never devices. They must not
+    // claim the interactive user's runtime or require closing the normal app.
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    bool forbiddenBackend = false, fileOnly = false;
+    std::wstring root;
+    if (argv) {
+        for (int i = 1; i < argc; ++i) {
+            if (wcscmp(argv[i], L"--halljoy-test-forbid-backend-init") == 0) forbiddenBackend = true;
+            if (wcscmp(argv[i], L"--halljoy-test-profile-transactions") == 0 ||
+                wcscmp(argv[i], L"--halljoy-test-profile-startup-only") == 0) fileOnly = true;
+            if (wcscmp(argv[i], L"--halljoy-test-data-root") == 0 && i + 1 < argc) root = argv[++i];
+        }
+        LocalFree(argv);
+    }
+    if (forbiddenBackend && fileOnly && !root.empty()) {
+        wchar_t full[32768]{};
+        const DWORD length = GetFullPathNameW(root.c_str(), static_cast<DWORD>(std::size(full)), full, nullptr);
+        if (!length || length >= std::size(full)) { lastError_ = ERROR_INVALID_NAME; return AcquireResult::Failed; }
+        unsigned long long hash = 1469598103934665603ull;
+        for (DWORD i = 0; i < length; ++i) { hash ^= static_cast<unsigned>(towlower(full[i])); hash *= 1099511628211ull; }
+        wchar_t suffix[64]{};
+        StringCchPrintfW(suffix, std::size(suffix), L".FileOnly.%016llx", hash);
+        if (FAILED(StringCchCatW(name, std::size(name), suffix))) { lastError_ = ERROR_BUFFER_OVERFLOW; return AcquireResult::Failed; }
+    }
+#endif
+#if defined(HALLJOY_INSTANCE_GUARD_TEST)
+    // Only the isolated regression executable defines this macro.
+    wchar_t run[32]{};
+    const DWORD length=GetEnvironmentVariableW(L"HALLJOY_INSTANCE_GUARD_TEST_RUN",run,32);
+    if (!length || length>=32) { lastError_=ERROR_INVALID_PARAMETER; return AcquireResult::Failed; }
+    if (FAILED(StringCchCatW(name,256,L".Regression.")) || FAILED(StringCchCatW(name,256,run))) {
+        lastError_=ERROR_BUFFER_OVERFLOW; return AcquireResult::Failed;
+    }
+#endif
     return AcquireNamed(name);
 }
 

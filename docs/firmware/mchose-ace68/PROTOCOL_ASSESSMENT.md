@@ -1,5 +1,7 @@
 # MCHOSE Ace 68 analogue-protocol assessment
 
+> 2026-09-20 owner outcome: a tester was available, but usable HallJoy analog was not obtained. Public catalog status is now No usable analog found (red). This does not negate the static candidate below or turn the PID-mismatched capture into proof of absence. See [catalog audit](../../current/KEYBOARD_SHEET_MAGNETIC_AUDIT_2026-09-20.md). No new hardware test occurred in this update.
+
 Assessed: 2026-08-28. Scope is read-only static analysis of the verified
 `Ace 68 I` firmware and the live official M HUB web-driver assets. No keyboard
 was connected and no firmware was modified or flashed.

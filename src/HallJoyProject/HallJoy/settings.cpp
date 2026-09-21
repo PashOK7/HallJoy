@@ -81,7 +81,6 @@ static std::atomic<bool> g_blockBoundKeys{ false };
 static std::atomic<bool> g_blockKeysAllowAltTab{ true };
 static std::atomic<UINT> g_blockKeysHotkey{ 0 };
 static std::atomic<bool> g_blockMouseInput{ false };
-static std::atomic<bool> g_digitalFallbackInput{ false };
 static std::atomic<UINT> g_sparkPollMode{ SettingsSparkPollMode_MaxBurst };
 static std::atomic<UINT> g_sparkRowLimit{ 0 };
 static std::atomic<bool> g_mouseToStickEnabled{ false };
@@ -369,15 +368,6 @@ bool Settings_GetBlockMouseInput()
     return g_blockMouseInput.load(std::memory_order_acquire);
 }
 
-void Settings_SetDigitalFallbackInput(bool on)
-{
-    g_digitalFallbackInput.store(on, std::memory_order_release);
-}
-
-bool Settings_GetDigitalFallbackInput()
-{
-    return g_digitalFallbackInput.load(std::memory_order_acquire);
-}
 
 void Settings_SetSparkPollMode(UINT mode)
 {

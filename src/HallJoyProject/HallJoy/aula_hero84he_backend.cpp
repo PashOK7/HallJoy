@@ -11,6 +11,9 @@
 #include "hid_io_operation.h"
 #include "native_analog_routing.h"
 #include "physical_analog_state.h"
+#include "aula_hero84he_factory.h"
+#include "native_layout_state.h"
+#include "generated/layout_pipeline/identities.h"
 
 #include <algorithm>
 #include <array>
@@ -33,11 +36,11 @@ using Clock = std::chrono::steady_clock;
 constexpr DWORD kSliceMs = 50, kCommandTimeoutMs = 200, kStopTimeoutMs = 3000;
 constexpr ULONGLONG kFreshMs = 750, kDemandMs = 300;
 constexpr std::array<std::uint8_t, 6> kExpectedUuid{{0x11, 0, 0, 0, 0, 0x05}};
-// AULA_2829's complete default physical layout.  Live layer-0 `83`, not this
-// list, determines which standard HID usages become ownable.
-constexpr std::array<std::uint16_t, 83> kPositions{
+// Complete physical poll domain; live layer-0 assignments are kept separate
+// from factory identities and selected only after automatic layout succeeds.
+constexpr std::array<std::uint16_t, 84> kPositions{
     {1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,  25,  26,  27, 28,
-     29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,  54,  55,  56, 57,
+     29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54,  55,  56, 57,
      58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 95, 98, 99, 100, 101, 102, 103}};
 constexpr std::array<std::uint16_t, 5> kMovement{{30, 43, 44, 45, 70}};
 
@@ -87,10 +90,19 @@ std::atomic<bool> g_prepared{false}, g_present{false}, g_connected{false}, g_run
 std::atomic<std::uint32_t> g_inputBytes{0}, g_outputBytes{0}, g_mapped{0};
 std::atomic<std::uint64_t> g_ok{0}, g_bad{0};
 std::atomic<ULONGLONG> g_last{};
-std::array<std::atomic<std::uint8_t>, 256> g_hidAt{};
-std::array<std::atomic<bool>, 256> g_has{};
-std::array<std::atomic<ULONGLONG>, 256> g_demand{};
-halljoy::physical_analog::Publication g_physical;
+std::array<std::atomic<std::uint16_t>, 256> g_hidAt{};
+constexpr std::size_t kHidCount = halljoy::physical_analog::kHidCount;
+std::array<std::atomic<bool>, kHidCount> g_has{};
+std::atomic<std::uint64_t> g_layoutToken{0};
+std::array<std::atomic<ULONGLONG>, kHidCount> g_demand{};
+halljoy::physical_analog::Publication g_physical, g_factory;
+std::array<std::uint16_t,256> FactoryMap() {
+    std::array<std::uint16_t,256> result{};
+    for (const auto& key : halljoy::hero84::factory) result[key.position]=key.hid;
+    return result;
+}
+const auto kFactoryAt=FactoryMap();
+bool Remapped() { return halljoy::native_layout::UsesRemapping(g_layoutToken.load()); }
 std::array<std::atomic<std::uint16_t>, 256> g_top{}, g_bottom{};
 std::atomic<std::uint16_t> g_cursor{1};
 std::mutex g_service, g_activeLock;
@@ -270,14 +282,17 @@ class Session
 void Clear()
 {
     g_mapReady.store(false);
+    halljoy::native_layout::Clear(g_layoutToken.exchange(0));
     g_physical.Clear();
+    g_factory.Clear();
     g_mapped.store(0);
     g_last.store(0);
+    for (auto& has : g_has) has.store(false);
+    for (auto& demand : g_demand) demand.store(0);
     for (std::size_t i = 0; i < 256; ++i)
     {
         g_hidAt[i].store(0);
-        g_has[i].store(false);
-        g_demand[i].store(0);
+
         g_top[i].store(0);
         g_bottom[i].store(0);
 
@@ -291,49 +306,37 @@ bool Identity(Session &s)
     return hero::BuildIdentityRead(&q) && s.Exchange(q, &r, &us) && hero::ParseIdentityResponse(r, &uuid) &&
            uuid == kExpectedUuid;
 }
+bool InstallMap(const std::array<std::uint32_t,256>& assignments)
+{
+    Clear();
+    std::array<halljoy::native_layout::Key,84> remaps{};
+    std::size_t count=0;
+    for (const auto& key : halljoy::hero84::factory) {
+        const auto hid=halljoy::hero84::DecodeAssignment(assignments[key.position]);
+        g_hidAt[key.position].store(hid);
+        g_factory.Bind(static_cast<std::uint8_t>(key.position),key.hid);
+        if (hid) { g_physical.Bind(static_cast<std::uint8_t>(key.position),hid); g_has[hid].store(true); }
+        remaps[count++]={key.hid,hid};
+    }
+    const auto token=halljoy::layout_identity::Token("aula-hero84", "110000000005");
+    if (!halljoy::native_layout::Publish(token,remaps.data(),count)) { Clear(); return false; }
+    g_layoutToken.store(token);
+    g_mapped.store(static_cast<std::uint32_t>(count));
+    g_mapReady.store(true);
+    return true;
+}
 bool Map(Session &s)
 {
-    std::array<std::uint8_t, 256> nextAt{};
-    std::array<bool, 256> nextHas{};
-    std::uint32_t count = 0;
-    for (std::size_t base = 0; base < kPositions.size(); base += hero::kMaxPositions)
-    {
-        const std::size_t n = std::min(hero::kMaxPositions, kPositions.size() - base);
-        hero::Report q{}, r{};
-        std::uint32_t us = 0;
-        std::array<hero::Assignment, hero::kMaxPositions> values{};
-        if (!hero::BuildAssignmentRead(0, kPositions.data() + base, n, &q) || !s.Exchange(q, &r, &us) ||
-            !hero::ParseAssignmentResponse(r, 0, kPositions.data() + base, n, &values))
-            return false;
-        for (std::size_t i = 0; i < n; ++i)
-        {
-            const auto &a = values[i];
-            const auto hid = static_cast<std::uint8_t>(a.value & 0xffu);
-            if ((a.value & 0xffffff00u) != 0 || !hid || hid > 0xe7)
-            {
-                DebugLog_Write(L"[aula.hero84.production.map] skip pos=%04X assignment=%08X", a.position, a.value);
-                continue;
-            }
-            nextAt[a.position] = hid;
-            nextHas[hid] = true;
-            ++count;
-        }
+    std::array<std::uint32_t,256> assignments{};
+    for (std::size_t base=0;base<kPositions.size();base+=hero::kMaxPositions) {
+        const auto n=std::min(hero::kMaxPositions,kPositions.size()-base);
+        hero::Report q{},r{}; std::uint32_t us=0;
+        std::array<hero::Assignment,hero::kMaxPositions> values{};
+        if (!hero::BuildAssignmentRead(0,kPositions.data()+base,n,&q) || !s.Exchange(q,&r,&us) ||
+            !hero::ParseAssignmentResponse(r,0,kPositions.data()+base,n,&values)) return false;
+        for (std::size_t i=0;i<n;++i) assignments[values[i].position]=values[i].value;
     }
-    if (!count)
-        return false;
-    Clear();
-    for (std::size_t i = 0; i < 256; ++i)
-    {
-        g_hidAt[i].store(nextAt[i]);
-        if(nextAt[i]) g_physical.Bind(static_cast<std::uint8_t>(i), nextAt[i]);
-        g_has[i].store(nextHas[i]);
-    }
-    g_mapped.store(count);
-    g_mapReady.store(true);
-    DebugLog_Write(L"[aula.hero84.production.map] accepted layer=0 mapped=%u "
-                   L"source=read_only_83",
-                   count);
-    return true;
+    return InstallMap(assignments);
 }
 std::size_t Plan(std::array<std::uint16_t, hero::kMaxPositions> *out)
 {
@@ -355,7 +358,7 @@ std::size_t Plan(std::array<std::uint16_t, hero::kMaxPositions> *out)
     for (std::size_t offset = 0; offset < 255 && n < out->size(); ++offset)
     {
         const std::size_t p = (static_cast<std::size_t>(first) + offset - 1) % 255 + 1;
-        const auto hid = g_hidAt[p].load();
+        const auto hid = Remapped() ? g_hidAt[p].load() : kFactoryAt[p];
         const auto demand = hid ? g_demand[hid].load() : 0;
         if (demand && now >= demand && now - demand <= kDemandMs)
             add(static_cast<std::uint16_t>(p));
@@ -364,8 +367,7 @@ std::size_t Plan(std::array<std::uint16_t, hero::kMaxPositions> *out)
 }
 void Publish(const hero::DirectSample &x)
 {
-    const auto hid = g_hidAt[x.position].load();
-    if (!hid || !g_has[hid].load() || !x.current)
+    if (x.position >= kFactoryAt.size() || !kFactoryAt[x.position] || !x.current)
         return;
     const auto raw = x.current;
     const auto position = x.position;
@@ -392,7 +394,9 @@ void Publish(const hero::DirectSample &x)
         if (milli < 8)
             milli = 0;
     }
-    g_physical.Publish(static_cast<std::uint8_t>(position), milli, GetTickCount64());
+    const auto now=GetTickCount64();
+    g_physical.Publish(static_cast<std::uint8_t>(position), milli, now);
+    g_factory.Publish(static_cast<std::uint8_t>(position), milli, now);
 }
 bool Run(const Candidate &c)
 {
@@ -573,15 +577,15 @@ bool Connected()
 }
 bool Owns(std::uint16_t hid)
 {
-    if (!hid || hid >= 256 || !Connected())
+    if (!hid || hid >= kHidCount || !Connected())
         return false;
     g_demand[hid].store(GetTickCount64());
     // Ownership is a session property; a stale sample must not fall back to digital input.
-    return g_has[hid].load();
+    return (Remapped() ? g_physical : g_factory).Owns(hid);
 }
 std::uint16_t Get(std::uint16_t hid)
 {
-    return Owns(hid) ? g_physical.Read(hid, GetTickCount64(), kFreshMs).milli : 0;
+    return Owns(hid) ? (Remapped() ? g_physical : g_factory).Read(hid, GetTickCount64(), kFreshMs).milli : 0;
 }
 void Telemetry(NativeAnalogBackendTelemetry *out)
 {
@@ -590,6 +594,7 @@ void Telemetry(NativeAnalogBackendTelemetry *out)
     *out = {};
     out->present = Present();
     out->connected = Connected();
+    out->verifiedLayoutToken = out->connected ? g_layoutToken.load() : 0;
     out->vendorId = hero::kVendorId;
     out->productId = hero::kProductId;
     out->usagePage = hero::kUsagePage;
@@ -631,29 +636,72 @@ const NativeAnalogBackendDescriptor &AulaHero84He_GetNativeBackendDescriptor()
 }
 
 #if defined(HALLJOY_ANALOG_SIMULATOR)
-bool AulaHero84He_TestPublication() {
+bool AulaHero84He_TestPublication(int* failedLine) {
+    const auto fail=[&](int line) { if(failedLine) *failedLine=line; return false; };
     // Production publication functions, synthetic samples only; no HID or worker.
-    if(g_thread || g_connected.load()) return false;
-    struct Reset {~Reset(){g_connected.store(false);Clear();}} reset;
+    if(g_thread || g_connected.load()) return fail(__LINE__);
+    struct Reset { bool enabled=halljoy::native_layout::enabled.load(); std::uint64_t token=halljoy::native_layout::activeToken.load();
+        ~Reset(){g_connected.store(false);Clear();halljoy::native_layout::enabled.store(enabled);halljoy::native_layout::activeToken.store(token);} } reset;
     Clear();
     g_hidAt[30].store(26);g_hidAt[43].store(26);g_has[26].store(true);
     g_physical.Bind(30,26);g_physical.Bind(43,26);
+    const auto token=halljoy::layout_identity::Token("aula-hero84", "110000000005");
+    g_layoutToken.store(token);halljoy::native_layout::enabled.store(true);halljoy::native_layout::activeToken.store(token);
     g_mapReady.store(true);g_connected.store(true);
     Publish({30,10000,0,false});Publish({43,12000,0,false});
-    if(!Owns(26) || Get(26)!=0) return false;
+    if(!Owns(26) || Get(26)!=0) return fail(__LINE__);
     Publish({30,5000,0,false});Publish({43,6000,0,false});
-    if(Get(26)!=1000) return false;
+    if(Get(26)!=1000) return fail(__LINE__);
     Publish({30,10000,0,false});
-    if(Get(26)!=1000) return false;
+    if(Get(26)!=1000) return fail(__LINE__);
     Publish({43,12000,0,false});
-    if(Get(26)!=0) return false;
+    if(Get(26)!=0) return fail(__LINE__);
     Publish({30,7500,0,false});
-    if(Get(26)!=500) return false;
+    if(Get(26)!=500) return fail(__LINE__);
+    // Position 53 is the factory apostrophe key, including release publication.
+    if (std::find(kPositions.begin(), kPositions.end(), 53) == kPositions.end()) return fail(__LINE__);
+    g_hidAt[53].store(0x34); g_has[0x34].store(true); g_physical.Bind(53,0x34);
+    Publish({53,10000,0,false}); Publish({53,5000,0,false});
+    if (!Owns(0x34) || Get(0x34)!=1000) return fail(__LINE__);
+    Publish({53,10000,0,false});
+    if (Get(0x34)!=0) return fail(__LINE__);
     const auto now=GetTickCount64();
     g_physical.Publish(30,1000,now>kFreshMs ? now-kFreshMs-1 : 0);
     g_physical.Publish(43,1000,now>kFreshMs ? now-kFreshMs-1 : 0);
-    if(!Owns(26) || Get(26)!=0) return false;
+    if(!Owns(26) || Get(26)!=0) return fail(__LINE__);
     g_connected.store(false);Clear();
-    return !Owns(26) && Get(26)==0;
+    if (Owns(26) || Get(26)!=0) return fail(__LINE__);
+    std::array<std::uint32_t,256> assignments{};
+    for (const auto& key : halljoy::hero84::factory) assignments[key.position]=key.hid;
+    assignments[55]=0x00020000; assignments[72]=0x0D000000;
+    assignments[30]=4; assignments[43]=4; assignments[53]=0x02000001;
+    if (!InstallMap(assignments)) return fail(__LINE__);
+    g_connected.store(true);
+    halljoy::native_layout::activeToken.store(token);
+    if (!Owns(0x409) || !Owns(0xE1) || Owns(0x34)) return fail(__LINE__);
+    Publish({72,10000,0,false});Publish({72,5000,0,false});
+    if (Get(0x409)!=1000) return fail(__LINE__);
+    Publish({53,10000,0,false});Publish({53,5000,0,false});
+    Publish({30,10000,0,false});Publish({30,5000,0,false});
+    if (Get(4)!=1000 || Owns(26)) return fail(__LINE__);
+    halljoy::native_layout::activeToken.store(0);
+    if (Get(26)!=1000) return fail(__LINE__);
+    if (Get(4)!=0) return fail(__LINE__);
+    if (Get(0x34)!=1000) return fail(__LINE__);
+    if (!halljoy::native_layout::Read(token).complete) return fail(__LINE__);
+    std::array<bool,256> requested{};
+    for (const auto& key:halljoy::hero84::factory) if (!Owns(key.hid)) return fail(__LINE__);
+    for (unsigned pass=0;pass<255;++pass) {
+        std::array<std::uint16_t,hero::kMaxPositions> request{};
+        const auto count=Plan(&request);
+        for (std::size_t i=0;i<count;++i) requested[request[i]]=true;
+    }
+    for (const auto& key:halljoy::hero84::factory) if (!requested[key.position]) return fail(__LINE__);
+
+    for (unsigned bit=0;bit<8;++bit)
+        if (halljoy::hero84::DecodeAssignment(0x10000u<<bit)!=0xE0+bit) return fail(__LINE__);
+    if (halljoy::hero84::DecodeAssignment(0x30000)!=0 || halljoy::hero84::DecodeAssignment(0x01000004)!=0) return fail(__LINE__);
+    g_connected.store(false);Clear();
+    return !Owns(0x409) && !halljoy::native_layout::Read(token).complete;
 }
 #endif

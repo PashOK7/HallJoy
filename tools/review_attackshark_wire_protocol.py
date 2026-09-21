@@ -44,7 +44,7 @@ with tempfile.TemporaryDirectory(prefix='shark-wire-',dir=ROOT/'build/obj') as f
  for frame,line in zip(vendor['frames'],lines,strict=True):
   expected=bytes([0]+frame['payload']+[0]*(64-len(frame['payload'])))
   assert bytes.fromhex(line)==expected
-for pid in [20527,20528]:assert f'vendorId:12625,productId:{pid},usage:2,usagePage:65535,interfaceNumber:2' in index
+for pid in [20521,20525,20527,20528]:assert f'vendorId:12625,productId:{pid},usage:2,usagePage:65535,interfaceNumber:2' in index
 assert 'return e[8]<<8|e[7]' in base
 assert 'const n=e[2]<<8|e[1]' in base
 assert 'getUint32(1,!0)' in index

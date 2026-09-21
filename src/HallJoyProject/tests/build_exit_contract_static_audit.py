@@ -22,7 +22,7 @@ def main() -> int:
             "batch captures PowerShell exit code before any later command")
     require('exit /b %EXITCODE%' in batch,
             "batch returns the captured failing stage code")
-    require('echo Output: build\\output\\HallJoy.exe\npause\nexit /b 0' in batch.replace('\r\n', '\n'),
+    require('echo Output: build\\bin\\Release\\x64\\HallJoy.exe\npause\nexit /b 0' in batch.replace('\r\n', '\n'),
             "successful batch completion explicitly returns zero after pause")
     require('$buildExitCode = $LASTEXITCODE' in build and
             'if ($buildExitCode -ne 0) { throw "HallJoy build failed: $buildExitCode" }' in build,

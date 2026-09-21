@@ -1,75 +1,58 @@
-HALLJOY v1.4 - OFFICIAL BUILD
-=============================
-
-Supported target: Windows x64. Win32/x86 is not supported because the bundled
-ViGEm and Universal Analog Plugin components are built for x64.
-
-Both Release|x64 and Debug|x64 are supported. Debug retains symbols, runtime
-checks, and disabled optimization, but uses the compatible static release CRT
-required by the bundled `/MT` ViGEmClient library.
+HALLJOY - WINDOWS X64 BUILD
+==========================
+Current contract: 2026-09-20, candidate version 1.6.0.
 
 Requirements
 ------------
+Visual Studio 2022 Build Tools with Desktop development with C++ and x64 Clang,
+Python 3.12, Git, and PowerShell 5.1 or later. Windows x64 is the supported target.
 
-- Visual Studio 2022 Build Tools;
-- Desktop development with C++ workload;
-- C++ Clang tools for Windows x64;
-- Python 3.12;
-- Git;
-- PowerShell 5.1 or later.
-
-Build from the repository root with one command:
-
+Full build from repository root:
   BUILD.cmd
-
-Equivalent direct invocation:
-
+Equivalent:
   powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
 
-Before MSVC runs, the script verifies the dependency lock, static audits, and
-portable C++20 tests. Production builds use Warning Level 4; any warning not on
-the explicit allowlist fails the official build.
+After dependencies have been prepared, incremental ordinary delivery:
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build_release.ps1
 
-Release output
---------------
+Output and replacement
+----------------------
+  build\bin\Release\x64\HallJoy.exe
 
-  build\release\HallJoy.exe
+Both entry points stage the candidate in build\obj\ReleaseCandidate\x64.
+The running delivered application remains open during compilation and candidate
+checks. Only successful changed candidates reach the shared replacement script:
+it closes the exact target, replaces it and reopens it if previously running.
+Failed or unchanged candidates do not close HallJoy. Do not use another delivery
+folder to work around a locked EXE. See docs/current/BUILD_REPLACEMENT_LIFECYCLE_2026-09-19.md.
 
-`build\release` is the sole ordinary package. It contains the executable,
-dependency lock, third-party notices and SHA-256 checksum. Build only replaces
-these owned files; local portable settings are retained. Compiler outputs and
-matching PDB/MAP live in build\bin\<variant>\<configuration>\<platform>;
-intermediates live in build\obj with the same suffix. Diagnostic packages are
-under build\packages. See docs/current/PROJECT_LAYOUT.md.
+The full build also writes dependency/license/checksum files beside the delivered
+EXE. Local runtime settings and unknown files are preserved. Incremental delivery
+replaces the EXE; do not assume old sidecar checksums were refreshed by that path.
 
-Do not use the obsolete `build_all.ps1`, V6/Madlions diagnostic paths, or
-`HallJoyMadlionsSafeHID.exe`; none is the current release target.
+Validation
+----------
+The full build verifies locked dependencies, static audits and portable checks.
+Incremental delivery builds ordinary Release and runs four linked-image checks:
+ATTACK SHARK, MINI60, NA87 and the embedded ViGEm installer resource. These tests
+are not physical-device tests and do not install a driver.
 
-HallJoy bundles the pinned ViGEmBus installer and verifies its hash/signature.
-Installation requires a user action; the build self-test does not install it.
-`BUILD.cmd` builds and verifies the private UAP runtime itself.
+ViGEmBus 1.22.0 is embedded and verified; installation requires user action.
+The private analogue plugin runtime is bundled; no global SDK install is needed.
+Debug|x64 retains symbols/checks with the compatible static release CRT required
+by ViGEmClient. See docs/development/TESTING.md for individual test commands.
 
-Release gates are documented in:
+Logging
+-------
+Ordinary builds support optional continuous logging (off by default) and mandatory
+crash/missing-keyboard/recognized-failure reports even when that option is off.
+Dedicated diagnostic builds may force additional telemetry; do not distribute one
+as an ordinary release. Raw stack/register memory is excluded from ordinary crash
+reports. Detailed diagnostic crash dumps have a different privacy scope.
 
-  docs\development\TESTING.md
-  docs\v1.4\VALIDATION_MATRIX.md
-  docs\v1.4\RISK_REGISTER.md
-
-Aula diagnostic boundary
-------------------------
-
-Aula WIN60 HE MAX passed the physical exclusive 17-command protocol proof,
-including sync, precision, map, travel-envelope, and live analogue behavior.
-Other Aula/SparkPlayJoy 6x21 profiles use brand-bounded structural proof plus a
-dynamic map; this does not promote them to physically tested status.
-
-The hardware gate uses one isolated file:
-
-  build\packages\aula-diagnostic\HallJoy.exe
-
-It measures actual matrix frequency, latency, ten-key hold, complete release,
-and reconnect in one run. High-detail telemetry exists only in that diagnostic
-build; the official production build fails if those markers enter its image.
-Normal trace/debug calls compile out at their call sites, so their arguments are
-not evaluated. Production creates no continuous logs and starts no log writer;
-`HallJoyCrash.txt` is created only after an unhandled fatal exception.
+Current gates and evidence
+--------------------------
+docs/current/RELEASE_1.6.0_READINESS_2026-09-20.md records the candidate and limits.
+SUPPORTED_HARDWARE.md is the current compatibility list. Older v1.4 documents are
+historical, not additional hardware or long-duration gates for this release.
+The owner checks the UI and approves the candidate before GitHub publication.

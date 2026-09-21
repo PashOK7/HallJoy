@@ -1,3 +1,9 @@
+> Superseded integration limits: [HERO84 automatic layout, modifiers and Fn](HERO84_INTEGRATION_2026-09-19.md). Historical validation below describes the earlier build.
+
+# 2026-09-19 layout correction
+
+A dedicated manual ANSI layout is now included. The source contains 84 physical positions, including apostrophe at 53; the native polling list has been corrected. Automatic selection and Fn analog remain outside this change. See [additional AULA layouts](AULA_ADDITIONAL_LAYOUTS_2026-09-19.md). The text below records the earlier enablement.
+
 # HERO84 HE enabled with unverified-support notice — 2026-09-15
 
 ## Owner authorization

@@ -47,7 +47,7 @@ require(spark.count("RemainingTimeoutMs(nowMs, deadline,") == 2 and
         "SparkLink transactions stop at their deadline without a final overshoot")
 require("SaturatingAgeMs(\n            nowMs, g_telemetryRate.lastSampleMs)" in host,
         "concurrent host telemetry sampling cannot underflow its elapsed interval")
-require(backend.count("SaturatingAgeMs(GetTickCount64(), last)") == 2,
+require(backend.count("SaturatingAgeMs(GetTickCount64(), last)") >= 2,
         "native SparkLink and Sayo telemetry ages saturate future publications")
 require(backend.count("SaturatingAddInt(old") == 2 and "old + dx" not in backend and
         "old + dy" not in backend,

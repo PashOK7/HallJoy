@@ -3,13 +3,19 @@
 #include <atomic>
 #include <cstdint>
 #include <mutex>
+#include "analog_key_codes.h"
 
 // Session-owned remap data, separate from persistent layout geometry.
 // UI consumes copies; the realtime read path only reads the selected token.
 namespace halljoy::native_layout {
 constexpr std::size_t kMaxKeys = 256;
-constexpr std::uint16_t kHidCount = 0x410;
-struct Key { std::uint16_t factory = 0, assigned = 0; };
+constexpr std::uint16_t kHidCount = static_cast<std::uint16_t>(halljoy::keycode::kCount);
+struct Key {
+    std::uint16_t factory = 0, assigned = 0;
+    // Optional display identity, independent of the physical analog channel.
+    std::uint16_t labelHid = 0;
+    std::array<wchar_t,16> label{};
+};
 struct Snapshot {
     std::uint64_t token = 0, revision = 0;
     bool complete = false;
@@ -32,6 +38,7 @@ inline bool Publish(std::uint64_t token, const Key* keys, std::size_t count) {
     for (std::size_t i=0;i<count;++i) {
         if (!keys[i].factory || keys[i].factory>=kHidCount ||
             keys[i].assigned>=kHidCount || seen[keys[i].factory]) return false;
+        if(keys[i].labelHid>=kHidCount || keys[i].label.back()!=0) return false;
         seen[keys[i].factory]=true;next.keys[i]=keys[i];
     }
     std::lock_guard<std::mutex> lock(mutex);

@@ -2,6 +2,8 @@
 #include "worker_join_policy.h"
 #include "sparklink_hotplug_age.h"
 #include "sparklink_row_freshness.h"
+#include "sparklink_key_codes.h"
+static constexpr size_t kSparkKeyCount = halljoy::sparklink::kKeyCount;
 
 #include <chrono>
 #include <mutex>
@@ -33,10 +35,10 @@ static std::atomic<uint64_t>      g_sparkExactInterfaceId{ 0 };
 static std::atomic<uint64_t>      g_sparkPublicationSequence{ 0 };
 static std::atomic<ULONGLONG>     g_sparkLastPacketMs{ 0 };
 static ULONGLONG                  g_sparkLastReconnectTryMs = 0;
-static std::array<std::atomic<uint16_t>, 256> g_sparkAnalogMilli{};
-static std::array<std::atomic<uint16_t>, 256> g_sparkObservedRouteRaw{};
-static std::array<std::array<std::atomic<uint16_t>, 256>, kSparkMaxRows> g_sparkRowHidMilli{};
-static std::array<std::atomic<uint8_t>, kSparkMaxRows * kSparkColsPerRow> g_sparkRowColToHid{};
+static std::array<std::atomic<uint16_t>, kSparkKeyCount> g_sparkAnalogMilli{};
+static std::array<std::atomic<uint16_t>, kSparkKeyCount> g_sparkObservedRouteRaw{};
+static std::array<std::array<std::atomic<uint16_t>, kSparkKeyCount>, kSparkMaxRows> g_sparkRowHidMilli{};
+static std::array<std::atomic<uint16_t>, kSparkMaxRows * kSparkColsPerRow> g_sparkRowColToHid{};
 static std::array<std::atomic<uint8_t>, kSparkMaxRows> g_sparkRowActive{};
 static std::array<std::atomic<bool>, kSparkMaxRows> g_sparkRowFresh{};
 static std::atomic<int>           g_sparkRowCount{ 0 };
@@ -243,7 +245,7 @@ static bool SparkRowFresh(uint8_t row, ULONGLONG nowMs, int effectiveRows)
             kSparkRowFreshnessMs);
 }
 
-static bool SparkRecomputePublishedHid(uint8_t hid, ULONGLONG nowMs, int effectiveRows)
+static bool SparkRecomputePublishedHid(uint16_t hid, ULONGLONG nowMs, int effectiveRows)
 {
     if (hid == 0) return false;
     uint16_t aggregate = 0;
@@ -260,11 +262,11 @@ static bool SparkRecomputePublishedHid(uint8_t hid, ULONGLONG nowMs, int effecti
 static bool SparkRecomputeRowHids(uint8_t row, ULONGLONG nowMs, int effectiveRows)
 {
     if (row >= kSparkMaxRows) return false;
-    std::array<bool, 256> seen{};
+    std::array<bool, kSparkKeyCount> seen{};
     bool changed = false;
     for (int col = 0; col < kSparkColsPerRow; ++col)
     {
-        const uint8_t hid = g_sparkRowColToHid[(size_t)row * kSparkColsPerRow + (size_t)col]
+        const uint16_t hid = g_sparkRowColToHid[(size_t)row * kSparkColsPerRow + (size_t)col]
             .load(std::memory_order_relaxed);
         if (hid != 0 && !seen[hid])
         {
@@ -301,25 +303,25 @@ static bool SparkCommitRouteRow(uint8_t row,
 {
     if (row >= kSparkMaxRows) return false;
     SparkPublicationBegin();
-    std::array<uint16_t, 256> rowValues{};
-    std::array<bool, 256> touched{};
+    std::array<uint16_t, kSparkKeyCount> rowValues{};
+    std::array<bool, kSparkKeyCount> touched{};
     for (int col = 0; col < kSparkColsPerRow; ++col)
     {
-        const uint8_t hid = g_sparkRowColToHid[(size_t)row * kSparkColsPerRow + (size_t)col]
+        const uint16_t hid = g_sparkRowColToHid[(size_t)row * kSparkColsPerRow + (size_t)col]
             .load(std::memory_order_relaxed);
         if (hid == 0) continue;
         touched[hid] = true;
         rowValues[hid] = std::max(rowValues[hid],
             SparkNormalizeRouteToMilli(hid, route[(size_t)col]));
     }
-    for (uint16_t hid = 1; hid < 256; ++hid)
+    for (uint16_t hid = 1; hid < kSparkKeyCount; ++hid)
         if (touched[hid])
             g_sparkRowHidMilli[(size_t)row][hid].store(rowValues[hid], std::memory_order_relaxed);
     g_sparkRowFresh[(size_t)row].store(true, std::memory_order_relaxed);
     bool changed = false;
-    for (uint16_t hid = 1; hid < 256; ++hid)
+    for (uint16_t hid = 1; hid < kSparkKeyCount; ++hid)
         if (touched[hid])
-            changed = SparkRecomputePublishedHid((uint8_t)hid, nowMs, effectiveRows) || changed;
+            changed = SparkRecomputePublishedHid(hid, nowMs, effectiveRows) || changed;
     SparkPublicationEnd();
     return changed;
 }
@@ -375,7 +377,7 @@ static void SparkLogLayoutSummary()
         int mapped = 0;
         for (int col = 0; col < kSparkColsPerRow; ++col)
         {
-            uint8_t hid = g_sparkRowColToHid[(size_t)row * kSparkColsPerRow + (size_t)col].load(std::memory_order_relaxed);
+            uint16_t hid = g_sparkRowColToHid[(size_t)row * kSparkColsPerRow + (size_t)col].load(std::memory_order_relaxed);
             if (hid == 0)
                 continue;
 
@@ -398,7 +400,7 @@ static void SparkLogLayoutSummary()
     }
 }
 
-static void SparkLogActiveKeys(const std::array<uint16_t, 256>& nextMilli)
+static void SparkLogActiveKeys(const std::array<uint16_t, kSparkKeyCount>& nextMilli)
 {
     struct PeakItem
     {
@@ -407,7 +409,7 @@ static void SparkLogActiveKeys(const std::array<uint16_t, 256>& nextMilli)
     };
 
     PeakItem top[6]{};
-    for (uint16_t hid = 1; hid < 256; ++hid)
+    for (uint16_t hid = 1; hid < kSparkKeyCount; ++hid)
     {
         uint16_t milli = nextMilli[hid];
         if (milli < 20)
@@ -922,7 +924,7 @@ static void SparkDiscoverLayout()
             if (code != 0)
                 rowHasAny = true;
 
-            uint8_t hid = (code <= 0x00FFu) ? (uint8_t)code : 0u;
+            const uint16_t hid = halljoy::sparklink::DecodeKey(code);
             g_sparkRowColToHid[(size_t)row * kSparkColsPerRow + (size_t)col].store(hid, std::memory_order_relaxed);
             if (hid != 0)
                 rowHasMappable = true;
@@ -1337,8 +1339,8 @@ static DWORD SparkPollThreadProcImpl()
         ULONGLONG lastActiveLog = g_sparkLastActiveLogMs.load(std::memory_order_relaxed);
         if (nowMs - lastActiveLog >= 1200)
         {
-            std::array<uint16_t, 256> snapshot{};
-            for (uint16_t hid = 1; hid < 256; ++hid)
+            std::array<uint16_t, kSparkKeyCount> snapshot{};
+            for (uint16_t hid = 1; hid < kSparkKeyCount; ++hid)
                 snapshot[hid] = g_sparkAnalogMilli[hid].load(std::memory_order_relaxed);
             g_sparkLastActiveLogMs.store(nowMs, std::memory_order_relaxed);
             SparkLogActiveKeys(snapshot);

@@ -1,5 +1,7 @@
 # Redragon layout batch, 2026-09-09
 
+> 2026-09-19: [K673 BR resolved](REDRAGON_K673_BR_LAYOUT_2026-09-19.md): exact manufacturer ABNT2 image confirms a wide /? key, not Right Shift. ABNT2 preset and verified-product selection added; native analog unchanged. Earlier BR deferral is superseded.
+
 2026-09-10: owner accepted both layouts. Overall count: `LAYOUT_PROGRESS.md`.
 
 Two exact supported W669 layouts, English legends:

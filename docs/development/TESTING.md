@@ -1,127 +1,81 @@
-# HallJoy v1.4 testing
+# HallJoy testing
 
-Run commands below from the repository root. This file describes only tests and
-scripts that are shipped in the current tree.
+Run commands from the repository root. Current candidate evidence and pending
+owner review are recorded in [release readiness](../current/RELEASE_1.6.0_READINESS_2026-09-20.md).
+Choose checks appropriate to the change. Do not run speculative long-duration
+soaks without a concrete failure hypothesis or user report.
 
-## Required automated gate
+## Full source / dependency validation
 
 ```powershell
 python tools/run_native_backend_checks.py --require-compiler
 BUILD.cmd
 ```
 
-The unified Python runner executes every `src/HallJoyProject/tests/*audit.py`,
-the current catalog-driven Addressed validator, and all portable C++20 tests.
-`--require-compiler` prevents a missing `g++`/`clang++` from silently reducing
-coverage.
-
-`BUILD.cmd` repeats the automated gate, validates locked dependencies, builds
-the private UAP runtime and the MSVC Release x64 application, rejects unexpected
-compiler/linker warnings, and writes:
-
-```text
-build\release\HallJoy.exe
-```
-
-For a fast source-only pass without C++ compilation:
+The full build repeats the automated gate, validates locked dependencies and
+builds the private runtime and Windows x64 application. It delivers
+`build/bin/Release/x64/HallJoy.exe`. For source-only inspection:
 
 ```powershell
 python tools/run_native_backend_checks.py --static-only
 ```
 
-This is useful during editing, but it does not replace the required gate.
+This source-only check does not substitute for compiling changed code.
 
-## Windows lifecycle checks
-
-Normal production smoke:
+## Incremental ordinary candidate
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_production_smoke.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build_release.ps1
 ```
 
-Repeatable normal start/graceful-stop cycles:
+This compiles and runs four linked-image checks (ATTACK SHARK, MINI60, NA87,
+embedded ViGEm installer) before replacing the delivered executable. It does
+not run every component suite or test hardware. The build leaves a running
+HallJoy open until a changed candidate has passed; see the
+[replacement lifecycle](../current/BUILD_REPLACEMENT_LIFECYCLE_2026-09-19.md).
+
+## Targeted regression evidence
+
+- [Input lifecycle](../current/INPUT_LIFECYCLE_REVIEW_2026-09-20.md): Pause and
+  failed Resume stop the producer before resetting shared state.
+- [Profile persistence](../current/PROFILE_PERSISTENCE_REVIEW_2026-09-20.md):
+  isolated save/load, interrupted writes, concurrency and startup recovery.
+- [Automatic layout](../current/AUTOMATIC_LAYOUT_REVIEW_2026-09-20.md): coherent
+  snapshots, multiple devices, freshness, reconnect and manual-mode isolation.
+- [Logging privacy](../current/LOGGING_PRIVACY_REVIEW_2026-09-20.md): support-log
+  exclusions, burst handling, mandatory incident policy and ordinary crash memory.
+- [Background work](../current/BACKGROUND_WORK_REVIEW_2026-09-20.md): UI snapshot
+  reuse and regression checks. Short process samples are not leak proof.
+
+Useful narrow checks:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_release_qualification.ps1 -Cycles 25 -RunSeconds 2
+python src/HallJoyProject/tests/support_log_static_audit.py
+python tools/generate_attackshark_family.py --check
 ```
 
-The release-cycle runner verifies exit code, shutdown deadline, remaining
-HallJoy processes, handle count, preservation of the user-state snapshot and
-the final zero-continuous-log/crash-only policy. It checkpoints every completed
-cycle. It exercises ordinary production operation, creates no stability trace
-and does not inject a realtime failure. The final S21 cycle gate is:
+The latter verifies existing generated profiles; it is not new firmware research.
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_release_qualification.ps1 -Cycles 1000 -RunSeconds 1 -ProgressEvery 25
-```
+## Hardware and visual limits
 
-One-hour production soak with overlay responsiveness probes:
+Software tests verify parsers, routing, ownership and failure handling. They do
+not establish physical USB timing, every firmware revision or gameplay behavior.
+Record actual tester evidence per model in the [hardware table](../../SUPPORTED_HARDWARE.md).
+Experimental support remains explicitly labelled; untested devices do not acquire
+confirmed status merely because a software suite passed.
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_long_soak.ps1 -DurationMinutes 60 -SampleSeconds 5 -WarmupSeconds 10 -StartOverlay
-```
+The owner evaluates visual behavior. The agent performs code and automated checks,
+not visual runs. ATTACK SHARK work is paused awaiting the tester; its reported
+Forza/Block Bound Keys issue has no confirmed cause. Do not change functioning
+blocking or scaling behavior speculatively.
 
-The soak persists `samples.csv`, checkpoints, before/after user-state hashes,
-the bounded stability trace, analyzer output and `summary.json` under
-`build/evidence`, separate from the `build/release` distribution directory. Leak gates use
-a post-startup warm-up baseline. The runner prevents automatic system sleep for
-the duration and clears that request on every exit path; manually rebooting or
-suspending the machine still invalidates the run. Analyzer `WARN` is acceptable only for the
-documented manual-only input/reconnect/mode coverage; analyzer `FAIL`, trace
-`ERROR`, trace capping, resource-growth limits or an unresponsive overlay fail
-the run.
+Optional continuous logging is distinct from mandatory crash/missing-keyboard/
+recognized-failure reports. Enable logging OFF must not suppress those reports.
+See the [support guide](../SUPPORT_REPORT.md).
 
-The analogue simulator is the deterministic lifecycle/fault harness:
+## Historical procedures
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_analog_simulator.ps1 -RunSeconds 8
-```
-
-Its `-Inject...` switches deliberately create one selected failure and validate
-fail-closed containment. An injected timeout is not a normal operating mode and
-must never be interpreted as an acceptable production realtime failure.
-
-Storage migration has a separate disposable-root test:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_storage_migration_test.ps1
-```
-
-## Hardware qualification
-
-Automated tests can prove parsers, routing, ownership, shutdown contracts and
-failure behavior. They cannot prove USB timing or firmware behavior on hardware
-that is not connected.
-
-Before release, record the available-device matrix and perform input, reconnect,
-held-key unplug/reconnect, graceful shutdown and long-run checks required by
-`docs/v1.4/VALIDATION_MATRIX.md`. Aula WIN 60 HE MAX has completed three physical
-exclusive protocol proofs and two long claim/runtime runs; the tester confirmed
-analogue input. The remaining Aula gate uses the single-file diagnostic schema
-v2: hold 10 keys for 10 seconds, release all, then unplug for 10 seconds and
-reconnect without closing HallJoy. Its 5-second health windows record real
-matrix Hz, latency, active-key distribution, release-to-zero and per-HID maxima.
-Return-after-disconnect evidence continues to block release approval.
-
-## Overlay checks
-
-Start the production overlay smoke with:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\run_production_smoke.ps1 -StartOverlay
-```
-
-The dedicated source checks are part of the unified runner. The browser overlay
-still needs a manual visual/input check for layout, live values and reconnect.
-
-## Evidence and limitations
-
-Current evidence lives in `docs/stability/tests/`; current status and remaining
-gates live in `docs/v1.4/VALIDATION_MATRIX.md` and
-`docs/v1.4/RISK_REGISTER.md`. Files marked historical under `docs/validation/`
-describe older packages and are not current release evidence.
-
-Passing static/unit/simulator tests is necessary, not sufficient, for release.
-Physical-device compatibility, the one-hour soak, the full 1000-cycle target
-and the final hardware matrix remain qualification work until their final runs
-are recorded against the release-candidate hash.
+The [previous testing guide](../archive/TESTING_BEFORE_2026-09-20.md) preserves
+older S21 cycle targets, soak procedures and v1.4 hardware gates. Those are not
+current release requirements. Long checks require a specific reason; elapsed
+duration alone is not proof of stability.

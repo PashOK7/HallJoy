@@ -298,9 +298,6 @@ bool PopulateCaps(HANDLE handle, HidPath& out)
     if (HidP_GetCaps(pp.value, &out.caps) != HIDP_STATUS_SUCCESS) return false;
     out.usagePage = out.caps.UsagePage;
     out.usage = out.caps.Usage;
-    out.manufacturer = ReadHidString(handle, HidD_GetManufacturerString);
-    out.product = ReadHidString(handle, HidD_GetProductString);
-    out.serial = ReadHidString(handle, HidD_GetSerialNumberString);
     return true;
 }
 

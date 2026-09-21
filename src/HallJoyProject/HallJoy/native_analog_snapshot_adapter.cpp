@@ -73,11 +73,11 @@ bool PublishLegacyMilli(std::uint64_t providerId,
             continue;
         if (StableDeviceId(providerId, source.exactInterfaceId,
                 source.vendorId, source.productId) == 0 ||
-            !source.ownedHid || !source.milli)
+            !source.ownedHid || !source.milli || source.codeCount == 0 || source.codeCount > 0x410)
             return false;
         ++requiredDevices;
         topologyComplete = topologyComplete && source.topologyComplete;
-        for (std::size_t hid = 1; hid < 256; ++hid)
+        for (std::size_t hid = 1; hid < source.codeCount; ++hid)
             requiredSamples += source.ownedHid[hid] != 0 ? 1u : 0u;
     }
 
@@ -117,13 +117,13 @@ bool PublishLegacyMilli(std::uint64_t providerId,
         device.usagePage = source.usagePage;
         device.usage = source.usage;
 
-        for (std::size_t hid = 1; hid < 256 && writtenSamples < output.sampleCapacity; ++hid)
+        for (std::size_t hid = 1; hid < source.codeCount && writtenSamples < output.sampleCapacity; ++hid)
         {
             if (source.ownedHid[hid] == 0)
                 continue;
             auto& sample = output.samples[writtenSamples++];
             sample = AnalogSampleV2{};
-            sample.key = UsbHidKey(0x07u, static_cast<std::uint32_t>(hid));
+            sample.key = hid >= 0x400 ? UapExtendedKey(static_cast<std::uint32_t>(hid)) : UsbHidKey(0x07u, static_cast<std::uint32_t>(hid));
             sample.deviceIndex = writtenDevices;
             sample.flags = AnalogSampleFlag_Owned | AnalogSampleFlag_ValueValid |
                 AnalogSampleFlag_Fresh;

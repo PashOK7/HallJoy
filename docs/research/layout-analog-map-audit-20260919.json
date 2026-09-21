@@ -1,0 +1,609 @@
+{
+  "models": [
+    {
+      "name": "Keychron K2 HE ANSI",
+      "keys": 84,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q3 HE ANSI",
+      "keys": 87,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q5 HE ANSI",
+      "keys": 101,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron K2 HE ISO",
+      "keys": 85,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron K2 HE JIS",
+      "keys": 87,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron K4 HE ISO",
+      "keys": 101,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron K4 HE JIS",
+      "keys": 103,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron K8 HE ANSI",
+      "keys": 87,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron K8 HE ISO",
+      "keys": 88,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron K8 HE JIS",
+      "keys": 91,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron K10 HE ANSI",
+      "keys": 104,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron K10 HE ISO",
+      "keys": 105,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q1 HE ISO",
+      "keys": 82,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q1 HE JIS",
+      "keys": 85,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q3 HE ISO",
+      "keys": 88,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q3 HE JIS",
+      "keys": 91,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q5 HE ISO",
+      "keys": 102,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q5 HE JIS",
+      "keys": 105,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q6 HE ANSI",
+      "keys": 108,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q6 HE ISO",
+      "keys": 109,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q6 HE JIS",
+      "keys": 112,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q12 HE ANSI",
+      "keys": 102,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q12 HE ISO",
+      "keys": 103,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q1 HE 8K ANSI",
+      "keys": 81,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q1 HE 8K ISO",
+      "keys": 82,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q1 HE 8K JIS",
+      "keys": 85,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q3 HE 8K ANSI",
+      "keys": 87,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q3 HE 8K ISO",
+      "keys": 88,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q3 HE 8K JIS",
+      "keys": 91,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q6 HE 8K ANSI",
+      "keys": 108,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron Q5 HE 8K ANSI",
+      "keys": 101,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron K3 HE ANSI",
+      "keys": 84,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron K3 HE ISO",
+      "keys": 85,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Keychron K3 HE JIS",
+      "keys": 87,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Lemokey P1 HE ANSI",
+      "keys": 81,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Lemokey P1 HE ISO",
+      "keys": 82,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "DrunkDeer A75 ANSI",
+      "keys": 82,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "DrunkDeer A75 Pro",
+      "keys": 82,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "DrunkDeer A75 ISO",
+      "keys": 83,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "DrunkDeer G60 ANSI",
+      "keys": 61,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "DrunkDeer G65 ANSI",
+      "keys": 68,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "DrunkDeer G75 ANSI",
+      "keys": 84,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "DrunkDeer G75 JIS",
+      "keys": 86,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Aula WIN 60 HE Standard ANSI",
+      "keys": 61,
+      "evidence": "Source assignments checked against native factory maps by source adapters; MAX uses its separate source profile",
+      "limitations": []
+    },
+    {
+      "name": "Aula WIN 68 HE Standard ANSI",
+      "keys": 68,
+      "evidence": "Source assignments checked against native factory maps by source adapters; MAX uses its separate source profile",
+      "limitations": []
+    },
+    {
+      "name": "Aula WIN 60 HE MAX ANSI",
+      "keys": 61,
+      "evidence": "Source assignments checked against native factory maps by source adapters; MAX uses its separate source profile",
+      "limitations": []
+    },
+    {
+      "name": "Aula HERO84 HE ANSI",
+      "keys": 84,
+      "evidence": "Source assignments checked against native factory maps by source adapters; MAX uses its separate source profile",
+      "limitations": [
+        "Experimental backend remains unverified on hardware; Fn uses physical position 72."
+      ]
+    },
+    {
+      "name": "Aula KP-TE153 ISO",
+      "keys": 69,
+      "evidence": "Source assignments checked against native factory maps by source adapters; MAX uses its separate source profile",
+      "limitations": [
+        "Vendor UK profile includes IntlRo; not a generic UK substitution. AULA/shared-driver profile attribution, not independently verified retail branding."
+      ]
+    },
+    {
+      "name": "Redragon K673WB-RGB-M ANSI",
+      "keys": 80,
+      "evidence": "Source assignments checked against native factory maps by source adapters; MAX uses its separate source profile",
+      "limitations": []
+    },
+    {
+      "name": "Redragon K673RGB-M ISO",
+      "keys": 81,
+      "evidence": "Source assignments checked against native factory maps by source adapters; MAX uses its separate source profile",
+      "limitations": []
+    },
+    {
+      "name": "Razer Huntsman V3 Pro Mini ANSI",
+      "keys": 61,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Razer Huntsman V3 Pro Mini ISO",
+      "keys": 62,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Razer Huntsman V3 Pro Mini JIS",
+      "keys": 65,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Razer Huntsman Mini Analog ANSI",
+      "keys": 61,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Razer Huntsman V2 Analog ANSI",
+      "keys": 104,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Razer Huntsman V3 Pro ANSI",
+      "keys": 104,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Razer Huntsman V3 Pro Tenkeyless ANSI",
+      "keys": 84,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "NuPhy Air60 HE ANSI",
+      "keys": 61,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "NuPhy Air75 HE ANSI",
+      "keys": 83,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting 60HE ANSI",
+      "keys": 61,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting 60HE ISO",
+      "keys": 62,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting 60HE+ ANSI",
+      "keys": 61,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting 60HE+ ISO",
+      "keys": 62,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting 80HE ANSI",
+      "keys": 84,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting 80HE ISO",
+      "keys": 85,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting 80HE JIS",
+      "keys": 88,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting One ANSI",
+      "keys": 87,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting One ISO",
+      "keys": 88,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting Two ANSI",
+      "keys": 108,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting Two HE ANSI",
+      "keys": 108,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting Two HE ISO",
+      "keys": 109,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting Two ISO",
+      "keys": 109,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting 60HE v2 ANSI",
+      "keys": 61,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting 60HE v2 ISO",
+      "keys": 62,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting 60HE v2 Split ANSI",
+      "keys": 63,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting 60HE v2 Split ISO",
+      "keys": 64,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "Wooting UwU + UwU RGB ANSI",
+      "keys": 3,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": []
+    },
+    {
+      "name": "IROK MG75 Max ANSI",
+      "keys": 81,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": [
+        "Official model geometry, normalized to 42 px standard keys.",
+        "Manual preset selection: no new exact-model identity published by SparkLink.",
+        "Fn uses HallJoy reserved Fn code 0x409; current SparkLink byte map does not publish this extended code.",
+        "MG75 v2 is excluded."
+      ]
+    },
+    {
+      "name": "IROK MG75 Pro ANSI",
+      "keys": 81,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": [
+        "Official model geometry, normalized to 42 px standard keys.",
+        "Manual preset selection: no new exact-model identity published by SparkLink.",
+        "Fn uses HallJoy reserved Fn code 0x409; current SparkLink byte map does not publish this extended code.",
+        "MG75 v2 is excluded."
+      ]
+    },
+    {
+      "name": "MADLIONS MAD60HE ANSI",
+      "keys": 61,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": [
+        "Official Windows base layer, ANSI; original MAD60/68 HE revisions.",
+        "Official absolute coordinates and size multipliers; 50 px base normalized to 42 px.",
+        "Manual selection; no guessed VID/PID or regional autoselection.",
+        "Existing analog protocols and mappings are unchanged.",
+        "Physical bottom row has no RGUI at matrix 4,9; unused UAP map entry is not rendered."
+      ]
+    },
+    {
+      "name": "MADLIONS MAD68HE ANSI",
+      "keys": 68,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": [
+        "Official Windows base layer, ANSI; original MAD60/68 HE revisions.",
+        "Official absolute coordinates and size multipliers; 50 px base normalized to 42 px.",
+        "Manual selection; no guessed VID/PID or regional autoselection.",
+        "Existing analog protocols and mappings are unchanged."
+      ]
+    },
+    {
+      "name": "MADLIONS MAD68R ANSI",
+      "keys": 68,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": [
+        "Official Windows base layer, ANSI; original MAD60/68 HE revisions.",
+        "Official absolute coordinates and size multipliers; 50 px base normalized to 42 px.",
+        "Manual selection; no guessed VID/PID or regional autoselection.",
+        "Existing analog protocols and mappings are unchanged.",
+        "Exact supported UAP revision 373B:10A7, official MAD68 R (LL), wt inherits yt; not Fire-family 106E/10A8."
+      ]
+    },
+    {
+      "name": "MADLIONS MAD 68 Pro R ANSI",
+      "keys": 68,
+      "evidence": "Pinned source extraction and generated runtime geometry; not a full hardware analog proof",
+      "limitations": [
+        "Official Windows base layer, ANSI; original MAD60/68 HE revisions.",
+        "Official absolute coordinates and size multipliers; 50 px base normalized to 42 px.",
+        "Manual selection; no guessed VID/PID or regional autoselection.",
+        "Existing analog protocols and mappings are unchanged.",
+        "Fn is displayed as 0x409; the native backend descriptor has HID 0 and does not publish Fn analog."
+      ]
+    },
+    {
+      "name": "ATK Hex80 ANSI",
+      "keys": 87,
+      "evidence": "Official matrix slots checked by check_atk_hex80_native_map.py",
+      "limitations": [
+        "Official ATK x QK Hex80 demo for PID 1177; 88 physical controls, 87 represented keys.",
+        "Renderer: 50px base, 4px gaps, per-row width fitting; normalized to 42px key height.",
+        "Vendor mute omitted without collapsing its gap; native Fn is published as extended HID 0x409.",
+        "Verified Hex80 sessions identify this ANSI layout. Native matrix covers all 87 displayed factory keys; live remap reading is not implemented.",
+        "Do not use the stale keymaps/hex80.json default actions or the RGB LED matrix as keyboard bindings.",
+        "Compressed bundle is a byte-preserving source cache, not a shipped dependency."
+      ]
+    },
+    {
+      "name": "IPI Aurora75 PRO ANSI",
+      "keys": 82,
+      "evidence": "Every native physical-ID set maps to exactly the layout HID multiset",
+      "limitations": [
+        "Physical UUID-specific geometry with official demo default ID/keycode association; not a captured user keymap.",
+        "Manufacturer units normalized to HallJoy 46px pitch and 4px gap; no row reflow.",
+        "Identical physical ID/geometry lists are merged after exact comparison.",
+        "Exact UUID identities are eligible only after native session proof; wireless forwarding is not inferred.",
+        "The IPI native route reads an explicit live map and per-key calibration; no shared-PID calibration seeds.",
+        "Vendor Fn maps to 0x409 in the native IPI route. Plus revisions remain excluded."
+      ]
+    },
+    {
+      "name": "IPI flash68 ANSI",
+      "keys": 68,
+      "evidence": "Every native physical-ID set maps to exactly the layout HID multiset",
+      "limitations": [
+        "Physical UUID-specific geometry with official demo default ID/keycode association; not a captured user keymap.",
+        "Manufacturer units normalized to HallJoy 46px pitch and 4px gap; no row reflow.",
+        "Identical physical ID/geometry lists are merged after exact comparison.",
+        "Exact UUID identities are eligible only after native session proof; wireless forwarding is not inferred.",
+        "The IPI native route reads an explicit live map and per-key calibration; no shared-PID calibration seeds.",
+        "Vendor Fn maps to 0x409 in the native IPI route. Plus revisions remain excluded."
+      ]
+    },
+    {
+      "name": "IPI QBZ65 + AURORA65 + AURORA65W + RAIN65 ANSI",
+      "keys": 67,
+      "evidence": "Every native physical-ID set maps to exactly the layout HID multiset",
+      "limitations": [
+        "Physical UUID-specific geometry with official demo default ID/keycode association; not a captured user keymap.",
+        "Manufacturer units normalized to HallJoy 46px pitch and 4px gap; no row reflow.",
+        "Identical physical ID/geometry lists are merged after exact comparison.",
+        "Exact UUID identities are eligible only after native session proof; wireless forwarding is not inferred.",
+        "The IPI native route reads an explicit live map and per-key calibration; no shared-PID calibration seeds.",
+        "Vendor Fn maps to 0x409 in the native IPI route. Plus revisions remain excluded."
+      ]
+    },
+    {
+      "name": "IPI QBZ75 + Aurora 75 ANSI",
+      "keys": 82,
+      "evidence": "Every native physical-ID set maps to exactly the layout HID multiset",
+      "limitations": [
+        "Physical UUID-specific geometry with official demo default ID/keycode association; not a captured user keymap.",
+        "Manufacturer units normalized to HallJoy 46px pitch and 4px gap; no row reflow.",
+        "Identical physical ID/geometry lists are merged after exact comparison.",
+        "Exact UUID identities are eligible only after native session proof; wireless forwarding is not inferred.",
+        "The IPI native route reads an explicit live map and per-key calibration; no shared-PID calibration seeds.",
+        "Vendor Fn maps to 0x409 in the native IPI route. Plus revisions remain excluded."
+      ]
+    }
+  ],
+  "hardwareTested": false,
+  "knownUnresolved": [
+    "IROK MG75 Max/Pro Fn geometry exists but the current SparkLink byte map does not publish extended Fn.",
+    "Source layout validation alone does not establish every runtime transport mapping; preserve brand-specific hardware and protocol evidence limits."
+  ]
+}

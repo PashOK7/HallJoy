@@ -1,5 +1,12 @@
 # Final pre-release layout batch — 2026-09-10
 
+> 2026-09-19: [Wooting extended layouts](WOOTING_EXTENDED_LAYOUTS_2026-09-19.md): five 60HE v2 / split / UwU presets added. Owner approved independent physical split analog channels. Ordinary EXE delivered; earlier layout deferrals superseded. Regional/split selection remains manual; hardware validation pending.
+
+> 2026-09-19: [Four additional Razer ANSI layouts](RAZER_FOUR_LAYOUTS_2026-09-19.md)
+> resolves the four model omissions for ANSI using exact-model master guides.
+> ISO/JIS remain pending; the historical limits below describe the earlier batch.
+
+
 Owner explicitly requested Razer, NuPhy and Wooting together, then a stop to
 layout expansion for this release. No other brands or new analog routes added.
 

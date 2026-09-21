@@ -52,10 +52,10 @@ checks = {
         and "NativeAnalogBackends_ReadMilli(hidKeycode)" in backend
         and "native.milli" in backend
     ),
-    "Hex80 digital fallback is blocked only for owned HID": (
+    "digital depth emulation is absent": (
         "Hex80_OwnsHid" in hex_backend
         and "result.owned" in registry
-        and "cache.allowFallback && !native.owned" in backend
+        and "ReadDigitalFallback01" not in backend
     ),
     "shared native interface registry is additive": (
         "NativeAnalogRouting_Claim" in hex_backend

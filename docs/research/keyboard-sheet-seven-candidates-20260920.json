@@ -1,0 +1,188 @@
+{
+  "date": "2026-09-20",
+  "spreadsheetId": "1ueQ4labXpuBOmGjCkUcJllNJ68Jzx4py2MuQm-p-R7c",
+  "additions": [
+    {
+      "brand": "AJAZZ",
+      "model": "AK029 (magnetic version)",
+      "status": "Not investigated",
+      "source": "https://www.a-jazz.com/h-col-156.html",
+      "evidence": "Manufacturer driver list explicitly identifies magnetic-switch versions; mechanical namesakes are excluded."
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "AK039 (magnetic version)",
+      "status": "Not investigated",
+      "source": "https://www.a-jazz.com/h-col-156.html",
+      "evidence": "Manufacturer driver list explicitly identifies magnetic-switch versions; mechanical namesakes are excluded."
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "AK680 MAX HE",
+      "status": "Not investigated",
+      "source": "https://www.a-jazz.com/h-col-156.html",
+      "evidence": "Manufacturer driver list explicitly identifies magnetic-switch versions; mechanical namesakes are excluded."
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "AK680 V3 (magnetic version)",
+      "status": "Not investigated",
+      "source": "https://www.a-jazz.com/h-col-156.html",
+      "evidence": "Manufacturer driver list explicitly identifies magnetic-switch versions; mechanical namesakes are excluded."
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "AK820 V2 (magnetic version)",
+      "status": "Not investigated",
+      "source": "https://www.a-jazz.com/h-col-156.html",
+      "evidence": "Manufacturer driver list explicitly identifies magnetic-switch versions; mechanical namesakes are excluded."
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "AK980 MAX V2 (magnetic version)",
+      "status": "Not investigated",
+      "source": "https://www.a-jazz.com/h-col-156.html",
+      "evidence": "Manufacturer driver list explicitly identifies magnetic-switch versions; mechanical namesakes are excluded."
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "ALUX60",
+      "status": "Not investigated",
+      "source": "https://www.a-jazz.com/h-col-156.html",
+      "evidence": "Manufacturer driver list explicitly identifies magnetic-switch versions; mechanical namesakes are excluded."
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "ALUX60 TITAN",
+      "status": "Not investigated",
+      "source": "https://www.a-jazz.com/h-col-156.html",
+      "evidence": "Manufacturer driver list explicitly identifies magnetic-switch versions; mechanical namesakes are excluded."
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "ALUX68",
+      "status": "Not investigated",
+      "source": "https://www.a-jazz.com/h-col-156.html",
+      "evidence": "Manufacturer driver list explicitly identifies magnetic-switch versions; mechanical namesakes are excluded."
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "AK680 V2",
+      "status": "Not investigated",
+      "source": "https://ajazzbrand.com/collections/all",
+      "evidence": "Manufacturer store identifies magnetic / HE products."
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "AK820 MAX HE",
+      "status": "Not investigated",
+      "source": "https://ajazzbrand.com/collections/all",
+      "evidence": "Manufacturer store identifies magnetic / HE products."
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "AK820 MAX Ultra HE",
+      "status": "Not investigated",
+      "source": "https://ajazzbrand.com/collections/all",
+      "evidence": "Manufacturer store identifies magnetic / HE products."
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "AK980 MAX HE",
+      "status": "Not investigated",
+      "source": "https://ajazzbrand.com/collections/all",
+      "evidence": "Manufacturer store identifies magnetic / HE products."
+    },
+    {
+      "brand": "Fantech",
+      "model": "ATOM HE68 (MK811)",
+      "status": "Not investigated",
+      "source": "https://fantechworld.com/collections/keyboard/products/atom-he68",
+      "evidence": "Manufacturer comparison lists magnetic switches for both models."
+    },
+    {
+      "brand": "Fantech",
+      "model": "ATOM HE68 Pro (MK922)",
+      "status": "Not investigated",
+      "source": "https://fantechworld.com/collections/keyboard/products/atom-he68",
+      "evidence": "Manufacturer comparison lists magnetic switches for both models."
+    },
+    {
+      "brand": "VGN",
+      "model": "A75",
+      "status": "Not investigated",
+      "source": "https://www.vgnlab.com.cn/web/sku-1045",
+      "evidence": "Manufacturer specifies Outemu magnetic switches."
+    },
+    {
+      "brand": "VGN",
+      "model": "Neon HE",
+      "status": "Not investigated",
+      "source": "https://www.vgnlab.com.cn/web/sku-1145",
+      "evidence": "Manufacturer magnetic category lists these Neon (霓虹) configurations; Super Competitive translates 超竞版. Colors are not separate rows."
+    },
+    {
+      "brand": "VGN",
+      "model": "Neon HE+",
+      "status": "Not investigated",
+      "source": "https://www.vgnlab.com.cn/web/sku-1145",
+      "evidence": "Manufacturer magnetic category lists these Neon (霓虹) configurations; Super Competitive translates 超竞版. Colors are not separate rows."
+    },
+    {
+      "brand": "VGN",
+      "model": "Neon Pro",
+      "status": "Not investigated",
+      "source": "https://www.vgnlab.com.cn/web/sku-1145",
+      "evidence": "Manufacturer magnetic category lists these Neon (霓虹) configurations; Super Competitive translates 超竞版. Colors are not separate rows."
+    },
+    {
+      "brand": "VGN",
+      "model": "Neon Ultra",
+      "status": "Not investigated",
+      "source": "https://www.vgnlab.com.cn/web/sku-1145",
+      "evidence": "Manufacturer magnetic category lists these Neon (霓虹) configurations; Super Competitive translates 超竞版. Colors are not separate rows."
+    },
+    {
+      "brand": "VGN",
+      "model": "Neon Super Competitive (wired)",
+      "status": "Not investigated",
+      "source": "https://www.vgnlab.com.cn/web/sku-1145",
+      "evidence": "Manufacturer magnetic category lists these Neon (霓虹) configurations; Super Competitive translates 超竞版. Colors are not separate rows."
+    },
+    {
+      "brand": "VGN",
+      "model": "Neon Super Competitive (tri-mode)",
+      "status": "Not investigated",
+      "source": "https://www.vgnlab.com.cn/web/sku-1145",
+      "evidence": "Manufacturer magnetic category lists these Neon (霓虹) configurations; Super Competitive translates 超竞版. Colors are not separate rows."
+    },
+    {
+      "brand": "VGN",
+      "model": "Lightning 68 (闪电68)",
+      "status": "Not investigated",
+      "source": "https://www.bilibili.com/video/BV1p4oNB8EzN/",
+      "evidence": "VGN official launch identifies an aluminum magnetic keyboard; also listed on manufacturer homepage."
+    },
+    {
+      "brand": "CIDOO",
+      "model": "C60 HE",
+      "status": "Not investigated",
+      "source": "https://cidootech.com/products/cidoo-c60-he",
+      "evidence": "Manufacturer specifies Hall-effect magnetic switches."
+    },
+    {
+      "brand": "Shortcut Studio",
+      "model": "Bridge75 HE",
+      "status": "Not investigated",
+      "source": "https://shortcutofficial.com/pages/download",
+      "evidence": "Manufacturer provides HE PCB configuration instructions and firmware for Bridge75."
+    },
+    {
+      "brand": "RAKKA",
+      "model": "EDGE80",
+      "status": "Not investigated",
+      "source": "https://www.rakka.cn/products?lang=zh-Hans",
+      "evidence": "Manufacturer catalog identifies EDGE80 magnetic keyboard."
+    }
+  ]
+}

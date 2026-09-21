@@ -49,6 +49,10 @@ def compile_and_run(cxx: str, output: Path, sources: list[Path], include: Path) 
         if output.name == "vigem_child_transport"
         else []
     )
+    if output.name == "instance_guard_windows":
+        extra_compile_args += ["-DHALLJOY_INSTANCE_GUARD_TEST"]
+    if output.name == "input_path_log_windows":
+        extra_compile_args += ["-DHALLJOY_INPUT_PATH_DIAGNOSTIC"]
     if output.name == "aula_mini60_log_windows":
         extra_compile_args += ["-DHALLJOY_AULA_MINI60_DIAGNOSTIC", "-DHALLJOY_DIAGNOSTIC", "-DHALLJOY_STABILITY_TRACE"]
     command = [
@@ -66,7 +70,7 @@ def compile_and_run(cxx: str, output: Path, sources: list[Path], include: Path) 
         # MinGW often supplies this implicitly; clang/MSVC does not. Windows
         # token/SID integration tests must link their actual system dependency.
         *(["-ladvapi32", "-luser32"] if os.name == "nt" else []),
-        *(["-lsetupapi", "-lhid", "-lshell32", "-lole32", "-luuid"] if output.name in ("support_log_windows", "native_layout_devices_windows") else []),
+        *(["-lsetupapi", "-lhid", "-lshell32", "-lole32", "-luuid"] if output.name in ("support_log_windows", "input_path_log_windows", "native_layout_devices_windows") else []),
         "-o",
         str(output),
     ]
@@ -96,7 +100,7 @@ def main() -> int:
     run([sys.executable, str(root / "tools" / "prepare_atk_hex80_layout.py")])
     run([sys.executable, str(root / "tools" / "prepare_ipi_layouts.py")])
     run([sys.executable, str(root / "tools" / "build_ipi_native_catalog.py")])
-    for brand in ("Keychron", "Lemokey", "DrunkDeer", "Aula", "Redragon", "Razer", "NuPhy", "Wooting", "IROK", "MADLIONS", "ATK", "IPI"):
+    for brand in ("Keychron", "Lemokey", "DrunkDeer", "Aula", "Redragon", "Razer", "NuPhy", "Wooting", "IROK", "MADLIONS", "ATK", "IPI", "SayoDevice"):
         run([sys.executable, str(root / "tools" / "layout_pipeline.py"), "check", brand])
     run([sys.executable, str(project_root / "tools" / "validate_addressed_protocol_backend.py")])
 
@@ -123,6 +127,7 @@ def main() -> int:
             ("diagnostic_rate_limit", [tests / "diagnostic_rate_limit_test.cpp"]),
             ("aula_mini60_native_model", [tests / "aula_mini60_native_model_test.cpp"]),
             ("attackshark_pro_diagnostic_model", [tests / "attackshark_pro_diagnostic_model_test.cpp"]),
+            ("attackshark_pro_layout", [tests / "attackshark_pro_layout_test.cpp"]),
             ("public_diagnostic_fields", [tests / "public_diagnostic_fields_test.cpp"]),
             ("irok_na87_protocol", [tests / "irok_na87_protocol_test.cpp", hall / "irok_nd75_protocol.cpp"]),
             ("window_placement", [tests / "window_placement_test.cpp"]),
@@ -133,6 +138,9 @@ def main() -> int:
             ("remap_hint_motion", [tests / "remap_hint_motion_test.cpp"]),
             ("digital_keyboard_state", [tests / "digital_keyboard_state_test.cpp"]),
             ("input_privilege_warning", [tests / "input_privilege_warning_test.cpp"]),
+            ("wooting_physical_keys", [tests / "wooting_physical_keys_test.cpp",
+                hall / "provider_v2_controller_shadow.cpp", hall / "analog_provider_v2.cpp",
+                hall / "configured_xusb_builder.cpp", hall / "bindings.cpp"]),
             ("block_keys_policy", [tests / "block_keys_policy_test.cpp"]),
             ("profile_runtime_gate", [tests / "profile_runtime_gate_test.cpp"]),
             ("analog_simulator", [tests / "analog_simulator_model_test.cpp", hall / "analog_simulator_model.cpp"]),
@@ -221,9 +229,12 @@ def main() -> int:
             ("uap_poll_pacing", [tests / "uap_poll_pacing_test.cpp"]),
             ("uap_snapshot_pinning", [tests / "uap_snapshot_pinning_test.cpp"]),
             ("windows_command_line", [tests / "windows_command_line_test.cpp"]),
+            ("mg75_pro_protocol", [tests / "mg75_pro_protocol_test.cpp"]),
             ("sparklink_hotplug_age", [tests / "sparklink_hotplug_age_test.cpp"]),
             ("sparklink_row_freshness", [tests / "sparklink_row_freshness_test.cpp"]),
             ("sayo_letter_matcher", [tests / "sayo_letter_matcher_test.cpp"]),
+            ("sayo_o3c", [tests / "sayo_o3c_test.cpp"]),
+            ("sparkplayjoy_layout", [tests / "sparkplayjoy_layout_test.cpp", hall / "aula_win60he_protocol.cpp"]),
             ("keyboard_support_status", [
                 tests / "keyboard_support_status_test.cpp",
                 hall / "keyboard_support_status.cpp",
@@ -286,6 +297,9 @@ def main() -> int:
                 hall / "vigem_child_transport.cpp",
             ]))
             fixed_tests.append(("block_keys_hotkey_windows", [tests / "block_keys_hotkey_windows_test.cpp"]))
+            fixed_tests.append(("input_path_log_windows", [
+                tests / "support_log_windows_test.cpp", hall / "support_log.cpp"
+            ]))
             fixed_tests.append(("support_log_windows", [
                 tests / "support_log_windows_test.cpp", hall / "support_log.cpp"
             ]))

@@ -39,10 +39,16 @@ int main()
     assert(ClassifyFrozen(0x372e,0x103e,L"HERO84 HE")==Hero84);
     assert(ClassifyFrozen(0x372e,0x103e,L"AURORA65")==FamilyCandidate);
     assert(ClassifyFrozen(0x0b05,0x1c10,L"")==Azoth96);
-    assert(ClassifyFrozen(0x3151,0x502d,L"X68HE")==X68);
-    assert(ClassifyFrozen(0x3151,0x502f,L"X68HE")==0);
+    assert(ClassifyFrozen(0x3151,0x502d,L"X68HE")==FamilyCandidate);
+    assert(ClassifyFrozen(0x3151,0x502f,L"X68HE")==FamilyCandidate);
     assert(ClassifyFrozen(0x3434,0x0e40,L"NA87 PRO")==0);
+    assert(ClassifyFrozen(0x1ca5,0x0807,L"IROK MG75 PRO")==Mg75Pro);
+    assert(ClassifyFrozen(0x1ca5,0x0807,L"IROK MG75")==0);
     SetSearchObservation(true,true);
     assert(GetStatusSnapshot().frozenModels==0);
+    for(unsigned mask=0;mask<512;++mask){
+        SetSearchObservation(true,true,mask);assert(GetStatusSnapshot().frozenModels==mask);
+        SetSearchObservation(false,true,mask);assert(GetStatusSnapshot().frozenModels==0);
+    }
     return 0;
 }

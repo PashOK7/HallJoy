@@ -8,6 +8,7 @@
 #include "MemoryRefReader.hpp"
 #include "NamedMutex.hpp"
 #include "../../halljoy_drunkdeer_maps.h"
+#include "../../halljoy_wooting_physical.h"
 #if SOUP_WINDOWS
 #include "Process.hpp"
 #endif
@@ -698,6 +699,14 @@ NAMESPACE_SOUP
 				uint16_t scancode = (static_cast<uint16_t>(scancode_hi) << 8 | scancode_lo);
 				uint16_t value = (static_cast<uint16_t>(value_hi) << 2 | value_lo);
 
+                const int physical = halljoy::wooting_physical::Slot(
+                    hid.vendor_id, hid.product_id, matrix_pos);
+                if (physical >= 0) {
+                    static_assert(KEY_OEM_10 - KEY_OEM_7 == 3);
+                    keys.emplace_back(ActiveKey{
+                        static_cast<Key>(KEY_OEM_7 + physical),
+                        static_cast<float>(value) / 1023.0f });
+                }
 				const Key sk = wooting_scancode_to_soup_key(scancode);
 				SOUP_IF_LIKELY (sk != KEY_NONE)
 				{

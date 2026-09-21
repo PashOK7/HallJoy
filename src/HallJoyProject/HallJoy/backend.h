@@ -315,7 +315,6 @@ struct BackendAnalogTelemetry
 };
 
 void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out);
-bool Backend_ConsumeDigitalFallbackWarning();
 
 struct BackendMouseStickDebug
 {
@@ -355,3 +354,7 @@ void Backend_PulseMouseBindWheel(uint16_t mouseBindHid);
 // their own *_backend.cpp and export one descriptor getter.
 const NativeAnalogBackendDescriptor& BackendNative_GetSparkDescriptor();
 const NativeAnalogBackendDescriptor& BackendNative_GetSayoDescriptor();
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+bool Backend_TestSparkFnPublication();
+#endif

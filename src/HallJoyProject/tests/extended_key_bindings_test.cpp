@@ -8,7 +8,13 @@ int main()
     using namespace halljoy::keycode;
     static_assert(kOem1 == 0x403);
     static_assert(kFn == 0x409);
-    static_assert(kMaskChunkCount == 17);
+    static_assert(kMaskChunkCount == 19);
+    const auto split=halljoy::wooting_physical::kRightFn;
+    Bindings_AddButtonHidForPad(0, GameButton::B, split);
+    assert(Bindings_ButtonHasHidForPad(0, GameButton::B, split));
+    assert(Bindings_GetButtonMaskChunkForPad(0, GameButton::B, split/64) & (1ull << (split%64)));
+    Bindings_ClearHidForPad(0, split);
+    assert(!Bindings_IsHidBoundForPad(0, split));
 
     assert(Bindings_GetButtonMaskChunkCount() ==
         static_cast<int>(kMaskChunkCount));

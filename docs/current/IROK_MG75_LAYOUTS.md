@@ -1,3 +1,5 @@
+> 2026-09-19 correction: [MG75 Fn and protocol review](MG75_FN_REVIEW_2026-09-19.md). Max Fn is now handled. Pro belongs to JingTai V1; earlier shared SparkLink attribution is not valid. Historical notes below describe the old layout-only change.
+
 # IROK MG75 Max / Pro: раскладки
 
 2026-09-13 владелец явно запросил добавление этих двух моделей, возобновив
@@ -24,7 +26,7 @@ Reviewed reports подключены через tools/layout_catalog.json;
 добавлялся: текущий SparkLink не публикует подтверждённую точную модель
 для этих двух пресетов. Сохранённые пользовательские раскладки не заменяются.
 Поддержка аналога Max/Pro и NA87 backend этим изменением не расширялась.
-MG75 v2 не добавлена: это другая неподдерживаемая ревизия.
+MG75 V2 layout/support remain unimplemented. Firmware is available; compatibility is undetermined and further investigation is deferred until a tester is available.
 
 Fn отображается с зарезервированным кодом HallJoy0x409. Текущая SparkLink
 таблица ограничена byte HID и не публикует этот расширенный код; не обещать

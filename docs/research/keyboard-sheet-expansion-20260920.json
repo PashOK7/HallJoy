@@ -1,0 +1,903 @@
+{
+  "checkedOn": "2026-09-20",
+  "spreadsheetId": "1ueQ4labXpuBOmGjCkUcJllNJ68Jzx4py2MuQm-p-R7c",
+  "added": 149,
+  "total": 266,
+  "brands": 32,
+  "additions": [
+    {
+      "brand": "AULA",
+      "model": "AG60",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/"
+    },
+    {
+      "brand": "AULA",
+      "model": "AG75",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/"
+    },
+    {
+      "brand": "AULA",
+      "model": "F75 HE",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/"
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO 68 HE",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/"
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO 68 HE Ultra",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/"
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO 75 HE",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/"
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO 99 HE",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/"
+    },
+    {
+      "brand": "AULA",
+      "model": "MINI 60 HE",
+      "status": "Not investigated",
+      "source": "https://www.aulastar.com/magnetic-keyboard/"
+    },
+    {
+      "brand": "DrunkDeer",
+      "model": "A75 Ultra",
+      "status": "Not investigated",
+      "source": "https://drunkdeer.com/products.json?limit=250"
+    },
+    {
+      "brand": "DrunkDeer",
+      "model": "X60 HE",
+      "status": "Not investigated",
+      "source": "https://drunkdeer.com/products.json?limit=250"
+    },
+    {
+      "brand": "DrunkDeer",
+      "model": "X60 Future",
+      "status": "Not investigated",
+      "source": "https://drunkdeer.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "C0 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "C3 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "C4 HE 8K",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J2 HE 8K",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J4 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J5 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J8 HE 8K",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J12 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J14 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "J15 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "K6 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "Q0 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "Q2 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "Q2 HE 8K",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "Q4 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "Q16 HE 8K",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "V1 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "V6 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Keychron",
+      "model": "V6 Ultra Hybrid 8K",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Lemokey",
+      "model": "L0 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Lemokey",
+      "model": "L1 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Lemokey",
+      "model": "L5 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Lemokey",
+      "model": "P2 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "Lemokey",
+      "model": "P3 HE",
+      "status": "Not investigated",
+      "source": "https://www.keychron.com/products.json?limit=250"
+    },
+    {
+      "brand": "NuPhy",
+      "model": "BH65",
+      "status": "Not investigated",
+      "source": "https://nuphy.com/pages/user-manual"
+    },
+    {
+      "brand": "NuPhy",
+      "model": "Field75 HE",
+      "status": "Not investigated",
+      "source": "https://nuphy.com/pages/user-manual"
+    },
+    {
+      "brand": "NuPhy",
+      "model": "Field75 HE V2",
+      "status": "Not investigated",
+      "source": "https://nuphy.com/pages/user-manual"
+    },
+    {
+      "brand": "NuPhy",
+      "model": "Halo65 HE",
+      "status": "Not investigated",
+      "source": "https://nuphy.com/pages/user-manual"
+    },
+    {
+      "brand": "NuPhy",
+      "model": "WH80",
+      "status": "Not investigated",
+      "source": "https://nuphy.com/pages/user-manual"
+    },
+    {
+      "brand": "IO",
+      "model": "Type 84 Magnetic",
+      "status": "No usable analog found (FW 1.17)",
+      "source": "docs/firmware/io-type84-magnetic/DEEP_REVERSE.md"
+    },
+    {
+      "brand": "IO",
+      "model": "Type 68 Magnetic",
+      "status": "Research incomplete",
+      "source": "docs/firmware/io-type84-magnetic/DEEP_REVERSE.md"
+    },
+    {
+      "brand": "Pwnage",
+      "model": "Zenblade 65",
+      "status": "Research incomplete",
+      "source": "docs/v1.4/PWNAGE_ZENBLADE_65_V2_PROTOCOL_RECON.md"
+    },
+    {
+      "brand": "Pwnage",
+      "model": "Zenblade 65 V2",
+      "status": "Research incomplete",
+      "source": "docs/v1.4/PWNAGE_ZENBLADE_65_V2_PROTOCOL_RECON.md"
+    },
+    {
+      "brand": "IROK",
+      "model": "NA87 Pro",
+      "status": "Research frozen",
+      "source": "docs/current/FROZEN_SUPPORT_NOTICES_2026-09-15.md"
+    },
+    {
+      "brand": "IROK",
+      "model": "ND75",
+      "status": "Research frozen",
+      "source": "docs/current/FROZEN_SUPPORT_NOTICES_2026-09-15.md"
+    },
+    {
+      "brand": "IROK",
+      "model": "MG75 V2",
+      "status": "Research incomplete",
+      "source": "docs/current/MG75_PRO_V2_REVIEW_2026-09-19.md"
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 60",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity"
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 60 Pro",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity"
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "GOD 60",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity"
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 68 V2",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity"
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 68 Air",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity"
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 68 GT",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity"
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 68 Turbo",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity"
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Jet 75",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity"
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 75",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity"
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Mix 87",
+      "status": "Not investigated",
+      "source": "https://support.mchose.store/hc/en-us/articles/51976583851028-MCHOSE-Compliance-and-Documents-of-Conformity"
+    },
+    {
+      "brand": "MCHOSE",
+      "model": "Ace 68",
+      "status": "Research incomplete",
+      "source": "docs/firmware/mchose-ace68/PROTOCOL_ASSESSMENT.md"
+    },
+    {
+      "brand": "ASUS ROG",
+      "model": "Azoth 96 HE",
+      "status": "Research frozen",
+      "source": "docs/current/FROZEN_SUPPORT_NOTICES_2026-09-15.md"
+    },
+    {
+      "brand": "ASUS ROG",
+      "model": "Falchion Ace HFX",
+      "status": "Not investigated",
+      "source": "https://rog.asus.com/us/keyboards/keyboards/pbt-keycaps/rog-falchion-ace-75-he/overview/rog-keyboard-switch/"
+    },
+    {
+      "brand": "ASUS ROG",
+      "model": "Falchion Ace 75 HE",
+      "status": "Not investigated",
+      "source": "https://rog.asus.com/us/keyboards/keyboards/pbt-keycaps/rog-falchion-ace-75-he/overview/rog-keyboard-switch/"
+    },
+    {
+      "brand": "ASUS ROG",
+      "model": "Falcata",
+      "status": "Not investigated",
+      "source": "https://rog.asus.com/us/keyboards/keyboards/pbt-keycaps/rog-falchion-ace-75-he/overview/rog-keyboard-switch/"
+    },
+    {
+      "brand": "Logitech G",
+      "model": "PRO X TKL RAPID",
+      "status": "Not investigated",
+      "source": "https://www.logitechg.com/en-in/shop/p/pro-x-tkl-rapid"
+    },
+    {
+      "brand": "Corsair",
+      "model": "K70 MAX",
+      "status": "Not investigated",
+      "source": "https://www.corsair.com/us/en/c/keyboards/mgx-switch-keyboards"
+    },
+    {
+      "brand": "Corsair",
+      "model": "K70 PRO TKL",
+      "status": "Not investigated",
+      "source": "https://www.corsair.com/us/en/c/keyboards/mgx-switch-keyboards"
+    },
+    {
+      "brand": "Corsair",
+      "model": "VANGUARD PRO 96",
+      "status": "Not investigated",
+      "source": "https://www.corsair.com/us/en/c/keyboards/mgx-switch-keyboards"
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro Gen 3",
+      "status": "Not investigated",
+      "source": "https://steelseries.com/press/152-steelseries-expands-its-apex-pro-gen-3-series-keyboard-lineup"
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro TKL Gen 3",
+      "status": "Not investigated",
+      "source": "https://steelseries.com/press/152-steelseries-expands-its-apex-pro-gen-3-series-keyboard-lineup"
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro TKL Wireless Gen 3",
+      "status": "Not investigated",
+      "source": "https://steelseries.com/press/152-steelseries-expands-its-apex-pro-gen-3-series-keyboard-lineup"
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro Mini Gen 3",
+      "status": "Not investigated",
+      "source": "https://steelseries.com/press/152-steelseries-expands-its-apex-pro-gen-3-series-keyboard-lineup"
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro TKL",
+      "status": "Not investigated",
+      "source": "https://support.steelseries.com/hc/en-us/sections/9637593545229-Apex-Pro-TKL-2023"
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro TKL (2023)",
+      "status": "Not investigated",
+      "source": "https://support.steelseries.com/hc/en-us/sections/9637593545229-Apex-Pro-TKL-2023"
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro TKL Wireless (2023)",
+      "status": "Not investigated",
+      "source": "https://support.steelseries.com/hc/en-us/sections/9637593545229-Apex-Pro-TKL-2023"
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro Mini",
+      "status": "Not investigated",
+      "source": "https://support.steelseries.com/hc/en-us/sections/7087574605325-Apex-Pro-Mini-Mini-Wireless"
+    },
+    {
+      "brand": "SteelSeries",
+      "model": "Apex Pro Mini Wireless",
+      "status": "Not investigated",
+      "source": "https://support.steelseries.com/hc/en-us/sections/7087574605325-Apex-Pro-Mini-Mini-Wireless"
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M1 HE",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/"
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M1W-SP HE",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/"
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "MG75S HE",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/"
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M1 V5 TMR",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/"
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M3 V5 HE",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/"
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "FUN68 HE",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/"
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "Verve68 HE",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/download/"
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "FUN60 Pro",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/"
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "FUN60 Max",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/"
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "FUN60 Ultra",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/"
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "FUN60 Ultra TMR",
+      "status": "Not investigated",
+      "source": "https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/"
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE68",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard"
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE68 Air",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard"
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE68 Pro",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard"
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE68 Ultra",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard"
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE68 Ultra V2",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard"
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE84 Pro",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard"
+    },
+    {
+      "brand": "MelGeek",
+      "model": "MADE84 Ultra",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard"
+    },
+    {
+      "brand": "MelGeek",
+      "model": "Centauri 80",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/collections/magnetic-gaming-keyboard"
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE30",
+      "status": "Not investigated",
+      "source": "https://epomaker.com/pages/he-series"
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE68 Lite",
+      "status": "Not investigated",
+      "source": "https://epomaker.com/pages/he-series"
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE75 V2 TMR",
+      "status": "Not investigated",
+      "source": "https://epomaker.com/pages/he-series"
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE80",
+      "status": "Not investigated",
+      "source": "https://epomaker.com/pages/he-series"
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "G84 HE",
+      "status": "Not investigated",
+      "source": "https://epomaker.com/pages/he-series"
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "TITAN 68 Turbo",
+      "status": "Research incomplete",
+      "source": "docs/firmware/madlions-titan68-turbo/STATIC_AUDIT.md"
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "MAD60 V2",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/"
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "MAD60 Pro",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/"
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "MAD LIGHT 60 HE",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/"
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "MAD LIGHT 60 quattro",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/"
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "TITAN75 Turbo",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/"
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "FIRE68 Ultra",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/"
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "NANO68 Pro",
+      "status": "Not investigated",
+      "source": "https://madlionskeyboard.com/"
+    },
+    {
+      "brand": "Redragon",
+      "model": "K556 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards"
+    },
+    {
+      "brand": "Redragon",
+      "model": "K580 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards"
+    },
+    {
+      "brand": "Redragon",
+      "model": "K585 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards"
+    },
+    {
+      "brand": "Redragon",
+      "model": "K617 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards"
+    },
+    {
+      "brand": "Redragon",
+      "model": "K618 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards"
+    },
+    {
+      "brand": "Redragon",
+      "model": "K683 (M61)",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards"
+    },
+    {
+      "brand": "Redragon",
+      "model": "K686 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards"
+    },
+    {
+      "brand": "Redragon",
+      "model": "K736 Pro",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards"
+    },
+    {
+      "brand": "Redragon",
+      "model": "K745 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards"
+    },
+    {
+      "brand": "Redragon",
+      "model": "K769 HE",
+      "status": "Not investigated",
+      "source": "https://redragonshop.com/collections/magnetic-switch-keyboards"
+    },
+    {
+      "brand": "Akko",
+      "model": "5075 V3 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "Akko",
+      "model": "5087 V3 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "Akko",
+      "model": "5075 V5 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "Akko",
+      "model": "5075 V5 TMR",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "Akko",
+      "model": "5087 V5 TMR",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "Akko",
+      "model": "MOD68 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "Akko",
+      "model": "MOD 007B HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "Akko",
+      "model": "MOD 007 HE Year of Dragon",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "Akko",
+      "model": "MOD 007 V5 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "Akko",
+      "model": "Ray68 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "Akko",
+      "model": "Shine60 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "Akko",
+      "model": "TAC75 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M1 V5 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M2 V5 HE",
+      "status": "Not investigated",
+      "source": "https://akkogear.eu/collections/akko-he-keyboards"
+    },
+    {
+      "brand": "Varmilo",
+      "model": "Victory65",
+      "status": "Not investigated",
+      "source": "https://varmilo.com/pages/keyboard-model"
+    },
+    {
+      "brand": "Varmilo",
+      "model": "Victory75",
+      "status": "Not investigated",
+      "source": "https://varmilo.com/pages/keyboard-model"
+    },
+    {
+      "brand": "Varmilo",
+      "model": "Muse65 HE",
+      "status": "Not investigated",
+      "source": "https://varmilo.com/pages/keyboard-model"
+    },
+    {
+      "brand": "Varmilo",
+      "model": "Muse75 HE",
+      "status": "Not investigated",
+      "source": "https://varmilo.com/pages/keyboard-model"
+    },
+    {
+      "brand": "Varmilo",
+      "model": "Minilo75 HE",
+      "status": "Not investigated",
+      "source": "https://varmilo.com/pages/keyboard-model"
+    },
+    {
+      "brand": "Turtle Beach",
+      "model": "Vulcan II TKL Pro",
+      "status": "Not investigated",
+      "source": "https://eu.turtlebeach.com/collections/tkl-keyboards"
+    },
+    {
+      "brand": "Turtle Beach",
+      "model": "Command Series KB7",
+      "status": "Not investigated",
+      "source": "https://eu.turtlebeach.com/collections/tkl-keyboards"
+    },
+    {
+      "brand": "NZXT",
+      "model": "Function Elite MiniTKL",
+      "status": "Not investigated",
+      "source": "https://nzxt.com/products/function-elite-minitkl-lift-elite-wireless"
+    },
+    {
+      "brand": "Endgame Gear",
+      "model": "KB65HE",
+      "status": "Not investigated",
+      "source": "https://img.endgamegear.com/assets/8/b/d/9/8bd91db974058fc6872a30cfc068ef094392ef51_KB65he_8k_endgamegear_de_en_fr_es_it_sv_pl_du_pt_fi_hu.pdf"
+    },
+    {
+      "brand": "Endgame Gear",
+      "model": "KB65HE 8K",
+      "status": "Not investigated",
+      "source": "https://img.endgamegear.com/assets/8/b/d/9/8bd91db974058fc6872a30cfc068ef094392ef51_KB65he_8k_endgamegear_de_en_fr_es_it_sv_pl_du_pt_fi_hu.pdf"
+    },
+    {
+      "brand": "Wooting",
+      "model": "80HE+",
+      "status": "Not investigated",
+      "source": "https://wooting.io/"
+    },
+    {
+      "brand": "GamaKay",
+      "model": "TK68 HE",
+      "status": "Not investigated",
+      "source": "https://gamakay.com/en-gb/products/gamakay-tk75-he-hall-effect-wireless-custom-keyboard"
+    },
+    {
+      "brand": "GamaKay",
+      "model": "TK75 HE",
+      "status": "Not investigated",
+      "source": "https://gamakay.com/en-gb/products/gamakay-tk75-he-hall-effect-wireless-custom-keyboard"
+    },
+    {
+      "brand": "GamaKay",
+      "model": "TK75 HE V2",
+      "status": "Not investigated",
+      "source": "https://gamakay.com/en-gb/products/gamakay-tk75-he-hall-effect-wireless-custom-keyboard"
+    },
+    {
+      "brand": "GamaKay",
+      "model": "NS68",
+      "status": "Not investigated",
+      "source": "https://gamakay.com/en-gb/products/gamakay-tk75-he-hall-effect-wireless-custom-keyboard"
+    },
+    {
+      "brand": "GamaKay",
+      "model": "TK75 TMR",
+      "status": "Not investigated",
+      "source": "https://gamakay.com/en-gb/blogs/news/tk75-buying-guide-socd-vs-he-v2-vs-tmr"
+    },
+    {
+      "brand": "CHERRY XTRFY",
+      "model": "MX 8.2 Pro TMR Wireless",
+      "status": "Not investigated",
+      "source": "https://www.cherry.de/en-gb/company/news/press/article/cherry-xtrfy-introduces-magnetic-switch-keyboards-with-tmr-technology"
+    },
+    {
+      "brand": "CHERRY XTRFY",
+      "model": "K5 Pro TMR",
+      "status": "Not investigated",
+      "source": "https://www.cherry.de/en-gb/company/news/press/article/cherry-xtrfy-introduces-magnetic-switch-keyboards-with-tmr-technology"
+    }
+  ]
+}

@@ -207,9 +207,6 @@ std::vector<Candidate> Enumerate(bool routedOnly, bool verbose)
             c.caps.OutputReportByteLength >= aula_w669::kReportBytes;
         if (verbose && (c.attributes.VendorID == kKnownVendor || protocolShape))
         {
-            c.manufacturer = HidString(meta.value, HidD_GetManufacturerString);
-            c.product = HidString(meta.value, HidD_GetProductString);
-            c.serial = HidString(meta.value, HidD_GetSerialNumberString);
             DebugLog_Write(L"[aula.w669.enumeration] path_hash=%016llX vid=%04X pid=%04X version=%04X usage=%04X:%04X in=%u out=%u feature=%u manufacturer=%ls product=%ls serial_present=%d serial_chars=%llu protocol_shape=%d",
                 static_cast<unsigned long long>(HashPath(c.path)), c.attributes.VendorID,
                 c.attributes.ProductID, c.attributes.VersionNumber, c.caps.UsagePage, c.caps.Usage,
@@ -333,7 +330,14 @@ bool ResolveFactoryProfile(Session& s, const Candidate& candidate,
         }
     }
 
-    *profile = DescriptorFallbackProfile(candidate);
+    // Product text is only needed when firmware identity is unavailable.
+    // Do not issue synchronous USB string requests during global enumeration.
+    Candidate fallback = candidate;
+    Handle metadata(CreateFileW(candidate.path.c_str(), 0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL, nullptr));
+    if (metadata) fallback.product = HidString(metadata.value, HidD_GetProductString);
+    *profile = DescriptorFallbackProfile(fallback);
     DebugLog_Write(L"[aula.w669.identity] source=hid_product_fallback product=%ls profile=%ls firmware_identity_timeout=1",
         candidate.product.empty() ? L"-" : candidate.product.c_str(),
         ProfileName(*profile));

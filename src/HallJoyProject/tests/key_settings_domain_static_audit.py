@@ -8,7 +8,7 @@ curve = (hall / "backend_curve.cpp").read_text(encoding="utf-8-sig")
 codes = (hall / "analog_key_codes.h").read_text(encoding="utf-8-sig")
 runner = (root.parents[1] / "tools" / "run_native_backend_checks.py").read_text(encoding="utf-8-sig")
 
-assert "kCount = static_cast<std::size_t>(kFn) + 1u" in codes
+assert "kCount = static_cast<std::size_t>(halljoy::wooting_physical::kRightFn) + 1u" in codes
 assert "std::array<KeyDeadzone, halljoy::keycode::kCount> g_data" in settings
 assert "unordered_map" not in settings and "g_mapMutex" not in settings
 assert "attempt < 3u" in settings and "SnapshotLoad" in settings

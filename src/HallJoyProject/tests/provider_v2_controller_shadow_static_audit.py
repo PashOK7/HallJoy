@@ -42,11 +42,11 @@ require("ReadNativeCached" in BACKEND and
         "MergeWithNative" in SOURCE and "Arbitrate" in SOURCE and
         "Arbitrate({ hidKeycode" in BACKEND,
         "qualified and shadow routes use explicit native/provider arbitration")
-require("AnalogSourceStateV1" in HEADER and "ArbitrationSource_DigitalFallback" in HEADER and
+require("AnalogSourceStateV1" in HEADER and "ArbitrationSource_DigitalFallback" not in HEADER and
         "owned_zero_blocks_fallback=1" in TEST and "stale_rejected=1" in TEST,
-        "arbitration tests distinguish owned zero, stale and digital fallback")
-require("providerV2Projected && !cache.allowFallback" in BACKEND and
-        "ReadDigitalFallback01" not in SOURCE,
+        "arbitration rejects unavailable/stale data without a digital source")
+require("providerV2Shadow.eligible = providerV2Projected;" in BACKEND and
+        "ReadDigitalFallback01" not in SOURCE and "ReadDigitalFallback01" not in BACKEND,
         "digital edges cannot qualify, trigger or train Provider V2")
 require("BackendCurve_ApplyPairByHid" in BACKEND and
         "const CurveDef curve = BuildCurveForHid(hid)" in CURVE and
@@ -74,4 +74,12 @@ require("provider_v2_controller_shadow.cpp" in PROJECT and
         "provider_v2_controller_shadow_test.cpp" in RUNNER,
         "MSVC and unified native runner compile the production shadow components")
 
+SETTINGS = "".join((HALL / name).read_text(encoding="utf8") for name in
+                   ("settings.cpp", "settings.h", "settings_ini.cpp"))
+require("DigitalFallbackInput" not in SETTINGS and
+        "ReadDigitalFallback01" not in BACKEND and
+        "GetAsyncKeyState" not in BACKEND and
+        "SimulatedKeyState" not in BACKEND and
+        "allowDigitalFallback" not in HEADER,
+        "production cannot configure or synthesize keyboard depth from digital input")
 print("PROVIDER_V2_CONTROLLER_SHADOW_STATIC_AUDIT=PASS")

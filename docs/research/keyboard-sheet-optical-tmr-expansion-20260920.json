@@ -1,0 +1,92 @@
+{
+  "date": "2026-09-20",
+  "range": "Main!A1:C528",
+  "records": 452,
+  "brands": 76,
+  "additions": [
+    {
+      "brand": "Razer",
+      "model": "Huntsman V3 Pro 8KHz",
+      "status": "Not investigated",
+      "source": "https://www.razer.com/gaming-keyboards/razer-huntsman-v3-pro-8khz",
+      "evidence": "Official product page explicitly confirms analog optical switches; distinct revision from existing supported models."
+    },
+    {
+      "brand": "Razer",
+      "model": "Huntsman V3 Pro Tenkeyless 8KHz",
+      "status": "Not investigated",
+      "source": "https://www.razer.com/gaming-keyboards/razer-huntsman-v3-pro-tenkeyless-8khz",
+      "evidence": "Official product page explicitly confirms analog optical switches; distinct revision from existing supported models."
+    },
+    {
+      "brand": "Razer",
+      "model": "Huntsman V3 Pro Low-profile Tenkeyless 8KHz",
+      "status": "Not investigated",
+      "source": "https://www.razer.com/gaming-keyboards/razer-huntsman-v3-pro-low-profile-tenkeyless-8khz",
+      "evidence": "Official product page explicitly confirms analog optical switches; distinct revision from existing supported models."
+    },
+    {
+      "brand": "Razer",
+      "model": "Huntsman V3 HE Magnetic Tenkeyless 8KHz",
+      "status": "Not investigated",
+      "source": "https://www.razer.com/newsroom/product-news/huntsman-v3-he-magnetic-8khz-line",
+      "evidence": "Official July 30 2026 announcement names both Hall Effect form factors."
+    },
+    {
+      "brand": "Razer",
+      "model": "Huntsman V3 HE Magnetic Mini 65% 8KHz",
+      "status": "Not investigated",
+      "source": "https://www.razer.com/newsroom/product-news/huntsman-v3-he-magnetic-8khz-line",
+      "evidence": "Official July 30 2026 announcement names both Hall Effect form factors."
+    },
+    {
+      "brand": "Razer",
+      "model": "Tartarus Pro",
+      "status": "Not investigated",
+      "source": "https://press.razer.com/product-news/razer-analog-optical-switches-gen-2/",
+      "evidence": "Manufacturer confirms original Tartarus Pro uses analog optical switches."
+    },
+    {
+      "brand": "Razer",
+      "model": "Tartarus V2 Pro",
+      "status": "Not investigated",
+      "source": "https://www.razer.com/eu-en/gaming-keypads/razer-tartarus-v2-pro",
+      "evidence": "Analog optical Gen-2 switches; distinct from conventional Tartarus V2."
+    },
+    {
+      "brand": "Sony",
+      "model": "INZONE KBD-H75",
+      "status": "Not investigated",
+      "source": "https://electronics.sony.com/audio/gaming-audio/all-inzone-headsets/p/kbdg900b",
+      "evidence": "Official Sony product page confirms magnetic Hall Effect switches; KBD-G900 is the hardware model alias."
+    },
+    {
+      "brand": "VARO",
+      "model": "VM75 HE",
+      "status": "Not investigated",
+      "source": "https://www.varomall.com/shop_view/?idx=31",
+      "evidence": "Official magnetic-switch keyboard product page."
+    },
+    {
+      "brand": "VARO",
+      "model": "VM87HE-J",
+      "status": "Not investigated",
+      "source": "https://varomall.com/VM87HE-J",
+      "evidence": "Manufacturer explicitly describes magnetic Hall Effect Rapid Trigger; ordinary VM87-J excluded."
+    },
+    {
+      "brand": "VARO",
+      "model": "VM65 HE-S",
+      "status": "Not investigated",
+      "source": "https://varomall.com/VM65HE-Sdriver",
+      "evidence": "Official support names VM65 HE-S and firmware; hands-on DPQP review confirms magnetic sensing on VM65HE. Use official HE-S name, no duplicate unsuffixed row."
+    },
+    {
+      "brand": "Lofree",
+      "model": "Hyzen (announced)",
+      "status": "Not investigated",
+      "source": "https://www.lofree.co/pages/hyzen",
+      "evidence": "Manufacturer describes TMR sensing, adjustable actuation, and magnetic/mechanical switch compatibility. Campaign page still says upcoming; general shipment not verified."
+    }
+  ]
+}

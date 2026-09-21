@@ -1,5 +1,7 @@
 # Layout workbench: low-context workflow
 
+> 2026-09-19: [K673 BR resolved](REDRAGON_K673_BR_LAYOUT_2026-09-19.md): exact manufacturer ABNT2 image confirms a wide /? key, not Right Shift. ABNT2 preset and verified-product selection added; native analog unchanged. Earlier BR deferral is superseded.
+
 2026-09-09. Start here for another keyboard brand. Do not read the large UI files,
 re-investigate supported protocols, or dump vendor bundles to the conversation.
 Runtime/editor changes are required only for a genuinely new capability.

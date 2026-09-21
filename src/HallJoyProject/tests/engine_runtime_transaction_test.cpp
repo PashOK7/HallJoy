@@ -11,6 +11,8 @@ struct FakeOperations
 {
     std::string log;
     const char* fail = nullptr;
+    bool inFlightTick = false;
+    bool lastReportActive = false;
     std::uint32_t error = 88u;
     std::vector<halljoy::runtime_command::State> observedStates;
 
@@ -28,8 +30,19 @@ struct FakeOperations
 
     bool CloseAdmission(std::uint32_t& e) noexcept { return Step("close", e); }
     bool StopRecoverySupervisor(std::uint32_t& e) noexcept { return Step("supervisor", e); }
-    bool PublishNeutral(std::uint32_t& e) noexcept { return Step("neutral", e); }
-    bool StopRealtime(std::uint32_t& e) noexcept { return Step("realtime", e); }
+    bool PublishNeutral(std::uint32_t& e) noexcept {
+        // Closing admission does not cancel a tick that already entered.
+        assert(!inFlightTick);
+        lastReportActive = false;
+        return Step("neutral", e);
+    }
+    bool StopRealtime(std::uint32_t& e) noexcept {
+        if (!Step("realtime", e)) return false;
+        // Model the final previously admitted tick completing during join.
+        if (inFlightTick) lastReportActive = true;
+        inFlightTick = false;
+        return true;
+    }
     bool ReleaseUiInput(std::uint32_t& e) noexcept { return Step("ui-release", e); }
     bool StopNativeProviders(std::uint32_t& e) noexcept { return Step("native", e); }
     bool ReleaseBackendLeases(std::uint32_t& e) noexcept { return Step("leases", e); }
@@ -38,7 +51,7 @@ struct FakeOperations
     bool StartFreshGeneration(std::uint32_t& e) noexcept { return Step("start", e); }
     bool PublishNeutralGeneration(std::uint32_t& e) noexcept { return Step("publish-neutral", e); }
     bool RestoreUiInput(std::uint32_t& e) noexcept { return Step("ui-restore", e); }
-    bool OpenAdmission(std::uint32_t& e) noexcept { return Step("open", e); }
+    bool OpenAdmission(std::uint32_t& e) noexcept { inFlightTick = true; return Step("open", e); }
     bool ReleaseFailedResume(std::uint32_t& e) noexcept { return Step("resume-release", e); }
     void StateChanged(const halljoy::runtime_command::SnapshotV1& snapshot) noexcept
     {
@@ -70,7 +83,8 @@ int main()
     ops.observedStates.clear();
     assert(ExecutePause(controller, ops, error) == TransactionResult::Completed);
     assert(controller.Snapshot().state == State::Paused);
-    assert(ops.log == "close;supervisor;neutral;realtime;ui-release;native;leases;");
+    assert(!ops.lastReportActive);
+    assert(ops.log == "close;supervisor;realtime;neutral;ui-release;native;leases;");
     assert((ops.observedStates == std::vector<State>{
         State::PauseRequested, State::Neutralizing, State::StoppingProviders,
         State::ReleasingLeases, State::Paused }));
@@ -91,5 +105,15 @@ int main()
     assert(ExecuteResume(controller, ops, error) == TransactionResult::Completed);
     assert(ExecutePause(controller, ops, error) == TransactionResult::Faulted);
     assert(controller.Snapshot().state == State::PauseFaulted);
+    // A join failure must not touch state still owned by a live producer.
+    Controller failedStopController;
+    FakeOperations failedStop;
+    assert(ExecuteResume(failedStopController, failedStop, error) == TransactionResult::Completed);
+    failedStop.fail = "realtime";
+    failedStop.log.clear();
+    assert(ExecutePause(failedStopController, failedStop, error) == TransactionResult::Faulted);
+    assert(failedStop.inFlightTick);
+    assert(failedStop.log == "close;supervisor;realtime;");
+    assert(failedStopController.Snapshot().state == State::PauseFaulted);
     return 0;
 }

@@ -16,6 +16,7 @@
 
 #define HALLJOY_DEBUG_LOG_IMPLEMENTATION 1
 #include "debug_log.h"
+#include "app_paths.h"
 #include "worker_exception_barrier.h"
 #include "worker_join_policy.h"
 #include "stability_trace.h"
@@ -25,6 +26,7 @@
 
 static SRWLOCK g_logLock = SRWLOCK_INIT;
 static std::wstring g_logPath;
+static std::wstring g_productionCrashPath; // Prepared before installing the crash handler.
 static HANDLE g_logFile = INVALID_HANDLE_VALUE;
 static HANDLE g_writerThread = nullptr;
 static HANDLE g_writeEvent = nullptr; // manual-reset
@@ -174,7 +176,10 @@ static std::wstring SanitizeDiagnosticText(const wchar_t* text)
 
 static bool KeepSingleLogDiagnosticLine(const std::wstring& line) noexcept
 {
-#if defined(HALLJOY_AULA_MINI60_DIAGNOSTIC)
+#if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
+    return line.find(L"] [support]") != std::wstring::npos ||
+        line.find(L"] [irok.na87.") != std::wstring::npos;
+#elif defined(HALLJOY_AULA_MINI60_DIAGNOSTIC)
     return line.find(L"] [mini60]") != std::wstring::npos || line.find(L"] [support]") != std::wstring::npos;
 #elif defined(HALLJOY_IROK_NA87_NATIVE)
     return line.find(L"] [irok.na87.") != std::wstring::npos;
@@ -361,7 +366,9 @@ void DebugLog_Init()
         return;
     }
 
-#if defined(HALLJOY_DIAGNOSTIC)
+#if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
+    g_logPath = StabilityTrace_Path();
+#elif defined(HALLJOY_DIAGNOSTIC)
 #if defined(HALLJOY_SINGLE_LOG_DIAGNOSTIC)
     g_logPath = StabilityTrace_Path();
 #else
@@ -864,7 +871,7 @@ static LONG WINAPI DiagnosticUnhandledExceptionFilter(EXCEPTION_POINTERS* ep)
 #if defined(HALLJOY_DIAGNOSTIC)
     const std::wstring crashPath = BuildPathNearExe(L"HallJoyDiagnosticCrash.txt");
 #else
-    const std::wstring crashPath = BuildPathNearExe(L"HallJoyCrash.txt");
+    const std::wstring& crashPath = g_productionCrashPath;
 #endif
 
     HANDLE file = CreateFileW(
@@ -900,7 +907,12 @@ static LONG WINAPI DiagnosticUnhandledExceptionFilter(EXCEPTION_POINTERS* ep)
         WriteUtf8Line(file, line);
         _snwprintf_s(line, _countof(line), _TRUNCATE, L"checkpoint=%s", g_lastCheckpoint);
         WriteUtf8Line(file, line);
+#if defined(HALLJOY_DIAGNOSTIC)
         WriteDiagnosticContext(file, ep);
+#else
+        // Public support reports must not expose arbitrary process memory.
+        WriteUtf8Line(file, L"memory_context=omitted_in_production");
+#endif
         WriteUtf8Line(file, L"source=SetUnhandledExceptionFilter");
 #if defined(HALLJOY_DIAGNOSTIC)
         WriteUtf8Line(file, L"log=HallJoy.log");
@@ -924,6 +936,7 @@ void DebugLog_InstallCrashHandler()
     DebugLog_Write(L"[diagnostic] crash handlers installed vectored=%p previous_uef=%p current_uef=%p; support log is privacy-sanitized",
         g_vectoredExceptionHandler, previous, DiagnosticUnhandledExceptionFilter);
 #elif defined(HALLJOY_PRODUCTION)
+    g_productionCrashPath = AppPaths_DataRoot() + L"\\HallJoyCrash.txt";
     // Zero normal-operation I/O and no vectored first-chance hook: the release
     // pays only for this one-time process setting. The handler opens its report
     // file solely after an unhandled exception has already occurred.

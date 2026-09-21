@@ -43,7 +43,7 @@ def read_catalog(path=CATALOG):
             common.require(re.fullmatch('[a-z][a-z0-9_]*', model['id']), 'Unsafe model symbol')
             name = (model['model'], model['variant'])
             common.label_text(model['model'])
-            common.require(model['variant'] in ('ANSI', 'ISO', 'JIS'), 'Unknown physical variant')
+            common.require(model['variant'] in ('ANSI', 'ISO', 'JIS', 'ABNT2'), 'Unknown physical variant')
             common.require(model['id'] not in ids and name not in names, 'Duplicate model/variant')
             ids.add(model['id']); names.add(name)
             common.require(re.fullmatch('[0-9a-f]{64}', model['sha256']), 'Missing source lock')

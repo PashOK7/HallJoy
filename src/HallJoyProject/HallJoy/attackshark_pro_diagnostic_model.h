@@ -2,11 +2,15 @@
 #include <array>
 #include <algorithm>
 #include <cstdint>
+#include "attackshark_pro_native_model.h"
 namespace halljoy::sharkdiag {
 using Report=std::array<std::uint8_t,65>;
 inline bool Known(unsigned id,unsigned pid){
- return (pid==0x502f && (id==2308 || id==2370 || id==2901 || id==2356)) ||
-        (pid==0x5030 && (id==2938 || id==2935));
+ const auto* p=sharkplay::Find(id);return p && p->pid==pid;
+}
+inline bool CandidatePid(unsigned pid){
+ for(const auto& p:sharkplay::Profiles)if(p.pid==pid)return true;
+ return false;
 }
 inline Report Request(unsigned command,unsigned page=0){
  Report r{};

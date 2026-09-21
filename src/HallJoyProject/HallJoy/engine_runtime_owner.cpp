@@ -31,7 +31,22 @@ struct CallbackOperations final
             error = ERROR_INVALID_PARAMETER;
             return false;
         }
+#if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
+        const wchar_t* label=L"other";
+        if(operation==table.enumerateFresh)label=L"enumerate";
+        if(operation==table.proveCapabilities)label=L"backend_init";
+        if(operation==table.startFreshGeneration)label=L"start_dependents";
+        if(operation==table.stopNativeProviders)label=L"stop_native";
+        if(operation==table.releaseBackendLeases)label=L"stop_backend";
+        if(operation==table.releaseUiInput)label=L"release_ui";
+        if(operation==table.restoreUiInput)label=L"restore_ui";
+        StabilityTrace_Write(L"INFO",L"ajazz-startup",L"operation.begin",L"operation=%ls",label);
+        const bool ok=operation(table.context,error);
+        StabilityTrace_Write(L"INFO",L"ajazz-startup",L"operation.end",L"operation=%ls ok=%u error=%u",label,ok?1u:0u,error);
+        return ok;
+#else
         return operation(table.context, error);
+#endif
     }
 
     bool CloseAdmission(std::uint32_t& e) noexcept { return Invoke(table.closeAdmission, e); }

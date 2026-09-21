@@ -109,22 +109,18 @@ int main()
     using provider_v2_shadow::AnalogSourceStateV1;
     using provider_v2_shadow::ArbitrationInputV1;
     const auto standard = provider_v2_shadow::Arbitrate({ 0x1A,
-        { true, true, true, 0.30f }, { true, true, true, 0.80f }, {}, false });
+        { true, true, true, 0.30f }, { true, true, true, 0.80f } });
     assert(standard.value == 0.80f &&
         standard.sourceMask == (provider_v2_shadow::ArbitrationSource_Native |
             provider_v2_shadow::ArbitrationSource_Provider));
     const auto extended = provider_v2_shadow::Arbitrate({ keycode::kFn,
-        { true, true, true, 0.0f }, { true, true, true, 0.90f },
-        { true, true, true, 1.0f }, true });
+        { true, true, true, 0.0f }, { true, true, true, 0.90f } });
     assert(extended.value == 0.0f &&
         extended.sourceMask == provider_v2_shadow::ArbitrationSource_Native);
-    const auto fallback = provider_v2_shadow::Arbitrate({ 0x1A,
-        {}, { true, true, true, 0.0f }, { true, true, true, 1.0f }, true });
-    assert(fallback.value == 1.0f &&
-        fallback.sourceMask == (provider_v2_shadow::ArbitrationSource_Provider |
-            provider_v2_shadow::ArbitrationSource_DigitalFallback));
+    const auto unavailable = provider_v2_shadow::Arbitrate({ 0x1A, {}, {} });
+    assert(unavailable.value == 0.0f && unavailable.sourceMask == 0);
     const auto stale = provider_v2_shadow::Arbitrate({ 0x1A,
-        {}, { true, true, false, 0.90f }, {}, false });
+        {}, { true, true, false, 0.90f } });
     assert(stale.value == 0.0f && stale.sourceMask == provider_v2_shadow::ArbitrationSource_None);
 
     auto qualified = controller::VirtualControllerFrameV1{};

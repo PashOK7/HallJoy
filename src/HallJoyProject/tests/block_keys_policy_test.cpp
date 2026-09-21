@@ -42,6 +42,13 @@ int main() {
     assert(ValidShortcut((6u << 8) | 0x77));
     assert(!ValidShortcut((16u << 8) | 0x77));
     assert(!ValidShortcut(16)); assert(!ValidShortcut(162));
+    // Full policy truth table, then physical press ownership through changes.
+    for(unsigned bits=0;bits<64;++bits) {
+        const bool paused=bits&1,enabled=bits&2,own=bits&4;
+        const bool rescue=bits&8,reserved=bits&16,bound=bits&32;
+        const bool expected=bits==34;
+        assert(ShouldBlock(paused,enabled,own,rescue,reserved,bound)==expected);
+    }
     PressRoutes routes;
     assert(!routes.Filter(4, false, true));
     assert(!routes.Filter(0, true, true));

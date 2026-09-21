@@ -1,6 +1,8 @@
+# HallJoy
 
 HallJoy turns an analogue Hall Effect keyboard into a fully configurable virtual
-Xbox controller with low-latency analogue input. HallJoy includes:
+Xbox controller with low-latency analogue input. HallJoy uses real keyboard depth measurements; ordinary digital key presses
+are not converted into simulated analogue travel. HallJoy includes:
 
 - keyboard-to-gamepad remapping for buttons, sticks, and triggers;
 - up to four virtual Xbox controllers for games that support multiple pads;
@@ -21,8 +23,8 @@ Xbox controller with low-latency analogue input. HallJoy includes:
 ## Why HallJoy exists
 
 I bought a DrunkDeer A75 Pro HE and wanted a native gamepad mode, but could not
-find one that matched what I needed. So I built HallJoy with heavy AI assistance
-(ChatGPT), then kept improving it feature by feature.
+find one that matched what I needed. So I built HallJoy with heavy ChatGPT assistance, 
+then kept improving it feature by feature.
 
 I didn't write a single line of code, I'm not a programmer, even this readme
 file was written by chatgpt completely except for this paragraph 🙂
@@ -43,7 +45,10 @@ file was written by chatgpt completely except for this paragraph 🙂
 3. Close any connected keyboard web-driver tabs; they commonly conflict with
    HallJoy. Desktop software such as Razer Synapse does not necessarily conflict
    and can stay open if everything works.
-4. Select or create the matching keyboard layout.
+4. Leave **Automatic layout** enabled to select a recognized keyboard and apply
+   supported device remaps. If detection is unavailable or multiple supported
+   keyboards are connected, select a layout manually. Manual layouts use factory
+   key assignments.
 5. Assign controls on the **Remap** tab, tune curves and behavior in
    **Configuration**, and verify the result in **Gamepad Tester**.
 
@@ -51,28 +56,27 @@ Wooting Analog SDK and Universal Analog Plugin do not need to be installed separ
 
 ## Compatible keyboards
 
-If your model is not listed, that does not necessarily mean it is unsupported.
-Some other models may work, but compatibility is not guaranteed.
+| Brand | Models |
+|---|---|
+| AULA | WIN 60 HE MAX, WIN 60 HE, WIN 68 HE, KP-TE153, MINI 60 HE Pro, HERO84 HE |
+| IROK | MG75 Max, MG75 Pro, NA87 |
+| ATTACK SHARK | X65 Pro. X68 Pro HE, X82 Pro HE and other compatible models are expected to work but have not been tested. |
+| GravaStar | Mercury V75, V75 Pro, V75 Lite |
+| Redragon | K673RGB-M, K673WB-RGB-M. Other compatible magnetic models may work but have not been tested. |
+| MADLIONS | MAD 68 Pro R, MAD60HE, MAD68HE, MAD68R |
+| ATK | Hex80 |
+| SayoDevice | O3C |
+| IPI / QBZ | QBZ75, Aurora 75, Aurora75 PRO, QBZ65, AURORA65, AURORA65W, RAIN65, flash68 |
+| Razer | Huntsman V2 Analog, Huntsman Mini Analog, Huntsman V3 Pro, Huntsman V3 Pro Mini, Huntsman V3 Pro Tenkeyless |
+| Keychron | Q1 HE, Q3 HE, Q5 HE, Q6 HE, Q12 HE, Q1 HE 8K, Q3 HE 8K, Q5 HE 8K, Q6 HE 8K, K2 HE, K3 HE, K4 HE, K8 HE, K10 HE |
+| Lemokey | P1 HE |
+| NuPhy | Air60 HE, Air75 HE |
+| DrunkDeer | A75, A75 Pro, G60, G65, G75 |
+| Wooting | 60HE, 60HE+, 60HE v2 (including Split), 80HE, One, Two, Two HE, UwU, UwU RGB |
 
-### Supported models
-
-| Brand | Models | Notes |
-|---|---|---|
-| Aula | **WIN 60 HE MAX**, **WIN 60 HE**, **WIN 68 HE**, **KP-TE153** | — |
-| Irok | **MG75 Max**, **MG75 Pro** | **MG75 v2 is not supported.** |
-| Redragon | **K673RGB-M (BR firmware)** — confirmed working | Other compatible magnetic-switch models are expected to work but have not been physically tested with HallJoy. |
-| MADLIONS | **MAD 68 Pro R**, **MAD60HE**, **MAD68HE**, **MAD68R** | — |
-| ATK | **Hex80** | — |
-| SayoDevice | **O3C** | O3C is tested; other SayoDevice models may also work but are not confirmed. |
-| IPI / QBZ | **QBZ75** | — |
-| Razer | **Huntsman V2 Analog**, **Huntsman Mini Analog**, **Huntsman V3 Pro**, **Huntsman V3 Pro Mini**, **Huntsman V3 Pro Tenkeyless** | — |
-| Keychron | **Q1 HE**, **Q3 HE**, **Q5 HE**, **K2 HE**, **K4 HE ANSI** | Requires [custom firmware](https://analogsense.org/firmware/). Ready-made images are available for some models. For other Keychron HE models, the linked source changes can be applied to Keychron's published firmware source and built for the exact model and ANSI/ISO/JIS variant. |
-| Lemokey | **P1 HE ANSI**, **P1 HE ISO** | — |
-| NuPhy | **Air60 HE**, **Air75 HE** | — |
-| DrunkDeer | **A75**, **A75 Pro**, **G60**, **G65**, **G75** | — |
-| Wooting | Analogue Wooting keyboards supported by the bundled runtime | — |
-
-Not every listed model or hardware revision has been physically tested with HallJoy.
+Keychron HE requires compatible [custom firmware](https://analogsense.org/firmware/).
+Not every model or hardware revision has been tested; HallJoy shows a testing
+notice where applicable. If your keyboard is not listed, ask in [Discord](https://discord.gg/5FQ297yZh).
 
 ## Support
 
@@ -81,7 +85,12 @@ requests, feedback, and updates. Include your keyboard model, HallJoy version,
 and a short description of the problem.
 
 Choose **Open HallJoy folder** in Global settings to find `HallJoy.log`.
-Attach it to your report; do not upload your entire data folder or personal text.
+Crash, missing-keyboard and recognized failure reports are automatic, even with
+**Enable logging** off. For an issue HallJoy does not detect, enable logging,
+reproduce it and attach the log. With logging enabled, a second `HallJoy.log` is
+also saved beside the EXE when that folder is writable. See the [support report guide](docs/SUPPORT_REPORT.md)
+for what to include and the distinction between ordinary and diagnostic reports.
+Do not upload your entire data folder or personal text.
 
 ## Input Overlay for OBS
 
@@ -101,8 +110,7 @@ You can configure the fill direction, choose raw key travel or the value after
 curves, change indicator and label colors, select the label font, size and
 shadow, and adjust the refresh interval. Available visual effects include
 Smooth response, Glass keys, Bloom, Edge sweep, Micro-scale, Label contrast,
-and Rim lighting. The overlay does not redraw an unchanged frame while idle.
-Smooth response defaults to 15%.
+and Rim lighting.
 
 ## Keyboard layout editor
 
@@ -118,7 +126,8 @@ HallJoy stores user data under `%LOCALAPPDATA%\HallJoy` by default:
 
 - `settings.ini` contains the main settings and Default profile, including bindings;
 - `GlobalProfiles\` contains additional profile settings and bindings;
-- `Layouts\` contains keyboard layout presets;
+- `Layouts\` contains saved custom or edited keyboard layouts; built-in layouts
+  are embedded in HallJoy and do not need to be written here on startup;
 - `CurvePresets\` contains response-curve presets.
 
 To use an intentionally portable installation, create an empty
@@ -161,4 +170,6 @@ and their licenses are listed in
 
 Install Visual Studio 2022 C++ Build Tools (including x64 Clang), Python 3.12,
 Git and PowerShell. Clone the repository and run `BUILD.cmd`.
-The executable is created at `build\release\HallJoy.exe`.
+The executable is created at `build\bin\Release\x64\HallJoy.exe`.
+See the [build guide](docs/development/BUILD_README.txt) for incremental builds
+and the staged replacement of a running HallJoy.

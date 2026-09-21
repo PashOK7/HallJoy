@@ -1,5 +1,7 @@
 # Titan68 Turbo static audit — 2026-09-05
 
+> 2026-09-20 owner outcome: a tester was available, but usable HallJoy analog was not obtained. Public catalog status is now No usable analog found (red), superseding any suggestion that no tester attempt occurred. The static transport evidence below remains intact; it is not proof of usable runtime support. See [catalog audit](../../current/KEYBOARD_SHEET_MAGNETIC_AUDIT_2026-09-20.md). No new hardware test occurred in this update.
+
 This audit is intentionally limited to evidence available without a physical
 keyboard. It supports the diagnostic executable; it does not claim that every
 retail unit has passed a runtime test.

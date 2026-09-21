@@ -1,5 +1,7 @@
 # Remaining low-complexity layouts — 2026-09-14
 
+> 2026-09-19: [K673 BR resolved](REDRAGON_K673_BR_LAYOUT_2026-09-19.md): exact manufacturer ABNT2 image confirms a wide /? key, not Right Shift. ABNT2 preset and verified-product selection added; native analog unchanged. Earlier BR deferral is superseded.
+
 > 2026-09-14: [ATK Hex80 native fixes](ATK_HEX80_NATIVE_FIXES_2026-09-14.md).
 > Corrected19 matrix slots;87 factory keys including Fn now publish analog.
 > Supports32/128-byte payloads, per-key freshness and correlated chunk replies.

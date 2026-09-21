@@ -1,6 +1,6 @@
 #pragma once
 #include <windows.h>
-#if defined(HALLJOY_ATTACKSHARK_PRO_DIAGNOSTIC)
+#if defined(HALLJOY_ATTACKSHARK_PRO_DIAGNOSTIC) || defined(HALLJOY_ATTACKSHARK_NATIVE)
 bool SharkDiagnostic_TryRunCommand(int& result) noexcept;
 void SharkDiagnostic_Start() noexcept;
 void SharkDiagnostic_Stop() noexcept;

@@ -1,0 +1,190 @@
+{
+  "date": "2026-09-20",
+  "previousRecords": 304,
+  "totalRecords": 330,
+  "totalBrands": 43,
+  "additions": [
+    {
+      "brand": "DAREU",
+      "model": "A75 HE",
+      "status": "Not investigated",
+      "source": "https://dareu.com/collections/magnetic-keyboard",
+      "evidence": "Manufacturer explicitly identifies magnetic switches for each model."
+    },
+    {
+      "brand": "DAREU",
+      "model": "EK75 RT",
+      "status": "Not investigated",
+      "source": "https://dareu.com/collections/magnetic-keyboard",
+      "evidence": "Manufacturer explicitly identifies magnetic switches for each model."
+    },
+    {
+      "brand": "DAREU",
+      "model": "EK75RT 8K",
+      "status": "Not investigated",
+      "source": "https://dareu.com/collections/magnetic-keyboard",
+      "evidence": "Manufacturer explicitly identifies magnetic switches for each model."
+    },
+    {
+      "brand": "DAREU",
+      "model": "A68",
+      "status": "Not investigated",
+      "source": "https://dareu.com/collections/keyboard",
+      "evidence": "Manufacturer keyboard catalog identifies magnetic/HE/TMR models."
+    },
+    {
+      "brand": "DAREU",
+      "model": "COOL60",
+      "status": "Not investigated",
+      "source": "https://dareu.com/collections/keyboard",
+      "evidence": "Manufacturer keyboard catalog identifies magnetic/HE/TMR models."
+    },
+    {
+      "brand": "DAREU",
+      "model": "EK60 HE",
+      "status": "Not investigated",
+      "source": "https://dareu.com/collections/keyboard",
+      "evidence": "Manufacturer keyboard catalog identifies magnetic/HE/TMR models."
+    },
+    {
+      "brand": "DAREU",
+      "model": "GT87 TMR",
+      "status": "Not investigated",
+      "source": "https://dareu.com/collections/keyboard",
+      "evidence": "Manufacturer keyboard catalog identifies magnetic/HE/TMR models."
+    },
+    {
+      "brand": "DAREU",
+      "model": "ULTRA 75",
+      "status": "Not investigated",
+      "source": "https://dareu.com/collections/keyboard",
+      "evidence": "Manufacturer keyboard catalog identifies magnetic/HE/TMR models."
+    },
+    {
+      "brand": "DAREU",
+      "model": "COOL68",
+      "status": "Not investigated",
+      "source": "https://dareu.com/products/dareu-cool68",
+      "evidence": "Product specifies magnetic Ice Blade / Shadow Blade switches."
+    },
+    {
+      "brand": "DAREU",
+      "model": "COOL68 Pro",
+      "status": "Not investigated",
+      "source": "https://dareu.com/products/dareu-cool68-pro",
+      "evidence": "Product specification identifies aluminum magnetic-switch gaming keyboard."
+    },
+    {
+      "brand": "DAREU",
+      "model": "Ultra 68 (magnetic version)",
+      "status": "Not investigated",
+      "source": "https://dareu.com/products/dareu-ultra-68%E4%B8%A8dual-mode-gaming-keyboard-magnetic-inductive-switches-custom-display-8k-polling-rate",
+      "evidence": "Luban magnetic and inductive versions are distinct options; only magnetic included."
+    },
+    {
+      "brand": "Higround",
+      "model": "Basecamp 65HE",
+      "status": "Not investigated",
+      "source": "https://higround.co/products/performance-base-65-keyboard-retrosuper",
+      "evidence": "Also marketed as Performance 65 / Performance Basecamp 65HE; Gateron magnetic switches. Cosmetic collaborations not duplicated."
+    },
+    {
+      "brand": "Keydous",
+      "model": "NJ80-CP V3 HE",
+      "status": "Not investigated",
+      "source": "https://keydous.store/collections/magnetic-swich-keyboards",
+      "evidence": "Manufacturer HE catalog; TMR model allows mixed mechanical/magnetic switches."
+    },
+    {
+      "brand": "Keydous",
+      "model": "NJ81-CP V3 HE",
+      "status": "Not investigated",
+      "source": "https://keydous.store/collections/magnetic-swich-keyboards",
+      "evidence": "Manufacturer HE catalog; TMR model allows mixed mechanical/magnetic switches."
+    },
+    {
+      "brand": "Keydous",
+      "model": "NJ98-CP V4 HE",
+      "status": "Not investigated",
+      "source": "https://keydous.store/collections/magnetic-swich-keyboards",
+      "evidence": "Manufacturer HE catalog; TMR model allows mixed mechanical/magnetic switches."
+    },
+    {
+      "brand": "Keydous",
+      "model": "NJ98-CP V4S TMR",
+      "status": "Not investigated",
+      "source": "https://keydous.store/collections/magnetic-swich-keyboards",
+      "evidence": "Manufacturer HE catalog; TMR model allows mixed mechanical/magnetic switches."
+    },
+    {
+      "brand": "Keydous",
+      "model": "NJ81 MAX-CP TMR (announced)",
+      "status": "Not investigated",
+      "source": "https://keydous.store/products/keydous-nj81-max-cp-tmr",
+      "evidence": "Manufacturer TMR product page names magnetic switches but directs to Kickstarter launch notification. Shipping availability not confirmed."
+    },
+    {
+      "brand": "Keydous",
+      "model": "NJ98-CP V3",
+      "status": "Not investigated",
+      "source": "https://keydous.oss-cn-shenzhen.aliyuncs.com/%E8%AF%B4%E6%98%8E%E4%B9%A6/NJ98-CP%20V3%20%E8%AF%B4%E6%98%8E%E4%B9%A6%EF%BC%88%E4%B8%A4%E9%A1%B5%EF%BC%89.pdf",
+      "evidence": "Manufacturer manual identifies V3 and magnetic/mechanical switch compatibility; no claim that mechanical switches yield analog."
+    },
+    {
+      "brand": "SIKAKEYB",
+      "model": "Castle HM66",
+      "status": "Not investigated",
+      "source": "https://sikakeyb.com/collections/magnetic-keyboards",
+      "evidence": "Manufacturer magnetic catalog; duplicate HM80 HE pages and regional CK75 US listing consolidated."
+    },
+    {
+      "brand": "SIKAKEYB",
+      "model": "Castle HM80",
+      "status": "Not investigated",
+      "source": "https://sikakeyb.com/collections/magnetic-keyboards",
+      "evidence": "Manufacturer magnetic catalog; duplicate HM80 HE pages and regional CK75 US listing consolidated."
+    },
+    {
+      "brand": "SIKAKEYB",
+      "model": "Castle HM80 HE",
+      "status": "Not investigated",
+      "source": "https://sikakeyb.com/collections/magnetic-keyboards",
+      "evidence": "Manufacturer magnetic catalog; duplicate HM80 HE pages and regional CK75 US listing consolidated."
+    },
+    {
+      "brand": "SIKAKEYB",
+      "model": "Castle CK75 / CK75 US",
+      "status": "Not investigated",
+      "source": "https://sikakeyb.com/collections/magnetic-keyboards",
+      "evidence": "Manufacturer magnetic catalog; duplicate HM80 HE pages and regional CK75 US listing consolidated."
+    },
+    {
+      "brand": "SIKAKEYB",
+      "model": "FNP75 HE",
+      "status": "Not investigated",
+      "source": "https://sikakeyb.com/collections/magnetic-keyboards",
+      "evidence": "Manufacturer magnetic catalog; duplicate HM80 HE pages and regional CK75 US listing consolidated."
+    },
+    {
+      "brand": "SIKAKEYB",
+      "model": "FORT75",
+      "status": "Not investigated",
+      "source": "https://sikakeyb.com/collections/magnetic-keyboards",
+      "evidence": "Manufacturer magnetic catalog; duplicate HM80 HE pages and regional CK75 US listing consolidated."
+    },
+    {
+      "brand": "SIKAKEYB",
+      "model": "FORT68",
+      "status": "Not investigated",
+      "source": "https://sikakeyb.com/products/sikakeyb-sakura-gift-box-gt68-ultra-magnetic-keyboard",
+      "evidence": "Manufacturer FORT68 keyboard uses GT68 Ultra designation in product title; not treated as two models."
+    },
+    {
+      "brand": "SIKAKEYB",
+      "model": "Sakura Limited Edition (GT60 Pro)",
+      "status": "Not investigated",
+      "source": "https://sikakeyb.com/products/sikakeyb-sakura-limited-edition-magnetic-keyboard",
+      "evidence": "Complete keyboard explicitly names GT60 PRO Sakura PCB and Magnetic Jade Sakura switches; not merely a case."
+    }
+  ]
+}

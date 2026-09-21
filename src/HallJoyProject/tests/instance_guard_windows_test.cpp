@@ -13,13 +13,15 @@ int main(int argc, char** argv)
             halljoy::instance_guard::AcquireResult::Conflicted ? 0 : 17;
     }
 
+    const auto run=std::to_wstring(GetCurrentProcessId());
+    assert(SetEnvironmentVariableW(L"HALLJOY_INSTANCE_GUARD_TEST_RUN",run.c_str()));
     halljoy::instance_guard::Guard first;
     halljoy::instance_guard::Guard second;
 
-    // This integration test deliberately uses the real per-user guard. An
-    // already-running HallJoy is a precondition failure, not a broken mutex.
+    // This integration test uses a run-specific per-user guard. An
+    // already-running HallJoy must not conflict with the test parent/child.
     if (first.AcquireForCurrentUser() != halljoy::instance_guard::AcquireResult::Acquired) {
-        std::cerr << "INSTANCE_GUARD_TEST_BLOCKED: close HallJoy before running; error="
+        std::cerr << "INSTANCE_GUARD_TEST_FAILED: isolated guard acquisition; error="
             << first.LastError() << '\n';
         return 2;
     }

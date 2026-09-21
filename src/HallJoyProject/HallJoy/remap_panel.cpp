@@ -1420,16 +1420,18 @@ static void Remap_RebuildGamepadPacksBatched(HWND hWnd, RemapPanelState* st, HIN
 
     HWND hKeyboardHost = st->hKeyboardHost;
 
-    SendMessageW(hWnd, WM_SETREDRAW, FALSE, 0);
-    if (hKeyboardHost && IsWindow(hKeyboardHost))
-        SendMessageW(hKeyboardHost, WM_SETREDRAW, FALSE, 0);
+    // Only suspend visible windows: resuming redraw adds WS_VISIBLE.
+    const bool redrawPage = (GetWindowLongPtrW(hWnd, GWL_STYLE) & WS_VISIBLE) != 0;
+    const bool redrawHost = hKeyboardHost && IsWindow(hKeyboardHost) &&
+        (GetWindowLongPtrW(hKeyboardHost, GWL_STYLE) & WS_VISIBLE) != 0;
+    if (redrawPage) SendMessageW(hWnd, WM_SETREDRAW, FALSE, 0);
+    if (redrawHost) SendMessageW(hKeyboardHost, WM_SETREDRAW, FALSE, 0);
 
     Remap_RebuildGamepadPacks(hWnd, st, hInst, hFont, newCount);
     ApplyRemapSizing(hWnd, st);
 
-    SendMessageW(hWnd, WM_SETREDRAW, TRUE, 0);
-    if (hKeyboardHost && IsWindow(hKeyboardHost))
-        SendMessageW(hKeyboardHost, WM_SETREDRAW, TRUE, 0);
+    if (redrawPage) SendMessageW(hWnd, WM_SETREDRAW, TRUE, 0);
+    if (redrawHost) SendMessageW(hKeyboardHost, WM_SETREDRAW, TRUE, 0);
 
     RedrawWindow(hWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_NOERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
     if (hKeyboardHost && IsWindow(hKeyboardHost))

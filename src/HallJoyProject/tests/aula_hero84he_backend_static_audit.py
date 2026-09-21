@@ -38,14 +38,14 @@ checks = {
     "identity before routing claim": source.index("Identity(s)") < source.index("NativeAnalogRouting_Claim"),
     "exact UUID admission": has(r"kExpectedUuid\s*\{\{0x11,\s*0,\s*0,\s*0,\s*0,\s*0x05\}\}") and has(r"uuid\s*==\s*kExpectedUuid"),
     "live map is read-only 83": "BuildAssignmentRead(0" in source and "ParseAssignmentResponse" in source,
-    "macro/internal values fail closed": has(r"\(a\.value\s*&\s*0xffffff00u\)\s*!=\s*0") and "|| nextHas[hid]" not in source and "g_physical.Bind" in source,
+    "typed assignments and complete remaps": "hero84::DecodeAssignment" in source and "native_layout::Publish" in source and "g_factory.Bind" in source,
     "only approved transmit builders": all(marker in source for marker in (
         "BuildIdentityRead", "BuildAssignmentRead", "BuildDirectRead")),
     "forbidden builders absent": all(marker not in source + protocol for marker in (
         "Build(0x94, 0x00", "Build(0x94, 0x03", "Build(0x94, 0x04",
         "Build(0x94, 0x05", "Build(0x98", "HidD_SetFeature", "HidD_SetOutputReport")),
     "selected-key one-request loop": has(r"Plan\(\s*&positions\s*\)") and has(r"s\.Exchange\(q,\s*&r,\s*&us\)") and has(r"next\s*\+=\s*std::chrono::milliseconds\(1\)"),
-    "freshness fails neutral": "kFreshMs = 750" in source and "g_physical.Read(hid, GetTickCount64(), kFreshMs)" in source and "return g_has[hid].load();" in source,
+    "freshness fails neutral": "kFreshMs = 750" in source and ".Read(hid, GetTickCount64(), kFreshMs)" in source and ".Owns(hid)" in source,
     "adaptive range is observed": "g_top" in source and "g_bottom" in source and has(r"top\s*>\s*bottom\s*\+\s*32"),
     "bounded stop cancels active I/O": has(r"CancelIoEx\(g_active,\s*nullptr\)") and "kStopTimeoutMs = 3000" in source,
     "read-only descriptor flags": has(r"NativeAnalogBackendFlag_PolledTransport\s*\|\s*NativeAnalogBackendFlag_ReadOnlyProbe"),

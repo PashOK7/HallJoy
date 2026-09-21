@@ -8,7 +8,7 @@
 namespace halljoy::native_analog_snapshot
 {
 // Input from one exact native HID interface.  `ownedHid` and `milli` are both
-// indexed by ordinary USB HID usage and contain 256 entries.
+// indexed by legacy key code; existing callers default to 256 entries.
 struct LegacyMilliSourceV1
 {
     std::uint64_t exactInterfaceId = 0;
@@ -23,6 +23,7 @@ struct LegacyMilliSourceV1
     bool topologyComplete = false;
     const std::uint8_t* ownedHid = nullptr;
     const std::uint16_t* milli = nullptr;
+    std::size_t codeCount = 256; // Optional extended Fn/OEM domain, at most 0x410.
 };
 
 struct OutputV1

@@ -22,7 +22,7 @@ checks = {
     'MAD68 value enters common raw path': 'NativeAnalogBackends_ReadMilli(hidKeycode)' in backend,
     'MAD68 enters multi-device max arbitration': 'result.milli = std::max' in registry,
     'UAP stays available for other analogue keyboards': 'cache.wootingReady && (modeCode != 0 ||' in backend and 'cache.hasAuthoritativeProviderV2' in backend,
-    'digital fallback stays blocked for native-owned HID': 'cache.allowFallback && !native.owned' in backend,
+    'digital depth emulation is absent': 'ReadDigitalFallback01' not in backend,
     'native UAP child excludes only capability-validated exact interfaces': 'halljoy_uap_native_hid_excluded' in uap_main and 'HALLJOY_UAP_NATIVE_HID_PATHS' in uap_main and 'UAP_EXCLUDE_HALLJOY_NATIVE=1' in uap_native_sun,
     'normal UAP target remains unchanged': 'UAP_EXCLUDE_HALLJOY_NATIVE=1' not in uap_standard_sun,
     'native build explicitly selects dedicated UAP': '-ExcludeMad68ProRNative' in native_build,

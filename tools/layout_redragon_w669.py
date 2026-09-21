@@ -11,7 +11,8 @@ def prepare(model, root=ROOT, protocol=PROTOCOL):
     data,sha=common.read_json(path)
     common.require(sha==model['sha256'],'K673 source lock changed')
     code,code_sha=common.read_source(protocol)
-    profiles={'ANSI':('us','K673UsFactoryMap','K673Us'), 'ISO':('uk','K673UkFactoryMap','K673Uk')}
+    profiles={'ANSI':('us','K673UsFactoryMap','K673Us'), 'ISO':('uk','K673UkFactoryMap','K673Uk'),
+              'ABNT2':('uk','K673BrFactoryMap','K673Br')}
     common.require(model['variant'] in profiles,'Unreviewed K673 variant')
     kind,factory,profile=profiles[model['variant']]
     common.require(data['type']==kind and model['factory']==factory,'K673 variant mismatch')
@@ -54,6 +55,9 @@ def prepare(model, root=ROOT, protocol=PROTOCOL):
         w,h=Decimal(raw['width']),Decimal(raw['height'])
         key=dict(hid=hid,label=LABELS[hid],x=rounded(x),y=rounded(y),
                  w=rounded(x+w)-rounded(x),h=rounded(y+h)-rounded(y),matrix=[index//22,index%22])
+        # ABNT2 International1 is the wide /? key, not a missing Right Shift.
+        if model['variant']=='ABNT2' and hid==0x87:
+            key['label']='Intl /'
         if hid==40 and kind=='uk':
             key.update(notchW=rounded(x+w*Decimal('.2'))-rounded(x),
                        notchY=rounded(y+h*Decimal('.48'))-rounded(y))

@@ -47,4 +47,7 @@ pulse = subpages.split('if (st && wParam == GLOBAL_PAUSE_PULSE_TIMER)', 1)[1].sp
 assert 'InvalidateRect(hWnd, &rc, FALSE)' in pulse
 assert 'CustomPageSurface_MarkDirty' not in pulse
 assert 'Global_DrawPulse(hWnd, memDC, st)' in subpages
+assert transaction.index("operations.StopRealtime(nativeError)") < transaction.index("operations.PublishNeutral(nativeError)")
+failed_resume = app.split("static bool EngineRuntimeReleaseFailedResume(", 1)[1].split("static void EngineRuntimeStateChanged", 1)[0]
+assert failed_resume.index("EngineRuntimeStopRealtime") < failed_resume.index("Backend_ResetPublishedStateAfterRealtimeFault")
 print("Runtime pause UI static audit passed")

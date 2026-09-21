@@ -1,0 +1,156 @@
+{
+  "date": "2026-09-20",
+  "spreadsheetId": "1ueQ4labXpuBOmGjCkUcJllNJ68Jzx4py2MuQm-p-R7c",
+  "range": "Main!A1:C513",
+  "records": 440,
+  "brands": 73,
+  "additions": [
+    {
+      "brand": "VTER",
+      "model": "Fighting68",
+      "status": "Not investigated",
+      "source": "https://www.vtergaming.com/download/fighting68/",
+      "evidence": "Manufacturer download page supplies magnetic-switch Rapid Trigger firmware."
+    },
+    {
+      "brand": "VTER",
+      "model": "Ato87",
+      "status": "Not investigated",
+      "source": "https://www.vtergaming.com/download/ato87/",
+      "evidence": "Manufacturer download page supplies magnetic-switch Rapid Trigger firmware."
+    },
+    {
+      "brand": "Durgod",
+      "model": "K100 HE",
+      "status": "Not investigated",
+      "source": "https://www.durgod.com/product/k100-silvery/",
+      "evidence": "Gateron 20T magnetic switches and adjustable actuation; Icy/Silvery colors consolidated. K100w uses conventional Smoothie switches and is excluded."
+    },
+    {
+      "brand": "MelGeek",
+      "model": "Centauri60",
+      "status": "Not investigated",
+      "source": "https://www.melgeek.com/products/centauri-hall-effect-gaming-keyboard",
+      "evidence": "Manufacturer lists Centauri60 and Centauri80 Hall Effect variants; Centauri80 already in catalog."
+    },
+    {
+      "brand": "Neo",
+      "model": "Neo65 Sonic HE+",
+      "status": "Not investigated",
+      "source": "https://www.qwertykeys.com/collections/neo-product-collection/products/neo65-sonic-he-hall-effect-custom-keyboard",
+      "evidence": "Qwertykeys manufacturer listing confirms complete prebuilt Hall Effect keyboard; separate module SKU not duplicated."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mars68 SE",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-mars68",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mars68",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-mars68",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mars68 Pro",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-mars68",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mars68 Wireless",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-mars68",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mars68 Pro Wireless",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-mars68",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mars75",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-mars75",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mars75 Pro",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-mars75",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mercury68 Lite",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-mercury-68",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mercury68 SE",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-mercury-68",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mercury68",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-mercury-68",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mercury68 Pro",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-mercury-68",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mercury68 Max",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-mercury-68",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "ND63",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-nd63",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "ND63 Pro",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-nd63",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "ND63 Max",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-nd63",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    },
+    {
+      "brand": "IROK",
+      "model": "ND63 Ultra",
+      "status": "Not investigated",
+      "source": "https://irokgaming.com.ar/products/irok-nd63",
+      "evidence": "IROK Argentina regional catalog explicitly names this Hall Effect variant; USB depth protocol not investigated."
+    }
+  ]
+}

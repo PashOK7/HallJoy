@@ -8,7 +8,6 @@
 enum class EmbeddedAnalogRuntimeLocation
 {
     None = 0,
-    BesideExecutable = 1,
     PerUser = 2,
 };
 
@@ -16,9 +15,9 @@ enum class EmbeddedAnalogRuntimeLocation
 // Program Files and does not request elevation.
 bool EmbeddedAnalogStack_TryRunInstallerCommand(HINSTANCE hInst, int& exitCode);
 
-// Verifies or atomically extracts the exact embedded ABI1 plugin. Portable
-// installs use the executable directory; protected installs fall back to a
-// versioned per-user runtime directory without elevation.
+// Verifies or atomically extracts the exact embedded ABI1 plugin into the
+// versioned per-user AppData runtime directory, without elevation.
+// The executable directory is never used, including in portable mode.
 bool EmbeddedAnalogStack_Prepare(HINSTANCE hInst);
 
 // Absolute verified path passed explicitly to the isolated analog-host child.

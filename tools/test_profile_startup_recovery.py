@@ -148,7 +148,22 @@ def main():
         run(failed)
         backup(failed, 'settings.ini', settings)
         stable(failed)
-    print('PROFILE_STARTUP_RECOVERY=PASS (16 scenarios + repeated startup)', flush=True)
+    # A process interrupted before atomic replacement can leave an orphan
+    # temporary file. Neither a partial write nor a complete uncommitted bundle
+    # may supersede the last committed profile on the next startup.
+    for label, pending in [('partial', b'[Main]\r\nPollingMs='),
+                           ('complete', healthy_bundle)]:
+        interrupted = fixture(f'orphan-{label}', settings, bindings)
+        orphan = interrupted / 'settings.ini.halljoy-new-00000001-00000001-0000000000000001'
+        orphan.write_bytes(pending)
+        run(interrupted)
+        assert (interrupted / 'settings.ini').read_bytes() == settings
+        assert (interrupted / 'bindings.ini').read_bytes() == bindings
+        assert values(interrupted)['Main']['PollingMs'] == '3'
+        assert orphan.read_bytes() == pending
+        assert not (interrupted / '.internal' / 'ProfileRecovery').exists()
+        stable(interrupted)
+    print('PROFILE_STARTUP_RECOVERY=PASS (18 scenarios + repeated startup)', flush=True)
 
 
 if __name__ == '__main__':

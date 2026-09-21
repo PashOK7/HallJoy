@@ -101,7 +101,14 @@ bool NativeAnalogBackends_PrepareRouting()
         const auto& d = *kCatalog[i];
         if (!d.prepareRouting)
             continue;
-        any = d.prepareRouting() || any;
+#if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
+        StabilityTrace_Write(L"INFO",L"ajazz-startup",L"provider.probe.begin",L"provider=%hs",d.id);
+#endif
+        const bool found=d.prepareRouting();
+#if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
+        StabilityTrace_Write(L"INFO",L"ajazz-startup",L"provider.probe.end",L"provider=%hs found=%u",d.id,found?1u:0u);
+#endif
+        any = found || any;
     }
     return any;
 }

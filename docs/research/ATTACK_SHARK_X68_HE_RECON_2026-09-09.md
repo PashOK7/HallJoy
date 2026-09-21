@@ -1,4 +1,6 @@
 # Attack Shark X68 HE: acquisition and analog protocol reconnaissance
+> 2026-09-19 recheck: exact non-Pro firmware still unavailable; see [current acquisition results](ATTACK_SHARK_X68_HE_RECHECK_2026-09-19.md). Later Pro support supersedes the historical claim below that HallJoy has no E5/FE implementation. It does not establish support for non-Pro revisions.
+
 
 Status: **X68HE vendor-client route established; reference X65HE firmware
 reverse-engineered and handler emulated. X68HE firmware NOT acquired. No

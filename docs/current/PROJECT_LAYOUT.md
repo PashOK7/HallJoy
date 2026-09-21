@@ -5,51 +5,43 @@
 Основной план работ: [полный Roadmap](../v1.4/FULL_AUDIT_EXECUTION_ROADMAP_2026-09-06.md).
 История выполнения: [WORKLOG](../v1.4/WORKLOG.md). Начальная навигация: [docs/README](../README.md).
 
-## Сборка
+## Build and replacement workflow (2026-09-19)
 
-Из корня: `BUILD.cmd`, либо
-`powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1`.
+Use `tools/build_release.ps1` for an incremental ordinary build with the existing
+pinned runtime. `BUILD.cmd` / `tools/build.ps1` retain the full dependency and
+release-check workflow. Both stage the EXE under `build/obj/ReleaseCandidate/x64`
+and use the same final atomic replacement helper.
 
-**Единственный обычный пакет: `build/release/HallJoy.exe`.**
-Не искать актуальный EXE в корне, старых x64 или архивах. Само наличие EXE не
-означает прохождение всех release/hardware gates. Результат текущей перестройки
-и хеш находятся в [отчёте проверки](../validation/STRUCTURE_MIGRATION_2026-09-06.md).
+**Ordinary delivery: `build/bin/Release/x64/HallJoy.exe`.**
+The historical `build/release` path is superseded. Internal candidate files and
+backups are build artifacts, not additional distribution packages.
 
-| Путь | Назначение |
+Do not close HallJoy before reading code, editing or compiling a candidate.
+The old app stays running through compilation and linked-image validation.
+`tools/publish_halljoy_build.ps1` then checks the candidate hash; if unchanged,
+it leaves the process untouched. Otherwise it closes only the exact destination
+EXE in the current session, atomically replaces it, and restores the app only if
+it was previously running. An atomic replacement failure keeps the old file and
+restores that app. Never call the closing helper as a generic preparation step.
+
+Raw MSBuild no longer closes processes. Use the staged wrapper when delivering
+a new ordinary EXE. File-only simulator profile tests have their own ownership
+namespace keyed by the isolated root; they must not close the interactive app.
+Interactive/device tests still require their explicit environment contract.
+
+| Path | Purpose |
 |---|---|
-| build/release/ | EXE, dependency-lock.json, THIRD_PARTY_NOTICES.md, SHA256SUMS.txt |
-| build/bin/<variant>/<configuration>/<platform>/ | Результат компиляции HallJoy и соответствующие PDB/MAP |
-| build/obj/<variant>/<configuration>/<platform>/ | Объектные файлы и данные MSBuild |
-| build/bin/UAP/<native или standard>/ | ABI0/ABI1 и архив отдельно собираемого плагина |
-| build/obj/UAP/<native или standard>/ | Рабочая копия исходников плагина и Soup для Sun |
-| build/obj/portable-tests/<run>/ | Временные компиляции portable/sanitizer tests; очищаются после прогона |
-| build/runtime/ | DLL плагина для встраивания ресурсным компилятором |
-| build/packages/ | Только именованные диагностические пакеты |
-| build/evidence/<run>/ | Логи, измерения, отчёты и хеши |
-| .cache/uap/Soup/ | Закреплённая зависимость с проверяемыми overlays |
-| .cache/uap/build-tools/ | Закреплённый Sun и его bootstrap |
-| .local/backups/ | Резервные копии, импортированные старые бекапы, старые сборки |
+| build/bin/Release/x64/ | Ordinary delivery; full build also updates notices/hash manifest |
+| build/obj/ReleaseCandidate/x64/ | Candidate EXE and its matching PDB/MAP before replacement |
+| build/obj/replacement-backups/ | Previous EXEs retained by atomic replacement |
+| build/bin/<variant>/<configuration>/<platform>/ | Isolated diagnostic/simulator targets |
+| build/obj/<variant>/<configuration>/<platform>/ | Compiler objects and MSBuild data |
+| build/bin/UAP/<native or standard>/ | Rebuilt plugin ABI variants |
+| build/runtime/ | Pinned DLL inputs embedded into the EXE |
 
-Обычный variant: `MAD68ProRNative`; configuration: `Release`; platform: `x64`.
-Прямой Debug/Release без специальных флагов использует `Standard`.
-Диагностические и Simulator variants из vcxproj сохраняются. Исторический
-`HallJoyDiagnostic` отличается от обычного `HallJoy`; не выдавать его как релиз.
-
-`build/release` больше не копируется из второго staging-каталога. Скрипт заменяет
-только свои четыре файла и не удаляет пользовательские профили/неизвестные файлы.
-Для распространения брать эти четыре файла; личные данные не включать в архив.
-У PDB/MAP одна рабочая копия рядом с соответствующим EXE в build/bin.
-
-Все официальные пути вычисляются относительно расположения скрипта/проекта.
-Не задавать ручные OutDir/IntDir вне build. Исходники и SDK include/lib пути
-сохранены. wooting_analog_common.lib/.a в third_party — обязательные входы линкера плагина,
-а не результаты текущей сборки. Не удалять их как мусор.
-DLL в build/runtime — вход ресурсной сборки: сначала BUILD.cmd;
-изолированные diagnostic scripts требуют уже подготовленный runtime.
-Windows x64 остаётся целевой платформой HallJoy; plugin build.bat направляет
-к PowerShell entrypoint. Upstream Linux build.sh сохраняет обе прежние группы
-ABI/flavours в build/bin/UAP/linux и рабочие деревья в build/obj/UAP/linux.
-Его Linux runtime/компиляция в этой Windows-сессии не проверялись.
+All paths are checkout-relative. Packaging does not remove user profiles or
+unknown files. Runtime DLLs and SDK import libraries remain required inputs.
+See [replacement lifecycle evidence](BUILD_REPLACEMENT_LIFECYCLE_2026-09-19.md).
 
 ## Документация
 

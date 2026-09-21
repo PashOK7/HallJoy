@@ -48,7 +48,6 @@ enum ArbitrationSourceMask : std::uint32_t
     ArbitrationSource_None = 0,
     ArbitrationSource_Native = 1u << 0,
     ArbitrationSource_Provider = 1u << 1,
-    ArbitrationSource_DigitalFallback = 1u << 2,
 };
 
 struct ArbitrationInputV1 final
@@ -56,8 +55,6 @@ struct ArbitrationInputV1 final
     std::uint16_t keyCode = 0;
     AnalogSourceStateV1 native{};
     AnalogSourceStateV1 provider{};
-    AnalogSourceStateV1 digitalFallback{};
-    bool allowDigitalFallback = false;
 };
 
 struct ArbitrationResultV1 final

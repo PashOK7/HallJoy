@@ -1,7 +1,10 @@
 #include "worker_join_policy.h"
 #include "worker_exception_barrier.h"
 #include "monotonic_time.h"
-#include "sayo_letter_matcher.h"
+#include "sayo_o3c_protocol.h"
+#include "native_layout_state.h"
+#include "sayo_layout_state.h"
+#include "generated/layout_pipeline/identities.h"
 
 #include <chrono>
 #include <mutex>
@@ -13,7 +16,6 @@ static constexpr USHORT kSayoKnownProductId = 0x0009;
 static constexpr size_t kSayoMaxDevices = 8;
 static constexpr ULONGLONG kSayoReconnectIntervalMs = 2000;
 static constexpr ULONGLONG kSayoNoPacketRestartMs = 1800;
-static constexpr ULONGLONG kSayoKeyboardMatchWindowMs = 80;
 static constexpr ULONGLONG kSayoPollIntervalMs = 8;
 static constexpr ULONGLONG kSayoDepthFreshMs = 160;
 static constexpr uint16_t kSayoRawFullScale = 4000;
@@ -39,12 +41,23 @@ static std::atomic<uint16_t>      g_sayoConnectedVid{ 0 };
 static std::atomic<uint16_t>      g_sayoConnectedPid{ 0 };
 static std::atomic<ULONGLONG>     g_sayoLastPacketMs{ 0 };
 static ULONGLONG                  g_sayoLastReconnectTryMs = 0;
-static std::array<std::atomic<uint16_t>, 256> g_sayoAnalogMilli{};
-static std::array<std::atomic<uint8_t>, 16>   g_sayoIndexToHid{};
-static std::array<std::atomic<uint8_t>, 16>   g_sayoIndexDown{};
-static std::array<std::atomic<uint8_t>, 256>  g_sayoKeyboardDown{};
-static std::mutex                  g_sayoMappingMutex;
-static halljoy::sayo::SayoLetterMatcher g_sayoLetterMatcher;
+namespace so3c = halljoy::sayo::o3c;
+static std::array<std::atomic<uint16_t>,3> g_sayoPhysicalMilli{};
+static std::array<std::atomic<uint16_t>,3> g_sayoIndexToHid{};
+static auto& g_sayoLayoutToken=halljoy::sayo::layout::token;
+static std::atomic<bool> g_sayoConfigRead{false};
+static std::atomic<bool> g_sayoO3cCandidate{false};
+static uint16_t SayoMappedHid(size_t index) noexcept
+{
+    return halljoy::native_layout::UsesRemapping(g_sayoLayoutToken.load(std::memory_order_acquire))
+        ? static_cast<uint16_t>(halljoy::keycode::kO3cFirst+index) : so3c::Factory[index];
+}
+static bool SayoMatchesHid(size_t index,uint16_t hid) noexcept
+{
+    // Keep known logical aliases for existing profiles; new captures prefer
+    // physical channels, which remain distinct even with duplicate labels.
+    return so3c::Matches(index,hid,halljoy::sayo::layout::Active(),g_sayoIndexToHid[index].load());
+}
 static std::atomic<ULONGLONG>     g_sayoLastDepthMs{ 0 };
 static std::atomic<uint64_t>      g_sayoLastDepthUs{ 0 };
 static std::atomic<uint32_t>      g_sayoAvgDepthIntervalUs{ 0 };
@@ -86,18 +99,12 @@ static void SayoRecordObservedDepth(uint8_t index, uint16_t raw)
 
 static void Sayo_ResetKeyState()
 {
-    for (auto& m : g_sayoAnalogMilli)
-        m.store(0, std::memory_order_relaxed);
-    for (auto& h : g_sayoIndexToHid)
-        h.store(0, std::memory_order_relaxed);
-    for (auto& d : g_sayoIndexDown)
-        d.store(0, std::memory_order_relaxed);
-    for (auto& d : g_sayoKeyboardDown)
-        d.store(0, std::memory_order_relaxed);
-    {
-        const std::lock_guard<std::mutex> mappingLock(g_sayoMappingMutex);
-        g_sayoLetterMatcher.Reset();
-    }
+    halljoy::native_layout::Clear(g_sayoLayoutToken.exchange(0));
+    g_sayoConfigRead.store(false);
+    g_sayoO3cCandidate.store(false);
+    for(auto& h:halljoy::sayo::layout::windowsHid) h.store(0);
+    for (auto& m : g_sayoPhysicalMilli) m.store(0);
+    for (auto& h : g_sayoIndexToHid) h.store(0);
     g_sayoLastDepthMs.store(0, std::memory_order_relaxed);
     g_sayoLastDepthUs.store(0, std::memory_order_relaxed);
     g_sayoAvgDepthIntervalUs.store(0, std::memory_order_relaxed);
@@ -126,21 +133,18 @@ static void Sayo_ResetKeyState()
     }
     g_sayoReaderStartupPublishing.store(false, std::memory_order_relaxed);
 
-    // F/G/H are only a fallback for the current O3C capture. The runtime remaps
-    // these indices from normal keyboard HID reports when the device is pressed.
-    g_sayoIndexToHid[0].store(0x09, std::memory_order_relaxed);
-    g_sayoIndexToHid[1].store(0x0A, std::memory_order_relaxed);
-    g_sayoIndexToHid[2].store(0x0B, std::memory_order_relaxed);
+
 }
 
 static bool SayoReleasePublishedInput() noexcept
 {
     bool releasedAny = false;
-    for (auto& value : g_sayoAnalogMilli)
+    for (auto& value : g_sayoPhysicalMilli)
     {
         if (value.exchange(0, std::memory_order_relaxed) != 0)
             releasedAny = true;
     }
+    halljoy::native_layout::Clear(g_sayoLayoutToken.exchange(0));
     g_sayoConnected.store(false, std::memory_order_release);
     g_sayoLastPacketMs.store(0, std::memory_order_relaxed);
     if (releasedAny)
@@ -167,139 +171,83 @@ static void SayoRecordDepthTiming()
     SparkAtomicMax(g_sayoMaxDepthIntervalUs, intervalUs);
 }
 
-static void SayoSetIndexState(uint8_t index, bool down, ULONGLONG nowMs)
-{
-    if (index >= g_sayoIndexDown.size())
-        return;
-
-    uint8_t mappedHid = g_sayoIndexToHid[index].load(std::memory_order_relaxed);
-
-    if (mappedHid == 0 || mappedHid >= 256)
-        return;
-
-    g_sayoIndexDown[index].store(down ? 1 : 0, std::memory_order_relaxed);
-    ULONGLONG lastDepth = g_sayoLastDepthMs.load(std::memory_order_relaxed);
-    bool depthFresh = lastDepth != 0 &&
-        halljoy::monotonic_time::SaturatingAgeMs(nowMs, lastDepth) <= kSayoDepthFreshMs;
-    if (!down)
-    {
-        g_sayoAnalogMilli[mappedHid].store(0, std::memory_order_relaxed);
-    }
-    else if (!depthFresh)
-    {
-        g_sayoAnalogMilli[mappedHid].store(1000, std::memory_order_relaxed);
-    }
-    {
-        const std::lock_guard<std::mutex> mappingLock(g_sayoMappingMutex);
-        g_sayoLetterMatcher.ObservePhysicalEdge(index, down, nowMs);
-    }
-    DebugLog_Write(
-        L"[backend.sayo] edge index=%u hid=%u down=%d",
-        (unsigned)index,
-        (unsigned)mappedHid,
-        down ? 1 : 0);
-    RealtimeLoop_NotifyInputChanged();
-}
-
-static void SayoParseKeyboardReport(const uint8_t* data, DWORD len, ULONGLONG nowMs)
-{
-    if (!data || len < 8)
-        return;
-
-    bool current[256]{};
-    uint8_t addedHid = 0;
-    int addedCount = 0;
-    DWORD keyStart = (data[0] == 0x00 && len >= 9) ? 3u : 2u;
-    DWORD keyEnd = (data[0] == 0x00 && len >= 9) ? 9u : 8u;
-    uint8_t pending = halljoy::sayo::SayoLetterMatcher::kNoCandidate;
-    {
-        const std::lock_guard<std::mutex> mappingLock(g_sayoMappingMutex);
-        for (DWORD i = keyStart; i < len && i < keyEnd; ++i)
-        {
-            uint8_t hid = data[i];
-            if (hid == 0)
-                continue;
-
-            current[hid] = true;
-            if (g_sayoKeyboardDown[hid].load(std::memory_order_relaxed) == 0)
-            {
-                addedHid = hid;
-                ++addedCount;
-            }
-        }
-        for (uint16_t hid = 0; hid < 256; ++hid)
-            g_sayoKeyboardDown[hid].store(current[hid] ? 1 : 0, std::memory_order_relaxed);
-        if (addedCount == 1 && addedHid != 0)
-            pending = g_sayoLetterMatcher.TakeUniqueCandidate(nowMs, kSayoKeyboardMatchWindowMs);
-        else
-            g_sayoLetterMatcher.Expire(nowMs, kSayoKeyboardMatchWindowMs);
-    }
-
-    if (pending < g_sayoIndexToHid.size())
-    {
-        uint8_t oldHid = g_sayoIndexToHid[pending].exchange(addedHid, std::memory_order_relaxed);
-        if (oldHid != 0 && oldHid != addedHid)
-            g_sayoAnalogMilli[oldHid].store(0, std::memory_order_relaxed);
-        ULONGLONG lastDepth = g_sayoLastDepthMs.load(std::memory_order_relaxed);
-        bool depthFresh = lastDepth != 0 &&
-            halljoy::monotonic_time::SaturatingAgeMs(nowMs, lastDepth) <= kSayoDepthFreshMs;
-        if (!depthFresh && g_sayoIndexDown[pending].load(std::memory_order_relaxed) != 0)
-            g_sayoAnalogMilli[addedHid].store(1000, std::memory_order_relaxed);
-        DebugLog_Write(
-            L"[backend.sayo] mapped pending index=%u hid=%u from keyboard add",
-            (unsigned)pending,
-            (unsigned)addedHid);
-        RealtimeLoop_NotifyInputChanged();
-    }
-}
-
-static void SayoParseAnalogReport(const uint8_t* data, DWORD len, ULONGLONG nowMs)
-{
-    if (!data || len < 12 || data[0] != 0x21)
-        return;
-
-    // Observed from SayoDevice OSU O3C web-driver captures:
-    // byte 8: 0x10 = key down edge, 0x11 = key up edge
-    // byte 9: physical key index (0..2 on O3C)
-    if ((data[8] == 0x10 || data[8] == 0x11) && data[9] < 16)
-    {
-        SayoSetIndexState(data[9], data[8] == 0x10, nowMs);
-        return;
-    }
-}
-
 static void SayoParseDepthResponse(const uint8_t* data, DWORD len, ULONGLONG nowMs)
 {
-    if (!data || len < 14 || data[0] != 0x22)
-        return;
-
-    // Observed in SayoDevice OSU O3C web-driver captures. The browser polls
-    // command 22 12 3c 13..., and the 1024-byte IN response carries the three
-    // top-button depth values at u16 offsets 8/10/12. Raw full press is ~4000.
-    uint16_t raw[3] = {
-        (uint16_t)(data[8] | (data[9] << 8)),
-        (uint16_t)(data[10] | (data[11] << 8)),
-        (uint16_t)(data[12] | (data[13] << 8)),
-    };
-
-    for (uint8_t index = 0; index < 3; ++index)
-    {
-        SayoRecordObservedDepth(index, raw[index]);
-        uint8_t hid = g_sayoIndexToHid[index].load(std::memory_order_relaxed);
-        if (hid == 0 || hid >= 256)
-            continue;
-
-        uint32_t milli = ((uint32_t)raw[index] * 1000u + (kSayoRawFullScale / 2u)) / kSayoRawFullScale;
-        if (milli > 1000u)
-            milli = 1000u;
-        if (milli < 4u)
-            milli = 0u;
-        g_sayoAnalogMilli[hid].store((uint16_t)milli, std::memory_order_relaxed);
+    so3c::Frame frame;
+    std::array<uint16_t,3> raw{};
+    if (!so3c::Parse(data,len,frame) || !so3c::Depth(frame,raw)) return;
+    // Exact known model plus validated three-channel travel establishes geometry,
+    // independently of optional configuration reads.
+    if(g_sayoO3cCandidate.load() && !g_sayoLayoutToken.load() &&
+        WaitForSingleObject(g_sayoStopEvent,0)!=WAIT_OBJECT_0) {
+        std::array<uint16_t,3> bindings{};
+        for(size_t i=0;i<3;++i) bindings[i]=g_sayoIndexToHid[i].load();
+        const auto keys=so3c::Layout(bindings);
+        const auto token=halljoy::layout_identity::Token("sayo-o3c","O3C-8089-0009");
+        if(halljoy::native_layout::Publish(token,keys.data(),keys.size()))
+            g_sayoLayoutToken.store(token,std::memory_order_release);
     }
-    g_sayoLastDepthMs.store(nowMs, std::memory_order_relaxed);
-    g_sayoDepthPackets.fetch_add(1, std::memory_order_relaxed);
+    for (size_t i=0;i<raw.size();++i) {
+        SayoRecordObservedDepth(static_cast<uint8_t>(i),raw[i]);
+        g_sayoPhysicalMilli[i].store(so3c::Normalize(raw[i]),std::memory_order_relaxed);
+    }
+    g_sayoLastDepthMs.store(nowMs,std::memory_order_release);
+    g_sayoDepthPackets.fetch_add(1,std::memory_order_relaxed);
     SayoRecordDepthTiming();
     RealtimeLoop_NotifyInputChanged();
+}
+
+// Startup-only configuration read on the same worker/handle as depth polling.
+// No timer-driven layout rebuild and no device configuration writes.
+static void SayoReadConfiguration(SayoReader* reader)
+{
+    if (reader->productId!=kSayoKnownProductId || reader->usagePage!=0xFF12 ||
+        reader->usage!=2 || !reader->writeCapable || reader->outputLen!=1024 || reader->inputLen<64) return;
+    std::vector<uint8_t> response(reader->inputLen,0);
+    auto exchange=[&](uint8_t command,uint8_t index,so3c::Frame& frame) {
+        const auto request=so3c::Read(command,index);
+        for (unsigned attempt=0;attempt<2;++attempt) {
+            if (WaitForSingleObject(g_sayoStopEvent,0)==WAIT_OBJECT_0) return false;
+            DWORD error=0;
+            if (!SparkWriteFileOverlapped(reader->handle,request.data(),1024,20,&error)) continue;
+            const auto deadline=GetTickCount64()+100;
+            while (GetTickCount64()<deadline && WaitForSingleObject(g_sayoStopEvent,0)!=WAIT_OBJECT_0) {
+                DWORD got=0;
+                if (!SparkReadFileOverlapped(reader->handle,response.data(),reader->inputLen,20,&got,&error)) {
+                    if(error==WAIT_TIMEOUT || error==ERROR_OPERATION_ABORTED) continue;
+                    return false;
+                }
+                if(so3c::Parse(response.data(),got,frame) && frame.echo==so3c::ConfigEcho &&
+                    frame.command==command && frame.index==index) return true;
+            }
+        }
+        return false;
+    };
+    g_sayoO3cCandidate.store(true);
+    so3c::Frame frame;
+    if (!exchange(0,0,frame)) {
+        DebugLog_Write(L"[backend.sayo] config unavailable: identity read timeout; three physical keys retained after travel proof");
+        return;
+    }
+    if (!so3c::Identity(frame)) {
+        g_sayoO3cCandidate.store(false);
+        DebugLog_Write(L"[backend.sayo] model identity mismatch; O3C auto layout not claimed");
+        return;
+    }
+    unsigned readCount=0;
+    for (uint8_t i=0;i<3;++i) {
+        uint16_t hid=0;
+        if (!exchange(0x10,i,frame) || !so3c::Binding(frame,i,hid)) {
+            DebugLog_Write(L"[backend.sayo] key=%u binding unavailable; physical key retained",unsigned(i));
+            continue;
+        }
+        g_sayoIndexToHid[i].store(hid,std::memory_order_relaxed);
+        halljoy::sayo::layout::windowsHid[i].store(hid,std::memory_order_relaxed);
+        ++readCount;
+    }
+    g_sayoConfigRead.store(readCount!=0,std::memory_order_release);
+    DebugLog_Write(L"[backend.sayo] config read: %u of 3 assignments; all three physical keys retained",readCount);
+
 }
 
 static bool SayoSendDepthPoll(SayoReader* reader)
@@ -347,14 +295,9 @@ static bool SayoProbeDepthProtocol(SayoReader* reader)
                 continue;
             return false;
         }
-        if (got < 14 || response[0] != 0x22)
-            continue;
-
-        const uint16_t raw0 = static_cast<uint16_t>(response[8] | (response[9] << 8));
-        const uint16_t raw1 = static_cast<uint16_t>(response[10] | (response[11] << 8));
-        const uint16_t raw2 = static_cast<uint16_t>(response[12] | (response[13] << 8));
-        const uint16_t plausibleMax = static_cast<uint16_t>(kSayoRawFullScale * 2u);
-        return raw0 <= plausibleMax && raw1 <= plausibleMax && raw2 <= plausibleMax;
+        so3c::Frame frame;
+        std::array<uint16_t,3> raw{};
+        if(so3c::Parse(response.data(),got,frame) && so3c::Depth(frame,raw)) return true;
     }
     return false;
 }
@@ -384,6 +327,7 @@ static DWORD SayoReaderThreadBody(SayoReader* reader)
         (unsigned)reader->usagePage,
         (unsigned)reader->usage);
 
+    SayoReadConfiguration(reader);
     ULONGLONG lastPollMs = 0;
     int pollFailStreak = 0;
     while (WaitForSingleObject(g_sayoStopEvent, 0) != WAIT_OBJECT_0)
@@ -420,12 +364,7 @@ static DWORD SayoReaderThreadBody(SayoReader* reader)
 
         ULONGLONG nowMs = GetTickCount64();
         g_sayoLastPacketMs.store(nowMs, std::memory_order_relaxed);
-        if (got >= 64 && buf[0] == 0x21)
-            SayoParseAnalogReport(buf.data(), got, nowMs);
-        else if (got >= 14 && buf[0] == 0x22)
-            SayoParseDepthResponse(buf.data(), got, nowMs);
-        else if (got >= 8 && buf[0] == 0x00 && reader->usagePage == 0x0001 && reader->usage == 0x0006)
-            SayoParseKeyboardReport(buf.data(), got, nowMs);
+        if (buf[0]==0x22) SayoParseDepthResponse(buf.data(),got,nowMs);
     }
 
     DebugLog_Write(L"[backend.sayo] reader stop");
@@ -699,17 +638,14 @@ static bool SayoCollectMatchingDevices(std::vector<SayoReader>* outReaders)
         return false;
     }
 
-    for (auto it = outReaders->begin(); it != outReaders->end();)
-    {
-        if (it->productId != selectedPid)
-        {
+    bool keptDepthReader=false;
+    for (auto it=outReaders->begin();it!=outReaders->end();) {
+        const bool keep=!keptDepthReader && it->productId==selectedPid && it->usagePage==0xFF12 &&
+            it->usage==2 && it->writeCapable && it->outputLen==1024 && it->inputLen>=14;
+        if (!keep) {
             if (it->handle) CloseHandle(it->handle);
-            it = outReaders->erase(it);
-        }
-        else
-        {
-            ++it;
-        }
+            it=outReaders->erase(it);
+        } else {keptDepthReader=true;++it;}
     }
     return !outReaders->empty();
 }

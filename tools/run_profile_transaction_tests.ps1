@@ -33,6 +33,10 @@ if ($process.ExitCode -ne 0 -or -not $evidence.Contains('PROFILE_TRANSACTION_WIN
 }
 
 
+& python (Join-Path $root 'tools/audit_layout_catalog.py') (Join-Path $testRoot 'layout-catalog.tsv') > (Join-Path $testRoot 'layout-catalog-audit.json')
+if ($LASTEXITCODE -ne 0) { throw 'Production layout catalog audit failed.' }
+Write-Output 'LAYOUT_CATALOG=PASS all aliases round-trip, no cross-brand merges, no exact same-brand duplicates'
+
 # Recovery must start successfully and preserve original files in a verified backup.
 $badRoot = Join-Path $testRoot 'rejected-startup'
 New-Item -ItemType Directory -Path $badRoot | Out-Null

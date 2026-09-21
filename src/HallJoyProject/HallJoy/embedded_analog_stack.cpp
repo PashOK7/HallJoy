@@ -20,36 +20,11 @@
 namespace
 {
 constexpr wchar_t kLegacyInstallArgument[] = L"--halljoy-install-embedded-uap";
-constexpr wchar_t kForceUserRuntimeArgument[] = L"--halljoy-test-uap-exe-write-denied";
 constexpr wchar_t kPrivatePluginFileName[] = L"HallJoyUniversalAnalogHost.dll";
 
 std::wstring g_privatePluginPath;
 EmbeddedAnalogRuntimeLocation g_runtimeLocation = EmbeddedAnalogRuntimeLocation::None;
 DWORD g_lastError = ERROR_SUCCESS;
-
-std::wstring BuildPathNearExe(const wchar_t* fileName)
-{
-    std::vector<wchar_t> path(1024);
-    for (;;)
-    {
-        DWORD n = GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size()));
-        if (n == 0 || n >= 65535)
-            return fileName ? fileName : L"";
-        if (n < path.size())
-        {
-            std::wstring result(path.data(), n);
-            const size_t slash = result.find_last_of(L"\\/");
-            if (slash != std::wstring::npos)
-                result.erase(slash + 1);
-            else
-                result.clear();
-            if (fileName)
-                result += fileName;
-            return result;
-        }
-        path.resize(path.size() * 2);
-    }
-}
 
 bool GetResourceBytes(HINSTANCE hInst, int resourceId, const void*& bytes, DWORD& size)
 {
@@ -66,27 +41,6 @@ bool GetResourceBytes(HINSTANCE hInst, int resourceId, const void*& bytes, DWORD
         return false;
     bytes = LockResource(data);
     return bytes != nullptr;
-}
-
-bool HasExactArgument(const wchar_t* expected)
-{
-    if (!expected || !*expected)
-        return false;
-    int argc = 0;
-    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    if (!argv)
-        return false;
-    bool found = false;
-    for (int i = 1; i < argc; ++i)
-    {
-        if (_wcsicmp(argv[i], expected) == 0)
-        {
-            found = true;
-            break;
-        }
-    }
-    LocalFree(argv);
-    return found;
 }
 
 std::wstring BuildPerUserRuntimePath()
@@ -268,20 +222,7 @@ bool EnsurePrivatePlugin(HINSTANCE hInst)
     g_runtimeLocation = EmbeddedAnalogRuntimeLocation::None;
     g_lastError = ERROR_SUCCESS;
 
-    const bool forceUserRuntime =
-#if defined(HALLJOY_STABILITY_TRACE)
-        HasExactArgument(kForceUserRuntimeArgument);
-#else
-        false;
-#endif
-    if (!forceUserRuntime && EnsurePrivatePluginAt(hInst,
-        BuildPathNearExe(kPrivatePluginFileName), EmbeddedAnalogRuntimeLocation::BesideExecutable))
-        return true;
-
-    const DWORD executableError = forceUserRuntime ? ERROR_ACCESS_DENIED : g_lastError;
-    DebugLog_Write(L"[embedded.uap] executable-directory runtime unavailable err=%lu forced=%d; trying per-user runtime",
-        executableError, forceUserRuntime ? 1 : 0);
-
+    // Private runtime always lives in AppData, including portable installations.
     const std::wstring perUserPath = BuildPerUserRuntimePath();
     if (perUserPath.empty())
     {
@@ -306,7 +247,6 @@ const wchar_t* EmbeddedAnalogStack_RuntimeLocationName()
 {
     switch (g_runtimeLocation)
     {
-    case EmbeddedAnalogRuntimeLocation::BesideExecutable: return L"executable";
     case EmbeddedAnalogRuntimeLocation::PerUser: return L"user";
     default: return L"none";
     }

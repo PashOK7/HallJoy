@@ -37,3 +37,15 @@ for group in project.findall('m:ItemDefinitionGroup',ns):
    assert all(flag not in definitions.text for flag in ['HALLJOY_DEVICE_SUPPORT_LOG','HALLJOY_STABILITY_TRACE','HALLJOY_SINGLE_LOG_DIAGNOSTIC'])
 assert '|| defined(HALLJOY_IROK_NA87_NATIVE)' not in log
 print('SUPPORT_LOG_RELEASE_ISOLATION=PASS')
+
+# Ordinary crash reports retain error identity but never raw stack/register data.
+crash = (root / 'debug_log.cpp').read_text(encoding='utf-8-sig')
+assert '#if defined(HALLJOY_DIAGNOSTIC)\n        WriteDiagnosticContext(file, ep);\n#else' in crash
+assert 'memory_context=omitted_in_production' in crash
+print('PRODUCTION_CRASH_MEMORY_PRIVACY=PASS')
+
+# Crash destination is resolved before a crash, never beside the ordinary EXE.
+assert 'const std::wstring& crashPath = g_productionCrashPath;' in crash
+assert 'g_productionCrashPath = AppPaths_DataRoot()' in crash
+assert 'BuildPathNearExe(L"HallJoyCrash.txt")' not in crash
+print('PRODUCTION_CRASH_APPDATA_DESTINATION=PASS')

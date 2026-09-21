@@ -21,7 +21,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalOptions>/utf-8 /we4828 %(AdditionalOptions)</AdditionalOptions>
-      <PreprocessorDefinitions>HALLJOY_IROK_NA87_NATIVE;HALLJOY_AULA_MINI60_NATIVE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HALLJOY_ATTACKSHARK_NATIVE;HALLJOY_IROK_NA87_NATIVE;HALLJOY_AULA_MINI60_NATIVE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -210,6 +210,16 @@
       <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
     </Link>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyAjazzDiagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_AJAZZ_DIAGNOSTIC;HALLJOY_DEVICE_SUPPORT_LOG;HALLJOY_SINGLE_LOG_DIAGNOSTIC;HALLJOY_STABILITY_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyInputPathDiagnostic)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_INPUT_PATH_DIAGNOSTIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <PropertyGroup Condition="'$(HallJoyAttackSharkProDiagnostic)'=='true'">
     <OutDir>$(HallJoyBuildRoot)bin\$(Configuration)\$(Platform)\</OutDir>
   </PropertyGroup>
@@ -357,6 +367,9 @@
     <ClInclude Include="saturating_int.h" />
     <ClInclude Include="backend_sayo.inc" />
     <ClInclude Include="sayo_letter_matcher.h" />
+    <ClInclude Include="sayo_o3c_protocol.h" />
+    <ClInclude Include="sayo_layout_state.h" />
+    <ClInclude Include="sparkplayjoy_layout.h" />
     <ClInclude Include="backend_curve.h" />
     <ClInclude Include="bindings.h" />
     <ClInclude Include="binding_actions.h" />
@@ -429,8 +442,11 @@
     <ClInclude Include="aula_mini60_diagnostic.h" />
     <ClInclude Include="attackshark_pro_diagnostic.h" />
     <ClInclude Include="attackshark_pro_diagnostic_model.h" />
+    <ClInclude Include="attackshark_pro_native_model.h" />
     <ClInclude Include="aula_mini60_native_model.h" />
     <ClInclude Include="aula_mini60_layout.h" />
+    <ClInclude Include="attackshark_pro_layouts.h" />
+    <ClInclude Include="attackshark_pro_layout_identity.h" />
     <ClInclude Include="aula_mini60_diagnostic_protocol.h" />
     <ClInclude Include="debug_event_handles.h" />
     <ClInclude Include="diagnostic_rate_limit.h" />
@@ -438,6 +454,8 @@
     <ClInclude Include="drunkdeer_protocol.h" />
     <ClInclude Include="mchose_ace68_diagnostic_backend.h" />
     <ClInclude Include="aula_hero84he_backend.h" />
+    <ClInclude Include="mg75_pro_backend.h" />
+    <ClInclude Include="mg75_pro_protocol.h" />
     <ClInclude Include="aula_hero84he_diagnostic_backend.h" />
     <ClInclude Include="aula_hero84he_diagnostic_protocol.h" />
     <ClInclude Include="raw_input_packet_size.h" />
@@ -578,6 +596,7 @@
       <ExcludedFromBuild Condition="'$(HallJoyRogAzoth96HeDiagnostic)'!='true'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="aula_hero84he_backend.cpp" />
+    <ClCompile Include="mg75_pro_backend.cpp" />
     <ClCompile Include="aula_hero84he_diagnostic_backend.cpp">
       <ExcludedFromBuild Condition="'$(HallJoyAulaHero84HeDiagnostic)'!='true'">true</ExcludedFromBuild>
     </ClCompile>

@@ -232,8 +232,8 @@ require(backend_main.count('wooting_analog_uninitialise();') >= 2, 'UAP/Wooting 
 require('NativeAnalogBackends_ReadMilli(hidKeycode)' in backend_main and
         'Mad68ProR_GetNativeBackendDescriptor' in catalog,
         'MAD68 is not integrated into the common native analogue source path')
-require('cache.allowFallback && !native.owned' in backend_main,
-        'digital fallback is not guarded per authoritative native key')
+require('ReadDigitalFallback01' not in backend_main,
+        'digital depth emulation must be absent')
 require('result.milli = std::max' in registry and
         'cache.wootingReady && (modeCode != 0 ||' in backend_main and
         'cache.providerV2Raw.owned.test(hidKeycode)' in backend_main,

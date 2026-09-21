@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "id": "wooting_uwu_uwu_rgb_ansi",
+  "brand": "Wooting",
+  "model": "UwU + UwU RGB",
+  "variant": "ANSI",
+  "name": "Wooting UwU + UwU RGB ANSI",
+  "status": "ready",
+  "unresolved": [],
+  "keys": [
+    {
+      "hid": 29,
+      "label": "Z",
+      "x": 0,
+      "y": 0,
+      "w": 42,
+      "h": 42,
+      "matrix": [
+        2,
+        1
+      ]
+    },
+    {
+      "hid": 27,
+      "label": "X",
+      "x": 46,
+      "y": 0,
+      "w": 42,
+      "h": 42,
+      "matrix": [
+        2,
+        3
+      ]
+    },
+    {
+      "hid": 6,
+      "label": "C",
+      "x": 92,
+      "y": 0,
+      "w": 42,
+      "h": 42,
+      "matrix": [
+        2,
+        5
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "code": "silicone_buttons",
+      "reason": "Three digital-only auxiliary buttons have no analog depth; not represented as analog keys."
+    }
+  ],
+  "sources": [
+    {
+      "path": "docs/research/final-layout-sources/wootility.js",
+      "sha256": "987ba72a09a78b1fc508c8739b1c0a25a3434d7ef614fba56f1822e5acdbc40a",
+      "url": "https://wootility.io/assets/index-BaoALhfv.js"
+    }
+  ],
+  "geometryEvidence": "Pinned Wootility v5 S5/Sg/qS and UwU matrix/geometry; keycap-unit normalization, no vendor code execution.",
+  "identity": {
+    "protocol": "none",
+    "products": []
+  },
+  "automaticSelection": "Manual: current telemetry does not prove regional/split layout."
+}

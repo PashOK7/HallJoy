@@ -1,0 +1,135 @@
+{
+  "date": "2026-09-20",
+  "spreadsheetId": "1ueQ4labXpuBOmGjCkUcJllNJ68Jzx4py2MuQm-p-R7c",
+  "range": "Main!A1:C489",
+  "records": 419,
+  "brands": 70,
+  "additions": [
+    {
+      "brand": "Darmoshark",
+      "model": "K7 MAX",
+      "status": "Not investigated",
+      "source": "https://darmoshark.com/products/darmoshark-k7-max-black-wired-magnetic-switch-keyboard",
+      "evidence": "Manufacturer specifies RAESHA magnetic switches."
+    },
+    {
+      "brand": "Darmoshark",
+      "model": "KT68 MAX",
+      "status": "Not investigated",
+      "source": "https://darmoshark.com/products/darmoshark-kt68-max-wired-raesha-magnetic-switch-cnc-keyboard",
+      "evidence": "RAESHA magnetic switches; adjustable trigger travel."
+    },
+    {
+      "brand": "Darmoshark",
+      "model": "TOP75 (magnetic version)",
+      "status": "Not investigated",
+      "source": "https://darmoshark.com/products/darmoshark-top75-trio-mode-keyboard",
+      "evidence": "Kailh magnetic switches; linked manufacturer manual top75.pdf confirms Magnetic Shaft and Rapid Trigger. Ordinary TOP75 excluded."
+    },
+    {
+      "brand": "Machenike",
+      "model": "K500-M61",
+      "status": "Not investigated",
+      "source": "https://global.machenike.com/products/k500-m61",
+      "evidence": "Manufacturer product description specifies magnetic switches."
+    },
+    {
+      "brand": "Machenike",
+      "model": "K500-M81",
+      "status": "Not investigated",
+      "source": "https://www.machenike.com/offline/driverunit",
+      "evidence": "Manufacturer driver catalog explicitly labels K500-M81 magnetic-switch driver (磁轴驱动)."
+    },
+    {
+      "brand": "ROCCAT",
+      "model": "Isku+ Force FX (6 pressure-sensitive keys)",
+      "status": "Not investigated",
+      "source": "https://www.youtube.com/watch?v=aeULFHbKIDQ",
+      "evidence": "Official ROCCAT tutorial and manufacturer manual describe analog pressure-sensitive QWEASD; remaining keys are not analog."
+    },
+    {
+      "brand": "WOBKEY",
+      "model": "Rainy 75 RT",
+      "status": "Not investigated",
+      "source": "https://www.wobkey.com/products/wobkey-rainy-75-rt-keyboard",
+      "evidence": "Official Hall Effect product; page says description based on RT Pro. Pro not split into a separate row pending clear SKU mapping."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DEEP68 HE",
+      "status": "Not investigated",
+      "source": "https://www.eweadn.com/products/eweadn-deep68-he-magnetic-switch-keyboard",
+      "evidence": "Magnetic actuation and depth-dependent DKS."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DEEP80 HE (magnetic version)",
+      "status": "Not investigated",
+      "source": "https://www.eweadn.com/products/eweadn-deep80-he-magnetic-switch-keyboard",
+      "evidence": "Base magnetic SKU; mechanical SKU explicitly excluded."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DEEP80 Pro HE (magnetic version)",
+      "status": "Not investigated",
+      "source": "https://www.eweadn.com/products/eweadn-deep80-he-magnetic-switch-keyboard",
+      "evidence": "Pro magnetic SKU; mechanical SKU explicitly excluded."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DEEP80 Max HE (magnetic version)",
+      "status": "Not investigated",
+      "source": "https://www.eweadn.com/products/eweadn-deep80-he-magnetic-switch-keyboard",
+      "evidence": "Max magnetic SKU; mechanical SKU explicitly excluded."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK63 HE",
+      "status": "Not investigated",
+      "source": "https://www.eweadn.com/products/eweadn-dk63-he-magnetic-switch-keyboard",
+      "evidence": "Magnetic switches and adjustable Rapid Trigger."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK68 HE",
+      "status": "Not investigated",
+      "source": "https://www.eweadn.com/products/eweadn-dk68-he-magnetic-switch-keyboard",
+      "evidence": "Magnetic switches and adjustable Rapid Trigger."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "Gamma75 HE (EXX collaboration)",
+      "status": "Not investigated",
+      "source": "https://www.eweadn.com/products/eweadn-x-exx-gamma75-magnetic-switch-keyboard",
+      "evidence": "Manufacturer co-branded Hall Effect product."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "X87HE",
+      "status": "Not investigated",
+      "source": "https://www.eweadn.com/products/eweadn-x87he-magnetic-switch-keyboard",
+      "evidence": "Hall Effect magnetic switches; tactile and linear switch options consolidated."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "ZAP68 HE",
+      "status": "Not investigated",
+      "source": "https://www.eweadn.com/products/eweadn-zap68-he-magnetic-switch-keyboard",
+      "evidence": "Base magnetic SKU; wired/wireless consolidated."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "ZAP68 Pro HE",
+      "status": "Not investigated",
+      "source": "https://www.eweadn.com/products/eweadn-zap68-he-magnetic-switch-keyboard",
+      "evidence": "Pro magnetic SKU; wired/wireless consolidated."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "ZAP68 Ultra HE",
+      "status": "Not investigated",
+      "source": "https://www.eweadn.com/products/eweadn-zap68-he-magnetic-switch-keyboard",
+      "evidence": "Ultra magnetic SKU; Black Mixable also accepts mechanical switches; no assumption that all installed switches are analog."
+    }
+  ]
+}

@@ -2,7 +2,22 @@
 #include <array>
 #include <cstdint>
 #include "analog_key_codes.h"
+#include "sayo_layout_state.h"
 namespace halljoy::block_keys {
+constexpr bool ShouldBlock(bool paused, bool enabled, bool ownForeground,
+    bool rescue, bool reserved, bool bound) noexcept {
+    return !paused && enabled && !ownForeground && !rescue && !reserved && bound;
+}
+// Windows cannot distinguish two switches that emit the same Space usage.
+// Suppress that shared digital usage if either physical half is bound; analog
+// channels remain independent. Custom device remaps require separate readback.
+template<class IsBound>
+bool IsWindowsKeyBound(std::uint16_t hid, IsBound isBound) noexcept {
+    if (!hid) return false;
+    if (isBound(hid) || halljoy::sayo::layout::IsWindowsBound(hid,isBound)) return true;
+    return hid == 44 && (isBound(halljoy::wooting_physical::kLeftSpace) ||
+        isBound(halljoy::wooting_physical::kRightSpace));
+}
 // Physical keypad identity is independent of Num Lock; E0 navigation keys
 // retain their normal VK identity. Shared by capture and the low-level hook.
 constexpr unsigned ShortcutKey(unsigned vk, unsigned scan, bool extended) noexcept {

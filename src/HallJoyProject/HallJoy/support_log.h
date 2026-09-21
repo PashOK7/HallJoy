@@ -3,8 +3,10 @@
 #include <cstdint>
 #include <string>
 
+// Directory overrides isolate writer tests; production uses the app data root
+// and mirrors continuous logs beside the executable.
 // Structural events only. Never pass key codes, input values, paths or serials.
-bool SupportLog_Start(const wchar_t* directoryOverride = nullptr) noexcept;
+bool SupportLog_Start(const wchar_t* directoryOverride = nullptr, const wchar_t* mirrorOverride = nullptr) noexcept;
 bool SupportLog_Stop() noexcept;
 void SupportLog_Event(const char* category, std::uint64_t value, std::uint64_t error = 0) noexcept;
 void SupportLog_OverlaySummary(const wchar_t* aggregate) noexcept;

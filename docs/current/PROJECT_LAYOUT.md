@@ -1,9 +1,27 @@
 # HallJoy — актуальная структура проекта
 
-Обновлено 2026-09-06. Этот документ задаёт **текущие пути**. Датированные отчёты,
+Обновлено 2026-09-22. Этот документ задаёт **текущие пути**. Датированные отчёты,
 хеши и команды в старых worklog/handoff относятся к зафиксированным там сборкам.
 Основной план работ: [полный Roadmap](../v1.4/FULL_AUDIT_EXECUTION_ROADMAP_2026-09-06.md).
 История выполнения: [WORKLOG](../v1.4/WORKLOG.md). Начальная навигация: [docs/README](../README.md).
+
+## Repository root and public documents (2026-09-22)
+
+- `README.md` — project overview and the two keyboard tables.
+- `LICENSE` and `THIRD_PARTY_NOTICES.md` — root legal notices; the latter is
+  consumed by build/package scripts and shipped with releases.
+- `BUILD.cmd`, `AGENTS.md` and dotfiles — build entry point and repository rules.
+- `docs/releases/` — all versioned release notes, indexed by `README.md`.
+- `docs/SUPPORTED_HARDWARE.md` — detailed support evidence and inventory.
+- `docs/legal/COMMERCIAL_LICENSE.md` — commercial license terms.
+- `.github/CONTRIBUTING.md` — contribution guidance in GitHub's conventional path.
+
+Create future release notes under `docs/releases/`; do not accumulate them in
+root. Keep local logs and stale release drafts under `.local/`, not in the public
+root. Existing tagged release trees/assets are historical and remain unchanged.
+The Pwnage correspondence is local-only and must not enter a publication mirror.
+This reorganization changes paths/navigation only, not keyboard support or EXE.
+Backup: `.local/backups/root-structure-1790061701.zip`.
 
 ## Build and replacement workflow (2026-09-19)
 

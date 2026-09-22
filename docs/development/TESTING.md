@@ -60,7 +60,7 @@ The latter verifies existing generated profiles; it is not new firmware research
 
 Software tests verify parsers, routing, ownership and failure handling. They do
 not establish physical USB timing, every firmware revision or gameplay behavior.
-Record actual tester evidence per model in the [hardware table](../../SUPPORTED_HARDWARE.md).
+Record actual tester evidence per model in the [hardware table](../SUPPORTED_HARDWARE.md).
 Experimental support remains explicitly labelled; untested devices do not acquire
 confirmed status merely because a software suite passed.
 

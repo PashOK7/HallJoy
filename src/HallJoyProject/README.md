@@ -2,7 +2,7 @@
 
 Windows x64 C++ application, tests and project tools. Current product/build
 status is maintained in the [root README](../../README.md),
-[hardware table](../../SUPPORTED_HARDWARE.md) and
+[hardware table](../../docs/SUPPORTED_HARDWARE.md) and
 [documentation index](../../docs/README.md).
 
 ## Build

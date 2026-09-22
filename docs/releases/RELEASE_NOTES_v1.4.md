@@ -116,7 +116,7 @@ HallJoy follows the device's current keyboard HID assignments instead of
 assuming fixed letters. Other `VID 8089` devices require a valid depth response.
 
 The detailed compatibility boundaries are maintained in
-[`SUPPORTED_HARDWARE.md`](SUPPORTED_HARDWARE.md).
+[`SUPPORTED_HARDWARE.md`](../SUPPORTED_HARDWARE.md).
 
 ## Realtime input and ViGEm output
 

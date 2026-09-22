@@ -1,7 +1,7 @@
 # Historical snapshot — 2026-09-20
 
 Preserved before documentation reconciliation. Statements below may be superseded.
-Use the [current documentation index](../README.md) and [current hardware status](../../SUPPORTED_HARDWARE.md).
+Use the [current documentation index](../README.md) and [current hardware status](../SUPPORTED_HARDWARE.md).
 
 - [Background work: conservative telemetry reuse, measurements and regression limits](../current/BACKGROUND_WORK_REVIEW_2026-09-20.md).
 
@@ -246,7 +246,7 @@ Use the [current documentation index](../README.md) and [current hardware status
 
 ## Протоколы, исследования и выпуск
 
-- [Поддерживаемое оборудование](../../SUPPORTED_HARDWARE.md).
+- [Поддерживаемое оборудование](../SUPPORTED_HARDWARE.md).
 - [Release blockers](../v1.4/CORRECTNESS_RELEASE_BLOCKERS.md):
   учитывать верхнее уточнение разрешённого Sayo auto-learning.
 - [Release-readiness](../v1.4/RELEASE_READINESS_AUDIT_2026-09-05.md):

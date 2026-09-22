@@ -1,7 +1,7 @@
 # HallJoy hardware compatibility
 
 Current source / **1.6.1 release**, reconciled on 2026-09-22.
-See [release notes](RELEASE_NOTES_v1.6.1.md).
+See [release notes](releases/RELEASE_NOTES_v1.6.1.md).
 
 ## How to read this list
 
@@ -46,7 +46,7 @@ to synthesize analogue depth.
 |---|---|---|
 | ATTACK SHARK RY5088 | 37 exact reviewed revisions enabled over wired USB; 16 automatic ANSI layout groups. X65 Pro tester reported independent depth and gameplay. | Other admitted revisions are enabled with yellow notices; no tester prerequisite. Factory/Fn maps only; custom remaps and receivers are not enabled. Provisional normalization and per-bank limits remain unresolved. X65 Pro has ordinary support; other admitted models retain an orange testing notice. |
 | IROK MG75 Pro | Separate native SparkLink V1 route, independent travel for 81 keys including Fn, automatic layout/base assignments, vendor 3.5 mm scale. Enabled with orange notice. | No physical tester result yet; not the MG75 Max V2 protocol. |
-| AULA HERO / WIN experimental families | Exact identity, automatic ANSI layout, live/base maps, analog bindings and virtual gamepad enabled. HERO uses addressed travel; WIN PRO/MAX and HERO PRO use the existing RM6x21 full capability proof. | Yellow notices cover remaining range/firmware nuances. No tester prerequisite. See the [2026-09-22 integration](docs/current/AULA_EXPERIMENTAL_SUPPORT_SYNC_2026-09-22.md). |
+| AULA HERO / WIN experimental families | Exact identity, automatic ANSI layout, live/base maps, analog bindings and virtual gamepad enabled. HERO uses addressed travel; WIN PRO/MAX and HERO PRO use the existing RM6x21 full capability proof. | Yellow notices cover remaining range/firmware nuances. No tester prerequisite. See the [2026-09-22 integration](current/AULA_EXPERIMENTAL_SUPPORT_SYNC_2026-09-22.md). |
 | GravaStar Mercury V75 / Pro / Lite | Legacy identities 1CA5:2201, 1CA5:2202, 1CA2:2201 plus board proof; 79-key geometry and session remaps. Owner confirms a user reported working support (2026-09-20). | The new confirmation does not identify every tested revision; do not extend it to all Pro/Lite/newer revisions. Earlier source/firmware evidence is retained. |
 
 ATTACK SHARK X65 Pro ordinary support was approved on 2026-09-21. The isolated
@@ -56,47 +56,47 @@ support does not establish hardware testing of every revision or switch bank.
 
 ## Validation details and authoritative implementation records
 
-- [NA87 and AULA MINI 60 HE Pro](docs/current/NA87_MINI60_STANDARD_SUPPORT_2026-09-19.md):
+- [NA87 and AULA MINI 60 HE Pro](current/NA87_MINI60_STANDARD_SUPPORT_2026-09-19.md):
   ordinary wired support with tester logs. NA87 Pro is a different model.
 - AULA WIN 60 HE MAX and IROK MG75 Max have earlier physical test evidence.
   Redragon K673RGB-M evidence applies to the exact BR firmware, not every
   Redragon magnetic keyboard. Detailed original test records are preserved in
-  the [historical hardware snapshot](docs/archive/HARDWARE_STATUS_BEFORE_2026-09-20.md).
-- [ATK Hex80](docs/current/ATK_HEX80_NATIVE_FIXES_2026-09-14.md): corrected matrix
+  the [historical hardware snapshot](archive/HARDWARE_STATUS_BEFORE_2026-09-20.md).
+- [ATK Hex80](current/ATK_HEX80_NATIVE_FIXES_2026-09-14.md): corrected matrix
   slots, 87 factory keys including Fn, 32/128-byte payload handling and freshness.
-- [IPI / QBZ](docs/current/IPI_NATIVE_SUPPORT_2026-09-14.md): eight exact UUID
+- [IPI / QBZ](current/IPI_NATIVE_SUPPORT_2026-09-14.md): eight exact UUID
   profiles, complete maps, device calibration and Fn. Existing physical evidence
   covers the QBZ75-compatible route; other models await individual hardware testing. AURORA65W receiver forwarding is unverified.
-- [MG75 Pro](docs/current/MG75_PRO_INTEGRATION_2026-09-19.md),
-  [HERO84](docs/current/HERO84_INTEGRATION_2026-09-19.md), and
-  [GravaStar](docs/current/GRAVASTAR_LAYOUTS_2026-09-19.md): use these current
+- [MG75 Pro](current/MG75_PRO_INTEGRATION_2026-09-19.md),
+  [HERO84](current/HERO84_INTEGRATION_2026-09-19.md), and
+  [GravaStar](current/GRAVASTAR_LAYOUTS_2026-09-19.md): use these current
   integration records instead of earlier disabled/manual-only descriptions.
-- [ATTACK SHARK exact revisions](docs/current/ATTACK_SHARK_FAMILY_SUPPORT_2026-09-20.md),
-  [all automatic layouts](docs/current/ATTACK_SHARK_FAMILY_LAYOUTS_2026-09-20.md),
-  and [remaining scale questions](docs/current/ATTACK_SHARK_BANK_INIT_2026-09-20.md).
-- [SayoDevice O3C](docs/current/SAYO_O3C_CONFIG_2026-09-19.md): depth is tested;
+- [ATTACK SHARK exact revisions](current/ATTACK_SHARK_FAMILY_SUPPORT_2026-09-20.md),
+  [all automatic layouts](current/ATTACK_SHARK_FAMILY_LAYOUTS_2026-09-20.md),
+  and [remaining scale questions](current/ATTACK_SHARK_BANK_INIT_2026-09-20.md).
+- [SayoDevice O3C](current/SAYO_O3C_CONFIG_2026-09-19.md): depth is tested;
   new config readback awaits hardware validation. Automatic mode always keeps
   three physical keys, with real labels when readable or Key 1/2/3 otherwise.
   Manual mode uses factory Z/X/C.
-- [Keychron catalog](docs/current/KEYCHRON_HE_LAYOUT_CATALOG.md): custom firmware
+- [Keychron catalog](current/KEYCHRON_HE_LAYOUT_CATALOG.md): custom firmware
   is required for the discussed HE routes; do not promise stock-firmware support.
   Ready-made images cover some models; other exact variants require applying
   the published source changes and building matching firmware. Layout additions
   do not require repeating this already established protocol investigation.
-- [Wooting split layouts](docs/current/WOOTING_EXTENDED_LAYOUTS_2026-09-19.md):
+- [Wooting split layouts](current/WOOTING_EXTENDED_LAYOUTS_2026-09-19.md):
   independent physical Space/Fn channels implemented; split hardware validation
   remains pending. Region/split selection is manual.
 
 NuPhy BH65, Field75 HE V2, Halo65 HE and WH80 remain **Research incomplete** (gray). Their unresolved report-field mapping is not merely a range endpoint uncertainty, so they do not qualify for the implemented yellow category.
 
-The complete [yellow model catalog](docs/development/keyboard_support_notices.json) generates runtime notices and is checked against the live Sheet.
+The complete [yellow model catalog](development/keyboard_support_notices.json) generates runtime notices and is checked against the live Sheet.
 
 ## Disabled research
 
 IROK NA87 Pro, IROK ND75 and ROG Azoth 96 HE are not enabled in ordinary builds.
 Their retained research and device notices are not working support claims.
 
-See the [complete layout catalog](docs/KEYBOARD_LAYOUTS.md) for exact regional
+See the [complete layout catalog](KEYBOARD_LAYOUTS.md) for exact regional
 variants and the [HallJoy Discord](https://discord.gg/5FQ297yZh) for reporting a
 specific device result. Historical audits are evidence at their recorded date;
 later integration records and owner decisions supersede their status statements.

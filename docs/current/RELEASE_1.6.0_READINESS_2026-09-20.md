@@ -14,8 +14,8 @@ review is pending.** No GitHub Actions job was started in this preparation.
 - Ordinary Windows x64: `build/bin/Release/x64/HallJoy.exe`.
 - File / product version: `1.6.0.0`; application version: `1.6.0`.
 - SHA256: `525e832d75bc1651fb66a9ead1336c027b58f175a05ee8c19f72e0822419c0f3`.
-- [Release notes](../../RELEASE_NOTES_v1.6.0.md),
-  [hardware status](../../SUPPORTED_HARDWARE.md),
+- [Release notes](../releases/RELEASE_NOTES_v1.6.0.md),
+  [hardware status](../SUPPORTED_HARDWARE.md),
   [layout catalog](../KEYBOARD_LAYOUTS.md).
 
 Built through `tools/build_release.ps1`; candidate compilation and four linked

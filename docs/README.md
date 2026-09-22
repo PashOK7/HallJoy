@@ -1,7 +1,3 @@
-- [AULA family expansion and yellow-status synchronization](current/AULA_EXPERIMENTAL_SUPPORT_SYNC_2026-09-22.md): nine added models, complete enabled paths and all 47 yellow models reconciled.
-
-- [AULA family review and Camera tester disable](current/AULA_KNOWN_PROTOCOL_REVIEW_2026-09-22.md): base MINI60 wired support, remaining model boundaries and delivered build.
-
 # HallJoy documentation
 
 Start with [owner decisions](current/OWNER_CONTEXT.md), then the current documents
@@ -10,9 +6,13 @@ are not all active requirements. Later owner decisions take precedence.
 
 ## Current release and user documentation
 
+- [Release notes](releases/README.md).
+- [AULA experimental support and status synchronization](current/AULA_EXPERIMENTAL_SUPPORT_SYNC_2026-09-22.md).
+- [AULA family review](current/AULA_KNOWN_PROTOCOL_REVIEW_2026-09-22.md).
+
 - [Published 1.6.1 release](current/RELEASE_1.6.1_PUBLICATION_2026-09-22.md).
 
-- [1.6.1 patch notes](../RELEASE_NOTES_v1.6.1.md).
+- [1.6.1 patch notes](releases/RELEASE_NOTES_v1.6.1.md).
 
 - [Published 1.6.0 release](current/RELEASE_1.6.0_PUBLICATION_2026-09-21.md).
 
@@ -22,8 +22,8 @@ are not all active requirements. Later owner decisions take precedence.
 - [Public keyboard spreadsheet — latest additions](current/KEYBOARD_SHEET_KOREA_EXPANSION_2026-09-20.md): 473 models/configurations / 85 brands; owner scope includes all analog keyboards, independently of HallJoy support. Expansion remains ongoing.
 - [Magnetic-model verification and corrected research outcomes](current/KEYBOARD_SHEET_MAGNETIC_AUDIT_2026-09-20.md): all 149 additions rechecked; mixed-switch limitations and tester results recorded.
 - [Latest prerelease and verified artifact](current/PRERELEASE_2026-09-21.md).
-- [1.6.0 candidate release notes](../RELEASE_NOTES_v1.6.0.md).
-- [Application README](../README.md) and [hardware compatibility](../SUPPORTED_HARDWARE.md).
+- [1.6.0 candidate release notes](releases/RELEASE_NOTES_v1.6.0.md).
+- [Application README](../README.md) and [hardware compatibility](SUPPORTED_HARDWARE.md).
 - [Built-in layout catalog](KEYBOARD_LAYOUTS.md), including the documented local additions.
 - [Support on Discord](https://discord.gg/5FQ297yZh).
 

@@ -9,7 +9,7 @@ when a support decision changes. Authorization covers corresponding status edits
 ## Destinations
 
 - Runtime admission, relevant feature flags and testing notices.
-- README.md and SUPPORTED_HARDWARE.md.
+- README.md and docs/SUPPORTED_HARDWARE.md.
 - Current implementation/research document and OWNER_CONTEXT.md where decisions change.
 - Google Sheet: https://docs.google.com/spreadsheets/d/1ueQ4labXpuBOmGjCkUcJllNJ68Jzx4py2MuQm-p-R7c/edit
   Spreadsheet ID: 1ueQ4labXpuBOmGjCkUcJllNJ68Jzx4py2MuQm-p-R7c.

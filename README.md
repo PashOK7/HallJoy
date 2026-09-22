@@ -165,7 +165,7 @@ runtime.
 HallJoy uses dual licensing:
 
 - open-source use is available under [AGPL-3.0](LICENSE);
-- a separate [commercial license](COMMERCIAL_LICENSE.md) is available for
+- a separate [commercial license](docs/legal/COMMERCIAL_LICENSE.md) is available for
   proprietary distribution, embedding, or licensing without AGPL obligations.
 
 Commercial licensing inquiries: Discord **`pash.ok`**. Third-party components

@@ -24,7 +24,7 @@ version or release status.
   measured rate and three disconnect/reconnect recoveries
 - Production diagnostics: no continuous telemetry or log writer; crash-only
   `HallJoyCrash.txt`
-- Public release notes: [`RELEASE_NOTES_v1.4.md`](../../RELEASE_NOTES_v1.4.md)
+- Public release notes: [`RELEASE_NOTES_v1.4.md`](../releases/RELEASE_NOTES_v1.4.md)
 - GitHub publication: [`v1.4.1`](https://github.com/PashOK7/HallJoy/releases/tag/v1.4.1)
   published as the latest stable release
 - Owner-confirmed historical stable A/B artifact:

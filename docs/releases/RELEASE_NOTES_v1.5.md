@@ -53,7 +53,7 @@ conflict with HallJoy. Desktop software such as Razer Synapse may coexist and
 only needs closing when troubleshooting a suspected conflict.
 
 Use [HallJoy Discord](https://discord.gg/5FQ297yZh) and the
-[support report template](docs/SUPPORT_REPORT.md). Do not send passwords or typed
+[support report template](../SUPPORT_REPORT.md). Do not send passwords or typed
 text. Open HallJoy folder provides access to the diagnostic log.
 
 ## Known limitations
@@ -74,4 +74,4 @@ text. Open HallJoy folder provides access to the diagnostic log.
   SHA-256 verifies file integrity, not publisher authentication.
 
 New layout geometry has automated checks, not a claim of physical testing on
-every listed keyboard. See [supported hardware](SUPPORTED_HARDWARE.md).
+every listed keyboard. See [supported hardware](../SUPPORTED_HARDWARE.md).

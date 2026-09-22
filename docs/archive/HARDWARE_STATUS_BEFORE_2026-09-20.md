@@ -1,7 +1,7 @@
 # Historical snapshot — 2026-09-20
 
 Preserved before documentation reconciliation. Statements below may be superseded.
-Use the [current documentation index](../README.md) and [current hardware status](../../SUPPORTED_HARDWARE.md).
+Use the [current documentation index](../README.md) and [current hardware status](../SUPPORTED_HARDWARE.md).
 
 # HallJoy hardware compatibility
 

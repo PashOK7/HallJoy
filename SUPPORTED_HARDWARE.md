@@ -1,7 +1,7 @@
 # HallJoy hardware compatibility
 
-Current source / local **1.6.0 candidate**, reconciled on 2026-09-22. New AULA family additions below are not yet published.
-See [release notes](RELEASE_NOTES_v1.6.0.md).
+Current source / **1.6.1 release**, reconciled on 2026-09-22.
+See [release notes](RELEASE_NOTES_v1.6.1.md).
 
 ## How to read this list
 
@@ -24,7 +24,7 @@ to synthesize analogue depth.
 
 | Brand | Models | Notes |
 |---|---|---|
-| Aula | **WIN 60 HE MAX**, **WIN 60 HE**, **WIN 68 HE**, **KP-TE153**, **MINI 60 HE**, **MINI 60 HE Pro**, **MINI 60 HE MAX** | MINI 60 models: wired USB. PRO support was added in 1.5.3 with tester-confirmed independent depths. Base MINI 60 HE (V1.18) and MAX (V1.52) are implemented in the current local build using their verified common protocol; not yet published. The 2.4 GHz receivers are not supported. |
+| Aula | **WIN 60 HE MAX**, **WIN 60 HE**, **WIN 68 HE**, **KP-TE153**, **MINI 60 HE**, **MINI 60 HE Pro**, **MINI 60 HE MAX** | MINI 60 models: wired USB. PRO support was added in 1.5.3 with tester-confirmed independent depths. Base MINI 60 HE (V1.18) and MAX (V1.52) are included in 1.6.1 using their verified common protocol. The 2.4 GHz receivers are not supported. |
 | Aula (experimental, wired USB) | **HERO84 HE**, **HERO 68 HE**, **HERO 68 Air**, **HERO 68 MINI**, **HERO 99 HE**, **WIN 68 HE Ultra**, **WIN 60 HE PRO**, **WIN 68 HE PRO**, **WIN 68 HE MAX**, **HERO 68 HE PRO** | Complete input paths enabled with yellow notices. Known protocols, exact identities and automatic layouts; remaining range/firmware behavior awaits hardware feedback. No tester is required to use them. |
 | ATTACK SHARK | **X65 Pro** | Tester-confirmed analogue input and gameplay, including external gamepad output with Block Bound Keys enabled. Ordinary support without a testing notice. |
 | Irok | **MG75 Max**, **MG75 Pro (experimental)**, **NA87** | NA87 support added in 1.5.3, with tester feedback and logs. **NA87 Pro is a different model and is not supported.** MG75 Pro uses native SparkLink V1 travel reads with automatic layout and base-layer remaps; hardware testing is pending and an amber Discord testing notice is shown. |

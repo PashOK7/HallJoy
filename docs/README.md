@@ -10,6 +10,8 @@ are not all active requirements. Later owner decisions take precedence.
 
 ## Current release and user documentation
 
+- [Published 1.6.1 release](current/RELEASE_1.6.1_PUBLICATION_2026-09-22.md).
+
 - [1.6.1 patch notes](../RELEASE_NOTES_v1.6.1.md).
 
 - [Published 1.6.0 release](current/RELEASE_1.6.0_PUBLICATION_2026-09-21.md).

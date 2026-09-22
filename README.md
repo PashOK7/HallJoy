@@ -1,16 +1,17 @@
-# HallJoy
+# HallJoy — Gamepad Mode for Analog Keyboards
 
-HallJoy turns an analogue Hall Effect keyboard into a fully configurable virtual
-Xbox controller with low-latency analogue input. HallJoy uses real keyboard depth measurements; ordinary digital key presses
-are not converted into simulated analogue travel. HallJoy includes:
+HallJoy is a free, open-source Windows application that turns supported analog
+and Hall Effect keyboards into a fully configurable virtual Xbox controller
+with low-latency analog input. HallJoy uses real keyboard depth measurements; ordinary digital key presses 
+are not converted into simulated analog travel. HallJoy includes:
 
-- keyboard-to-gamepad remapping for buttons, sticks, and triggers;
+- analog gamepad emulation with configurable buttons, sticks, and triggers;
 - up to four virtual Xbox controllers for games that support multiple pads;
 - per-binding response curves, deadzones, and sensitivity;
 - last-key priority and optional Snap Stick handling for opposing directions;
 - optional blocking of normal keyboard output for keys bound to gamepad input;
 - global profiles and a visual layout editor with shareable `.ini` presets;
-- a live analogue keyboard preview and Gamepad Tester;
+- a live analog keyboard preview and Gamepad Tester;
 - a browser-based Input Overlay for OBS;
 - multiple native protocols plus an embedded Universal Analog Plugin runtime;
 - safe reconnect handling, automatic crash/missing-keyboard reports, and optional
@@ -32,7 +33,7 @@ file was written by chatgpt completely except for this paragraph 🙂
 ## Requirements
 
 - Windows 10 or Windows 11, x64;
-- an analogue keyboard supported by HallJoy or one of its safe protocol routes;
+- an analog keyboard supported by HallJoy or one of its safe protocol routes;
 - ViGEmBus 1.22.0 for the virtual Xbox controllers.
 
 ## Quick start
@@ -54,25 +55,25 @@ file was written by chatgpt completely except for this paragraph 🙂
 
 Wooting Analog SDK and Universal Analog Plugin do not need to be installed separately.
 
-## Compatible keyboards
+## Compatible keyboards for gamepad mode
 
-| Brand | Models |
-|---|---|
-| ATK | Hex80 |
-| ATTACK SHARK | X65 Pro |
-| AULA | WIN 60 HE MAX, WIN 60 HE, WIN 68 HE, KP-TE153, MINI 60 HE (USB), MINI 60 HE Pro, MINI 60 HE MAX (USB) |
-| DrunkDeer | A75, A75 Pro, G60, G65, G75 |
-| GravaStar | Mercury V75 |
-| IPI / QBZ | QBZ75, Aurora 75 |
-| IROK | MG75 Max, NA87 |
-| Keychron | Q1 HE, Q2 HE (ANSI), Q3 HE, Q4 HE (ANSI), Q5 HE, Q6 HE, Q12 HE, Q1 HE 8K, Q3 HE 8K, Q5 HE 8K, Q6 HE 8K, K2 HE, K3 HE, K4 HE, K6 HE (ANSI), K8 HE, K10 HE |
-| Lemokey | P1 HE |
-| MADLIONS | MAD 68 Pro R, MAD60HE, MAD68HE, MAD68R |
-| NuPhy | Air60 HE, Air75 HE, Field75 HE |
-| Razer | Huntsman V2 Analog, Huntsman Mini Analog, Huntsman V3 Pro, Huntsman V3 Pro Mini, Huntsman V3 Pro Tenkeyless |
-| Redragon | K673RGB-M |
-| SayoDevice | O3C |
-| Wooting | 60HE, 60HE+, 60HE v2 (including Split), 80HE, 80HE+ (including Split), One, Two, Two HE, UwU, UwU RGB |
+|  |
+|---|
+| ATK Hex80 |
+| ATTACK SHARK X65 Pro |
+| AULA WIN 60 HE MAX, AULA WIN 60 HE, AULA WIN 68 HE, AULA KP-TE153, AULA MINI 60 HE (USB), AULA MINI 60 HE Pro, AULA MINI 60 HE MAX (USB) |
+| DrunkDeer A75, DrunkDeer A75 Pro, DrunkDeer G60, DrunkDeer G65, DrunkDeer G75 |
+| GravaStar Mercury V75 |
+| IPI QBZ75, IPI Aurora 75 |
+| IROK MG75 Max, IROK NA87 |
+| Keychron Q1 HE, Keychron Q2 HE (ANSI), Keychron Q3 HE, Keychron Q4 HE (ANSI), Keychron Q5 HE, Keychron Q6 HE, Keychron Q12 HE, Keychron Q1 HE 8K, Keychron Q3 HE 8K, Keychron Q5 HE 8K, Keychron Q6 HE 8K, Keychron K2 HE, Keychron K3 HE, Keychron K4 HE, Keychron K6 HE (ANSI), Keychron K8 HE, Keychron K10 HE |
+| Lemokey P1 HE |
+| MADLIONS MAD 68 Pro R, MADLIONS MAD60HE, MADLIONS MAD68HE, MADLIONS MAD68R |
+| NuPhy Air60 HE, NuPhy Air75 HE, NuPhy Field75 HE |
+| Razer Huntsman V2 Analog, Razer Huntsman Mini Analog, Razer Huntsman V3 Pro, Razer Huntsman V3 Pro Mini, Razer Huntsman V3 Pro Tenkeyless |
+| Redragon K673RGB-M |
+| SayoDevice O3C |
+| Wooting 60HE, Wooting 60HE+, Wooting 60HE v2 (including Split), Wooting 80HE, Wooting 80HE+ (including Split), Wooting One, Wooting Two, Wooting Two HE, Wooting UwU, Wooting UwU RGB |
 
 Keychron HE requires compatible [custom firmware](https://analogsense.org/firmware/).
 Not every hardware revision has been tested.
@@ -80,18 +81,18 @@ Not every hardware revision has been tested.
 ### Experimental support 🟨
 
 These keyboards should work, but have not yet been tested on physical devices.
-Support is enabled: keyboard detection, analogue input, bindings and virtual
+Support is enabled: keyboard detection, analog input, bindings and virtual
 gamepad output are implemented. HallJoy shows a yellow notice for these models.
 Use a wired USB connection.
 
-| Brand | Models |
-|---|---|
-| ATTACK SHARK | Beat75, K85, K85 Pro HE, R68 HE, R82 HE, R82 Pro HE, R85 HE, R85 Ultra, R86 Pro HE, R98 GT, R98 HE, R98 Pro, R98 Ultra, X60 HE, X65, X65 HE, X68 HE, X68 MAX, X68 Pro HE, X68 Ultra, X82 HE, X82 Pro HE, X820 Pro, X85 Ultra, X87 Ultra, X96 HE, X98 HE |
-| AULA | HERO 68 Air, HERO 68 HE, HERO 68 HE PRO, HERO 68 MINI, HERO 99 HE, HERO84 HE, WIN 60 HE PRO, WIN 68 HE MAX, WIN 68 HE PRO, WIN 68 HE Ultra |
-| GravaStar | Mercury V75 Lite, Mercury V75 Pro |
-| IPI / QBZ | AURORA65, AURORA65W, Aurora75 PRO, flash68, QBZ65, RAIN65 |
-| IROK | MG75 Pro |
-| Redragon | K673WB-RGB-M |
+|  |
+|---|
+| ATTACK SHARK Beat75, ATTACK SHARK K85, ATTACK SHARK K85 Pro HE, ATTACK SHARK R68 HE, ATTACK SHARK R82 HE, ATTACK SHARK R82 Pro HE, ATTACK SHARK R85 HE, ATTACK SHARK R85 Ultra, ATTACK SHARK R86 Pro HE, ATTACK SHARK R98 GT, ATTACK SHARK R98 HE, ATTACK SHARK R98 Pro, ATTACK SHARK R98 Ultra, ATTACK SHARK X60 HE, ATTACK SHARK X65, ATTACK SHARK X65 HE, ATTACK SHARK X68 HE, ATTACK SHARK X68 MAX, ATTACK SHARK X68 Pro HE, ATTACK SHARK X68 Ultra, ATTACK SHARK X82 HE, ATTACK SHARK X82 Pro HE, ATTACK SHARK X820 Pro, ATTACK SHARK X85 Ultra, ATTACK SHARK X87 Ultra, ATTACK SHARK X96 HE, ATTACK SHARK X98 HE |
+| AULA HERO 68 Air, AULA HERO 68 HE, AULA HERO 68 HE PRO, AULA HERO 68 MINI, AULA HERO 99 HE, AULA HERO84 HE, AULA WIN 60 HE PRO, AULA WIN 68 HE MAX, AULA WIN 68 HE PRO, AULA WIN 68 HE Ultra |
+| GravaStar Mercury V75 Lite, GravaStar Mercury V75 Pro |
+| IPI AURORA65, IPI AURORA65W, IPI Aurora75 PRO, IPI flash68, IPI QBZ65, IPI RAIN65 |
+| IROK MG75 Pro |
+| Redragon K673WB-RGB-M |
 
 ## Support
 
@@ -124,7 +125,7 @@ The visual layout editor can move, add, and delete keys; change labels, HID
 usages, dimensions, positions, and spacing; and save the result as a preset.
 Each preset is a standalone `.ini` file, so layouts can be backed up or shared
 with other HallJoy users. Layout selection is independent from the hardware
-protocol used to obtain analogue values.
+protocol used to obtain analog values.
 
 ## Saved data and portable mode
 
@@ -144,13 +145,13 @@ files.
 
 ## Troubleshooting
 
-If HallJoy starts but every analogue value remains at zero:
+If HallJoy starts but every analog value remains at zero:
 
 1. Close connected web-driver tabs. If input is still missing, temporarily close
    the desktop configurator to check for a conflict; closing it is not normally
    required when HallJoy already works.
 2. Check the keyboard firmware and software mode. On some keyboards a vendor
-   **Turbo**, performance, or compatibility mode can stop exposing the analogue
+   **Turbo**, performance, or compatibility mode can stop exposing the analog
    interface used by external applications.
 3. Reconnect the keyboard, restart HallJoy, and inspect **Configuration** and
    **Gamepad Tester** for the detected route and live values.

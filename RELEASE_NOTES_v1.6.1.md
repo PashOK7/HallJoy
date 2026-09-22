@@ -6,6 +6,8 @@
 - Expanded experimental AULA support to HERO 68 HE, HERO 68 Air, HERO 68 MINI,
   HERO 68 HE PRO, HERO 99 HE, WIN 60 HE PRO, WIN 68 HE PRO, WIN 68 HE MAX and
   WIN 68 HE Ultra, with automatic layouts and analogue gamepad controls.
+- Added Wooting 80HE+ layouts, including Split, and Keychron K6 HE, Q2 HE and
+  Q4 HE ANSI layouts for compatible custom firmware.
 - Updated yellow notices to consistently identify experimental models.
 
 ## Experimental support 🟨

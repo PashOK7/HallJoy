@@ -391,8 +391,15 @@ namespace
     struct LayoutMerge {
         const wchar_t* first; const wchar_t* second; const wchar_t* name;
         const wchar_t* third = nullptr; const wchar_t* displayName = nullptr;
+        const wchar_t* fourth = nullptr;
     };
     static constexpr LayoutMerge g_layoutMerges[] = {
+        {L"Aula WIN 60 HE MAX ANSI", L"Aula WIN 60 HE PRO ANSI", L"Aula WIN 60 HE MAX / PRO ANSI"},
+        {L"Aula WIN 68 HE PRO / MAX ANSI", L"Aula HERO 68 HE PRO ANSI", L"Aula WIN 68 HE PRO / MAX / HERO 68 HE PRO ANSI"},
+        {L"Aula HERO 68 HE ANSI", L"Aula HERO 68 Air ANSI", L"Aula HERO 68 HE / Air / MINI / WIN 68 HE Ultra ANSI",
+            L"Aula HERO 68 MINI ANSI", L"Aula HERO 68 HE / Air / MINI / WIN 68 HE Ultra ANSI", L"Aula WIN 68 HE Ultra ANSI"},
+        {L"Aula MINI60 HE Pro ANSI", L"Aula MINI60 HE ANSI", L"Aula MINI60 HE / Pro / MAX ANSI",
+            L"Aula MINI60 HE MAX ANSI", L"Aula MINI60 HE / Pro / MAX ANSI"},
         {L"ATTACK SHARK X68 Pro HE ANSI", L"ATTACK SHARK R68 HE + X68 HE ANSI",
             L"ATTACK SHARK R68 HE + X68 HE + X68 Pro HE ANSI"},
         {L"ATTACK SHARK X82 Pro HE ANSI", L"ATTACK SHARK X82 HE ANSI",
@@ -424,7 +431,8 @@ namespace
     static const LayoutMerge* MergeFor(const std::wstring& name) {
         for (const auto& merge : g_layoutMerges)
             if (FileNamePolicy_Equivalent(name, merge.first) || FileNamePolicy_Equivalent(name, merge.second) ||
-                (merge.third && FileNamePolicy_Equivalent(name, merge.third))) return &merge;
+                (merge.third && FileNamePolicy_Equivalent(name, merge.third)) ||
+                (merge.fourth && FileNamePolicy_Equivalent(name, merge.fourth))) return &merge;
         return nullptr;
     }
     static bool IsUneditedMergedLegacy(const PresetStore& p) {
@@ -1300,11 +1308,12 @@ bool KeyboardLayout_TestFirstRunSelection()
             if (std::wstring(b.name) == merge.second) second = &b;
         }
         if (!first || !second || first->count != second->count) return false;
-        if (merge.third) {
-            ok &= FindPresetByName(merge.third) == combined;
+        for (const auto extra : {merge.third, merge.fourth}) {
+            if (!extra) continue;
+            ok &= FindPresetByName(extra) == combined;
             const PresetDef* third = nullptr;
             for (const auto& b : g_builtinPresets)
-                if (std::wstring(b.name) == merge.third) third = &b;
+                if (std::wstring(b.name) == extra) third = &b;
             if (!third || third->count != first->count) return false;
             for (int i = 0; i < first->count; ++i) {
                 const auto& a = first->keys[i]; const auto& b = third->keys[i];
@@ -1312,7 +1321,7 @@ bool KeyboardLayout_TestFirstRunSelection()
                     a.w == b.w && a.h == b.h && a.notchW == b.notchW && a.notchY == b.notchY &&
                     std::wstring(a.label) == b.label;
             }
-            KeyboardLayout_SetOverlayPresetName(merge.third);
+            KeyboardLayout_SetOverlayPresetName(extra);
             ok &= KeyboardLayout_GetOverlayPresetIndex() == combined &&
                 KeyboardLayout_GetPresetDisplayName(combined) == merge.displayName;
         }

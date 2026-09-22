@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <span>
 namespace halljoy::mini60diag {
-// Only commands justified by the archived SDK and the inspected 80A2 image.
+// Only commands justified by the archived SDK and the inspected 80A2/80A1 images.
 inline std::array<std::uint8_t,65> Request(unsigned command,unsigned length=0,unsigned offset=0) {
     std::array<std::uint8_t,65> r{};
     if (!((command==0x10 && length==56 && offset==0) ||

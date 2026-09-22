@@ -151,7 +151,7 @@ class LayoutPipelineTests(unittest.TestCase):
 class FinalLayoutBatchTests(unittest.TestCase):
     def test_reviewed_reports_offline(self):
         expected={'Razer':[61,62,65,104,61,104,84,108,108,88,105],'NuPhy':[61,83],
-                  'Wooting':[61,62,61,62,84,85,88,87,88,108,109,108,109,61,62,63,64,3]}
+                  'Wooting':[61,62,61,62,84,85,88,87,88,108,109,108,109,61,62,63,64,3,84,85,86,87]}
         catalog=p.read_catalog()
         with patch('urllib.request.urlopen',side_effect=AssertionError('Unexpected network')):
             for brand,counts in expected.items():
@@ -164,7 +164,7 @@ class FinalLayoutBatchTests(unittest.TestCase):
                     if r['model']=='UwU + UwU RGB':
                         self.assertEqual(set(by_hid),{29,27,6})
                         continue
-                    if r['model']=='60HE v2 Split':
+                    if r['model'] in ('60HE v2 Split','80HE+ Split'):
                         self.assertTrue({0x480,0x481,0x482,0x483}<=set(by_hid))
                         self.assertNotIn(44,by_hid)
                         self.assertNotIn(0x409,by_hid)
@@ -224,7 +224,7 @@ class FinalLayoutBatchTests(unittest.TestCase):
 
     def test_plus_identity_is_distinct(self):
         reports=p.reports_for(p.read_catalog()['Wooting'])
-        self.assertEqual(len({r['id'] for r in reports}),18)
+        self.assertEqual(len({r['id'] for r in reports}),22)
         self.assertTrue(any('60he_plus' in r['id'] for r in reports))
 
     def test_review_reader_rejects_metadata_drift(self):

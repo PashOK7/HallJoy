@@ -45,6 +45,19 @@
     <ClCompile Include="backend.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="keychron_onboard_host_profile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="gamepad_latency.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="keychron_onboard_gamepad.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="keychron_onboard_channel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="keychron_onboard_backend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="backend_curve.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -336,6 +349,27 @@
     </ClInclude>
     <ClInclude Include="sparkplayjoy_layout.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="sayo_layout_state.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="keychron_onboard_host_profile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="keychron_onboard_client.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gamepad_latency.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="gamepad_latency_model.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="keychron_onboard_gamepad.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="keychron_onboard_compact.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="keychron_onboard_channel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="keychron_onboard_identity.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="keychron_onboard_backend.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="backend_curve.h">

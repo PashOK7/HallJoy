@@ -34,4 +34,7 @@
     { L"Keychron Q5 HE 8K ANSI", g_catalog_q5_8k_ansi, (int)std::size(g_catalog_q5_8k_ansi), L"Keychron" }, \
     { L"Keychron K3 HE ANSI", g_catalog_k3_ansi, (int)std::size(g_catalog_k3_ansi), L"Keychron" }, \
     { L"Keychron K3 HE ISO", g_catalog_k3_iso, (int)std::size(g_catalog_k3_iso), L"Keychron" }, \
-    { L"Keychron K3 HE JIS", g_catalog_k3_jis, (int)std::size(g_catalog_k3_jis), L"Keychron" },
+    { L"Keychron K3 HE JIS", g_catalog_k3_jis, (int)std::size(g_catalog_k3_jis), L"Keychron" }, \
+    { L"Keychron K6 HE ANSI", g_catalog_k6_ansi, (int)std::size(g_catalog_k6_ansi), L"Keychron" }, \
+    { L"Keychron Q2 HE ANSI", g_catalog_q2_ansi, (int)std::size(g_catalog_q2_ansi), L"Keychron" }, \
+    { L"Keychron Q4 HE ANSI", g_catalog_q4_ansi, (int)std::size(g_catalog_q4_ansi), L"Keychron" },

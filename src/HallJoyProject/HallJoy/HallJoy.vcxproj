@@ -192,6 +192,9 @@
       <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
     </Link>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyKeychronOnboardExperimental)'=='true'">
+    <ClCompile><PreprocessorDefinitions>HALLJOY_KEYCHRON_ONBOARD_EXPERIMENTAL;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(HallJoyMad68ProRNative)'=='true'">
     <ClCompile>
       <PreprocessorDefinitions>HALLJOY_MAD68PR_NATIVE;HALLJOY_PRODUCTION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -533,6 +536,20 @@
     <ClCompile Include="file_name_policy.cpp" />
     <ClCompile Include="backend.cpp" />
     <ClCompile Include="uap_parent_snapshot.cpp" />
+    <ClCompile Include="gamepad_latency.cpp" />
+    <ClInclude Include="gamepad_latency.h" />
+    <ClInclude Include="gamepad_latency_model.h" />
+    <ClCompile Include="keychron_onboard_gamepad.cpp" />
+    <ClInclude Include="keychron_onboard_gamepad.h" />
+    <ClInclude Include="keychron_onboard_compact.h" />
+    <ClCompile Include="keychron_onboard_channel.cpp" />
+    <ClCompile Include="keychron_onboard_backend.cpp" />
+    <ClInclude Include="keychron_onboard_client.h" />
+    <ClInclude Include="keychron_onboard_channel.h" />
+    <ClInclude Include="keychron_onboard_backend.h" />
+    <ClInclude Include="keychron_onboard_identity.h" />
+    <ClCompile Include="keychron_onboard_host_profile.cpp" />
+    <ClInclude Include="keychron_onboard_host_profile.h" />
     <ClCompile Include="backend_curve.cpp" />
     <ClCompile Include="bindings.cpp" />
     <ClCompile Include="binding_actions.cpp" />

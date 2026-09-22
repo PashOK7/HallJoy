@@ -18,6 +18,8 @@ int main() {
         int expected=-1;
         for(unsigned i=0;i<4;++i)if(matrix==positions[i])expected=int(i);
         assert(Slot(0x31e3,0x1340,static_cast<unsigned char>(matrix))==expected);
+        const int expected80 = matrix == 0xac ? 3 : (matrix == 0xad ? -1 : expected);
+        assert(Slot(0x31e3,0x1410,static_cast<unsigned char>(matrix))==expected80);
         assert(Slot(0x31e3,0x1320,static_cast<unsigned char>(matrix))==-1);
         assert(Slot(0x0000,0x1340,static_cast<unsigned char>(matrix))==-1);
     }

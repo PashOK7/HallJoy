@@ -1,6 +1,6 @@
 # HallJoy hardware compatibility
 
-Current source / ordinary **1.6.0 release**, reconciled on 2026-09-21.
+Current source / local **1.6.0 candidate**, reconciled on 2026-09-22. New AULA family additions below are not yet published.
 See [release notes](RELEASE_NOTES_v1.6.0.md).
 
 ## How to read this list
@@ -24,28 +24,29 @@ to synthesize analogue depth.
 
 | Brand | Models | Notes |
 |---|---|---|
-| Aula | **WIN 60 HE MAX**, **WIN 60 HE**, **WIN 68 HE**, **KP-TE153**, **MINI 60 HE Pro** | MINI 60 HE Pro: wired USB support added in 1.5.3; tester logs confirm independent key depths. The 2.4 GHz receiver is not supported. |
+| Aula | **WIN 60 HE MAX**, **WIN 60 HE**, **WIN 68 HE**, **KP-TE153**, **MINI 60 HE**, **MINI 60 HE Pro**, **MINI 60 HE MAX** | MINI 60 models: wired USB. PRO support was added in 1.5.3 with tester-confirmed independent depths. Base MINI 60 HE (V1.18) and MAX (V1.52) are implemented in the current local build using their verified common protocol; not yet published. The 2.4 GHz receivers are not supported. |
+| Aula (experimental, wired USB) | **HERO84 HE**, **HERO 68 HE**, **HERO 68 Air**, **HERO 68 MINI**, **HERO 99 HE**, **WIN 68 HE Ultra**, **WIN 60 HE PRO**, **WIN 68 HE PRO**, **WIN 68 HE MAX**, **HERO 68 HE PRO** | Complete input paths enabled with yellow notices. Known protocols, exact identities and automatic layouts; remaining range/firmware behavior awaits hardware feedback. No tester is required to use them. |
 | ATTACK SHARK | **X65 Pro** | Tester-confirmed analogue input and gameplay, including external gamepad output with Block Bound Keys enabled. Ordinary support without a testing notice. |
 | Irok | **MG75 Max**, **MG75 Pro (experimental)**, **NA87** | NA87 support added in 1.5.3, with tester feedback and logs. **NA87 Pro is a different model and is not supported.** MG75 Pro uses native SparkLink V1 travel reads with automatic layout and base-layer remaps; hardware testing is pending and an amber Discord testing notice is shown. |
 | Redragon | **K673RGB-M**, **K673WB-RGB-M** | Exact W669 profiles exist for K673RGB-M BR/UK and K673WB-RGB-M US. BR has physical evidence; UK/US have source-profile and automated evidence. Other compatible magnetic models may work but are untested. |
 | MADLIONS | **MAD 68 Pro R**, **MAD60HE**, **MAD68HE**, **MAD68R** | — |
 | ATK | **Hex80** | — |
 | SayoDevice | **O3C** | O3C depth is tested. Automatic layout always has three independent keys, labelled from device bindings or Key 1/2/3 if unavailable. Manual layout uses Z/X/C. New binding reads await device validation. Other SayoDevice models are unconfirmed. |
-| IPI / QBZ | **QBZ75**, **Aurora 75**, **Aurora75 PRO**, **QBZ65**, **AURORA65**, **AURORA65W**, **RAIN65**, **flash68** | QBZ75 is supported with existing physical evidence for its addressed route. Other exact-model profiles and layouts are implemented but await individual hardware testing. AURORA65W receiver support is unverified. Plus variants are not included. |
+| IPI / QBZ | **QBZ75**, **Aurora 75**, **Aurora75 PRO**, **QBZ65**, **AURORA65**, **AURORA65W**, **RAIN65**, **flash68** | QBZ75 and its Aurora 75 protocol/layout alias are supported; physical evidence belongs to the QBZ75-compatible route. Other listed profiles have complete implementations with yellow notices; this does not claim individual hardware tests. AURORA65W receiver support is unverified. Plus variants are not included. |
 | Razer | **Huntsman V2 Analog**, **Huntsman Mini Analog**, **Huntsman V3 Pro**, **Huntsman V3 Pro Mini**, **Huntsman V3 Pro Tenkeyless** | — |
-| Keychron | **Q1 HE**, **Q3 HE**, **Q5 HE**, **Q6 HE**, **Q12 HE**, **Q1 HE 8K**, **Q3 HE 8K**, **Q5 HE 8K**, **Q6 HE 8K**, **K2 HE**, **K3 HE**, **K4 HE**, **K8 HE**, **K10 HE** | Requires [custom firmware](https://analogsense.org/firmware/). Ready-made images are available for some models. For other Keychron HE models, the linked source changes can be applied to Keychron's published firmware source and built for the exact model and ANSI/ISO/JIS variant. |
+| Keychron | **Q1 HE**, **Q2 HE ANSI**, **Q3 HE**, **Q4 HE ANSI**, **Q5 HE**, **Q6 HE**, **Q12 HE**, **Q1 HE 8K**, **Q3 HE 8K**, **Q5 HE 8K**, **Q6 HE 8K**, **K2 HE**, **K3 HE**, **K4 HE**, **K6 HE ANSI**, **K8 HE**, **K10 HE** | Requires [custom firmware](https://analogsense.org/firmware/). Ready-made images are available for some models. For other Keychron HE models, the linked source changes can be applied to Keychron's published firmware source and built for the exact model and ANSI/ISO/JIS variant. |
 | Lemokey | **P1 HE ANSI**, **P1 HE ISO** | — |
-| NuPhy | **Air60 HE**, **Air75 HE** | — |
+| NuPhy | **Air60 HE**, **Air75 HE**, **Field75 HE** | — |
 | DrunkDeer | **A75**, **A75 Pro**, **G60**, **G65**, **G75** | — |
-| Wooting | **60HE**, **60HE+**, **60HE v2**, **80HE**, **One**, **Two**, **Two HE**, **UwU / UwU RGB** | Bundled analogue runtime. New v2 / Split / UwU layouts are in the 1.6.0 development build; see below. |
+| Wooting | **60HE**, **60HE+**, **60HE v2**, **80HE**, **80HE+**, **One**, **Two**, **Two HE**, **UwU / UwU RGB** | Bundled analogue runtime. New v2 / Split / UwU layouts are in the 1.6.0 development build; see below. |
 
 ## Additional routes and validation evidence
 
 | Route | Current behavior and evidence | Remaining limits |
 |---|---|---|
-| ATTACK SHARK RY5088 | 37 exact reviewed revisions enabled over wired USB; 16 automatic ANSI layout groups. X65 Pro tester reported independent depth and gameplay. | Other revisions need hardware testing. Factory/Fn maps only; custom remaps and receivers are not enabled. Provisional normalization and per-bank limits remain unresolved. X65 Pro has ordinary support; other admitted models retain an orange testing notice. |
+| ATTACK SHARK RY5088 | 37 exact reviewed revisions enabled over wired USB; 16 automatic ANSI layout groups. X65 Pro tester reported independent depth and gameplay. | Other admitted revisions are enabled with yellow notices; no tester prerequisite. Factory/Fn maps only; custom remaps and receivers are not enabled. Provisional normalization and per-bank limits remain unresolved. X65 Pro has ordinary support; other admitted models retain an orange testing notice. |
 | IROK MG75 Pro | Separate native SparkLink V1 route, independent travel for 81 keys including Fn, automatic layout/base assignments, vendor 3.5 mm scale. Enabled with orange notice. | No physical tester result yet; not the MG75 Max V2 protocol. |
-| AULA HERO84 HE | Enabled with orange notice; exact identity, automatic ANSI layout, live/base maps and physical Fn. | Frozen pending tester evidence; observed-range scaling still requires validation. |
+| AULA HERO / WIN experimental families | Exact identity, automatic ANSI layout, live/base maps, analog bindings and virtual gamepad enabled. HERO uses addressed travel; WIN PRO/MAX and HERO PRO use the existing RM6x21 full capability proof. | Yellow notices cover remaining range/firmware nuances. No tester prerequisite. See the [2026-09-22 integration](docs/current/AULA_EXPERIMENTAL_SUPPORT_SYNC_2026-09-22.md). |
 | GravaStar Mercury V75 / Pro / Lite | Legacy identities 1CA5:2201, 1CA5:2202, 1CA2:2201 plus board proof; 79-key geometry and session remaps. Owner confirms a user reported working support (2026-09-20). | The new confirmation does not identify every tested revision; do not extend it to all Pro/Lite/newer revisions. Earlier source/firmware evidence is retained. |
 
 ATTACK SHARK X65 Pro ordinary support was approved on 2026-09-21. The isolated
@@ -85,6 +86,10 @@ support does not establish hardware testing of every revision or switch bank.
 - [Wooting split layouts](docs/current/WOOTING_EXTENDED_LAYOUTS_2026-09-19.md):
   independent physical Space/Fn channels implemented; split hardware validation
   remains pending. Region/split selection is manual.
+
+NuPhy BH65, Field75 HE V2, Halo65 HE and WH80 remain **Research incomplete** (gray). Their unresolved report-field mapping is not merely a range endpoint uncertainty, so they do not qualify for the implemented yellow category.
+
+The complete [yellow model catalog](docs/development/keyboard_support_notices.json) generates runtime notices and is checked against the live Sheet.
 
 ## Disabled research
 

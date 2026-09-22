@@ -20,6 +20,7 @@
 
 NAMESPACE_SOUP
 {
+#include "../../halljoy_keychron_known_maps.h"
 	[[nodiscard]] static bool areRazerAnalogueReportsEnabled()
 	{
 #if SOUP_WINDOWS
@@ -132,6 +133,11 @@ NAMESPACE_SOUP
 		{
 			if (hid.usage_page == 0xFF60 && hid.usage == 0x61)
 			{
+                // Exact open-source ANSI matrices. These additions require FAR
+                // custom firmware; stock polling is not enabled for them.
+                if (hid.product_id == 0x0E60) return "Keychron K6 HE ANSI";
+                if (hid.product_id == 0x0B20) return "Keychron Q2 HE ANSI";
+                if (hid.product_id == 0x0B40) return "Keychron Q4 HE ANSI";
 				if (hid.product_id == 0x0B10 // ANSI
 					|| hid.product_id == 0x0B11 // ISO
 					|| hid.product_id == 0x0B12 // JIS
@@ -375,7 +381,10 @@ NAMESPACE_SOUP
 						|| kbd.hid.vendor_id == 0x362D // Lemokey (a Keychron brand)
 						)
 					{
-						if (kbd.hid.product_id == 0x0B10 // ANSI
+                        if (kbd.hid.product_id == 0x0E60) kbd.keychron.layout = halljoy_k6_ansi;
+                        else if (kbd.hid.product_id == 0x0B20) kbd.keychron.layout = halljoy_q2_ansi;
+                        else if (kbd.hid.product_id == 0x0B40) kbd.keychron.layout = halljoy_q4_ansi;
+                        else if (kbd.hid.product_id == 0x0B10 // ANSI
 							|| kbd.hid.product_id == 0x0B11 // ISO
 							|| kbd.hid.product_id == 0x0B12 // JIS
 							)
@@ -994,7 +1003,10 @@ if (combined[i]) \
 				}
 				else
 				{
-					keychron.state = 0x1;
+                    if (hid.product_id == 0x0E60 || hid.product_id == 0x0B20 || hid.product_id == 0x0B40)
+                        disconnected = true; // Added models require the known FAR ABI.
+                    else
+                        keychron.state = 0x1;
 				}
 			}
 		}
@@ -1007,30 +1019,26 @@ if (combined[i]) \
 			data[2] = 0x31; // AMC_GET_REALTIME_TRAVEL_ALL
 			hid.discardStaleReports();
 			const bool request_sent = hid.sendReport(data, sizeof(data));
-			Buffer b0 = request_sent ? safeReceiveReport(hid, data[1], data[2]) : Buffer<>();
-			Buffer b1 = request_sent ? safeReceiveReport(hid, data[1], data[2]) : Buffer<>();
-			Buffer b2 = request_sent ? safeReceiveReport(hid, data[1], data[2]) : Buffer<>();
-			Buffer b3 = request_sent ? safeReceiveReport(hid, data[1], data[2]) : Buffer<>();
-			/*std::cout << string::bin2hex(b0.toString(), true) << std::endl;
-			std::cout << string::bin2hex(b1.toString(), true) << std::endl;
-			std::cout << string::bin2hex(b2.toString(), true) << std::endl;
-			std::cout << string::bin2hex(b3.toString(), true) << std::endl;
-			std::cout << std::endl;*/
-			// The firmware ABI emits four untagged 32-byte A9/31 reports. A
-			// matching command/subcommand alone cannot make a truncated frame a
-			// valid matrix fragment; each contributes exactly 30 travel bytes.
-			SOUP_IF_UNLIKELY (b0.size() != 32 || b1.size() != 32 || b2.size() != 32 || b3.size() != 32)
-			{
-				disconnected = true;
-			}
-			else
-			{
-				Buffer combined;
-				combined.reserve((32 - 2) * 4);
-				combined.append(b0.data() + 2, 32 - 2);
-				combined.append(b1.data() + 2, 32 - 2);
-				combined.append(b2.data() + 2, 32 - 2);
-				combined.append(b3.data() + 2, 32 - 2);
+            // FAR sends 30 row-major travel bytes per report, then an
+            // unconditional final report (also when the matrix divides by 30).
+            // 5-row boards need three reports; the older boards need four.
+            const size_t slots = layout_get_size(keychron.layout);
+            const size_t fragments = slots / 30 + 1;
+            Buffer combined;
+            combined.reserve(fragments * 30);
+            bool valid = request_sent;
+            for (size_t fragment = 0; valid && fragment < fragments; ++fragment)
+            {
+                const auto report = safeReceiveReport(hid, data[1], data[2]);
+                valid = report.size() == 32;
+                if (valid) combined.append(report.data() + 2, 30);
+            }
+            if (!valid)
+            {
+                disconnected = true;
+            }
+            else
+            {
 				for (uint8_t i = 0; i != layout_get_size(keychron.layout); ++i)
 				{
 					/*if (combined[i] >= 5)

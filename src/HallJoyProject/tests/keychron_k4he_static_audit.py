@@ -53,10 +53,10 @@ require(
     "Keychron version and per-key replies are length-gated before field access",
 )
 require(
-    "b0.size() != 32 || b1.size() != 32 || b2.size() != 32 || b3.size() != 32" in text
-    and "combined.append(b0.data() + 2, 32 - 2);" in text
-    and "combined.append(b3.data() + 2, 32 - 2);" in text,
-    "the A9/31 ABI accepts four exact 32-byte fragments and fixed payload spans",
+    "const size_t fragments = slots / 30 + 1;" in text
+    and "valid = report.size() == 32;" in text
+    and "combined.append(report.data() + 2, 30);" in text,
+    "the A9/31 ABI requires exact fragments sized from the matrix and a final report",
 )
 
 if failures:

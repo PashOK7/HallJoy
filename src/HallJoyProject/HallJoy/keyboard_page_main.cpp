@@ -52,6 +52,7 @@ static constexpr UINT WM_APP_SYNC_MOUSE_SLOTS = WM_APP + 360;
 static constexpr UINT WM_APP_ANALOG_SOURCE_STATUS_CHANGED = WM_APP + 361;
 static constexpr int kSupportBannerHeightPx = 100;
 static bool FrozenSupportVisible() { return halljoy::keyboard_support::GetStatusSnapshot().frozenModels != 0; }
+static bool ImplementedSupportVisible() { return (halljoy::keyboard_support::GetStatusSnapshot().frozenModels & halljoy::keyboard_support::ImplementedModels) != 0; }
 static int SupportBannerHeight() { return FrozenSupportVisible() ? 154 : kSupportBannerHeightPx; }
 static const wchar_t* FrozenSupportTitle() {
     using namespace halljoy::keyboard_support;
@@ -60,8 +61,13 @@ static const wchar_t* FrozenSupportTitle() {
     case NA87: return L"IROK NA87: testing incomplete";
     case NA87Pro: return L"IROK NA87 Pro: support frozen";
     case ND75: return L"IROK ND75: support frozen";
-    case Hero84: return L"AULA HERO84 HE: testing incomplete";
+    case Hero84: return L"AULA HERO: hardware testing incomplete";
     case Mg75Pro: return L"IROK MG75 Pro: testing incomplete";
+    case AulaRm: return L"AULA: hardware testing incomplete";
+    case GravaStar: return L"GravaStar: hardware testing incomplete";
+    case Ipi: return L"IPI / QBZ: hardware testing incomplete";
+    case Redragon: return L"Redragon: hardware testing incomplete";
+    case NuPhy: return L"NuPhy: compatibility review incomplete";
     case AttackShark: return L"ATTACK SHARK: testing incomplete";
     case Azoth96: return L"ROG Azoth 96 HE: support frozen";
     case X68: return L"Attack Shark X68 HE: support frozen";
@@ -70,11 +76,13 @@ static const wchar_t* FrozenSupportTitle() {
 }
 static const wchar_t* FrozenSupportBody() {
     const auto models=halljoy::keyboard_support::GetStatusSnapshot().frozenModels;
+    if(models==halljoy::keyboard_support::NuPhy)
+        return L"The analog report mapping for this firmware is not verified. This model is not yet listed as supported. Report problems on Discord.";
     if(models==halljoy::keyboard_support::FamilyCandidate)
         return L"This USB identity is shared by several keyboard models. Exact model support is unverified. Join Discord to help identify and test it.";
-    constexpr unsigned available=halljoy::keyboard_support::NA87 | halljoy::keyboard_support::Hero84 | halljoy::keyboard_support::Mg75Pro | halljoy::keyboard_support::AttackShark;
+    constexpr unsigned available=halljoy::keyboard_support::ImplementedModels;
     if(models && !(models & ~available))
-        return L"Support is available, but testing is incomplete. It may be unstable or not work. Join Discord to help test it.";
+        return L"Support is implemented; hardware testing is incomplete. Analog range or behavior may need adjustment. Report problems on Discord.";
     if(models & available)
         return L"Some connected keyboards have unverified support and may not work reliably. Other frozen support is unavailable in this build. Join Discord to help test.";
     return L"Experimental support is frozen and unavailable in this build. Join Discord to help with testing and development.";
@@ -208,14 +216,14 @@ static void DrawSupportQr(Gdiplus::Graphics& g, HWND hWnd, const RECT& tile)
 {
     // Warm rose paper and burgundy ink match the card. Keep the required
     // quiet zone, without an extra decorative frame or padding.
-    CustomPage_DrawRoundRect(g, tile, FrozenSupportVisible() ? RGB(250, 229, 186) : RGB(239, 209, 216), FrozenSupportVisible() ? RGB(250, 229, 186) : RGB(239, 209, 216), (float)S(hWnd, 5));
+    CustomPage_DrawRoundRect(g, tile, FrozenSupportVisible() ? (ImplementedSupportVisible() ? RGB(250, 229, 186) : RGB(210, 215, 224)) : RGB(239, 209, 216), FrozenSupportVisible() ? (ImplementedSupportVisible() ? RGB(250, 229, 186) : RGB(210, 215, 224)) : RGB(239, 209, 216), (float)S(hWnd, 5));
     constexpr int kModules = 29, kQuiet = 4;
     // Snap every boundary to a pixel instead of rounding the module size down:
     // the code fills its tile at every DPI, with no blur or gaps between cells.
     constexpr int total = kModules + kQuiet * 2;
     const int size = static_cast<int>(tile.right - tile.left);
     const auto edge = [size](int module) { return MulDiv(module, size, total); };
-    Gdiplus::SolidBrush ink(FrozenSupportVisible() ? Gdiplus::Color(255, 62, 42, 12) : Gdiplus::Color(255, 73, 31, 43));
+    Gdiplus::SolidBrush ink(FrozenSupportVisible() ? (ImplementedSupportVisible() ? Gdiplus::Color(255, 62, 42, 12) : Gdiplus::Color(255, 38, 43, 52)) : Gdiplus::Color(255, 73, 31, 43));
     const auto smoothing = g.GetSmoothingMode();
     g.SetSmoothingMode(Gdiplus::SmoothingModeNone);
     for (int y = 0; y < kModules; ++y)
@@ -264,12 +272,12 @@ static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LP
         SelectObject(hdc, headingFont ? headingFont : GetStockObject(SYSTEM_FONT));
         Gdiplus::Graphics g(hdc);
         g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-        CustomPage_DrawRoundRect(g, rc, FrozenSupportVisible() ? RGB(53, 42, 24) : RGB(51, 30, 35), FrozenSupportVisible() ? RGB(140, 102, 40) : RGB(118, 61, 72),
+        CustomPage_DrawRoundRect(g, rc, FrozenSupportVisible() ? (ImplementedSupportVisible() ? RGB(53, 42, 24) : RGB(35, 38, 44)) : RGB(51, 30, 35), FrozenSupportVisible() ? (ImplementedSupportVisible() ? RGB(140, 102, 40) : RGB(100, 110, 125)) : RGB(118, 61, 72),
             (float)S(hWnd, 8));
         RECT accent{S(hWnd, 1), S(hWnd, 13), S(hWnd, 4), rc.bottom - S(hWnd, 13)};
-        CustomPage_DrawRoundRect(g, accent, FrozenSupportVisible() ? RGB(239, 179, 70) : RGB(214, 103, 122), FrozenSupportVisible() ? RGB(239, 179, 70) : RGB(214, 103, 122), 1.0f);
+        CustomPage_DrawRoundRect(g, accent, FrozenSupportVisible() ? (ImplementedSupportVisible() ? RGB(239, 179, 70) : RGB(155, 166, 185)) : RGB(214, 103, 122), FrozenSupportVisible() ? (ImplementedSupportVisible() ? RGB(239, 179, 70) : RGB(155, 166, 185)) : RGB(214, 103, 122), 1.0f);
         CustomPage_DrawText(hdc, FrozenSupportVisible() ? FrozenSupportTitle() : L"No supported analogue keyboard detected", layout.title,
-            FrozenSupportVisible() ? RGB(255, 205, 112) : RGB(245, 164, 182), DT_LEFT | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
+            FrozenSupportVisible() ? (ImplementedSupportVisible() ? RGB(255, 205, 112) : RGB(210, 218, 230)) : RGB(245, 164, 182), DT_LEFT | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
 
         SelectObject(hdc, bodyFont ? bodyFont : GetStockObject(SYSTEM_FONT));
         CustomPage_DrawText(hdc, FrozenSupportVisible() ? FrozenSupportBody() : kSupportPrompt, layout.body, UiTheme::Color_Text(),

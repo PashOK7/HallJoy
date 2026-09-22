@@ -22,6 +22,7 @@ enum class NativeAnalogProtocol : std::uint8_t
     AulaMini60HePro = 16,
     AttackSharkX65Pro = 17,
     IrokMg75Pro = 18,
+    KeychronOnboard = 19,
     Simulator = 250,
 };
 

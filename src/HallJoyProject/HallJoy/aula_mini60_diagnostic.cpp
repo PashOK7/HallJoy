@@ -46,13 +46,14 @@ std::thread supervisor;
 // Anonymous inherited mapping: counters only, never ordered key events.
 struct Shared {
     volatile LONG keys=0,released=0,held=0,lastChange=0,topology=0;
-    volatile LONG nativeReady=0,mapReady=0,mapRevision=0,heartbeat=0;
+    volatile LONG nativeReady=0,mapReady=0,mapRevision=0,heartbeat=0,productId=0;
     volatile LONG assigned[126]{};
     alignas(8) volatile LONG64 samples[126]{};
 };
 bool liveWorker=false;
 std::atomic<bool> nativeConnected{false};
-std::atomic<unsigned> nativeMapped{0};
+std::atomic<unsigned> nativeMapped{0},nativeProduct{0};
+std::uint64_t NativeToken(){return halljoy::mini60::Token(nativeProduct.load());}
 std::atomic<std::uint64_t> nativeUpdates{0},nativeExpired{0};
 halljoy::physical_analog::Publication factoryValues,assignedValues;
 void PumpNative();
@@ -75,7 +76,7 @@ void Line(const std::string& s){DWORD n=0;std::string l=s+"\n";WriteFile(GetStdH
 void Event(const char* name,unsigned error=0){Line(std::string(name)+" error="+std::to_string(error));}
 std::wstring ThisExe(){wchar_t b[32768]{};auto n=GetModuleFileNameW(nullptr,b,_countof(b));if(!n || n>=_countof(b))throw 1;return {b,n};}
 std::wstring Quote(const std::wstring& s){return L"\""+s+L"\"";}
-struct Device {std::wstring path;};
+struct Device {std::wstring path;unsigned productId=0;};
 std::vector<Device> Find(){
     std::vector<Device> result;unsigned receiver=0,wired=0,rejected=0;
     GUID guid{};HidD_GetHidGuid(&guid);
@@ -91,7 +92,7 @@ std::vector<Device> Find(){
         if(!SetupDiGetDeviceInterfaceDetailW(list,&item,detail,size,nullptr,nullptr))continue;
         std::wstring path=detail->DevicePath;std::wstring lower=path;
         std::transform(lower.begin(),lower.end(),lower.begin(),towlower);
-        if(lower.find(L"vid_0c45&pid_80a2")==std::wstring::npos && lower.find(L"vid_0c45&pid_fefe")==std::wstring::npos)continue;
+        if(lower.find(L"vid_0c45&pid_8032")==std::wstring::npos && lower.find(L"vid_0c45&pid_80a2")==std::wstring::npos && lower.find(L"vid_0c45&pid_80a1")==std::wstring::npos && lower.find(L"vid_0c45&pid_fefe")==std::wstring::npos && lower.find(L"vid_0c45&pid_fefc")==std::wstring::npos)continue;
         Handle meta(CreateFileW(path.c_str(),0,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_EXISTING,0,nullptr));
         if(!meta){Event("metadata_open_failed",GetLastError());continue;}
         HIDD_ATTRIBUTES attr{};attr.Size=sizeof(attr);
@@ -100,11 +101,11 @@ std::vector<Device> Find(){
         if(!HidD_GetPreparsedData(meta.h,&prep)){Event("descriptor_failed",GetLastError());continue;}
         auto status=HidP_GetCaps(prep,&caps);HidD_FreePreparsedData(prep);
         if(status!=HIDP_STATUS_SUCCESS){Event("caps_failed",static_cast<unsigned>(status));continue;}
-        if(attr.ProductID==0xfefe){++receiver;continue;}
-        if(attr.ProductID!=0x80a2)continue;
+        if(attr.ProductID==0xfefe || attr.ProductID==0xfefc){++receiver;continue;}
+        if(!halljoy::mini60::SupportedProduct(attr.ProductID))continue;
         ++wired;
-        char line[300];sprintf_s(line,"descriptor vid=0c45 pid=80a2 bcd=%04x usage=%04x:%04x in=%u out=%u feature=%u",attr.VersionNumber,caps.UsagePage,caps.Usage,caps.InputReportByteLength,caps.OutputReportByteLength,caps.FeatureReportByteLength);Line(line);
-        if(caps.UsagePage==0xff68 && caps.Usage==0x61 && caps.InputReportByteLength==65 && caps.OutputReportByteLength==65)result.push_back({path});else ++rejected;
+        char line[300];sprintf_s(line,"descriptor vid=0c45 pid=%04x bcd=%04x usage=%04x:%04x in=%u out=%u feature=%u",attr.ProductID,attr.VersionNumber,caps.UsagePage,caps.Usage,caps.InputReportByteLength,caps.OutputReportByteLength,caps.FeatureReportByteLength);Line(line);
+        if(caps.UsagePage==0xff68 && caps.Usage==0x61 && caps.InputReportByteLength==65 && caps.OutputReportByteLength==65)result.push_back({path,attr.ProductID});else ++rejected;
     }
     Line("inventory wired_collections="+std::to_string(wired)+" receiver_collections="+std::to_string(receiver)+" rejected_collections="+std::to_string(rejected)+" eligible="+std::to_string(result.size())+" receiver_commands=0");
     return result;
@@ -204,7 +205,8 @@ int Capture(bool cleanupOnly){
             for(unsigned retry=0;retry<2 && !Stop();++retry){
                 if(s.Exchange(0x10,56,0,&reply)){
                     const auto vid=U16(reply.data()+12),pid=U16(reply.data()+14);
-                    if(vid!=0x0c45 || pid!=0x80a2 || (liveWorker && (U16(reply.data()+20)!=0x0166 || U16(reply.data()+22)!=0x110c))){Line("identity_mismatch commands_stopped=1");return 7;}
+                    if(!halljoy::mini60::Identity(devices[0].productId,vid,pid,U16(reply.data()+20),U16(reply.data()+22))){Line("identity_mismatch commands_stopped=1");return 7;}
+                    if(liveWorker)InterlockedExchange(&shared->productId,static_cast<LONG>(pid));
                     char b[250];sprintf_s(b,"device_info vid=%04x pid=%04x version_bytes=%02x:%02x manufacturer=%u product=%u work_mode=%u",vid,pid,reply[16],reply[17],U16(reply.data()+20),U16(reply.data()+22),reply[24]);Line(b);info=true;break;
                 }
                 if(s.ioBroken)break;
@@ -371,10 +373,10 @@ std::array<std::uint64_t,126> publishedSamples{};
 std::array<unsigned,126> previousValues{};
 void ClearNative(){
     const bool was=nativeConnected.exchange(false);
-    if(!was && nativeRevision==-1)return;
+    if(!was && nativeRevision==-1 && !nativeProduct.load())return;
     factoryValues.Clear();assignedValues.Clear();nativeMapped=0;nativeRevision=-1;
     publishedSamples.fill(0);previousValues.fill(0);
-    halljoy::native_layout::Clear(halljoy::mini60::LayoutToken);
+    halljoy::native_layout::Clear(NativeToken());nativeProduct=0;
     RealtimeLoop_NotifyInputChanged();
 }
 void PumpNative(){
@@ -383,9 +385,11 @@ void PumpNative(){
     const auto now=GetTickCount64();const auto tick=static_cast<DWORD>(now);
     if(!Load(shared->nativeReady) || !Load(shared->mapReady) ||
         DWORD(tick-heartbeat)>1000){ClearNative();return;}
+    const auto product=static_cast<unsigned>(Load(shared->productId));
+    if(!halljoy::mini60::SupportedProduct(product)){ClearNative();return;}
     LONG revision=Load(shared->mapRevision);
-    if(revision!=nativeRevision){
-        ClearNative();std::array<halljoy::native_layout::Key,61> map{};unsigned count=0;
+    if(revision!=nativeRevision || product!=nativeProduct.load()){
+        ClearNative();nativeProduct=product;std::array<halljoy::native_layout::Key,61> map{};unsigned count=0;
         for(unsigned i=0;i<126;++i)if(auto hid=halljoy::mini60::Factory[i]){
             auto assigned=static_cast<std::uint16_t>(Load(shared->assigned[i]));
             if(assigned>=halljoy::native_layout::kHidCount)assigned=0;
@@ -393,7 +397,7 @@ void PumpNative(){
             if(assigned)assignedValues.Bind(static_cast<std::uint8_t>(i+1),assigned);
             map[count++]={hid,assigned};
         }
-        if(count!=map.size() || !halljoy::native_layout::Publish(halljoy::mini60::LayoutToken,map.data(),count))return;
+        if(count!=map.size() || !halljoy::native_layout::Publish(NativeToken(),map.data(),count))return;
         nativeMapped=count;nativeRevision=revision;
         StabilityTrace_Write(L"INFO",L"mini60",L"native_map_published",L"keys=%u revision=%ld normalization=travel_div_stroke_times10 stale_ms=50",count,revision);
     }
@@ -418,7 +422,7 @@ void PumpNative(){
     nativeConnected=true;uiState=12;
     static std::uint64_t nextLog=0;
     if(now>=nextLog){
-        StabilityTrace_Write(L"INFO",L"mini60",L"native_checkpoint",L"updates=%llu stale_releases=%llu active=%u assigned_layout=%u",nativeUpdates.load(),nativeExpired.load(),factoryValues.Active(now),halljoy::native_layout::UsesRemapping(halljoy::mini60::LayoutToken)?1u:0u);
+        StabilityTrace_Write(L"INFO",L"mini60",L"native_checkpoint",L"updates=%llu stale_releases=%llu active=%u assigned_layout=%u",nativeUpdates.load(),nativeExpired.load(),factoryValues.Active(now),halljoy::native_layout::UsesRemapping(NativeToken())?1u:0u);
         nextLog=now+5000;
     }
     if(changed)RealtimeLoop_NotifyInputChanged();
@@ -434,20 +438,20 @@ halljoy::lifecycle::StopResult NativeStop(halljoy::lifecycle::GenerationId gener
 }
 bool NativeConnected(){return nativeConnected.load() && !parentStop.load();}
 bool NativeOwns(std::uint16_t hid){
-    return NativeConnected() && (halljoy::native_layout::UsesRemapping(halljoy::mini60::LayoutToken)?assignedValues:factoryValues).Owns(hid);
+    return NativeConnected() && (halljoy::native_layout::UsesRemapping(NativeToken())?assignedValues:factoryValues).Owns(hid);
 }
 std::uint16_t NativeGet(std::uint16_t hid){
     if(!NativeOwns(hid))return 0;
-    return (halljoy::native_layout::UsesRemapping(halljoy::mini60::LayoutToken)?assignedValues:factoryValues).Read(hid,GetTickCount64(),halljoy::mini60::FreshMs).milli;
+    return (halljoy::native_layout::UsesRemapping(NativeToken())?assignedValues:factoryValues).Read(hid,GetTickCount64(),halljoy::mini60::FreshMs).milli;
 }
 void NativeTelemetry(NativeAnalogBackendTelemetry* out){
     if(!out)return;*out={};out->present=NativeConnected();out->connected=NativeConnected();
-    out->vendorId=0x0c45;out->productId=0x80a2;out->usagePage=0xff68;out->usage=0x61;
+    out->vendorId=0x0c45;out->productId=static_cast<std::uint16_t>(nativeProduct.load());out->usagePage=0xff68;out->usage=0x61;
     out->mappedKeys=nativeMapped.load();out->activeKeys=factoryValues.Active(GetTickCount64());
     out->inputReportBytes=65;out->outputReportBytes=65;out->nominalRawLevels=341;
     out->successfulUpdates=nativeUpdates.load();
-    if(out->connected)out->verifiedLayoutToken=halljoy::mini60::LayoutToken;
-    wcscpy_s(out->status,L"MINI60 HE Pro: wired analog; per-key freshness 50 ms");
+    if(out->connected)out->verifiedLayoutToken=NativeToken();
+    wcscpy_s(out->status,nativeProduct.load()==0x8032?L"MINI60 HE: wired analog; per-key freshness 50 ms":nativeProduct.load()==0x80a1?L"MINI60 HE MAX: wired analog; per-key freshness 50 ms":L"MINI60 HE Pro: wired analog; per-key freshness 50 ms");
 }
 
 void Supervise() noexcept {
@@ -489,16 +493,23 @@ void DigitalSummary(){
     }
 }
 void Require(bool v){if(!v)throw 1;}
-void SelfTest(){
+void SelfTest(unsigned product){
+    Require(halljoy::mini60::Identity(product,0x0c45,product,0x0166,0x110c));
+    Require(!halljoy::mini60::Identity(product,0x0c45,product^1,0x0166,0x110c));
+    Require(!halljoy::mini60::Identity(product,0x0c45,product,0,0x110c));
+    Require(!halljoy::mini60::SupportedProduct(0xfefc) && !halljoy::mini60::SupportedProduct(0x80b2));
     // Exercise the actual publication/getMilli path without HID or app startup.
-    parentStop=false;
+    parentStop=false;halljoy::native_layout::activeToken=0;
+    InterlockedExchange(&shared->productId,static_cast<LONG>(product));
     for(unsigned i=0;i<126;++i)InterlockedExchange(&shared->assigned[i],halljoy::mini60::Factory[i]);
     auto tick=GetTickCount();InterlockedExchange(&shared->heartbeat,static_cast<LONG>(tick));
     InterlockedExchange(&shared->mapReady,1);InterlockedIncrement(&shared->mapRevision);InterlockedExchange(&shared->nativeReady,1);
     InterlockedExchange64(&shared->samples[34],halljoy::mini60::Pack(170,34,tick));
     InterlockedExchange64(&shared->samples[49],halljoy::mini60::Pack(340,34,tick));
     InterlockedExchange64(&shared->samples[0],halljoy::mini60::Pack(85,34,tick));
-    PumpNative();Require(NativeOwns(26) && NativeGet(26)==500 && NativeGet(4)==1000 && NativeGet(41)==250);
+    PumpNative();NativeAnalogBackendTelemetry telemetry{};NativeTelemetry(&telemetry);
+    Require(telemetry.productId==product && telemetry.verifiedLayoutToken==halljoy::mini60::Token(product));
+    Require(NativeToken()==halljoy::mini60::Token(product));Require(NativeOwns(26) && NativeGet(26)==500 && NativeGet(4)==1000 && NativeGet(41)==250);
     Require(NativeAnalogBackends_CatalogIsValid());
     auto routed=NativeAnalogBackends_ReadMilli(26);Require(routed.connected && routed.owned && routed.milli==500);
     halljoy::configured_xusb::PadConfiguration config{};config.axes[0]={4,7};config.axes[1]={22,26};
@@ -508,9 +519,9 @@ void SelfTest(){
     auto frame=halljoy::configured_xusb::BuildReport(config,input,gameState);
     Require(frame.leftStickX==-32767 && frame.leftStickY==16384);
     InterlockedExchange64(&shared->samples[34],halljoy::mini60::Pack(170,34,tick-51));
-    PumpNative();Require(NativeOwns(26) && NativeGet(26)==0 && NativeGet(4)==1000);
+    PumpNative();Require(NativeToken()==halljoy::mini60::Token(product));Require(NativeOwns(26) && NativeGet(26)==0 && NativeGet(4)==1000);
     InterlockedExchange(&shared->assigned[49],26);InterlockedIncrement(&shared->mapRevision);
-    PumpNative();halljoy::native_layout::activeToken=halljoy::mini60::LayoutToken;
+    PumpNative();halljoy::native_layout::activeToken=halljoy::mini60::Token(product);
     Require(NativeGet(26)==1000 && !NativeOwns(4));
     InterlockedExchange64(&shared->samples[49],halljoy::mini60::Pack(0,34,GetTickCount()));PumpNative();Require(NativeGet(26)==0);
     InterlockedExchange(&shared->nativeReady,0);PumpNative();Require(!NativeConnected() && NativeGet(26)==0);
@@ -521,6 +532,8 @@ void SelfTest(){
     assign={2,1,26,0};Require(halljoy::mini60::Assigned(49,assign.data())==0);
     assign={2,1,0,0};Require(halljoy::mini60::Assigned(49,assign.data())==224);
     assign={6,0,0,0};Require(halljoy::mini60::Assigned(49,assign.data())==0);
+    assign={2,0,0xaf,0};Require(halljoy::mini60::Assigned(85,assign.data())==0x409);
+    assign={2,1,0xaf,0};Require(halljoy::mini60::Assigned(85,assign.data())==0);
     Coverage c;
     c.Update(7,4,8,8,0,1000,20,2,1,100);Require(c.phase==0);
     c.Update(8,4,8,8,2,1000,20,1,1,200);Require(c.phase==1);
@@ -555,7 +568,7 @@ bool Mini60Diagnostic_TryRunCommand(int& result) noexcept {
     bool test=argc==2 && wcscmp(argv[1],L"--halljoy-mini60-self-test")==0;
     if(!worker && !test){LocalFree(argv);return false;}
     try{
-        if(test){CreateShared();SelfTest();result=0;}
+        if(test){CreateShared();SelfTest(0x80a2);SelfTest(0x80a1);SelfTest(0x8032);result=0;}
         else{
             childCancel=reinterpret_cast<HANDLE>(static_cast<uintptr_t>(_wcstoui64(argv[3],nullptr,10)));
             DWORD flags=0;if(!childCancel || !GetHandleInformation(childCancel,&flags))throw 1;
@@ -578,7 +591,7 @@ void Mini60Diagnostic_Start() noexcept {
     if(!StabilityTrace_IsEnabled()){uiState=10;return;}
 #endif
     parentStop=false;collecting=false;uiState=1;
-    StabilityTrace_WriteCritical(L"INFO",L"mini60",L"start",L"schema=2 build=20260919-native-2 mode=continuous_analog no_test_deadline=1 stale_release_ms=50 scope=0c45:80a2:ff68:0061 wireless_commands=0 gamepad_unchanged=1 firmware_writes=0 calibration=0 typed_text=0");
+    StabilityTrace_WriteCritical(L"INFO",L"mini60",L"start",L"schema=2 build=20260919-native-2 mode=continuous_analog no_test_deadline=1 stale_release_ms=50 scope=0c45:80a2,80a1,8032:ff68:0061 wireless_commands=0 gamepad_unchanged=1 firmware_writes=0 calibration=0 typed_text=0");
     try{CreateShared();
         InterlockedExchange(&shared->nativeReady,0);InterlockedExchange(&shared->mapReady,0);
         keyCount=0;releaseCount=0;maximumHeld=0;
@@ -634,7 +647,7 @@ void Mini60Diagnostic_ObserveRawInput(HRAWINPUT input) noexcept {
             wchar_t path[2048]{};UINT n=_countof(path);Digital d;
             if(GetRawInputDeviceInfoW(raw.header.hDevice,RIDI_DEVICENAME,path,&n)!=UINT(-1)){
                 std::wstring value=path;std::transform(value.begin(),value.end(),value.begin(),towlower);
-                d.target=value.find(L"vid_0c45&pid_80a2")!=std::wstring::npos;
+                d.target=value.find(L"vid_0c45&pid_8032")!=std::wstring::npos || value.find(L"vid_0c45&pid_80a2")!=std::wstring::npos || value.find(L"vid_0c45&pid_80a1")!=std::wstring::npos;
             }
             found=digital.emplace(raw.header.hDevice,d).first;
         }
@@ -659,7 +672,7 @@ void Mini60Diagnostic_ObserveRawInput(HRAWINPUT input) noexcept {
 const NativeAnalogBackendDescriptor& Mini60_GetNativeBackendDescriptor(){
     static const NativeAnalogBackendDescriptor descriptor{
         kNativeAnalogBackendAbiVersion,sizeof(NativeAnalogBackendDescriptor),
-        "aula-mini60-he-pro",L"AULA MINI60 HE Pro",NativeAnalogProtocol::AulaMini60HePro,
+        "aula-mini60-he-pro",L"AULA MINI60 HE / Pro / MAX",NativeAnalogProtocol::AulaMini60HePro,
         NativeAnalogStartPhase::AfterRawInput,
         NativeAnalogBackendFlag_StreamTransport|NativeAnalogBackendFlag_ReversibleControlProbe|NativeAnalogBackendFlag_RequiresRawInput,
         nullptr,&NativeStart,&NativeStop,nullptr,&NativeConnected,&NativeConnected,&NativeOwns,&NativeGet,&NativeTelemetry};

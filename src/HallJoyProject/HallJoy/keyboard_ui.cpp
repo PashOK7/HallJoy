@@ -23,6 +23,9 @@
 #include "keyboard_ui_internal.h"
 #include "keyboard_ui_state.h"
 #include "keyboard_support_status.h"
+#include "support_notice_catalog.h"
+#include "generated/layout_pipeline/identities.h"
+#include "aula_rm_family.h"
 #include "attackshark_pro_layout_identity.h"
 #include "native_layout_devices.h"
 #include "irok_na87_identity.h"
@@ -279,14 +282,7 @@ void KeyboardUI_OnTimerTick(HWND)
     unsigned frozenModels = NativeLayoutDevices_QueryFrozen();
     for (int i=0;i<std::clamp(telemetry.nativeProtocolCount,0,kBackendMaxNativeProtocols);++i) {
         const auto& device=telemetry.nativeProtocols[i];
-        if(device.present && device.protocol==static_cast<std::uint16_t>(NativeAnalogProtocol::AulaHero84He))
-            frozenModels |= halljoy::keyboard_support::Hero84;
-        if(device.present && device.protocol==static_cast<std::uint16_t>(NativeAnalogProtocol::IrokMg75Pro))
-            frozenModels |= halljoy::keyboard_support::Mg75Pro;
-        // X65 Pro has ordinary support; other family models retain their testing notice.
-        if(device.present && device.protocol==static_cast<std::uint16_t>(NativeAnalogProtocol::AttackSharkX65Pro) &&
-            device.verifiedLayoutToken != halljoy::sharklayout::Token(2308))
-            frozenModels |= halljoy::keyboard_support::AttackShark;
+        frozenModels |= halljoy::keyboard_support::NativeNotice(device.protocol, device.verifiedLayoutToken, device.connected);
     }
     // An ambiguous USB family is advisory only when no working source exists.
     // It must not mark a verified active sibling model as frozen.

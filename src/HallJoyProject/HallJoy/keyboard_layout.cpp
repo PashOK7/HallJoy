@@ -1,3 +1,4 @@
+#include "keychron_onboard_identity.h"
 #include "keyboard_layout.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -41,6 +42,10 @@
 #include "irok_na87_identity.h"
 #include "aula_mini60_native_model.h"
 #include "aula_mini60_layout.h"
+#include "aula_hero_family.h"
+#include "aula_hero_family_layout.h"
+#include "aula_rm_family.h"
+#include "aula_rm_family_layout.h"
 #include "attackshark_pro_layouts.h"
 #include "attackshark_pro_layout_identity.h"
 #include "generated/layout_pipeline/layouts.h"
@@ -360,11 +365,21 @@ namespace
         { L"DrunkDeer G75 ANSI", g_drunkdeer_G75Ansi, (int)std::size(g_drunkdeer_G75Ansi), L"DrunkDeer" },
         { L"DrunkDeer G75 JIS", g_drunkdeer_G75Jis, (int)std::size(g_drunkdeer_G75Jis), L"DrunkDeer" },
 #include "generated/layout_pipeline/presets.inc"
+        { L"Aula WIN 60 HE PRO ANSI", g_aula_win60_max_ansi, (int)std::size(g_aula_win60_max_ansi), L"Aula" },
+        { L"Aula WIN 68 HE PRO / MAX ANSI", g_aula_rm68_ansi, (int)std::size(g_aula_rm68_ansi), L"Aula" },
+        { L"Aula HERO 68 HE PRO ANSI", g_aula_rm68_ansi, (int)std::size(g_aula_rm68_ansi), L"Aula" },
+        { L"Aula HERO 68 HE ANSI", g_aula_hero68_ansi, (int)std::size(g_aula_hero68_ansi), L"Aula" },
+        { L"Aula HERO 68 Air ANSI", g_aula_hero68_ansi, (int)std::size(g_aula_hero68_ansi), L"Aula" },
+        { L"Aula HERO 68 MINI ANSI", g_aula_hero68_ansi, (int)std::size(g_aula_hero68_ansi), L"Aula" },
+        { L"Aula WIN 68 HE Ultra ANSI", g_aula_hero68_ansi, (int)std::size(g_aula_hero68_ansi), L"Aula" },
+        { L"Aula HERO 99 HE ANSI", g_aula_hero99_ansi, (int)std::size(g_aula_hero99_ansi), L"Aula" },
         { halljoy::sharklayout::X65, g_shark_x65_ansi, (int)std::size(g_shark_x65_ansi), L"ATTACK SHARK" },
         { halljoy::sharklayout::X68, g_shark_x68_ansi, (int)std::size(g_shark_x68_ansi), L"ATTACK SHARK" },
         { halljoy::sharklayout::X82, g_shark_x82_ansi, (int)std::size(g_shark_x82_ansi), L"ATTACK SHARK" },
 #if defined(HALLJOY_AULA_MINI60_NATIVE)
         { halljoy::mini60::Preset, g_aula_mini60_ansi, (int)std::size(g_aula_mini60_ansi), L"Aula" },
+        { halljoy::mini60::BasePreset, g_aula_mini60_ansi, (int)std::size(g_aula_mini60_ansi), L"Aula" },
+        { halljoy::mini60::MaxPreset, g_aula_mini60_ansi, (int)std::size(g_aula_mini60_ansi), L"Aula" },
 #endif
 #if defined(HALLJOY_IROK_NA87_NATIVE)
         { irok_na87::kAnsiPreset, g_irok_na87_ansi, (int)std::size(g_irok_na87_ansi), L"IROK" },
@@ -1860,9 +1875,14 @@ bool KeyboardLayout_UpdateAutomatic(bool searchCompleted, const BackendAnalogTel
             for (int i=0;i<t.nativeProtocolCount && i<kBackendMaxNativeProtocols;++i) if (t.nativeProtocols[i].connected) {
                 token=t.nativeProtocols[i].verifiedLayoutToken;
                 name=halljoy::layout_identity::Match(token);
+                if(const auto* hero=halljoy::hero_family::Match(token))name=hero;
+                if(const auto* rm=halljoy::aula_rm_family::Match(token))name=rm;
+                if(token==halljoy::k4_onboard::kLayoutToken) name=halljoy::k4_onboard::kPreset;
                 if(const auto* shark=halljoy::sharklayout::Match(token))name=shark;
 #if defined(HALLJOY_AULA_MINI60_NATIVE)
                 if(token==halljoy::mini60::LayoutToken)name=halljoy::mini60::Preset;
+                if(token==halljoy::mini60::BaseLayoutToken)name=halljoy::mini60::BasePreset;
+                if(token==halljoy::mini60::MaxLayoutToken)name=halljoy::mini60::MaxPreset;
 #endif
 #if defined(HALLJOY_IROK_NA87_NATIVE)
                 if (token==irok_na87::kAnsiLayoutToken) name=irok_na87::kAnsiPreset;
@@ -2205,9 +2225,14 @@ bool KeyboardLayout_TryFirstRunSelection(bool searchCompleted, const BackendAnal
             {
                 const auto token=t.nativeProtocols[i].verifiedLayoutToken;
                 preset = halljoy::layout_identity::Match(token);
+                if(const auto* hero=halljoy::hero_family::Match(token))preset=hero;
+                if(const auto* rm=halljoy::aula_rm_family::Match(token))preset=rm;
+                if(token==halljoy::k4_onboard::kLayoutToken) preset=halljoy::k4_onboard::kPreset;
                 if(const auto* shark=halljoy::sharklayout::Match(token))preset=shark;
 #if defined(HALLJOY_AULA_MINI60_NATIVE)
                 if(token==halljoy::mini60::LayoutToken)preset=halljoy::mini60::Preset;
+                if(token==halljoy::mini60::BaseLayoutToken)preset=halljoy::mini60::BasePreset;
+                if(token==halljoy::mini60::MaxLayoutToken)preset=halljoy::mini60::MaxPreset;
 #endif
 #if defined(HALLJOY_IROK_NA87_NATIVE)
                 if (token==irok_na87::kAnsiLayoutToken) preset=irok_na87::kAnsiPreset;

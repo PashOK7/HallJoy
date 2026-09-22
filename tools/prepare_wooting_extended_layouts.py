@@ -21,7 +21,7 @@ SHA = '987ba72a09a78b1fc508c8739b1c0a25a3434d7ef614fba56f1822e5acdbc40a'
 OUTPUT = Path('docs/research/wooting-extended-layout-reports-20260919')
 URL = 'https://wootility.io/assets/index-BaoALhfv.js'
 LABELS = {hid: label for hid, label in common.CODES.values()}
-LABELS.update({0x409:'Fn',0x480:'Space L',0x481:'Space R',0x482:'Fn C',0x483:'Fn R'})
+LABELS.update({0x408:'Mode',0x409:'Fn',0x480:'Space L',0x481:'Space R',0x482:'Fn C',0x483:'Fn R'})
 
 def literal(text, marker):
     start = text.index(marker) + len(marker)
@@ -112,29 +112,40 @@ def reports():
     text = decode()
     assert "'layout':qS,'supportedLayoutTypes':()=>[je[\"ANSI\"],je[\"ISO\"],je[\"ANSI_SPLIT_SPACEBAR\"],je[\"ISO_SPLIT_SPACEBAR\"]]" in text
     base = object_literal(text,'S5='); splits = object_literal(text,'Sg=')
-    keys60 = matrix(text,'xE='); uwu = matrix(text,'_E=')
+    keys60 = matrix(text,'xE='); keys80 = matrix(text,'Hu='); uwu = matrix(text,'_E=')
     output = []
-    for split in (False,True):
-        for region in ('ansi','iso'):
-            geometry = {**base,**splits}; keys = []; y = 0
-            for row in range(1,6):
-                x = 0; advance = 0
-                for col in range(14):
-                    p = props_for(geometry.get(f'{row},{col}'),region,split)
-                    if p is None: continue
-                    w,h = p.get('width',1),p.get('height',1)
-                    top = y+p.get('mt',0); x += p.get('ml',0)
-                    hid = keys60[row][col]
-                    if split and row==5 and col in (4,6,8,13):
-                        hid = {4:0x480,6:0x482,8:0x481,13:0x483}[col]
-                    assert hid is not None, (row,col)
-                    key = dict(hid=hid,label=LABELS[hid],x=px(x),y=px(top),w=px(x+w)-px(x)-4,h=px(top+h)-px(top)-4,matrix=[row,col])
-                    if hid==40 and region=='iso':
-                        key.update(x=px(x-.25),w=px(x+w)-px(x-.25)-4,notchW=px(x)-px(x-.25),notchY=42)
-                    keys.append(key); x += w+p.get('mr',0); advance=max(advance,p.get('mt',0)+h+p.get('mb',0))
-                y += advance
-            model = '60HE v2 Split' if split else '60HE v2'
-            output.append(make_report(model,region.upper(),keys,[]))
+    raw80 = literal(text, 'Dg=').replace('...WS,', '')
+    raw80 = re.sub(r'void\([^()]+\)', 'None', raw80)
+    base80 = {**object_literal(text, 'WS='), **ast.literal_eval(raw80)}
+    assert "'pid':0x1410" in text and "cT={...Dg,...Sg}" in text
+    for family, model_base, first_row, columns in [('60HE v2',base,1,14), ('80HE+',base80,0,17)]:
+        key_matrix = keys80 if family == '80HE+' else keys60
+        right_fn = 12 if family == '80HE+' else 13
+        for split in (False,True):
+            for region in ('ansi','iso'):
+                geometry = {**model_base,**splits}; keys = []; y = 0
+                for row in range(first_row,6):
+                    x = 0; advance = 0
+                    for col in range(columns):
+                        p = props_for(geometry.get(f'{row},{col}'),region,split)
+                        if p is None: continue
+                        w,h = p.get('width',1),p.get('height',1)
+                        top = y+p.get('mt',0); x += p.get('ml',0)
+                        hid = key_matrix[row][col]
+                        if split and row==5 and col in (4,6,8,right_fn):
+                            hid = {4:0x480,6:0x482,8:0x481,right_fn:0x483}[col]
+                        assert hid is not None, (row,col)
+                        key = dict(hid=hid,label=LABELS[hid],x=px(x),y=px(top),w=px(x+w)-px(x)-4,h=px(top+h)-px(top)-4,matrix=[row,col])
+                        if hid==40 and region=='iso':
+                            key.update(x=px(x-.25),w=px(x+w)-px(x-.25)-4,notchW=px(x)-px(x-.25),notchY=42)
+                        keys.append(key); x += w+p.get('mr',0); advance=max(advance,p.get('mt',0)+h+p.get('mb',0))
+                    y += advance
+                model = family+' Split' if split else family
+                r = make_report(model,region.upper(),keys,[])
+                if family == '80HE+':
+                    r['id'] = r['id'].replace('80he_', '80he_plus_')
+                    r['geometryEvidence'] = 'Pinned Wootility Rg PID 0x1410, cT=Dg+Sg geometry, Hu usage matrix; no vendor code execution.'
+                output.append(r)
     # The three auxiliary silicone buttons have no analog depth. Main key
     # scale is a Wootility rendering choice; normalize equally to standard keys.
     assert object_literal(text,'Yc=') == {'mb':.25,'scale':1.5}

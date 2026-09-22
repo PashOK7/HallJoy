@@ -26,8 +26,10 @@ struct KnownUsbIdentity
     std::uint32_t boardId = 0;
 };
 
-constexpr std::array<KnownUsbIdentity, 4> kKnownUsbIdentities{{
+constexpr std::array<KnownUsbIdentity, 6> kKnownUsbIdentities{{
     { 0x1CA2u, 0x1902u, 0x0A021902u }, // Aula WIN 60 HE MAX
+    { 0x1CA2u, 0x1901u, 0x06021901u }, // AULA WIN68 PRO/MAX, official updater + full live proof
+    { 0x1CA5u, 0x0409u, 0x06050409u }, // AULA HERO68 HE PRO, official updater + full live proof
     { 0x1CA5u, 0x2201u, 0x16052201u }, // GravaStar Mercury V75
     { 0x1CA5u, 0x2202u, 0x16052202u }, // GravaStar Mercury V75 Pro
     { 0x1CA2u, 0x2201u, 0x2E022201u }, // GravaStar Mercury V75 Lite

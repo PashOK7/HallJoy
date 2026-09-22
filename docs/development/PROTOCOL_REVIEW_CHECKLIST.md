@@ -43,3 +43,10 @@
 - [ ] Windows Release x64 build passes.
 - [ ] Real hardware connect/reconnect and sustained test pass.
 - [ ] Supported/tested status matches available evidence.
+
+## Mandatory support-status reconciliation
+
+- [ ] Follow [SUPPORT_STATUS_SYNC.md](SUPPORT_STATUS_SYNC.md): reconcile exact affected models across runtime, README, SUPPORTED_HARDWARE and the live Google Sheet.
+- [ ] Read back Sheet values, validation and effective status colors; record the date, exact models/ranges and result in current documentation.
+- [ ] Before release, check all support changes since the previous release, including older decisions whose Sheet update may have been missed.
+- [ ] Record access failures as pending synchronization; do not claim that all support surfaces are current.

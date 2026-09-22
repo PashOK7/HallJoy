@@ -17,12 +17,13 @@ constexpr int Slot(std::uint16_t vendor, std::uint16_t product,
     std::uint8_t matrix) noexcept {
     // Exact manufacturer model PID. Never infer another Wooting matrix from
     // vendor ID, marketing name, remapped scancode or Windows key state.
-    if (vendor != 0x31e3 || product != 0x1340) return -1;
+    if (vendor != 0x31e3 || (product != 0x1340 && product != 0x1410)) return -1;
     switch (matrix) {
     case (5u << 5u) | 4u: return 0;
     case (5u << 5u) | 8u: return 1;
     case (5u << 5u) | 6u: return 2;
-    case (5u << 5u) | 13u: return 3;
+    case (5u << 5u) | 12u: return product == 0x1410 ? 3 : -1;
+    case (5u << 5u) | 13u: return product == 0x1340 ? 3 : -1;
     default: return -1;
     }
 }

@@ -5,6 +5,18 @@
 namespace halljoy::mini60 {
 inline constexpr std::uint64_t LayoutToken=0x4d363050414e5349ull;
 inline constexpr const wchar_t* Preset=L"Aula MINI60 HE Pro ANSI";
+inline constexpr std::uint64_t MaxLayoutToken=0x4d36304d414e5349ull;
+inline constexpr const wchar_t* MaxPreset=L"Aula MINI60 HE MAX ANSI";
+inline constexpr std::uint64_t BaseLayoutToken=0x4d363042414e5349ull;
+inline constexpr const wchar_t* BasePreset=L"Aula MINI60 HE ANSI";
+inline constexpr bool SupportedProduct(unsigned pid){return pid==0x80a2 || pid==0x80a1 || pid==0x8032;}
+inline constexpr std::uint64_t Token(unsigned pid){return pid==0x80a1?MaxLayoutToken:pid==0x80a2?LayoutToken:pid==0x8032?BaseLayoutToken:0;}
+inline constexpr bool Identity(unsigned descriptorPid,unsigned vid,unsigned pid,unsigned manufacturer,unsigned product){
+    // Base/MAX device-info product is supplied by the MCU identification register,
+    // not a fixed value in the firmware. Keep the established PRO restriction.
+    return vid==0x0c45 && SupportedProduct(pid) && pid==descriptorPid &&
+        manufacturer==0x0166 && (pid!=0x80a2 || product==0x110c);
+}
 inline constexpr unsigned FreshMs=50;
 // Physical positions from pinned HFD layout o and master map y (61 keys).
 inline constexpr std::array<std::uint16_t,126> Factory={
@@ -18,6 +30,8 @@ inline unsigned Assigned(unsigned position,const std::uint8_t* record){
         if(record[2] || (record[1]&(record[1]-1)))return 0;
         for(unsigned i=0;i<8;++i)if(record[1]==(1u<<i))return 224+i;
     }
+    // HFD factory Fn (MAX V1.52 position 85) is a vendor action, not USB usage AF.
+    if(record[2]==0xaf)return 0x409;
     return KeyboardUsage(record[2])?record[2]:0;
 }
 // SDK keyStroke is in 0.01 mm; reported stroke 34 is 3.4 mm.

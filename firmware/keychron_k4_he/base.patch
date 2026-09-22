@@ -1,0 +1,376 @@
+diff --git a/keyboards/keychron/common/analog_matrix/analog_matrix.c b/keyboards/keychron/common/analog_matrix/analog_matrix.c
+index 9b24c4c346..e1f3af467c 100644
+--- a/keyboards/keychron/common/analog_matrix/analog_matrix.c
++++ b/keyboards/keychron/common/analog_matrix/analog_matrix.c
+@@ -25,6 +25,8 @@
+ #include "profile.h"
+ #include "sqrt.h"
+ #include "game_controller_common.h"
++#include "halljoy_onboard.h"
++#include "keychron_onboard_precision.h"
+ #include "nvm_eeprom_eeconfig_internal.h"
+ 
+ #ifndef CAL_SAMPL_CNT
+@@ -124,6 +126,8 @@ static uint8_t       last_cali_state;
+ static uint8_t       cur_calib = 0;
+ traval_config_t      regular;
+ static float         scale_factor[MATRIX_ROWS][MATRIX_COLS];
++static uint16_t hj_raw[MATRIX_ROWS][MATRIX_COLS];
++static bool hj_raw_valid[MATRIX_ROWS][MATRIX_COLS];
+ static matrix_row_t  calib_state_matrix[MATRIX_ROWS];
+ // Mark invalid key on abnormal value of manual zero travel calibration, for manufacturing use
+ static matrix_row_t manual_calib_zero_invalid[MATRIX_ROWS];
+@@ -140,6 +144,16 @@ uint8_t analog_matrix_get_travel(uint8_t row, uint8_t col) {
+     return analog_key_matrix[row][col].travel;
+ }
+ 
++float halljoy_analog_precise(uint8_t row,uint8_t col) {
++    if(row>=MATRIX_ROWS || col>=MATRIX_COLS || cali_state || !calibrated || !hj_raw_valid[row][col])return 0;
++    return hjk4_precise_depth(hj_raw[row][col],calib_values[row][col].zero_travel,
++        scale_factor[row][col],REF_ZERO_TRAVEL,CONST_B1,CONST_C1,CONST_D1);
++}
++void halljoy_analog_observation(uint8_t row,uint8_t col,uint16_t* raw,uint16_t* zero,uint16_t* full,uint8_t* valid) {
++    *raw=hj_raw[row][col];*zero=calib_values[row][col].zero_travel;*full=calib_values[row][col].full_travel;
++    *valid=hj_raw_valid[row][col] && !cali_state && calibrated;
++}
++
+ static uint8_t convert_to_travel(uint8_t row, uint8_t col, uint16_t value) {
+ #define DEAD_ZONE 30
+     uint16_t travel;
+@@ -669,6 +683,9 @@ void analog_matrix_init(void) {
+ }
+ 
+ bool update_raw_value(uint8_t row, uint8_t col, uint16_t value) {
++    // Independent analog sample: legacy keyboard/rapid-trigger gate remains intact.
++    hj_raw[row][col]=value;
++    hj_raw_valid[row][col]=value>=VALID_ANALOG_RAW_VALUE_MIN && value<=VALID_ANALOG_RAW_VALUE_MAX;
+     if (value < VALID_ANALOG_RAW_VALUE_MIN || value > VALID_ANALOG_RAW_VALUE_MAX) return false;
+ 
+     if (cali_state) {
+@@ -860,6 +877,7 @@ static bool get_calibrated_value(uint8_t row, uint8_t col, uint8_t *data) {
+ }
+ 
+ void analog_matrix_rx(uint8_t *data, uint8_t length) {
++    if (halljoy_onboard_rx(data, length)) return;
+     if (data[0] != 0xA9) return;
+ 
+     uint8_t cmd     = data[1];
+diff --git a/keyboards/keychron/common/analog_matrix/analog_matrix_scan.c b/keyboards/keychron/common/analog_matrix/analog_matrix_scan.c
+index acb98a8c58..d18b2549f8 100644
+--- a/keyboards/keychron/common/analog_matrix/analog_matrix_scan.c
++++ b/keyboards/keychron/common/analog_matrix/analog_matrix_scan.c
+@@ -20,6 +20,7 @@
+ #include "quantum.h"
+ #include "analog_matrix.h"
+ #include "debounce.h"
++#include "halljoy_onboard.h"
+ #ifdef LK_WIRELESS_ENABLE
+ #    include "lpm.h"
+ #endif
+@@ -308,12 +309,14 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
+     memset(changed_matrix, 0, sizeof(changed_matrix));
+     matrix_changed = false;
+ 
++    const uint32_t scan_start_cycles = chSysGetRealtimeCounterX();
+     // Set col, read rows
+     matrix_row_t row_shifter = MATRIX_ROW_SHIFTER;
+     for (uint8_t current_col = 0; current_col < MATRIX_COLS; current_col++, row_shifter <<= 1) {
+         matrix_read_rows_on_col(current_col, row_shifter);
+     }
+ 
++    halljoy_onboard_task((uint32_t)(chSysGetRealtimeCounterX()-scan_start_cycles)/(STM32_HCLK/1000000u));
+     analog_matrix_task();
+     extern matrix_row_t analog_matrix_mask[];
+     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+@@ -338,6 +341,14 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
+         virtual_matrix[row] |= (game_controller_matrix[row] | okmc_matrix[row]);
+     }
+ 
++    for (uint8_t r=0;r<MATRIX_ROWS;++r) {
++        for (uint8_t c=0;c<MATRIX_COLS;++c) {
++            if (halljoy_onboard_suppressed(r,c)) {
++                raw_matrix[r] &= ~((matrix_row_t)1 << c);
++                virtual_matrix[r] &= ~((matrix_row_t)1 << c);
++            }
++        }
++    }
+     bool changed = memcmp(raw_matrix, last_raw_matrix, sizeof(last_raw_matrix)) != 0;
+     // changed = debounce(raw_matrix, matrix, MATRIX_ROWS, changed);
+ 
+diff --git a/keyboards/keychron/common/analog_matrix/usb_descriptor_override.c b/keyboards/keychron/common/analog_matrix/usb_descriptor_override.c
+index fc16873fae..9570c8dc6e 100644
+--- a/keyboards/keychron/common/analog_matrix/usb_descriptor_override.c
++++ b/keyboards/keychron/common/analog_matrix/usb_descriptor_override.c
+@@ -1,144 +1,62 @@
+-/* Copyright 2024 @ Keychron (https://www.keychron.com)
+- *
+- * This program is free software: you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License as published by
+- * the Free Software Foundation, either version 2 of the License, or
+- * (at your option) any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+- */
+-
++// SPDX-License-Identifier: GPL-2.0-or-later
++// K4 onboard build only: JOYSTICK_ENABLE=no, shared keyboard + vendor HID;
++// append native XInput only during a leased HallJoy session.
+ #include "quantum.h"
+-#include "analog_matrix.h"
+-#include "raw_hid.h"
+ #include "usb_main.h"
+-#include <stdio.h>
+-#include "game_controller_common.h"
+-
+-extern USB_Descriptor_Configuration_t PROGMEM            ConfigurationDescriptor[];
+-extern const USB_Descriptor_HIDReport_Datatype_t PROGMEM SharedReport[];
+-
+-bool get_joy_stick_report_descriptor_info(uint16_t *pos_begin, uint16_t *pos_end) {
+-    uint16_t share_report_len             = ConfigurationDescriptor->Shared_HID.HIDReportLength;
+-    uint8_t  joystick_report_key_begin[4] = {0x05, 0x01, 0x09, 0x04};
+-    bool     find                         = false;
+-
+-    for (uint16_t i = 0; i < share_report_len - 4; i++) {
+-        if (memcmp(SharedReport + i, joystick_report_key_begin, 4) == 0) {
+-            // Search joystick report descriptor end position starting from pos_begin
+-            for (uint16_t j = i; j < share_report_len - 2; j++) {
+-                if (SharedReport[j] == 0xC0 && SharedReport[j + 1] == 0xC0) {
+-                    *pos_begin = i;
+-                    *pos_end   = j + 2;
+-                    find       = true;
+-                    break;
+-                }
++#include "halljoy_onboard.h"
++#include <stddef.h>
++#include <string.h>
++
++extern const USB_Descriptor_Configuration_t ConfigurationDescriptor;
++extern const USB_Descriptor_Device_t DeviceDescriptor;
++
++_Static_assert(offsetof(USB_Descriptor_Configuration_t, Xinput_Interface) +
++    sizeof(USB_Descriptor_Interface_t) + XINPUT_HID_DESCRIPTOR_LEN +
++    2 * sizeof(USB_Descriptor_Endpoint_t) == sizeof(USB_Descriptor_Configuration_t),
++    "XInput must be the final interface for prefix descriptor selection");
++
++void get_usb_descriptor_kb(const uint16_t value, const uint16_t index,
++    const uint16_t length, const void **const address, uint16_t *size) {
++    (void)index; (void)length;
++    static USB_Descriptor_Configuration_t config;
++    static USB_Descriptor_Device_t device;
++    const bool native = halljoy_onboard_native_descriptor();
++    switch (value >> 8) {
++        case DTYPE_Device:
++            memcpy(&device, &DeviceDescriptor, sizeof(device));
++            // Distinct revisions avoid Windows reusing a cached negative OS
++            // descriptor result from keyboard-only mode or old firmware.
++            device.ReleaseNumber = native ? 0x1213 : 0x1212;
++            *address = &device; *size = sizeof(device);
++            break;
++        case DTYPE_Configuration:
++            memcpy(&config, &ConfigurationDescriptor, sizeof(config));
++            if (!native) {
++                config.Config.TotalInterfaces = TOTAL_INTERFACES - 1;
++                config.Config.TotalConfigurationSize = offsetof(USB_Descriptor_Configuration_t, Xinput_Interface);
+             }
++            *address = &config; *size = config.Config.TotalConfigurationSize;
+             break;
+-        }
+-    }
+-
+-    return find;
+-}
+-
+-void get_usb_descriptor_kb(const uint16_t wValue, const uint16_t wIndex, const uint16_t wLength, const void **const DescriptorAddress, uint16_t *size) {
+-#if defined(JOYSTICK_ENABLE) && defined(XINPUT_ENABLE)
+-
+-    const uint8_t   DescriptorType  = (wValue >> 8);
+-    const uint8_t   DescriptorIndex = (wValue & 0xFF);
+-    static bool     recal           = false;
+-    static uint16_t pos_begin, pos_end;
+-    static uint16_t original_hid_rpt_len = 0;
+-
+-    if (original_hid_rpt_len == 0) original_hid_rpt_len = ConfigurationDescriptor->Shared_HID.HIDReportLength;
+-
+-    switch (DescriptorType) {
+         case DTYPE_String:
+-#    if defined(XINPUT_ENABLE)
+-            if (!game_controller_xinput_enabled() && DescriptorIndex == 0xEE) {
+-                *DescriptorAddress = NULL;
+-                *size              = 0;
++            if ((value & 255) == 3 && *address && *size >= 2 && *size <= 120) {
++                // New firmware identity prevents stale Windows HID collection
++                // associations from the old built-in generic joystick. Preserve
++                // the full hardware serial, append a stable protocol suffix.
++                static uint8_t serial[128];
++                const uint8_t suffix[8] = {'H',0,'J',0,'O',0,'1',0};
++                memcpy(serial,*address,*size);
++                memcpy(serial+*size,suffix,sizeof(suffix));
++                *size += sizeof(suffix); serial[0]=(uint8_t)*size;
++                *address=serial;
+             }
+-#    endif
++            if ((value & 255) == 0xEE && !native) { *address = NULL; *size = 0; }
+             break;
+-
+-        case DTYPE_Configuration:
+-#    if defined(JOYSTICK_SHARED_EP)
+-        {
+-            if (game_controller_xinput_enabled()) {
+-                if (!recal && get_joy_stick_report_descriptor_info(&pos_begin, &pos_end)) {
+-                    ConfigurationDescriptor->Shared_HID.HIDReportLength -= (pos_end - pos_begin);
+-                    recal = true;
+-                }
+-            } else {
+-                uint8_t xinput_desc_len                                = sizeof(USB_Descriptor_Interface_t) + 0x11 + sizeof(USB_Descriptor_Endpoint_t) * 2;
+-                ConfigurationDescriptor->Config.TotalInterfaces        = TOTAL_INTERFACES - 1;
+-                ConfigurationDescriptor->Config.TotalConfigurationSize = sizeof(USB_Descriptor_Configuration_t) - xinput_desc_len;
+-                *size                                                  = sizeof(USB_Descriptor_Configuration_t) - xinput_desc_len;
+-            }
+-        }
+-#    else
+-            //  TODO:
+-            //            uint8_t xinput_desc_len = sizeof(USB_Descriptor_Interface_t) + 0x11 + sizeof(USB_Descriptor_Endpoint_t) * 2;
+-            //            uint8_t joy_desc_len    = sizeof(USB_Descriptor_Interface_t) + sizeof(USB_HID_Descriptor_HID_t) + sizeof(USB_Descriptor_Endpoint_t);
+-            //            if (xinput_mode) {
+-            //                static USB_Descriptor_Configuration_t *xinput_mode_desc = NULL;
+-
+-            //                if (xinput_mode_desc == NULL) {
+-            //                    xinput_mode_desc = (void *)malloc(sizeof(USB_Descriptor_Configuration_t));
+-            //                    memcpy(xinput_mode_desc, &ConfigurationDescriptor, sizeof(USB_Descriptor_Configuration_t));
+-            //                    // Move xinput descriptor
+-            //                    memcpy(&xinput_mode_desc->Joystick_Interface, &xinput_mode_desc->Xinput_Interface, xinput_desc_len);
+-            //                }
+-            //                *DescriptorAddress = xinput_mode_desc;
+-            //                *Size -= joy_desc_len;
+-            //            } else {
+-            //                *Size -= xinput_desc_len;
+-            //            }
+-
+-#    endif
+-        break;
+-        case HID_DTYPE_Report:
+-            switch (wIndex) {
+-#    ifdef SHARED_EP_ENABLE
+-                case SHARED_INTERFACE:
+-
+-                    *DescriptorAddress = &SharedReport;
+-                    uint16_t len       = ConfigurationDescriptor->Shared_HID.HIDReportLength;
+-
+-                    if (game_controller_xinput_enabled()) {
+-                        static uint8_t *input_mode_rpt_desc = NULL;
+-                        if (input_mode_rpt_desc == NULL) {
+-                            input_mode_rpt_desc = (uint8_t *)malloc(original_hid_rpt_len);
+-
+-                            memcpy(input_mode_rpt_desc, &SharedReport, original_hid_rpt_len);
+-
+-                            if (pos_begin < original_hid_rpt_len - 4 && pos_end < original_hid_rpt_len - 2) {
+-                                // Move xinput descriptor
+-                                memcpy(input_mode_rpt_desc + pos_begin, input_mode_rpt_desc + pos_end, original_hid_rpt_len - pos_end);
+-                            }
+-                        }
+-                        *DescriptorAddress = input_mode_rpt_desc;
+-                        *size              = len;
+-                    }
+-                    break;
+-#    endif
+-            }
+     }
+-#endif
+ }
+ 
+-void get_usb_vendor_descriptor_kb(uint8_t recipient, uint8_t reqeuest, const uint16_t wValue, const uint16_t wIndex, const uint16_t wLength, const void **const DescriptorAddress, uint16_t *size) {
+-#if XINPUT_ENABLE
+-    if (!game_controller_xinput_enabled()) {
+-        *DescriptorAddress = NULL;
+-        *size              = 0;
+-    }
+-#endif
++void get_usb_vendor_descriptor_kb(uint8_t recipient, uint8_t request,
++    const uint16_t value, const uint16_t index, const uint16_t length,
++    const void **const address, uint16_t *size) {
++    (void)recipient; (void)request; (void)value; (void)index; (void)length;
++    if (!halljoy_onboard_native_descriptor()) { *address = NULL; *size = 0; }
+ }
+diff --git a/keyboards/keychron/k4_he/rules.mk b/keyboards/keychron/k4_he/rules.mk
+index 1a5f7491b7..ae47006c58 100644
+--- a/keyboards/keychron/k4_he/rules.mk
++++ b/keyboards/keychron/k4_he/rules.mk
+@@ -1,4 +1,4 @@
+-JOYSTICK_ENABLE = yes
++JOYSTICK_ENABLE = no
+ JOYSTICK_DRIVER = digital
+ KEYCHRON_RGB_ENABLE = yes
+ # Inscrease stack size to avoid crushing of eeprom_update_block()
+@@ -15,3 +15,7 @@ include keyboards/keychron/common/wireless/wireless.mk
+ VPATH += $(TOP_DIR)/keyboards/keychron
+ 
+ OPT = 2
++
++OPT_DEFS += -DHALLJOY_ONBOARD
++SRC += keyboards/keychron/common/analog_matrix/halljoy_onboard.c
++EXTRAINCDIRS += $(TOP_DIR)/../../../src/HallJoyProject/HallJoy
+diff --git a/lib/python/qmk/keyboard.py b/lib/python/qmk/keyboard.py
+index 254dc62309..dd670ee046 100644
+--- a/lib/python/qmk/keyboard.py
++++ b/lib/python/qmk/keyboard.py
+@@ -166,7 +166,7 @@ def keyboard_folder_or_all(keyboard):
+ def _find_name(path):
+     """Determine the keyboard name by stripping off the base_path and filename.
+     """
+-    return path.replace(base_path, "").rsplit(os.path.sep, 1)[0]
++    return path.replace(base_path, "").rsplit(os.path.sep, 1)[0].replace(os.path.sep, "/")
+ 
+ 
+ def keyboard_completer(prefix, action, parser, parsed_args):
+diff --git a/tmk_core/protocol/chibios/usb_main.c b/tmk_core/protocol/chibios/usb_main.c
+index 60426c2e87..84cbd0eb56 100644
+--- a/tmk_core/protocol/chibios/usb_main.c
++++ b/tmk_core/protocol/chibios/usb_main.c
+@@ -16,6 +16,9 @@
+ #include <string.h>
+ 
+ #include "usb_main.h"
++#ifdef HALLJOY_ONBOARD
++#    include "halljoy_onboard.h"
++#endif
+ #include "usb_report_handling.h"
+ 
+ #include "host.h"
+@@ -26,6 +29,9 @@
+ #include "usb_device_state.h"
+ #include "usb_descriptor.h"
+ #include "usb_driver.h"
++#ifdef HALLJOY_ONBOARD
++#    include "halljoy_onboard.h"
++#endif
+ #include "usb_types.h"
+ 
+ #ifdef RAW_ENABLE
+@@ -201,6 +207,9 @@ static void usb_event_cb(USBDriver *usbp, usbevent_t event) {
+         case USB_EVENT_UNCONFIGURED:
+             /* Falls into.*/
+         case USB_EVENT_RESET:
++#ifdef HALLJOY_ONBOARD
++            halljoy_onboard_usb_reset();
++#endif
+             usb_event_queue_enqueue(event);
+             chSysLockFromISR();
+             if (event == USB_EVENT_RESET) {
+@@ -563,7 +572,11 @@ void send_digitizer(report_digitizer_t *report) {
+ 
+ void send_xinput(report_xinput_t *report) {
+ #ifdef XINPUT_ENABLE
++#ifndef HALLJOY_ONBOARD
+     send_report(USB_ENDPOINT_IN_XINPUT, report, sizeof(report_xinput_t));
++#else
++    (void)report; // only the onboard owner may publish a native gamepad
++#endif
+ #endif
+ }
+ 

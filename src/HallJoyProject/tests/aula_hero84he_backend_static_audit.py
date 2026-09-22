@@ -36,7 +36,11 @@ checks = {
         "hero::kVendorId", "hero::kProductId", "hero::kUsagePage", "hero::kUsage",
         "hero::kReportId", "hero::kReportBytes", "HasId")),
     "identity before routing claim": source.index("Identity(s)") < source.index("NativeAnalogRouting_Claim"),
-    "exact UUID admission": has(r"kExpectedUuid\s*\{\{0x11,\s*0,\s*0,\s*0,\s*0,\s*0x05\}\}") and has(r"uuid\s*==\s*kExpectedUuid"),
+    "exact UUID admission": (
+        {int(x,16) for x in re.findall(r"\{0x([0-9A-F]+)ull,", (HALL / "aula_hero_family.h").read_text())}
+        == {0x110000000005,0x110000000003,0x110000000014,0x11000000000F,0x110000000015,0x110000000012,0x11000000003F}
+        and "hero_family::Find(id)" in source and "if(!model)return false;" in source
+        and "if(m.uuid==uuid)return &m; return nullptr;" in (HALL / "aula_hero_family.h").read_text()),
     "live map is read-only 83": "BuildAssignmentRead(0" in source and "ParseAssignmentResponse" in source,
     "typed assignments and complete remaps": "hero84::DecodeAssignment" in source and "native_layout::Publish" in source and "g_factory.Bind" in source,
     "only approved transmit builders": all(marker in source for marker in (

@@ -227,6 +227,14 @@ def main() -> int:
             ("uap_device_identity", [tests / "uap_device_identity_test.cpp"]),
             ("drunkdeer_identity", [tests / "drunkdeer_identity_test.cpp"]),
             ("uap_poll_pacing", [tests / "uap_poll_pacing_test.cpp"]),
+            ("keychron_hj_protocol", [tests / "keychron_hj_protocol_test.cpp"]),
+            ("gamepad_latency_model", [tests / "gamepad_latency_model_test.cpp"]),
+            ("keychron_onboard_precision", [tests / "keychron_onboard_precision_test.cpp"]),
+            ("keychron_onboard_session", [tests / "keychron_onboard_session_test.cpp"]),
+            ("keychron_onboard_compact", [tests / "keychron_onboard_compact_test.cpp"]),
+            ("keychron_onboard_client", [tests / "keychron_onboard_client_test.cpp"]),
+            ("keychron_onboard_profile", [tests / "keychron_onboard_profile_test.cpp"]),
+            ("keychron_onboard_mapper", [tests / "keychron_onboard_mapper_test.cpp", hall / "configured_xusb_builder.cpp"]),
             ("uap_snapshot_pinning", [tests / "uap_snapshot_pinning_test.cpp"]),
             ("windows_command_line", [tests / "windows_command_line_test.cpp"]),
             ("mg75_pro_protocol", [tests / "mg75_pro_protocol_test.cpp"]),
@@ -274,6 +282,8 @@ def main() -> int:
             ]),
         ]
         if os.name == "nt":
+            fixed_tests.append(("keychron_onboard_host_profile", [tests / "keychron_onboard_host_profile_test.cpp", hall / "keychron_onboard_host_profile.cpp", hall / "bindings.cpp", hall / "key_settings.cpp", hall / "backend_curve.cpp", hall / "settings.cpp", hall / "curve_math.cpp"]))
+            fixed_tests.append(("keychron_onboard_curve", [tests / "keychron_onboard_curve_test.cpp", hall / "key_settings.cpp", hall / "backend_curve.cpp", hall / "settings.cpp", hall / "curve_math.cpp"]))
             fixed_tests.append(("aula_mini60_log_windows", [
                 tests / "aula_mini60_log_windows_test.cpp", hall / "stability_trace.cpp"
             ]))

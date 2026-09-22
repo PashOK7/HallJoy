@@ -1,3 +1,7 @@
+- [AULA family expansion and yellow-status synchronization](current/AULA_EXPERIMENTAL_SUPPORT_SYNC_2026-09-22.md): nine added models, complete enabled paths and all 47 yellow models reconciled.
+
+- [AULA family review and Camera tester disable](current/AULA_KNOWN_PROTOCOL_REVIEW_2026-09-22.md): base MINI60 wired support, remaining model boundaries and delivered build.
+
 # HallJoy documentation
 
 Start with [owner decisions](current/OWNER_CONTEXT.md), then the current documents
@@ -5,6 +9,8 @@ below. Dated audits preserve evidence, including superseded conclusions; they
 are not all active requirements. Later owner decisions take precedence.
 
 ## Current release and user documentation
+
+- [1.6.1 patch notes](../RELEASE_NOTES_v1.6.1.md).
 
 - [Published 1.6.0 release](current/RELEASE_1.6.0_PUBLICATION_2026-09-21.md).
 
@@ -16,10 +22,18 @@ are not all active requirements. Later owner decisions take precedence.
 - [Latest prerelease and verified artifact](current/PRERELEASE_2026-09-21.md).
 - [1.6.0 candidate release notes](../RELEASE_NOTES_v1.6.0.md).
 - [Application README](../README.md) and [hardware compatibility](../SUPPORTED_HARDWARE.md).
-- [Built-in layout catalog](KEYBOARD_LAYOUTS.md): 121 source variants / 98 visible variants.
+- [Built-in layout catalog](KEYBOARD_LAYOUTS.md), including the documented local additions.
 - [Support on Discord](https://discord.gg/5FQ297yZh).
 
+## Required support-status workflow
+
+- [Synchronize support decisions with the live Google Sheet](development/SUPPORT_STATUS_SYNC.md) before completing support changes or publishing a release.
+
 ## Build and regression evidence
+
+- [Camera latency tester](current/GAMEPAD_LATENCY_TESTER_2026-09-21.md): independent controller observation and camera target.
+
+- [Keychron custom FAR firmware and UAP latency review](current/KEYCHRON_UAP_LATENCY_REVIEW_2026-09-21.md): code-controlled waits, protocol findings and bounded claims.
 
 - [Build guide](development/BUILD_README.txt), [testing guide](development/TESTING.md),
   and [repository layout](current/PROJECT_LAYOUT.md).
@@ -34,6 +48,12 @@ Routine checks are short and hypothesis-driven. No speculative long soak is
 required. Optional continuous logging and mandatory incident reports are distinct.
 
 ## Current integrations and layouts
+
+- [Active K4 HE low-latency firmware/protocol work](current/K4_HE_LOW_LATENCY_PROTOCOL_2026-09-21.md): backups, measured legacy transport and actual source limits.
+
+- [Wooting / Keychron status correction, NuPhy and Razer protocol review](current/BRAND_PROTOCOL_REVIEW_2026-09-21.md).
+
+- [Known-protocol additions: Keychron K6/Q2/Q4 HE and Wooting 80HE+](current/KNOWN_PROTOCOL_ADDITIONS_2026-09-21.md): local implementation, supported Sheet status; see the subsequent protocol review.
 
 - [NA87 / MINI 60 HE Pro](current/NA87_MINI60_STANDARD_SUPPORT_2026-09-19.md).
 - [MG75 Pro](current/MG75_PRO_INTEGRATION_2026-09-19.md),

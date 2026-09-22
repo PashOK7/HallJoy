@@ -6,6 +6,5 @@
 // intentionally separate from the no-input diagnostic descriptor.
 const NativeAnalogBackendDescriptor &AulaHero84He_GetNativeBackendDescriptor();
 
-#if defined(HALLJOY_ANALOG_SIMULATOR)
+// Headless linked-image software check; never opens HID or starts workers.
 bool AulaHero84He_TestPublication(int* failedLine = nullptr);
-#endif

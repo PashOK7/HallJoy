@@ -520,6 +520,50 @@
           "sha256": "df499547a7df0d8927f4fe3bfcfe66dadc04eacabe6a819b761dac13296a0b3d",
           "products": [],
           "url": ""
+        },
+        {
+          "id": "wooting_80he_plus_ansi",
+          "model": "80HE+",
+          "variant": "ANSI",
+          "brand": "Wooting",
+          "count": 84,
+          "source": "docs/research/wooting-extended-layout-reports-20260919/wooting_80he_plus_ansi.json",
+          "sha256": "b2eb301fadc87f52c1585c32b4afb80eb2e23a85f921e734c4aeb367ec6831ec",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_80he_plus_iso",
+          "model": "80HE+",
+          "variant": "ISO",
+          "brand": "Wooting",
+          "count": 85,
+          "source": "docs/research/wooting-extended-layout-reports-20260919/wooting_80he_plus_iso.json",
+          "sha256": "9af083e17917a195ad1dddbaac98ae9cba347388caece28fb177b059a5174e05",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_80he_plus_split_ansi",
+          "model": "80HE+ Split",
+          "variant": "ANSI",
+          "brand": "Wooting",
+          "count": 86,
+          "source": "docs/research/wooting-extended-layout-reports-20260919/wooting_80he_plus_split_ansi.json",
+          "sha256": "e603d617607e447c929dd02fd944912f141b4f93cbcc473a3e0219ab2ac52706",
+          "products": [],
+          "url": ""
+        },
+        {
+          "id": "wooting_80he_plus_split_iso",
+          "model": "80HE+ Split",
+          "variant": "ISO",
+          "brand": "Wooting",
+          "count": 87,
+          "source": "docs/research/wooting-extended-layout-reports-20260919/wooting_80he_plus_split_iso.json",
+          "sha256": "303e0d44aaa48529d22c8ffbff2db8e93bec5d7f3564ba63bbc9dddffd79b80d",
+          "products": [],
+          "url": ""
         }
       ],
       "pending": []

@@ -1,0 +1,17 @@
+[
+  {
+    "path": "docs/research/known-protocols-20260921/keychron-far.c",
+    "url": "https://raw.githubusercontent.com/AnalogSense/qmk_firmware/e21916b695ec3b31fbbbb325e32849be5cdb9e46/keyboards/keychron/common/analog_matrix/analog_matrix.c",
+    "sha256": "80138167af07300808f93ed23767f9764d4d30d7d9a686f437478c1892aaafa3"
+  },
+  {
+    "path": "docs/research/known-protocols-20260921/device.rs",
+    "url": "https://raw.githubusercontent.com/WootingKb/wooting-analog-sdk/be35a629bd79967012da4dcb731fa9e5a6d3c132/wooting-analog-sdk/src/device.rs",
+    "sha256": "624fb7f6fc15d471207518a027d4b054c1e368b27a1d584643bf1cda4fa85359"
+  },
+  {
+    "path": "docs/research/known-protocols-20260921/plugin-wooting.rs",
+    "url": "https://raw.githubusercontent.com/WootingKb/wooting-analog-sdk/be35a629bd79967012da4dcb731fa9e5a6d3c132/wooting-analog-sdk/src/plugin/wooting.rs",
+    "sha256": "2840af15197114c55aed409a260ffcd333752ba3e519261adbac75faae90112b"
+  }
+]

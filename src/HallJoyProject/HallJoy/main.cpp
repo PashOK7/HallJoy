@@ -1,8 +1,10 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shellapi.h>
 #include "support_log.h"
 #include "irok_na87_diagnostic.h"
 #include "aula_mini60_diagnostic.h"
+#include "aula_hero84he_backend.h"
 #include "attackshark_pro_diagnostic.h"
 #include "irok_na87_backend.h"
 #include <objidl.h>
@@ -190,6 +192,13 @@ int WINAPI wWinMain(
     if (DebugLog_TryRunExitWatchdogCommand())
         return 0;
 
+    int supportArgc=0;
+    auto supportArgv=CommandLineToArgvW(GetCommandLineW(), &supportArgc);
+    const bool supportTest=supportArgv && supportArgc==2 && wcscmp(supportArgv[1], L"--halljoy-support-self-test")==0;
+    if(supportArgv)LocalFree(supportArgv);
+    if(supportTest) {
+        int line=0; return AulaHero84He_TestPublication(&line) ? 0 : (line % 200 + 1);
+    }
     int na87Exit = 0;
     if (SharkDiagnostic_TryRunCommand(na87Exit)) return na87Exit;
     if (Mini60Diagnostic_TryRunCommand(na87Exit)) return na87Exit;

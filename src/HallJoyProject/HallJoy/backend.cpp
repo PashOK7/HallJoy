@@ -1,3 +1,5 @@
+#include "keychron_onboard_backend.h"
+#include "keychron_onboard_host_profile.h"
 #include "input_path_diagnostics.h"
 #include "profile_runtime_gate.h"
 #include "input_privilege_warning.h"
@@ -1199,7 +1201,7 @@ static void RefreshVigemOutputStatus(bool requestNewestOnGeneration) noexcept
 static bool VigemOutput_Start()
 {
     std::uint32_t error = ERROR_SUCCESS;
-    const bool enabled = g_virtualPadsEnabled.load(std::memory_order_acquire);
+    const bool enabled = g_virtualPadsEnabled.load(std::memory_order_acquire) && !KeychronOnboard_OwnsOutput();
     const std::uint32_t pads = static_cast<std::uint32_t>(std::clamp(
         g_virtualPadCount.load(std::memory_order_acquire), 1, kMaxVirtualPads));
     const bool started = g_vigemOutputRuntime.Start(enabled, pads, error);
@@ -1246,6 +1248,7 @@ static bool VigemOutput_Stop()
 
 bool Backend_EnsureOutputRuntimeHealthy()
 {
+    if (KeychronOnboard_OwnsOutput()) return KeychronOnboard_WorkerHealthy();
     if (g_vigemOutputRecoveryBlocked.load(std::memory_order_acquire))
         return false;
 
@@ -1282,7 +1285,7 @@ bool Backend_EnsureOutputRuntimeHealthy()
         }
         std::uint32_t startError = ERROR_SUCCESS;
         const bool restarted = g_vigemOutputRuntime.Start(
-            g_virtualPadsEnabled.load(std::memory_order_acquire),
+            g_virtualPadsEnabled.load(std::memory_order_acquire) && !KeychronOnboard_OwnsOutput(),
             static_cast<std::uint32_t>(std::clamp(
                 g_virtualPadCount.load(std::memory_order_acquire),
                 1, kMaxVirtualPads)),
@@ -2271,6 +2274,7 @@ static uint64_t BackendQpcIntervalTicks(uint64_t intervalUs)
 
 LONGLONG Backend_GetNextOutputDeadlineQpc()
 {
+    if (KeychronOnboard_OwnsOutput()) return 0;
     uint64_t earliest = 0;
     for (const auto& scheduler : g_outputSchedulers)
     {
@@ -2883,6 +2887,7 @@ uint32_t Backend_FileOnlyTestForbiddenInitAttempts() noexcept
 void Backend_SetRuntimeAdmission(bool admitted) noexcept
 {
     g_runtimeAdmission.store(admitted, std::memory_order_release);
+    KeychronOnboard_SetAdmission(admitted);
 }
 
 bool Backend_IsRuntimeAdmissionOpen() noexcept
@@ -3016,6 +3021,38 @@ void Backend_Tick()
         return;
     halljoy::profile_runtime::ReadLease profileLease;
     if (!profileLease) return; // No partial profile is allowed into an output report.
+    if (KeychronOnboard_OwnsOutput())
+    {
+        // Monitor only: firmware owns mapping and gamepad output.
+        static uint64_t seenFrame=~uint64_t{0},seenCurve=0;
+        const auto frame=KeychronOnboard_MonitorGeneration(),curve=BackendCurve_GetGeneration();
+        if(frame==seenFrame && curve==seenCurve) return;
+        seenFrame=frame;seenCurve=curve;
+        const auto& source=KeychronOnboard_GetNativeBackendDescriptor();
+        const auto tracked=g_trackingSnapshot.load(std::memory_order_acquire);
+        uint16_t maxRaw=0,maxOut=0;
+        if(tracked) for(int i=0;i<tracked->count;++i) {
+            const auto hid=tracked->keys[i];
+            if(!halljoy::keycode::IsSupported(hid)) continue;
+            const auto raw=source.getMilli(hid);
+            const auto filtered=static_cast<uint16_t>(std::clamp(
+                std::lround(BackendCurve_ApplyByHid(hid,raw/1000.f)*1000.f),0l,1000l));
+            g_uiRawM[hid].store(raw);maxRaw=std::max(maxRaw,raw);maxOut=std::max(maxOut,filtered);
+            if(g_uiAnalogM[hid].exchange(filtered)!=filtered) g_uiDirty[hid/64].fetch_or(1ULL<<(hid%64));
+        }
+        g_tmTrackedMaxRawMilli.store(maxRaw);g_tmTrackedMaxOutMilli.store(maxOut);
+        if(g_bindCaptureEnabled.load()) {
+            uint16_t best=0,depth=0;
+            for(auto hid:halljoy::k4_onboard::kSlotHid) if(hid) {
+                const auto value=source.getMilli(hid);if(value>depth){depth=value;best=hid;}
+            }
+            const bool down=depth>=120;
+            if(down && !g_bindHadDown.exchange(down)) g_bindCapturedPacked.store(best|(uint32_t(depth)<<16));
+            else g_bindHadDown.store(down);
+        } else g_bindHadDown.store(false);
+        return;
+    }
+
 #if defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC)
     // No normal input/output processing belongs in a transport-only HID probe.
     // Its dedicated backend owns the bounded control/stream exchange.
@@ -3484,7 +3521,7 @@ void Backend_Tick()
         }
     }
 
-    if (g_virtualPadsEnabled.load(std::memory_order_acquire))
+    if (g_virtualPadsEnabled.load(std::memory_order_acquire) && !KeychronOnboard_OwnsOutput())
     {
         const std::uint32_t outputCount = static_cast<std::uint32_t>(std::clamp(
             g_virtualPadCount.load(std::memory_order_acquire), 1, kMaxVirtualPads));
@@ -3652,6 +3689,20 @@ XUSB_REPORT Backend_GetLastReportForPad(int padIndex)
 {
     const int p = std::clamp(padIndex, 0, kMaxVirtualPads - 1);
     XUSB_REPORT report{};
+    if(KeychronOnboard_OwnsOutput()) {
+        // UI reads the real Windows controller monitor, never paged key telemetry.
+        if(p!=0)return report;
+        std::array<uint8_t,20> native{};KeychronOnboard_CopyPad(native.data(),native.size());
+        if(native[0]==0 && native[1]==20) {
+            report.wButtons=hjk4_u16(native.data()+2);report.bLeftTrigger=native[4];report.bRightTrigger=native[5];
+            report.sThumbLX=static_cast<SHORT>(hjk4_u16(native.data()+6));
+            report.sThumbLY=static_cast<SHORT>(hjk4_u16(native.data()+8));
+            report.sThumbRX=static_cast<SHORT>(hjk4_u16(native.data()+10));
+            report.sThumbRY=static_cast<SHORT>(hjk4_u16(native.data()+12));
+        }
+        return report;
+    }
+
     AcquireSRWLockShared(&g_lastReportLock);
     report = g_lastReport[static_cast<size_t>(p)];
     ReleaseSRWLockShared(&g_lastReportLock);
@@ -4220,7 +4271,7 @@ void Backend_SetVirtualGamepadCount(int count)
     {
         g_vigemResubmitRequested.store(true, std::memory_order_release);
         g_vigemOutputRuntime.Configure(
-            g_virtualPadsEnabled.load(std::memory_order_acquire),
+            g_virtualPadsEnabled.load(std::memory_order_acquire) && !KeychronOnboard_OwnsOutput(),
             static_cast<std::uint32_t>(count));
     }
 }
@@ -4236,7 +4287,7 @@ void Backend_SetVirtualGamepadsEnabled(bool on)
     if (old != on)
     {
         g_vigemResubmitRequested.store(true, std::memory_order_release);
-        g_vigemOutputRuntime.Configure(on,
+        g_vigemOutputRuntime.Configure(on && !KeychronOnboard_OwnsOutput(),
             static_cast<std::uint32_t>(std::clamp(
                 g_virtualPadCount.load(std::memory_order_acquire),
                 1, kMaxVirtualPads)));

@@ -13,3 +13,8 @@ float BackendCurve_ApplyByHid(uint16_t hid, float x01Raw);
 void BackendCurve_ApplyPairByHid(uint16_t hid,
     float qualifiedRaw, float shadowRaw,
     float* qualifiedFiltered, float* shadowFiltered);
+
+// Exports the same normalized cached curve used by ApplyByHid.
+// The caller must hold the profile read lease across the complete profile.
+struct hjo_curve;
+void BackendCurve_ExportPrepared(uint16_t hid, hjo_curve& out);

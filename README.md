@@ -59,24 +59,39 @@ Wooting Analog SDK and Universal Analog Plugin do not need to be installed separ
 | Brand | Models |
 |---|---|
 | ATK | Hex80 |
-| ATTACK SHARK | X65 Pro. X68 Pro HE, X82 Pro HE and other compatible models are expected to work but have not been tested. |
-| AULA | WIN 60 HE MAX, WIN 60 HE, WIN 68 HE, KP-TE153, MINI 60 HE Pro, HERO84 HE |
+| ATTACK SHARK | X65 Pro |
+| AULA | WIN 60 HE MAX, WIN 60 HE, WIN 68 HE, KP-TE153, MINI 60 HE (USB), MINI 60 HE Pro, MINI 60 HE MAX (USB) |
 | DrunkDeer | A75, A75 Pro, G60, G65, G75 |
-| GravaStar | Mercury V75, V75 Pro, V75 Lite |
-| IPI / QBZ | QBZ75, Aurora 75, Aurora75 PRO, QBZ65, AURORA65, AURORA65W, RAIN65, flash68 |
-| IROK | MG75 Max, MG75 Pro, NA87 |
-| Keychron | Q1 HE, Q3 HE, Q5 HE, Q6 HE, Q12 HE, Q1 HE 8K, Q3 HE 8K, Q5 HE 8K, Q6 HE 8K, K2 HE, K3 HE, K4 HE, K8 HE, K10 HE |
+| GravaStar | Mercury V75 |
+| IPI / QBZ | QBZ75, Aurora 75 |
+| IROK | MG75 Max, NA87 |
+| Keychron | Q1 HE, Q2 HE (ANSI), Q3 HE, Q4 HE (ANSI), Q5 HE, Q6 HE, Q12 HE, Q1 HE 8K, Q3 HE 8K, Q5 HE 8K, Q6 HE 8K, K2 HE, K3 HE, K4 HE, K6 HE (ANSI), K8 HE, K10 HE |
 | Lemokey | P1 HE |
 | MADLIONS | MAD 68 Pro R, MAD60HE, MAD68HE, MAD68R |
-| NuPhy | Air60 HE, Air75 HE |
+| NuPhy | Air60 HE, Air75 HE, Field75 HE |
 | Razer | Huntsman V2 Analog, Huntsman Mini Analog, Huntsman V3 Pro, Huntsman V3 Pro Mini, Huntsman V3 Pro Tenkeyless |
-| Redragon | K673RGB-M, K673WB-RGB-M. Other compatible magnetic models may work but have not been tested. |
+| Redragon | K673RGB-M |
 | SayoDevice | O3C |
-| Wooting | 60HE, 60HE+, 60HE v2 (including Split), 80HE, One, Two, Two HE, UwU, UwU RGB |
+| Wooting | 60HE, 60HE+, 60HE v2 (including Split), 80HE, 80HE+ (including Split), One, Two, Two HE, UwU, UwU RGB |
 
 Keychron HE requires compatible [custom firmware](https://analogsense.org/firmware/).
-Not every model or hardware revision has been tested; HallJoy shows a testing
-notice where applicable. If your keyboard is not listed, ask in [Discord](https://discord.gg/5FQ297yZh).
+Not every hardware revision has been tested.
+
+### Experimental support 🟨
+
+These keyboards should work, but have not yet been tested on physical devices.
+Support is enabled: keyboard detection, analogue input, bindings and virtual
+gamepad output are implemented. HallJoy shows a yellow notice for these models.
+Use a wired USB connection.
+
+| Brand | Models |
+|---|---|
+| ATTACK SHARK | Beat75, K85, K85 Pro HE, R68 HE, R82 HE, R82 Pro HE, R85 HE, R85 Ultra, R86 Pro HE, R98 GT, R98 HE, R98 Pro, R98 Ultra, X60 HE, X65, X65 HE, X68 HE, X68 MAX, X68 Pro HE, X68 Ultra, X82 HE, X82 Pro HE, X820 Pro, X85 Ultra, X87 Ultra, X96 HE, X98 HE |
+| AULA | HERO 68 Air, HERO 68 HE, HERO 68 HE PRO, HERO 68 MINI, HERO 99 HE, HERO84 HE, WIN 60 HE PRO, WIN 68 HE MAX, WIN 68 HE PRO, WIN 68 HE Ultra |
+| GravaStar | Mercury V75 Lite, Mercury V75 Pro |
+| IPI / QBZ | AURORA65, AURORA65W, Aurora75 PRO, flash68, QBZ65, RAIN65 |
+| IROK | MG75 Pro |
+| Redragon | K673WB-RGB-M |
 
 ## Support
 

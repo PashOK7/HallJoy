@@ -75,8 +75,12 @@ std::vector<std::uint8_t> ActivePayload(
 
 void TestKnownUsbIdentityAdmission()
 {
-    static_assert(kKnownUsbIdentities.size() == 4u);
+    static_assert(kKnownUsbIdentities.size() == 6u);
     static_assert(IsKnownUsbIdentity(0x1CA2u, 0x1902u));
+    static_assert(IsKnownUsbIdentity(0x1CA2u, 0x1901u));
+    static_assert(IsKnownUsbIdentity(0x1CA5u, 0x0409u));
+    static_assert(IsKnownUsbIdentityBoardCompatible(0x1CA2u,0x1901u,0x06021901u));
+    static_assert(!IsKnownUsbIdentityBoardCompatible(0x1CA2u,0x1901u,0x06050409u));
     static_assert(IsKnownUsbIdentity(0x1CA5u, 0x2201u));
     static_assert(IsKnownUsbIdentity(0x1CA5u, 0x2202u));
     static_assert(IsKnownUsbIdentity(0x1CA2u, 0x2201u));

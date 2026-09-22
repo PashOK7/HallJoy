@@ -127,6 +127,7 @@ struct RetainedDeviceIdentity
 
 struct ProbeResult
 {
+    bool win60Pro = false;
     std::uint16_t vendorId = 0;
     std::uint16_t productId = 0;
     std::uint16_t usagePage = 0;
@@ -1566,6 +1567,8 @@ bool BuildProbeResult(
     result.inputReportBytes = session.candidate.caps.InputReportByteLength;
     result.outputReportBytes = session.candidate.caps.OutputReportByteLength;
     result.capability = capability;
+    result.win60Pro = result.vendorId==0x1ca2 && result.productId==0x1902 &&
+        session.candidate.product==L"WIN 60 HE PRO";
     *out = result;
     return true;
 }
@@ -1590,7 +1593,7 @@ void ClearPublishedValues(bool clearOwnership, bool clearLayout = true)
 void PublishProof(const ProbeResult& proof)
 {
     ClearPublishedValues(true, false);
-    const auto token = halljoy::sparkplayjoy_layout::Token(proof.vendorId, proof.productId, proof.capability);
+    const auto token = proof.win60Pro ? halljoy::aula_rm_family::Win60Pro : halljoy::sparkplayjoy_layout::Token(proof.vendorId, proof.productId, proof.capability);
     const auto previous = g_verifiedLayoutToken.load(std::memory_order_acquire);
     if (previous && previous != token) halljoy::native_layout::Clear(previous);
     const bool mapped = token && halljoy::sparkplayjoy_layout::Publish(token, proof.capability);

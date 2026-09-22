@@ -1,0 +1,12 @@
+[
+  {
+    "path": "docs\\research\\keychron-latency-20260921\\analog_matrix_scan.c",
+    "url": "https://raw.githubusercontent.com/AnalogSense/qmk_firmware/e21916b695ec3b31fbbbb325e32849be5cdb9e46/keyboards/keychron/common/analog_matrix/analog_matrix_scan.c",
+    "sha256": "29dd21db6f4a91fda81e1120c56594691d4949294b40f749ff32b19066e3d0ef"
+  },
+  {
+    "path": "docs\\research\\keychron-latency-20260921\\analog_matrix.h",
+    "url": "https://raw.githubusercontent.com/AnalogSense/qmk_firmware/e21916b695ec3b31fbbbb325e32849be5cdb9e46/keyboards/keychron/common/analog_matrix/analog_matrix.h",
+    "sha256": "b5ef30a3444341e2eaee1b6ab410d514495c0424767d95aa4334c577fd539277"
+  }
+]

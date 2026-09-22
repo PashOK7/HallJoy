@@ -1,3 +1,5 @@
+> 2026-09-21 follow-up: K6 HE ANSI, Q2 HE ANSI and Q4 HE ANSI are now implemented with custom FAR firmware, distinct Fn2 and generated transport maps. Catalog now has 39 variants (37 generated plus the two preserved arrays). The old second-Fn blocker below remains historical for these three variants; K6 ISO / Q2 HE 8K / Q0 remain unfinished. See [record](KNOWN_PROTOCOL_ADDITIONS_2026-09-21.md).
+
 # Keychron catalog and compound keys — 2026-09-09
 
 Owner approved compound-key support during the request to remove Imported from

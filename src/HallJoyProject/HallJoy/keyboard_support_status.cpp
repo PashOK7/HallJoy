@@ -10,7 +10,7 @@ std::atomic<unsigned> g_snapshot{0};
 
 void SetSearchObservation(bool searchCompleted, bool connected, unsigned frozenModels) noexcept
 {
-    g_snapshot.store((searchCompleted ? 1u : 0u) | (searchCompleted && connected ? 2u : 0u) | (searchCompleted ? (frozenModels & 511u) << 2 : 0u), std::memory_order_release);
+    g_snapshot.store((searchCompleted ? 1u : 0u) | (searchCompleted && connected ? 2u : 0u) | (searchCompleted ? (frozenModels & 16383u) << 2 : 0u), std::memory_order_release);
 }
 
 StatusSnapshot GetStatusSnapshot() noexcept

@@ -1,3 +1,5 @@
+> Local additions, 2026-09-21: Keychron K6 HE ANSI (68), Q2 HE ANSI (66), Q4 HE ANSI (61); Wooting 80HE+ ANSI (84), ISO (85), Split ANSI (86), Split ISO (87). These seven variants are not in the published 1.6.0 EXE; they await hardware testing. Keychron requires custom firmware. See [record](current/KNOWN_PROTOCOL_ADDITIONS_2026-09-21.md).
+
 # Built-in keyboard layouts
 
 Catalog for the current 1.6.0 development build, audited against the actual

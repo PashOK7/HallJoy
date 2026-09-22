@@ -1,3 +1,4 @@
+#include "keychron_onboard_backend.h"
 #include "input_path_diagnostics.h"
 // app.cpp
 #ifndef _WIN32_IE
@@ -33,6 +34,7 @@
 #include <cwchar>
 
 #include "app.h"
+#include "gamepad_latency.h"
 #include "app_deps.h"
 #include "Resource.h"
 #include "backend.h"
@@ -1719,6 +1721,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         {
             Na87Diagnostic_UpdateWindow(hwnd);
             IrokNa87_UpdateWindow(hwnd);
+            KeychronOnboard_MonitorVisible(IsWindowVisible(hwnd) && !IsIconic(hwnd));
 #if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
             static const auto diagnosticUiStart=GetTickCount64();
             static bool smokeClosePosted=false;
@@ -1869,6 +1872,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         return 0;
 
     case WM_DESTROY:
+        GamepadLatency_Stop();
         g_blockHotkey.Stop();
         StabilityTrace_WriteCritical(L"INFO", L"app", L"window.destroy",
             L"source=WM_DESTROY");

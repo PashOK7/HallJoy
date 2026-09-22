@@ -1,5 +1,6 @@
 #define NOMINMAX
 #include "backend_curve.h"
+#include "keychron_onboard_curve.h"
 
 #include <algorithm>
 #include <array>
@@ -211,4 +212,12 @@ void BackendCurve_ApplyPairByHid(uint16_t hid,
         *qualifiedFiltered = ApplyCurve(qualifiedRaw, curve);
     if (shadowFiltered)
         *shadowFiltered = ApplyCurve(shadowRaw, curve);
+}
+
+void BackendCurve_ExportPrepared(uint16_t hid, hjo_curve& out)
+{
+    const CurveDef c = BuildCurveForHid(hid);
+    out = {{c.x0, c.x1, c.x2, c.x3}, {c.y0, c.y1, c.y2, c.y3},
+        {CurveMath::Weight01ToRational(c.w1), CurveMath::Weight01ToRational(c.w2)},
+        static_cast<uint8_t>(c.mode == 1), static_cast<uint8_t>(c.invert)};
 }

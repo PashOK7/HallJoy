@@ -49,6 +49,7 @@
 
 #include "backend.h"
 #include "gamepad_render.h"
+#include "gamepad_latency.h"
 #include "ui_theme.h"
 #include "settings.h"
 #include "realtime_loop.h"
@@ -183,7 +184,17 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
     case WM_CREATE:
         state = new TesterPageState();
         SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)state);
+#if HALLJOY_CAMERA_LATENCY_TEST_ENABLED
+        { HWND button=CreateWindowExW(0,L"BUTTON",L"Camera latency test",WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON,S(hWnd,12),S(hWnd,6),S(hWnd,170),S(hWnd,26),hWnd,reinterpret_cast<HMENU>(19001),GetModuleHandleW(nullptr),nullptr);
+          SendMessageW(button,WM_SETFONT,reinterpret_cast<WPARAM>(GetStockObject(DEFAULT_GUI_FONT)),TRUE); }
+#endif
         return 0;
+
+    case WM_COMMAND:
+#if HALLJOY_CAMERA_LATENCY_TEST_ENABLED
+        if(LOWORD(wParam)==19001){GamepadLatency_Open(GetAncestor(hWnd,GA_ROOT));return 0;}
+#endif
+        break;
 
     case WM_ERASEBKGND:
         paintAudit.Event(WM_ERASEBKGND);
@@ -215,6 +226,7 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
         int rows = (padCount + cols - 1) / cols;
 
         const int margin = S(hWnd, 12);
+        const int toolbar = S(hWnd, 36);
         const int cardGap = S(hWnd, 12);
         int clientW = (int)(rcClient.right - rcClient.left);
         int clientH = (int)(rcClient.bottom - rcClient.top);
@@ -226,10 +238,10 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
         int availW = std::max(1, clientW - margin * 2 - cardGap * (cols - 1));
         const int minCardH = S(hWnd, 156);
         int availH = std::max(minCardH * rows,
-            clientH - margin * 2 - analogInfoH - (showAnalogInfo ? cardGap : 0) - cardGap * (rows - 1));
+            clientH - toolbar - margin * 2 - analogInfoH - (showAnalogInfo ? cardGap : 0) - cardGap * (rows - 1));
         int cardW = std::max(1, availW / cols);
         int cardH = std::max(1, availH / rows);
-        const int contentHeight = margin * 2 + analogInfoH +
+        const int contentHeight = toolbar + margin * 2 + analogInfoH +
             (showAnalogInfo ? cardGap : 0) + rows * cardH + cardGap * (rows - 1);
         if (state)
         {
@@ -256,7 +268,7 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
 
         if (showAnalogInfo)
         {
-            RECT info{ margin, margin - scrollY, clientW - margin, margin - scrollY + analogInfoH };
+            RECT info{ margin, toolbar + margin - scrollY, clientW - margin, toolbar + margin - scrollY + analogInfoH };
             FillRect(memDC, &info, UiTheme::Brush_ControlBg());
             Rectangle(memDC, info.left, info.top, info.right, info.bottom);
 
@@ -434,7 +446,7 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
             int col = pad % cols;
             int row = pad / cols;
             int left = margin + col * (cardW + cardGap);
-            int top = margin - scrollY + analogInfoH + (showAnalogInfo ? cardGap : 0) + row * (cardH + cardGap);
+            int top = toolbar + margin - scrollY + analogInfoH + (showAnalogInfo ? cardGap : 0) + row * (cardH + cardGap);
 
             RECT card{ left, top, left + cardW, top + cardH };
             FillRect(memDC, &card, UiTheme::Brush_ControlBg());

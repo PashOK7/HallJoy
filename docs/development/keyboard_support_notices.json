@@ -1,0 +1,308 @@
+{
+  "schema": 1,
+  "meaning": "Implemented input path; hardware testing or minor range validation outstanding. A tester is not an admission prerequisite.",
+  "groups": [
+    {
+      "id": "AttackShark",
+      "flag": 256,
+      "protocol": 17,
+      "exclude": "5348583635414E53",
+      "models": [
+        {
+          "brand": "ATTACK SHARK",
+          "model": "Beat75",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "K85",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "K85 Pro HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "R68 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "R82 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "R82 Pro HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "R85 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "R85 Ultra",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "R86 Pro HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "R98 GT",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "R98 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "R98 Pro",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "R98 Ultra",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X60 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X65",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X65 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X68 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X68 MAX",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X68 Pro HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X68 Ultra",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X82 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X82 Pro HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X85 Ultra",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X87 Ultra",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X96 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X98 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATTACK SHARK",
+          "model": "X820 Pro",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "Hero84",
+      "flag": 8,
+      "protocol": 12,
+      "models": [
+        {
+          "brand": "AULA",
+          "model": "HERO84 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AULA",
+          "model": "HERO 68 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AULA",
+          "model": "HERO 68 Air",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AULA",
+          "model": "HERO 68 MINI",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AULA",
+          "model": "WIN 68 HE Ultra",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AULA",
+          "model": "HERO 99 HE",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "AulaRm",
+      "flag": 8192,
+      "protocol": 6,
+      "tokens": [
+        "57494E363050524F",
+        "57494E363850524F",
+        "484552363850524F"
+      ],
+      "models": [
+        {
+          "brand": "AULA",
+          "model": "WIN 60 HE PRO",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AULA",
+          "model": "WIN 68 HE PRO",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AULA",
+          "model": "WIN 68 HE MAX",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AULA",
+          "model": "HERO 68 HE PRO",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "GravaStar",
+      "flag": 512,
+      "protocol": 6,
+      "tokens": [
+        "98E6602F43E0E69C",
+        "93B5A992A4E00487"
+      ],
+      "models": [
+        {
+          "brand": "GravaStar",
+          "model": "Mercury V75 Lite",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "GravaStar",
+          "model": "Mercury V75 Pro",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "Ipi",
+      "flag": 1024,
+      "protocol": 3,
+      "tokens": [
+        "798EDA38A47F0E95",
+        "36A3739BD6AEEEF8",
+        "BEE2B020B2BFBA27"
+      ],
+      "models": [
+        {
+          "brand": "IPI / QBZ",
+          "model": "AURORA65",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IPI / QBZ",
+          "model": "AURORA65W",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IPI / QBZ",
+          "model": "Aurora75 PRO",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IPI / QBZ",
+          "model": "flash68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IPI / QBZ",
+          "model": "QBZ65",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IPI / QBZ",
+          "model": "RAIN65",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "Mg75Pro",
+      "flag": 128,
+      "protocol": 18,
+      "models": [
+        {
+          "brand": "IROK",
+          "model": "MG75 Pro",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "Redragon",
+      "flag": 2048,
+      "protocol": 7,
+      "tokens": [
+        "F3B7ECFB2D628746"
+      ],
+      "models": [
+        {
+          "brand": "Redragon",
+          "model": "K673WB-RGB-M",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    }
+  ]
+}

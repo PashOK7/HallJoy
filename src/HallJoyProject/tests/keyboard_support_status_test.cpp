@@ -1,4 +1,5 @@
 #include "keyboard_support_status.h"
+#include "support_notice_catalog.h"
 
 #include <cassert>
 
@@ -46,9 +47,21 @@ int main()
     assert(ClassifyFrozen(0x1ca5,0x0807,L"IROK MG75")==0);
     SetSearchObservation(true,true);
     assert(GetStatusSnapshot().frozenModels==0);
-    for(unsigned mask=0;mask<512;++mask){
+    for(unsigned mask=0;mask<16384;++mask){
         SetSearchObservation(true,true,mask);assert(GetStatusSnapshot().frozenModels==mask);
         SetSearchObservation(false,true,mask);assert(GetStatusSnapshot().frozenModels==0);
     }
+    assert(NativeNotice(17,0x5348583635414E53ull,true)==0);
+    assert(NativeNotice(17,0x5348583638414E53ull,true)==AttackShark);
+    assert(NativeNotice(6,0x70060281B23AF667ull,true)==0);
+    assert(NativeNotice(6,0x98E6602F43E0E69Cull,true)==GravaStar);
+    assert(NativeNotice(3,0x0FEFA7117D763FE5ull,true)==0);
+    assert(NativeNotice(3,0xBEE2B020B2BFBA27ull,true)==Ipi);
+    assert(NativeNotice(7,0xF3B7ECFB2D628746ull,true)==Redragon);
+    assert(NativeNotice(7,0x2479523793C06E66ull,true)==0);
+    assert(NativeNotice(6,0x57494E363850524Full,false)==0);
+    assert(NativeNotice(6,0x57494E363850524Full,true)==AulaRm);
+    assert(NativeNotice(12,0x4845110000000003ull,true)==Hero84);
+    assert((ImplementedModels & (NA87Pro|ND75|Azoth96|NuPhy|FamilyCandidate))==0);
     return 0;
 }

@@ -18,6 +18,7 @@ int main(){
     r={2,2,0,0};assert(Assigned(49,r.data())==225);
     r={2,3,0,0};assert(Assigned(49,r.data())==0);
     r={2,1,26,0};assert(Assigned(49,r.data())==0);
-    r={2,0,175,0};assert(Assigned(49,r.data())==0);
+    r={2,0,175,0};assert(Assigned(49,r.data())==0x409 && Assigned(85,r.data())==0x409);
+    r={2,0,175,1};assert(Assigned(85,r.data())==0);
     r={6,0,0,0};assert(Assigned(49,r.data())==0);
 }

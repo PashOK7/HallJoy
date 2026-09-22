@@ -32,7 +32,7 @@ class KeychronCatalogTests(unittest.TestCase):
         import json
         from layout_import import read_json, ini_text
         reports = list(catalog.OUTPUT.glob('*-review.json'))
-        self.assertEqual(len(reports), len(catalog.MODELS)+len(catalog.MORE)+len(catalog.firmware.TABLES))
+        self.assertEqual(len(reports), len(catalog.MODELS)+len(catalog.MORE)+len(catalog.firmware.TABLES)+len(catalog.ADDITIONS))
         identities = set()
         for path in reports:
             report = json.loads(path.read_text())

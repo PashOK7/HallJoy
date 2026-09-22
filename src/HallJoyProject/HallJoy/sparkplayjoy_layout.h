@@ -2,6 +2,7 @@
 #include "aula_win60he_client.h"
 #include "generated/layout_pipeline/identities.h"
 #include "native_layout_state.h"
+#include "aula_rm_family.h"
 
 namespace halljoy::sparkplayjoy_layout {
 inline std::uint64_t Token(std::uint16_t vid, std::uint16_t pid,
@@ -10,6 +11,8 @@ inline std::uint64_t Token(std::uint16_t vid, std::uint16_t pid,
     if (!identity || identity->boardId != proof.sync.boardId ||
         proof.compatibilityMismatchMask) return 0;
     switch (identity->boardId) {
+    case 0x06021901: return aula_rm_family::Win68;
+    case 0x06050409: return aula_rm_family::Hero68Pro;
     case 0x0A021902: return layout_identity::Token("aula-rm6x21", "0A021902");
     case 0x16052201: return layout_identity::Token("aula-rm6x21", "16052201");
     case 0x16052202: return layout_identity::Token("aula-rm6x21", "16052202");

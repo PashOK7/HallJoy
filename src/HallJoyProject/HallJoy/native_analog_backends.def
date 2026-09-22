@@ -13,6 +13,9 @@ HALLJOY_NATIVE_BACKEND(Shark_GetNativeBackendDescriptor)
 #if defined(HALLJOY_AULA_MINI60_NATIVE)
 HALLJOY_NATIVE_BACKEND(Mini60_GetNativeBackendDescriptor)
 #endif
+#if defined(HALLJOY_KEYCHRON_ONBOARD_EXPERIMENTAL)
+HALLJOY_NATIVE_BACKEND(KeychronOnboard_GetNativeBackendDescriptor)
+#endif
 HALLJOY_NATIVE_BACKEND(Mad68ProR_GetNativeBackendDescriptor)
 HALLJOY_NATIVE_BACKEND(Hex80_GetNativeBackendDescriptor)
 // Exact HERO84 UUID admission precedes the generic Addressed route.

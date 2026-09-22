@@ -96,6 +96,7 @@ def main() -> int:
                 *sanitizer_flags,
                 *compile_flags,
                 f"-I{hall}",
+                f"-I{root / 'third_party' / 'UniversalAnalogPluginFixed'}",
                 *map(str, sources),
                 "-o",
                 str(executable),

@@ -39,5 +39,8 @@ inline constexpr Identity kKeychronLayouts[] = {
     {0x0E30,6,16,L"Keychron K3 HE ANSI"},
     {0x0E31,6,16,L"Keychron K3 HE ISO"},
     {0x0E32,6,16,L"Keychron K3 HE JIS"},
+    {0x0E60,5,15,L"Keychron K6 HE ANSI"},
+    {0x0B20,5,15,L"Keychron Q2 HE ANSI"},
+    {0x0B40,5,14,L"Keychron Q4 HE ANSI"},
 };
 }

@@ -394,11 +394,11 @@ namespace
         const wchar_t* fourth = nullptr;
     };
     static constexpr LayoutMerge g_layoutMerges[] = {
-        {L"Aula WIN 60 HE MAX ANSI", L"Aula WIN 60 HE PRO ANSI", L"Aula WIN 60 HE MAX / PRO ANSI"},
-        {L"Aula WIN 68 HE PRO / MAX ANSI", L"Aula HERO 68 HE PRO ANSI", L"Aula WIN 68 HE PRO / MAX / HERO 68 HE PRO ANSI"},
-        {L"Aula HERO 68 HE ANSI", L"Aula HERO 68 Air ANSI", L"Aula HERO 68 HE / Air / MINI / WIN 68 HE Ultra ANSI",
+        {L"Aula WIN 60 HE MAX ANSI", L"Aula WIN 60 HE PRO ANSI", L"Aula WIN 60 HE MAX + PRO ANSI", nullptr, L"Aula WIN 60 HE MAX / PRO ANSI"},
+        {L"Aula HERO 68 HE PRO ANSI", L"Aula WIN 68 HE PRO / MAX ANSI", L"Aula WIN 68 HE PRO + MAX + HERO 68 HE PRO ANSI", nullptr, L"Aula WIN 68 HE PRO / MAX / HERO 68 HE PRO ANSI"},
+        {L"Aula HERO 68 HE ANSI", L"Aula HERO 68 Air ANSI", L"Aula HERO 68 HE + Air + MINI + WIN 68 HE Ultra ANSI",
             L"Aula HERO 68 MINI ANSI", L"Aula HERO 68 HE / Air / MINI / WIN 68 HE Ultra ANSI", L"Aula WIN 68 HE Ultra ANSI"},
-        {L"Aula MINI60 HE Pro ANSI", L"Aula MINI60 HE ANSI", L"Aula MINI60 HE / Pro / MAX ANSI",
+        {L"Aula MINI60 HE Pro ANSI", L"Aula MINI60 HE ANSI", L"Aula MINI60 HE + Pro + MAX ANSI",
             L"Aula MINI60 HE MAX ANSI", L"Aula MINI60 HE / Pro / MAX ANSI"},
         {L"ATTACK SHARK X68 Pro HE ANSI", L"ATTACK SHARK R68 HE + X68 HE ANSI",
             L"ATTACK SHARK R68 HE + X68 HE + X68 Pro HE ANSI"},

@@ -57,3 +57,5 @@ for name, source in (
             f"closed admission rejects {name}")
 
 print("RUNTIME_ADMISSION_STATIC_AUDIT=PASS")
+
+require("RequestRestart" not in device_change, "Windows topology noise cannot cancel virtual gamepad startup")

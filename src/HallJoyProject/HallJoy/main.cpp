@@ -7,6 +7,7 @@
 #include "aula_hero84he_backend.h"
 #include "attackshark_pro_diagnostic.h"
 #include "irok_na87_backend.h"
+#include "native_analog_backend_registry.h"
 #include <objidl.h>
 #include <gdiplus.h>
 #include <strsafe.h>
@@ -195,7 +196,17 @@ int WINAPI wWinMain(
     int supportArgc=0;
     auto supportArgv=CommandLineToArgvW(GetCommandLineW(), &supportArgc);
     const bool supportTest=supportArgv && supportArgc==2 && wcscmp(supportArgv[1], L"--halljoy-support-self-test")==0;
+    const bool k4CatalogTest=supportArgv && supportArgc==2 &&
+        wcscmp(supportArgv[1],L"--halljoy-require-k4-onboard")==0;
     if(supportArgv)LocalFree(supportArgv);
+    if(k4CatalogTest) {
+        if(!NativeAnalogBackends_CatalogIsValid()) return 90;
+        for(std::size_t i=0;i<NativeAnalogBackends_Count();++i) {
+            const auto* descriptor=NativeAnalogBackends_Descriptor(i);
+            if(descriptor && descriptor->protocol==NativeAnalogProtocol::KeychronOnboard) return 0;
+        }
+        return 91;
+    }
     if(supportTest) {
         int line=0; return AulaHero84He_TestPublication(&line) ? 0 : (line % 200 + 1);
     }

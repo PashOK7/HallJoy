@@ -1,6 +1,7 @@
 # HallJoy hardware compatibility
 
-Current source / **1.6.1 release**, reconciled on 2026-09-22.
+Current source includes local experimental additions after **1.6.1**.
+MonsGeek M1 V5 HE, Chilkey Slice75 HE and EPOMAKER G84 HE are not yet published.
 See [release notes](releases/RELEASE_NOTES_v1.6.1.md).
 
 ## How to read this list
@@ -24,9 +25,13 @@ to synthesize analogue depth.
 
 | Brand | Models | Notes |
 |---|---|---|
+| AJAZZ | **AK820 MAX RGB** | Wired AJAZZ x NACODEX version; native raw analog with automatic per-key ranges. Enabled in the local candidate after tester confirmation; not yet published. |
 | Aula | **WIN 60 HE MAX**, **WIN 60 HE**, **WIN 68 HE**, **KP-TE153**, **MINI 60 HE**, **MINI 60 HE Pro**, **MINI 60 HE MAX** | MINI 60 models: wired USB. PRO support was added in 1.5.3 with tester-confirmed independent depths. Base MINI 60 HE (V1.18) and MAX (V1.52) are included in 1.6.1 using their verified common protocol. The 2.4 GHz receivers are not supported. |
 | Aula (experimental, wired USB) | **HERO84 HE**, **HERO 68 HE**, **HERO 68 Air**, **HERO 68 MINI**, **HERO 99 HE**, **WIN 68 HE Ultra**, **WIN 60 HE PRO**, **WIN 68 HE PRO**, **WIN 68 HE MAX**, **HERO 68 HE PRO** | Complete input paths enabled with yellow notices. Known protocols, exact identities and automatic layouts; remaining range/firmware behavior awaits hardware feedback. No tester is required to use them. |
-| ATTACK SHARK | **X65 Pro** | Tester-confirmed analogue input and gameplay, including external gamepad output with Block Bound Keys enabled. Ordinary support without a testing notice. |
+| ATTACK SHARK | **R85 HE**, **X65 Pro** | R85 HE: tester-confirmed wired analog, enabled in 1.6.2 with shared HID access; no testing notice. R85 Ultra remains experimental. X65 Pro: tester-confirmed analogue input and gameplay, including external gamepad output with Block Bound Keys enabled. |
+| Chilkey (experimental, wired USB) | **Slice75 HE** | Native full-matrix travel,80 keys including Fn, automatic ANSI layout and live base assignments. Official1.1.7.3 firmware/protocol review; no physical test. Default3.3mm scale, alternate switches unverified. |
+| EPOMAKER (experimental, wired USB) | **G84 HE** | Two exact board revisions; native read-only depth snapshots,84 keys including Fn, automatic ANSI layout and base assignments. Default3.5mm scale; hardware/switch validation pending. |
+| MonsGeek (experimental, wired USB) | **M1 V5 HE** | Exact HE board admission; native read-only depth snapshots,82 keys including Fn, automatic ANSI layout and base assignments. Default3.6mm scale; hardware/switch validation pending. TMR and wireless receivers are not included. |
 | Irok | **MG75 Max**, **MG75 Pro (experimental)**, **NA87** | NA87 support added in 1.5.3, with tester feedback and logs. **NA87 Pro is a different model and is not supported.** MG75 Pro uses native SparkLink V1 travel reads with automatic layout and base-layer remaps; hardware testing is pending and an amber Discord testing notice is shown. |
 | Redragon | **K673RGB-M**, **K673WB-RGB-M** | Exact W669 profiles exist for K673RGB-M BR/UK and K673WB-RGB-M US. BR has physical evidence; UK/US have source-profile and automated evidence. Other compatible magnetic models may work but are untested. |
 | MADLIONS | **MAD 68 Pro R**, **MAD60HE**, **MAD68HE**, **MAD68R** | — |
@@ -44,7 +49,7 @@ to synthesize analogue depth.
 
 | Route | Current behavior and evidence | Remaining limits |
 |---|---|---|
-| ATTACK SHARK RY5088 | 37 exact reviewed revisions enabled over wired USB; 16 automatic ANSI layout groups. X65 Pro tester reported independent depth and gameplay. | Other admitted revisions are enabled with yellow notices; no tester prerequisite. Factory/Fn maps only; custom remaps and receivers are not enabled. Provisional normalization and per-bank limits remain unresolved. X65 Pro has ordinary support; other admitted models retain an orange testing notice. |
+| ATTACK SHARK RY5088 | 37 exact reviewed revisions enabled over wired USB; 16 automatic ANSI layout groups. X65 Pro tester reported independent depth and gameplay; R85 HE tester log confirms changing wired depth and successful shared access. | Other admitted revisions are enabled with yellow notices; no tester prerequisite. Factory/Fn maps only; custom remaps and receivers are not enabled. Provisional normalization and per-bank limits remain unresolved. X65 Pro and R85 HE have ordinary support; other admitted models retain a yellow testing notice. |
 | IROK MG75 Pro | Separate native SparkLink V1 route, independent travel for 81 keys including Fn, automatic layout/base assignments, vendor 3.5 mm scale. Enabled with orange notice. | No physical tester result yet; not the MG75 Max V2 protocol. |
 | AULA HERO / WIN experimental families | Exact identity, automatic ANSI layout, live/base maps, analog bindings and virtual gamepad enabled. HERO uses addressed travel; WIN PRO/MAX and HERO PRO use the existing RM6x21 full capability proof. | Yellow notices cover remaining range/firmware nuances. No tester prerequisite. See the [2026-09-22 integration](current/AULA_EXPERIMENTAL_SUPPORT_SYNC_2026-09-22.md). |
 | GravaStar Mercury V75 / Pro / Lite | Legacy identities 1CA5:2201, 1CA5:2202, 1CA2:2201 plus board proof; 79-key geometry and session remaps. Owner confirms a user reported working support (2026-09-20). | The new confirmation does not identify every tested revision; do not extend it to all Pro/Lite/newer revisions. Earlier source/firmware evidence is retained. |
@@ -100,3 +105,16 @@ See the [complete layout catalog](KEYBOARD_LAYOUTS.md) for exact regional
 variants and the [HallJoy Discord](https://discord.gg/5FQ297yZh) for reporting a
 specific device result. Historical audits are evidence at their recorded date;
 later integration records and owner decisions supersede their status statements.
+
+
+## AJAZZ AK820 MAX RGB (local candidate, 2026-09-22)
+
+Ordinary Release now enables the tester-confirmed wired RGB route. Exact
+admission is SG8994HERGB V1.13.17, including its trailing firmware padding.
+No-light/Ultra/wireless variants are not covered. Raw sensor values use the
+same session-local dynamic bounds and median filter as tester revision5;
+normalized percentages are not calibrated millimetres. No forced logging,
+calibration writes or diagnostic depth subscription. Live device assignments
+and Fn are retained; no new automatic geometry preset is claimed.
+
+See current/AJAZZ_AK820MAX_REVIEW_2026-09-20.md for evidence and validation.

@@ -63,6 +63,8 @@ static const wchar_t* FrozenSupportTitle() {
     case ND75: return L"IROK ND75: support frozen";
     case Hero84: return L"AULA HERO: hardware testing incomplete";
     case Mg75Pro: return L"IROK MG75 Pro: testing incomplete";
+    case Slice75: return L"Chilkey Slice75 HE: hardware testing incomplete";
+    case RongYuan: return L"MonsGeek / EPOMAKER: hardware testing incomplete";
     case AulaRm: return L"AULA: hardware testing incomplete";
     case GravaStar: return L"GravaStar: hardware testing incomplete";
     case Ipi: return L"IPI / QBZ: hardware testing incomplete";

@@ -11,7 +11,7 @@
 // A new protocol implementation owns its USB/HID transport and publishes only
 // normalized [0..1000] values. The common backend owns curves, bindings, SOCD,
 // UI snapshots and ViGEm scheduling.
-static constexpr std::uint32_t kNativeAnalogBackendAbiVersion = 3;
+static constexpr std::uint32_t kNativeAnalogBackendAbiVersion = 4;
 static constexpr std::size_t kNativeAnalogBackendStatusChars = 160;
 
 enum class NativeAnalogStartPhase : std::uint8_t
@@ -54,6 +54,7 @@ struct NativeAnalogBackendTelemetry
     std::uint64_t successfulUpdates = 0;
     std::uint64_t failedUpdates = 0;
     wchar_t status[kNativeAnalogBackendStatusChars]{};
+    wchar_t deviceName[96]{}; // Optional exact model for shared transports.
 };
 
 struct NativeAnalogBackendDescriptor

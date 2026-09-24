@@ -723,4 +723,12 @@
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="slice75_backend.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClInclude Include="slice75_backend.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="slice75_protocol.h"><Filter>Header Files</Filter></ClInclude>
+    <ClCompile Include="rongyuan_snapshot_backend.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClInclude Include="rongyuan_snapshot_backend.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="rongyuan_snapshot_protocol.h"><Filter>Header Files</Filter></ClInclude>
+  </ItemGroup>
 </Project>

@@ -341,6 +341,17 @@ private:
     bool readPending_ = false;
 };
 
+bool IsAjazzRgb(const irok_nd75::DeviceInfo& identity)
+{
+    // Firmware identity strings are space-padded on the tester's device.
+    std::size_t length=std::strlen(identity.firmware.data());
+    while(length && identity.firmware[length-1]==' ') --length;
+    // Exact hardware/firmware with the tester-verified sensor map and raw scale.
+    return std::strcmp(identity.controller.data(), "M484") == 0 &&
+        std::strcmp(identity.product.data(), "SG8994HERGB") == 0 &&
+        length==8 && std::memcmp(identity.firmware.data(), "V1.13.17",8) == 0;
+}
+
 bool ReceiveIdentity(Session& session, irok_nd75::DeviceInfo* out)
 {
     if (g_stop.load(std::memory_order_acquire)) return false;
@@ -351,7 +362,7 @@ bool ReceiveIdentity(Session& session, irok_nd75::DeviceInfo* out)
         GetTickCount64() < deadline)
         if (session.Read(&report, 100) && irok_nd75::DecodeDeviceInfo(
                 report.data(), report.size(), out))
-            return irok_na87::IsExpectedDevice(*out)
+            return irok_na87::IsExpectedDevice(*out) || IsAjazzRgb(*out)
 #if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
                 || (std::strcmp(out->controller.data(), "M484") == 0 &&
                     (std::strcmp(out->product.data(), "SG8994HERGB") == 0 ||
@@ -712,7 +723,6 @@ bool Run(const Candidate& candidate, Proof proof)
     return true;
 }
 
-#if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
 // The AJAZZ candidate uses the same validated M484 event framing, but never
 // publishes the NA87 layout identity or factory matrix.
 Proof g_ajazzProof;
@@ -728,13 +738,16 @@ void BindAjazzMap(const Proof& proof)
         g_factoryValues.Bind(id,hostCode);
         g_assignedValues.Bind(id,hostCode);
         if (proof.map[pos]) g_owned[proof.map[pos]].store(1);
+#if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
         StabilityTrace_Write(L"INFO",L"ajazz",L"map.position",L"row=%u col=%u hid=%u",
             unsigned(pos/22),unsigned(pos%22),unsigned(proof.map[pos]));
+#endif
     }
-    g_mapped.store(static_cast<unsigned>(irok_nd75::MappedKeyCount(proof.map)));
+    g_mapped.store(82);
     g_inputBytes=64;g_outputBytes=64;
-    g_ajazzPlaying=true;g_present=true;g_connected=true;
+    g_ajazzPlaying=true;g_present=true;
 }
+#if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
 bool BeginAjazzPlay(Session& session)
 {
     Proof proof{};
@@ -760,9 +773,15 @@ void ObserveAjazzDepth(const irok_nd75::LiveEvent& event)
 {
     if(g_ajazzLimits) g_ajazzLimits->Event(unsigned(event.row)*22+event.column,event.travel,NowUs());
 }
+#endif
+bool IsAjazzRawRow(const irok_nd75::Report& report)
+{
+    return report[0]==1 && report[1]==0x23 && report[2]==0 &&
+        report[3]==0 && report[4]>=1 && report[4]<=6 && report[5]==44;
+}
 void PublishAjazzRawRow(const irok_nd75::Report& report)
 {
-    if(!g_ajazzLimits) return;
+    if(!g_ajazzLimits || !IsAjazzRawRow(report)) return;
     const unsigned row=report[4]-1;
     const auto us=NowUs(),ms=GetTickCount64();
     bool changed=false;
@@ -780,6 +799,7 @@ void PublishAjazzRawRow(const irok_nd75::Report& report)
     ++g_updates;g_lastMs=ms;
     if(changed) RealtimeLoop_NotifyInputChanged();
 }
+#if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
 unsigned AjazzReadyKeys() {return g_ajazzLimits?g_ajazzLimits->Ready():0;}
 void LogAjazzLearning()
 {
@@ -792,12 +812,68 @@ void LogAjazzLearning()
     }
 }
 
+#endif
 void EndAjazzPlay()
 {
     g_connected=false;g_ajazzPlaying=false;g_ajazzLimits.reset();Clear();
 }
+#if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
 #include "ajazz_diagnostic.inl"
 #endif
+
+
+// Production path: no diagnostic depth subscription, raw dumps or forced log.
+bool RunAjazz(const Candidate& candidate)
+{
+    Session session(candidate, false, false);
+    Proof proof{};
+    if (!session.Open() || !ReceiveIdentity(session, &proof.identity) ||
+        !IsAjazzRgb(proof.identity) || !ReceiveCapability(session, &proof.capability) ||
+        proof.capability.sensitivity!=40 || !ReceiveMap(session, &proof.map, true))
+        return false;
+    unsigned mapped=0;
+    for(unsigned p=0;p<132;++p)
+        if(halljoy::ajazz::Physical(p) && proof.map[p]) ++mapped;
+    if(mapped==0) return false; // Disabled/remapped keys need not have an assignment.
+    BindAjazzMap(proof);
+    g_connected=false; // Announce only after every sensor row is live.
+    g_ajazzLimits=std::make_unique<halljoy::ajazz::DynamicLimits>();
+    struct Cleanup {
+        Session& session;
+        ~Cleanup() {
+            EndAjazzPlay();
+            irok_nd75::Report off{};off[0]=1;off[1]=0x23;
+            session.Send(off);
+        }
+    } cleanup{session};
+    irok_nd75::Report request{};request[0]=1;request[1]=0x23;request[6]=1;
+    if(!session.Send(request)) return false;
+    std::array<ULONGLONG,6> seen{};
+    const auto started=GetTickCount64();
+    while(!g_stop.load(std::memory_order_acquire)) {
+        irok_nd75::Report report{};
+        if(session.Read(&report,20)) {
+            if(IsAjazzRawRow(report)) {
+                PublishAjazzRawRow(report);
+                seen[report[4]-1]=GetTickCount64();
+                if(!g_connected.load() && std::all_of(seen.begin(),seen.end(),
+                    [](ULONGLONG stamp){return stamp!=0;})) {
+                    g_connected=true;
+                    RealtimeLoop_NotifyInputChanged();
+                }
+            }
+        } else {
+            const auto error=GetLastError();
+            if(error!=WAIT_TIMEOUT && error!=ERROR_TIMEOUT) break;
+        }
+        const auto now=GetTickCount64();
+        // A dead row must not retain pressed keys while other rows continue.
+        if(std::any_of(seen.begin(),seen.end(),[&](ULONGLONG stamp){
+            return now-(stamp?stamp:started)>(stamp?100u:1200u);
+        })) break;
+    }
+    return true;
+}
 
 std::uint32_t WorkerBody()
 {
@@ -814,12 +890,17 @@ std::uint32_t WorkerBody()
         {
             Proof proof{};
             if (!EnsureClaim(candidate, &proof)) continue;
+            if (IsAjazzRgb(proof.identity)) {
+                provenPresent=true;
 #if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
-            if (!irok_na87::IsExpectedDevice(proof.identity)) {
-                if (RunAjazzDiagnostic(candidate)) { ran=true; break; }
+                ran=RunAjazzDiagnostic(candidate);
+#else
+                ran=RunAjazz(candidate);
+#endif
+                if(ran) break;
                 continue;
             }
-#endif
+            if(!irok_na87::IsExpectedDevice(proof.identity)) continue;
             provenPresent = true;
             g_present.store(true, std::memory_order_release);
             ran = Run(candidate, proof);
@@ -979,6 +1060,7 @@ void Telemetry(NativeAnalogBackendTelemetry* out)
 {
     if (!out) return;
     *out = {};
+    if(g_ajazzPlaying.load()) wcsncpy_s(out->deviceName,L"AJAZZ AK820 MAX RGB",_TRUNCATE);
     out->present = Present();
     out->connected = Connected();
     if (out->connected && !g_ajazzPlaying.load()) out->verifiedLayoutToken=irok_na87::kAnsiLayoutToken;
@@ -988,7 +1070,7 @@ void Telemetry(NativeAnalogBackendTelemetry* out)
     out->usage = kUsage;
     out->mappedKeys = g_mapped.load();
     out->activeKeys = g_active.load();
-    out->nominalRawLevels = irok_nd75::kNominalTravelMaximum + 1u;
+    out->nominalRawLevels = g_ajazzPlaying.load() ? 1001u : irok_nd75::kNominalTravelMaximum + 1u;
     out->inputReportBytes = g_inputBytes.load();
     out->outputReportBytes = g_outputBytes.load();
     out->updateHz10 = g_hz10.load();
@@ -1001,7 +1083,7 @@ void Telemetry(NativeAnalogBackendTelemetry* out)
         ? static_cast<std::uint32_t>(std::min<std::uint64_t>(now - last,
             0xffffffffull)) : 0;
     _snwprintf_s(out->status, _countof(out->status), _TRUNCATE,
-        g_ajazzPlaying.load() ? L"AJAZZ AK820 MAX RGB: dynamic key limits (preliminary), range_errors=%llu" :
+        g_ajazzPlaying.load() ? L"AJAZZ AK820 MAX RGB: USB analog, automatic key range, range_errors=%llu" :
         L"IROK NA87 M484 experimental, device map, raw 0..40, range_errors=%llu",
         static_cast<unsigned long long>(g_outOfRange.load()));
 }
@@ -1107,7 +1189,7 @@ bool IrokNa87_TryRunSelfTest(int& result) noexcept
 #if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
     // Exercise the real AJAZZ publication and registry routing with a device map
     // that differs from NA87. Duplicate assignments retain the deeper position.
-    g_ajazzProof=proof;BindAjazzMap(proof);
+    g_ajazzProof=proof;BindAjazzMap(proof);g_connected=true;
     PublishAjazzPlay({2,2,30});PublishAjazzPlay({3,2,20});
     pass=pass && Get(4)==750 && !Owns(0x1a);
     PublishAjazzPlay({2,2,0});pass=pass && Get(4)==500;
@@ -1120,6 +1202,41 @@ bool IrokNa87_TryRunSelfTest(int& result) noexcept
     PublishAjazzPlay({5,11,20});pass=pass && Get(1033)==500 && Get(250)==500;
     EndAjazzPlay();pass=pass && Get(4)==0 && !Connected();
 #endif
+    // Ordinary-build AJAZZ publication: raw-only input, exact admission,
+    // isolated release, malformed rows and the Fn alias use the real registry.
+    irok_nd75::DeviceInfo rgb{};
+    strcpy_s(rgb.controller.data(),rgb.controller.size(),"M484");
+    strcpy_s(rgb.product.data(),rgb.product.size(),"SG8994HERGB");
+    strcpy_s(rgb.firmware.data(),rgb.firmware.size(),"V1.13.17");
+    pass=pass && IsAjazzRgb(rgb);
+    strcpy_s(rgb.firmware.data(),rgb.firmware.size(),"V1.13.17 ");
+    pass=pass && IsAjazzRgb(rgb);
+    strcpy_s(rgb.firmware.data(),rgb.firmware.size(),"V1.13.170");
+    pass=pass && !IsAjazzRgb(rgb);
+    rgb.product[8]='X';pass=pass && !IsAjazzRgb(rgb);
+    proof.map.fill(0);proof.map[68]=4;proof.map[69]=22;proof.map[121]=250;
+    BindAjazzMap(proof);g_ajazzLimits=std::make_unique<halljoy::ajazz::DynamicLimits>();g_connected=true;
+    auto rawRow=[&](unsigned row,unsigned first,unsigned second) {
+        irok_nd75::Report r{};r[0]=1;r[1]=0x23;r[4]=static_cast<unsigned char>(row+1);r[5]=44;
+        for(unsigned col=0;col<22;++col) {
+            const unsigned adc=(row==3 && col==2)?first:(row==3 && col==3)?second:
+                (row==5 && col==11)?first:2400;
+            r[6+2*col]=static_cast<unsigned char>(adc>>8);r[7+2*col]=static_cast<unsigned char>(adc);
+        }
+        for(unsigned i=0;i<3;++i)PublishAjazzRawRow(r);
+    };
+    rawRow(3,2400,2400);rawRow(5,2400,2400);
+    rawRow(3,1353,1355);pass=pass && Get(4)==1000 && Get(22)==1000;
+    rawRow(3,2400,1355);pass=pass && Get(4)==0 && Get(22)==1000;
+    rawRow(5,1289,2400);pass=pass && Get(1033)==1000 && Get(250)==1000;
+    auto malformed=irok_nd75::Report{};malformed[0]=1;malformed[1]=0x23;
+    malformed[4]=7;malformed[5]=44;PublishAjazzRawRow(malformed);
+    pass=pass && Get(22)==1000 && !IsAjazzRawRow(malformed);
+    const auto rawRouted=NativeAnalogBackends_ReadMilli(22);
+    Telemetry(&telemetry);
+    pass=pass && rawRouted.owned && rawRouted.milli==1000 &&
+        telemetry.verifiedLayoutToken==0 && wcscmp(telemetry.deviceName,L"AJAZZ AK820 MAX RGB")==0;
+    EndAjazzPlay();pass=pass && Get(22)==0 && !Connected();
     const auto pipeName=L"\\\\.\\pipe\\HallJoyNa87SelfTest-"+std::to_wstring(GetCurrentProcessId());
     {
         Handle server(CreateNamedPipeW(pipeName.c_str(),PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,

@@ -613,6 +613,11 @@ $buildOutput = @(& $msbuild $project `
     '/p:Configuration=Release' `
     '/p:Platform=x64' `
     '/p:HallJoyMad68ProRNative=true' `
+    '/p:HallJoyKeychronOnboardExperimental=true' `
+    '/p:HallJoyAttackSharkR85Diagnostic=false' `
+    '/p:HallJoyAttackSharkProDiagnostic=false' `
+    '/p:HallJoyAjazzDiagnostic=false' `
+    '/p:HallJoyInputPathDiagnostic=false' `
     '/p:HallJoyStabilityTrace=false' `
     '/m' 2>&1)
 $buildExitCode = $LASTEXITCODE
@@ -631,6 +636,12 @@ $productionWarningCodes = @($productionWarnings | ForEach-Object {
 $warningSummary = if ($productionWarningCodes.Count) { $productionWarningCodes -join ', ' } else { 'none' }
 Write-Host "Production warning baseline: allowed codes=$warningSummary; 0 unexpected." -ForegroundColor DarkGray
 if (-not (Test-Path -LiteralPath $exe)) { throw "Executable not produced: $exe" }
+
+foreach ($check in @('--halljoy-require-k4-onboard', '--halljoy-support-self-test', '--halljoy-shark-self-test', '--halljoy-mini60-self-test', '--halljoy-na87-native-self-test')) {
+    $checkProcess = Start-Process -FilePath $exe -ArgumentList $check -WindowStyle Hidden -PassThru
+    if (-not $checkProcess.WaitForExit(30000)) { Stop-Process -InputObject $checkProcess -Force; throw "Release check timed out: $check" }
+    if ($checkProcess.ExitCode -ne 0) { throw "Release check failed: $check ($($checkProcess.ExitCode))" }
+}
 
 $vigemSelfTest = Start-Process -FilePath $exe `
     -ArgumentList '--halljoy-verify-embedded-vigem-installer' `

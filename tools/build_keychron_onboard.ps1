@@ -14,7 +14,7 @@ if (-not $msbuild) { throw 'MSBuild x64 was not found.' }
 & $msbuild $project /m /p:Configuration=Release /p:Platform=x64 /p:HallJoyMad68ProRNative=true /p:HallJoyKeychronOnboardExperimental=true /p:HallJoyAttackSharkProDiagnostic=false /p:HallJoyInputPathDiagnostic=false "/p:OutDir=$candidateDir\" /verbosity:minimal /nologo
 if ($LASTEXITCODE -ne 0) { throw 'Release build failed; running HallJoy was not touched.' }
 $candidate = Join-Path $candidateDir 'HallJoy.exe'
-foreach ($check in @('--halljoy-shark-self-test', '--halljoy-mini60-self-test', '--halljoy-na87-native-self-test', '--halljoy-verify-embedded-vigem-installer')) {
+foreach ($check in @('--halljoy-require-k4-onboard', '--halljoy-shark-self-test', '--halljoy-mini60-self-test', '--halljoy-na87-native-self-test', '--halljoy-verify-embedded-vigem-installer')) {
     $process = Start-Process -FilePath $candidate -ArgumentList $check -WindowStyle Hidden -PassThru
     if (-not $process.WaitForExit(30000)) { Stop-Process -InputObject $process -Force; throw "Candidate check timed out: $check" }
     if ($process.ExitCode -ne 0) { throw "Candidate check failed: $check ($($process.ExitCode)); running HallJoy was not touched." }

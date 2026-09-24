@@ -58,12 +58,22 @@ void CreateShared(){
 bool Stop(){return childCancel && WaitForSingleObject(childCancel,0)==WAIT_OBJECT_0;}
 // High-resolution waitable timers avoid rounding each 1 ms wait to a system tick.
 Handle PreciseTimer(){return Handle(CreateWaitableTimerExW(nullptr,nullptr,0x2,TIMER_ALL_ACCESS));}
+void Event(const char* name,unsigned code);
 bool Delay(HANDLE timer,HANDLE cancel,unsigned ms){
- if(timer){LARGE_INTEGER due{};due.QuadPart=-static_cast<LONGLONG>(ms)*10000;
-  if(!SetWaitableTimer(timer,&due,0,nullptr,nullptr,FALSE))return false;
-  HANDLE handles[]={timer,cancel};return WaitForMultipleObjects(cancel?2:1,handles,FALSE,INFINITE)==WAIT_OBJECT_0;
+ if(timer && timer!=INVALID_HANDLE_VALUE){LARGE_INTEGER due{};due.QuadPart=-static_cast<LONGLONG>(ms)*10000;
+  if(SetWaitableTimer(timer,&due,0,nullptr,nullptr,FALSE)){
+   HANDLE handles[]={timer,cancel};const auto result=WaitForMultipleObjects(cancel?2:1,handles,FALSE,INFINITE);
+   if(result==WAIT_OBJECT_0)return true;
+   if(cancel && result==WAIT_OBJECT_0+1)return false;
+   const auto error=result==WAIT_FAILED?GetLastError():ERROR_INVALID_FUNCTION;Event("timer_wait_fallback",error);
+  }else {const auto error=GetLastError();Event("timer_arm_fallback",error);}
  }
- return cancel?WaitForSingleObject(cancel,ms)==WAIT_TIMEOUT:(Sleep(ms),true);
+ // Timer availability must not gate protocol traffic; retain cooperative cancel.
+ if(!cancel){Sleep(ms);return true;}
+ const auto result=WaitForSingleObject(cancel,ms);
+ if(result==WAIT_TIMEOUT)return true;
+ if(result==WAIT_FAILED){const auto error=GetLastError();Event("cancel_wait_failed",error);}
+ return false;
 }
 halljoy::physical_analog::Publication nativeValues,fnValues;
 halljoy::sharkplay::LayerState layerState;
@@ -147,7 +157,21 @@ void Line(const std::string& value){DWORD n=0;auto text=value+"\n";WriteFile(Get
 void Event(const char* name,unsigned code){Line(std::string(name)+" error="+std::to_string(code));}
 std::wstring ThisExe(){wchar_t path[32768]{};auto n=GetModuleFileNameW(nullptr,path,_countof(path));if(!n || n>=_countof(path))throw 1;return {path,n};}
 std::wstring Quote(const std::wstring& s){return L"\""+s+L"\"";}
-struct Device {std::wstring path;unsigned pid=0,usage=0;};
+// R85 diagnostics deliberately retain every byte of a bounded wire sample.
+// The ordinary build never records these reports.
+std::string WireRecord(const char* direction,unsigned command,unsigned page,unsigned delay,const Report& report){
+ static constexpr char hex[]="0123456789abcdef";std::string bytes;bytes.reserve(130);
+ for(auto v:report){bytes+=hex[v>>4];bytes+=hex[v&15];}
+ return std::string("r85_wire direction=")+direction+" command="+std::to_string(command)+" page="+std::to_string(page)+" delay_ms="+std::to_string(delay)+" bytes="+bytes;
+}
+bool DiagnosticPid(unsigned pid){
+#if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
+ return pid==0x5029;
+#else
+ return CandidatePid(pid);
+#endif
+}
+struct Device {std::wstring path;unsigned pid=0,usage=0,ordinal=0;};
 std::vector<Device> Find(){
  std::vector<Device> result;unsigned vendorCollections=0,metadataErrors=0,rejected=0;GUID guid{};HidD_GetHidGuid(&guid);
  auto list=SetupDiGetClassDevsW(&guid,nullptr,nullptr,DIGCF_PRESENT|DIGCF_DEVICEINTERFACE);
@@ -167,26 +191,59 @@ std::vector<Device> Find(){
   if(!meta){++metadataErrors;Event("metadata_open_failed",GetLastError());continue;}
   HIDD_ATTRIBUTES a{};a.Size=sizeof(a);if(!HidD_GetAttributes(meta.h,&a)){++metadataErrors;Event("attributes_failed",GetLastError());continue;}if(a.VendorID!=0x3151)continue;
   PHIDP_PREPARSED_DATA prep=nullptr;HIDP_CAPS caps{};if(!HidD_GetPreparsedData(meta.h,&prep)){++metadataErrors;Event("preparsed_data_failed",GetLastError());continue;}
-  auto status=HidP_GetCaps(prep,&caps);HidD_FreePreparsedData(prep);if(status!=HIDP_STATUS_SUCCESS){++metadataErrors;Event("caps_failed",static_cast<unsigned>(status));continue;}
+  auto status=HidP_GetCaps(prep,&caps);
+#if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
+  if(status==HIDP_STATUS_SUCCESS && a.ProductID==0x5029){
+   Line("r85_collection ordinal="+std::to_string(i)+" feature_value_caps="+std::to_string(caps.NumberFeatureValueCaps)+" feature_button_caps="+std::to_string(caps.NumberFeatureButtonCaps));
+   USHORT count=std::min<USHORT>(caps.NumberFeatureValueCaps,128);std::vector<HIDP_VALUE_CAPS> values(count);
+   if(count && HidP_GetValueCaps(HidP_Feature,values.data(),&count,prep)==HIDP_STATUS_SUCCESS)
+    for(unsigned k=0;k<count;++k)Line("r85_feature ordinal="+std::to_string(i)+" report_id="+std::to_string(values[k].ReportID)+" bit_size="+std::to_string(values[k].BitSize)+" report_count="+std::to_string(values[k].ReportCount));
+  }
+#endif
+  HidD_FreePreparsedData(prep);if(status!=HIDP_STATUS_SUCCESS){++metadataErrors;Event("caps_failed",static_cast<unsigned>(status));continue;}
   wchar_t product[256]{};bool receiver=false;
   if(HidD_GetProductString(meta.h,product,sizeof(product))){std::wstring name=product;std::transform(name.begin(),name.end(),name.begin(),towlower);receiver=name.find(L"receiver")!=std::wstring::npos || name.find(L"dongle")!=std::wstring::npos;}
   char line[256];sprintf_s(line,"descriptor vid=3151 pid=%04x bcd=%04x usage=%04x:%04x in=%u out=%u feature=%u receiver=%u",a.ProductID,a.VersionNumber,caps.UsagePage,caps.Usage,caps.InputReportByteLength,caps.OutputReportByteLength,caps.FeatureReportByteLength,receiver?1:0);Line(line);
-  const char* reason=receiver?"receiver":!CandidatePid(a.ProductID)?"unknown_pid":caps.UsagePage!=0xffff?"usage_page":caps.Usage!=2?"usage":caps.FeatureReportByteLength!=65?"feature_length":nullptr;
-  if(reason){++rejected;Line(std::string("collection_rejected reason=")+reason);}else result.push_back({path,a.ProductID,caps.Usage});
+  const char* reason=receiver?"receiver":!DiagnosticPid(a.ProductID)?"non_target_pid":caps.UsagePage!=0xffff?"usage_page":caps.Usage!=2?"usage":caps.FeatureReportByteLength!=65?"feature_length":nullptr;
+  if(reason){++rejected;Line(std::string("collection_rejected reason=")+reason);}else result.push_back({path,a.ProductID,caps.Usage,i});
  }
  std::stable_sort(result.begin(),result.end(),[](const auto& a,const auto& b){return a.usage>b.usage;});
  Line("inventory eligible="+std::to_string(result.size())+" vendor_collections="+std::to_string(vendorCollections)+" metadata_errors="+std::to_string(metadataErrors)+" rejected="+std::to_string(rejected)+" paths_logged=0");return result;
 }
 struct Session {
+ unsigned wireCount[4]{},wireDelay[4]{};ULONGLONG wireNext[4]{};
  Handle device;Handle timer=PreciseTimer();unsigned delay=1,errors=0,identity=0;std::uint64_t calls=0,totalUs=0,maxUs=0,maxWaitUs=0,maxSetUs=0,maxGetUs=0;ULONGLONG began=GetTickCount64();
- explicit Session(const Device& d):device(CreateFileW(d.path.c_str(),GENERIC_READ|GENERIC_WRITE,0,nullptr,OPEN_EXISTING,0,nullptr)){
-  if(!device)Event("exclusive_open_failed",GetLastError());
+ DWORD firstOpenError=0,lastOpenError=0,accessMode=GENERIC_READ|GENERIC_WRITE,shareMode=0;
+ explicit Session(const Device& d){
+  // All member initialization (including the timer) is already complete.
+  // Capture GetLastError immediately; timer creation used to erase it.
+  auto open=[&](DWORD access,DWORD share){
+   device.h=CreateFileW(d.path.c_str(),access,share,nullptr,OPEN_EXISTING,0,nullptr);
+   lastOpenError=device?ERROR_SUCCESS:GetLastError();accessMode=access;shareMode=share;
+#if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
+   Line("r85_open collection="+std::to_string(d.ordinal)+" pid="+std::to_string(d.pid)+" access="+std::to_string(access)+" share="+std::to_string(share)+" success="+std::to_string(bool(device))+" error="+std::to_string(lastOpenError));
+#endif
+  };
+  open(GENERIC_READ|GENERIC_WRITE,0);firstOpenError=lastOpenError;
+  if(!device)Event("exclusive_open_failed",firstOpenError);
+  // Follow HIDAPI's shared RW / feature-only opening convention for this
+  // family. Identity and all depth validation remain mandatory.
+  if(!device && (lastOpenError==ERROR_SHARING_VIOLATION || lastOpenError==ERROR_ACCESS_DENIED)){
+   open(GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE);
+   if(!device && (lastOpenError==ERROR_SHARING_VIOLATION || lastOpenError==ERROR_ACCESS_DENIED))open(0,FILE_SHARE_READ|FILE_SHARE_WRITE);
+  }
  }
  bool Exchange(unsigned command,unsigned page,Report& reply){
   const auto request=Request(command,page);if(!request[1])return false;
+
   LARGE_INTEGER start{},end{},freq{};QueryPerformanceFrequency(&freq);QueryPerformanceCounter(&start);
   // Match the vendor send delay as well as its separate read delay.
   if(!Delay(timer.h,childCancel,delay))return false;
+#if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
+  // First 8 exchanges/page, each timing transition, then one pair/second/page.
+  const bool wire=command!=0xe5 || wireCount[page]<8 || wireDelay[page]!=delay || GetTickCount64()>=wireNext[page];
+  if(wire){Line(WireRecord("tx",command,page,delay,request));if(command==0xe5){++wireCount[page];wireDelay[page]=delay;wireNext[page]=GetTickCount64()+1000;}}
+#endif
   LARGE_INTEGER beforeSet{},afterSet{},beforeGet{};QueryPerformanceCounter(&beforeSet);
   InterlockedExchange(&shared->command,command);InterlockedExchange(&shared->page,page);InterlockedExchange(&shared->ioPhase,1);
   if(!HidD_SetFeature(device.h,const_cast<std::uint8_t*>(request.data()),65)){++errors;Event("set_feature_failed",GetLastError());return false;}
@@ -197,6 +254,10 @@ struct Session {
   InterlockedExchange(&shared->ioPhase,2);
   if(!HidD_GetFeature(device.h,reply.data(),65)){++errors;Event("get_feature_failed",GetLastError());return false;}
   InterlockedExchange(&shared->ioPhase,0);
+#if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
+  std::array<unsigned,32> decoded{};
+  if(wire || (command==0xe5 && !Decode(reply,decoded)))Line(WireRecord("rx",command,page,delay,reply));
+#endif
   QueryPerformanceCounter(&end);auto us=static_cast<std::uint64_t>((end.QuadPart-start.QuadPart)*1000000/freq.QuadPart);
   auto micros=[&](LONGLONG ticks){return static_cast<std::uint64_t>(ticks*1000000/freq.QuadPart);};
   maxWaitUs=std::max(maxWaitUs,micros(beforeSet.QuadPart-start.QuadPart+beforeGet.QuadPart-afterSet.QuadPart));
@@ -208,12 +269,25 @@ struct Session {
   for(unsigned attempt=0;attempt<3;++attempt){delay=10;Report a{},b{};
    if(Stop())return false;
    if(Exchange(0x8f,0,a) && Exchange(0x8f,0,b) && Identity(a)==Identity(b) && Known(Identity(a),d.pid)){
-    identity=Identity(a);usb=unsigned(b[8])|(unsigned(b[9])<<8);return true;}
+    identity=Identity(a);usb=unsigned(b[8])|(unsigned(b[9])<<8);
+#if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
+    if(identity!=3123){Line("r85_identity_mismatch expected=3123 actual="+std::to_string(identity)+" no_depth_commands=1");return false;}
+#endif
+    return true;}
    Line("identity_attempt delay_ms="+std::to_string(delay)+" id="+std::to_string(Identity(a))+" repeated_id="+std::to_string(Identity(b))+" reply_command="+std::to_string(a[1])+" repeated_command="+std::to_string(b[1])+" report_id="+std::to_string(b[0]));
   }return false;
  }
 };
 void Summary(const Metrics& m,const Session& s,bool detail){
+#if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
+ unsigned peak=0,mappedPositive=0,unmappedPositive=0;std::uint64_t valid=0;
+ const auto* profile=halljoy::sharkplay::Find(3123);
+ for(unsigned i=0;i<128;++i){peak=std::max(peak,m.keys[i].high);if(m.keys[i].positive){if(profile->factory[i])++mappedPositive;else ++unmappedPositive;}}
+ for(auto n:m.pages)valid+=n;
+ const char* outcome=!valid?"no_valid_depth_pages":!peak?(Load(shared->presses)?"zero_depth_despite_digital_presses":"zero_depth_no_digital_evidence"):!m.Varying()?"nonzero_depth_not_varying":"varying_depth";
+ Line(std::string("r85_depth_evidence outcome=")+outcome+" valid_pages="+std::to_string(valid)+" peak_raw="+std::to_string(peak)+" mapped_positive_slots="+std::to_string(mappedPositive)+" unmapped_positive_slots="+std::to_string(unmappedPositive)+" digital_scope=3151:5029 digital_presses="+std::to_string(Load(shared->presses))+" declared_travel_um=3300 current_normalization_um=3500 range_unverified=1");
+#endif
+
  Line(std::string(detail?"summary":"checkpoint")+" dev_id="+std::to_string(s.identity)+" elapsed_ms="+std::to_string(GetTickCount64()-s.began)+" page0="+std::to_string(m.pages[0])+" page1="+std::to_string(m.pages[1])+" page2="+std::to_string(m.pages[2])+" page3="+std::to_string(m.pages[3])+" varying="+std::to_string(m.Varying())+" max_page0_active="+std::to_string(m.peakPage0)+" digital_chord_frames="+std::to_string(m.chordFrames)+" independent_changes="+std::to_string(m.independentChanges)+" malformed="+std::to_string(m.invalid)+" io_errors="+std::to_string(s.errors)+" avg_exchange_us="+std::to_string(s.calls?s.totalUs/s.calls:0)+" max_exchange_us="+std::to_string(s.maxUs)+" max_wait_us="+std::to_string(s.maxWaitUs)+" max_set_us="+std::to_string(s.maxSetUs)+" max_get_us="+std::to_string(s.maxGetUs)+" delay_ms="+std::to_string(s.delay)+" digital_presses="+std::to_string(Load(shared->presses))+" digital_releases="+std::to_string(Load(shared->releases))+" digital_held="+std::to_string(Load(shared->held)));
 #if !defined(HALLJOY_ATTACKSHARK_PRO_DIAGNOSTIC)
  (void)detail;return;
@@ -223,6 +297,11 @@ void Summary(const Metrics& m,const Session& s,bool detail){
  }
 }
 int Capture(){
+#if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
+ Line("r85_diagnostic revision=3 expected_vid=3151 expected_pid=5029 expected_id=3123 usage=ffff:0002 feature_bytes=65 physical_keys=79 fn_slot=65 vendor_class=Ry5088_sg9047_1m_8k exact_firmware_unavailable=1 writes_to_settings=0");
+ const auto* expected=halljoy::sharkplay::Find(3123);
+ for(unsigned slot=0;slot<expected->factory.size();++slot)if(expected->factory[slot])Line("r85_factory slot="+std::to_string(slot)+" factory_usage="+std::to_string(expected->factory[slot]));
+#endif
  for(;;){
   const auto topology=Load(shared->topology);auto devices=Find();
   if(devices.empty()){
@@ -241,7 +320,7 @@ int Capture(){
    Line("playback enabled="+std::to_string(playable)+" high_resolution_timer="+std::to_string(bool(s.timer))+" full_travel_um=3500 factory_mapping=1 remap_readback=0");
    unsigned rf=0;Report version{};if(s.Exchange(0x80,0,version) && s.Exchange(0x80,0,version) && version[1]==0x80)rf=unsigned(version[2])|(unsigned(version[3])<<8);
    unsigned selected=rf?rf:usb;unsigned units=halljoy::sharkplay::Units(selected);InterlockedExchange(&shared->units,units);
-   Line("identity dev_id="+std::to_string(s.identity)+" pid="+std::to_string(d.pid)+" usb_version="+std::to_string(usb)+" rf_version="+std::to_string(rf)+" driver_units_per_mm="+std::to_string(units)+" exclusive=1 discard_first_page_reply=1 digital_scope=vidpid stream_command_sent=0 calibration_sent=0 writes_to_settings=0");
+   Line("identity dev_id="+std::to_string(s.identity)+" pid="+std::to_string(d.pid)+" usb_version="+std::to_string(usb)+" rf_version="+std::to_string(rf)+" driver_units_per_mm="+std::to_string(units)+" exclusive="+std::to_string(s.shareMode==0)+" access="+std::to_string(s.accessMode)+" discard_first_page_reply=1 digital_scope=vidpid stream_command_sent=0 calibration_sent=0 writes_to_settings=0");
    s.delay=1;InterlockedExchange(&shared->freshMs,halljoy::sharkplay::FreshBudget(s.delay));Line("status state=2");Metrics m;unsigned cycle=0,invalidStreak=0,lastEscalation=0;bool sufficient=false;
    auto checkpoint=GetTickCount64(),detail=checkpoint+15000;unsigned previousPage=4;
    while(!Stop()){
@@ -265,7 +344,14 @@ int Capture(){
      if(s.delay<10){s.delay=s.delay<5?5:10;InterlockedExchange(&shared->freshMs,halljoy::sharkplay::FreshBudget(s.delay));lastEscalation=presses;invalidStreak=0;Line("timing_retry delay_ms="+std::to_string(s.delay));}
      else if(invalidStreak>=3){Summary(m,s,true);Line("status state=6");return 7;}
     }
-    if(!sufficient && m.Enough(presses,static_cast<unsigned>(Load(shared->releases)))){sufficient=true;Line("status state=3");}
+    bool enough=m.Enough(presses,static_cast<unsigned>(Load(shared->releases)));
+#if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
+    // Coverage is derived from this model's factory map, never X65 slot numbers.
+    enough=presses>=4 && Load(shared->releases)>=4;
+    const auto* profile=halljoy::sharkplay::Find(3123);
+    for(unsigned hid:{26u,4u,22u,7u})for(unsigned slot=0;slot<profile->factory.size();++slot)if(profile->factory[slot]==hid){const auto& k=m.keys[slot];enough=enough && k.positive && k.released && k.increase && k.decrease;}
+#endif
+    if(!sufficient && enough){sufficient=true;Line("status state=3");}
     if((++cycle%1024)==0){previousPage=4;Report proof{};const unsigned depthDelay=s.delay;s.delay=10;const bool valid=s.Exchange(0x8f,0,proof) && s.Exchange(0x8f,0,proof) && Identity(proof)==s.identity;s.delay=depthDelay;if(!valid){if(Stop())break;Summary(m,s,true);Line("identity_lost");return 8;}}
     const auto now=GetTickCount64();if(now>=checkpoint){Summary(m,s,false);checkpoint=now+2000;}
     if(now>=detail){Summary(m,s,true);detail=now+15000;}
@@ -278,6 +364,35 @@ int Capture(){
 }
 void ReceiveLine(const std::string& line){
  if(line=="waiting_for_device")return;
+ // Keep ordinary reports useful when discovery fails before any analog samples.
+ // Only named structural fields are copied; never arbitrary child text/keys.
+ auto number=[&](const char* key){auto pos=line.find(key);return pos==std::string::npos?0ull:std::strtoull(line.c_str()+pos+strlen(key),nullptr,10);};
+ if(line.rfind("inventory eligible=",0)==0) {
+  SupportLog_Event("shark.eligible",number("eligible="));
+  SupportLog_Event("shark.vendor_collections",number("vendor_collections="),number("metadata_errors="));
+ }
+ if(line.rfind("descriptor ",0)==0) {
+  unsigned pid=0,bcd=0,page=0,usage=0,in=0,out=0,feature=0,receiver=0;
+  if(sscanf_s(line.c_str(),"descriptor vid=3151 pid=%x bcd=%x usage=%x:%x in=%u out=%u feature=%u receiver=%u",
+      &pid,&bcd,&page,&usage,&in,&out,&feature,&receiver)==8) {
+   SupportLog_Event("shark.collection_pid",pid,bcd);
+   SupportLog_Event("shark.collection_usage",page,usage);
+   SupportLog_Event("shark.collection_feature",feature,receiver);
+  }
+ }
+ if(line.rfind("identity_attempt ",0)==0) {
+  SupportLog_Event("shark.probe_identity",number(" id="),number("repeated_id="));
+  SupportLog_Event("shark.probe_command",number("reply_command="),number("repeated_command="));
+ }
+ if(line.rfind("identity_rejected ",0)==0)SupportLog_Event("shark.identity_rejected",1);
+ const char* failures[]={"inventory_failed","metadata_open_failed","attributes_failed",
+  "preparsed_data_failed","caps_failed","exclusive_open_failed","set_feature_failed","get_feature_failed"};
+ for(const auto* name:failures) if(line.rfind(std::string(name)+" error=",0)==0) {
+  const auto category=std::string("shark.")+name;
+  SupportLog_Event(category.c_str(),1,number("error="));break;
+ }
+ if(line.rfind("status state=",0)==0)SupportLog_Event("shark.state",number("state="));
+
  if(line.rfind("summary ",0)==0){
   auto field=[&](const char* key){auto pos=line.find(key);return pos==std::string::npos?0ull:std::strtoull(line.c_str()+pos+strlen(key),nullptr,10);};
   SupportLog_Event("shark.page0_samples",field("page0="));
@@ -368,14 +483,14 @@ static DWORD RunChild(const std::wstring& mode,DWORD budget,bool allowCancelled=
 
 
 void Supervise() noexcept {
- try{do{ClearNative();InterlockedExchange(&shared->identity,0);
+ try{do{SupportLog_Event("shark.worker_start",1);ClearNative();InterlockedExchange(&shared->identity,0);
   for(auto& page:shared->pages)InterlockedExchange(&page.sequence,0);
   #if defined(HALLJOY_ATTACKSHARK_PRO_DIAGNOSTIC)
   const wchar_t* mode=L"capture";
 #else
   const wchar_t* mode=L"play";
 #endif
-  const auto result=RunChild(mode,MAXDWORD);ClearNative();Trace(L"[shark] worker_end exit=%lu last_command=%ld last_page=%ld io_phase=%ld",result,Load(shared->command),Load(shared->page),Load(shared->ioPhase));
+  const auto result=RunChild(mode,MAXDWORD);SupportLog_Event("shark.worker_exit",result);ClearNative();Trace(L"[shark] worker_end exit=%lu last_command=%ld last_page=%ld io_phase=%ld",result,Load(shared->command),Load(shared->page),Load(shared->ioPhase));
   if(parentStop || result==103)break;uiState=6;for(unsigned i=0;i<30 && !parentStop;++i)Sleep(100);
  }while(!parentStop);}catch(...){ClearNative();uiState=6;Trace(L"[shark] supervisor_exception partial_log_retained=1");}
  collecting=false;
@@ -392,9 +507,66 @@ void PublishDigital(){
 void RequireAt(bool v,unsigned line){if(!v){Line("self_test_failed source_line="+std::to_string(line));throw 1;}}
 #define Require(value) RequireAt((value),__LINE__)
 void SharkTelemetry(NativeAnalogBackendTelemetry* out);
+void TestOrdinaryFailureLog(){
+ // Exercise actual child-record parsing AND ordinary file writer, not just formatting.
+ wchar_t temp[MAX_PATH]{},directory[MAX_PATH]{};
+ Require(GetTempPathW(MAX_PATH,temp)!=0);
+ Require(GetTempFileNameW(temp,L"hjs",0,directory)!=0);
+ Require(DeleteFileW(directory) && CreateDirectoryW(directory,nullptr));
+ const std::wstring path=std::wstring(directory)+L"\\HallJoy.log";
+ Require(SupportLog_Start(directory,directory));
+ ReceiveLine("inventory eligible=0 vendor_collections=7 metadata_errors=2 rejected=5 paths_logged=0");
+ ReceiveLine("exclusive_open_failed error=32");
+ ReceiveLine("identity_attempt delay_ms=10 id=3123 repeated_id=9999 reply_command=143 repeated_command=0 report_id=0");
+ ReceiveLine("get_feature_failed error=5");
+ ReceiveLine("identity_rejected no_depth_commands=1");
+ ReceiveLine("descriptor vid=3151 pid=5029 bcd=0123 usage=ffff:0002 in=0 out=0 feature=65 receiver=0");
+ ReceiveLine("key slot=PRIVACY_SENTINEL samples=PRIVATE_VALUES path=PRIVATE_PATH");
+ SupportLog_ReportMissingSource();
+ std::string text;
+ const auto deadline=GetTickCount64()+5000;
+ do {
+  Handle file(CreateFileW(path.c_str(),GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,nullptr,OPEN_EXISTING,0,nullptr));
+  if(file){char buffer[32768];DWORD got=0;if(ReadFile(file.h,buffer,sizeof(buffer),&got,nullptr))text.assign(buffer,got);}
+  if(text.find("shark.collection_feature value=65")!=std::string::npos)break;
+  Sleep(20);
+ }while(GetTickCount64()<deadline);
+ const bool stopped=SupportLog_Stop();
+ DeleteFileW(path.c_str());RemoveDirectoryW(directory);
+ Require(stopped);
+ Require(text.find("shark.eligible value=0")!=std::string::npos);
+ Require(text.find("shark.exclusive_open_failed value=1 error=32")!=std::string::npos);
+ Require(text.find("shark.get_feature_failed value=1 error=5")!=std::string::npos);
+ Require(text.find("shark.probe_identity value=3123 error=9999")!=std::string::npos);
+ Require(text.find("shark.identity_rejected value=1")!=std::string::npos);
+ Require(text.find("shark.collection_usage value=65535 error=2")!=std::string::npos);
+ Require(text.find("PRIVATE_")==std::string::npos && text.find("PRIVACY_SENTINEL")==std::string::npos);
+ Line("SHARK_ORDINARY_FAILURE_LOG=PASS actual_file=1 failure_reasons=1 private_payload_excluded=1");
+}
+void TestDelayFallback(){
+ Handle wrongTimer(CreateEventW(nullptr,TRUE,FALSE,nullptr));Handle cancel(CreateEventW(nullptr,TRUE,FALSE,nullptr));Require(bool(wrongTimer) && bool(cancel));
+ Require(Delay(wrongTimer.h,cancel.h,1));Require(Delay(nullptr,cancel.h,1));
+ Require(SetEvent(cancel.h)!=0);Require(!Delay(wrongTimer.h,cancel.h,1));Require(!Delay(nullptr,cancel.h,1));
+ ReceiveLine("SHARK_DELAY_TEST=PASS timer_failure_continues=1 cancellation_preserved=1 hardware_access=0");
+}
+void TestSessionOpen(){
+ TestDelayFallback();
+ wchar_t temp[MAX_PATH]{},path[MAX_PATH]{};
+ Require(GetTempPathW(MAX_PATH,temp)!=0 && GetTempFileNameW(temp,L"hjo",0,path)!=0);
+ {Handle held(CreateFileW(path,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_EXISTING,0,nullptr));Require(bool(held));
+  Session conflict(Device{path,0x5029,2,77});Require(conflict.firstOpenError==ERROR_SHARING_VIOLATION);
+  Require(bool(conflict.device) && conflict.shareMode==(FILE_SHARE_READ|FILE_SHARE_WRITE) && conflict.lastOpenError==0);
+
+ }
+ Require(DeleteFileW(path)!=0);
+ {Session missing(Device{path,0x5029,2,78});Require(!missing.device && missing.firstOpenError==ERROR_FILE_NOT_FOUND && missing.lastOpenError==ERROR_FILE_NOT_FOUND);}
+ ReceiveLine("SHARK_OPEN_TEST=PASS real_win32_errors=32,2 hardware_access=0");
+}
 void SelfTest(){
+ TestSessionOpen();
 #if !defined(HALLJOY_ATTACKSHARK_PRO_DIAGNOSTIC)
  Require(!StabilityTrace_IsEnabled());
+ TestOrdinaryFailureLog();
 #endif
  parentStop=false;ClearNative();InterlockedExchange(&shared->identity,2308);InterlockedExchange(&shared->usb,0x314);InterlockedExchange(&shared->units,100);
  Report sample{},fnPage{};PublishPage(2,fnPage);sample[1+2*14]=175;sample[1+2*9]=350&255;sample[2+2*9]=350>>8;
@@ -477,10 +649,32 @@ void SelfTest(){
 bool SharkDiagnostic_TryRunCommand(int& result) noexcept {
  int argc=0;auto argv=CommandLineToArgvW(GetCommandLineW(),&argc);if(!argv)return false;
  bool test=argc==2 && wcscmp(argv[1],L"--halljoy-shark-self-test")==0;
+ bool logTest=argc==2 && wcscmp(argv[1],L"--halljoy-r85-log-self-test")==0;
  bool worker=argc==5 && wcscmp(argv[1],L"--halljoy-shark-worker")==0;
- if(!test && !worker){LocalFree(argv);return false;}
+ if(!test && !worker && !logTest){LocalFree(argv);return false;}
  try{
-  if(test){CreateShared();SelfTest();result=0;}
+  if(logTest){
+#if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
+   StabilityTrace_Init();Require(StabilityTrace_IsEnabled());
+   TestSessionOpen();
+   ReceiveLine("r85_diagnostic revision=3 expected_id=3123 self_test=1 hardware_access=0");
+   ReceiveLine(WireRecord("tx",0x8f,0,10,Request(0x8f)));
+   Report fixture{};fixture[1]=0x8f;fixture[2]=0x33;fixture[3]=0x0c;
+   Require(Identity(fixture)==3123);ReceiveLine(WireRecord("rx",0x8f,0,10,fixture));
+   fixture.fill(0);fixture[1+2*14]=200;std::array<unsigned,32> values{};
+   Require(Decode(fixture,values) && values[14]==200);ReceiveLine(WireRecord("rx",0xe5,0,1,fixture));
+   Require(!Decode(Request(0xe5),values));fixture[0]=1;Require(!Decode(fixture,values));
+   ReceiveLine("r85_depth_evidence outcome=zero_depth_despite_digital_presses valid_pages=100 digital_presses=4");
+   ReceiveLine("exclusive_open_failed error=32");ReceiveLine("get_feature_failed error=5");
+   ReceiveLine("r85_identity_mismatch expected=3123 actual=9999 no_depth_commands=1");
+   ReceiveLine("page_rejected page=2 report_id=0 max_raw=65535 implausible_slots=32");
+   Require(DiagnosticPid(0x5029) && !DiagnosticPid(0x5030));
+   ReceiveLine("R85_LOG_SELF_TEST=PASS");StabilityTrace_Shutdown(0);result=0;
+#else
+   result=92;
+#endif
+  }
+  else if(test){CreateShared();SelfTest();result=0;}
   else{childCancel=reinterpret_cast<HANDLE>(static_cast<uintptr_t>(_wcstoui64(argv[3],nullptr,10)));DWORD flags=0;
    if(!childCancel || !GetHandleInformation(childCancel,&flags))throw 1;
    shared=static_cast<Shared*>(MapViewOfFile(reinterpret_cast<HANDLE>(static_cast<uintptr_t>(_wcstoui64(argv[4],nullptr,10))),FILE_MAP_ALL_ACCESS,0,0,sizeof(Shared)));if(!shared)throw 1;
@@ -504,7 +698,7 @@ void SharkDiagnostic_Start() noexcept {
  if(!StabilityTrace_IsEnabled()){uiState=4;return;}
 #endif
  try{CreateShared();parentStop=false;collecting=true;uiState=1;
-  StabilityTrace_WriteCritical(L"INFO",L"shark",L"start",L"build=20260919-shark-rc-fn-5 no_test_deadline=1 stream=0 calibration=0 firmware_writes=0 ordered_keys=0 analog_output=1 exact_revision_profiles=6 fn_analog_only=1");
+  StabilityTrace_WriteCritical(L"INFO",L"shark",L"start",L"build=20260924-shark-diag-3 no_test_deadline=1 stream=0 calibration=0 firmware_writes=0 ordered_keys=0 analog_output=1 catalog_profiles=37 fn_analog_only=1");
   supervisor=std::thread(Supervise);
  }catch(...){collecting=false;uiState=6;}
 }
@@ -525,7 +719,11 @@ void SharkDiagnostic_ObserveRawInput(HRAWINPUT input) noexcept {
   if(GetRawInputData(input,RID_INPUT,&raw,&n,sizeof(RAWINPUTHEADER))==UINT(-1) || n<sizeof(RAWINPUTHEADER)+sizeof(RAWKEYBOARD) || raw.header.dwType!=RIM_TYPEKEYBOARD)return;
   std::lock_guard<std::mutex> lock(digitalMutex);auto it=digital.find(raw.header.hDevice);
   if(it==digital.end()){if(digital.size()>=64)return;Digital d;wchar_t path[2048]{};UINT len=_countof(path);
-   if(GetRawInputDeviceInfoW(raw.header.hDevice,RIDI_DEVICENAME,path,&len)!=UINT(-1)){std::wstring lower=path;std::transform(lower.begin(),lower.end(),lower.begin(),towlower);d.target=lower.find(L"vid_3151&pid_502f")!=std::wstring::npos || lower.find(L"vid_3151&pid_5030")!=std::wstring::npos;}
+   if(GetRawInputDeviceInfoW(raw.header.hDevice,RIDI_DEVICENAME,path,&len)!=UINT(-1)){std::wstring lower=path;std::transform(lower.begin(),lower.end(),lower.begin(),towlower);d.target=lower.find(L"vid_3151&pid_502f")!=std::wstring::npos || lower.find(L"vid_3151&pid_5030")!=std::wstring::npos;
+#if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
+    d.target=lower.find(L"vid_3151&pid_5029")!=std::wstring::npos;
+#endif
+   }
    it=digital.emplace(raw.header.hDevice,d).first;
   }
   auto& d=it->second;if(!d.target)return;const auto& k=raw.data.keyboard;if(!k.MakeCode || k.MakeCode==KEYBOARD_OVERRUN_MAKE_CODE)return;
@@ -544,8 +742,8 @@ void SharkDiagnostic_UpdateWindow(HWND window) noexcept {
  if((state==2 || state==3) && !playable)state=5;
  if(previous==state)return;previous=state;
  const wchar_t* titles[]={L"HallJoy",L"HallJoy - ATTACK SHARK test: connect by USB; close the vendor driver",
-  L"HallJoy - X65 Pro test: analog enabled for verified revision; gameplay log active",
-  L"HallJoy - X65 Pro: sufficient data; continue playing, then close and send HallJoy.log",
+  L"HallJoy - ATTACK SHARK: analog active; diagnostic log recording",
+  L"HallJoy - ATTACK SHARK: movement recorded; close and send HallJoy.log",
   L"HallJoy - ATTACK SHARK: cannot write HallJoy.log; use a writable folder",
   L"HallJoy - ATTACK SHARK: device busy or revision unrecognized; close driver; log retained",
   L"HallJoy - ATTACK SHARK: read interrupted; retrying; log retained"};
@@ -572,7 +770,7 @@ void SharkTelemetry(NativeAnalogBackendTelemetry* out){
  out->activeKeys=nativeValues.Active(GetTickCount64())+fnValues.Active(GetTickCount64());out->nominalRawLevels=shared?static_cast<unsigned>(Load(shared->units))*35/10+1:0;
  out->inputReportBytes=65;out->outputReportBytes=65;out->successfulUpdates=nativeUpdates.load();
  const auto last=nativeLast.load();out->lastUpdateAgeMs=last?static_cast<std::uint32_t>(GetTickCount64()-last):0;
- wcscpy_s(out->status,L"ATTACK SHARK: factory Fn layer; provisional 3.5 mm range; testing incomplete");
+ wcscpy_s(out->status,profile && (profile->id==3123 || profile->id==2308)?L"ATTACK SHARK: wired analog; factory Fn layer":L"ATTACK SHARK: factory Fn layer; provisional 3.5 mm range; testing incomplete");
 }
 }
 const NativeAnalogBackendDescriptor& Shark_GetNativeBackendDescriptor(){

@@ -17,6 +17,8 @@ jobs:
         run: python tools/run_native_backend_checks.py --require-compiler
 
   windows-release:
+    # Local release checks are mandatory; hosted Windows builds are opt-in.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -32,8 +34,8 @@ jobs:
           name: HallJoy-Windows-x64
           retention-days: 3
           path: |
-            build/release/HallJoy.exe
-            build/release/dependency-lock.json
-            build/release/THIRD_PARTY_NOTICES.md
-            build/release/SHA256SUMS.txt
+            build/bin/Release/x64/HallJoy.exe
+            build/bin/Release/x64/dependency-lock.json
+            build/bin/Release/x64/THIRD_PARTY_NOTICES.md
+            build/bin/Release/x64/SHA256SUMS.txt
           if-no-files-found: error

@@ -2,16 +2,18 @@
 #pragma once
 #include <cstdint>
 namespace halljoy::keyboard_support {
-inline unsigned NativeNotice(unsigned protocol, std::uint64_t token, bool connected) noexcept {
+inline unsigned NativeNotice(unsigned protocol, std::uint64_t token, bool connected, unsigned productId=0) noexcept {
     if(!connected || !token)return 0;
     unsigned result=0;
-    if(protocol==17u && token!=0x5348583635414E53ull)result|=256u; // AttackShark
+    if(protocol==17u && token!=0x5348583635414E53ull && !(token==0x683D58FC5C0C5E90ull && productId==20521u))result|=256u; // AttackShark
     if(protocol==12u)result|=8u; // Hero84
     if(protocol==6u && (token==0x57494E363050524Full || token==0x57494E363850524Full || token==0x484552363850524Full))result|=8192u; // AulaRm
     if(protocol==6u && (token==0x98E6602F43E0E69Cull || token==0x93B5A992A4E00487ull))result|=512u; // GravaStar
     if(protocol==3u && (token==0x798EDA38A47F0E95ull || token==0x36A3739BD6AEEEF8ull || token==0xBEE2B020B2BFBA27ull))result|=1024u; // Ipi
     if(protocol==18u)result|=128u; // Mg75Pro
     if(protocol==7u && (token==0xF3B7ECFB2D628746ull))result|=2048u; // Redragon
+    if(protocol==20u)result|=16384u; // Slice75
+    if(protocol==21u)result|=32768u; // RongYuan
     return result;
 }
 }

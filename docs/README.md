@@ -6,9 +6,12 @@ are not all active requirements. Later owner decisions take precedence.
 
 ## Current release and user documentation
 
+- [Local 1.6.2 release candidate](current/RELEASE_1.6.2_PREPARATION_2026-09-24.md).
+
 - [Release notes](releases/README.md).
 - [AULA experimental support and status synchronization](current/AULA_EXPERIMENTAL_SUPPORT_SYNC_2026-09-22.md).
 - [AULA family review](current/AULA_KNOWN_PROTOCOL_REVIEW_2026-09-22.md).
+- [Pwnage correspondence — local only](current/PWNAGE_SUPPORT_CORRESPONDENCE_2026-09-22.md).
 
 - [Published 1.6.1 release](current/RELEASE_1.6.1_PUBLICATION_2026-09-22.md).
 
@@ -50,6 +53,11 @@ Routine checks are short and hypothesis-driven. No speculative long soak is
 required. Optional continuous logging and mandatory incident reports are distinct.
 
 ## Current integrations and layouts
+
+- [AJAZZ AK820 MAX RGB ordinary support](current/AJAZZ_AK820MAX_REVIEW_2026-09-20.md): tester confirmation, local production integration and Sheet readback.
+
+
+- [MonsGeek / Akko protocol research, Slice75 and EPOMAKER G84 HE references](current/MONSGEEK_AKKO_PROTOCOL_2026-09-22.md): local native integration; validation and support-status evidence.
 
 - [Active K4 HE low-latency firmware/protocol work](current/K4_HE_LOW_LATENCY_PROTOCOL_2026-09-21.md): backups, measured legacy transport and actual source limits.
 

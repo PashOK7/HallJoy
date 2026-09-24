@@ -541,3 +541,101 @@ Expose/edit learned or measured bounds and make recalibration deliberate.
 This is a future feature, not implemented in revision5; current dynamic limits
 are explicitly not the final calibration design. Do not silently invoke the
 keyboard's firmware calibration or write its settings.
+
+
+## Log27 / owner-relayed tester confirmation, 2026-09-22
+
+Owner reports that the tester says everything works perfectly. This supersedes
+the absence of hardware feedback for revision5, not the provisional calibration
+design. Exact scope: wired AJAZZ x NACODEX AK820 MAX RGB, SG8994HERGB
+V1.13.17. Log compiled Sep20 17:02:26 matches revision5 build timing; no
+executable hash was supplied by this log, so timing is not binary verification.
+
+HallJoy (27).log: 6313955 bytes, SHA256
+c5436a386f71548faa9ace5629ab6ce0701de97f53080d697719b8b5e78eff27.
+Session89.282s; raw start250ms;532083 packets, invalid0, row_mask63,
+82 changed positions and82 ready keys. Coarse diagnostic depth events8840
+over46 positions are NOT the output source or82 intentional key tests.
+Shutdown unsubscribe/raw-disable succeed; read.failed995 occurs during shutdown
+and app exits0. No level=ERROR records; this alone does not prove fault-free operation.
+
+Separate unresolved finding: ViGEm output reaches generation2670 in89s;
+preceding generation.end records have outcome1 (IncompletePlannedStop),
+neutral0/removed0, final outcome0 neutral1/removed1. Investigate this old
+diagnostic build's output lifecycle before treating the whole log as clean.
+Do not dismiss the tester's successful experience or blame AJAZZ protocol
+without tracing the restart cause.
+
+Production status: AJAZZ still gated by HALLJOY_AJAZZ_DIAGNOSTIC in
+irok_na87_backend.cpp; ordinary Release leaves it disabled. No code/build
+change in this feedback task. README supported tables remain unchanged;
+hardware inventory records verified diagnostic support separately. Remaining
+work is ordinary integration without forced logging, exact identity/layout
+and support notice policy for provisional limits, plus output-lifecycle review.
+No new tester request is needed merely to establish that revision5 worked.
+
+Sheet sync: live Main!C13 AK820 MAX HE changed Not investigated ->
+Research incomplete (allowed dropdown value; ordinary integration incomplete).
+Readback A12:C14 confirms gray RGB .92156863/.93333334/.9490196,
+preserved validation and unchanged neighbors. RGB tester result does not
+cover Ultra or no-light variants in the broader catalog. All50 yellow rows
+read live and reconciled with runtime catalog/header; no yellow changes.
+No notes/comments, no GitHub publication.
+
+
+## Ordinary support enabled locally, 2026-09-22
+
+Owner explicitly authorized full support, README and Sheet updates; NO GitHub
+publication. This supersedes the diagnostic-only status recorded above.
+Backup: .local/backups/before-ajazz-production-20260922-205406.zip.
+
+Normal NA87/M484 transport now proves exact SG8994HERGB V1.13.17 identity,
+accepting trailing space padding from log27 but rejecting other suffixes and
+no-light products. AJAZZ uses a separate raw-only session: fresh map/capability
+proof, reversible0x23 enable/disable, no calibration/settings writes and no
+forced logs, depth subscription, raw dumps or diagnostic UI. Preserves the
+owner-approved/tester-confirmed dynamic limits and three-sample median.
+All six rows must arrive before connected is announced; a row silent100ms
+ends/neutralizes the session and retries. Initial rows have1200ms allowance.
+Only82 physical sensor positions publish, with live assignments, duplicates
+merged by maximum, and Fn250/1033 alias. Disabled assignments are allowed.
+This is normalized sensor percentage, not factory-calibrated millimetres.
+There is no new AJAZZ geometry preset; existing manual layouts remain usable.
+
+Native telemetry ABI4 adds an optional model name so shared M484 transport
+shows AJAZZ rather than NA87. No NA87 automatic-layout token is published for
+AJAZZ. Keyboard-support flags/catalog remain unchanged: supported RGB has no
+yellow notice; other AJAZZ variants are not admitted by analogy.
+
+Output lifecycle correction: Backend_NotifyDeviceChange formerly requested
+ViGEm restart whenever g_vigemOk was false, including startup. Creating or
+removing the virtual pad emits Windows topology notifications; those could
+cancel startup and repeat. Removed this external restart trigger. The existing
+output owner still monitors failure/timeout and retries with250ms backoff;
+explicit configuration changes/restarts retain their existing behavior. This
+code path explains log27's rapid planned-stop generations; no new physical
+AJAZZ/gameplay run was performed to claim a hardware reproduction or retest.
+
+Validation: ordinary Release plus five linked gates pass. The existing NA87
+linked gate now also exercises actual AJAZZ raw publication, independent
+press/release, Fn, malformed rows, neutralization, common-registry routing,
+model name and padded/rejected firmware identities. Existing dynamic-limit
+test passes; topology regression audit forbids restart from generic Windows
+notifications. Full native-check runner result/artifact recorded below.
+
+Support sync: README main table (alphabetical AJAZZ before ATK), hardware
+inventory and unreleased patch notes updated locally. Live Sheet metadata
+verified; inserted exact AJAZZ AK820 MAX RGB row at Main!A14:C14 with Supported
+instead of marking the broader AK820 MAX HE row supported. That existing row
+stays Research incomplete; Ultra and other variants unchanged. Readback verifies
+green RGB .65882355/.8666667/.70980394 and preserved strict dropdown/neighbor
+values. No cell notes/comments. All50 yellow rows freshly reconciled using
+.local/ajazz-production-yellow-readback.json; catalog/header check PASS.
+
+Final validation: full native/static/portable/Windows runner PASS (108
+executable invocations); log .local/ajazz-production-checks.log. Final normal
+Release and five linked gates PASS; log .local/ajazz-production-build-verified.log.
+Only known pre-existing ViGEmClient missing-PDB linker warning. Dynamic limits
+and topology regression checks PASS. Artifact build/bin/Release/x64/HallJoy.exe
+SHA256 89aa858c6fcbb520828800fadc24e1721463175b96ab66ba36d4bb1494636ea0.
+No GUI run, keyboard flash or GitHub publication.

@@ -56,3 +56,7 @@
     {"attackshark-ry5088", "2968", 0x683D58FC5C0C5E90ull, L"ATTACK SHARK R85 HE + R85 Ultra ANSI"},
     {"attackshark-ry5088", "3123", 0x683D58FC5C0C5E90ull, L"ATTACK SHARK R85 HE + R85 Ultra ANSI"},
     {"attackshark-ry5088", "3221", 0xD2C4CB4941BFFFE8ull, L"ATTACK SHARK X820 Pro ANSI"},
+    {"chilkey-slice75", "SLICE75-1CA3-0701", 0xB84F0DDBC5F201CBull, L"Chilkey Slice75 HE ANSI"},
+    {"rongyuan-snapshot", "G84HE-2642", 0x91CA12259672CD93ull, L"EPOMAKER G84 HE ANSI"},
+    {"rongyuan-snapshot", "G84HE-2959", 0x91CA12259672CD93ull, L"EPOMAKER G84 HE ANSI"},
+    {"rongyuan-snapshot", "M1V5HE-2819", 0x3F95ED9532FDD7F4ull, L"MonsGeek M1 V5 HE ANSI"},

@@ -40,11 +40,6 @@
         },
         {
           "brand": "ATTACK SHARK",
-          "model": "R85 HE",
-          "status": "Implemented; awaiting hardware testing"
-        },
-        {
-          "brand": "ATTACK SHARK",
           "model": "R85 Ultra",
           "status": "Implemented; awaiting hardware testing"
         },
@@ -142,6 +137,12 @@
           "brand": "ATTACK SHARK",
           "model": "X820 Pro",
           "status": "Implemented; awaiting hardware testing"
+        }
+      ],
+      "confirmed_devices": [
+        {
+          "token": "683D58FC5C0C5E90",
+          "pid": 20521
         }
       ]
     },
@@ -300,6 +301,35 @@
         {
           "brand": "Redragon",
           "model": "K673WB-RGB-M",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "Slice75",
+      "flag": 16384,
+      "protocol": 20,
+      "models": [
+        {
+          "brand": "Chilkey",
+          "model": "Slice75 HE",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "RongYuan",
+      "flag": 32768,
+      "protocol": 21,
+      "models": [
+        {
+          "brand": "MonsGeek",
+          "model": "M1 V5 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EPOMAKER",
+          "model": "G84 HE",
           "status": "Implemented; awaiting hardware testing"
         }
       ]

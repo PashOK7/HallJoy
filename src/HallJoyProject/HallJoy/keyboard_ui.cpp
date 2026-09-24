@@ -282,7 +282,7 @@ void KeyboardUI_OnTimerTick(HWND)
     unsigned frozenModels = NativeLayoutDevices_QueryFrozen();
     for (int i=0;i<std::clamp(telemetry.nativeProtocolCount,0,kBackendMaxNativeProtocols);++i) {
         const auto& device=telemetry.nativeProtocols[i];
-        frozenModels |= halljoy::keyboard_support::NativeNotice(device.protocol, device.verifiedLayoutToken, device.connected);
+        frozenModels |= halljoy::keyboard_support::NativeNotice(device.protocol, device.verifiedLayoutToken, device.connected, device.productId);
     }
     // An ambiguous USB family is advisory only when no working source exists.
     // It must not mark a verified active sibling model as frozen.

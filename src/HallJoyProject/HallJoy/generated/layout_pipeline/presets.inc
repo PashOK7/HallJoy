@@ -71,3 +71,6 @@
     {L"ATTACK SHARK X96 HE + X98 HE ANSI", g_attackshark_2792_ansi, (int)std::size(g_attackshark_2792_ansi), L"ATTACK SHARK"},
     {L"ATTACK SHARK R85 HE + R85 Ultra ANSI", g_attackshark_2968_ansi, (int)std::size(g_attackshark_2968_ansi), L"ATTACK SHARK"},
     {L"ATTACK SHARK X820 Pro ANSI", g_attackshark_3221_ansi, (int)std::size(g_attackshark_3221_ansi), L"ATTACK SHARK"},
+    {L"Chilkey Slice75 HE ANSI", g_chilkey_slice75_he_ansi, (int)std::size(g_chilkey_slice75_he_ansi), L"Chilkey"},
+    {L"EPOMAKER G84 HE ANSI", g_epomaker_g84_he_ansi, (int)std::size(g_epomaker_g84_he_ansi), L"EPOMAKER"},
+    {L"MonsGeek M1 V5 HE ANSI", g_monsgeek_m1_v5_he_ansi, (int)std::size(g_monsgeek_m1_v5_he_ansi), L"MonsGeek"},

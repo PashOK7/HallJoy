@@ -1013,6 +1013,67 @@
           ]
         }
       ]
+    },
+    "Chilkey": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/MONSGEEK_AKKO_PROTOCOL_2026-09-22.md",
+      "models": [
+        {
+          "id": "chilkey_slice75_he_ansi",
+          "model": "Slice75 HE",
+          "brand": "Chilkey",
+          "variant": "ANSI",
+          "count": 80,
+          "source": "docs/research/three-keyboard-layout-reports/chilkey_slice75_he_ansi.json",
+          "sha256": "fcc9b963c51faa65bf4e34a485b25441624d68a431b0adf3b070ccf86067bf82",
+          "products": [
+            "SLICE75-1CA3-0701"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "EPOMAKER": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/MONSGEEK_AKKO_PROTOCOL_2026-09-22.md",
+      "models": [
+        {
+          "id": "epomaker_g84_he_ansi",
+          "model": "G84 HE",
+          "brand": "EPOMAKER",
+          "variant": "ANSI",
+          "count": 84,
+          "source": "docs/research/three-keyboard-layout-reports/epomaker_g84_he_ansi.json",
+          "sha256": "21712110aa13b32b4d0222825a072e7699980ecfa757bee670a8806ff8dc5865",
+          "products": [
+            "G84HE-2642",
+            "G84HE-2959"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "MonsGeek": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/MONSGEEK_AKKO_PROTOCOL_2026-09-22.md",
+      "models": [
+        {
+          "id": "monsgeek_m1_v5_he_ansi",
+          "model": "M1 V5 HE",
+          "brand": "MonsGeek",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/three-keyboard-layout-reports/monsgeek_m1_v5_he_ansi.json",
+          "sha256": "0c73562890b4c57d2d584fa87bb362346ced7eec129028412d10b464ac8fc820",
+          "products": [
+            "M1V5HE-2819"
+          ],
+          "url": ""
+        }
+      ]
     }
   }
 }

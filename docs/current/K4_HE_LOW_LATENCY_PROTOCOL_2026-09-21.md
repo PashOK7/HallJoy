@@ -1,3 +1,53 @@
+## Owner confirmation, 2026-09-24
+
+Owner reports Keychron now works perfectly after the host-build correction.
+The shallow-onset complaint is resolved by owner feedback; no firmware/filter
+change was made. Retain the K4 build flag and linked catalog gate. This confirms
+observed behavior, not a new physical latency measurement.
+
+## Host build correction delivered (2026-09-22)
+
+Release build and all6 linked gates PASS, including actual K4 catalog presence.
+Log .local/k4-build-route-fix.log; installed build/bin/Release/x64/HallJoy.exe
+SHA256 0a64b2c1577ea907951edaf38e5770fc9083ea1d75477621d4cf1912029cd7d1.
+No firmware/settings changes. Read-only Windows PnP check before delivery showed
+K4 as composite plus HID interfaces, no native XInput interface in its USB
+children, consistent with onboard mode inactive at that moment. Owner must
+close current HallJoy and open this exact EXE for gameplay verification;
+agent did not run GUI or verify the symptom physically. Shallow-onset result
+remains pending owner feedback; do not declare delay fixed from build success.
+
+## 2026-09-22 shallow-press latency report and host-build regression
+
+Owner reports abrupt ~5% presses remain zero for roughly250ms, then appear;
+confirmed in game/gamepad AND keyboard visualization. Not just UI repaint.
+No physical capture of this event yet; exact delay/cause not measured.
+
+Found a concrete host build regression: tools/build_release.ps1 omitted
+HallJoyKeychronOnboardExperimental=true. native_analog_backends.def then
+excludes the custom K4 backend. Latest AJAZZ artifact89aa858c6fcbb520828800fadc24e1721463175b96ab66ba36d4bb1494636ea0
+was produced by that script; earlier documentation saying K4 was retained
+in every ordinary candidate was not supported by those build flags. Do not
+claim the omission proves the owner's exact250ms symptom: running processes
+have inaccessible image paths in this agent context, and no gameplay retest
+has been performed. Firmware r5 was not modified or reflashed.
+
+Correction: ordinary local release builder explicitly includes the custom
+K4 backend. Both release and K4 builders now require the linked EXE command
+--halljoy-require-k4-onboard, which checks the actual registered backend catalog
+without opening hardware/UI. Missing backend returns91; invalid catalog90.
+This prevents omission from passing the build gates. Existing AJAZZ and other
+keyboard changes remain. Backup: .local/backups/before-k4-build-route-fix-20260922-212737.zip.
+
+Source review: r5 precise onboard gamepad bypasses the legacy5-count travel
+gate; that gate still affects old UI/legacy travel. No250ms delay was found
+in the precise conversion or mapper. Keychron's auto-calibration and release
+zero offset remain; not removed without identifying the event. Settings
+StrengthSmoothing15 belongs to InputOverlay, not the gamepad input path.
+Next: owner retest the explicitly linked corrected EXE; if symptom remains,
+capture pre-gate raw/precise depth/calibration during a shallow onset.
+Public keyboard support status unchanged; no GitHub publication.
+
 ## r5 precision path installed and owner raw capture completed (2026-09-21)
 
 LIVE: firmware r5 installed, full flash readback matched. Keyboard back in

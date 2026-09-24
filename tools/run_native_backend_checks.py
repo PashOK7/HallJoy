@@ -100,7 +100,7 @@ def main() -> int:
     run([sys.executable, str(root / "tools" / "prepare_atk_hex80_layout.py")])
     run([sys.executable, str(root / "tools" / "prepare_ipi_layouts.py")])
     run([sys.executable, str(root / "tools" / "build_ipi_native_catalog.py")])
-    for brand in ("Keychron", "Lemokey", "DrunkDeer", "Aula", "Redragon", "Razer", "NuPhy", "Wooting", "IROK", "MADLIONS", "ATK", "IPI", "SayoDevice"):
+    for brand in ("Keychron", "Lemokey", "DrunkDeer", "Aula", "Redragon", "Razer", "NuPhy", "Wooting", "IROK", "MADLIONS", "ATK", "IPI", "SayoDevice", "MonsGeek", "EPOMAKER", "Chilkey"):
         run([sys.executable, str(root / "tools" / "layout_pipeline.py"), "check", brand])
     run([sys.executable, str(project_root / "tools" / "validate_addressed_protocol_backend.py")])
 
@@ -238,6 +238,7 @@ def main() -> int:
             ("uap_snapshot_pinning", [tests / "uap_snapshot_pinning_test.cpp"]),
             ("windows_command_line", [tests / "windows_command_line_test.cpp"]),
             ("mg75_pro_protocol", [tests / "mg75_pro_protocol_test.cpp"]),
+            ("three_keyboard_protocol", [tests / "three_keyboard_protocol_test.cpp", hall / "keyboard_support_status.cpp"]),
             ("sparklink_hotplug_age", [tests / "sparklink_hotplug_age_test.cpp"]),
             ("sparklink_row_freshness", [tests / "sparklink_row_freshness_test.cpp"]),
             ("sayo_letter_matcher", [tests / "sayo_letter_matcher_test.cpp"]),
@@ -282,6 +283,7 @@ def main() -> int:
             ]),
         ]
         if os.name == "nt":
+            fixed_tests.append(("hid_io_control", [tests / "hid_io_control_test.cpp"]))
             fixed_tests.append(("keychron_onboard_host_profile", [tests / "keychron_onboard_host_profile_test.cpp", hall / "keychron_onboard_host_profile.cpp", hall / "bindings.cpp", hall / "key_settings.cpp", hall / "backend_curve.cpp", hall / "settings.cpp", hall / "curve_math.cpp"]))
             fixed_tests.append(("keychron_onboard_curve", [tests / "keychron_onboard_curve_test.cpp", hall / "key_settings.cpp", hall / "backend_curve.cpp", hall / "settings.cpp", hall / "curve_math.cpp"]))
             fixed_tests.append(("aula_mini60_log_windows", [

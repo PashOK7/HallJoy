@@ -57,6 +57,28 @@ public:
         return StartIo(true, const_cast<void*>(buffer), length, outError);
     }
 
+    // Feature IOCTLs use the same cancel/drain ownership as interrupt I/O.
+    StartResult StartControl(DWORD code, void* input, DWORD inputLength,
+                             void* output, DWORD outputLength, DWORD* outError)
+    {
+        if (outError) *outError = ERROR_SUCCESS;
+        if (!IsValid() || active_ || !ResetEvent(event_)) {
+            if (outError) *outError = ERROR_INVALID_PARAMETER;
+            return StartResult::Failed;
+        }
+        overlapped_ = OVERLAPPED{};
+        overlapped_.hEvent = event_;
+        const BOOL ok = DeviceIoControl(handle_, code, input, inputLength,
+            output, outputLength, nullptr, &overlapped_);
+        const DWORD error = ok ? ERROR_SUCCESS : GetLastError();
+        if (ok || error == ERROR_IO_PENDING) {
+            active_ = true;
+            return ok ? StartResult::Completed : StartResult::Pending;
+        }
+        if (outError) *outError = error;
+        return StartResult::Failed;
+    }
+
     DWORD Wait(DWORD timeoutMs) const
     {
         if (!active_ || !event_)

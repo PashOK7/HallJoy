@@ -466,6 +466,8 @@ namespace
     static int g_currentPresetIdx = 0;
     static bool g_customEdited = false;
     static bool g_automaticLocked = false;
+    static bool g_automaticPreview = false;
+    static std::wstring g_lastAutomaticPreset;
     static std::wstring g_manualPreset;
     static std::uint64_t g_automaticToken = 0, g_automaticRevision = 0;
     enum class AutomaticStatus { Disabled, Searching, Missing, Multiple, Matched, Remapped, MapFailed };
@@ -1185,6 +1187,7 @@ int KeyboardLayout_GetCurrentPresetIndex()
 void KeyboardLayout_SetPresetIndex(int idx)
 {
     if (g_automaticLocked) return;
+    g_automaticPreview=false;
     g_firstRunLayout.Cancel();
     EnsureInit();
     ActivatePreset(idx);
@@ -1781,11 +1784,22 @@ bool KeyboardLayout_LoadFromIni(const wchar_t* path)
     g_firstRunLayout.Cancel(); // A saved configuration is never a first run.
     EnsureInit();
     g_automaticLocked = false;
+    g_automaticPreview = false;
+    g_lastAutomaticPreset.clear();
     g_automaticToken = g_automaticRevision = 0;
     halljoy::native_layout::activeToken.store(0);
     halljoy::native_layout::enabled.store(automatic!=0);
     g_automaticStatus = KeyboardLayout_GetAutomatic() ? AutomaticStatus::Searching : AutomaticStatus::Disabled;
 
+    wchar_t cached[256]{};
+    GetPrivateProfileStringW(L"KeyboardLayout",L"LastAutomaticPreset",L"",cached,_countof(cached),path);
+    const int cachedIndex=FindPresetByName(ResolveSavedPresetName(cached));
+    if(cachedIndex>=0)g_lastAutomaticPreset=g_presets[cachedIndex].name;
+    auto restorePreview=[&](){
+        if(KeyboardLayout_GetAutomatic() && cachedIndex>=0){
+            ActivatePreset(cachedIndex);g_automaticPreview=true;
+        }
+    };
     wchar_t nameBuf[128]{};
     GetPrivateProfileStringW(L"KeyboardLayout", L"PresetName", L"", nameBuf, 128, path);
     if (nameBuf[0])
@@ -1795,12 +1809,14 @@ bool KeyboardLayout_LoadFromIni(const wchar_t* path)
         {
             ActivatePreset(idx);
             g_manualPreset = g_presets[g_currentPresetIdx].name;
+            restorePreview();
             return true;
         }
     }
 
     ActivatePreset(0);
     g_manualPreset = g_presets[g_currentPresetIdx].name;
+    restorePreview();
     return true;
 }
 
@@ -1813,9 +1829,10 @@ bool KeyboardLayout_SaveToIni(const wchar_t* path)
     ok &= halljoy::ini::WriteBatch::Put(
         L"KeyboardLayout",
         L"PresetName",
-        (g_automaticLocked && !g_manualPreset.empty() ? g_manualPreset : g_presets[ClampPreset(g_currentPresetIdx)].name).c_str(),
+        ((g_automaticLocked || g_automaticPreview) && !g_manualPreset.empty() ? g_manualPreset : g_presets[ClampPreset(g_currentPresetIdx)].name).c_str(),
         path) != FALSE;
     ok &= halljoy::ini::WriteBatch::Put(L"KeyboardLayout", L"Automatic", KeyboardLayout_GetAutomatic() ? L"1" : L"0", path) != FALSE;
+    ok &= halljoy::ini::WriteBatch::Put(L"KeyboardLayout",L"LastAutomaticPreset",g_lastAutomaticPreset.c_str(),path) != FALSE;
     return ok;
 }
 
@@ -1838,11 +1855,11 @@ void KeyboardLayout_SetAutomatic(bool enabled)
     EnsureInit();
     halljoy::native_layout::enabled.store(enabled);
     halljoy::native_layout::activeToken.store(0);
-    if (g_automaticLocked) {
+    if (g_automaticLocked || g_automaticPreview) {
         const auto index=FindPresetByName(g_manualPreset);
         ActivatePreset(index>=0 ? index : 0);
     }
-    g_automaticLocked=false;g_automaticToken=g_automaticRevision=0;
+    g_automaticLocked=false;g_automaticPreview=false;g_automaticToken=g_automaticRevision=0;
     g_automaticStatus=enabled ? AutomaticStatus::Searching : AutomaticStatus::Disabled;
     g_firstRunLayout.Cancel();
 }
@@ -1911,17 +1928,28 @@ bool KeyboardLayout_UpdateAutomatic(bool searchCompleted, const BackendAnalogTel
     }
     if (target<0) {
         halljoy::native_layout::activeToken.store(0);
-        if (g_automaticLocked) {
+        const bool pending=g_automaticStatus==AutomaticStatus::Searching ||
+            g_automaticStatus==AutomaticStatus::Missing;
+        if (pending && g_automaticLocked) {
+            // USB reenumeration is expected when K4 enables its onboard pad.
+            // Retain geometry, but revoke live remaps/ownership immediately.
+            if (g_automaticRevision) ActivatePreset(g_currentPresetIdx);
+            g_automaticPreview=true;
+        } else if (!pending && (g_automaticLocked || g_automaticPreview)) {
             const auto manual=FindPresetByName(g_manualPreset);
             ActivatePreset(manual>=0 ? manual : 0);
+            g_automaticPreview=false;
         }
         g_automaticLocked=false;g_automaticToken=g_automaticRevision=0;
     } else {
-        if (!g_automaticLocked) g_manualPreset=g_presets[g_currentPresetIdx].name;
+        const bool matchingPreview=g_automaticPreview && target==g_currentPresetIdx;
+        if (!g_automaticLocked && !g_automaticPreview) g_manualPreset=g_presets[g_currentPresetIdx].name;
+        g_automaticPreview=false;g_lastAutomaticPreset=g_presets[target].name;
         const auto revision=remaps.complete ? remaps.revision : 0;
         if (!g_automaticLocked || target!=g_currentPresetIdx || token!=g_automaticToken || revision!=g_automaticRevision) {
             halljoy::native_layout::activeToken.store(0);
-            ActivatePreset(target);
+            // A confirmed factory preview already has the correct render snapshot.
+            if (!matchingPreview || remaps.complete) ActivatePreset(target);
             if (remaps.complete) {
                 for (std::size_t k=0;k<g_activeKeys.size();++k) {
                     const auto factory=g_activeKeys[k].hid;
@@ -2027,12 +2055,12 @@ bool KeyboardLayout_TestAutomatic()
     ok &= !KeyboardLayout_UpdateAutomatic(true,t) && KeyboardLayout_GetSnapshot()==stableSnapshot;
     t.pluginHostLastPublishAgeMs=1001;
     KeyboardLayout_UpdateAutomatic(true,t);
-    ok &= !g_automaticLocked && g_currentPresetIdx==0 && g_automaticStatus==AutomaticStatus::Missing;
+    ok &= !g_automaticLocked && g_automaticPreview && g_currentPresetIdx==automatic && g_automaticStatus==AutomaticStatus::Missing;
     t=stableTelemetry;KeyboardLayout_UpdateAutomatic(true,t);
     ok &= g_automaticLocked && g_currentPresetIdx==automatic;
     t.pluginHostReady=false;
     KeyboardLayout_UpdateAutomatic(true,t);
-    ok &= !g_automaticLocked && g_currentPresetIdx==0;
+    ok &= !g_automaticLocked && g_automaticPreview && g_currentPresetIdx==automatic;
     t=stableTelemetry;KeyboardLayout_UpdateAutomatic(true,t);
     // Repeat full disconnect/reconnect cycles and verify stable inventory does
     // not recreate the immutable render snapshot between actual transitions.
@@ -2040,10 +2068,12 @@ bool KeyboardLayout_TestAutomatic()
         t=stableTelemetry;t.deviceCount=t.pluginDeviceCount=t.pluginHostDenseDeviceCount=0;
         KeyboardLayout_UpdateAutomatic(true,t);
         const auto disconnected=KeyboardLayout_GetSnapshot();
-        ok &= !g_automaticLocked && g_currentPresetIdx==0;
+        ok &= disconnected==stableSnapshot;
+        ok &= !g_automaticLocked && g_automaticPreview && g_currentPresetIdx==automatic;
         ok &= !KeyboardLayout_UpdateAutomatic(true,t) && KeyboardLayout_GetSnapshot()==disconnected;
         t=stableTelemetry;KeyboardLayout_UpdateAutomatic(true,t);
         const auto reconnected=KeyboardLayout_GetSnapshot();
+        ok &= reconnected==stableSnapshot;
         ok &= g_automaticLocked && g_currentPresetIdx==automatic;
         ok &= !KeyboardLayout_UpdateAutomatic(true,t) && KeyboardLayout_GetSnapshot()==reconnected;
     }
@@ -2059,7 +2089,7 @@ bool KeyboardLayout_TestAutomatic()
     if (!ok) throw std::runtime_error("automatic layout: freshness/reconnect/manual isolation failed");
     t.deviceCount=t.pluginDeviceCount=t.pluginHostDenseDeviceCount=0;
     KeyboardLayout_UpdateAutomatic(true,t);
-    ok &= !g_automaticLocked && g_currentPresetIdx==0;
+    ok &= !g_automaticLocked && g_automaticPreview && g_currentPresetIdx==automatic;
     t=stableTelemetry;KeyboardLayout_UpdateAutomatic(true,t);
     KeyboardLayout_SetPresetIndex(2);
     ok &= g_currentPresetIdx==automatic;
@@ -2102,6 +2132,15 @@ bool KeyboardLayout_TestAutomatic()
                 g_activeKeys[i].y==factory[i].y && g_activeKeys[i].w==factory[i].w &&
                 g_presets[index].keys[i].hid==factory[i].hid;
         ok &= !KeyboardLayout_UpdateAutomatic(true,t);
+        BackendAnalogTelemetry disconnected{};
+        KeyboardLayout_UpdateAutomatic(true,disconnected);
+        ok &= !g_automaticLocked && g_automaticPreview && g_currentPresetIdx==index &&
+            !halljoy::native_layout::UsesRemapping(token);
+        for (std::size_t i=0;i<factory.size();++i)
+            ok &= g_activeKeys[i].hid==factory[i].hid && g_activeKeys[i].x==factory[i].x;
+        KeyboardLayout_UpdateAutomatic(true,t);
+        ok &= g_automaticLocked && halljoy::native_layout::UsesRemapping(token);
+        for (std::size_t i=0;i<factory.size();++i) ok &= g_activeKeys[i].hid==keys[i].assigned;
         ok &= !KeyboardLayout_SetKeyHid(0,5) && !KeyboardLayout_SaveActivePreset();
         const auto path=(fs::path(AppPaths_SettingsIni()).parent_path()/L"automatic-roundtrip.ini").wstring();
         ok &= KeyboardLayout_SaveToIni(path.c_str());
@@ -2112,7 +2151,19 @@ bool KeyboardLayout_TestAutomatic()
         KeyboardLayout_SetAutomatic(false);
         ok &= !halljoy::native_layout::UsesRemapping(token) && g_currentPresetIdx==2;
         KeyboardLayout_LoadFromIni(path.c_str());
-        ok &= KeyboardLayout_GetAutomatic() && g_currentPresetIdx==2 && !g_automaticLocked;
+        ok &= KeyboardLayout_GetAutomatic() && g_currentPresetIdx==index && !g_automaticLocked && g_automaticPreview;
+        ok &= !halljoy::native_layout::UsesRemapping(token) && g_activeKeys[0].hid==factory[0].hid;
+        const auto previewSnapshot=KeyboardLayout_GetSnapshot();
+        BackendAnalogTelemetry starting{};
+        KeyboardLayout_UpdateAutomatic(false,starting);
+        KeyboardLayout_UpdateAutomatic(true,starting);
+        ok &= g_currentPresetIdx==index && KeyboardLayout_GetSnapshot()==previewSnapshot;
+        ok &= KeyboardLayout_SaveToIni(path.c_str());
+        GetPrivateProfileStringW(L"KeyboardLayout",L"PresetName",L"",name,256,path.c_str());
+        ok &= std::wstring(name)==g_presets[2].name;
+        KeyboardLayout_SetAutomatic(false);
+        ok &= g_currentPresetIdx==2 && !g_automaticPreview;
+        KeyboardLayout_LoadFromIni(path.c_str());
         KeyboardLayout_UpdateAutomatic(true,t);
         ok &= g_automaticLocked;
         keys.pop_back();
@@ -2123,13 +2174,40 @@ bool KeyboardLayout_TestAutomatic()
         KeyboardLayout_UpdateAutomatic(true,t);
         ok &= g_automaticLocked && g_automaticStatus==AutomaticStatus::Matched;
         t={};KeyboardLayout_UpdateAutomatic(true,t);
-        ok &= !g_automaticLocked && g_currentPresetIdx==2;
+        ok &= !g_automaticLocked && g_automaticPreview && g_currentPresetIdx==index;
         KeyboardLayout_SetAutomatic(false);KeyboardLayout_SaveToIni(path.c_str());
         KeyboardLayout_SetAutomatic(true);KeyboardLayout_LoadFromIni(path.c_str());
         ok &= !KeyboardLayout_GetAutomatic();
         DeleteFileW(path.c_str());
         KeyboardLayout_LoadFromIni(path.c_str());
         ok &= KeyboardLayout_GetAutomatic();
+    }
+    // Native K4 lifecycle: admission closes, USB disappears, identity initializes,
+    // then the same device returns. None of these steps may replace geometry.
+    {
+        KeyboardLayout_SetAutomatic(false);KeyboardLayout_SetPresetIndex(2);
+        KeyboardLayout_SetAutomatic(true);
+        BackendAnalogTelemetry k4{};
+        k4.deviceCount=1;k4.nativeIdentityDeviceCount=1;k4.nativeProtocolCount=1;
+        k4.nativeProtocols[0].connected=true;
+        k4.nativeProtocols[0].verifiedLayoutToken=halljoy::k4_onboard::kLayoutToken;
+        KeyboardLayout_UpdateAutomatic(true,k4);
+        const auto snapshot=KeyboardLayout_GetSnapshot();
+        const auto k4Index=FindPresetByName(halljoy::k4_onboard::kPreset);
+        ok &= g_automaticLocked && g_currentPresetIdx==k4Index;
+        for (int cycle=0;cycle<32;++cycle) {
+            BackendAnalogTelemetry empty{};
+            KeyboardLayout_UpdateAutomatic(false,empty);
+            KeyboardLayout_UpdateAutomatic(true,empty);
+            auto initializing=k4;initializing.nativeIdentityDeviceCount=-1;
+            KeyboardLayout_UpdateAutomatic(true,initializing);
+            ok &= !g_automaticLocked && g_automaticPreview && g_currentPresetIdx==k4Index &&
+                KeyboardLayout_GetSnapshot()==snapshot && halljoy::native_layout::activeToken.load()==0;
+            KeyboardLayout_UpdateAutomatic(true,k4);
+            ok &= g_automaticLocked && !g_automaticPreview && KeyboardLayout_GetSnapshot()==snapshot;
+        }
+        KeyboardLayout_SetAutomatic(false);
+        ok &= g_currentPresetIdx==2;
     }
     // HERO84 complete remaps preserve physical geometry, including modifiers and Fn.
     {

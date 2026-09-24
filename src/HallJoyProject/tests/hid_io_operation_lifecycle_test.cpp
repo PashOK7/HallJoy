@@ -67,6 +67,11 @@ BOOL WriteFile(HANDLE, void*, DWORD, DWORD*, OVERLAPPED*)
     fake_winapi::error = ERROR_IO_PENDING;
     return FALSE;
 }
+BOOL DeviceIoControl(HANDLE h, DWORD, void* input, DWORD inputLength,
+                     void*, DWORD, DWORD* bytes, OVERLAPPED* ov)
+{
+    return WriteFile(h, input, inputLength, bytes, ov);
+}
 BOOL CancelIoEx(HANDLE, OVERLAPPED*)
 {
     ++fake_winapi::cancelCalls;

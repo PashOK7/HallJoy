@@ -3845,7 +3845,7 @@ void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out)
         dst.successfulUpdates = native.successfulUpdates;
         dst.failedUpdates = native.failedUpdates;
         strncpy_s(dst.id, descriptor->id, _TRUNCATE);
-        wcsncpy_s(dst.name, descriptor->displayName, _TRUNCATE);
+        wcsncpy_s(dst.name, native.deviceName[0] ? native.deviceName : descriptor->displayName, _TRUNCATE);
         wcsncpy_s(dst.status, native.status, _TRUNCATE);
         if (native.connected) ++nativeConnectedCount;
     }
@@ -4162,14 +4162,11 @@ void Backend_NotifyDeviceChange()
     // bounded replacement and never enumerates HID from the UI thread.
     (void)AnalogHostClient_RequestDeviceRefresh();
 
-    if (!g_virtualPadsEnabled.load(std::memory_order_acquire))
-        return;
+    // Windows also announces our own virtual controller creation/removal.
+    // Never turn these notifications into restart requests, especially while
+    // the child is starting. Its owner already detects failures/timeouts and
+    // retries with bounded backoff, including after a driver becomes available.
 
-    // Ignore generic device-change noise while the child reports fresh
-    // progress. An unhealthy generation is replaced by its sole owner.
-    if (g_vigemOk.load(std::memory_order_acquire))
-        return;
-    g_vigemOutputRuntime.RequestRestart();
 }
 
 void Backend_NotifyKeyboardEvent(

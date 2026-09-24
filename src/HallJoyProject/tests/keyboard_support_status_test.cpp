@@ -53,6 +53,9 @@ int main()
     }
     assert(NativeNotice(17,0x5348583635414E53ull,true)==0);
     assert(NativeNotice(17,0x5348583638414E53ull,true)==AttackShark);
+    assert(NativeNotice(17,0x683D58FC5C0C5E90ull,true,0x5029)==0);
+    assert(NativeNotice(17,0x683D58FC5C0C5E90ull,true,0x5030)==AttackShark);
+    assert(NativeNotice(17,0x683D58FC5C0C5E90ull,true)==AttackShark);
     assert(NativeNotice(6,0x70060281B23AF667ull,true)==0);
     assert(NativeNotice(6,0x98E6602F43E0E69Cull,true)==GravaStar);
     assert(NativeNotice(3,0x0FEFA7117D763FE5ull,true)==0);

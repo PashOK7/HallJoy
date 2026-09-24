@@ -223,6 +223,12 @@
       <PreprocessorDefinitions>HALLJOY_INPUT_PATH_DIAGNOSTIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
+  <PropertyGroup Condition="'$(HallJoyAttackSharkR85Diagnostic)'=='true'">
+    <HallJoyAttackSharkProDiagnostic>true</HallJoyAttackSharkProDiagnostic>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(HallJoyAttackSharkR85Diagnostic)'=='true'">
+    <ClCompile><PreprocessorDefinitions>HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
+  </ItemDefinitionGroup>
   <PropertyGroup Condition="'$(HallJoyAttackSharkProDiagnostic)'=='true'">
     <OutDir>$(HallJoyBuildRoot)bin\$(Configuration)\$(Platform)\</OutDir>
   </PropertyGroup>
@@ -459,6 +465,10 @@
     <ClInclude Include="aula_hero84he_backend.h" />
     <ClInclude Include="mg75_pro_backend.h" />
     <ClInclude Include="mg75_pro_protocol.h" />
+    <ClInclude Include="slice75_protocol.h" />
+    <ClInclude Include="rongyuan_snapshot_backend.h" />
+    <ClInclude Include="rongyuan_snapshot_protocol.h" />
+    <ClInclude Include="slice75_backend.h" />
     <ClInclude Include="aula_hero84he_diagnostic_backend.h" />
     <ClInclude Include="aula_hero84he_diagnostic_protocol.h" />
     <ClInclude Include="raw_input_packet_size.h" />
@@ -614,6 +624,8 @@
     </ClCompile>
     <ClCompile Include="aula_hero84he_backend.cpp" />
     <ClCompile Include="mg75_pro_backend.cpp" />
+    <ClCompile Include="slice75_backend.cpp" />
+    <ClCompile Include="rongyuan_snapshot_backend.cpp" />
     <ClCompile Include="aula_hero84he_diagnostic_backend.cpp">
       <ExcludedFromBuild Condition="'$(HallJoyAulaHero84HeDiagnostic)'!='true'">true</ExcludedFromBuild>
     </ClCompile>

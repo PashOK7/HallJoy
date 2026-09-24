@@ -93,7 +93,8 @@ struct BackendAnalogTelemetry;
 void KeyboardLayout_ArmFirstRunSelection();
 bool KeyboardLayout_TryFirstRunSelection(bool searchCompleted, const BackendAnalogTelemetry& telemetry);
 
-// Automatic choice is transient; manual fallback and preference are persisted.
+// Last automatic geometry is cached across startup/reconnection; live identity/remaps are revalidated.
+// Manual fallback and automatic preference remain independent.
 bool KeyboardLayout_GetAutomatic();
 void KeyboardLayout_SetAutomatic(bool enabled);
 bool KeyboardLayout_IsAutomaticLocked();

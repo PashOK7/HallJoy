@@ -1,3 +1,5 @@
+> Local additions after1.6.1: Chilkey Slice75 HE ANSI (80), EPOMAKER G84 HE ANSI (84), MonsGeek M1 V5 HE ANSI (82). Exact native-session automatic selection; experimental wired USB support.
+
 > Local additions, 2026-09-21: Keychron K6 HE ANSI (68), Q2 HE ANSI (66), Q4 HE ANSI (61); Wooting 80HE+ ANSI (84), ISO (85), Split ANSI (86), Split ISO (87). These seven variants are not in the published 1.6.0 EXE; they await hardware testing. Keychron requires custom firmware. See [record](current/KNOWN_PROTOCOL_ADDITIONS_2026-09-21.md).
 
 # Built-in keyboard layouts
@@ -16,6 +18,9 @@ Counts in parentheses are displayed keys, not simultaneous analogue capacity.
 
 | Brand | Model shown in the layout picker | Variants (keys) |
 |---|---|---|
+| Chilkey | Slice75 HE | ANSI (80) |
+| EPOMAKER | G84 HE | ANSI (84) |
+| MonsGeek | M1 V5 HE | ANSI (82) |
 | DrunkDeer | A75 Pro | Default (82) |
 | DrunkDeer | G65 | ANSI (68) |
 | Other | WASD Only | Default (4) |

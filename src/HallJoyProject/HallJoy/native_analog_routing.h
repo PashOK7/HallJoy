@@ -23,6 +23,8 @@ enum class NativeAnalogProtocol : std::uint8_t
     AttackSharkX65Pro = 17,
     IrokMg75Pro = 18,
     KeychronOnboard = 19,
+    ChilkeySlice75 = 20,
+    RongYuanSnapshot = 21,
     Simulator = 250,
 };
 

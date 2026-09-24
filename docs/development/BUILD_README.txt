@@ -1,6 +1,6 @@
 HALLJOY - WINDOWS X64 BUILD
 ==========================
-Current contract: 2026-09-20, candidate version 1.6.0.
+Current contract: 2026-09-24, version 1.6.2.
 
 Requirements
 ------------
@@ -33,8 +33,8 @@ replaces the EXE; do not assume old sidecar checksums were refreshed by that pat
 Validation
 ----------
 The full build verifies locked dependencies, static audits and portable checks.
-Incremental delivery builds ordinary Release and runs four linked-image checks:
-ATTACK SHARK, MINI60, NA87 and the embedded ViGEm installer resource. These tests
+Both entry points run six linked-image checks: K4 onboard availability, support
+notices, ATTACK SHARK, MINI60, NA87/AJAZZ and the embedded ViGEm installer. These tests
 are not physical-device tests and do not install a driver.
 
 ViGEmBus 1.22.0 is embedded and verified; installation requires user action.
@@ -52,7 +52,9 @@ reports. Detailed diagnostic crash dumps have a different privacy scope.
 
 Current gates and evidence
 --------------------------
-docs/current/RELEASE_1.6.0_READINESS_2026-09-20.md records the candidate and limits.
+docs/current/RELEASE_1.6.2_PREPARATION_2026-09-24.md records local release evidence.
+GitHub Windows CI runs only through manual workflow_dispatch. Releases rely on
+local Windows validation; portable GitHub CI remains automatic.
 SUPPORTED_HARDWARE.md is the current compatibility list. Older v1.4 documents are
 historical, not additional hardware or long-duration gates for this release.
 The owner checks the UI and approves the candidate before GitHub publication.

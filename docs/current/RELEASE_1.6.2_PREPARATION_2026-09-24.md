@@ -113,3 +113,8 @@ G84 HE row210 and M1 V5 HE row407 remain yellow. All49 yellow entries match
 runtime notices; dropdowns intact, no Sheet changes needed. Fresh snapshot:
 .local/release162-publication-sheet.json. All support changes since1.6.1 reviewed.
 Source publication excludes generated outputs and private correspondence.
+
+## Published
+
+Stable/latest1.6.2 published2026-09-24T08:05:53Z. Local checks and portable CI
+PASS, Windows CI SKIPPED. See RELEASE_1.6.2_PUBLICATION_2026-09-24.md.

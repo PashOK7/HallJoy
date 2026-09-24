@@ -6,7 +6,7 @@ are not all active requirements. Later owner decisions take precedence.
 
 ## Current release and user documentation
 
-- [Local 1.6.2 release candidate](current/RELEASE_1.6.2_PREPARATION_2026-09-24.md).
+- [Published 1.6.2 release](current/RELEASE_1.6.2_PUBLICATION_2026-09-24.md).
 
 - [Release notes](releases/README.md).
 - [AULA experimental support and status synchronization](current/AULA_EXPERIMENTAL_SUPPORT_SYNC_2026-09-22.md).

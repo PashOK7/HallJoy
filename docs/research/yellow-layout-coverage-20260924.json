@@ -1,0 +1,3338 @@
+{
+  "schema": 1,
+  "meaning": "Visual layout coverage only; does not change analog support status. Existing means a named preset, not all regional revisions or verified auto selection.",
+  "counts": {
+    "existing": 56,
+    "missing": 154,
+    "complete": 35,
+    "partial": 6
+  },
+  "models": [
+    {
+      "brand": "ATTACK SHARK",
+      "model": "Beat75",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK Beat75 ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "K85",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK K85 + K85 Pro HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "K85 Pro HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK K85 + K85 Pro HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "R68 HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK R68 HE + X68 HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "R82 HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK R82 HE + R82 Pro HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "R82 Pro HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK R82 HE + R82 Pro HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "R85 Ultra",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK R85 HE + R85 Ultra ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "R86 Pro HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK R86 Pro HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "R98 GT",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK R98 GT + R98 HE + R98 Pro + R98 Ultra ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "R98 HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK R98 GT + R98 HE + R98 Pro + R98 Ultra ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "R98 Pro",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK R98 GT + R98 HE + R98 Pro + R98 Ultra ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "R98 Ultra",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK R98 GT + R98 HE + R98 Pro + R98 Ultra ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X60 HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK X60 HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X65",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK X65 Pro HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X65 HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK X65 HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X68 HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK R68 HE + X68 HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X68 MAX",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK X68 MAX + X68 Ultra ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X68 Pro HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK X68 Pro HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X68 Ultra",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK X68 MAX + X68 Ultra ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X82 HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK X82 HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X82 Pro HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK X82 Pro HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X85 Ultra",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK X85 Ultra ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X87 Ultra",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK X87 Ultra ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X96 HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK X96 HE + X98 HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X98 HE",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK X96 HE + X98 HE ANSI"
+      ]
+    },
+    {
+      "brand": "ATTACK SHARK",
+      "model": "X820 Pro",
+      "protocolGroup": "AttackShark",
+      "coverage": "existing",
+      "presets": [
+        "ATTACK SHARK X820 Pro ANSI"
+      ]
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO84 HE",
+      "protocolGroup": "Hero84",
+      "coverage": "existing",
+      "presets": [
+        "Aula HERO84 HE ANSI"
+      ]
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO 68 HE",
+      "protocolGroup": "Hero84",
+      "coverage": "existing",
+      "presets": [
+        "Aula HERO 68 HE ANSI"
+      ]
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO 68 Air",
+      "protocolGroup": "Hero84",
+      "coverage": "existing",
+      "presets": [
+        "Aula HERO 68 Air ANSI"
+      ]
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO 68 MINI",
+      "protocolGroup": "Hero84",
+      "coverage": "existing",
+      "presets": [
+        "Aula HERO 68 MINI ANSI"
+      ]
+    },
+    {
+      "brand": "AULA",
+      "model": "WIN 68 HE Ultra",
+      "protocolGroup": "Hero84",
+      "coverage": "existing",
+      "presets": [
+        "Aula WIN 68 HE Ultra ANSI"
+      ]
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO 99 HE",
+      "protocolGroup": "Hero84",
+      "coverage": "existing",
+      "presets": [
+        "Aula HERO 99 HE ANSI"
+      ]
+    },
+    {
+      "brand": "AULA",
+      "model": "WIN 60 HE PRO",
+      "protocolGroup": "AulaRm",
+      "coverage": "existing",
+      "presets": [
+        "Aula WIN 60 HE PRO ANSI"
+      ]
+    },
+    {
+      "brand": "AULA",
+      "model": "WIN 68 HE PRO",
+      "protocolGroup": "AulaRm",
+      "coverage": "existing",
+      "presets": [
+        "Aula WIN 68 HE PRO / MAX ANSI"
+      ]
+    },
+    {
+      "brand": "AULA",
+      "model": "WIN 68 HE MAX",
+      "protocolGroup": "AulaRm",
+      "coverage": "existing",
+      "presets": [
+        "Aula WIN 68 HE PRO / MAX ANSI"
+      ]
+    },
+    {
+      "brand": "AULA",
+      "model": "HERO 68 HE PRO",
+      "protocolGroup": "AulaRm",
+      "coverage": "existing",
+      "presets": [
+        "Aula HERO 68 HE PRO ANSI"
+      ]
+    },
+    {
+      "brand": "GravaStar",
+      "model": "Mercury V75 Lite",
+      "protocolGroup": "GravaStar",
+      "coverage": "existing",
+      "presets": [
+        "GravaStar Mercury V75 Lite ANSI"
+      ]
+    },
+    {
+      "brand": "GravaStar",
+      "model": "Mercury V75 Pro",
+      "protocolGroup": "GravaStar",
+      "coverage": "existing",
+      "presets": [
+        "GravaStar Mercury V75 Pro ANSI"
+      ]
+    },
+    {
+      "brand": "IPI / QBZ",
+      "model": "AURORA65",
+      "protocolGroup": "Ipi",
+      "coverage": "existing",
+      "presets": [
+        "IPI QBZ65 + AURORA65 + AURORA65W + RAIN65 ANSI"
+      ]
+    },
+    {
+      "brand": "IPI / QBZ",
+      "model": "AURORA65W",
+      "protocolGroup": "Ipi",
+      "coverage": "existing",
+      "presets": [
+        "IPI QBZ65 + AURORA65 + AURORA65W + RAIN65 ANSI"
+      ]
+    },
+    {
+      "brand": "IPI / QBZ",
+      "model": "Aurora75 PRO",
+      "protocolGroup": "Ipi",
+      "coverage": "existing",
+      "presets": [
+        "IPI Aurora75 PRO ANSI"
+      ]
+    },
+    {
+      "brand": "IPI / QBZ",
+      "model": "flash68",
+      "protocolGroup": "Ipi",
+      "coverage": "existing",
+      "presets": [
+        "IPI flash68 ANSI"
+      ]
+    },
+    {
+      "brand": "IPI / QBZ",
+      "model": "QBZ65",
+      "protocolGroup": "Ipi",
+      "coverage": "existing",
+      "presets": [
+        "IPI QBZ65 + AURORA65 + AURORA65W + RAIN65 ANSI"
+      ]
+    },
+    {
+      "brand": "IPI / QBZ",
+      "model": "RAIN65",
+      "protocolGroup": "Ipi",
+      "coverage": "existing",
+      "presets": [
+        "IPI QBZ65 + AURORA65 + AURORA65W + RAIN65 ANSI"
+      ]
+    },
+    {
+      "brand": "IROK",
+      "model": "MG75 Pro",
+      "protocolGroup": "Mg75Pro",
+      "coverage": "existing",
+      "presets": [
+        "IROK MG75 Pro ANSI"
+      ]
+    },
+    {
+      "brand": "IROK",
+      "model": "NA87 Pro",
+      "protocolGroup": "Mg75Pro",
+      "coverage": "existing",
+      "presets": [
+        "IROK NA87 Pro ANSI"
+      ]
+    },
+    {
+      "brand": "IROK",
+      "model": "ND63",
+      "protocolGroup": "Mg75Pro",
+      "coverage": "existing",
+      "presets": [
+        "IROK ND63 ANSI"
+      ]
+    },
+    {
+      "brand": "IROK",
+      "model": "Mercury68",
+      "protocolGroup": "Mg75Pro",
+      "coverage": "existing",
+      "presets": [
+        "IROK Mercury68 ANSI"
+      ]
+    },
+    {
+      "brand": "IROK",
+      "model": "Mercury68 Pro",
+      "protocolGroup": "Mg75Pro",
+      "coverage": "existing",
+      "presets": [
+        "IROK Mercury68 Pro ANSI"
+      ]
+    },
+    {
+      "brand": "IYX",
+      "model": "MU68 Pro",
+      "protocolGroup": "Mg75Pro",
+      "coverage": "existing",
+      "presets": [
+        "IYX MU68 Pro ANSI"
+      ]
+    },
+    {
+      "brand": "Redragon",
+      "model": "K673WB-RGB-M",
+      "protocolGroup": "Redragon",
+      "coverage": "existing",
+      "presets": [
+        "Redragon K673WB-RGB-M ANSI"
+      ]
+    },
+    {
+      "brand": "Redragon",
+      "model": "K617 HE",
+      "protocolGroup": "Redragon",
+      "coverage": "existing",
+      "presets": [
+        "Redragon K617 HE ANSI"
+      ]
+    },
+    {
+      "brand": "Chilkey",
+      "model": "Slice75 HE",
+      "protocolGroup": "Slice75",
+      "coverage": "existing",
+      "presets": [
+        "Chilkey Slice75 HE ANSI"
+      ]
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M1 V5 HE",
+      "protocolGroup": "RongYuan",
+      "coverage": "existing",
+      "presets": [
+        "MonsGeek M1 V5 HE ANSI"
+      ]
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "G84 HE",
+      "protocolGroup": "RongYuan",
+      "coverage": "existing",
+      "presets": [
+        "EPOMAKER G84 HE ANSI"
+      ]
+    },
+    {
+      "brand": "Akko",
+      "model": "MOD 007 V5 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2453,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "Akko",
+      "model": "Ray68 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "Akko Ray68 HE ANSI"
+      ],
+      "coveredBoards": [
+        2743,
+        2924
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "Akko",
+      "model": "TAC75 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2782,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "GamaKay",
+      "model": "NS68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2572,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2638,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "GamaKay",
+      "model": "TK75 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "GamaKay TK75 HE ANSI"
+      ],
+      "coveredBoards": [
+        2334,
+        2501
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "GamaKay",
+      "model": "TK75 TMR",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "GamaKay TK75 TMR ANSI",
+        "GamaKay TK75 TMR ISO"
+      ],
+      "coveredBoards": [
+        3590,
+        3591
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "Keydous",
+      "model": "NJ80-CP V3 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3466,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Keydous",
+      "model": "NJ81-CP V3 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3459,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Keydous",
+      "model": "NJ98-CP V4 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3496,
+          "reason": "cross-client layout mismatch"
+        }
+      ]
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "FUN60 Pro",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2600,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2785,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "FUN68 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "MonsGeek FUN68 HE ANSI"
+      ],
+      "coveredBoards": [
+        2811
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M1 V5 TMR",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "MonsGeek M1 V5 TMR ANSI"
+      ],
+      "coveredBoards": [
+        2949
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M2 V5 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2845,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2601,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "M3 V5 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2874,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2585,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Womier",
+      "model": "M68 HE Pro",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3719,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Womier",
+      "model": "SK75 TMR",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2518,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3804,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "YUNZII",
+      "model": "RT75 Pro",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2865,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3100,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2445,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3755,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE68 Lite",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "partial",
+      "presets": [
+        "EPOMAKER HE68 Lite ANSI"
+      ],
+      "coveredBoards": [
+        2761,
+        2762,
+        2883
+      ],
+      "skipped": [
+        {
+          "board": 3664,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE75 Mag",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2520,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "GamaKay",
+      "model": "NS75",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2808,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE68 Mag",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2465,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "MSI",
+      "model": "STRIKE 700 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3409,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3595,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "MonsGeek",
+      "model": "FUN75",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2648,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE60 Wired",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "partial",
+      "presets": [
+        "EPOMAKER HE60 Lite + HE60 Wired ANSI"
+      ],
+      "coveredBoards": [
+        3746
+      ],
+      "skipped": [
+        {
+          "board": 3691,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE60 Wireless",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3692,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE75 V2",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3518,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Keydous",
+      "model": "NJ68 Pro-CP",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2515,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Skyloong",
+      "model": "GK61 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "Skyloong GK61 HE ANSI"
+      ],
+      "coveredBoards": [
+        2674
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "Skyloong",
+      "model": "GK68 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2681,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Skyloong",
+      "model": "GK75 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2450,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2507,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Keydous",
+      "model": "NJ81-CP",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2454,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Keydous",
+      "model": "NJ98-CP",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2576,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Akko",
+      "model": "MOD007B V3 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "partial",
+      "presets": [
+        "Akko MOD007B V3 HE + MOD007S V3 HE ANSI"
+      ],
+      "coveredBoards": [
+        2871
+      ],
+      "skipped": [
+        {
+          "board": 2872,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Akko",
+      "model": "MOD007S V3 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "partial",
+      "presets": [
+        "Akko MOD007B V3 HE + MOD007S V3 HE ANSI"
+      ],
+      "coveredBoards": [
+        2683
+      ],
+      "skipped": [
+        {
+          "board": 2704,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE65 Mag",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "EPOMAKER HE65 Mag ANSI"
+      ],
+      "coveredBoards": [
+        2376
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE108",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3365,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "FL ESPORTS",
+      "model": "Blend HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2699,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "FL ESPORTS",
+      "model": "GP75 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2669,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2869,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "FL ESPORTS",
+      "model": "MK870 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "FL ESPORTS MK870 HE + X80 HE ANSI"
+      ],
+      "coveredBoards": [
+        2703
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "FL ESPORTS",
+      "model": "NX108",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3012,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3336,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "FL ESPORTS",
+      "model": "NX68 Pro",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2447,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "FL ESPORTS",
+      "model": "X80 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "FL ESPORTS MK870 HE + X80 HE ANSI"
+      ],
+      "coveredBoards": [
+        2988,
+        3335
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "Syntech",
+      "model": "Chronos 68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2446,
+          "reason": "exact USB/board registry entry absent"
+        }
+      ]
+    },
+    {
+      "brand": "Nyfter",
+      "model": "Nyfboard HE 61K",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2960,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Nyfter",
+      "model": "Nyfboard HE 82K",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2752,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "AIM1",
+      "model": "MATATAKI (US)",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2939,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 3026,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "SAVIO",
+      "model": "ASTRAL",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "SAVIO ASTRAL ANSI"
+      ],
+      "coveredBoards": [
+        3151
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "GAMEPOWER",
+      "model": "Tirus HE80",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3108,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3725,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "KYSONA",
+      "model": "KM82 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "KYSONA KM82 HE ANSI"
+      ],
+      "coveredBoards": [
+        3340
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "OUSAID",
+      "model": "HG68 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3316,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3414,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "MEETION",
+      "model": "Magic A68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3362,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "MEETION",
+      "model": "Magic A75",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "MEETION Magic A75 ANSI"
+      ],
+      "coveredBoards": [
+        3367
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "EvoFox",
+      "model": "Ronin HS65",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3669,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "AK680 MAX HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "AJAZZ AK680 MAX HE + ALUX68 AIR + ALUX68 PRO ANSI"
+      ],
+      "coveredBoards": [
+        2255,
+        2336,
+        2343,
+        2371
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "AK680MC",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2605,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 2609,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 2608,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "ALUX60",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "AJAZZ ALUX60 ANSI"
+      ],
+      "coveredBoards": [
+        2621,
+        2622,
+        3218
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "ALUX68 AIR",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "AJAZZ AK680 MAX HE + ALUX68 AIR + ALUX68 PRO ANSI"
+      ],
+      "coveredBoards": [
+        3025
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "ALUX68 PRO",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "AJAZZ AK680 MAX HE + ALUX68 AIR + ALUX68 PRO ANSI"
+      ],
+      "coveredBoards": [
+        2592,
+        2593,
+        2599
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "NS67",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "AJAZZ NS67 + NS67 PRO ANSI"
+      ],
+      "coveredBoards": [
+        2810
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "NS67 PRO",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "AJAZZ NS67 + NS67 PRO ANSI"
+      ],
+      "coveredBoards": [
+        2746
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "NS87",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3065,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3112,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "ARDOR GAMING",
+      "model": "Radiant",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2957,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "ASTROMEDA",
+      "model": "AMGK80-001",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "partial",
+      "presets": [
+        "ASTROMEDA AMGK80-001 ANSI"
+      ],
+      "coveredBoards": [
+        3536,
+        3389
+      ],
+      "skipped": [
+        {
+          "board": 3537,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "DSPIXEL",
+      "model": "DS KEY",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2788,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3189,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "DSPIXEL",
+      "model": "Magic 80",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3714,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "HATOR",
+      "model": "Skyfall 65 MAG Ultima 8K Wireless",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2876,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2919,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2920,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "HATOR",
+      "model": "Skyfall 65 MAG Ultra 8K",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2917,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2918,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "HATOR",
+      "model": "Skyfall 80 MAG Ultima 8K Wireless",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2800,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2857,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2858,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "HATOR",
+      "model": "Skyfall 80 MAG Ultra 8K",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2853,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2856,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "KiiBOOM",
+      "model": "Cybrix29",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2886,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "MAMBASNAKE",
+      "model": "M82 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "MAMBASNAKE M82 HE ANSI"
+      ],
+      "coveredBoards": [
+        2335
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "MAMBASNAKE",
+      "model": "X60 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2368,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "PIIFOX",
+      "model": "DEFENDER 68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2499,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "PIIFOX",
+      "model": "ER75 PRO",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3473,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Blackstorm",
+      "model": "Renegade HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3355,
+          "reason": "exact USB/board registry entry absent"
+        }
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DEEP68 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2578,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2710,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2711,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2955,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DEEP80 HE (magnetic version)",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2574,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2652,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2653,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DEEP80 Pro HE (magnetic version)",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2906,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "SEEK75",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "EWEADN SEEK75 ANSI"
+      ],
+      "coveredBoards": [
+        2799
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "EWEADN",
+      "model": "ZAP68 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2348,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 2426,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 3035,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 3036,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "ZAP68 Ultra HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2554,
+          "reason": "exact USB/board registry entry absent"
+        },
+        {
+          "board": 2510,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "ZAP87 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "partial",
+      "presets": [
+        "EWEADN ZAP87 HE ANSI"
+      ],
+      "coveredBoards": [
+        3011
+      ],
+      "skipped": [
+        {
+          "board": 2527,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "FREEWOLF",
+      "model": "F68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2634,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "FREEWOLF",
+      "model": "F68 PRO",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2594,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "GAMEBOOSTER",
+      "model": "RAPID HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3278,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Oniverse",
+      "model": "Maegnus",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3267,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Rampage",
+      "model": "KAISEL",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3114,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Rampage",
+      "model": "ZENITH PRO",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "Rampage ZENITH PRO ANSI"
+      ],
+      "coveredBoards": [
+        2310
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "Valkyrie",
+      "model": "VK Mag68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2320,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 3390,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Valkyrie",
+      "model": "VK Mag68 Max",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3194,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Valkyrie",
+      "model": "VK Mag75",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2246,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Valkyrie",
+      "model": "VK Mag75 Lite",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2234,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Valkyrie",
+      "model": "VK Mag75 Max",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2398,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Valkyrie",
+      "model": "VK Mag75 Pro",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2227,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Valkyrie",
+      "model": "VK NB68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2560,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Valkyrie",
+      "model": "VK NB68 Max",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2757,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3111,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "ANTGAMER",
+      "model": "AGK75 PRO",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2651,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2425,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2328,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2629,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "ANTGAMER",
+      "model": "AGK75 U2",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2281,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3064,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2642,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3005,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3512,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "ANTGAMER",
+      "model": "AGK87",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2114,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2330,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "EDRA",
+      "model": "EK368RT",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2835,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "G TUNE",
+      "model": "GMK82",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2912,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "IDEEZ",
+      "model": "SWIFT X85",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2756,
+          "reason": "geometry component absent"
+        },
+        {
+          "board": 3481,
+          "reason": "geometry component absent"
+        }
+      ]
+    },
+    {
+      "brand": "LinkerFoo",
+      "model": "LF67R1",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3068,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "MICROPACK",
+      "model": "K-68M",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "MICROPACK K-68M ANSI"
+      ],
+      "coveredBoards": [
+        2546
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "ROYALAXE",
+      "model": "X68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2485,
+          "reason": "exact USB/board registry entry absent"
+        }
+      ]
+    },
+    {
+      "brand": "SARU",
+      "model": "KX69HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3166,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "SARU",
+      "model": "KX78HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3243,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "Titan Nation",
+      "model": "TITAN68HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2116,
+          "reason": "geometry component absent"
+        }
+      ]
+    },
+    {
+      "brand": "URX",
+      "model": "Core68 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3513,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Veekos",
+      "model": "Shine60 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2836,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2832,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "BOYI",
+      "model": "H60 Pro",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2764,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2875,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "MageGee",
+      "model": "AIR68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3146,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "MageGee",
+      "model": "Captain87 JIS",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2789,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Sunsonny",
+      "model": "N-J100",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "Sunsonny N-J100 ANSI"
+      ],
+      "coveredBoards": [
+        2780,
+        3294
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "Royal Kludge",
+      "model": "A72HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3332,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 3333,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "XINMENG",
+      "model": "Zero 68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3611,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 3587,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 3598,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 3609,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "COLORFUL",
+      "model": "QY98 Ultra",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3257,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "ATWO",
+      "model": "GK7 MX",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "ATWO GK7 MX ANSI"
+      ],
+      "coveredBoards": [
+        3475
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "Fuego",
+      "model": "GKB904",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3439,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "GamePro",
+      "model": "MK160B MAX",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "GamePro MK160B MAX ANSI"
+      ],
+      "coveredBoards": [
+        2930
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "HAVIT",
+      "model": "KB900L",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3570,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "HAVIT",
+      "model": "KB904L",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3588,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "LOMZ",
+      "model": "75S",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2737,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2828,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "M4G",
+      "model": "MAG 68 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3017,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "UluGames",
+      "model": "Howl 75",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "UluGames Howl 75 ANSI"
+      ],
+      "coveredBoards": [
+        3437,
+        3403
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "XINMENG",
+      "model": "Beat65",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2326,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 2436,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 2535,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "XINMENG",
+      "model": "Beat68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2589,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 2590,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 2680,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "XINMENG",
+      "model": "Beat75",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "XINMENG Beat75 ANSI"
+      ],
+      "coveredBoards": [
+        2770,
+        2797
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "ANGRYSHARK",
+      "model": "Final 75",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3089,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "CHERRY XTRFY",
+      "model": "K5 Pro TMR Compact",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2626,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "DARKFORCE",
+      "model": "Fib(68)",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3055,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "E7",
+      "model": "68 PRO V2",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3383,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "G84 HE JIS",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3703,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "EPOMAKER",
+      "model": "HE60 Lite",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "EPOMAKER HE60 Lite + HE60 Wired ANSI"
+      ],
+      "coveredBoards": [
+        3727,
+        3759
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "EWEADN",
+      "model": "SMART 875 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2637,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "V99 (magnetic version)",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2279,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "ZAP68 SE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "EWEADN ZAP68 SE ANSI"
+      ],
+      "coveredBoards": [
+        3225
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "FL ESPORTS",
+      "model": "D75 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3542,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "FL ESPORTS",
+      "model": "D98 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3556,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "FL ESPORTS",
+      "model": "FL750 (magnetic version)",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3003,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3524,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "FL ESPORTS",
+      "model": "Flame65S",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3547,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "FL ESPORTS",
+      "model": "GP87 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3007,
+          "reason": "factory HID set differs from SVG"
+        },
+        {
+          "board": 3539,
+          "reason": "factory HID set differs from SVG"
+        }
+      ]
+    },
+    {
+      "brand": "Funbey",
+      "model": "AST V68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "Funbey AST V68 + Coke V68 ANSI"
+      ],
+      "coveredBoards": [
+        3292
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "Funbey",
+      "model": "Coke V68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "Funbey AST V68 + Coke V68 ANSI"
+      ],
+      "coveredBoards": [
+        3291
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "Fury",
+      "model": "Kanabo K6",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "Fury Kanabo K6 ANSI"
+      ],
+      "coveredBoards": [
+        2763
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "GAMEPOWER",
+      "model": "Nexa HE60 1K",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2406,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "HAWK Gaming",
+      "model": "HK550",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3760,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "HAWK Gaming",
+      "model": "HK610S",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3677,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "IDJ",
+      "model": "H60HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3078,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 3079,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "JEDEL",
+      "model": "KL166",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2729,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "JINGSU",
+      "model": "KA67",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3106,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "JINGSU",
+      "model": "KB98",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3520,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "JINGSU",
+      "model": "KCC04A",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3193,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "JINGSU",
+      "model": "KE87",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3711,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Koda",
+      "model": "A68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "Koda A68 ANSI"
+      ],
+      "coveredBoards": [
+        3244
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "MageGee",
+      "model": "MK-BOX (magnetic version)",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2311,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "MechLands",
+      "model": "M75",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2496,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Ninjadog",
+      "model": "Varna Atlas",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3076,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "NOS",
+      "model": "C800 ALU (UK)",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3663,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Nova Gaming",
+      "model": "GK505 Eon",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3302,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "PSYCommu",
+      "model": "PSY P1",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3425,
+          "reason": "exact USB/board registry entry absent"
+        }
+      ]
+    },
+    {
+      "brand": "SALPIDO",
+      "model": "SHOT209",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2932,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Titan Nation",
+      "model": "Storm68",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2816,
+          "reason": "geometry component absent"
+        }
+      ]
+    },
+    {
+      "brand": "Titan Nation",
+      "model": "TITAN60 PCB",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2220,
+          "reason": "geometry component absent"
+        }
+      ]
+    },
+    {
+      "brand": "Valkyrie",
+      "model": "VK 99 Gaming (Naruto)",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2831,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Womier",
+      "model": "SK61 HE",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "Womier SK61 HE ANSI"
+      ],
+      "coveredBoards": [
+        3708
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "XINMENG",
+      "model": "X87 TMR",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "complete",
+      "presets": [
+        "XINMENG X87 TMR ANSI"
+      ],
+      "coveredBoards": [
+        3486
+      ],
+      "skipped": []
+    },
+    {
+      "brand": "XINMENG",
+      "model": "X98 V3 (magnetic version)",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 3277,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Game Arena",
+      "model": "GKX68 MAGNUM",
+      "protocolGroup": "RongYuanStream",
+      "coverage": "missing",
+      "presets": [],
+      "coveredBoards": [],
+      "skipped": [
+        {
+          "board": 2628,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        },
+        {
+          "board": 2790,
+          "reason": "plain key-mapping SVG absent or ambiguous"
+        }
+      ]
+    },
+    {
+      "brand": "Razer",
+      "model": "Tartarus Pro",
+      "protocolGroup": "TartarusPro",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "No exact ready geometry preset; intentionally deferred instead of guessing."
+    },
+    {
+      "brand": "Neo",
+      "model": "Neo65 Sonic HE+",
+      "protocolGroup": "Neo65",
+      "coverage": "existing",
+      "presets": [
+        "Neo Neo65 Sonic HE+ ANSI"
+      ]
+    },
+    {
+      "brand": "IROK",
+      "model": "MG68 Plus",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "IROK",
+      "model": "ND63 Ultra",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "IROK",
+      "model": "ND68 Pro",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "IROK",
+      "model": "RA68",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mars75",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mars75 Pro",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mercury68 Max",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "IROK",
+      "model": "Mercury68 SE (JingTai V2)",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "X87HE",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DEEP68 Pro HE",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK68 HE",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK68 Star HE",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK63 Star HE",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK68 V2 HE",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK80 HE",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK68 Pro HE",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "ES68",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "ES68 EVO",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "ES68 Lite",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK63 HE",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK75 Pro HE",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK75 E HE",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK75 HE",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "Gamma75 HE (EXX collaboration)",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DEEP80 Max HE (magnetic version)",
+      "protocolGroup": "SparkLinkV2",
+      "coverage": "missing",
+      "presets": [],
+      "reason": "Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch."
+    }
+  ]
+}

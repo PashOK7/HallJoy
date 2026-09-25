@@ -137,8 +137,9 @@ inline bool MatchFactory(const Frame &f, unsigned row) noexcept {
       return false;
   return true;
 }
-inline std::uint16_t Normalize(std::uint16_t raw) noexcept {
+inline std::uint16_t Normalize(std::uint16_t raw, unsigned range = kRange) noexcept {
+  if (!range) return 0;
   return static_cast<std::uint16_t>(std::min<std::uint32_t>(
-      1000, (static_cast<std::uint32_t>(raw) * 1000 + kRange / 2) / kRange));
+      1000, (static_cast<std::uint32_t>(raw) * 1000 + range / 2) / range));
 }
 } // namespace halljoy::mg75pro

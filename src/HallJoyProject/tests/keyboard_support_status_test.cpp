@@ -6,6 +6,35 @@
 int main()
 {
     using namespace halljoy::keyboard_support;
+    // No warning for startup, unsupported devices, idle input or one unplug.
+    CommunicationHealth health;
+    assert(!health.Observe(100,true,false));
+    assert(!health.Observe(10000,true,false));
+    assert(!health.Observe(11000,true,true));
+    assert(!health.Observe(12000,false,false));
+    assert(!health.Observe(14000,false,false));
+    assert(!health.Observe(15000,true,true));
+    assert(health.Observe(16000,false,false)); // repeated drop in 30 seconds
+    assert(health.Observe(17000,true,true));
+    assert(health.Observe(31999,true,true));
+    assert(!health.Observe(32000,true,true)); // 15 seconds healthy
+    health={};health.Observe(100,true,true);
+    assert(!health.Observe(200,true,false));
+    assert(!health.Observe(1699,true,false));
+    assert(health.Observe(1700,true,false)); // still present, stream lost
+    health={};assert(health.Observe(100,true,true,true));
+    assert(health.Observe(200,true,true));
+    assert(!health.Observe(15200,true,true));
+    assert(!health.Observe(16000,true,true)); // zero activity isn't a fault
+    const auto sequence=CommunicationAnomalySequence(17);
+    ReportCommunicationAnomaly(17);
+    assert(CommunicationAnomalySequence(17)==sequence+1);
+    ReportCommunicationAnomaly(256);assert(CommunicationAnomalySequence(256)==0);
+    SetSearchObservation(true,true,AttackShark,true);
+    assert(GetStatusSnapshot().communicationWarning && GetStatusSnapshot().frozenModels==AttackShark);
+    SetSearchObservation(false,true,AttackShark,true);
+    assert(!GetStatusSnapshot().communicationWarning);
+
     SetSearchObservation(false, false);
     assert(!GetStatusSnapshot().searchCompleted);
     assert(!GetStatusSnapshot().analogSourceConnected);

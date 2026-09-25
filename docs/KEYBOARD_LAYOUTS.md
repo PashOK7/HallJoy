@@ -1,3 +1,7 @@
+> 2026-09-24: [all-yellow easy batch](current/ALL_YELLOW_LAYOUTS_2026-09-24.md) adds34 presets for41 models across26 brands. Exact revision coverage is recorded separately from analog support.
+
+> 2026-09-24: five exact JingTai ANSI presets added (IROK NA87 Pro, ND63, Mercury68, Mercury68 Pro; IYX MU68 Pro), including automatic selection. See [batch evidence](current/LAYOUT_EASY_BATCH_2026-09-24.md).
+
 > Local additions after1.6.1: Chilkey Slice75 HE ANSI (80), EPOMAKER G84 HE ANSI (84), MonsGeek M1 V5 HE ANSI (82). Exact native-session automatic selection; experimental wired USB support.
 
 > Local additions, 2026-09-21: Keychron K6 HE ANSI (68), Q2 HE ANSI (66), Q4 HE ANSI (61); Wooting 80HE+ ANSI (84), ISO (85), Split ANSI (86), Split ISO (87). These seven variants are not in the published 1.6.0 EXE; they await hardware testing. Keychron requires custom firmware. See [record](current/KNOWN_PROTOCOL_ADDITIONS_2026-09-21.md).

@@ -1,0 +1,57 @@
+{
+  "source": "https://hid.irok.cn/assets/index-D22onkw6.js",
+  "sha256": "e9aebf1b6c1c452d1be8d9481e2838fcc26c0820ba648dd2fff3f617839e37aa",
+  "scope": "Exact CAROTMAS identities; IROK sheet retains its existing umbrella brand and Mercury68 spelling. Not a claim about other same-name protocols.",
+  "fragments": [
+    {
+      "needle": "productId:1323",
+      "offset": 1066343,
+      "text": "ge:2,secondaryProductId:82,productName:\"2.4G Wireless Keyboard\"},{vendorId:7334,productId:1323,usagePage:65456,usage:1,productName:\"CAROTMAS Mars75\"},{vendorId:7334,productId:1323,usagePage:65456,usage:1,secondaryProductId:16,productName:\"CAROTMAS Mars75 PRO\"},{vendorId:7334,productId:1323,usagePage:65456,usage:1,productName:\"keyboard\"},{vendorId:7334,productId:1324,usagePage:65456,usage:1,productName:\"IROK ND68\"},{vendorId:7334,productId:1324,usagePage:65456,usage:1,productName:\"keyboard\"},{vendorId:7334,productId:1344,usagePage:65456,usage:1,productName:\"CAROTMAS Mer68 SE\"},{vendorId:12625,productId:20521,usagePage:65535,usage:2,productName:\"IROK ND-68\"},{vendorId:12625,productId:20525,usagePage:65535,usage:2,secondary"
+    },
+    {
+      "needle": "productId:1323",
+      "offset": 1066428,
+      "text": "ctId:1323,usagePage:65456,usage:1,productName:\"CAROTMAS Mars75\"},{vendorId:7334,productId:1323,usagePage:65456,usage:1,secondaryProductId:16,productName:\"CAROTMAS Mars75 PRO\"},{vendorId:7334,productId:1323,usagePage:65456,usage:1,productName:\"keyboard\"},{vendorId:7334,productId:1324,usagePage:65456,usage:1,productName:\"IROK ND68\"},{vendorId:7334,productId:1324,usagePage:65456,usage:1,productName:\"keyboard\"},{vendorId:7334,productId:1344,usagePage:65456,usage:1,productName:\"CAROTMAS Mer68 SE\"},{vendorId:12625,productId:20521,usagePage:65535,usage:2,productName:\"IROK ND-68\"},{vendorId:12625,productId:20525,usagePage:65535,usage:2,secondaryProductId:96,productName:\"IROK ND_63\"},{vendorId:7334,productId:1329,usagePage:65456,"
+    },
+    {
+      "needle": "productId:1323",
+      "offset": 1066539,
+      "text": "usage:1,secondaryProductId:16,productName:\"CAROTMAS Mars75 PRO\"},{vendorId:7334,productId:1323,usagePage:65456,usage:1,productName:\"keyboard\"},{vendorId:7334,productId:1324,usagePage:65456,usage:1,productName:\"IROK ND68\"},{vendorId:7334,productId:1324,usagePage:65456,usage:1,productName:\"keyboard\"},{vendorId:7334,productId:1344,usagePage:65456,usage:1,productName:\"CAROTMAS Mer68 SE\"},{vendorId:12625,productId:20521,usagePage:65535,usage:2,productName:\"IROK ND-68\"},{vendorId:12625,productId:20525,usagePage:65535,usage:2,secondaryProductId:96,productName:\"IROK ND_63\"},{vendorId:7334,productId:1329,usagePage:65456,usage:1,productName:\"IROK ND-63\"},{vendorId:7334,productId:1329,usagePage:65456,usage:1,productName:\"keyboard\"}"
+    },
+    {
+      "needle": "productId:1325",
+      "offset": 1067205,
+      "text": "4,productId:1329,usagePage:65456,usage:1,productName:\"keyboard\"},{vendorId:7334,productId:1325,usagePage:65456,usage:1,productName:\"CAROTMAS_MER68\"},{vendorId:7334,productId:1325,usagePage:65456,usage:1,productName:\"keyboard\"},{vendorId:6591,productId:4128,usagePage:65440,usage:1,productName:\"IROK Fe87 V2\"},{vendorId:6591,productId:4128,usagePage:65440,usage:1,productName:\"IROK FeV2 C38\"},{vendorId:6591,productId:4128,usagePage:65440,usage:1,secondaryProductId:16,productName:\"IROK FeV2 C18\"},{vendorId:6591,productId:4128,usagePage:65440,usage:1,secondaryProductId:48,productName:\"IROK FeV2 C18S\"},{vendorId:6591,productId:4128,usagePage:65440,usage:1,secondaryProductId:32,productName:\"IROK FeV2 C38S\"},{vendorId:6591,produc"
+    },
+    {
+      "needle": "productId:1325",
+      "offset": 1067289,
+      "text": "uctId:1325,usagePage:65456,usage:1,productName:\"CAROTMAS_MER68\"},{vendorId:7334,productId:1325,usagePage:65456,usage:1,productName:\"keyboard\"},{vendorId:6591,productId:4128,usagePage:65440,usage:1,productName:\"IROK Fe87 V2\"},{vendorId:6591,productId:4128,usagePage:65440,usage:1,productName:\"IROK FeV2 C38\"},{vendorId:6591,productId:4128,usagePage:65440,usage:1,secondaryProductId:16,productName:\"IROK FeV2 C18\"},{vendorId:6591,productId:4128,usagePage:65440,usage:1,secondaryProductId:48,productName:\"IROK FeV2 C18S\"},{vendorId:6591,productId:4128,usagePage:65440,usage:1,secondaryProductId:32,productName:\"IROK FeV2 C38S\"},{vendorId:6591,productId:4144,usagePage:65440,usage:1,productName:\"IROK Fe87 V2 IMC\"},{vendorId:6591,prod"
+    },
+    {
+      "needle": "class RDt",
+      "offset": 812243,
+      "text": "idth\",710)}}const lMt=\"\"+new URL(\"list_icon-CYQXEZXW.png\",import.meta.url).href;class RDt extends gt{constructor(){super(...arguments);r(this,\"name\",\"Mars75\");r(this,\"icon\",lMt);r(this,\"width\",628);r(this,\"vkcodes\",Ya);r(this,\"square\",mt(h.IYXPolar75));r(this,\"y_number\",10);r(this,\"magneticAxis\",!0);r(this,\"inoperableKeys\",[1291]);r(this,\"fnFactoryKeys\",[1,2,3,4,5,6,7,8,9,10,11,12,267,268,770,1027,1281,1290,1037,1293,1292,1294]);r(this,\"customLayout\",{1:this.createSquare(8),5:this.createSquare(6),9:this.createSquare(6),13:this.createSquare(6),256:this.createSquare(2,this.y_number),257:this.createSquare(2,this.y_number),258:this.createSquare(2,this.y_number),259:this.createSquare(2,this.y_number),260:this.createSquare(2,t"
+    },
+    {
+      "needle": "class ODt",
+      "offset": 819156,
+      "text": "]);r(this,\"sleepTimeValues\",[60,2*60,3*60,5*60,15*60,30*60,1*60*60,2*60*60,0])}}class ODt extends gt{constructor(){super(...arguments);r(this,\"name\",\"Mars75_PRO\");r(this,\"icon\",lMt);r(this,\"width\",628);r(this,\"vkcodes\",Ya);r(this,\"square\",mt(h.IYXPolar75));r(this,\"y_number\",10);r(this,\"magneticAxis\",!0);r(this,\"inoperableKeys\",[1291]);r(this,\"fnFactoryKeys\",[1,2,3,4,5,6,7,8,9,10,11,12,267,268,770,1027,1281,1290,1037,1293,1292,1294]);r(this,\"customLayout\",{1:this.createSquare(8),5:this.createSquare(6),9:this.createSquare(6),13:this.createSquare(6),256:this.createSquare(2,this.y_number),257:this.createSquare(2,this.y_number),258:this.createSquare(2,this.y_number),259:this.createSquare(2,this.y_number),260:this.createSquare"
+    },
+    {
+      "needle": "class uMt",
+      "offset": 818171,
+      "text": "TStabilization\",[0,25,50,75,100]);r(this,\"touchGuard\",!0);r(this,\"rate\",[8,1])}}class uMt extends gt{constructor(){super(...arguments);r(this,\"name\",\"Mer68_Max\");r(this,\"icon\",lr);r(this,\"width\",708);r(this,\"vkcodes\",sa);r(this,\"square\",mt(h.CarotmasMer68));r(this,\"magneticAxis\",!0);r(this,\"inoperableKeys\",[1290]);r(this,\"fnFactoryKeys\",[256,257,258,259,260,261,262,263,264,265,266,267,268,770,523,524,1027,1281,1289,1292,1293,1294,1037]);r(this,\"customLayout\",{269:this.createSquare(2,2,87),512:this.createSquare(2,2,60),525:this.createSquare(2,2,68),768:this.createSquare(2,2,72),781:this.createSquare(2,2,99),1024:this.createSquare(2,2,100),1036:this.createSquare(2,2,72),1280:this.createSquare(2,2,62),1281:this.createSquare"
+    },
+    {
+      "needle": "q5t=",
+      "offset": 716611,
+      "text": "dZone:[0,40,60,80,120,160],defaultDeadZone:{top:200,bottom:200},deadZoneStep:1},q5t={unit:1e3,decimalPlaces:3,maxTravel:3500,minTravel:1,defaultTravel:2e3,step:3500,deadZone:[0,40,60,80,120,160],defaultDeadZone:{top:200,bottom:200},deadZoneStep:1},s7t={...q5t,defaultTravel:1500,decimalPlaces:2,minTravel:10,step:350},i7t={unit:1e3,decimalPlaces:3,maxTravel:3500,minTravel:3500/700,quickTriggerPressMaxTravel:3e3,quickTriggerPressMinTravel:5,quickTriggerPressStep:3e3/5,quickTriggerReleaseMaxTravel:3e3,quickTriggerReleaseMinTravel:5,quickTriggerReleaseStep:3e3/5,defaultTravel:2e3,step:700,deadZone:[0,40,60,80,120,160],defaultDeadZone:{top:300,bottom:300},deadZoneStep:1},o7t={unit:1e3,decimalPlaces:3,maxTravel:3350,minTravel:1"
+    },
+    {
+      "needle": "JingTaiV2:",
+      "offset": 641022,
+      "text": "8Pro,v.IYXMu68Pro_cyan,v.IYXMu68_ULTRA,v.IROKNd63,v.IROKNd63_cyan,v.IYXPolar75],JingTaiV2:[v.IROKMg68Plus,v.IROKMg75Max,v.CarotmasMars75,v.CarotmasMars75Pro,v.IROKND68Pro,v.IROKND63Ultra,v.CarotmasMer68Max,v.CarotmasMer68SE_JT,v.IROKRA68],HuoChaiRen:[v.IROKMG63,v.IROKRA68_1,v.IROKMG75V2C12,v.IROKMG63V2],HuoChaiRenUi:[v.IROKMG63,v.IROKRA68_1,v.IROKMG75V2C12],ZhiHuiWuXian:[v.IROKFE87V2_MuYan],He6Ultra:[v.He6Ultra,v.He6Ultra_24g],HE3SEMouse:[v.IROKHe3SE_Wireless,v.IROKHe3SE_Wireless_24g],Amber:[v.IYXAmber358_24g8k,v.IYXAmber358_Wired],HE2Mouse:[v.IROKHe2],Witmod:[v.IYXMu68,v.IROKNd75,v.IROKNA87],BeiYing:[v.IROKAl87,v.IROKAl87Pro,v.IROKAl87Rgb,v.IROKMg87,v.IYXOp75,v.IYXTp87,v.IYXMt87,v.IROKFe75Pro,v.IROKFe98Pro],QMK:[v.IROKQ"
+    }
+  ]
+}

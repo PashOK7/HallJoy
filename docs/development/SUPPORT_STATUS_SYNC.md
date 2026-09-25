@@ -30,8 +30,12 @@ when a support decision changes. Authorization covers corresponding status edits
 5. Read back model/status pairs, validation and effective conditional colors.
    Record date, exact models/ranges, old/new status and readback result in the
    current task document. A successful write response alone is insufficient.
-6. Reconcile ALL yellow rows with `keyboard_support_notices.json` and runtime notices, not only changed models. Generate with `python tools/support_notice_catalog.py --write`; compare a freshly read Sheet export with `--sheet <snapshot.json>`. Release builds reject a stale generated header. Yellow means a complete enabled input path with specific remaining uncertainties; neither a disabled backend nor unfinished integration qualifies. A physical tester is NOT a prerequisite.
-7. Before release publication, repeat this reconciliation for ALL support
+6. After row insertions, also run the mandatory native structure audit from
+   `KEYBOARD_SHEET_RULES.md` (borders, heights and blank-row dropdowns).
+   Cell values/validation/colors alone are insufficient.
+
+7. Reconcile ALL yellow rows with `keyboard_support_notices.json` and runtime notices, not only changed models. Generate with `python tools/support_notice_catalog.py --write`; compare a freshly read Sheet export with `--sheet <snapshot.json>`. Release builds reject a stale generated header. Yellow means a complete enabled input path with specific remaining uncertainties; neither a disabled backend nor unfinished integration qualifies. A physical tester is NOT a prerequisite.
+8. Before release publication, repeat this reconciliation for ALL support
    decisions since the previous release, not just the last edited model.
 
 A support task is not fully synchronized until these checks are done. If the
@@ -58,3 +62,16 @@ green B93:C93 (RGB .65882355/.8666667/.70980394); neighbors unchanged.
 Other family statuses remain consistent with the retained per-model notices.
 No runtime change or build was necessary. No automatic background monitoring
 was installed; this is a mandatory agent workflow loaded through AGENTS.md.
+
+## Visual layout coverage alongside analog support
+
+After a model batch, run the production-linked profile suite and inspect its
+`yellow-layout-coverage.json` (tools/audit_yellow_layouts.py). Reconcile ALL yellow
+models, not only the latest brand. The owner permits absent exact layouts when
+geometry is difficult/ambiguous; record missing and partial revisions explicitly.
+Do not infer geometry from key count or use a support color as proof of visual
+layout coverage. Layout-only edits do not change the Sheet's analog-status column.
+
+## Cross-catalog USB identities
+
+For new/updated RY catalogs, run `python tools/audit_keyboard_identities.py --scan-local <new-json-path>` and review differences against the pinned disposition ledger. Default audit is a Release prerequisite. A matching board number alone cannot authorize an alias: check exact class, full physical map, transport/capability and retail scope. Preserve known working tuples; never replace one merely because a newer catalog differs. Protocol/map conflicts remain explicit holds. See current USB_IDENTITY_AUDIT_2026-09-24.md.

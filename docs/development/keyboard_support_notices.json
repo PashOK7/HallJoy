@@ -287,6 +287,31 @@
           "brand": "IROK",
           "model": "MG75 Pro",
           "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IROK",
+          "model": "NA87 Pro",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IROK",
+          "model": "ND63",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IROK",
+          "model": "Mercury68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IROK",
+          "model": "Mercury68 Pro",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IYX",
+          "model": "MU68 Pro",
+          "status": "Implemented; awaiting hardware testing"
         }
       ]
     },
@@ -295,12 +320,19 @@
       "flag": 2048,
       "protocol": 7,
       "tokens": [
-        "F3B7ECFB2D628746"
+        "F3B7ECFB2D628746",
+        "4B36313700000001",
+        "4B36313700000002"
       ],
       "models": [
         {
           "brand": "Redragon",
           "model": "K673WB-RGB-M",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Redragon",
+          "model": "K617 HE",
           "status": "Implemented; awaiting hardware testing"
         }
       ]
@@ -330,6 +362,1044 @@
         {
           "brand": "EPOMAKER",
           "model": "G84 HE",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "RongYuanStream",
+      "flag": 65536,
+      "protocol": 22,
+      "models": [
+        {
+          "brand": "Akko",
+          "model": "MOD 007 V5 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Akko",
+          "model": "Ray68 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Akko",
+          "model": "TAC75 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "GamaKay",
+          "model": "NS68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "GamaKay",
+          "model": "TK75 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "GamaKay",
+          "model": "TK75 TMR",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Keydous",
+          "model": "NJ80-CP V3 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Keydous",
+          "model": "NJ81-CP V3 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Keydous",
+          "model": "NJ98-CP V4 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MonsGeek",
+          "model": "FUN60 Pro",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MonsGeek",
+          "model": "FUN68 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MonsGeek",
+          "model": "M1 V5 TMR",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MonsGeek",
+          "model": "M2 V5 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MonsGeek",
+          "model": "M3 V5 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Womier",
+          "model": "M68 HE Pro",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Womier",
+          "model": "SK75 TMR",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "YUNZII",
+          "model": "RT75 Pro",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EPOMAKER",
+          "model": "HE68 Lite",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EPOMAKER",
+          "model": "HE75 Mag",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "GamaKay",
+          "model": "NS75",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EPOMAKER",
+          "model": "HE68 Mag",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MSI",
+          "model": "STRIKE 700 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MonsGeek",
+          "model": "FUN75",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EPOMAKER",
+          "model": "HE60 Wired",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EPOMAKER",
+          "model": "HE60 Wireless",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EPOMAKER",
+          "model": "HE75 V2",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Keydous",
+          "model": "NJ68 Pro-CP",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Skyloong",
+          "model": "GK61 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Skyloong",
+          "model": "GK68 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Skyloong",
+          "model": "GK75 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Keydous",
+          "model": "NJ81-CP",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Keydous",
+          "model": "NJ98-CP",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Akko",
+          "model": "MOD007B V3 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Akko",
+          "model": "MOD007S V3 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EPOMAKER",
+          "model": "HE65 Mag",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EPOMAKER",
+          "model": "HE108",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "FL ESPORTS",
+          "model": "Blend HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "FL ESPORTS",
+          "model": "GP75 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "FL ESPORTS",
+          "model": "MK870 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "FL ESPORTS",
+          "model": "NX108",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "FL ESPORTS",
+          "model": "NX68 Pro",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "FL ESPORTS",
+          "model": "X80 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Syntech",
+          "model": "Chronos 68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Nyfter",
+          "model": "Nyfboard HE 61K",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Nyfter",
+          "model": "Nyfboard HE 82K",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AIM1",
+          "model": "MATATAKI (US)",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "SAVIO",
+          "model": "ASTRAL",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "GAMEPOWER",
+          "model": "Tirus HE80",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "KYSONA",
+          "model": "KM82 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "OUSAID",
+          "model": "HG68 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MEETION",
+          "model": "Magic A68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MEETION",
+          "model": "Magic A75",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EvoFox",
+          "model": "Ronin HS65",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AJAZZ",
+          "model": "AK680 MAX HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AJAZZ",
+          "model": "AK680MC",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AJAZZ",
+          "model": "ALUX60",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AJAZZ",
+          "model": "ALUX68 AIR",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AJAZZ",
+          "model": "ALUX68 PRO",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AJAZZ",
+          "model": "NS67",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AJAZZ",
+          "model": "NS67 PRO",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "AJAZZ",
+          "model": "NS87",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ARDOR GAMING",
+          "model": "Radiant",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ASTROMEDA",
+          "model": "AMGK80-001",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "DSPIXEL",
+          "model": "DS KEY",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "DSPIXEL",
+          "model": "Magic 80",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "HATOR",
+          "model": "Skyfall 65 MAG Ultima 8K Wireless",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "HATOR",
+          "model": "Skyfall 65 MAG Ultra 8K",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "HATOR",
+          "model": "Skyfall 80 MAG Ultima 8K Wireless",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "HATOR",
+          "model": "Skyfall 80 MAG Ultra 8K",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "KiiBOOM",
+          "model": "Cybrix29",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MAMBASNAKE",
+          "model": "M82 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MAMBASNAKE",
+          "model": "X60 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "PIIFOX",
+          "model": "DEFENDER 68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "PIIFOX",
+          "model": "ER75 PRO",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Blackstorm",
+          "model": "Renegade HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DEEP68 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DEEP80 HE (magnetic version)",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DEEP80 Pro HE (magnetic version)",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "SEEK75",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "ZAP68 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "ZAP68 Ultra HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "ZAP87 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "FREEWOLF",
+          "model": "F68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "FREEWOLF",
+          "model": "F68 PRO",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "GAMEBOOSTER",
+          "model": "RAPID HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Oniverse",
+          "model": "Maegnus",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Rampage",
+          "model": "KAISEL",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Rampage",
+          "model": "ZENITH PRO",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Valkyrie",
+          "model": "VK Mag68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Valkyrie",
+          "model": "VK Mag68 Max",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Valkyrie",
+          "model": "VK Mag75",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Valkyrie",
+          "model": "VK Mag75 Lite",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Valkyrie",
+          "model": "VK Mag75 Max",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Valkyrie",
+          "model": "VK Mag75 Pro",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Valkyrie",
+          "model": "VK NB68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Valkyrie",
+          "model": "VK NB68 Max",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ANTGAMER",
+          "model": "AGK75 PRO",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ANTGAMER",
+          "model": "AGK75 U2",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ANTGAMER",
+          "model": "AGK87",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EDRA",
+          "model": "EK368RT",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "G TUNE",
+          "model": "GMK82",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IDEEZ",
+          "model": "SWIFT X85",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "LinkerFoo",
+          "model": "LF67R1",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MICROPACK",
+          "model": "K-68M",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ROYALAXE",
+          "model": "X68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "SARU",
+          "model": "KX69HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "SARU",
+          "model": "KX78HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Titan Nation",
+          "model": "TITAN68HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "URX",
+          "model": "Core68 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Veekos",
+          "model": "Shine60 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "BOYI",
+          "model": "H60 Pro",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MageGee",
+          "model": "AIR68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MageGee",
+          "model": "Captain87 JIS",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Sunsonny",
+          "model": "N-J100",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Royal Kludge",
+          "model": "A72HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "XINMENG",
+          "model": "Zero 68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "COLORFUL",
+          "model": "QY98 Ultra",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ATWO",
+          "model": "GK7 MX",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Fuego",
+          "model": "GKB904",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "GamePro",
+          "model": "MK160B MAX",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "HAVIT",
+          "model": "KB900L",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "HAVIT",
+          "model": "KB904L",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "LOMZ",
+          "model": "75S",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "M4G",
+          "model": "MAG 68 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "UluGames",
+          "model": "Howl 75",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "XINMENG",
+          "model": "Beat65",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "XINMENG",
+          "model": "Beat68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "XINMENG",
+          "model": "Beat75",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "ANGRYSHARK",
+          "model": "Final 75",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "CHERRY XTRFY",
+          "model": "K5 Pro TMR Compact",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "DARKFORCE",
+          "model": "Fib(68)",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "E7",
+          "model": "68 PRO V2",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EPOMAKER",
+          "model": "G84 HE JIS",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EPOMAKER",
+          "model": "HE60 Lite",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "SMART 875 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "V99 (magnetic version)",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "ZAP68 SE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "FL ESPORTS",
+          "model": "D75 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "FL ESPORTS",
+          "model": "D98 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "FL ESPORTS",
+          "model": "FL750 (magnetic version)",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "FL ESPORTS",
+          "model": "Flame65S",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "FL ESPORTS",
+          "model": "GP87 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Funbey",
+          "model": "AST V68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Funbey",
+          "model": "Coke V68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Fury",
+          "model": "Kanabo K6",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "GAMEPOWER",
+          "model": "Nexa HE60 1K",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "HAWK Gaming",
+          "model": "HK550",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "HAWK Gaming",
+          "model": "HK610S",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IDJ",
+          "model": "H60HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "JEDEL",
+          "model": "KL166",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "JINGSU",
+          "model": "KA67",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "JINGSU",
+          "model": "KB98",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "JINGSU",
+          "model": "KCC04A",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "JINGSU",
+          "model": "KE87",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Koda",
+          "model": "A68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MageGee",
+          "model": "MK-BOX (magnetic version)",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MechLands",
+          "model": "M75",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Ninjadog",
+          "model": "Varna Atlas",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "NOS",
+          "model": "C800 ALU (UK)",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Nova Gaming",
+          "model": "GK505 Eon",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "PSYCommu",
+          "model": "PSY P1",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "SALPIDO",
+          "model": "SHOT209",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Titan Nation",
+          "model": "Storm68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Titan Nation",
+          "model": "TITAN60 PCB",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Valkyrie",
+          "model": "VK 99 Gaming (Naruto)",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Womier",
+          "model": "SK61 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "XINMENG",
+          "model": "X87 TMR",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "XINMENG",
+          "model": "X98 V3 (magnetic version)",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Game Arena",
+          "model": "GKX68 MAGNUM",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "TartarusPro",
+      "flag": 131072,
+      "protocol": 23,
+      "models": [
+        {
+          "brand": "Razer",
+          "model": "Tartarus Pro",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "Neo65",
+      "flag": 262144,
+      "protocol": 24,
+      "models": [
+        {
+          "brand": "Neo",
+          "model": "Neo65 Sonic HE+",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "SparkLinkV2",
+      "protocol": 4,
+      "flag": 524288,
+      "tokens": [
+        "1CA60528",
+        "1CA6052A",
+        "1CA6052C",
+        "1CA60531",
+        "1CA6052B",
+        "1CA6052D",
+        "1CA60540",
+        "1CA61C0A",
+        "1CA61C0C",
+        "1CA61C12",
+        "1CA61C14",
+        "1CA61C1A",
+        "1CA61C1F",
+        "1CA61C23",
+        "1CA61C24",
+        "1CA61C2B",
+        "1CA61C2C",
+        "1CA61C2F",
+        "1CA61C37",
+        "1CA61C3C",
+        "1CA61C3D",
+        "1CA61C45",
+        "1CA61C4A",
+        "1CA61C4C",
+        "1CA62708",
+        "1CA62709",
+        "1CA6270A",
+        "1CA65E01"
+      ],
+      "models": [
+        {
+          "brand": "IROK",
+          "model": "MG68 Plus",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IROK",
+          "model": "ND63 Ultra",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IROK",
+          "model": "ND68 Pro",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IROK",
+          "model": "RA68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IROK",
+          "model": "Mars75",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IROK",
+          "model": "Mars75 Pro",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IROK",
+          "model": "Mercury68 Max",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IROK",
+          "model": "Mercury68 SE (JingTai V2)",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "X87HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DEEP68 Pro HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DK68 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DK68 Star HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DK63 Star HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DK68 V2 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DK80 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DK68 Pro HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "ES68",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "ES68 EVO",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "ES68 Lite",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DK63 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DK75 Pro HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DK75 E HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DK75 HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "Gamma75 HE (EXX collaboration)",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "EWEADN",
+          "model": "DEEP80 Max HE (magnetic version)",
           "status": "Implemented; awaiting hardware testing"
         }
       ]

@@ -8,7 +8,7 @@ int main(){
  assert(std::size(Profiles)==37);
  for(const auto& p:Profiles){
   assert(CandidatePid(p.pid));
-  for(unsigned pid:{0x5029u,0x502du,0x502fu,0x5030u})assert(Known(p.id,pid)==(p.pid==pid));
+  for(unsigned pid:{0x5029u,0x502du,0x502fu,0x5030u})assert(Known(p.id,pid)==(p.pid==pid || (p.id==3650 && pid==0x5029)));
   unsigned counts[4]{};for(unsigned cycle=0;cycle<128;++cycle)++counts[Page(cycle,p.fnSlot/32,UsesFourthPage(p))];
   for(unsigned slot=0;slot<128;++slot)if(p.factory[slot] || p.fn[slot])assert(counts[slot/32]>=30);
  }

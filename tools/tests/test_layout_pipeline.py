@@ -103,6 +103,8 @@ class LayoutPipelineTests(unittest.TestCase):
         with patch('urllib.request.urlopen',side_effect=AssertionError('Unexpected network')):
             p.fetch_sources(spec)
             reports=p.reports_for(spec)
+        # This regression covers the three K673 regional geometries, not all future Redragon models.
+        reports=[r for r in reports if r['model'].startswith('K673')]
         self.assertEqual([len(r['keys']) for r in reports],[80,81,81])
         for report in reports:
             p.validate_report(report)

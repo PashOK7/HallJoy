@@ -1,0 +1,7 @@
+{
+  "d9073e21.js": {
+    "sha256": "fbd9fc28de4cface4d39dffe4a16491ee1c75d3d30fce0113e9c9cbbcf014124",
+    "parent": "7a5b12c9.js",
+    "reason": "NOS C800 ALU: only LED constants, setLightSetting and getSideLightSetting; no analog, transport, matrix-index or initialization override. Reviewed batch7."
+  }
+}

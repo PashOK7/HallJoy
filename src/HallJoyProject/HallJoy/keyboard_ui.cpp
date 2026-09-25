@@ -23,6 +23,7 @@
 #include "keyboard_ui_internal.h"
 #include "keyboard_ui_state.h"
 #include "keyboard_support_status.h"
+#include "support_log.h"
 #include "support_notice_catalog.h"
 #include "generated/layout_pipeline/identities.h"
 #include "aula_rm_family.h"
@@ -257,6 +258,31 @@ static bool HasSupportedAnalogSource(const BackendAnalogTelemetry& telemetry)
         (telemetry.pluginHostReady && telemetry.pluginHostDenseDeviceCount > 0);
 }
 
+static bool ObserveCommunication(const BackendAnalogTelemetry& t,bool running) {
+    using namespace halljoy::keyboard_support;
+    static std::array<CommunicationHealth,256> health{};
+    static std::array<unsigned,256> seen{};
+    static int previousRestarts=0,previousInvalid=0;
+    if(!running){health={};for(unsigned i=0;i<256;++i)seen[i]=CommunicationAnomalySequence(i);
+        previousRestarts=t.pluginHostRestartCount;previousInvalid=t.pluginHostInvalidSnapshots;return false;}
+    const auto now=GetTickCount64();bool warning=false;
+    std::array<bool,256> present{},connected{};
+    for(int i=0;i<std::clamp(t.nativeProtocolCount,0,kBackendMaxNativeProtocols);++i){
+        const auto& d=t.nativeProtocols[i];if(d.protocol>=254)continue;
+        present[d.protocol]=present[d.protocol]||d.present;connected[d.protocol]=connected[d.protocol]||d.connected;
+    }
+    // Aggregate fallback covers SDK routes without a native descriptor.
+    connected[254]=HasSupportedAnalogSource(t);present[254]=connected[254];
+    connected[255]=t.pluginHostReady && t.pluginHostDenseDeviceCount>0;present[255]=connected[255];
+    const bool hostFault=health[255].established && (t.pluginHostRestartCount>previousRestarts || t.pluginHostInvalidSnapshots>previousInvalid);
+    previousRestarts=t.pluginHostRestartCount;previousInvalid=t.pluginHostInvalidSnapshots;
+    for(unsigned i=1;i<256;++i){const unsigned seq=CommunicationAnomalySequence(i);
+        const bool fault=seq!=seen[i] || (i==255 && hostFault);seen[i]=seq;
+        warning=health[i].Observe(now,present[i],connected[i],fault)||warning;
+    }
+    return warning;
+}
+
 void KeyboardUI_OnTimerTick(HWND)
 {
     HWND root = nullptr;
@@ -276,6 +302,7 @@ void KeyboardUI_OnTimerTick(HWND)
                 previousLayout==KeyboardLayout_GetSnapshot() ? KeyboardLayoutChange_StatusOnly : 0, 0);
         // Automatic selection never replaces the saved manual preset.
     }
+    const bool communicationWarning=ObserveCommunication(telemetry,searchCompleted);
     if (!root || !IsWindowVisible(root) || IsIconic(root)) return;
     const bool analogSourceConnected = HasSupportedAnalogSource(telemetry);
     const bool publishedAnalogSourceConnected = searchCompleted && analogSourceConnected;
@@ -292,9 +319,12 @@ void KeyboardUI_OnTimerTick(HWND)
     const auto previousObservation = halljoy::keyboard_support::GetStatusSnapshot();
     if (searchCompleted != previousObservation.searchCompleted ||
         publishedAnalogSourceConnected != previousObservation.analogSourceConnected ||
-        frozenModels != previousObservation.frozenModels)
+        frozenModels != previousObservation.frozenModels ||
+        communicationWarning != previousObservation.communicationWarning)
     {
-        halljoy::keyboard_support::SetSearchObservation(searchCompleted, analogSourceConnected, frozenModels);
+        if(communicationWarning!=previousObservation.communicationWarning)
+            SupportLog_Event("keyboard.communication_warning",communicationWarning?1:0);
+        halljoy::keyboard_support::SetSearchObservation(searchCompleted, analogSourceConnected, frozenModels, communicationWarning);
         if (g_hSubTab)
         {
             HWND hMainPage = GetParent(g_hSubTab);

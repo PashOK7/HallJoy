@@ -7,7 +7,7 @@
 
 ## Repository root and public documents (2026-09-22)
 
-- `README.md` — project overview and the two keyboard tables.
+- `README.md` — project overview and the two keyboard lists (one paragraph per brand).
 - `LICENSE` and `THIRD_PARTY_NOTICES.md` — root legal notices; the latter is
   consumed by build/package scripts and shipped with releases.
 - `BUILD.cmd`, `AGENTS.md` and dotfiles — build entry point and repository rules.

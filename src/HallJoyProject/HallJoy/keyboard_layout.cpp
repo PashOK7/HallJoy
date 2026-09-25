@@ -394,6 +394,8 @@ namespace
         const wchar_t* fourth = nullptr;
     };
     static constexpr LayoutMerge g_layoutMerges[] = {
+        {L"IROK Mercury68 ANSI", L"IROK Mercury68 Pro ANSI", L"IROK Mercury68 + Mercury68 Pro ANSI", nullptr, L"IROK Mercury68 / Mercury68 Pro ANSI"},
+        {L"MonsGeek M1 V5 HE ANSI", L"MonsGeek M1 V5 TMR ANSI", L"MonsGeek M1 V5 HE + TMR ANSI", nullptr, L"MonsGeek M1 V5 HE / TMR ANSI"},
         {L"Aula WIN 60 HE MAX ANSI", L"Aula WIN 60 HE PRO ANSI", L"Aula WIN 60 HE MAX + PRO ANSI", nullptr, L"Aula WIN 60 HE MAX / PRO ANSI"},
         {L"Aula HERO 68 HE PRO ANSI", L"Aula WIN 68 HE PRO / MAX ANSI", L"Aula WIN 68 HE PRO + MAX + HERO 68 HE PRO ANSI", nullptr, L"Aula WIN 68 HE PRO / MAX / HERO 68 HE PRO ANSI"},
         {L"Aula HERO 68 HE ANSI", L"Aula HERO 68 Air ANSI", L"Aula HERO 68 HE + Air + MINI + WIN 68 HE Ultra ANSI",

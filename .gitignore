@@ -85,3 +85,8 @@ third_party/UniversalAnalogPluginFixed/build/
 /docs/research/ipi-firmware-20260914/*.zip
 /docs/research/ipi-firmware-20260914/*-firmware-thumb.txt
 /docs/research/remaining-layout-sources-20260914/atk-index-M8vylvoC.js
+
+# Local document tooling and private correspondence are not source releases.
+/outputs/
+node_modules/
+/docs/current/PWNAGE_SUPPORT_CORRESPONDENCE_2026-09-22.md

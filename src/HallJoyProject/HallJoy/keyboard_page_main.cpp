@@ -51,10 +51,12 @@
 static constexpr UINT WM_APP_SYNC_MOUSE_SLOTS = WM_APP + 360;
 static constexpr UINT WM_APP_ANALOG_SOURCE_STATUS_CHANGED = WM_APP + 361;
 static constexpr int kSupportBannerHeightPx = 100;
-static bool FrozenSupportVisible() { return halljoy::keyboard_support::GetStatusSnapshot().frozenModels != 0; }
-static bool ImplementedSupportVisible() { return (halljoy::keyboard_support::GetStatusSnapshot().frozenModels & halljoy::keyboard_support::ImplementedModels) != 0; }
+static bool CommunicationWarningVisible() { return halljoy::keyboard_support::GetStatusSnapshot().communicationWarning; }
+static bool FrozenSupportVisible() { return CommunicationWarningVisible() || halljoy::keyboard_support::GetStatusSnapshot().frozenModels != 0; }
+static bool ImplementedSupportVisible() { return CommunicationWarningVisible() || (halljoy::keyboard_support::GetStatusSnapshot().frozenModels & halljoy::keyboard_support::ImplementedModels) != 0; }
 static int SupportBannerHeight() { return FrozenSupportVisible() ? 154 : kSupportBannerHeightPx; }
 static const wchar_t* FrozenSupportTitle() {
+    if(CommunicationWarningVisible())return L"Keyboard communication is unstable";
     using namespace halljoy::keyboard_support;
     switch(GetStatusSnapshot().frozenModels) {
     case FamilyCandidate: return L"Keyboard support is unverified";
@@ -62,9 +64,13 @@ static const wchar_t* FrozenSupportTitle() {
     case NA87Pro: return L"IROK NA87 Pro: support frozen";
     case ND75: return L"IROK ND75: support frozen";
     case Hero84: return L"AULA HERO: hardware testing incomplete";
-    case Mg75Pro: return L"IROK MG75 Pro: testing incomplete";
+    case Mg75Pro: return L"Keyboard: hardware testing incomplete";
     case Slice75: return L"Chilkey Slice75 HE: hardware testing incomplete";
     case RongYuan: return L"MonsGeek / EPOMAKER: hardware testing incomplete";
+    case TartarusPro: return L"Tartarus Pro: hardware testing incomplete";
+    case Neo65: return L"Neo65 SONIC HE+: hardware testing incomplete";
+    case SparkLinkV2: return L"Keyboard: hardware testing incomplete";
+    case RongYuanStream: return L"Keyboard: hardware testing incomplete";
     case AulaRm: return L"AULA: hardware testing incomplete";
     case GravaStar: return L"GravaStar: hardware testing incomplete";
     case Ipi: return L"IPI / QBZ: hardware testing incomplete";
@@ -77,7 +83,10 @@ static const wchar_t* FrozenSupportTitle() {
     }
 }
 static const wchar_t* FrozenSupportBody() {
+    if(CommunicationWarningVisible())return L"Another app may be interfering. Close keyboard configuration apps and browser configurator tabs, then try again. Keep software required for analog input running. If this continues, check the USB connection.";
     const auto models=halljoy::keyboard_support::GetStatusSnapshot().frozenModels;
+    if(models==halljoy::keyboard_support::TartarusPro)
+        return L"Support is enabled; hardware testing is incomplete. Keep Razer Synapse running. HallJoy uses factory key positions; Synapse remaps are not imported.";
     if(models==halljoy::keyboard_support::NuPhy)
         return L"The analog report mapping for this firmware is not verified. This model is not yet listed as supported. Report problems on Discord.";
     if(models==halljoy::keyboard_support::FamilyCandidate)
@@ -180,6 +189,11 @@ static SupportBannerLayout SupportBanner_GetLayout(HWND hWnd, const RECT& rc)
         result.body = {pad, result.title.bottom + S(hWnd,4), textRight, S(hWnd,108)};
         result.join = {pad, S(hWnd,114), pad + joinW, S(hWnd,146)};
         result.copy = {result.join.right + gap, result.join.top, result.join.right + gap + copyW, result.join.bottom};
+    }
+    if (CommunicationWarningVisible()) {
+        result.title.right=rc.right-pad;
+        result.body={pad,result.title.bottom+S(hWnd,8),rc.right-pad,rc.bottom-S(hWnd,12)};
+        result.join={};result.copy={};result.qr={};
     }
     return result;
 }
@@ -284,12 +298,14 @@ static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LP
         SelectObject(hdc, bodyFont ? bodyFont : GetStockObject(SYSTEM_FONT));
         CustomPage_DrawText(hdc, FrozenSupportVisible() ? FrozenSupportBody() : kSupportPrompt, layout.body, UiTheme::Color_Text(),
             FrozenSupportVisible() ? DT_LEFT | DT_TOP | DT_WORDBREAK : DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        if (!CommunicationWarningVisible()) {
         CustomPage_DrawButton(g, hdc, layout.join, L"Join Discord",
             g_supportBannerHot == SupportBannerAction::Join, g_supportBannerPressed == SupportBannerAction::Join, true);
         CustomPage_DrawButton(g, hdc, layout.copy, L"Copy link",
             g_supportBannerHot == SupportBannerAction::Copy, g_supportBannerPressed == SupportBannerAction::Copy, true);
         SelectObject(hdc, GetStockObject(SYSTEM_FONT));
         DrawSupportQr(g, hWnd, layout.qr);
+        }
         RestoreDC(hdc, saved);
         if (headingFont) DeleteObject(headingFont);
         if (bodyFont) DeleteObject(bodyFont);
@@ -934,9 +950,9 @@ static void ResizeSubUi(HWND hWnd)
     int kbBottom = KeyboardBottomPx(hWnd);
     int x = S(hWnd, 12);
     const auto supportStatus = halljoy::keyboard_support::GetStatusSnapshot();
-    const bool showBanner = supportStatus.searchCompleted && (!supportStatus.analogSourceConnected || supportStatus.frozenModels != 0);
+    const bool showBanner = supportStatus.searchCompleted && (!supportStatus.analogSourceConnected || supportStatus.frozenModels != 0 || supportStatus.communicationWarning);
     static bool previousBanner = false;
-    if (showBanner && !previousBanner && !supportStatus.frozenModels) SupportLog_ReportMissingSource();
+    if (showBanner && !previousBanner && !supportStatus.frozenModels && !supportStatus.communicationWarning) SupportLog_ReportMissingSource();
     previousBanner = showBanner;
     const int bannerY = kbBottom + S(hWnd, 8);
     if (g_hSupportBanner)

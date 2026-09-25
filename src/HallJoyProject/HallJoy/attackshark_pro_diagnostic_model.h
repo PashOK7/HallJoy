@@ -6,7 +6,10 @@
 namespace halljoy::sharkdiag {
 using Report=std::array<std::uint8_t,65>;
 inline bool Known(unsigned id,unsigned pid){
- const auto* p=sharkplay::Find(id);return p && p->pid==pid;
+ const auto* p=sharkplay::Find(id);
+ // R68 HE tester log31: repeated board3650 replies on PID5029.
+ // Keep the vendor-catalog PID502D and admit only this observed alternate pair.
+ return p && (p->pid==pid || (id==3650 && pid==0x5029));
 }
 inline bool CandidatePid(unsigned pid){
  for(const auto& p:sharkplay::Profiles)if(p.pid==pid)return true;

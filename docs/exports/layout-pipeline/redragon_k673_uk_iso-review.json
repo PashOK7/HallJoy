@@ -1008,7 +1008,7 @@
     },
     "factory": {
       "path": "src/HallJoyProject/HallJoy/aula_w669_protocol.cpp",
-      "sha256": "41ab84464af82b9ba484c708b037bc3a73fb6c93dce403c0abbbffaa3cbd8c8d"
+      "sha256": "cd417a46b0a2db5ceabe22d940163cf31849a4d19e3de8a19e99ca1e1ca4baf8"
     }
   },
   "scale": "42/35, absolute edges rounded half-up; origin removed; CSS Enter contour",

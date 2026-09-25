@@ -1,3 +1,4 @@
+#include "sparklink_model_profiles.h"
 #include "keychron_onboard_backend.h"
 #include "keychron_onboard_host_profile.h"
 #include "input_path_diagnostics.h"
@@ -4410,6 +4411,8 @@ void BackendNative_SparkTelemetry(NativeAnalogBackendTelemetry* out)
     out->vendorId = g_sparkConnectedVid.load(std::memory_order_relaxed);
     out->productId = g_sparkConnectedPid.load(std::memory_order_relaxed);
     out->usagePage = g_sparkUsagePage.load(std::memory_order_relaxed);
+    out->verifiedLayoutToken = out->connected ? halljoy::sparklink::ExperimentalToken(
+        out->vendorId,out->productId,out->usagePage) : 0;
     out->usage = kSparkKnownUsage;
     out->mappedKeys = static_cast<std::uint32_t>(SparkActiveRowCount() * kSparkColsPerRow);
     std::uint32_t active = 0;

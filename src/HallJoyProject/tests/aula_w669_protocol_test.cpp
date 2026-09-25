@@ -9,6 +9,24 @@
 int main()
 {
     using namespace aula_w669;
+    for(auto profile:{FactoryLayoutProfile::K617Us,FactoryLayoutProfile::K617Br}) {
+        const auto map=FactoryMap(profile);std::array<std::uint8_t,kColumns> mask{};
+        unsigned count=0;for(unsigned pos=0;pos<map.size();++pos)if(map[pos]){++count;mask[pos%kColumns]|=1u<<(pos/kColumns);}
+        assert(count==(profile==FactoryLayoutProfile::K617Us?61u:63u));
+        assert(map[46]==26 && map[68]==4 && map[69]==22 && map[70]==7 && map[120]==0xfa);
+        const auto subscription=BuildSubscriptionRequest(mask);
+        for(unsigned pos=0;pos<map.size();++pos)assert(bool(subscription[7+pos%kColumns]&(1u<<(pos/kColumns)))==bool(map[pos]));
+        for(unsigned pos=0;pos<map.size();++pos)if(map[pos]) {
+            Report r{};r[0]=1;r[1]=0x21;r[5]=5;r[6]=1;r[7]=pos/kColumns;r[8]=pos%kColumns;r[9]=pos;
+            LiveEvent event{};assert(DecodeLiveEvent(r.data(),r.size(),&event));
+            assert(map[event.row*kColumns+event.column]==map[pos] && event.travel==pos);
+            r[9]=0;assert(DecodeLiveEvent(r.data(),r.size(),&event) && event.travel==0);
+        }
+    }
+    assert(FactoryProfileForProduct("7153USHEXYXCPARGB")==FactoryLayoutProfile::K617Us);
+    assert(FactoryProfileForProduct("7153BRHEXYXCPARGB")==FactoryLayoutProfile::K617Br);
+    assert(FactoryProfileForProduct("7153UNKNOWN")==FactoryLayoutProfile::Unknown);
+
     const auto mapHash = [](const PositionToHid& values) {
         std::uint64_t hash = 1469598103934665603ull;
         for (const auto value : values)

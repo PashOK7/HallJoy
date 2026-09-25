@@ -1,4 +1,7 @@
 #include "mg75_pro_protocol.h"
+#include "jingtai_v1_profiles.h"
+#include "physical_analog_state.h"
+#include <set>
 #include <cassert>
 #include <iostream>
 using namespace halljoy::mg75pro;
@@ -16,6 +19,46 @@ Frame Assemble(const std::array<std::uint8_t, 132> &data) {
   return f;
 }
 int main() {
+  // Exercise exact admission and both sparse halves through the real physical
+  // publication component, including Fn, aliased assignments and release.
+  for (const auto& identity : halljoy::jingtai_v1::identities) {
+    const auto* model=halljoy::jingtai_v1::Find(identity.vid,identity.pid,identity.product);
+    assert(model==identity.model);
+    assert(model->range==3500 || model->range==3600 || model->range==4000);
+    assert(Normalize(0,model->range)==0);
+    assert(Normalize(static_cast<std::uint16_t>(model->range/2),model->range)==500);
+    assert(Normalize(static_cast<std::uint16_t>(model->range),model->range)==1000);
+    assert(Normalize(static_cast<std::uint16_t>(model->range+100),model->range)==1000);
+    assert(!halljoy::jingtai_v1::Find(identity.vid,identity.pid,L"keyboard"));
+    assert(!halljoy::jingtai_v1::Find(0xffff,identity.pid,identity.product));
+    halljoy::physical_analog::Publication factory,assigned;
+    std::set<unsigned> hids;
+    unsigned mapped=0;
+    for(unsigned slot=0;slot<126;++slot) {
+      const auto hid=Decode(model->actions[slot]);
+      if(!hid)continue;
+      assert(hids.insert(hid).second);
+      assert(factory.Bind(static_cast<std::uint8_t>(slot+1),hid));
+      assert(assigned.Bind(static_cast<std::uint8_t>(slot+1),4));
+      const auto depth=static_cast<std::uint16_t>(slot<63?500:1000);
+      factory.Publish(static_cast<std::uint8_t>(slot+1),depth,100);
+      assigned.Publish(static_cast<std::uint8_t>(slot+1),depth,100);
+      assert(factory.Read(hid,100,150).milli==depth);
+      ++mapped;
+    }
+    assert(mapped==model->count && hids.count(kFn));
+    assert(assigned.Read(4,100,150).milli==1000);
+    for(unsigned slot=63;slot<126;++slot)
+      if(model->actions[slot])assigned.Publish(static_cast<std::uint8_t>(slot+1),0,101);
+    assert(assigned.Read(4,101,150).milli==500);
+    for(unsigned slot=0;slot<63;++slot)
+      if(model->actions[slot])assigned.Publish(static_cast<std::uint8_t>(slot+1),0,102);
+    assert(assigned.Read(4,102,150).milli==0);
+    assert(factory.Read(kFn,251,150).milli==0);
+    factory.Clear();assigned.Clear();
+    assert(!factory.Owns(kFn) && !assigned.Owns(4));
+  }
+
   const auto request = Travel(1);
   assert(request[1] == 0x5c && request[2] == 4 && request[3] == 0x12 &&
          request[4] == 0xa6 && request[5] == 2 && request[6] == 1);

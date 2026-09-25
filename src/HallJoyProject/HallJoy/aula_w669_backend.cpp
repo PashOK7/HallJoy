@@ -12,6 +12,7 @@
 #include "hid_io_operation.h"
 #include "native_analog_routing.h"
 #include "realtime_loop.h"
+#include "physical_analog_state.h"
 #include "stability_trace.h"
 #include "worker_join_policy.h"
 #include "worker_exception_barrier.h"
@@ -93,6 +94,7 @@ std::atomic<std::uint64_t> g_verifiedLayoutToken{0};
 std::mutex g_serviceMutex, g_routeMutex, g_handleMutex, g_signalMutex;
 std::vector<std::uint16_t> g_routedPids;
 HANDLE g_thread = nullptr, g_wake = nullptr, g_activeHandle = INVALID_HANDLE_VALUE;
+halljoy::physical_analog::Publication g_physical;
 std::array<std::atomic<std::uint16_t>, 256> g_milli{};
 std::array<std::atomic<std::uint8_t>, 256> g_owned{};
 std::atomic<std::uint16_t> g_vid{ 0 }, g_pid{ 0 }, g_maxTravel{ 0 };
@@ -281,6 +283,8 @@ const wchar_t* ProfileName(aula_w669::FactoryLayoutProfile profile)
     case aula_w669::FactoryLayoutProfile::K673Br: return L"redragon_k673_br_81";
     case aula_w669::FactoryLayoutProfile::K673Uk: return L"redragon_k673_uk_81";
     case aula_w669::FactoryLayoutProfile::K673Us: return L"redragon_k673_us_80";
+    case aula_w669::FactoryLayoutProfile::K617Us: return L"redragon_k617_us_61";
+    case aula_w669::FactoryLayoutProfile::K617Br: return L"redragon_k617_br_63";
     default: return L"unknown_explicit_only";
     }
 }
@@ -415,7 +419,9 @@ void Publish(std::uint8_t row, std::uint8_t column, std::uint16_t travel,
     const std::size_t position = std::size_t(row) * aula_w669::kColumns + column;
     const std::uint8_t hid = proof.map[position];
     if (hid == 0) return;
-    const auto milli = aula_w669::ToMilli(travel, proof.travel.maximum);
+    g_physical.Publish(static_cast<std::uint8_t>(position+1),
+        aula_w669::ToMilli(travel, proof.travel.maximum),GetTickCount64());
+    const auto milli=g_physical.Read(hid,GetTickCount64(),~std::uint64_t{0}).milli;
     const auto old = g_milli[hid].exchange(milli, std::memory_order_relaxed);
     g_owned[hid].store(1, std::memory_order_relaxed);
     if ((old == 0) != (milli == 0))
@@ -430,7 +436,7 @@ void Publish(std::uint8_t row, std::uint8_t column, std::uint16_t travel,
 void Clear()
 {
     g_verifiedLayoutToken.store(0, std::memory_order_release);
-    bool changed = false;
+    bool changed = g_physical.Clear();
     for (auto& v : g_milli) if (v.exchange(0, std::memory_order_relaxed)) changed = true;
     for (auto& v : g_owned) v.store(0, std::memory_order_relaxed);
     g_active.store(0, std::memory_order_relaxed);
@@ -471,9 +477,13 @@ bool Run(const Candidate& c)
     for (std::size_t pos = 0; pos < proof.map.size(); ++pos)
         if (proof.map[pos]) mask[pos % aula_w669::kColumns] |= static_cast<std::uint8_t>(1u << (pos / aula_w669::kColumns));
     Clear();
+    for(std::size_t pos=0;pos<proof.map.size();++pos)
+        if(proof.map[pos] && !g_physical.Bind(static_cast<std::uint8_t>(pos+1),proof.map[pos]))return false;
     if (!s.Send(aula_w669::BuildSubscriptionRequest(mask))) return false;
     g_verifiedLayoutToken.store(proof.firmwareIdentity ?
-        halljoy::layout_identity::Token("aula-w669",proof.deviceInfo.product.data()) : 0,
+        (proof.factoryProfile==aula_w669::FactoryLayoutProfile::K617Us ? 0x4B36313700000001ull :
+         proof.factoryProfile==aula_w669::FactoryLayoutProfile::K617Br ? 0x4B36313700000002ull :
+         halljoy::layout_identity::Token("aula-w669",proof.deviceInfo.product.data())) : 0,
         std::memory_order_release);
     g_connected.store(true, std::memory_order_release);
     DebugLog_Write(L"[aula.w669.session] connected vid=%04X pid=%04X firmware_product=%hs profile=%ls max=%u mapped=%u mode=%ls exclusive=%d strategy=live_subscription_only snapshot_publish=disabled",

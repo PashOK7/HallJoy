@@ -1,0 +1,26 @@
+{
+  "source": "https://hid.irok.cn/assets/index-D22onkw6.js",
+  "sha256": "e9aebf1b6c1c452d1be8d9481e2838fcc26c0820ba648dd2fff3f617839e37aa",
+  "fragments": [
+    {
+      "needle": "productId:1344",
+      "offset": 1066774,
+      "text": "gePage:65456,usage:1,productName:\"keyboard\"},{vendorId:7334,productId:1344,usagePage:65456,usage:1,productName:\"CAROTMAS Mer68 SE\"},{vendorId:12625,productId:20521,usagePage:65535,usage:2,productName:\"IROK ND-68\"},{vendorId:12625,productId:20525,usagePage:65535,usage:2,secondaryProductId:96,productName:\"IROK ND_63\"},{vendorId:7334,productId:1329,usagePage:65456,usage:1,productName:\"IROK ND-63\"},{vendorId:7334,productId:1329,usagePage:65456,usage:1,productName:\"keyboard\"},{vendorId:7334,productId:1325,usagePage:65456,usage:1,productName:\"CAROTMAS_MER68\"},{vendorId:7334,productId:1325,usagePage:65456,usage:1,productName:\"keyboard\"},{vendorId:6591,productId:4128,usagePage:65440,usage:1,productName:\"IROK "
+    },
+    {
+      "needle": "class UDt",
+      "offset": 830825,
+      "text": "sponse\",!1);r(this,\"magneticAxis\",!0);r(this,\"lockWin\",!0)}}class UDt extends uMt{constructor(){super(...arguments);r(this,\"name\",\"Mer68_SE\");r(this,\"icon\",oMt);r(this,\"width\",672);r(this,\"fnFactoryKeys\",[256,257,258,259,260,261,262,263,264,265,266,267,268,769,770,523,524,1027,1281,1289,1292,1293,1294,1037])}}const _e=new Map,d9t=()=>_e;_e.set(h.IROKAl87,new A7t);_e.set(h.IROKAl87Pro,new x7t);_e.set(h.IROKAl87Rgb,new O7t);_e.set(h.IROKFe75Pro,new q7t);_e.set(h.IROKHe2,new B7t);_e.set(h.IROKFe98Pro,new H7t);_e.set(h.IROKMg87,new W7t);_e.set(h.IYXOp75,new j7t);_e.set(h.IYXTp87,new Y7t);_e.set(h.IYXMt87,new eDt);_e.set(h.IROKQMKLi75,new Q7t);_e.set(h.IYXMu68,new Y5t);_e.set(h.IROKNd75,new iDt);_e.set(h.I"
+    },
+    {
+      "needle": "s7t=",
+      "offset": 716779,
+      "text": "0,160],defaultDeadZone:{top:200,bottom:200},deadZoneStep:1},s7t={...q5t,defaultTravel:1500,decimalPlaces:2,minTravel:10,step:350},i7t={unit:1e3,decimalPlaces:3,maxTravel:3500,minTravel:3500/700,quickTriggerPressMaxTravel:3e3,quickTriggerPressMinTravel:5,quickTriggerPressStep:3e3/5,quickTriggerReleaseMaxTravel:3e3,quickTriggerReleaseMinTravel:5,quickTriggerReleaseStep:3e3/5,defaultTravel:2e3,step:700,deadZone:[0,40,60,80,120,160],defaultDeadZone:{top:300,bottom:300},deadZoneStep:1},o7t={unit:1e3,decimalPlaces:3,maxTravel:3350,minTravel:1,defaultTravel:2e3,step:3350,deadZone:[0,40,60,80,120,160],defaultDeadZone:{top:200,bottom:200},deadZoneStep:10},or={unit:1e3,decimalPlaces:3,maxTravel:3400,minTravel:1"
+    },
+    {
+      "needle": "ss.set(h.CarotmasMer68SE_JT,s7t)",
+      "offset": 719218,
+      "text": "e7t));ss.set(h.IYXPolar75,t7t);Cs.forEach(e=>ss.set(e,q5t));ss.set(h.CarotmasMer68SE_JT,s7t);ss.set(h.CarotmasMer68SESelfDev,o7t);const YOt=async()=>{if(ze($e.DevicesOfJingtai_V1)){const e=await U.fwVersionGreaterThanOrEqual(\"1.0.4\",U.fwVersionDvs1),s=await U.fwVersionGreaterThanOrEqual(\"1.0.0\",U.fwVersionDvs2),t=await U.versionIs20250326();return e||s||t?bn(I.instance.state.currentPid).step:100}return bn(I.instance.state.currentPid).step?bn(I.instance.state.currentPid).step:100},XOt={unit:1e3,decimalPlaces:3,maxTravel:3550,minTravel:300,defaultTravel:1500,step:3550,deadZone:[0,40,60,80,120,160],defaultDeadZone:{top:200,bottom:200},deadZoneLimit:[0,1e3,0,1e3]},G5t={8:{text:\"←\"},9:{text:\"Tab\"},13:{text"
+    }
+  ]
+}

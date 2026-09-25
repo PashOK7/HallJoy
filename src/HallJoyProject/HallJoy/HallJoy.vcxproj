@@ -626,6 +626,16 @@
     <ClCompile Include="mg75_pro_backend.cpp" />
     <ClCompile Include="slice75_backend.cpp" />
     <ClCompile Include="rongyuan_snapshot_backend.cpp" />
+    <ClCompile Include="rongyuan_stream_backend.cpp" />
+    <ClCompile Include="tartarus_backend.cpp" />
+    <ClCompile Include="neo65_backend.cpp" />
+    <ClInclude Include="rongyuan_stream_backend.h" />
+    <ClInclude Include="tartarus_backend.h" />
+    <ClInclude Include="neo65_backend.h" />
+    <ClInclude Include="rongyuan_stream_protocol.h" />
+    <ClInclude Include="tartarus_protocol.h" />
+    <ClInclude Include="neo65_protocol.h" />
+    <ClInclude Include="sparklink_model_profiles.h" />
     <ClCompile Include="aula_hero84he_diagnostic_backend.cpp">
       <ExcludedFromBuild Condition="'$(HallJoyAulaHero84HeDiagnostic)'!='true'">true</ExcludedFromBuild>
     </ClCompile>

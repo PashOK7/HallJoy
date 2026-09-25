@@ -1,0 +1,1 @@
+import{aj as a}from"./index.5627ed60.js";import{C as n}from"./7a5b12c9.js";class e extends n{getWangBaReset=async()=>{const o=new Uint8Array(1);o[0]=this.FEA_CMD_GET_USB_VERSION;const t=await this.commonMsg(o,a.Bit7);if(t!==void 0)return t[10]}}export{e as C};

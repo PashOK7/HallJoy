@@ -1,0 +1,1417 @@
+{
+  "reports": [
+    "ry_layout_2743",
+    "ry_layout_2334",
+    "ry_layout_2811",
+    "ry_layout_2761",
+    "ry_layout_2674",
+    "ry_layout_2683",
+    "ry_layout_2376",
+    "ry_layout_2703",
+    "ry_layout_3151",
+    "ry_layout_3340",
+    "ry_layout_3367",
+    "ry_layout_2255",
+    "ry_layout_2621",
+    "ry_layout_2746",
+    "ry_layout_2335",
+    "ry_layout_3389",
+    "ry_layout_3011",
+    "ry_layout_2799",
+    "ry_layout_2310",
+    "ry_layout_2546",
+    "ry_layout_2780",
+    "ry_layout_3475",
+    "ry_layout_3403",
+    "ry_layout_2930",
+    "ry_layout_2770",
+    "ry_layout_3708",
+    "ry_layout_3727",
+    "ry_layout_3225",
+    "ry_layout_3244",
+    "ry_layout_3291",
+    "ry_layout_3486",
+    "ry_layout_2763"
+  ],
+  "held": [
+    {
+      "board": 3590,
+      "brand": "GamaKay",
+      "model": "TK75 TMR",
+      "product": "RY1B-3590",
+      "reason": "existing exact automatic preset"
+    },
+    {
+      "board": 3591,
+      "brand": "GamaKay",
+      "model": "TK75 TMR",
+      "product": "RY1B-3591",
+      "reason": "existing exact automatic preset"
+    },
+    {
+      "board": 2518,
+      "brand": "Womier",
+      "model": "SK75 TMR",
+      "product": "RY1B-2518",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3804,
+      "brand": "Womier",
+      "model": "SK75 TMR",
+      "product": "RY1B-3804",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2949,
+      "brand": "MonsGeek",
+      "model": "M1 V5 TMR",
+      "product": "RY1B-2949",
+      "reason": "existing exact automatic preset"
+    },
+    {
+      "board": 2600,
+      "brand": "MonsGeek",
+      "model": "FUN60 Pro",
+      "product": "RY1B-2600",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2785,
+      "brand": "MonsGeek",
+      "model": "FUN60 Pro",
+      "product": "RY1B-2785",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2782,
+      "brand": "Akko",
+      "model": "TAC75 HE",
+      "product": "RY1B-2782",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2865,
+      "brand": "YUNZII",
+      "model": "RT75 PRO",
+      "product": "RY1B-2865",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3100,
+      "brand": "YUNZII",
+      "model": "RT75 PRO",
+      "product": "RY1B-3100",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2445,
+      "brand": "YUNZII",
+      "model": "RT75 PRO",
+      "product": "RY1B-2445",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3755,
+      "brand": "YUNZII",
+      "model": "RT75 PRO",
+      "product": "RY1B-3755",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3466,
+      "brand": "Keydous",
+      "model": "NJ80-CP V3 HE",
+      "product": "RY1B-3466",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3459,
+      "brand": "Keydous",
+      "model": "NJ81-CP V3 HE",
+      "product": "RY1B-3459",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3496,
+      "brand": "Keydous",
+      "model": "NJ98-CP V4 HE",
+      "product": "RY1B-3496",
+      "reason": "cross-client layout mismatch"
+    },
+    {
+      "board": 3719,
+      "brand": "Womier",
+      "model": "M68 HE Pro",
+      "product": "RY1B-3719",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2572,
+      "brand": "GamaKay",
+      "model": "NS68",
+      "product": "RY1B-2572",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2638,
+      "brand": "GamaKay",
+      "model": "NS68",
+      "product": "RY1B-2638",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2845,
+      "brand": "MonsGeek",
+      "model": "M2 V5 HE",
+      "product": "RY1B-2845",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2874,
+      "brand": "MonsGeek",
+      "model": "M3 V5 HE",
+      "product": "RY1B-2874",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2453,
+      "brand": "Akko",
+      "model": "MOD 007 V5 HE",
+      "product": "RY1B-2453",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3664,
+      "brand": "EPOMAKER",
+      "model": "HE68 Lite",
+      "product": "RY1B-3664",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2520,
+      "brand": "EPOMAKER",
+      "model": "HE75 Mag",
+      "product": "RY1B-2520",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2808,
+      "brand": "GamaKay",
+      "model": "NS75",
+      "product": "RY1B-2808",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2465,
+      "brand": "EPOMAKER",
+      "model": "HE68 Mag",
+      "product": "RY1B-2465",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2648,
+      "brand": "MonsGeek",
+      "model": "FUN75",
+      "product": "RY1B-2648",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3409,
+      "brand": "MSI",
+      "model": "STRIKE 700 HE",
+      "product": "RY1B-3409",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3595,
+      "brand": "MSI",
+      "model": "STRIKE 700 HE",
+      "product": "RY1B-3595",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3691,
+      "brand": "EPOMAKER",
+      "model": "HE60 Wired",
+      "product": "RY1B-3691",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3692,
+      "brand": "EPOMAKER",
+      "model": "HE60 Wireless",
+      "product": "RY1B-3692",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3518,
+      "brand": "EPOMAKER",
+      "model": "HE75 V2",
+      "product": "RY1B-3518",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2515,
+      "brand": "Keydous",
+      "model": "NJ68 Pro-CP",
+      "product": "RY1B-2515",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2681,
+      "brand": "Skyloong",
+      "model": "GK68 HE",
+      "product": "RY1B-2681",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2450,
+      "brand": "Skyloong",
+      "model": "GK75 HE",
+      "product": "RY1B-2450",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2507,
+      "brand": "Skyloong",
+      "model": "GK75 HE",
+      "product": "RY1B-2507",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2454,
+      "brand": "Keydous",
+      "model": "NJ81-CP",
+      "product": "RY1B-2454",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2576,
+      "brand": "Keydous",
+      "model": "NJ98-CP",
+      "product": "RY1B-2576",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2704,
+      "brand": "Akko",
+      "model": "MOD007S V3 HE",
+      "product": "RY1B-2704",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2872,
+      "brand": "Akko",
+      "model": "MOD007B V3 HE",
+      "product": "RY1B-2872",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3365,
+      "brand": "EPOMAKER",
+      "model": "HE108",
+      "product": "RY1B-3365",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2669,
+      "brand": "FL ESPORTS",
+      "model": "GP75 HE",
+      "product": "RY1B-2669",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2447,
+      "brand": "FL ESPORTS",
+      "model": "NX68 Pro",
+      "product": "RY1B-2447",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2699,
+      "brand": "FL ESPORTS",
+      "model": "Blend HE",
+      "product": "RY1B-2699",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3012,
+      "brand": "FL ESPORTS",
+      "model": "NX108",
+      "product": "RY1B-3012",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3336,
+      "brand": "FL ESPORTS",
+      "model": "NX108",
+      "product": "RY1B-3336",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2446,
+      "brand": "Syntech",
+      "model": "Chronos 68",
+      "product": "RY1B-2446",
+      "reason": "exact USB/board registry entry absent"
+    },
+    {
+      "board": 2752,
+      "brand": "Nyfter",
+      "model": "Nyfboard HE 82K",
+      "product": "RY1B-2752",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2960,
+      "brand": "Nyfter",
+      "model": "Nyfboard HE 61K",
+      "product": "RY1B-2960",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2939,
+      "brand": "AIM1",
+      "model": "MATATAKI (US)",
+      "product": "RY1B-2939",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3026,
+      "brand": "AIM1",
+      "model": "MATATAKI (US)",
+      "product": "RY1B-3026",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3108,
+      "brand": "GAMEPOWER",
+      "model": "Tirus HE80",
+      "product": "RY1B-3108",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3725,
+      "brand": "GAMEPOWER",
+      "model": "Tirus HE80",
+      "product": "RY1B-3725",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3316,
+      "brand": "OUSAID",
+      "model": "HG68 HE",
+      "product": "RY1B-3316",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3414,
+      "brand": "OUSAID",
+      "model": "HG68 HE",
+      "product": "RY1B-3414",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3362,
+      "brand": "MEETION",
+      "model": "Magic A68",
+      "product": "RY1B-3362",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3669,
+      "brand": "EvoFox",
+      "model": "Ronin HS65",
+      "product": "RY1B-3669",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2605,
+      "brand": "AJAZZ",
+      "model": "AK680MC",
+      "product": "RY1B-2605",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2609,
+      "brand": "AJAZZ",
+      "model": "AK680MC",
+      "product": "RY1B-2609",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2608,
+      "brand": "AJAZZ",
+      "model": "AK680MC",
+      "product": "RY1B-2608",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3065,
+      "brand": "AJAZZ",
+      "model": "NS87",
+      "product": "RY1B-3065",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3112,
+      "brand": "AJAZZ",
+      "model": "NS87",
+      "product": "RY1B-3112",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2917,
+      "brand": "HATOR",
+      "model": "Skyfall 65 MAG Ultra 8K",
+      "product": "RY1B-2917",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2918,
+      "brand": "HATOR",
+      "model": "Skyfall 65 MAG Ultra 8K",
+      "product": "RY1B-2918",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2876,
+      "brand": "HATOR",
+      "model": "Skyfall 65 MAG Ultima 8K Wireless",
+      "product": "RY1B-2876",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2919,
+      "brand": "HATOR",
+      "model": "Skyfall 65 MAG Ultima 8K Wireless",
+      "product": "RY1B-2919",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2920,
+      "brand": "HATOR",
+      "model": "Skyfall 65 MAG Ultima 8K Wireless",
+      "product": "RY1B-2920",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2853,
+      "brand": "HATOR",
+      "model": "Skyfall 80 MAG Ultra 8K",
+      "product": "RY1B-2853",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2856,
+      "brand": "HATOR",
+      "model": "Skyfall 80 MAG Ultra 8K",
+      "product": "RY1B-2856",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2800,
+      "brand": "HATOR",
+      "model": "Skyfall 80 MAG Ultima 8K Wireless",
+      "product": "RY1B-2800",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2857,
+      "brand": "HATOR",
+      "model": "Skyfall 80 MAG Ultima 8K Wireless",
+      "product": "RY1B-2857",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2858,
+      "brand": "HATOR",
+      "model": "Skyfall 80 MAG Ultima 8K Wireless",
+      "product": "RY1B-2858",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2368,
+      "brand": "MAMBASNAKE",
+      "model": "X60 HE",
+      "product": "RY1B-2368",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2499,
+      "brand": "PIIFOX",
+      "model": "DEFENDER 68",
+      "product": "RY1B-2499",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3473,
+      "brand": "PIIFOX",
+      "model": "ER75 PRO",
+      "product": "RY1B-3473",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2957,
+      "brand": "ARDOR GAMING",
+      "model": "Radiant",
+      "product": "RY1B-2957",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3537,
+      "brand": "ASTROMEDA",
+      "model": "AMGK80-001",
+      "product": "RY1B-3537",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2788,
+      "brand": "DSPIXEL",
+      "model": "DS KEY",
+      "product": "RY1B-2788",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3189,
+      "brand": "DSPIXEL",
+      "model": "DS KEY",
+      "product": "RY1B-3189",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3714,
+      "brand": "DSPIXEL",
+      "model": "Magic 80",
+      "product": "RY1B-3714",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2886,
+      "brand": "KiiBOOM",
+      "model": "Cybrix29",
+      "product": "RY1B-2886",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2578,
+      "brand": "EWEADN",
+      "model": "DEEP68 HE",
+      "product": "RY1B-2578",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2710,
+      "brand": "EWEADN",
+      "model": "DEEP68 HE",
+      "product": "RY1B-2710",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2711,
+      "brand": "EWEADN",
+      "model": "DEEP68 HE",
+      "product": "RY1B-2711",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2955,
+      "brand": "EWEADN",
+      "model": "DEEP68 HE",
+      "product": "RY1B-2955",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2574,
+      "brand": "EWEADN",
+      "model": "DEEP80 HE (magnetic version)",
+      "product": "RY1B-2574",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2652,
+      "brand": "EWEADN",
+      "model": "DEEP80 HE (magnetic version)",
+      "product": "RY1B-2652",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2653,
+      "brand": "EWEADN",
+      "model": "DEEP80 HE (magnetic version)",
+      "product": "RY1B-2653",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2906,
+      "brand": "EWEADN",
+      "model": "DEEP80 Pro HE (magnetic version)",
+      "product": "RY1B-2906",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2348,
+      "brand": "EWEADN",
+      "model": "ZAP68 HE",
+      "product": "RY1B-2348",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2426,
+      "brand": "EWEADN",
+      "model": "ZAP68 HE",
+      "product": "RY1B-2426",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3035,
+      "brand": "EWEADN",
+      "model": "ZAP68 HE",
+      "product": "RY1B-3035",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3036,
+      "brand": "EWEADN",
+      "model": "ZAP68 HE",
+      "product": "RY1B-3036",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2554,
+      "brand": "EWEADN",
+      "model": "ZAP68 Ultra HE",
+      "product": "RY1B-2554",
+      "reason": "exact USB/board registry entry absent"
+    },
+    {
+      "board": 2510,
+      "brand": "EWEADN",
+      "model": "ZAP68 Ultra HE",
+      "product": "RY1B-2510",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2246,
+      "brand": "Valkyrie",
+      "model": "VK Mag75",
+      "product": "RY1B-2246",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2234,
+      "brand": "Valkyrie",
+      "model": "VK Mag75 Lite",
+      "product": "RY1B-2234",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2227,
+      "brand": "Valkyrie",
+      "model": "VK Mag75 Pro",
+      "product": "RY1B-2227",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2398,
+      "brand": "Valkyrie",
+      "model": "VK Mag75 Max",
+      "product": "RY1B-2398",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2320,
+      "brand": "Valkyrie",
+      "model": "VK Mag68",
+      "product": "RY1B-2320",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3390,
+      "brand": "Valkyrie",
+      "model": "VK Mag68",
+      "product": "RY1B-3390",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3194,
+      "brand": "Valkyrie",
+      "model": "VK Mag68 Max",
+      "product": "RY1B-3194",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2560,
+      "brand": "Valkyrie",
+      "model": "VK NB68",
+      "product": "RY1B-2560",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2757,
+      "brand": "Valkyrie",
+      "model": "VK NB68 Max",
+      "product": "RY1B-2757",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3111,
+      "brand": "Valkyrie",
+      "model": "VK NB68 Max",
+      "product": "RY1B-3111",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2634,
+      "brand": "FREEWOLF",
+      "model": "F68",
+      "product": "RY1B-2634",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2594,
+      "brand": "FREEWOLF",
+      "model": "F68 PRO",
+      "product": "RY1B-2594",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3267,
+      "brand": "Oniverse",
+      "model": "Maegnus",
+      "product": "RY1B-3267",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3278,
+      "brand": "GAMEBOOSTER",
+      "model": "RAPID HE",
+      "product": "RY1B-3278",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3114,
+      "brand": "Rampage",
+      "model": "KAISEL",
+      "product": "RY1B-3114",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3355,
+      "brand": "Blackstorm",
+      "model": "Renegade HE",
+      "product": "RY1B-3355",
+      "reason": "exact USB/board registry entry absent"
+    },
+    {
+      "board": 2651,
+      "brand": "ANTGAMER",
+      "model": "AGK75 PRO",
+      "product": "RY1B-2651",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2425,
+      "brand": "ANTGAMER",
+      "model": "AGK75 PRO",
+      "product": "RY1B-2425",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2328,
+      "brand": "ANTGAMER",
+      "model": "AGK75 PRO",
+      "product": "RY1B-2328",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2629,
+      "brand": "ANTGAMER",
+      "model": "AGK75 PRO",
+      "product": "RY1B-2629",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2281,
+      "brand": "ANTGAMER",
+      "model": "AGK75 U2",
+      "product": "RY1B-2281",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3064,
+      "brand": "ANTGAMER",
+      "model": "AGK75 U2",
+      "product": "RY1B-3064",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2642,
+      "brand": "ANTGAMER",
+      "model": "AGK75 U2",
+      "product": "RY1B-2642",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3005,
+      "brand": "ANTGAMER",
+      "model": "AGK75 U2",
+      "product": "RY1B-3005",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3512,
+      "brand": "ANTGAMER",
+      "model": "AGK75 U2",
+      "product": "RY1B-3512",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2114,
+      "brand": "ANTGAMER",
+      "model": "AGK87",
+      "product": "RY1B-2114",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2330,
+      "brand": "ANTGAMER",
+      "model": "AGK87",
+      "product": "RY1B-2330",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2836,
+      "brand": "Veekos",
+      "model": "Shine60 HE",
+      "product": "RY1B-2836",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2832,
+      "brand": "Veekos",
+      "model": "Shine60 HE",
+      "product": "RY1B-2832",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2835,
+      "brand": "EDRA",
+      "model": "EK368RT",
+      "product": "RY1B-2835",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2756,
+      "brand": "IDEEZ",
+      "model": "SWIFT X85",
+      "product": "RY1B-2756",
+      "reason": "geometry component absent"
+    },
+    {
+      "board": 3481,
+      "brand": "IDEEZ",
+      "model": "SWIFT X85",
+      "product": "RY1B-3481",
+      "reason": "geometry component absent"
+    },
+    {
+      "board": 2912,
+      "brand": "G TUNE",
+      "model": "GMK82",
+      "product": "RY1B-2912",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2485,
+      "brand": "ROYALAXE",
+      "model": "X68",
+      "product": "RY1B-2485",
+      "reason": "exact USB/board registry entry absent"
+    },
+    {
+      "board": 3166,
+      "brand": "SARU",
+      "model": "KX69HE",
+      "product": "RY1B-3166",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3243,
+      "brand": "SARU",
+      "model": "KX78HE",
+      "product": "RY1B-3243",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3513,
+      "brand": "URX",
+      "model": "Core68 HE",
+      "product": "RY1B-3513",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3068,
+      "brand": "LinkerFoo",
+      "model": "LF67R1",
+      "product": "RY1B-3068",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2116,
+      "brand": "Titan Nation",
+      "model": "TITAN68HE",
+      "product": "RY1B-2116",
+      "reason": "geometry component absent"
+    },
+    {
+      "board": 2764,
+      "brand": "BOYI",
+      "model": "H60 Pro",
+      "product": "RY1B-2764",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2875,
+      "brand": "BOYI",
+      "model": "H60 Pro",
+      "product": "RY1B-2875",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3146,
+      "brand": "MageGee",
+      "model": "AIR68",
+      "product": "RY1B-3146",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2789,
+      "brand": "MageGee",
+      "model": "Captain87 JIS",
+      "product": "RY1B-2789",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3332,
+      "brand": "Royal Kludge",
+      "model": "A72HE",
+      "product": "RY1B-3332",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3333,
+      "brand": "Royal Kludge",
+      "model": "A72HE",
+      "product": "RY1B-3333",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3611,
+      "brand": "XINMENG",
+      "model": "Zero 68",
+      "product": "RY1B-3611",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3587,
+      "brand": "XINMENG",
+      "model": "Zero 68",
+      "product": "RY1B-3587",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3598,
+      "brand": "XINMENG",
+      "model": "Zero 68",
+      "product": "RY1B-3598",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3609,
+      "brand": "XINMENG",
+      "model": "Zero 68",
+      "product": "RY1B-3609",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3257,
+      "brand": "COLORFUL",
+      "model": "QY98 Ultra",
+      "product": "RY1B-3257",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3570,
+      "brand": "HAVIT",
+      "model": "KB900L",
+      "product": "RY1B-3570",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3588,
+      "brand": "HAVIT",
+      "model": "KB904L",
+      "product": "RY1B-3588",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2737,
+      "brand": "LOMZ",
+      "model": "75S",
+      "product": "RY1B-2737",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2828,
+      "brand": "LOMZ",
+      "model": "75S",
+      "product": "RY1B-2828",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3017,
+      "brand": "M4G",
+      "model": "MAG 68 HE",
+      "product": "RY1B-3017",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3439,
+      "brand": "Fuego",
+      "model": "GKB904",
+      "product": "RY1B-3439",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2326,
+      "brand": "XINMENG",
+      "model": "Beat65",
+      "product": "RY1B-2326",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2436,
+      "brand": "XINMENG",
+      "model": "Beat65",
+      "product": "RY1B-2436",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2535,
+      "brand": "XINMENG",
+      "model": "Beat65",
+      "product": "RY1B-2535",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2589,
+      "brand": "XINMENG",
+      "model": "Beat68",
+      "product": "RY1B-2589",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2590,
+      "brand": "XINMENG",
+      "model": "Beat68",
+      "product": "RY1B-2590",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2680,
+      "brand": "XINMENG",
+      "model": "Beat68",
+      "product": "RY1B-2680",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2496,
+      "brand": "MechLands",
+      "model": "M75",
+      "product": "RY1B-2496",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3302,
+      "brand": "Nova Gaming",
+      "model": "GK505 Eon",
+      "product": "RY1B-3302",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3703,
+      "brand": "EPOMAKER",
+      "model": "G84 HE JIS",
+      "product": "RY1B-3703",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2601,
+      "brand": "MonsGeek",
+      "model": "M2 V5 HE",
+      "product": "RY1B-2601",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2585,
+      "brand": "MonsGeek",
+      "model": "M3 V5 HE",
+      "product": "RY1B-2585",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2626,
+      "brand": "CHERRY XTRFY",
+      "model": "K5 Pro TMR Compact",
+      "product": "RY1B-2626",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2279,
+      "brand": "EWEADN",
+      "model": "V99 (magnetic version)",
+      "product": "RY1B-2279",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 2637,
+      "brand": "EWEADN",
+      "model": "SMART 875 HE",
+      "product": "RY1B-2637",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2527,
+      "brand": "EWEADN",
+      "model": "ZAP87 HE",
+      "product": "RY1B-2527",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2869,
+      "brand": "FL ESPORTS",
+      "model": "GP75 HE",
+      "product": "RY1B-2869",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3007,
+      "brand": "FL ESPORTS",
+      "model": "GP87 HE",
+      "product": "RY1B-3007",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3539,
+      "brand": "FL ESPORTS",
+      "model": "GP87 HE",
+      "product": "RY1B-3539",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3542,
+      "brand": "FL ESPORTS",
+      "model": "D75 HE",
+      "product": "RY1B-3542",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3556,
+      "brand": "FL ESPORTS",
+      "model": "D98 HE",
+      "product": "RY1B-3556",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3547,
+      "brand": "FL ESPORTS",
+      "model": "Flame65S",
+      "product": "RY1B-3547",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3003,
+      "brand": "FL ESPORTS",
+      "model": "FL750 (magnetic version)",
+      "product": "RY1B-3003",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3524,
+      "brand": "FL ESPORTS",
+      "model": "FL750 (magnetic version)",
+      "product": "RY1B-3524",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2406,
+      "brand": "GAMEPOWER",
+      "model": "Nexa HE60 1K",
+      "product": "RY1B-2406",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2729,
+      "brand": "JEDEL",
+      "model": "KL166",
+      "product": "RY1B-2729",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2932,
+      "brand": "SALPIDO",
+      "model": "SHOT209",
+      "product": "RY1B-2932",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2311,
+      "brand": "MageGee",
+      "model": "MK-BOX (magnetic version)",
+      "product": "RY1B-2311",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3760,
+      "brand": "HAWK Gaming",
+      "model": "HK550",
+      "product": "RY1B-3760",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3677,
+      "brand": "HAWK Gaming",
+      "model": "HK610S",
+      "product": "RY1B-3677",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3055,
+      "brand": "DARKFORCE",
+      "model": "Fib(68)",
+      "product": "RY1B-3055",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3078,
+      "brand": "IDJ",
+      "model": "H60HE",
+      "product": "RY1B-3078",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3079,
+      "brand": "IDJ",
+      "model": "H60HE",
+      "product": "RY1B-3079",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3089,
+      "brand": "ANGRYSHARK",
+      "model": "Final 75",
+      "product": "RY1B-3089",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3383,
+      "brand": "E7",
+      "model": "68 PRO V2",
+      "product": "RY1B-3383",
+      "reason": "factory HID set differs from SVG"
+    },
+    {
+      "board": 3277,
+      "brand": "XINMENG",
+      "model": "X98 V3 (magnetic version)",
+      "product": "RY1B-3277",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3106,
+      "brand": "JINGSU",
+      "model": "KA67",
+      "product": "RY1B-3106",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3520,
+      "brand": "JINGSU",
+      "model": "KB98",
+      "product": "RY1B-3520",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3193,
+      "brand": "JINGSU",
+      "model": "KCC04A",
+      "product": "RY1B-3193",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3711,
+      "brand": "JINGSU",
+      "model": "KE87",
+      "product": "RY1B-3711",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3076,
+      "brand": "Ninjadog",
+      "model": "Varna Atlas",
+      "product": "RY1B-3076",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3425,
+      "brand": "PSYCommu",
+      "model": "PSY P1",
+      "product": "RY1B-3425",
+      "reason": "exact USB/board registry entry absent"
+    },
+    {
+      "board": 3663,
+      "brand": "NOS",
+      "model": "C800 ALU (UK)",
+      "product": "RY1B-3663",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2220,
+      "brand": "Titan Nation",
+      "model": "TITAN60 PCB",
+      "product": "RY1B-2220",
+      "reason": "geometry component absent"
+    },
+    {
+      "board": 2816,
+      "brand": "Titan Nation",
+      "model": "Storm68",
+      "product": "RY1B-2816",
+      "reason": "geometry component absent"
+    },
+    {
+      "board": 2831,
+      "brand": "Valkyrie",
+      "model": "VK 99 Gaming (Naruto)",
+      "product": "RY1B-2831",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2628,
+      "brand": "Game Arena",
+      "model": "GKX68 MAGNUM",
+      "product": "RY1B-2628",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 2790,
+      "brand": "Game Arena",
+      "model": "GKX68 MAGNUM",
+      "product": "RY1B-2790",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    }
+  ]
+}

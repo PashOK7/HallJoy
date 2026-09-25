@@ -3,6 +3,8 @@ param()
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
+& python (Join-Path $root 'tools\audit_keyboard_identities.py')
+if ($LASTEXITCODE -ne 0) { throw 'Keyboard identity evidence audit failed.' }
 $noticeCheck = Join-Path $root 'tools\support_notice_catalog.py'
 & python $noticeCheck
 if ($LASTEXITCODE -ne 0) { throw 'Support notice catalog is stale.' }

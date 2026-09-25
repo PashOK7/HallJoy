@@ -9,6 +9,7 @@
 #include <shellapi.h>
 #include <algorithm>
 #include <atomic>
+#include "keyboard_communication_health.h"
 #include <array>
 #include <cstdio>
 #include <cstdlib>
@@ -43,7 +44,7 @@ struct Handle {
 };
 struct SharedPage {volatile LONG sequence=0,tick=0;volatile LONG values[32]{};};
 struct Shared {volatile LONG topology=0,presses=0,releases=0,held=0,wasd=0,command=0,page=0,ioPhase=0;
- volatile LONG identity=0,usb=0,units=100,freshMs=150;SharedPage pages[4]{};};
+ volatile LONG identity=0,pid=0,usb=0,units=100,freshMs=150;SharedPage pages[4]{};};
 Shared* shared=nullptr;Handle sharedMapping;
 std::atomic<bool> parentStop{false},collecting{false};std::atomic<unsigned> uiState{0};
 std::thread supervisor;HANDLE childCancel=nullptr;bool pipeTestSeen=false;
@@ -269,11 +270,12 @@ struct Session {
   for(unsigned attempt=0;attempt<3;++attempt){delay=10;Report a{},b{};
    if(Stop())return false;
    if(Exchange(0x8f,0,a) && Exchange(0x8f,0,b) && Identity(a)==Identity(b) && Known(Identity(a),d.pid)){
-    identity=Identity(a);usb=unsigned(b[8])|(unsigned(b[9])<<8);
+    identity=Identity(a);usb=unsigned(b[8])|(unsigned(b[9])<<8);InterlockedExchange(&shared->pid,d.pid);
 #if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
     if(identity!=3123){Line("r85_identity_mismatch expected=3123 actual="+std::to_string(identity)+" no_depth_commands=1");return false;}
 #endif
     return true;}
+   if(Identity(a) && Identity(a)==Identity(b) && !Known(Identity(a),d.pid))Line("identity_pair_rejected board="+std::to_string(Identity(a))+" pid="+std::to_string(d.pid));
    Line("identity_attempt delay_ms="+std::to_string(delay)+" id="+std::to_string(Identity(a))+" repeated_id="+std::to_string(Identity(b))+" reply_command="+std::to_string(a[1])+" repeated_command="+std::to_string(b[1])+" report_id="+std::to_string(b[0]));
   }return false;
  }
@@ -384,6 +386,7 @@ void ReceiveLine(const std::string& line){
   SupportLog_Event("shark.probe_identity",number(" id="),number("repeated_id="));
   SupportLog_Event("shark.probe_command",number("reply_command="),number("repeated_command="));
  }
+ if(line.rfind("identity_pair_rejected ",0)==0)SupportLog_Event("shark.identity_pair_rejected",number("board="),number("pid="));
  if(line.rfind("identity_rejected ",0)==0)SupportLog_Event("shark.identity_rejected",1);
  const char* failures[]={"inventory_failed","metadata_open_failed","attributes_failed",
   "preparsed_data_failed","caps_failed","exclusive_open_failed","set_feature_failed","get_feature_failed"};
@@ -483,14 +486,16 @@ static DWORD RunChild(const std::wstring& mode,DWORD budget,bool allowCancelled=
 
 
 void Supervise() noexcept {
- try{do{SupportLog_Event("shark.worker_start",1);ClearNative();InterlockedExchange(&shared->identity,0);
+ try{do{SupportLog_Event("shark.worker_start",1);ClearNative();InterlockedExchange(&shared->identity,0);InterlockedExchange(&shared->pid,0);
   for(auto& page:shared->pages)InterlockedExchange(&page.sequence,0);
   #if defined(HALLJOY_ATTACKSHARK_PRO_DIAGNOSTIC)
   const wchar_t* mode=L"capture";
 #else
   const wchar_t* mode=L"play";
 #endif
-  const auto result=RunChild(mode,MAXDWORD);SupportLog_Event("shark.worker_exit",result);ClearNative();Trace(L"[shark] worker_end exit=%lu last_command=%ld last_page=%ld io_phase=%ld",result,Load(shared->command),Load(shared->page),Load(shared->ioPhase));
+  const auto result=RunChild(mode,MAXDWORD);SupportLog_Event("shark.worker_exit",result);
+  if(!parentStop && result==8){halljoy::keyboard_support::ReportCommunicationAnomaly(17);SupportLog_Event("shark.communication_anomaly",1);}
+  ClearNative();Trace(L"[shark] worker_end exit=%lu last_command=%ld last_page=%ld io_phase=%ld",result,Load(shared->command),Load(shared->page),Load(shared->ioPhase));
   if(parentStop || result==103)break;uiState=6;for(unsigned i=0;i<30 && !parentStop;++i)Sleep(100);
  }while(!parentStop);}catch(...){ClearNative();uiState=6;Trace(L"[shark] supervisor_exception partial_log_retained=1");}
  collecting=false;
@@ -610,6 +615,8 @@ void SelfTest(){
  Require(Request(0x1b)[1]==0 && Request(0x1c)[1]==0 && Request(0xe5,4)[1]==0);
  Require(Request(0xe5,0)[8]==0x1b && Request(0xe5,3)[8]==0x18);
  Require(Known(2308,0x502f) && Known(2938,0x5030) && !Known(2308,0x5030));
+ Require(Known(3650,0x502d) && Known(3650,0x5029));
+ Require(!Known(3650,0x5030) && !Known(3650,0x502f) && !Known(9999,0x5029));
  Metrics m;Report r{};auto put=[&](unsigned slot,unsigned value){r[1+2*slot]=static_cast<std::uint8_t>(value);r[2+2*slot]=static_cast<std::uint8_t>(value>>8);};
  put(14,300);put(9,100);Require(m.Add(0,r,3));put(14,320);Require(m.Add(0,r,3));put(14,0);Require(m.Add(0,r,2));
  Require(m.keys[14].released==1 && m.keys[9].last==100 && m.independentChanges==1 && !m.Enough(4,4));
@@ -764,7 +771,7 @@ std::uint16_t SharkGet(std::uint16_t hid){if(!SharkOwns(hid))return 0;const auto
  return std::max(nativeValues.Read(hid,now,FreshBudget()).milli,fnValues.Read(hid,now,FreshBudget()).milli);}
 void SharkTelemetry(NativeAnalogBackendTelemetry* out){
  if(!out)return;*out={};out->connected=SharkConnected();out->present=out->connected;
- const auto* profile=activeProfile.load();out->vendorId=0x3151;out->productId=profile?static_cast<std::uint16_t>(profile->pid):0;out->usagePage=0xffff;out->usage=2;
+ const auto* profile=activeProfile.load();out->vendorId=0x3151;out->productId=profile?static_cast<std::uint16_t>(shared && Load(shared->pid)?Load(shared->pid):profile->pid):0;out->usagePage=0xffff;out->usage=2;
  if(out->connected && profile)out->verifiedLayoutToken=halljoy::sharklayout::Token(profile->id);
  if(profile)for(auto hid:profile->factory)if(hid)++out->mappedKeys;
  out->activeKeys=nativeValues.Active(GetTickCount64())+fnValues.Active(GetTickCount64());out->nominalRawLevels=shared?static_cast<unsigned>(Load(shared->units))*35/10+1:0;

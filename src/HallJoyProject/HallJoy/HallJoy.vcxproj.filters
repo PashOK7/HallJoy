@@ -728,6 +728,16 @@
     <ClInclude Include="slice75_backend.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="slice75_protocol.h"><Filter>Header Files</Filter></ClInclude>
     <ClCompile Include="rongyuan_snapshot_backend.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="rongyuan_stream_backend.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="tartarus_backend.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="neo65_backend.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClInclude Include="rongyuan_stream_backend.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="tartarus_backend.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="neo65_backend.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="rongyuan_stream_protocol.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="tartarus_protocol.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="neo65_protocol.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="sparklink_model_profiles.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="rongyuan_snapshot_backend.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="rongyuan_snapshot_protocol.h"><Filter>Header Files</Filter></ClInclude>
   </ItemGroup>

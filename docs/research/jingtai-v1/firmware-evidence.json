@@ -1,0 +1,95 @@
+{
+  "scope": "Existing 2026-09-13 firmware corpus rechecked 2026-09-24; all10 physical maps match current generated compact actions. No binaries redistributed or hardware tests.",
+  "images": [
+    {
+      "sha256": "a25865c6cdd2f901367cb185c9cc613deb498277553185e50e4591176b21eb18",
+      "model": "NA87 Pro",
+      "source_url": "https://s.joyway.net/packages/irok/firmware/NA87_PRO%E5%9B%BA%E4%BB%B6v1.0.3b.bin",
+      "vid": "1c4f",
+      "pid": "ee88",
+      "sensor_map_offset": "0x1564",
+      "raw_depth_max": 4000
+    },
+    {
+      "sha256": "4dc2fc2124f03d0760e232e5c24f8d47e337bbdc9f6f92f35be94988a945a877",
+      "model": "MU68 Pro",
+      "source_url": "https://s.joyway.net/packages/iyx/firmware/MU68_PRO%E5%9B%BA%E4%BB%B6v1.0.3.bin",
+      "vid": "1c4f",
+      "pid": "ee88",
+      "sensor_map_offset": "0x1564",
+      "raw_depth_max": 4000
+    },
+    {
+      "sha256": "8bf873d01511465f9ffba7be0f73e657b4ce8dd6fa36d463133d8d1936bfa517",
+      "model": "MU68 Pro",
+      "source_url": "https://s.joyway.net/packages/firmware/MU68_App_v1.0.5_20240919a.bin",
+      "vid": "1c4f",
+      "pid": "ee88",
+      "sensor_map_offset": "0x1564",
+      "raw_depth_max": 4000
+    },
+    {
+      "sha256": "b6c09baa2a59ce21efb10e7328fc9455a91128b83a86ef80f531a0f30a41ae10",
+      "model": "NA87 Pro",
+      "source_url": "https://s.joyway.net/packages/firmware/NA87_App_v1.0.5_20240919a.bin",
+      "vid": "1c4f",
+      "pid": "ee88",
+      "sensor_map_offset": "0x1564",
+      "raw_depth_max": 4000
+    },
+    {
+      "sha256": "7cc1d7ba2044f26254e0e83b06fb3b46e9fd5172f0613639dcd4b780ba650d6d",
+      "model": "ND63",
+      "source_url": "https://s.joyway.net/packages/firmware/ND63_App_v1.0.5_20240919a.bin",
+      "vid": "1c4f",
+      "pid": "ee88",
+      "sensor_map_offset": "0x1564",
+      "raw_depth_max": 4000
+    },
+    {
+      "sha256": "7ee63ac07556d141ea9345fcf79ef3cd6bac6333760e465582b59b8057e083f3",
+      "model": "MU68 Pro",
+      "source_url": "https://s.joyway.net/packages/firmware/MU68_PRO_App_v1.0.8_20241128a.bin",
+      "vid": "1ca2",
+      "pid": "0402",
+      "sensor_map_offset": "0x1554",
+      "raw_depth_max": 4000
+    },
+    {
+      "sha256": "892583b1553b2afdf90b000aef4a17d9e385d36164e41a377868b13ad4630714",
+      "model": "NA87 Pro",
+      "source_url": "https://s.joyway.net/packages/firmware/NA87_App_v1.0.8_20241128a.bin",
+      "vid": "1ca2",
+      "pid": "0401",
+      "sensor_map_offset": "0x1554",
+      "raw_depth_max": 4000
+    },
+    {
+      "sha256": "6991a24cd1291e1a426716fbb0d4f88adef02003d143aff151ef05aae13d3f7c",
+      "model": "ND63",
+      "source_url": "https://s.joyway.net/packages/firmware/ND63_App__v1.0.8_20241128a.bin",
+      "vid": "1ca2",
+      "pid": "0406",
+      "sensor_map_offset": "0x1554",
+      "raw_depth_max": 4000
+    },
+    {
+      "sha256": "87e1a59d4e2adde5ac4c46be754518ec55f45a52b9548011e4ffa87ca846af7e",
+      "model": "MU68 Pro",
+      "source_url": "https://s.joyway.net/packages/firmware/MU68_PRO_CYAN_App_v1.1.4_20241128a.bin",
+      "vid": "1ca2",
+      "pid": "0402",
+      "sensor_map_offset": "0x1554",
+      "raw_depth_max": 3600
+    },
+    {
+      "sha256": "9eca0192473df3312415e6854290d5f64aabcb692ab596241db64047544d5fce",
+      "model": "ND63",
+      "source_url": "https://s.joyway.net/packages/firmware/ND63_PRO_CYAN_App_v1.1.4_20241128a.bin",
+      "vid": "1ca2",
+      "pid": "0406",
+      "sensor_map_offset": "0x1554",
+      "raw_depth_max": 3600
+    }
+  ]
+}

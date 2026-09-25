@@ -99,7 +99,7 @@ of a particular retail revision's availability.
 | 2935 | X82PRO HE | 5030 |
 | 3221 | X820pro | 5030 |
 | 3334 | K85 | 502D |
-| 3650 | R68HE | 502D |
+| 3650 | R68HE | 502D; 5029 (log31, local fix 2026-09-24) |
 
 ## Validation and delivery
 

@@ -1,0 +1,232 @@
+{
+  "known_boards": 290,
+  "catalog_sources": [
+    {
+      "path": ".local/research/attackshark-pro/index-20260919.js",
+      "sha256": "4d19141815dd4c952f65c159ff388d4422d02c2e395253617dffd65ceafd076e",
+      "records": 35
+    },
+    {
+      "path": ".local/research/attackshark-pro/iot-main_68eaf5ce.js",
+      "sha256": "3708db6c84edce9ca8a2424d744a9ee8a1ef66a267f6f3eca019711d9bf3feca",
+      "records": 1883
+    },
+    {
+      "path": ".local/research/attackshark-pro/cn-app/resources/app/dist/static/js/main_c366b7f7.js",
+      "sha256": "cc1b0d471dab2d3f26d4be0aea445962be4da52ae1412d6935100af25acc1c53",
+      "records": 1743
+    },
+    {
+      "path": ".local/research/attackshark-pro/desktop/resources/app/dist/js/index.2e5bd916.js",
+      "sha256": "000d6f2f25cc31836e4a68cd1610b5e8c047a0d63216f623513062c26963ba07",
+      "records": 974
+    },
+    {
+      "path": ".local/research/attackshark-x68he/index-alt.js",
+      "sha256": "e9f67d61cabf56d9a13086e7f9ce0244c8828af2db65b553ab23e7fb843e0f58",
+      "records": 35
+    },
+    {
+      "path": ".local/research/attackshark-x68he/desktop/resources/app/dist/js/index.b078bf5f.js",
+      "sha256": "5a0a28c49e629e8dc6e517c7c99008c88120f5cbbe9676e54074b4eb1ce3c476",
+      "records": 615
+    },
+    {
+      "path": ".local/research/monsgeek-20260922/index.13c08899.js",
+      "sha256": "e88543d0138780139c5c8dbadeac4f3f860d728a5b3d1c39dbb430d494ccb96a",
+      "records": 611
+    },
+    {
+      "path": ".local/research/monsgeek-20260922/index.4289e208.js",
+      "sha256": "b51206558dbe3ba055ad9f01ab8045cb89bbaeb72b47e8c2bc9351d24e9afdc1",
+      "records": 1055
+    },
+    {
+      "path": ".local/research/monsgeek-20260922/main_0ed8aa02.js",
+      "sha256": "dc99520f35d96c06a6f663537512032b174a71705374c8729fe903a2689a9b5a",
+      "records": 1444
+    },
+    {
+      "path": ".local/research/monsgeek-akko-linux/protocol/hid_protocol_core.js",
+      "sha256": "9a88bd081dd54ac59c3cd9a4ce06b40a9940e1d094ab9cf1960251d3defc9801",
+      "records": 461
+    },
+    {
+      "path": ".local/research/r68-fresh-20260924/index.CUcPl2Vx.js",
+      "sha256": "d2c75924fb08618afa11934f0b7f32c1b61452ad4af88d896126bb1063e33494",
+      "records": 44
+    }
+  ],
+  "differences": [
+    {
+      "board": 2368,
+      "vid": 12625,
+      "pid": 20528,
+      "decision": "hold: factory matrix differs; not an identity-only alias",
+      "evidence": [
+        {
+          "source": ".local/research/attackshark-pro/iot-main_68eaf5ce.js",
+          "sha256": "3708db6c84edce9ca8a2424d744a9ee8a1ef66a267f6f3eca019711d9bf3feca",
+          "record": "{id:2368,vid:12625,pid:20528,usage:2,usagePage:65535,name:\"ry5088_mk666_soc_8k_002\",displayName:\"X60HE\",support_onboard:2,type:\"keyboard\",group:Ih,featureReportByteLength:65,company:\"Mambasnake\",layout:op,layer:16,fnSysLayer:{win:1,mac:1},otherSetting:Vp,magnetism:!0}"
+        },
+        {
+          "source": ".local/research/attackshark-pro/cn-app/resources/app/dist/static/js/main_c366b7f7.js",
+          "sha256": "cc1b0d471dab2d3f26d4be0aea445962be4da52ae1412d6935100af25acc1c53",
+          "record": "{id:2368,vid:12625,pid:20528,usage:2,usagePage:65535,name:\"ry5088_mk666_soc_8k_002\",displayName:\"X60HE\",support_onboard:2,type:\"keyboard\",group:Mh,featureReportByteLength:65,company:\"Mambasnake\",layout:Ef,layer:16,fnSysLayer:{win:1,mac:1},otherSetting:oh,magnetism:!0}"
+        }
+      ]
+    },
+    {
+      "board": 2398,
+      "vid": 14154,
+      "pid": 41506,
+      "decision": "approved: same full factory map; official firmware v306 confirms 1B stream packet, exact alternate USB tuple",
+      "evidence": [
+        {
+          "source": ".local/research/attackshark-pro/iot-main_68eaf5ce.js",
+          "sha256": "3708db6c84edce9ca8a2424d744a9ee8a1ef66a267f6f3eca019711d9bf3feca",
+          "record": "{id:2398,vid:14154,pid:41506,usage:2,usagePage:65535,name:\"ry5088_x78_8k_001\",displayName:\"MAG75 Max\",support_onboard:2,type:\"keyboard\",group:Ih,featureReportByteLength:65,company:\"VKMS\",layout:op,layer:16,fnSysLayer:{win:1,mac:1},otherSetting:Kp,magnetism:!0}"
+        },
+        {
+          "source": ".local/research/attackshark-pro/cn-app/resources/app/dist/static/js/main_c366b7f7.js",
+          "sha256": "cc1b0d471dab2d3f26d4be0aea445962be4da52ae1412d6935100af25acc1c53",
+          "record": "{id:2398,vid:14154,pid:41506,usage:2,usagePage:65535,name:\"ry5088_x78_8k_001\",displayName:\"MAG75 Max\",support_onboard:2,type:\"keyboard\",group:Mh,featureReportByteLength:65,company:\"VKMS\",layout:Ef,layer:16,fnSysLayer:{win:1,mac:1},otherSetting:ih,magnetism:!0}"
+        }
+      ]
+    },
+    {
+      "board": 2496,
+      "vid": 12577,
+      "pid": 20525,
+      "decision": "hold: alternate VID, same map; older client stream capability not established",
+      "evidence": [
+        {
+          "source": ".local/research/attackshark-pro/iot-main_68eaf5ce.js",
+          "sha256": "3708db6c84edce9ca8a2424d744a9ee8a1ef66a267f6f3eca019711d9bf3feca",
+          "record": "{id:2496,vid:12577,pid:20525,usage:2,usagePage:65535,name:\"ry5088_fx_x78_dm_8k_002\",displayName:\"Mechlands M75\",support_onboard:2,type:\"keyboard\",group:Ih,featureReportByteLength:65,company:\"MechLands\",layout:ip,layer:16,fnSysLayer:{win:1,mac:1},otherSetting:nh,magnetism:!0}"
+        },
+        {
+          "source": ".local/research/attackshark-pro/cn-app/resources/app/dist/static/js/main_c366b7f7.js",
+          "sha256": "cc1b0d471dab2d3f26d4be0aea445962be4da52ae1412d6935100af25acc1c53",
+          "record": "{id:2496,vid:12577,pid:20525,usage:2,usagePage:65535,name:\"ry5088_fx_x78_dm_8k_002\",displayName:\"Mechlands M75\",support_onboard:2,type:\"keyboard\",group:Mh,featureReportByteLength:65,company:\"MechLands\",layout:jf,layer:16,fnSysLayer:{win:1,mac:1},otherSetting:hh,magnetism:!0}"
+        }
+      ]
+    },
+    {
+      "board": 2592,
+      "vid": 12625,
+      "pid": 20512,
+      "decision": "hold: changed internal class identity; older client stream capability not established",
+      "evidence": [
+        {
+          "source": ".local/research/attackshark-pro/cn-app/resources/app/dist/static/js/main_c366b7f7.js",
+          "sha256": "cc1b0d471dab2d3f26d4be0aea445962be4da52ae1412d6935100af25acc1c53",
+          "record": "{id:2592,vid:12625,pid:20512,usage:2,usagePage:65535,name:\"ry5088_sg9028_8k_8k\",displayName:\"ALUX68 PRO\",support_onboard:2,type:\"keyboard\",group:Mh,featureReportByteLength:65,company:\"AJAZZMOUSE\",layout:Ef,layer:16,fnSysLayer:{win:1,mac:1},otherSetting:Jf,magnetism:!0}"
+        }
+      ]
+    },
+    {
+      "board": 2609,
+      "vid": 12625,
+      "pid": 20513,
+      "decision": "reject: board number reused by YC3123 controller; incompatible class",
+      "evidence": [
+        {
+          "source": ".local/research/attackshark-pro/cn-app/resources/app/dist/static/js/main_c366b7f7.js",
+          "sha256": "cc1b0d471dab2d3f26d4be0aea445962be4da52ae1412d6935100af25acc1c53",
+          "record": "{id:2609,vid:12625,pid:20513,usage:2,usagePage:65535,name:\"yc3123_common_magnetism\",displayName:\"YC3123 Magnetism\",support_onboard:2,type:\"keyboard\",group:Mh,featureReportByteLength:65,company:\"rongyuan\",layout:Of,layer:8,fnSysLayer:{win:2,mac:2,android:2,ios:2},otherSetting:Xf,magnetism:!0}"
+        }
+      ]
+    },
+    {
+      "board": 2634,
+      "vid": 12625,
+      "pid": 20521,
+      "decision": "hold: matching factory map but changed internal class identity and older protocol evidence",
+      "evidence": [
+        {
+          "source": ".local/research/attackshark-pro/iot-main_68eaf5ce.js",
+          "sha256": "3708db6c84edce9ca8a2424d744a9ee8a1ef66a267f6f3eca019711d9bf3feca",
+          "record": "{id:2634,vid:12625,pid:20521,usage:2,usagePage:65535,name:\"ry5088_freewolf_f68_8k_dm\",displayName:\"F68\",support_onboard:2,type:\"keyboard\",group:Ih,featureReportByteLength:65,company:\"FREEWOLF\",layout:op,layer:16,fnSysLayer:{win:1,mac:1},otherSetting:Lp,magnetism:!0}"
+        }
+      ]
+    },
+    {
+      "board": 2669,
+      "vid": 12625,
+      "pid": 20527,
+      "decision": "hold: matching factory map, older client parent/stream capability not yet established",
+      "evidence": [
+        {
+          "source": ".local/research/attackshark-pro/iot-main_68eaf5ce.js",
+          "sha256": "3708db6c84edce9ca8a2424d744a9ee8a1ef66a267f6f3eca019711d9bf3feca",
+          "record": "{id:2669,vid:12625,pid:20527,usage:2,usagePage:65535,name:\"ry5088_k242_8k_8k\",displayName:\"GP75HE\",support_onboard:2,type:\"keyboard\",group:Ih,featureReportByteLength:65,company:\"腹灵\",layout:op,layer:16,fnSysLayer:{win:1,mac:1},otherSetting:Up,magnetism:!0}"
+        }
+      ]
+    },
+    {
+      "board": 2683,
+      "vid": 12625,
+      "pid": 20528,
+      "decision": "approved: same exact model/region, factory matrix and stream protocol",
+      "evidence": [
+        {
+          "source": ".local/research/monsgeek-20260922/index.13c08899.js",
+          "sha256": "e88543d0138780139c5c8dbadeac4f3f860d728a5b3d1c39dbb430d494ccb96a",
+          "record": "{id:2683,vid:12625,pid:20528,keyLayout:h.Common82_SG9000,name:\"ry5088_mod007sv3he_dm_8k\",displayName:\"MOD007S V3-HE\",type:\"keyboard\",company:\"akko\",layer:4,fnSysLayer:{win:2,mac:2},magnetism:!0,lightLayout:Ee,other:{isSwitchReplaceable:!0,supportedSwitchTypes:[\"星引力\",\"磁玉\",\"磁玉pro\",\"磁玉gaming\",\"天王\",\"万磁王\"]}}"
+        },
+        {
+          "source": ".local/research/monsgeek-20260922/index.4289e208.js",
+          "sha256": "b51206558dbe3ba055ad9f01ab8045cb89bbaeb72b47e8c2bc9351d24e9afdc1",
+          "record": "{id:2683,vid:12625,pid:20528,keyLayout:m.Common82_MOD007BHE,name:\"ry5088_mod007sv3he_dm_8k\",displayName:\"MOD007S V3-HE\",type:\"keyboard\",company:\"akko\",layer:4,fnSysLayer:{win:2,mac:2},magnetism:!0,lightLayout:ke,other:{isSwitchReplaceable:!0,supportedSwitchTypes:[\"星耀\",\"星引力\",\"磁玉\",\"磁玉pro\",\"磁玉gaming\",\"天王\",\"万磁王\"],knobKeyCodes:[\"AudioVolumeDown\",\"Volume_Brightness\",\"AudioVolumeUp\"]}}"
+        },
+        {
+          "source": ".local/research/monsgeek-akko-linux/protocol/hid_protocol_core.js",
+          "sha256": "9a88bd081dd54ac59c3cd9a4ce06b40a9940e1d094ab9cf1960251d3defc9801",
+          "record": "{id:2683,vid:12625,pid:20528,keyLayout:KeyLayout.Common82_MOD007BHE,name:\"ry5088_mod007sv3he_dm_8k\",displayName:\"MOD007S V3-HE\",type:\"keyboard\",company:\"akko\",layer:4,fnSysLayer:{win:2,mac:2},magnetism:!0,lightLayout:lightAKKOLayout,other:{isSwitchReplaceable:!0,supportedSwitchTypes:[\"\\u661F\\u8000\",\"\\u661F\\u5F15\\u529B\",\"\\u78C1\\u7389\",\"\\u78C1\\u7389pro\",\"\\u78C1\\u7389gaming\",\"\\u5929\\u738B\",\"\\u4E07\\u78C1\\u738B\"],knobKeyCodes:[\"AudioVolumeDown\",\"Volume_Brightness\",\"AudioVolumeUp\"]}}"
+        }
+      ]
+    },
+    {
+      "board": 2704,
+      "vid": 12625,
+      "pid": 20528,
+      "decision": "approved: same exact model/region, factory matrix and stream protocol",
+      "evidence": [
+        {
+          "source": ".local/research/monsgeek-20260922/index.13c08899.js",
+          "sha256": "e88543d0138780139c5c8dbadeac4f3f860d728a5b3d1c39dbb430d494ccb96a",
+          "record": "{id:2704,vid:12625,pid:20528,keyLayout:h.Common83_mod007sv3he_uk,name:\"ry5088_mod007sv3he_uk_8k_dm\",displayName:\"MOD007S V3-HE UK\",type:\"keyboard\",company:\"akko\",layer:4,fnSysLayer:{win:2},magnetism:!0,lightLayout:Ee,other:{isSwitchReplaceable:!0,supportedSwitchTypes:[\"星引力\",\"磁玉\",\"磁玉pro\",\"磁玉gaming\",\"天王\",\"万磁王\"]}}"
+        },
+        {
+          "source": ".local/research/monsgeek-akko-linux/protocol/hid_protocol_core.js",
+          "sha256": "9a88bd081dd54ac59c3cd9a4ce06b40a9940e1d094ab9cf1960251d3defc9801",
+          "record": "{id:2704,vid:12625,pid:20528,keyLayout:KeyLayout.Common83_mod007sv3heuk_vb,name:\"ry5088_mod007sv3he_uk_8k_dm\",displayName:\"MOD007S V3-HE UK\",type:\"keyboard\",company:\"akko\",layer:4,fnSysLayer:{win:2,mac:2},magnetism:!0,lightLayout:lightAKKOLayout,other:{isSwitchReplaceable:!0,supportedSwitchTypes:[\"\\u661F\\u8000\",\"\\u661F\\u5F15\\u529B\",\"\\u78C1\\u7389\",\"\\u78C1\\u7389pro\",\"\\u78C1\\u7389gaming\",\"\\u5929\\u738B\",\"\\u4E07\\u78C1\\u738B\"],knobKeyCodes:[\"AudioVolumeDown\",\"Volume_Brightness\",\"AudioVolumeUp\"]}}"
+        }
+      ]
+    },
+    {
+      "board": 2763,
+      "vid": 12625,
+      "pid": 20521,
+      "decision": "hold: generic OEM MK129 versus retail Kanabo K6; needs retail/firmware binding",
+      "evidence": [
+        {
+          "source": ".local/research/attackshark-x68he/desktop/resources/app/dist/js/index.b078bf5f.js",
+          "sha256": "5a0a28c49e629e8dc6e517c7c99008c88120f5cbbe9676e54074b4eb1ce3c476",
+          "record": "{id:2763,vid:12625,pid:20521,keyLayout:c.Common87_MK25022B,name:\"ry5088_gzs_mk129us_1m_8k\",displayName:\"MK129\",type:\"keyboard\",company:\"rongyuan\",layer:3,fnSysLayer:{win:1},magnetism:!0,lightLayout:I,other:{supportedSwitchTypes:[\"磁橙\",\"磁玉\",\"磁玉pro\",\"磁玉gaming\",\"天王\",\"万磁王\"],isSwitchReplaceable:!0}}"
+        },
+        {
+          "source": ".local/research/monsgeek-20260922/index.13c08899.js",
+          "sha256": "e88543d0138780139c5c8dbadeac4f3f860d728a5b3d1c39dbb430d494ccb96a",
+          "record": "{id:2763,vid:12625,pid:20521,keyLayout:h.Common87_MK25022B,name:\"ry5088_gzs_mk129us_1m_8k\",displayName:\"MK129\",type:\"keyboard\",company:\"rongyuan\",layer:3,fnSysLayer:{win:1},magnetism:!0,lightLayout:O,other:{supportedSwitchTypes:[\"磁橙\",\"磁玉\",\"磁玉pro\",\"磁玉gaming\",\"天王\",\"万磁王\"],isSwitchReplaceable:!0}}"
+        },
+        {
+          "source": ".local/research/monsgeek-akko-linux/protocol/hid_protocol_core.js",
+          "sha256": "9a88bd081dd54ac59c3cd9a4ce06b40a9940e1d094ab9cf1960251d3defc9801",
+          "record": "{id:2763,vid:12625,pid:20521,keyLayout:KeyLayout.Common87_MK25022B,name:\"ry5088_gzs_mk129us_1m_8k\",displayName:\"MK129\",type:\"keyboard\",company:\"rongyuan\",layer:3,fnSysLayer:{win:1},magnetism:!0,lightLayout:lightXX,other:{supportedSwitchTypes:[\"\\u78C1\\u6A59\",\"\\u78C1\\u7389\",\"\\u78C1\\u7389pro\",\"\\u78C1\\u7389gaming\",\"\\u5929\\u738B\",\"\\u4E07\\u78C1\\u738B\"],isSwitchReplaceable:!0}}"
+        }
+      ]
+    }
+  ]
+}

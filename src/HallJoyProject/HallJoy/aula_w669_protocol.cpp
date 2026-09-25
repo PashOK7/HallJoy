@@ -169,6 +169,18 @@ PositionToHid K673UsFactoryMap() noexcept
     return map;
 }
 
+PositionToHid K617UsFactoryMap() noexcept
+{
+    // Official iLLumiPC 7153USHEXYXCPARGB physical matrix.
+    return {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,41,30,31,32,33,34,35,36,37,38,39,45,46,0,42,0,0,0,0,0,0,0,43,20,26,8,21,23,28,24,12,18,19,47,48,0,49,0,0,0,0,0,0,0,57,0,4,22,7,9,10,11,13,14,15,51,52,0,40,0,0,0,0,0,0,0,225,0,29,27,6,25,5,17,16,54,55,56,229,0,0,0,0,0,0,0,0,0,224,227,226,0,0,0,44,0,0,230,250,101,228,0,0,0,0,0,0,0,0,0};
+}
+
+PositionToHid K617BrFactoryMap() noexcept
+{
+    // Official iLLumiPC 7153BRHEXYXCPARGB physical matrix.
+    return {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,41,30,31,32,33,34,35,36,37,38,39,45,46,0,42,0,0,0,0,0,0,0,43,20,26,8,21,23,28,24,12,18,19,47,48,0,0,0,0,0,0,0,0,0,57,0,4,22,7,9,10,11,13,14,15,51,52,50,40,0,0,0,0,0,0,0,225,100,29,27,6,25,5,17,16,54,55,56,135,0,229,0,0,0,0,0,0,0,224,227,226,0,0,0,44,0,0,230,250,101,0,0,228,0,0,0,0,0,0,0};
+}
+
 FactoryLayoutProfile FactoryProfileForProduct(const char* product) noexcept
 {
     if (!product) return FactoryLayoutProfile::Unknown;
@@ -194,6 +206,8 @@ FactoryLayoutProfile FactoryProfileForProduct(const char* product) noexcept
         return FactoryLayoutProfile::K673Br;
     if (is("7272UKHEXYXBJCARGB"))
         return FactoryLayoutProfile::K673Uk;
+    if (is("7153USHEXYXCPARGB")) return FactoryLayoutProfile::K617Us;
+    if (is("7153BRHEXYXCPARGB")) return FactoryLayoutProfile::K617Br;
     if (is("7272USHEXYXK673JCARGB"))
         return FactoryLayoutProfile::K673Us;
     return FactoryLayoutProfile::Unknown;
@@ -209,6 +223,8 @@ PositionToHid FactoryMap(FactoryLayoutProfile profile) noexcept
     case FactoryLayoutProfile::K673Br: return K673BrFactoryMap();
     case FactoryLayoutProfile::K673Uk: return K673UkFactoryMap();
     case FactoryLayoutProfile::K673Us: return K673UsFactoryMap();
+    case FactoryLayoutProfile::K617Us: return K617UsFactoryMap();
+    case FactoryLayoutProfile::K617Br: return K617BrFactoryMap();
     default: return {};
     }
 }

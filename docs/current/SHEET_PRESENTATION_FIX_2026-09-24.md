@@ -1,0 +1,9 @@
+# Sheet presentation repair — 2026-09-24
+
+Owner screenshot showed repeated Valkyrie labels and missing yellow status colors after batch7. Fresh native API data nevertheless reported correct white duplicate labels and yellow cells. This is a real screenshot/API discrepancy; browser caching/recalculation is only a hypothesis, not an established root cause. Earlier checks of effectiveFormat and preserved conditional formulas were insufficient.
+
+On Main in the existing HallJoy supported keyboards Sheet, materialized the expected base foreground/background colors for all632 model rows (146 contiguous block requests). Conditional rules retained. Brand text remains dark once per block and white for subsequent rows; B:C receive their status colors directly. No labels removed or cells merged. Backup `.local/sheet-presentation-before-20260924.packed.json`; fresh pre-write comparison passed. Tool/document backup `.local/backups/before-sheet-presentation-fix-20260924.zip`.
+
+Independent readback `.local/sheet-presentation-after-20260924.packed.json`: presentation PASS for BOTH base/effective colors, structure PASS146 blocks. Comparison excluding only foreground/background colors proves all values, validations, borders, dimensions, conditional rules, other formatting and notes unchanged. Support counts remain228 yellow and63 green. No support, executable or GitHub changes.
+
+Automation: new `check_keyboard_sheet_presentation.py`; structure CLI invokes it automatically. Native batch planner adds explicit color updates after calculating final row positions and statuses, so inserting above a former brand heading hides the former heading and reveals the new one. Nine Sheet tests pass, including a correct effectiveFormat concealing a broken base color and an incorrect effective color despite correct base color. API verification is not a claim of browser visual acceptance.

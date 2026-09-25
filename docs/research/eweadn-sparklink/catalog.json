@@ -1,0 +1,404 @@
+{
+  "schema": 1,
+  "hub_version": "3.3.2-20260924093658738",
+  "sources": [
+    {
+      "url": "https://new-hub.eweadn.cn/main.918cf4f3a4f3b493296c.js",
+      "sha256": "a504fec3d5ae2c961d8ebbd7c161517e5f9ec306bb3f6381b8ece22e341cbacb"
+    },
+    {
+      "url": "https://new-hub.eweadn.cn/main.ad1dfc2d0c775fcba730.js",
+      "sha256": "1f5847d59fe5dea359b0f274a956425896fc754cfc33945fa21afa032b934dfa"
+    },
+    {
+      "url": "https://new-hub.eweadn.cn/main.sdk-kbd-xingshan.b9e6b4809170a4d18bfc.js",
+      "sha256": "16a0d1a4efc17a0e7ed3a96c264c19190824144ece690b31aedd96836c747fb3"
+    }
+  ],
+  "models": [
+    {
+      "brand": "EWEADN",
+      "model": "X87HE",
+      "pids": [
+        7178
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DEEP68 Pro HE",
+      "pids": [
+        7188
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK68 HE",
+      "pids": [
+        7186,
+        7199
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK68 Star HE",
+      "pids": [
+        7211
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK63 Star HE",
+      "pids": [
+        7211
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK68 V2 HE",
+      "pids": [
+        7228,
+        7194
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK80 HE",
+      "pids": [
+        7229
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK68 Pro HE",
+      "pids": [
+        7203,
+        7212
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "ES68",
+      "pids": [
+        7204
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "ES68 EVO",
+      "pids": [
+        7215,
+        7244
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "ES68 Lite",
+      "pids": [
+        7242
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK63 HE",
+      "pids": [
+        24065
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK75 Pro HE",
+      "pids": [
+        9993
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK75 E HE",
+      "pids": [
+        9992
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DK75 HE",
+      "pids": [
+        9994
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "Gamma75 HE (EXX collaboration)",
+      "pids": [
+        7223,
+        7237
+      ]
+    },
+    {
+      "brand": "EWEADN",
+      "model": "DEEP80 Max HE (magnetic version)",
+      "pids": [
+        7180
+      ]
+    }
+  ],
+  "records": [
+    {
+      "vid": 7334,
+      "pid": 7178,
+      "product": "X87",
+      "display": "X87 HE",
+      "layout": "87",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7178,productName:\"X87\",displayname:\"X87 HE\",keyboardType:\"87\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7230,
+      "product": "EWEADN ES87",
+      "display": "Alpha 87",
+      "layout": "es87",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7230,productName:\"EWEADN ES87\",displayname:\"Alpha 87\",keyboardType:\"es87\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0,brand:\"EXX\"}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7230,
+      "product": "EXX Alpha 87",
+      "display": "Alpha 87",
+      "layout": "es87",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7230,productName:\"EXX Alpha 87\",displayname:\"Alpha 87\",keyboardType:\"es87\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0,brand:\"EXX\"}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7188,
+      "product": "DEEP68 PRO",
+      "display": "DEEP68 Pro",
+      "layout": "68",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7188,productName:\"DEEP68 PRO\",displayname:\"DEEP68 Pro\",keyboardType:\"68\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7186,
+      "product": "EWEADN-DK68",
+      "display": "DK68",
+      "layout": "68",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7186,productName:\"EWEADN-DK68\",displayname:\"DK68\",keyboardType:\"68\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7199,
+      "product": "EWEADN-DK68",
+      "display": "DK68",
+      "layout": "68",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7199,productName:\"EWEADN-DK68\",displayname:\"DK68\",keyboardType:\"68\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7211,
+      "product": "EWEADN-DK68 Star",
+      "display": "DK68 Star",
+      "layout": "68",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7211,productName:\"EWEADN-DK68 Star\",displayname:\"DK68 Star\",keyboardType:\"68\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7211,
+      "product": "EWEADN-DK63 Star",
+      "display": "DK63 Star",
+      "layout": "68",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7211,productName:\"EWEADN-DK63 Star\",displayname:\"DK63 Star\",keyboardType:\"68\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7228,
+      "product": "DK68 V2",
+      "display": "DK68 V2",
+      "layout": "68",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7228,productName:\"DK68 V2\",displayname:\"DK68 V2\",keyboardType:\"68\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7194,
+      "product": "DK68 V2",
+      "display": "DK68 V2",
+      "layout": "68",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7194,productName:\"DK68 V2\",displayname:\"DK68 V2\",keyboardType:\"68\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7229,
+      "product": "DK80",
+      "display": "DK80",
+      "layout": "deep80max",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7229,productName:\"DK80\",displayname:\"DK80\",keyboardType:\"deep80max\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7203,
+      "product": "EWEADN DK68 Pro",
+      "display": "DK68 Pro",
+      "layout": "68",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7203,productName:\"EWEADN DK68 Pro\",displayname:\"DK68 Pro\",keyboardType:\"68\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7212,
+      "product": "EWEADN DK68 Pro",
+      "display": "DK68-Pro",
+      "layout": "68",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7212,productName:\"EWEADN DK68 Pro\",displayname:\"DK68-Pro\",keyboardType:\"68\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7204,
+      "product": "EWEADN ES68 Dawn",
+      "display": "ES68",
+      "layout": "68",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7204,productName:\"EWEADN ES68 Dawn\",displayname:\"ES68\",keyboardType:\"68\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0,demoEnable:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7215,
+      "product": "EWEADN ES68 EVO",
+      "display": "ES68 EVO",
+      "layout": "68EVO",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7215,productName:\"EWEADN ES68 EVO\",displayname:\"ES68 EVO\",keyboardType:\"68EVO\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7242,
+      "product": "ES68 Lite",
+      "display": "ES68 Lite",
+      "layout": "68",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7242,productName:\"ES68 Lite\",displayname:\"ES68 Lite\",keyboardType:\"68\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7244,
+      "product": "EWEADN ES68 EVO",
+      "display": "ES68 EVO (Full)",
+      "layout": "68",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7244,productName:\"EWEADN ES68 EVO\",displayname:\"ES68 EVO (Full)\",keyboardType:\"68\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 24065,
+      "product": "DK63",
+      "display": "DK63",
+      "layout": "63",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:24065,productName:\"DK63\",displayname:\"DK63\",keyboardType:\"63\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 9993,
+      "product": "EWEADN DK75",
+      "display": "DK75 Pro",
+      "layout": "dk75Pro",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:9993,productName:\"EWEADN DK75\",displayname:\"DK75 Pro\",keyboardType:\"dk75Pro\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0,hasDoubleLighting:!0,hasDotMatrixScreen:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 9992,
+      "product": "DK75",
+      "display": "DK75 E",
+      "layout": "dk75E",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:9992,productName:\"DK75\",displayname:\"DK75 E\",keyboardType:\"dk75E\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 9994,
+      "product": "EWEADN DK75",
+      "display": "DK75",
+      "layout": "dk75",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:9994,productName:\"EWEADN DK75\",displayname:\"DK75\",keyboardType:\"dk75\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0,hasDoubleLighting:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7213,
+      "product": "X75 V3",
+      "display": "X75 V3",
+      "layout": "x75v3",
+      "supported": false,
+      "source_literal": "{vendorId:7334,productId:7213,productName:\"X75 V3\",displayname:\"X75 V3\",keyboardType:\"x75v3\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!1,brand:\"EXX\"}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7223,
+      "product": "EXXGamma75",
+      "display": "Gamma75",
+      "layout": "gamma75",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7223,productName:\"EXXGamma75\",displayname:\"Gamma75\",keyboardType:\"gamma75\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0,brand:\"EXX\",demoEnable:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7223,
+      "product": "METAWAY Y75",
+      "display": "Gamma75",
+      "layout": "gamma75",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7223,productName:\"METAWAY Y75\",displayname:\"Gamma75\",keyboardType:\"gamma75\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0,brand:\"EXX\"}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7237,
+      "product": "EXXGamma75",
+      "display": "Gamma75",
+      "layout": "gamma75",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7237,productName:\"EXXGamma75\",displayname:\"Gamma75\",keyboardType:\"gamma75\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0,brand:\"EXX\",hasDoubleLighting:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7213,
+      "product": "X75 ULTRA",
+      "display": "X75 Ultra",
+      "layout": "x75v3",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7213,productName:\"X75 ULTRA\",displayname:\"X75 Ultra\",keyboardType:\"x75v3\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7213,
+      "product": "EXXGamma75",
+      "display": "Gamma75",
+      "layout": "x75v3",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7213,productName:\"EXXGamma75\",displayname:\"Gamma75\",keyboardType:\"x75v3\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0,brand:\"EXX\"}"
+    },
+    {
+      "vid": 7334,
+      "pid": 7180,
+      "product": "DEEP80 MAX",
+      "display": "DEEP80 MAX",
+      "layout": "deep80max",
+      "supported": true,
+      "source_literal": "{vendorId:7334,productId:7180,productName:\"DEEP80 MAX\",displayname:\"DEEP80 MAX\",keyboardType:\"deep80max\",solutionRovider:\"xingshan\",adaptation:[],isSupported:!0}"
+    }
+  ],
+  "held": [
+    "Alpha 87: magnetic/mechanical retail ambiguity; other SDK variants excluded",
+    "X75 V3 / X75 Ultra / Gamma75 PID7213: disabled and overlapping catalog entries; exact retail scope unresolved",
+    "VID6790/PID65153 shared ES68/EVO identity: not admitted",
+    "Other SDK families and all wireless transports excluded"
+  ]
+}

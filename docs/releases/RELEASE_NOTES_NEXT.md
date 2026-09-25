@@ -1,3 +1,3 @@
-# Release notes
+# Next release (unreleased)
 
-See [HallJoy 1.6.2](RELEASE_NOTES_v1.6.2.md) for the latest patch notes.
+No changes recorded since 1.6.3.

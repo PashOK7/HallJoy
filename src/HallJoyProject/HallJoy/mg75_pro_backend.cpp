@@ -11,6 +11,7 @@
 #include "generated/layout_pipeline/identities.h"
 #include "hid_io_operation.h"
 #include "mg75_pro_protocol.h"
+#include "jingtai_v1_profiles.h"
 #include "native_analog_routing.h"
 #include "native_layout_state.h"
 #include "physical_analog_state.h"
@@ -26,6 +27,9 @@
 #pragma comment(lib, "hid.lib")
 namespace {
 namespace mg = halljoy::mg75pro;
+namespace jt = halljoy::jingtai_v1;
+constexpr jt::Model kLegacyModel{"MG75PRO-1CA5-0807",L"IROK MG75 Pro",mg::kFactoryActions,81,3500};
+std::atomic<unsigned> g_vid{0}, g_pid{0}, g_mapped{0}, g_range{0};
 constexpr DWORD kStopTimeoutMs = 3000;
 constexpr ULONGLONG kFreshMs = 150;
 std::atomic<bool> g_running{false}, g_stop{false}, g_present{false},
@@ -72,6 +76,7 @@ struct Candidate {
   std::wstring path;
   HIDD_ATTRIBUTES attributes{};
   HIDP_CAPS caps{};
+  const jt::Model* model = &kLegacyModel;
 };
 
 bool TimedIo(HANDLE h, bool write, void *data, DWORD size, DWORD timeout,
@@ -161,8 +166,9 @@ std::vector<Candidate> Enumerate(bool log) {
       continue;
     HIDD_ATTRIBUTES a{};
     a.Size = sizeof(a);
-    if (!HidD_GetAttributes(meta.v, &a) || a.VendorID != mg::kVendorId ||
-        a.ProductID != mg::kProductId)
+    if (!HidD_GetAttributes(meta.v, &a) ||
+        !((a.VendorID == mg::kVendorId && a.ProductID == mg::kProductId) ||
+          jt::Candidate(a.VendorID,a.ProductID)))
       continue;
     PHIDP_PREPARSED_DATA pp = nullptr;
     if (!HidD_GetPreparsedData(meta.v, &pp))
@@ -195,8 +201,10 @@ std::vector<Candidate> Enumerate(bool log) {
     std::transform(name.begin(), name.end(), name.begin(), [](wchar_t ch) {
       return static_cast<wchar_t>(towupper(ch));
     });
-    if (exact && mg::ExactModel(a.VendorID, a.ProductID, name))
-      out.push_back({detail->DevicePath, a, caps});
+    const auto* model = mg::ExactModel(a.VendorID,a.ProductID,name)
+        ? &kLegacyModel : jt::Find(a.VendorID,a.ProductID,name);
+    if (exact && model)
+      out.push_back({detail->DevicePath, a, caps, model});
   }
   SetupDiDestroyDeviceInfoList(set);
   return out;
@@ -262,9 +270,12 @@ void Clear() {
   g_factory.Clear();
   g_assigned.Clear();
   g_last.store(0);
+  g_vid.store(0); g_pid.store(0); g_mapped.store(0); g_range.store(0);
 }
-bool Proof(Session &s) {
-  for (unsigned row = 0; row < 6; row += 2) {
+bool Proof(Session &s, const jt::Model& model = kLegacyModel) {
+  // Keep firmware-derived factory proof for the existing MG75 Pro path.
+  // Legacy V1 peers use pinned vendor maps; their client does not establish2B.
+  if (&model == &kLegacyModel) for (unsigned row = 0; row < 6; row += 2) {
     mg::Frame f;
     if (!s.Exchange(mg::Factory(row), f) || !mg::MatchFactory(f, row))
       return false;
@@ -277,11 +288,12 @@ bool Proof(Session &s) {
   }
   return true;
 }
-bool InstallMap(const std::array<std::uint16_t, mg::kSlots> &assigned) {
-  std::array<halljoy::native_layout::Key, 81> keys{};
+bool InstallMap(const std::array<std::uint16_t, mg::kSlots> &assigned,
+                const jt::Model& model = kLegacyModel) {
+  std::array<halljoy::native_layout::Key, mg::kSlots> keys{};
   std::size_t count = 0;
   for (std::size_t slot = 0; slot < mg::kSlots; ++slot) {
-    const auto factory = mg::Decode(mg::kFactoryActions[slot]);
+    const auto factory = mg::Decode(model.actions[slot]);
     if (!factory)
       continue;
     if (count >= keys.size())
@@ -294,25 +306,27 @@ bool InstallMap(const std::array<std::uint16_t, mg::kSlots> &assigned) {
     keys[count++] = {factory, assigned[slot]};
   }
   const auto token =
-      halljoy::layout_identity::Token("irok-mg75-pro", "MG75PRO-1CA5-0807");
-  if (count != 81 ||
-      !halljoy::native_layout::Publish(token, keys.data(), count))
+      halljoy::layout_identity::Token("irok-mg75-pro", model.identity);
+  if (count != model.count ||
+      (token && !halljoy::native_layout::Publish(token, keys.data(), count)))
     return false;
   g_token.store(token);
+  g_mapped.store(static_cast<unsigned>(count));
   return true;
 }
-bool Map(Session &s) {
-  std::array<std::uint16_t, mg::kSlots> assigned{};
+bool ReadMap(Session &s, const jt::Model& model,
+             std::array<std::uint16_t, mg::kSlots>& assigned) {
   std::size_t slot = 0;
   while (slot < mg::kSlots) {
     mg::Keys keys{};
     std::array<std::size_t, 14> slots{};
     std::size_t count = 0;
     for (; slot < mg::kSlots && count < keys.size(); ++slot) {
-      if (!mg::kFactoryActions[slot])
+      if (!model.actions[slot])
         continue;
       slots[count] = slot;
-      keys[count++] = mg::Selector(slot);
+      keys[count++] = model.actions[slot] == 0xf001 ? 1 :
+          static_cast<std::uint8_t>(model.actions[slot]);
     }
     if (!count)
       break;
@@ -323,15 +337,20 @@ bool Map(Session &s) {
     for (std::size_t i = 0; i < count; ++i)
       assigned[slots[i]] = values[i];
   }
-  return InstallMap(assigned);
+  return true;
 }
-void Publish(unsigned half, const mg::Values &values, std::uint64_t now) {
+bool Map(Session &s, const jt::Model& model) {
+  std::array<std::uint16_t, mg::kSlots> assigned{};
+  return ReadMap(s,model,assigned) && InstallMap(assigned,model);
+}
+void Publish(unsigned half, const mg::Values &values, std::uint64_t now,
+             const jt::Model& model = kLegacyModel) {
   for (std::size_t i = 0; i < values.size(); ++i) {
     const auto slot = (half - 1) * 63 + i;
-    if (!mg::kFactoryActions[slot])
+    if (!model.actions[slot])
       continue;
     const auto id = static_cast<std::uint8_t>(slot + 1);
-    const auto value = mg::Normalize(values[i]);
+    const auto value = mg::Normalize(values[i],model.range);
     g_factory.Publish(id, value, now);
     g_assigned.Publish(id, value, now);
   }
@@ -342,8 +361,8 @@ bool Run(const Candidate &c) {
   Clear();
   Session s(c);
   const char *phase = "open";
-  const bool ready = s.Open() && (phase = "identity proof", Proof(s)) &&
-                     (phase = "assignments", Map(s));
+  const bool ready = s.Open() && (phase = "identity proof", Proof(s,*c.model)) &&
+                     (phase = "assignments", Map(s,*c.model));
   if (!ready) {
     ++g_bad;
     DebugLog_Write(L"[irok.mg75pro] admission failed phase=%hs error=%lu",
@@ -351,7 +370,7 @@ bool Run(const Candidate &c) {
     Clear();
     return false;
   }
-  if (!NativeAnalogRouting_Claim(mg::kVendorId, mg::kProductId, c.path.c_str(),
+  if (!NativeAnalogRouting_Claim(c.attributes.VendorID, c.attributes.ProductID, c.path.c_str(),
                                  NativeAnalogProtocol::IrokMg75Pro) &&
       !NativeAnalogRouting_IsClaimedBy(c.path.c_str(),
                                        NativeAnalogProtocol::IrokMg75Pro)) {
@@ -359,10 +378,11 @@ bool Run(const Candidate &c) {
     return false;
   }
   g_present.store(true);
+  g_vid.store(c.attributes.VendorID); g_pid.store(c.attributes.ProductID); g_range.store(c.model->range);
   g_connected.store(true);
-  DebugLog_Write(L"[irok.mg75pro] connected path_hash=%016llX mapped=81 "
-                 L"range_um=3500 experimental=1 reads=2B,23,12 calibration=0",
-                 static_cast<unsigned long long>(HashPath(c.path)));
+  DebugLog_Write(L"[irok.mg75pro] connected path_hash=%016llX model=%ls mapped=%u "
+                 L"range_um=%u experimental=1 calibration=0",
+                 static_cast<unsigned long long>(HashPath(c.path)),c.model->name,c.model->count,c.model->range);
   auto logAt = GetTickCount64() + 5000;
   auto last = GetTickCount64();
   unsigned half = 1;
@@ -374,7 +394,7 @@ bool Run(const Candidate &c) {
       break;
     }
     const auto now = GetTickCount64();
-    Publish(half, values, now);
+    Publish(half, values, now,*c.model);
     const auto us = static_cast<std::uint32_t>(
         std::min<ULONGLONG>(0xffffffffull, (now - last) * 1000));
     last = now;
@@ -439,10 +459,11 @@ bool Prepare() {
                                          NativeAnalogProtocol::IrokMg75Pro))
       continue;
     Session s(c);
-    if (!s.Open() || !Proof(s))
+    std::array<std::uint16_t,mg::kSlots> assigned{};
+    if (!s.Open() || !Proof(s,*c.model) || !ReadMap(s,*c.model,assigned))
       continue;
     any =
-        NativeAnalogRouting_Claim(mg::kVendorId, mg::kProductId, c.path.c_str(),
+        NativeAnalogRouting_Claim(c.attributes.VendorID, c.attributes.ProductID, c.path.c_str(),
                                   NativeAnalogProtocol::IrokMg75Pro) ||
         any;
   }
@@ -519,13 +540,13 @@ void Telemetry(NativeAnalogBackendTelemetry *out) {
   out->present = Present();
   out->connected = Connected();
   out->verifiedLayoutToken = Connected() ? g_token.load() : 0;
-  out->vendorId = mg::kVendorId;
-  out->productId = mg::kProductId;
+  out->vendorId = static_cast<std::uint16_t>(g_vid.load());
+  out->productId = static_cast<std::uint16_t>(g_pid.load());
   out->usagePage = mg::kUsagePage;
   out->usage = mg::kUsage;
-  out->mappedKeys = Connected() ? 81 : 0;
+  out->mappedKeys = Connected() ? g_mapped.load() : 0;
   out->activeKeys = g_factory.Active(GetTickCount64());
-  out->nominalRawLevels = mg::kRange + 1;
+  out->nominalRawLevels = g_range.load() ? g_range.load()+1 : 0;
   out->inputReportBytes = 65;
   out->outputReportBytes = 65;
   out->successfulUpdates = g_ok.load();
@@ -539,7 +560,7 @@ void Telemetry(NativeAnalogBackendTelemetry *out) {
                                 0xffffffffull, now - last))
                           : 0;
   _snwprintf_s(out->status, _countof(out->status), _TRUNCATE,
-               L"MG75 Pro experimental: independent 6x21 travel, fixed 3.5 mm "
+               L"JingTai V1 experimental: independent 6x21 travel, model-specific "
                L"range; hardware testing pending");
 }
 } // namespace
@@ -548,7 +569,7 @@ const NativeAnalogBackendDescriptor &Mg75Pro_GetNativeBackendDescriptor() {
       kNativeAnalogBackendAbiVersion,
       sizeof(NativeAnalogBackendDescriptor),
       "irok-mg75-pro",
-      L"IROK MG75 Pro (experimental)",
+      L"JingTai V1 (experimental)",
       NativeAnalogProtocol::IrokMg75Pro,
       NativeAnalogStartPhase::BeforeUap,
       NativeAnalogBackendFlag_PolledTransport |
@@ -582,6 +603,25 @@ bool Mg75Pro_TestPublication(int *line) {
       halljoy::native_layout::activeToken.store(token);
     }
   } reset;
+  // Test every production map and missing-preset fallback without HID I/O.
+  const auto checkModel = [&](const jt::Model& model) {
+    Clear();
+    std::array<std::uint16_t, mg::kSlots> assigned{};
+    for (std::size_t i=0;i<assigned.size();++i)
+      assigned[i]=mg::Decode(model.actions[i]);
+    if (!InstallMap(assigned,model) || g_mapped.load()!=model.count) return false;
+    g_connected.store(true);
+    halljoy::native_layout::enabled.store(false);
+    mg::Values full{}; full.fill(static_cast<std::uint16_t>(model.range));
+    const auto time=GetTickCount64();
+    Publish(1,full,time,model); Publish(2,full,time,model);
+    for (const auto hid:assigned) if (hid && Get(hid)!=1000) return false;
+    return true;
+  };
+  for (const auto& identity:jt::identities)
+    if (!checkModel(*identity.model)) return fail(__LINE__);
+  auto manual=jt::model_K; manual.identity="TEST-NO-VISUAL-PRESET";
+  if (!checkModel(manual) || g_token.load()!=0) return fail(__LINE__);
   Clear();
   std::array<std::uint16_t, mg::kSlots> map{};
   for (std::size_t i = 0; i < map.size(); ++i)

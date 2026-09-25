@@ -35,7 +35,7 @@ def main() -> int:
             "pluginHostDenseDeviceCount > 0" in timer_ui,
             "UI derives connected status from HallJoy native/UAP telemetry")
     require("Backend_IsRuntimeAdmissionOpen" in timer_ui and
-            "searchCompleted && (!supportStatus.analogSourceConnected || supportStatus.frozenModels != 0)" in page,
+            "searchCompleted && (!supportStatus.analogSourceConnected || supportStatus.frozenModels != 0 || supportStatus.communicationWarning)" in page,
             "banner stays hidden until the engine startup generation has completed")
     require("WM_APP_ANALOG_SOURCE_STATUS_CHANGED" in timer_ui and
             "WM_APP_ANALOG_SOURCE_STATUS_CHANGED" in page,

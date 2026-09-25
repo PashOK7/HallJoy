@@ -146,6 +146,20 @@
           "products": [
             "7272BRHEXYXK673JCARGB"
           ]
+        },
+        {
+          "adapter": "reviewed-report",
+          "id": "redragon_k617_he_ansi",
+          "brand": "Redragon",
+          "model": "K617 HE",
+          "variant": "ANSI",
+          "count": 61,
+          "source": "docs/research/neo-k617-layouts/redragon_k617_he_ansi.json",
+          "sha256": "f7f7042ba8001204a5669000a904ebbabf6e8817bbe95d8650843417b7cd6f3f",
+          "products": [
+            "7153USHEXYXCPARGB"
+          ],
+          "url": ""
         }
       ],
       "pending": []
@@ -594,6 +608,59 @@
           "sha256": "836d55fe2223b59f1beed77de355279b2f3db6cd28f08ee1c5b828d0f769ff7d",
           "products": [
             "MG75PRO-1CA5-0807"
+          ],
+          "url": ""
+        },
+        {
+          "id": "irok_mercury68_ansi",
+          "brand": "IROK",
+          "model": "Mercury68",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/jingtai-layouts/irok_mercury68_ansi.json",
+          "sha256": "d5db948ca7cf0d8667d3ac2ddf1795e0d595919e941661cd543940258db960fe",
+          "products": [
+            "JT1-IE"
+          ],
+          "url": ""
+        },
+        {
+          "id": "irok_mercury68_pro_ansi",
+          "brand": "IROK",
+          "model": "Mercury68 Pro",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/jingtai-layouts/irok_mercury68_pro_ansi.json",
+          "sha256": "a0fe1ea5ab546d00906449ac5b3e624c229809b3d41fa4399a310b93e455eead",
+          "products": [
+            "JT1-TE"
+          ],
+          "url": ""
+        },
+        {
+          "id": "irok_na87_pro_ansi",
+          "brand": "IROK",
+          "model": "NA87 Pro",
+          "variant": "ANSI",
+          "count": 87,
+          "source": "docs/research/jingtai-layouts/irok_na87_pro_ansi.json",
+          "sha256": "b45636d3e304f2d45e461b90a264778db000a1c540542a8fc308c894c52ca7bd",
+          "products": [
+            "JT1-K"
+          ],
+          "url": ""
+        },
+        {
+          "id": "irok_nd63_ansi",
+          "brand": "IROK",
+          "model": "ND63",
+          "variant": "ANSI",
+          "count": 64,
+          "source": "docs/research/jingtai-layouts/irok_nd63_ansi.json",
+          "sha256": "4be88b05df6431785dc8106054e21ba4012dfa9873229056ba3657a7684f1900",
+          "products": [
+            "JT1-WE",
+            "JT1-WE-CYAN"
           ],
           "url": ""
         }
@@ -1052,6 +1119,49 @@
             "G84HE-2959"
           ],
           "url": ""
+        },
+        {
+          "id": "ry_layout_2376",
+          "brand": "EPOMAKER",
+          "model": "HE65 Mag",
+          "variant": "ANSI",
+          "count": 66,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2376.json",
+          "sha256": "7416b70771f1761ae998c7d6fe371788a2fea7839ebe026a1c5b1e098b439155",
+          "products": [
+            "RY1B-2376"
+          ],
+          "url": ""
+        },
+        {
+          "id": "ry_layout_2761",
+          "brand": "EPOMAKER",
+          "model": "HE68 Lite",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2761.json",
+          "sha256": "c4b957bdae59b0806231d92ac2c92342bc721b5c98a730f7d03c31ebe7e95f4c",
+          "products": [
+            "RY1B-2761",
+            "RY1B-2762",
+            "RY1B-2883"
+          ],
+          "url": ""
+        },
+        {
+          "id": "ry_layout_3727",
+          "brand": "EPOMAKER",
+          "model": "HE60 Lite + HE60 Wired",
+          "variant": "ANSI",
+          "count": 61,
+          "source": "docs/research/rongyuan-layouts/ry_layout_3727.json",
+          "sha256": "b2f6c5f6e07d7b589d7033b675273958b093e0066a0d8ae9d74c4e5aca276d25",
+          "products": [
+            "RY1B-3727",
+            "RY1B-3746",
+            "RY1B-3759"
+          ],
+          "url": ""
         }
       ]
     },
@@ -1070,6 +1180,638 @@
           "sha256": "0c73562890b4c57d2d584fa87bb362346ced7eec129028412d10b464ac8fc820",
           "products": [
             "M1V5HE-2819"
+          ],
+          "url": ""
+        },
+        {
+          "id": "monsgeek_m1_v5_tmr_ansi",
+          "model": "M1 V5 TMR",
+          "brand": "MonsGeek",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/rongyuan-stream/monsgeek_m1_v5_tmr_ansi.json",
+          "sha256": "196db93e6eb6c66d5ed3b9cff68066397276cb96a462dba935ccbe67f8e1483b",
+          "products": [
+            "RY1B-2949"
+          ],
+          "url": ""
+        },
+        {
+          "id": "ry_layout_2811",
+          "brand": "MonsGeek",
+          "model": "FUN68 HE",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2811.json",
+          "sha256": "169084b4723eae75ebab708454e04dd8a908ebf794fada32c8d5726bfceb2099",
+          "products": [
+            "RY1B-2811"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "GamaKay": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/RESEARCH_STREAM_INTEGRATION_2026-09-24.md",
+      "models": [
+        {
+          "id": "gamakay_tk75_tmr_ansi",
+          "model": "TK75 TMR",
+          "brand": "GamaKay",
+          "variant": "ANSI",
+          "count": 81,
+          "source": "docs/research/rongyuan-stream/gamakay_tk75_tmr_ansi.json",
+          "sha256": "9747e0f6ac2fee55f0fbd13ff2dce2021761dfd58cb2b331bafbe8896576a739",
+          "products": [
+            "RY1B-3590"
+          ],
+          "url": ""
+        },
+        {
+          "id": "gamakay_tk75_tmr_iso",
+          "model": "TK75 TMR",
+          "brand": "GamaKay",
+          "variant": "ISO",
+          "count": 82,
+          "source": "docs/research/rongyuan-stream/gamakay_tk75_tmr_iso.json",
+          "sha256": "2645c5aec1da90ec7a5dae44cc17b4d099df9d8edf795b606928e7ba0a96426d",
+          "products": [
+            "RY1B-3591"
+          ],
+          "url": ""
+        },
+        {
+          "id": "ry_layout_2334",
+          "brand": "GamaKay",
+          "model": "TK75 HE",
+          "variant": "ANSI",
+          "count": 81,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2334.json",
+          "sha256": "3dece9bfca1aae7818c278af50e41db977f8cf9b29fc1552e914cd89bcca9342",
+          "products": [
+            "RY1B-2334",
+            "RY1B-2501"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "IYX": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/LAYOUT_EASY_BATCH_2026-09-24.md",
+      "models": [
+        {
+          "id": "iyx_mu68_pro_ansi",
+          "brand": "IYX",
+          "model": "MU68 Pro",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/jingtai-layouts/iyx_mu68_pro_ansi.json",
+          "sha256": "9df843ee1ee5a8ea34bc901c9bd27cba71a47f063f8680bba4f5e8e88358c5cd",
+          "products": [
+            "JT1-LE",
+            "JT1-LE-CYAN"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "AJAZZ": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_2255",
+          "brand": "AJAZZ",
+          "model": "AK680 MAX HE + ALUX68 AIR + ALUX68 PRO",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2255.json",
+          "sha256": "5d1870593a3811257c13faee6a9fa40346d57822721e77bf6f96dbde7045c274",
+          "products": [
+            "RY1B-2255",
+            "RY1B-2336",
+            "RY1B-2343",
+            "RY1B-2371",
+            "RY1B-2592",
+            "RY1B-2593",
+            "RY1B-2599",
+            "RY1B-3025"
+          ],
+          "url": ""
+        },
+        {
+          "id": "ry_layout_2621",
+          "brand": "AJAZZ",
+          "model": "ALUX60",
+          "variant": "ANSI",
+          "count": 61,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2621.json",
+          "sha256": "9b96e889094ed494c2a4a86b00fcd556cfbedc420f7505ad4a9afa891020ee0c",
+          "products": [
+            "RY1B-2621",
+            "RY1B-2622",
+            "RY1B-3218"
+          ],
+          "url": ""
+        },
+        {
+          "id": "ry_layout_2746",
+          "brand": "AJAZZ",
+          "model": "NS67 + NS67 PRO",
+          "variant": "ANSI",
+          "count": 67,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2746.json",
+          "sha256": "d27b35d03673024a249fa4cade44b66b946d94891851cfde373209611e0fdc8a",
+          "products": [
+            "RY1B-2746",
+            "RY1B-2810"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "Rampage": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_2310",
+          "brand": "Rampage",
+          "model": "ZENITH PRO",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2310.json",
+          "sha256": "12940662e49b7b693ec3cb10c133a7a3de208f1d77a35369ff16d6ef7076e10e",
+          "products": [
+            "RY1B-2310"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "MAMBASNAKE": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_2335",
+          "brand": "MAMBASNAKE",
+          "model": "M82 HE",
+          "variant": "ANSI",
+          "count": 83,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2335.json",
+          "sha256": "9595b7d22c14ba2cd0dfb59aa807408b06405839161819db72e3f299967457a6",
+          "products": [
+            "RY1B-2335"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "MICROPACK": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_2546",
+          "brand": "MICROPACK",
+          "model": "K-68M",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2546.json",
+          "sha256": "439243caedf7675507e8299c4fcb2c2175c63ba5bb84143acc782c99823de6db",
+          "products": [
+            "RY1B-2546"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "Skyloong": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_2674",
+          "brand": "Skyloong",
+          "model": "GK61 HE",
+          "variant": "ANSI",
+          "count": 61,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2674.json",
+          "sha256": "5dcc5452dda3e50bcdc79ac8bb9030cfa07895b931de7e92e9474e93ca51737c",
+          "products": [
+            "RY1B-2674"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "Akko": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_2683",
+          "brand": "Akko",
+          "model": "MOD007B V3 HE + MOD007S V3 HE",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2683.json",
+          "sha256": "47cd6b6ab7c97cb23fdb34667cb3777164b230434b8be0bb1c03e36d3d99543a",
+          "products": [
+            "RY1B-2683",
+            "RY1B-2871"
+          ],
+          "url": ""
+        },
+        {
+          "id": "ry_layout_2743",
+          "brand": "Akko",
+          "model": "Ray68 HE",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2743.json",
+          "sha256": "4fa310802d7e82bff29ff0cb2cb03a7aab3d459be1baeb6e689487d02d516b57",
+          "products": [
+            "RY1B-2743",
+            "RY1B-2924"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "FL ESPORTS": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_2703",
+          "brand": "FL ESPORTS",
+          "model": "MK870 HE + X80 HE",
+          "variant": "ANSI",
+          "count": 87,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2703.json",
+          "sha256": "5eb52e964b77108bb9c834daf106670046d187318f5dbe4580a17b4059e6742c",
+          "products": [
+            "RY1B-2703",
+            "RY1B-2988",
+            "RY1B-3335"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "Fury": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_2763",
+          "brand": "Fury",
+          "model": "Kanabo K6",
+          "variant": "ANSI",
+          "count": 87,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2763.json",
+          "sha256": "18eea33218b4479f94b9c94931d76188b572b14af3aa957755f0d0f5a0534123",
+          "products": [
+            "RY1B-2763"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "XINMENG": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_2770",
+          "brand": "XINMENG",
+          "model": "Beat75",
+          "variant": "ANSI",
+          "count": 81,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2770.json",
+          "sha256": "ebc93d06565757420b6ba1dab549b7d47d21fabac44bc3eccf82484db5e68511",
+          "products": [
+            "RY1B-2770",
+            "RY1B-2797"
+          ],
+          "url": ""
+        },
+        {
+          "id": "ry_layout_3486",
+          "brand": "XINMENG",
+          "model": "X87 TMR",
+          "variant": "ANSI",
+          "count": 87,
+          "source": "docs/research/rongyuan-layouts/ry_layout_3486.json",
+          "sha256": "e305ea9d02bbd7bb8ceae083cf4fd15bcce1e3fffdf5eab3a918730133e77a2f",
+          "products": [
+            "RY1B-3486"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "Sunsonny": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_2780",
+          "brand": "Sunsonny",
+          "model": "N-J100",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2780.json",
+          "sha256": "a5aac870306b3a4261bbbc9c2c36bc803a4096b5afd73d3a0131f8c2a1360275",
+          "products": [
+            "RY1B-2780",
+            "RY1B-3294"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "EWEADN": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_2799",
+          "brand": "EWEADN",
+          "model": "SEEK75",
+          "variant": "ANSI",
+          "count": 81,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2799.json",
+          "sha256": "d1df4290094989d8965e9b0fa5901bb5d1021c3f46423ff2dc55937edc833271",
+          "products": [
+            "RY1B-2799"
+          ],
+          "url": ""
+        },
+        {
+          "id": "ry_layout_3011",
+          "brand": "EWEADN",
+          "model": "ZAP87 HE",
+          "variant": "ANSI",
+          "count": 87,
+          "source": "docs/research/rongyuan-layouts/ry_layout_3011.json",
+          "sha256": "d5a362f84b6ad05d07f8756958e2bc630dca9da033149a038213b641bd42dcdb",
+          "products": [
+            "RY1B-3011"
+          ],
+          "url": ""
+        },
+        {
+          "id": "ry_layout_3225",
+          "brand": "EWEADN",
+          "model": "ZAP68 SE",
+          "variant": "ANSI",
+          "count": 67,
+          "source": "docs/research/rongyuan-layouts/ry_layout_3225.json",
+          "sha256": "4241d9d153dc46543194261c4f09f9c540ad036e7638dfeb1bab85d39c818048",
+          "products": [
+            "RY1B-3225"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "GamePro": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_2930",
+          "brand": "GamePro",
+          "model": "MK160B MAX",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2930.json",
+          "sha256": "0da3929557a0264e0d6980021fa75ebe59902598076e3036a1bc545fbdfd912b",
+          "products": [
+            "RY1B-2930"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "SAVIO": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_3151",
+          "brand": "SAVIO",
+          "model": "ASTRAL",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/rongyuan-layouts/ry_layout_3151.json",
+          "sha256": "7a656edfea6a91faa76d7f1d0abec61dec3e9b2393d567ec3ffd27f19629110e",
+          "products": [
+            "RY1B-3151"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "Koda": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_3244",
+          "brand": "Koda",
+          "model": "A68",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/rongyuan-layouts/ry_layout_3244.json",
+          "sha256": "d809eb2caa57488b2caccd3ad362a90ba8a3cd462bd12180fdf2dc461d293e84",
+          "products": [
+            "RY1B-3244"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "Funbey": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_3291",
+          "brand": "Funbey",
+          "model": "AST V68 + Coke V68",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/rongyuan-layouts/ry_layout_3291.json",
+          "sha256": "ffec46a7261c3529e44b713f434d3ae1ebee5543e136890fa3f51ed57f83efe0",
+          "products": [
+            "RY1B-3291",
+            "RY1B-3292"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "KYSONA": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_3340",
+          "brand": "KYSONA",
+          "model": "KM82 HE",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/rongyuan-layouts/ry_layout_3340.json",
+          "sha256": "6207e02c6221969bdf447947584b822f1ebd5c88d76f8306511c4216e979d45f",
+          "products": [
+            "RY1B-3340"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "MEETION": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_3367",
+          "brand": "MEETION",
+          "model": "Magic A75",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/rongyuan-layouts/ry_layout_3367.json",
+          "sha256": "4e37a32b65389d0d04270c38965b151525d341a956266b8647c6882b477c4ee1",
+          "products": [
+            "RY1B-3367"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "ASTROMEDA": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_3389",
+          "brand": "ASTROMEDA",
+          "model": "AMGK80-001",
+          "variant": "ANSI",
+          "count": 80,
+          "source": "docs/research/rongyuan-layouts/ry_layout_3389.json",
+          "sha256": "af9a81faa795c8e996ad4840b9fcfb3c7a8eeea1b81dfa9c26bfd52c28e0bdf8",
+          "products": [
+            "RY1B-3389",
+            "RY1B-3536"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "UluGames": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_3403",
+          "brand": "UluGames",
+          "model": "Howl 75",
+          "variant": "ANSI",
+          "count": 81,
+          "source": "docs/research/rongyuan-layouts/ry_layout_3403.json",
+          "sha256": "f1ed4ea5c0221a40fc491d0fa8ee458eae810eab603102a75beefd9f0e8b8a3a",
+          "products": [
+            "RY1B-3403",
+            "RY1B-3437"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "ATWO": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_3475",
+          "brand": "ATWO",
+          "model": "GK7 MX",
+          "variant": "ANSI",
+          "count": 87,
+          "source": "docs/research/rongyuan-layouts/ry_layout_3475.json",
+          "sha256": "bec08887491576a9a4539a501c83fd9912528832111fcf5b3cc856d33c83c8ee",
+          "products": [
+            "RY1B-3475"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "Womier": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_3708",
+          "brand": "Womier",
+          "model": "SK61 HE",
+          "variant": "ANSI",
+          "count": 61,
+          "source": "docs/research/rongyuan-layouts/ry_layout_3708.json",
+          "sha256": "4fcb3ea59933066b1f0897f6f8527e4e08d4171dac023af9e1ff5a833ce01d1d",
+          "products": [
+            "RY1B-3708"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "Neo": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "adapter": "reviewed-report",
+          "id": "neo65_sonic_he_ansi",
+          "brand": "Neo",
+          "model": "Neo65 Sonic HE+",
+          "variant": "ANSI",
+          "count": 67,
+          "source": "docs/research/neo-k617-layouts/neo65_sonic_he_ansi.json",
+          "sha256": "5e2a915c68b79f79b8be67d9c02628068ce2d8c6169c8c5cc0261c222f0b5bc2",
+          "products": [
+            "ANSI"
           ],
           "url": ""
         }

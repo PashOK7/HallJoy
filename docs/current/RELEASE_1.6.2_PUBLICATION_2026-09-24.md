@@ -34,3 +34,8 @@ Source excludes generated outputs, credentials, private Pwnage correspondence
 and device backups. Vendor protocol/layout snapshots retain exact hash-locked
 bytes, including original whitespace. Project changes pass whitespace review
 with CRLF allowed. No new physical keyboard tests claimed.
+
+Release title corrected after owner feedback to match existing releases:
+`v1.6.2: R85 HE and AJAZZ support, layout fixes`. Read back on GitHub.
+Future releases must follow `vX.Y.Z: concise change summary`; inspect previous
+titles before publishing. Tag, assets and release notes unchanged.

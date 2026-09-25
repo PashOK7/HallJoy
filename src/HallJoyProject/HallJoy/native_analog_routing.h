@@ -25,6 +25,9 @@ enum class NativeAnalogProtocol : std::uint8_t
     KeychronOnboard = 19,
     ChilkeySlice75 = 20,
     RongYuanSnapshot = 21,
+    RongYuanStream = 22,
+    TartarusPro = 23,
+    Neo65 = 24,
     Simulator = 250,
 };
 

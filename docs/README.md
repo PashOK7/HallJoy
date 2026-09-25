@@ -1,3 +1,47 @@
+> Latest release preparation: [1.6.3](current/RELEASE_1.6.3_PUBLICATION_2026-09-25.md).
+
+> Identity compatibility: [cross-catalog USB audit](current/USB_IDENTITY_AUDIT_2026-09-24.md), exact aliases and held conflicts.
+
+> General runtime advisory: [keyboard communication warning](current/KEYBOARD_COMMUNICATION_WARNING_2026-09-24.md). Inferred anomalies, not process detection.
+
+> Active tester investigation: [R68 HE log32: detected, periodic identity check fails](current/ATTACK_SHARK_R68_PRELOG_2026-09-24.md). Support status unchanged.
+
+> Full yellow-catalog layout pass: [41 models /26 brands and remaining gaps](current/ALL_YELLOW_LAYOUTS_2026-09-24.md). All251 models reconciled; no protocol-status changes.
+
+> Current layout scope: [easy batch and startup fix](current/LAYOUT_EASY_BATCH_2026-09-24.md). Five exact JingTai presets; difficult geometry deliberately deferred.
+
+> Current omission: [visual layouts missing from recent protocol batches](current/LAYOUT_EXPANSION_GAP_2026-09-24.md). Analog support and visual preset coverage must be reconciled separately.
+
+> Latest protocol batch: [JingTai V1: five models](current/JINGTAI_V1_EXPANSION_2026-09-24.md).251 yellow models synchronized; firmware maps/ranges checked; no publication.
+
+> Latest protocol follow-up: [Game Arena integration and legacy protocol evidence](current/NEXT_PROTOCOL_REVIEW_2026-09-24.md).246 yellow models synchronized; no publication.
+
+> Latest local protocol batch: [EWEADN SparkLink:17 models /21 USB identities](current/EWEADN_SPARKLINK_BATCH_2026-09-24.md). All245 yellow models synchronized with live Sheet; native structure/base/effective colors verified. No publication.
+
+> Sheet formatting follow-up: [brand visibility and status colors](current/SHEET_PRESENTATION_FIX_2026-09-24.md). Base colors now materialized and checked alongside conditional results.
+
+> Latest local support batch: [40 new model/variant labels + six existing-model revisions, 2026-09-24](current/RONGYUAN_BATCH_7_2026-09-24.md). Whole479-record catalog reviewed and classified; live Sheet/runtime synchronized. No publication.
+
+> Latest local support batch: [11 additional models / 18 revisions, 2026-09-24](current/RONGYUAN_BATCH_6_2026-09-24.md). Live Sheet and runtime synchronized; no publication.
+
+> Batch automation: [workflow](development/KEYBOARD_BATCH_PIPELINE.md), [2026-09-24 checkpoint](current/KEYBOARD_BATCH_AUTOMATION_2026-09-24.md). Use for future reviewed RongYuan packets; model evidence and live Sheet synchronization remain required.
+
+> Latest local support batch: [7 additional models / 13 revisions, 2026-09-24](current/RONGYUAN_BATCH_5_2026-09-24.md). Live Sheet and runtime synchronized; no publication.
+
+> Latest local support batch: [14 additional models / 24 revisions, 2026-09-24](current/RONGYUAN_BATCH_4_2026-09-24.md). Live Sheet and runtime synchronized; no publication.
+
+> Latest local support batch: [22 additional models / 33 revisions, 2026-09-24](current/RONGYUAN_BATCH_3_2026-09-24.md). Live Sheet and runtime synchronized; no publication.
+
+> Latest local support batch: [21 additional models / 39 revisions, 2026-09-24](current/RONGYUAN_BATCH_2_2026-09-24.md). Live Sheet and runtime synchronized; no publication.
+
+- [RongYuan batch: 17 additional models](current/RONGYUAN_BATCH_2026-09-24.md): exact profiles, validation, live Sheet structure and deferred candidates.
+
+- [Neo65, K617 and protocol-family expansion](current/NEO65_AND_PROTOCOL_EXPANSION_2026-09-24.md): local integrations, Ace60 activation finding and OEM catalogs.
+
+- [Local Tartarus Pro integration](current/TARTARUS_PRO_INTEGRATION_2026-09-24.md): passive analog stream through Synapse, unreleased.
+
+- [Local RongYuan stream integrations](current/RESEARCH_STREAM_INTEGRATION_2026-09-24.md): 17 new experimental models, not yet published.
+
 # HallJoy documentation
 
 Start with [owner decisions](current/OWNER_CONTEXT.md), then the current documents

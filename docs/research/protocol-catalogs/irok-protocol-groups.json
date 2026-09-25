@@ -1,0 +1,391 @@
+{
+  "source": "https://hid.irok.cn/assets/index-D22onkw6.js",
+  "sha256": "e9aebf1b6c1c452d1be8d9481e2838fcc26c0820ba648dd2fff3f617839e37aa",
+  "scope": "Explicit official IROK/RongYuan/JingTai groups, not an exhaustive SparkLink global customer list. Receivers and aliases are separate records. V1 and V2 not interchangeable.",
+  "records": [
+    {
+      "group": "RoYuanMg68",
+      "symbol": "IROKMg68Max_24g",
+      "device_key": 69546889259,
+      "vid": 12625,
+      "pid": 20523,
+      "secondary_id": 16
+    },
+    {
+      "group": "RoYuanMg68",
+      "symbol": "IROKMg68Max",
+      "device_key": 827412527,
+      "vid": 12625,
+      "pid": 20527,
+      "secondary_id": 0
+    },
+    {
+      "group": "RoYuanMg68",
+      "symbol": "IROKMg68LITE",
+      "device_key": 275705319469,
+      "vid": 12625,
+      "pid": 20525,
+      "secondary_id": 64
+    },
+    {
+      "group": "RoYuanMg68",
+      "symbol": "IROKMg68Pro",
+      "device_key": 206985842733,
+      "vid": 12625,
+      "pid": 20525,
+      "secondary_id": 48
+    },
+    {
+      "group": "RoYuanMg68",
+      "symbol": "IROKMg68SE",
+      "device_key": 138266365997,
+      "vid": 12625,
+      "pid": 20525,
+      "secondary_id": 32
+    },
+    {
+      "group": "RoYuanMg68",
+      "symbol": "IROKMg68",
+      "device_key": 69546889261,
+      "vid": 12625,
+      "pid": 20525,
+      "secondary_id": 16
+    },
+    {
+      "group": "RoYuanMg68",
+      "symbol": "IROKMG68ACE",
+      "device_key": 344424796201,
+      "vid": 12625,
+      "pid": 20521,
+      "secondary_id": 80
+    },
+    {
+      "group": "RoYuanMg68",
+      "symbol": "IROKMG68ACE_UpPlus",
+      "device_key": 348719763497,
+      "vid": 12625,
+      "pid": 20521,
+      "secondary_id": 81
+    },
+    {
+      "group": "RoYuanMg68",
+      "symbol": "IROKMG68ACE_W",
+      "device_key": 348719763504,
+      "vid": 12625,
+      "pid": 20528,
+      "secondary_id": 81
+    },
+    {
+      "group": "RoYuanMg68",
+      "symbol": "IROKMG68ACE_W_24g",
+      "device_key": 353014730808,
+      "vid": 12625,
+      "pid": 20536,
+      "secondary_id": 82
+    },
+    {
+      "group": "RoYuanMars68",
+      "symbol": "CarotmasMars68Pro",
+      "device_key": 206985842729,
+      "vid": 12625,
+      "pid": 20521,
+      "secondary_id": 48
+    },
+    {
+      "group": "RoYuanMars68",
+      "symbol": "CarotmasMars68Pro_Wireless",
+      "device_key": 827412528,
+      "vid": 12625,
+      "pid": 20528,
+      "secondary_id": 0
+    },
+    {
+      "group": "RoYuanMars68",
+      "symbol": "CarotmasMars68Pro_Wireless_24g",
+      "device_key": 827412523,
+      "vid": 12625,
+      "pid": 20523,
+      "secondary_id": 0
+    },
+    {
+      "group": "RoYuanMars68",
+      "symbol": "CarotmasMars68",
+      "device_key": 138266365993,
+      "vid": 12625,
+      "pid": 20521,
+      "secondary_id": 32
+    },
+    {
+      "group": "RoYuanMars68",
+      "symbol": "CarotmasMars68SE",
+      "device_key": 69546889257,
+      "vid": 12625,
+      "pid": 20521,
+      "secondary_id": 16
+    },
+    {
+      "group": "RoYuanMars68",
+      "symbol": "CarotmasMars68_Wireless",
+      "device_key": 275705319472,
+      "vid": 12625,
+      "pid": 20528,
+      "secondary_id": 64
+    },
+    {
+      "group": "RoYuanMars68",
+      "symbol": "CarotmasMars68_Wireless_24g",
+      "device_key": 827412518,
+      "vid": 12625,
+      "pid": 20518,
+      "secondary_id": 0
+    },
+    {
+      "group": "RoYuanMonsGeek",
+      "symbol": "MonsGeek",
+      "device_key": 827412525,
+      "vid": 12625,
+      "pid": 20525,
+      "secondary_id": 0
+    },
+    {
+      "group": "RoYuanMonsGeek",
+      "symbol": "MonsGeek_NoLight",
+      "device_key": 827412526,
+      "vid": 12625,
+      "pid": 20526,
+      "secondary_id": 0
+    },
+    {
+      "group": "RoYuanMonsGeek",
+      "symbol": "MonsGeek_NoLight_24g",
+      "device_key": 827408401,
+      "vid": 12625,
+      "pid": 16401,
+      "secondary_id": 0
+    },
+    {
+      "group": "RoYuanMer68",
+      "symbol": "CarotmasMer68SE",
+      "device_key": 275705319465,
+      "vid": 12625,
+      "pid": 20521,
+      "secondary_id": 64
+    },
+    {
+      "group": "RoYuanMer68",
+      "symbol": "CarotmasMer68Lite",
+      "device_key": 280000286761,
+      "vid": 12625,
+      "pid": 20521,
+      "secondary_id": 65
+    },
+    {
+      "group": "RoYuanND68",
+      "symbol": "IROKND68",
+      "device_key": 827412521,
+      "vid": 12625,
+      "pid": 20521,
+      "secondary_id": 0
+    },
+    {
+      "group": "RoYuanND63",
+      "symbol": "IROKND63Max",
+      "device_key": 413144272941,
+      "vid": 12625,
+      "pid": 20525,
+      "secondary_id": 96
+    },
+    {
+      "group": "RoYuan24G",
+      "symbol": "IROKMg68Max_24g",
+      "device_key": 69546889259,
+      "vid": 12625,
+      "pid": 20523,
+      "secondary_id": 16
+    },
+    {
+      "group": "RoYuan24G",
+      "symbol": "CarotmasMars68Pro_Wireless_24g",
+      "device_key": 827412523,
+      "vid": 12625,
+      "pid": 20523,
+      "secondary_id": 0
+    },
+    {
+      "group": "RoYuan24G",
+      "symbol": "CarotmasMars68_Wireless_24g",
+      "device_key": 827412518,
+      "vid": 12625,
+      "pid": 20518,
+      "secondary_id": 0
+    },
+    {
+      "group": "RoYuan24G",
+      "symbol": "IROKMG68ACE_W_24g",
+      "device_key": 353014730808,
+      "vid": 12625,
+      "pid": 20536,
+      "secondary_id": 82
+    },
+    {
+      "group": "JingTaiMg75",
+      "symbol": "IROKMg75",
+      "device_key": 69200054279,
+      "vid": 7333,
+      "pid": 2055,
+      "secondary_id": 16
+    },
+    {
+      "group": "JingTaiMg75",
+      "symbol": "IROKMg75PRO",
+      "device_key": 137919531015,
+      "vid": 7333,
+      "pid": 2055,
+      "secondary_id": 32
+    },
+    {
+      "group": "JingTaiMer68",
+      "symbol": "CarotmasMer68",
+      "device_key": 69200054278,
+      "vid": 7333,
+      "pid": 2054,
+      "secondary_id": 16
+    },
+    {
+      "group": "JingTaiMer68",
+      "symbol": "CarotmasMer68Pro",
+      "device_key": 73495021574,
+      "vid": 7333,
+      "pid": 2054,
+      "secondary_id": 17
+    },
+    {
+      "group": "JingTaiV1Base",
+      "symbol": "IROKNa87Pro",
+      "device_key": 137913953928,
+      "vid": 7247,
+      "pid": 61064,
+      "secondary_id": 32
+    },
+    {
+      "group": "JingTaiV1Base",
+      "symbol": "IYXMu68Pro",
+      "device_key": 69194477192,
+      "vid": 7247,
+      "pid": 61064,
+      "secondary_id": 16
+    },
+    {
+      "group": "JingTaiV1Base",
+      "symbol": "IYXMu68Pro_cyan",
+      "device_key": 73489444488,
+      "vid": 7247,
+      "pid": 61064,
+      "secondary_id": 17
+    },
+    {
+      "group": "JingTaiV1Base",
+      "symbol": "IYXMu68_ULTRA",
+      "device_key": 77784411784,
+      "vid": 7247,
+      "pid": 61064,
+      "secondary_id": 18
+    },
+    {
+      "group": "JingTaiV1Base",
+      "symbol": "IROKNd63",
+      "device_key": 206633430664,
+      "vid": 7247,
+      "pid": 61064,
+      "secondary_id": 48
+    },
+    {
+      "group": "JingTaiV1Base",
+      "symbol": "IROKNd63_cyan",
+      "device_key": 210928397960,
+      "vid": 7247,
+      "pid": 61064,
+      "secondary_id": 49
+    },
+    {
+      "group": "JingTaiV1Base",
+      "symbol": "IYXPolar75",
+      "device_key": 275358351873,
+      "vid": 7331,
+      "pid": 513,
+      "secondary_id": 64
+    },
+    {
+      "group": "JingTaiV2",
+      "symbol": "IROKMg68Plus",
+      "device_key": 480642346,
+      "vid": 7334,
+      "pid": 1322,
+      "secondary_id": 0
+    },
+    {
+      "group": "JingTaiV2",
+      "symbol": "IROKMg75Max",
+      "device_key": 480642345,
+      "vid": 7334,
+      "pid": 1321,
+      "secondary_id": 0
+    },
+    {
+      "group": "JingTaiV2",
+      "symbol": "CarotmasMars75",
+      "device_key": 480642347,
+      "vid": 7334,
+      "pid": 1323,
+      "secondary_id": 0
+    },
+    {
+      "group": "JingTaiV2",
+      "symbol": "CarotmasMars75Pro",
+      "device_key": 69200119083,
+      "vid": 7334,
+      "pid": 1323,
+      "secondary_id": 16
+    },
+    {
+      "group": "JingTaiV2",
+      "symbol": "IROKND68Pro",
+      "device_key": 480642348,
+      "vid": 7334,
+      "pid": 1324,
+      "secondary_id": 0
+    },
+    {
+      "group": "JingTaiV2",
+      "symbol": "IROKND63Ultra",
+      "device_key": 480642353,
+      "vid": 7334,
+      "pid": 1329,
+      "secondary_id": 0
+    },
+    {
+      "group": "JingTaiV2",
+      "symbol": "CarotmasMer68Max",
+      "device_key": 480642349,
+      "vid": 7334,
+      "pid": 1325,
+      "secondary_id": 0
+    },
+    {
+      "group": "JingTaiV2",
+      "symbol": "CarotmasMer68SE_JT",
+      "device_key": 480642368,
+      "vid": 7334,
+      "pid": 1344,
+      "secondary_id": 0
+    },
+    {
+      "group": "JingTaiV2",
+      "symbol": "IROKRA68",
+      "device_key": 480642344,
+      "vid": 7334,
+      "pid": 1320,
+      "secondary_id": 0
+    }
+  ]
+}

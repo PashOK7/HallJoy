@@ -1,4 +1,4 @@
-> Latest release preparation: [1.6.3](current/RELEASE_1.6.3_PUBLICATION_2026-09-25.md).
+> Latest published release: [1.6.3](current/RELEASE_1.6.3_PUBLICATION_2026-09-25.md).
 
 > Identity compatibility: [cross-catalog USB audit](current/USB_IDENTITY_AUDIT_2026-09-24.md), exact aliases and held conflicts.
 

@@ -1,4 +1,4 @@
-# HallJoy 1.6.3 release preparation — 2026-09-25
+# HallJoy 1.6.3 publication — 2026-09-25
 
 Owner authorized publication of all accumulated changes, with local Windows
 validation and no hosted Windows run. Version1.6.3.0; compact five-item notes,
@@ -25,4 +25,12 @@ Assets: standalone HallJoy.exe, LICENSE, THIRD_PARTY_NOTICES.md, SHA256SUMS.txt.
 No diagnostic build flags or forced logging. Source mirror excludes local output,
 node_modules, credentials, private Pwnage correspondence and generated binaries.
 Vendor research source bytes remain hash-pinned and unchanged by formatting.
-Publication verification will be appended after upload.
+Published stable/latest at2026-09-25T04:52:25Z:
+https://github.com/PashOK7/HallJoy/releases/tag/v1.6.3
+Title: v1.6.3: Expanded keyboard support and detection fixes.
+Tag/source target: a00182f6d1ccd2676fa7f50e4bbfab65e967c30f.
+Downloaded uploaded EXE matches local asset byte-for-byte; published asset digest
+and non-draft/non-prerelease metadata verified. EXE size9955328 bytes.
+GitHub run36096177012: Windows job SKIPPED as requested; portable job was still
+running at publication. Local validation passed independently.
+

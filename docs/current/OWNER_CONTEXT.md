@@ -1,3 +1,5 @@
+> 2026-09-25 PUBLISHED stable/latest1.6.3: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.3 . Source a00182f6d1ccd2676fa7f50e4bbfab65e967c30f; downloaded EXE matches local SHA25673cbc3ba203f96366eef95ae0cdd83711775718a8ab75c3192579aaabb0054c3. All accumulated local changes before this note are released. Local checks PASS; hosted Windows SKIPPED. See RELEASE_1.6.3_PUBLICATION_2026-09-25.md.
+
 > 2026-09-25 release1.6.3 authorized; all accumulated support/layout/detection changes and final README included. Fresh Sheet reconciliation251 yellow/63 green PASS, ordinary Release+6 gates and clean-source static/profile/recovery checks PASS. Publication verification: RELEASE_1.6.3_PUBLICATION_2026-09-25.md.
 
 > 2026-09-25 README: owner explicitly requested the Google Sheet link in the shared keyboard-section introduction. Added full keyboard list and support statuses link beside navigation to both support groups. This supersedes the earlier no-Sheet-link preference for this location. No publication.

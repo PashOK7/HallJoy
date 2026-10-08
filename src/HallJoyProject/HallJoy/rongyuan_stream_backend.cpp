@@ -178,6 +178,7 @@ std::vector<Candidate> Enumerate(bool log) {
 class Session {
 public:
   const mg::Model *model = nullptr;
+  unsigned board = 0; // reported by the keyboard; an alias may use another board's profile
   unsigned units = 0;
   explicit Session(const Candidate &c) : candidate(c) {}
   ~Session() {
@@ -267,6 +268,7 @@ bool Proof(Session &s) {
                [&](const auto &x) { return s.Match(x); }))
     return false;
   s.model = s.Model(r);
+  s.board = mg::Board(r);
   unsigned version = r[8] | (r[9] << 8);
   mg::Report rf{};
   // Manufacturer scaling uses the radio/controller firmware when present,
@@ -317,7 +319,7 @@ bool Map(Session &s) {
   if (token && !halljoy::native_layout::Publish(token, keys.data(), count))
     return false;
   g_token.store(token);
-  g_board.store(s.model->board);
+  g_board.store(s.board); // Telemetry resolves the model with the device's own identity.
   g_vid.store(s.VendorId());g_pid.store(s.ProductId());
   g_units.store(s.units);
   g_mapped.store(count);
@@ -358,10 +360,10 @@ bool Run(const Candidate &c) {
   }
   if(!NativeAnalogRouting_Claim(c.attributes.VendorID,c.attributes.ProductID,c.inputPath.c_str(),NativeAnalogProtocol::RongYuanStream) &&
      !NativeAnalogRouting_IsClaimedBy(c.inputPath.c_str(),NativeAnalogProtocol::RongYuanStream)) {Clear();return false;}
-  if(!s.Enable()) {++g_bad;SupportLog_Event("rongyuan.start_failed",s.model->board,SupportLog_Win32(GetLastError()));DebugLog_Write(L"[rongyuan.stream] start command failed error=%lu",GetLastError());Clear();return false;}
+  if(!s.Enable()) {++g_bad;SupportLog_Event("rongyuan.start_failed",s.board,SupportLog_Win32(GetLastError()));DebugLog_Write(L"[rongyuan.stream] start command failed error=%lu",GetLastError());Clear();return false;}
   g_present.store(true);
   g_connected.store(true);
-  SupportLog_Event("rongyuan.connected",s.model->board,SupportLog_Data(s.units));
+  SupportLog_Event("rongyuan.connected",s.board,SupportLog_Data(s.units));
   DebugLog_Write(L"[rongyuan.stream] connected board=%u keys=%u "
                  L"units_per_mm=%u experimental=1",
                  s.model->board, g_mapped.load(), s.units);

@@ -112,7 +112,7 @@ require(PAGES.count("CustomPageSurface_HandleScrollMessage") >= 12 and
         "CustomPageSurface_HandleScrollMessage" in REMAP,
         "Tester, Overlay, Global, Mouse, Configuration, and Remap must use the shared scroll controller")
 require(PAGES.count("CustomPageSurface_Present") >= 4 and
-        "CustomPageSurface_Present" in REMAP,
+        ("CustomPageSurface_Present" in REMAP or "CustomPageSurface_Paint(" in REMAP),
         "scroll-heavy settings pages must present the same retained cache viewport")
 remap_layout = section(REMAP, "static void ApplyRemapSizing", "// ---------------- Drag tick")
 require("DeferWindowPos" not in remap_layout and "SetWindowPos" not in remap_layout and
@@ -156,7 +156,7 @@ require("Profile_SaveIni(AppPaths_ActiveBindingsIni().c_str())" not in PAGE_MAIN
         PAGE_MAIN.count("KeyboardUI_SaveBindingsAfterUserChange(") >= 8 and
         REMAP.count("KeyboardUI_SaveBindingsAfterUserChange(") >= 2,
         "Remap mutation paths must use the shared binding/profile dirty transaction")
-PROFILES = (ROOT / "HallJoy" / "profiles_page.h").read_text(encoding="utf-8")
+PROFILES = (ROOT / "HallJoy" / "profiles_page.cpp").read_text(encoding="utf-8")
 require("saved automatically" in PROFILES and 'L"Undo edits"' in PROFILES and
         'L"Global profile - unsaved"' not in PAGES,
         "Profiles must explain autosave and expose edit recovery instead of the obsolete manual save UI")

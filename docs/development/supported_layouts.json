@@ -542,6 +542,21 @@
     "MCHOSE Jet 75 II ANSI"
    ],
    "shownAs": "Jet 75 II"
+  },
+  {
+   "brand": "MCHOSE",
+   "model": "Ace 68 Air (III revision)",
+   "presets": [
+    "MCHOSE Ace 68 ANSI"
+   ],
+   "shownAs": "Ace 68"
+  },
+  {
+   "brand": "WLMOUSE",
+   "model": "Ying75",
+   "presets": [
+    "WLMOUSE Ying75 ANSI"
+   ]
   }
  ]
 }

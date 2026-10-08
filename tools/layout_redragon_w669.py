@@ -1,4 +1,4 @@
-"""Reviewed iLLumiPC K673 profiles. No HID access or downloaded code execution."""
+"""Reviewed iLLumiPC K673/K686 profiles. No HID access or downloaded code execution."""
 import re
 from decimal import Decimal, ROUND_HALF_UP
 import layout_import as common
@@ -11,23 +11,29 @@ def prepare(model, root=ROOT, protocol=PROTOCOL):
     data,sha=common.read_json(path)
     common.require(sha==model['sha256'],'K673 source lock changed')
     code,code_sha=common.read_source(protocol)
-    profiles={'ANSI':('us','K673UsFactoryMap','K673Us'), 'ISO':('uk','K673UkFactoryMap','K673Uk'),
-              'ABNT2':('uk','K673BrFactoryMap','K673Br')}
-    common.require(model['variant'] in profiles,'Unreviewed K673 variant')
-    kind,factory,profile=profiles[model['variant']]
-    common.require(data['type']==kind and model['factory']==factory,'K673 variant mismatch')
+    # factory map -> (official layout type, firmware profile, variant, controls without a keyboard usage)
+    k673=((15,'RotaryKnob'),(121,'KeyFn'))
+    k686=((18,'RotaryKnob'),)
+    profiles={'K673UsFactoryMap':('us','K673Us','ANSI',k673), 'K673UkFactoryMap':('uk','K673Uk','ISO',k673),
+              'K673BrFactoryMap':('uk','K673Br','ABNT2',k673),
+              'K686UsFactoryMap':('us','K686Us','ANSI',k686), 'K686BrFactoryMap':('uk','K686Br','ISO',k686),
+              'K686UkFactoryMap':('uk','K686Uk','ISO',k686)}
+    common.require(model.get('factory') in profiles,'Unreviewed Redragon W669 profile')
+    kind,profile,variant,controls=profiles[model['factory']]
+    factory=model['factory']
+    common.require(data['type']==kind and model['variant']==variant,'K673 variant mismatch')
     for product in model['products']:
         common.require(re.search(r'if \(is\("'+re.escape(product)+r'"\)\)\s*return FactoryLayoutProfile::'+profile+r';',code),
                        'K673 product no longer supported by this profile')
     expected=factory_map(code,factory)
-    common.require(len(data['keys'])==model['count']+2,'K673 source count changed')
+    common.require(len(data['keys'])==model['count']+len(controls),'K673 source count changed')
     actual={}; usable=[]; omitted=[]
     for raw in data['keys']:
         index=int(raw['index']); hid=int(raw['hidCode'],16)
         common.require(index not in actual,'Duplicate K673 position')
         actual[index]=hid
         if not hid:
-            common.require((index,raw['code']) in ((15,'RotaryKnob'),(121,'KeyFn')),
+            common.require((index,raw['code']) in controls,
                            'Unknown non-keyboard control')
             omitted.append(dict(index=index,code=raw['code'],reason='No published keyboard HID usage'))
         else:

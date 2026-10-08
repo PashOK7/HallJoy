@@ -14,6 +14,15 @@ std::vector<Device> EnumerateDevices();
 // while its HID interfaces are still being (re)created after a mode change.
 // Metadata only: no device handle is opened.
 bool K4UsbDevicePresent();
+// HallJoy onboard firmware (HJO1) is identified from Windows metadata alone:
+// it reports USB release 0x1212 (keyboard mode) or 0x1213 (native pad mode);
+// stock firmware reports its own version. Interface paths of the HJO vendor
+// collection (FF60:0061) of every present K4 running it. No device is opened.
+std::vector<std::wstring> K4HjoVendorInterfaces();
+// True when a K4 running HJO1 was removed within `withinMs`: it is most
+// likely re-enumerating after a mode change (for example a previous HallJoy
+// exiting) and will return shortly.
+bool K4HjoRecentlyRemoved(unsigned withinMs);
 class WindowsChannel final : public Channel {
     Device device_;
     HANDLE handle_=INVALID_HANDLE_VALUE;

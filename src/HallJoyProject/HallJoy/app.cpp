@@ -11,6 +11,7 @@
 #include <windows.h>
 #include "support_log.h"
 #include "redsquare_code_probe.h"
+#include "logitech_rapid_backend.h"
 #include "irok_na87_diagnostic.h"
 #include "aula_mini60_diagnostic.h"
 #include "attackshark_pro_diagnostic.h"
@@ -36,6 +37,7 @@
 #include <cwctype>
 #include <cwchar>
 
+#include "game_profile_service.h"
 #include "app.h"
 #include "tray_window.h"
 static halljoy::tray::Window g_tray;
@@ -79,6 +81,8 @@ static halljoy::tray::Window g_tray;
 #include "hex80_backend.h"
 #include "native_analog_routing.h"
 #include "native_analog_backend_registry.h"
+#include "input_config_summary.h"
+#include "input_trace.h"
 #if defined(HALLJOY_DRUNKDEER_DIAGNOSTIC)
 #include "drunkdeer_backend.h"
 #endif
@@ -110,6 +114,19 @@ static const UINT_PTR SETTINGS_SAVE_TIMER_ID = 3;
 static const UINT SETTINGS_SAVE_TIMER_MS = 350;
 static constexpr UINT_PTR WINDOW_SAVE_TIMER_ID = 14;
 static constexpr UINT_PTR WINDOW_REFIT_TIMER_ID = 15;
+// K4 HE with HallJoy onboard firmware that appeared after the engine started
+// (or was busy then): one automatic Pause+Resume moves it to the onboard
+// route. Never the UAP fallback (docs/current/K4_ONBOARD_ONLY_2026-10-03.md).
+static constexpr UINT_PTR K4_TAKEOVER_TIMER_ID = 16;
+// A failed Resume (startup or later) falls back to Paused. HallJoy retries it
+// with a growing delay instead of staying paused until the user restarts.
+static constexpr UINT_PTR ENGINE_RESUME_RETRY_TIMER_ID = 17;
+static constexpr UINT kResumeRetryDelaysMs[] = { 1000, 2000, 4000, 8000, 15000, 30000 };
+static std::atomic<bool> g_resumeWanted{ false };
+static unsigned g_resumeRetryAttempts = 0;
+static bool g_k4TakeoverPausing = false;
+static unsigned g_k4TakeoverAttempts = 0;
+static ULONGLONG g_k4TakeoverLastMs = 0;
 static bool g_windowPlacementReady = false, g_windowMoving = false, g_windowApplying = false;
 static bool g_windowPlacementDirty = false;
 
@@ -311,7 +328,16 @@ DWORD App_ValidatePauseShortcut(unsigned slot, unsigned shortcut)
     if (!shortcut) return ERROR_SUCCESS;
     if (shortcut == Settings_GetBlockKeysHotkey()) return ERROR_ALREADY_ASSIGNED;
     if (slot != 0 && Settings_GetPauseShortcut(slot == 1 ? 2 : 1) == shortcut) return ERROR_ALREADY_ASSIGNED;
+    const auto bindings = halljoy::shortcuts::CurrentBindings();
+    for (unsigned i = 4; i < bindings.size(); ++i) // game profile commands
+        if (bindings[i] == shortcut) return ERROR_ALREADY_ASSIGNED;
     return ERROR_SUCCESS;
+}
+DWORD App_ValidateCommandShortcut(unsigned action, unsigned shortcut)
+{
+    if (!halljoy::shortcuts::Valid(shortcut)) return ERROR_INVALID_PARAMETER;
+    if (!shortcut) return ERROR_SUCCESS;
+    return ShortcutUsedByOtherCommand(shortcut, static_cast<int>(action)) ? ERROR_ALREADY_ASSIGNED : ERROR_SUCCESS;
 }
 DWORD App_BlockKeysHotkeyError() { return g_keyboardHookError; }
 
@@ -355,8 +381,12 @@ static bool ShortcutApplicable(halljoy::shortcuts::Action action)
         return state == halljoy::pause_hotkey::State::Active;
     case Action::Resume:
         return state == halljoy::pause_hotkey::State::Paused;
+    case Action::NextProfile:
+    case Action::AutoProfiles:
+        return !g_engineUiInputPassThrough.load(std::memory_order_acquire);
     default:
-        return false;
+        return halljoy::shortcuts::ProfileSlotIndex(action) >= 0 &&
+            !g_engineUiInputPassThrough.load(std::memory_order_acquire);
     }
 }
 
@@ -369,6 +399,13 @@ static void ShortcutDispatch(halljoy::shortcuts::Action action)
         // refresh, dirty marking and saving follow on the UI thread.
         Settings_SetBlockBoundKeys(!Settings_GetBlockBoundKeys());
         if (g_hMainWnd) PostMessageW(g_hMainWnd, WM_APP_BLOCK_TOGGLED, 0, 0);
+        return;
+    }
+    if (action == Action::NextProfile || action == Action::AutoProfiles ||
+        halljoy::shortcuts::ProfileSlotIndex(action) >= 0)
+    {
+        // Profile switching saves and loads files: the UI thread does it.
+        if (g_hMainWnd) PostMessageW(g_hMainWnd, WM_APP_PROFILE_SHORTCUT, static_cast<WPARAM>(action), 0);
         return;
     }
     auto pauseAction = halljoy::pause_hotkey::Action::None;
@@ -457,11 +494,14 @@ static bool SaveSettingsByActiveGlobalProfile()
         GlobalProfiles_SaveActiveToSettingsIni(AppPaths_SettingsIni().c_str());
     const bool overlaySaved = SettingsIni_SaveOverlay(AppPaths_SettingsIni().c_str());
 
-    // Active profile stores all runtime settings except layout/window.
+    // Active profile stores all runtime settings except layout/window; those
+    // are global and go to the base file (the layout was not saved at all
+    // while a named profile was active, so "Automatic layout" reverted).
     std::wstring profileSettingsPath = AppPaths_ActiveSettingsIni();
     const bool profileSaved = SettingsIni_SaveProfile(profileSettingsPath.c_str());
     const bool windowSaved = SettingsIni_SaveWindow(AppPaths_SettingsIni().c_str());
-    const bool saved = activeMarkerSaved && overlaySaved && profileSaved && windowSaved;
+    const bool layoutSaved = SettingsIni_SaveLayout(AppPaths_SettingsIni().c_str());
+    const bool saved = activeMarkerSaved && overlaySaved && profileSaved && windowSaved && layoutSaved;
     DebugLog_Write(L"[settings] save active profile done success=%d", saved ? 1 : 0);
     DebugLog_SetCheckpoint(L"ui: save settings done");
     return saved;
@@ -1189,11 +1229,22 @@ static bool EngineRuntimeReleaseBackendLeases(void*, std::uint32_t& nativeError)
     return true;
 }
 
+// Support log evidence for a Resume that fell back to Paused. Steps:
+// 1 reset providers, 2 catalog, 3 backend init, 4 dependency guidance,
+// 5 start generation, 6 restore UI input.
+static void LogResumeStepFailure(unsigned step, std::uint32_t error) noexcept
+{
+    SupportLog_Event("engine.resume_step_failed", step, SupportLog_Win32(error));
+    DebugLog_Write(L"[engine-runtime] resume step %u failed err=%lu", step, static_cast<unsigned long>(error));
+}
+
 static bool EngineRuntimeEnumerateFresh(void*, std::uint32_t& nativeError) noexcept
 {
-    if (!NativeAnalogBackends_Reset() || !NativeAnalogBackends_CatalogIsValid())
+    const bool reset = NativeAnalogBackends_Reset();
+    if (!reset || !NativeAnalogBackends_CatalogIsValid())
     {
         nativeError = ERROR_INVALID_DATA;
+        LogResumeStepFailure(reset ? 2u : 1u, nativeError);
         return false;
     }
     // A false result means no native protocol is currently present. It is not
@@ -1213,12 +1264,17 @@ static bool EngineRuntimeProveCapabilities(void*, std::uint32_t& nativeError) no
         nativeError = ERROR_SUCCESS;
         return true;
     }
+    LogResumeStepFailure(3u, static_cast<std::uint32_t>(Backend_GetLastInitIssues()));
     if (!halljoy::engine_runtime::ui_bridge::Execute(
             halljoy::engine_runtime::ui_bridge::Operation::DependencyGuidance, nativeError))
+    {
+        LogResumeStepFailure(4u, nativeError);
         return false;
+    }
     if (!Backend_Init())
     {
         nativeError = ERROR_DEVICE_NOT_AVAILABLE;
+        LogResumeStepFailure(3u, static_cast<std::uint32_t>(Backend_GetLastInitIssues()));
         return false;
     }
     nativeError = ERROR_SUCCESS;
@@ -1231,6 +1287,7 @@ static bool EngineRuntimeStartFreshGeneration(void*, std::uint32_t& nativeError)
             L"engine-runtime-owner"))
     {
         nativeError = ERROR_GEN_FAILURE;
+        LogResumeStepFailure(5u, nativeError);
         return false;
     }
     nativeError = ERROR_SUCCESS;
@@ -1239,8 +1296,10 @@ static bool EngineRuntimeStartFreshGeneration(void*, std::uint32_t& nativeError)
 
 static bool EngineRuntimeRestoreUiInput(void*, std::uint32_t& nativeError) noexcept
 {
-    return halljoy::engine_runtime::ui_bridge::Execute(
+    const bool ok = halljoy::engine_runtime::ui_bridge::Execute(
         halljoy::engine_runtime::ui_bridge::Operation::RestoreInput, nativeError);
+    if (!ok) LogResumeStepFailure(6u, nativeError);
+    return ok;
 }
 
 static bool EngineRuntimeOpenAdmission(void*, std::uint32_t& nativeError) noexcept
@@ -1268,9 +1327,44 @@ static bool EngineRuntimeReleaseFailedResume(void*, std::uint32_t& nativeError) 
     return true;
 }
 
+// Resume requests can be refused while the owner is busy (it finishes a
+// transaction under its state lock). A refused request is retried shortly
+// and the pause card is refreshed, so its Resume button never stays stuck.
+static void RequestEngineResume(HWND hwnd) noexcept
+{
+    using halljoy::engine_runtime::SubmitStatus;
+    const auto status = halljoy::engine_runtime::EngineRuntimeOwner_RequestResume();
+    if (status == SubmitStatus::Queued) return;
+    if (status == SubmitStatus::Rejected && !g_shutdownStarted.load(std::memory_order_acquire))
+    {
+        g_resumeWanted.store(true, std::memory_order_release);
+        SetTimer(hwnd, ENGINE_RESUME_RETRY_TIMER_ID, 250, nullptr);
+    }
+    KeyboardUI_OnEngineStateChanged();
+}
+
+int App_EngineStartFailure() noexcept
+{
+    if (!g_resumeWanted.load(std::memory_order_acquire)) return 0;
+    return g_resumeRetryAttempts < std::size(kResumeRetryDelaysMs) ? 1 : 2;
+}
+
 static void EngineRuntimeStateChanged(void* context) noexcept
 {
     const auto state = halljoy::engine_runtime::EngineRuntimeOwner_Snapshot();
+    // Paused straight after a Resume phase = the Resume failed and rolled back.
+    static std::atomic<std::uint8_t> previous{ static_cast<std::uint8_t>(halljoy::runtime_command::State::Paused) };
+    const auto before = static_cast<halljoy::runtime_command::State>(
+        previous.exchange(static_cast<std::uint8_t>(state.state)));
+    if (state.state == halljoy::runtime_command::State::Paused &&
+        (before == halljoy::runtime_command::State::ResumeRequested ||
+         before == halljoy::runtime_command::State::Enumerating ||
+         before == halljoy::runtime_command::State::ProvingCapabilities ||
+         before == halljoy::runtime_command::State::PublishingNeutralGeneration))
+    {
+        g_resumeWanted.store(true, std::memory_order_release);
+        SupportLog_ReportFailure("engine.resume_failed", state.lastNativeError);
+    }
     halljoy::pause_hotkey::window.store(static_cast<HWND>(context));
     halljoy::pause_hotkey::generation.store(state.commandGeneration);
     halljoy::pause_hotkey::state.store(state.state==halljoy::runtime_command::State::Active ? halljoy::pause_hotkey::State::Active :
@@ -1682,6 +1776,8 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                 const bool isDown = (rk.Flags & RI_KEY_BREAK) == 0;
                 const uint16_t hid = HidFromKeyboardScanCode(rk.MakeCode, extended, rk.VKey);
                 halljoy::redsquare_probe::ObserveRawKeyboard(ri->header.hDevice, hid, isDown);
+                LogitechRapid_ObserveRawKey(ri->header.hDevice, hid, isDown);
+                InputTrace_OsKey(reinterpret_cast<std::uintptr_t>(ri->header.hDevice), hid, isDown);
                 if (isDown)
                     halljoy::input_privilege::detector.Digital(hid, false, GetTickCount64());
                 // Preview observes physical identity before Num Lock/VK aliases
@@ -1767,6 +1863,8 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     }
 
     case WM_DEVICECHANGE:
+        // Debounced: Windows sends several notifications per re-enumeration.
+        SetTimer(hwnd, K4_TAKEOVER_TIMER_ID, 700, nullptr);
         NativeLayoutDevices_Invalidate();
         SupportLog_InventoryChanged();
         SupportLog_Event("device.change", wParam);
@@ -1790,6 +1888,34 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         return 0;
 
     case WM_TIMER:
+        if (wParam == ENGINE_RESUME_RETRY_TIMER_ID) {
+            KillTimer(hwnd, ENGINE_RESUME_RETRY_TIMER_ID);
+            if (!g_shutdownStarted.load(std::memory_order_acquire) &&
+                g_resumeWanted.load(std::memory_order_acquire) &&
+                halljoy::engine_runtime::EngineRuntimeOwner_Snapshot().state == halljoy::runtime_command::State::Paused)
+            {
+                SupportLog_Event("engine.resume_retry", g_resumeRetryAttempts);
+                RequestEngineResume(hwnd);
+            }
+            KeyboardUI_OnEngineStateChanged();
+            return 0;
+        }
+        if (wParam == K4_TAKEOVER_TIMER_ID) {
+            KillTimer(hwnd, K4_TAKEOVER_TIMER_ID);
+            const auto engine = halljoy::engine_runtime::EngineRuntimeOwner_Snapshot().state;
+            const bool needed = KeychronOnboard_NeedsTakeover();
+            if (!needed) g_k4TakeoverAttempts = 0; // resolved or the K4 left: allow a new cycle later
+            else if (!g_k4TakeoverPausing && !g_shutdownStarted.load(std::memory_order_acquire) &&
+                engine == halljoy::runtime_command::State::Active && g_k4TakeoverAttempts < 2 &&
+                GetTickCount64() - g_k4TakeoverLastMs >= 5000) {
+                ++g_k4TakeoverAttempts;
+                g_k4TakeoverLastMs = GetTickCount64();
+                g_k4TakeoverPausing = true;
+                SupportLog_Event("k4.onboard_late_takeover", g_k4TakeoverAttempts);
+                (void)halljoy::engine_runtime::EngineRuntimeOwner_RequestPause();
+            }
+            return 0;
+        }
         if (wParam == WINDOW_SAVE_TIMER_ID) {
             if (!g_windowMoving) SaveMainWindowPlacement(hwnd);
             else KillTimer(hwnd, WINDOW_SAVE_TIMER_ID);
@@ -1902,6 +2028,10 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         }
         return 0;
 
+    case WM_APP_PROFILE_SHORTCUT:
+        halljoy::profiles::service::OnShortcut(static_cast<halljoy::shortcuts::Action>(wParam));
+        return 0;
+
     case WM_APP_PROFILE_RUNTIME_APPLIED:
         RefreshLowLevelHooks();
         ApplyTimingSettings(hwnd);
@@ -1933,9 +2063,35 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     case WM_APP_ENGINE_RUNTIME_STATE_CHANGED:
     {
         const auto state = halljoy::engine_runtime::EngineRuntimeOwner_Snapshot().state;
+        if (g_k4TakeoverPausing &&
+            (state == halljoy::runtime_command::State::Paused || state == halljoy::runtime_command::State::PauseFaulted))
+        {
+            // Our own pause: resume at once, the user never asked for Paused.
+            g_k4TakeoverPausing = false;
+            if (state == halljoy::runtime_command::State::Paused)
+            {
+                (void)halljoy::engine_runtime::EngineRuntimeOwner_RequestResume();
+                return 0;
+            }
+        }
         if (state == halljoy::runtime_command::State::Paused) g_tray.SetPaused(true);
         else if (state == halljoy::runtime_command::State::Active) g_tray.SetPaused(false);
+        if (state == halljoy::runtime_command::State::Active)
+        {
+            g_resumeWanted.store(false, std::memory_order_release);
+            g_resumeRetryAttempts = 0;
+            KillTimer(hwnd, ENGINE_RESUME_RETRY_TIMER_ID);
+        }
+        else if (state == halljoy::runtime_command::State::Paused &&
+            g_resumeWanted.load(std::memory_order_acquire) &&
+            !g_shutdownStarted.load(std::memory_order_acquire) &&
+            g_resumeRetryAttempts < std::size(kResumeRetryDelaysMs))
+        {
+            SetTimer(hwnd, ENGINE_RESUME_RETRY_TIMER_ID, kResumeRetryDelaysMs[g_resumeRetryAttempts++], nullptr);
+        }
         KeyboardUI_OnEngineStateChanged();
+        if (state == halljoy::runtime_command::State::Active && KeychronOnboard_NeedsTakeover())
+            SetTimer(hwnd, K4_TAKEOVER_TIMER_ID, 700, nullptr);
         return 0;
     }
 
@@ -1946,7 +2102,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         return 0;
 
     case WM_APP + 363: // Preview Resume is one-way: delayed/double clicks cannot pause again.
-        (void)halljoy::engine_runtime::EngineRuntimeOwner_RequestResume();
+        RequestEngineResume(hwnd);
         return 0;
 
     case halljoy::pause_hotkey::Message:
@@ -1960,7 +2116,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             g_enginePauseWasExplicit.store(true,std::memory_order_release);
             (void)halljoy::engine_runtime::EngineRuntimeOwner_RequestPause();
         } else if(wParam==static_cast<WPARAM>(Action::Resume) && current==halljoy::runtime_command::State::Paused) {
-            (void)halljoy::engine_runtime::EngineRuntimeOwner_RequestResume();
+            RequestEngineResume(hwnd);
         }
         return 0;
     }
@@ -1975,7 +2131,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         }
         else if (snapshot.state == halljoy::runtime_command::State::Paused)
         {
-            (void)halljoy::engine_runtime::EngineRuntimeOwner_RequestResume();
+            RequestEngineResume(hwnd);
         }
         return 0;
     }
@@ -2136,6 +2292,7 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     halljoy::perf::Span("app.profiles_startup", 0, profileStart);
     if (startupProfile.firstRun) KeyboardLayout_ArmFirstRunSelection();
     g_profileReadyForAutosave = startupProfile.writable;
+    SupportLog_SetInputConfigProvider(InputConfig_Summary);
 #if defined(HALLJOY_ANALOG_SIMULATOR)
     if (wcsstr(GetCommandLineW(), L"--halljoy-test-profile-startup-only")) {
         g_profileReadyForAutosave = false;

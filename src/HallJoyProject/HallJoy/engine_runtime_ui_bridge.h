@@ -22,5 +22,7 @@ bool Execute(Operation operation, std::uint32_t& nativeError) noexcept;
 bool Dispatch(std::uintptr_t token) noexcept;
 void CancelPending() noexcept;
 bool Stop() noexcept;
+// Tests only: a short acknowledgement timeout (0 restores the default).
+void SetTimeoutForTesting(unsigned milliseconds) noexcept;
 
 } // namespace halljoy::engine_runtime::ui_bridge

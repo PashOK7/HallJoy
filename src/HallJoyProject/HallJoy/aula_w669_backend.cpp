@@ -6,6 +6,7 @@
 #include <hidpi.h>
 
 #include "aula_w669_backend.h"
+#include "input_trace.h"
 #include "aula_w669_protocol.h"
 #include "generated/layout_pipeline/identities.h"
 #include "debug_log.h"
@@ -14,6 +15,7 @@
 #include "realtime_loop.h"
 #include "physical_analog_state.h"
 #include "stability_trace.h"
+#include "support_log.h"
 #include "worker_join_policy.h"
 #include "worker_exception_barrier.h"
 
@@ -293,6 +295,9 @@ const wchar_t* ProfileName(aula_w669::FactoryLayoutProfile profile)
     case aula_w669::FactoryLayoutProfile::K673Us: return L"redragon_k673_us_80";
     case aula_w669::FactoryLayoutProfile::K617Us: return L"redragon_k617_us_61";
     case aula_w669::FactoryLayoutProfile::K617Br: return L"redragon_k617_br_63";
+    case aula_w669::FactoryLayoutProfile::K686Us: return L"redragon_k686_us_98";
+    case aula_w669::FactoryLayoutProfile::K686Br: return L"redragon_k686_br_99";
+    case aula_w669::FactoryLayoutProfile::K686Uk: return L"redragon_k686_uk_99";
     default: return L"unknown_explicit_only";
     }
 }
@@ -509,8 +514,43 @@ bool Run(const Candidate& c)
         proof.deviceInfo.product.data(), ProfileName(proof.factoryProfile),
         proof.travel.maximum, g_mapped.load(),
         proof.useControlWrite ? L"control" : L"write", proof.exclusive ? 1 : 0);
+    {
+        char line[200]{};
+        _snprintf_s(line, _TRUNCATE, "trace.session w669 vid=%04X pid=%04X product=%s profile=%ls max=%u floor=%u mapped=%u",
+            c.attributes.VendorID, c.attributes.ProductID, proof.deviceInfo.product.data(),
+            ProfileName(proof.factoryProfile), proof.travel.maximum, aula_w669::ReleaseFloor(proof.travel), g_mapped.load());
+        SupportLog_Trace(line);
+    }
     std::uint64_t previousUs = 0, intervalSum = 0, intervalCount = 0, maxInterval = 0;
     std::uint64_t lastRollup = GetTickCount64(), lastRollupLive = g_liveEvents.load();
+    // Release evidence for the support log (aggregate counts only): presses
+    // (0 -> positive) against releases (positive -> 0) and keys left with a
+    // residual value after their last event.
+    const std::uint16_t releaseFloor = aula_w669::ReleaseFloor(proof.travel);
+    SupportLog_Event("w669.travel_config",
+        (std::uint64_t{proof.travel.maximum} << 16) | (std::uint64_t{proof.travel.unitCode} << 8) |
+        proof.travel.formatCode);
+    std::array<std::uint16_t, aula_w669::kMatrixSlots> lastRaw{};
+    std::array<std::uint64_t, aula_w669::kMatrixSlots> lastEventMs{};
+    std::uint64_t pressEdges = 0, releaseEdges = 0, flooredEvents = 0, lastReleaseReport = 0;
+    std::uint64_t lastReleaseLog = GetTickCount64();
+    const auto reportRelease = [&](std::uint64_t now) {
+        unsigned residualKeys = 0, residualMax = 0;
+        for (std::size_t pos = 0; pos < lastRaw.size(); ++pos)
+            if (lastRaw[pos] && now - lastEventMs[pos] >= 1000) {
+                ++residualKeys;
+                residualMax = std::max<unsigned>(residualMax, aula_w669::ToMilli(lastRaw[pos], proof.travel.maximum));
+            }
+        const std::uint64_t value =
+            (std::min<std::uint64_t>(pressEdges, 0xfffff) << 44) |
+            (std::min<std::uint64_t>(releaseEdges, 0xfffff) << 24) |
+            (std::uint64_t{std::min(residualKeys, 255u)} << 16) |
+            (std::uint64_t{std::min(residualMax, 1000u)} << 4) |
+            std::min<std::uint64_t>(flooredEvents, 15);
+        if (value == lastReleaseReport) return;
+        lastReleaseReport = value;
+        SupportLog_Event("w669.release", value);
+    };
 #if defined(HALLJOY_DIAGNOSTIC)
     std::array<std::uint64_t, 256> diagnosticEvents{};
     std::array<std::uint64_t, 256> diagnosticReleases{};
@@ -575,7 +615,19 @@ bool Run(const Candidate& c)
             const std::uint16_t diagnosticOld = diagnosticHid ?
                 g_milli[diagnosticHid].load(std::memory_order_relaxed) : 0;
 #endif
-            Publish(event.row, event.column, event.travel, proof, qpc.QuadPart);
+            const std::size_t eventPosition = std::size_t(event.row) * aula_w669::kColumns + event.column;
+            const std::uint16_t travel = aula_w669::ApplyReleaseFloor(event.travel, releaseFloor);
+            if (travel != event.travel) ++flooredEvents;
+            if (proof.map[eventPosition])
+            {
+                if (!lastRaw[eventPosition] && travel) ++pressEdges;
+                if (lastRaw[eventPosition] && !travel) ++releaseEdges;
+                lastRaw[eventPosition] = travel;
+                lastEventMs[eventPosition] = GetTickCount64();
+            }
+            Publish(event.row, event.column, travel, proof, qpc.QuadPart);
+            InputTrace_Source("w669", event.row, event.column, event.travel,
+                aula_w669::ToMilli(travel, proof.travel.maximum), proof.map[eventPosition]);
             g_liveEvents.fetch_add(1, std::memory_order_relaxed);
 #if defined(HALLJOY_DIAGNOSTIC)
             if (diagnosticHid)
@@ -620,7 +672,13 @@ bool Run(const Candidate& c)
 #endif
             lastRollup = nowMs; lastRollupLive = live;
         }
+        if (nowMs - lastReleaseLog >= 10000)
+        {
+            reportRelease(nowMs);
+            lastReleaseLog = nowMs;
+        }
     }
+    reportRelease(GetTickCount64() + 1000);
 #if defined(HALLJOY_DIAGNOSTIC)
     DebugLog_Write(L"[aula.w669.session_summary] duration_ms=%llu unique_pressed_keys=%u peak_simultaneous=%u positive_edges=%llu release_to_zero_edges=%llu min_positive_raw=%u max_raw=%u active_at_stop=%u session_live_events=%llu failures=%llu",
         static_cast<unsigned long long>(GetTickCount64() - diagnosticStartedMs),

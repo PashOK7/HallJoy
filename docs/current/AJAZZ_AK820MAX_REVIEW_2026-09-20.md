@@ -708,3 +708,20 @@ contains no firmware image.
 - Next step: fetch the MechLands "AK820 Max Tri-Mode Upgrade Tool" later and
   confirm that it is the HE model, not the mechanical AK820 Max. Then check
   the YC3121 0x1B report format and typing behaviour in the firmware.
+
+## Owner-supplied log "message (15).txt", 2026-10-08 (no implementation)
+
+User says the keyboard is an AK820 MAX HE. Report: HallJoy 1.6.7.0, schema 2.
+The keyboard enumerates as `0C45:80B1` "AK820MAX" (interfaces 00..03). That is
+one of the Driveall 0C45 revisions listed at the top of this document, not the
+supported wired RGB unit (`0416:7372`, SG8994HERGB) and not the tri-mode
+screen model (`3151:4015`). No native backend and no UAP device admitted it:
+every snapshot has `sources=0`, all 25 rows `not_present`, no bindings fired.
+The log has only metadata, no usage pages, identity or firmware version, so
+the controller/protocol of this revision is unknown. Branding is not evidence:
+the support conclusion for this model name is unchanged (wired RGB 0416:7372
+only). Next useful evidence: the exact retail variant (light/no light,
+wired/tri-mode, screen) and the vendor driver it uses.
+
+Update 2026-10-08: implemented on the MINI60 stream backend as a yellow model,
+see AJAZZ_AK820MAX_SONIX_80B1_2026-10-08.md.

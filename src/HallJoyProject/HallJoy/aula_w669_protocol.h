@@ -22,8 +22,20 @@ struct TravelInfo
 {
     std::uint16_t maximum = 0;
     std::uint8_t unitCode = 0;
+    // The official iLLumiPC client reads this byte as minTriggerTravelRaw:
+    // the keyboard's own minimum actuation travel, in live-travel units.
     std::uint8_t formatCode = 0;
 };
+
+// Live travel at or below the keyboard's own minimum actuation is released:
+// some firmware stops reporting inside that zone, so the last event of a
+// release can stay just above zero. Implausible minimums (>= 20% of the
+// range) are ignored.
+std::uint16_t ReleaseFloor(const TravelInfo& travel) noexcept;
+inline std::uint16_t ApplyReleaseFloor(std::uint16_t value, std::uint16_t floor) noexcept
+{
+    return value <= floor ? 0 : value;
+}
 
 struct LiveEvent
 {
@@ -50,6 +62,9 @@ enum class FactoryLayoutProfile : std::uint8_t
     K673Us,
     K617Us,
     K617Br,
+    K686Us,
+    K686Br,
+    K686Uk,
 };
 
 Report BuildDeviceInfoRequest() noexcept;
@@ -67,6 +82,9 @@ PositionToHid K673UkFactoryMap() noexcept;
 PositionToHid K673UsFactoryMap() noexcept;
 PositionToHid K617UsFactoryMap() noexcept;
 PositionToHid K617BrFactoryMap() noexcept;
+PositionToHid K686UsFactoryMap() noexcept;
+PositionToHid K686BrFactoryMap() noexcept;
+PositionToHid K686UkFactoryMap() noexcept;
 PositionToHid FactoryMap(FactoryLayoutProfile profile) noexcept;
 FactoryLayoutProfile FactoryProfileForProduct(const char* product) noexcept;
 

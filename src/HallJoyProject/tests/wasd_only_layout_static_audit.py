@@ -42,7 +42,10 @@ require(builtins.find('L"DrunkDeer A75 Pro", g_drunkdeer_A75Pro') <
         builtins.find('L"DrunkDeer G65 ANSI", g_drunkdeer_G65') <
         builtins.find(wasd_entry),
         "A75 Pro remains preset zero while G65 and WASD-only stay optional")
-require("ActivatePreset(0);" in LAYOUT,
-        "preset zero remains the startup default")
+# Owner decision 2026-10-07: the startup default is the anonymous full-size
+# keyboard, not catalog entry zero (A75 Pro stays shipped and selectable).
+require('FindExactPresetByName(L"Generic 100% ANSI")' in LAYOUT and
+        "ActivatePreset(DefaultPresetIndex());" in LAYOUT and "ActivatePreset(0);" not in LAYOUT,
+        "Generic 100% ANSI is the startup default")
 
 print("WASD_ONLY_LAYOUT_STATIC_AUDIT=PASS")

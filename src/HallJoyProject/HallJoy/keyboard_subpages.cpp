@@ -79,6 +79,7 @@
 #include "overlay_server.h"
 #include "debug_log.h"
 #include "custom_page_surface.h"
+#include "ui_popup_menu.h"
 #include "custom_page_controls.h"
 #include "ui_paint_audit.h"
 #if defined(HALLJOY_ANALOG_SIMULATOR)
@@ -140,38 +141,7 @@ static void SnappyDebugLog(const wchar_t* stage, HWND hBtn, int extraA = -1, int
 #endif
 }
 
-// ---------------- Double-buffer helpers ----------------
-static void BeginDoubleBufferPaint(HWND hWnd, PAINTSTRUCT& ps, HDC& outMemDC, HBITMAP& outBmp, HGDIOBJ& outOldBmp, bool dirtyOnly = false)
-{
-    HDC hdc = BeginPaint(hWnd, &ps);
-    RECT rc{};
-    GetClientRect(hWnd, &rc);
-    if (dirtyOnly) rc = ps.rcPaint;
-    outMemDC = CreateCompatibleDC(hdc);
-    outBmp = CreateCompatibleBitmap(hdc, (std::max)(1L, rc.right - rc.left), (std::max)(1L, rc.bottom - rc.top));
-    outOldBmp = SelectObject(outMemDC, outBmp);
-    if (dirtyOnly) SetViewportOrgEx(outMemDC, -rc.left, -rc.top, nullptr);
-    FillRect(outMemDC, &rc, UiTheme::Brush_PanelBg());
-}
-
-static void EndDoubleBufferPaint(HWND hWnd, PAINTSTRUCT& ps, HDC memDC, HBITMAP bmp, HGDIOBJ oldBmp)
-{
-    HDC hdc = ps.hdc;
-    // Commit only the invalidated area. Several pages contain live regions;
-    // copying the complete client bitmap for a small dirty region needlessly
-    // replaces static pixels and makes input-driven updates visibly flash.
-    const RECT& dirty = ps.rcPaint;
-    if (dirty.right > dirty.left && dirty.bottom > dirty.top)
-    {
-        BitBlt(hdc, dirty.left, dirty.top,
-            dirty.right - dirty.left, dirty.bottom - dirty.top,
-            memDC, dirty.left, dirty.top, SRCCOPY);
-    }
-    SelectObject(memDC, oldBmp);
-    DeleteObject(bmp);
-    DeleteDC(memDC);
-    EndPaint(hWnd, &ps);
-}
+// Painting: CustomPagePaintScope (custom_page_surface.h) serves WM_PAINT and WM_PRINTCLIENT.
 
 static std::vector<std::wstring> BuildAnalogDiagnosticsLines(const BackendAnalogTelemetry& t);
 
@@ -217,14 +187,14 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
         InvalidateRect(hWnd, nullptr, FALSE);
         return 0;
 
+    case WM_PRINTCLIENT:
     case WM_PAINT:
     {
-        PAINTSTRUCT ps{};
-        HDC memDC = nullptr;
-        HBITMAP bmp = nullptr;
-        HGDIOBJ oldBmp = nullptr;
-        BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
-        paintAudit.Event(WM_PAINT, &ps.rcPaint);
+        {
+        CustomPagePaintScope paintScope(hWnd, msg, wParam);
+        PAINTSTRUCT& ps = paintScope.Ps();
+        HDC memDC = paintScope.Dc();
+        if (!paintScope.Printing()) paintAudit.Event(WM_PAINT, &ps.rcPaint);
 
         RECT rcClient{};
         GetClientRect(hWnd, &rcClient);
@@ -510,7 +480,7 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
         SelectObject(memDC, oldBrushGlobal);
         SelectObject(memDC, oldPenGlobal);
         DeleteObject(cardPen);
-        EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        }
         return 0;
     }
 
@@ -2966,14 +2936,13 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
             OverlayCustom_CloseComboAnchors(st);
         return 0;
 
+    case WM_PRINTCLIENT:
     case WM_PAINT:
     {
         uint64_t paintStart = CustomPageSurface_QpcNow();
-        PAINTSTRUCT ps{};
-        HDC memDC = nullptr;
-        HBITMAP bmp = nullptr;
-        HGDIOBJ oldBmp = nullptr;
-        BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        {
+        CustomPagePaintScope paintScope(hWnd, msg, wParam);
+        HDC memDC = paintScope.Dc();
         if (st)
         {
             st->surface.contentHeight = st->contentHeight;
@@ -2982,7 +2951,7 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
                 OverlayCustom_RenderCacheContent, st, st->scroll.draggingThumb);
             OverlayCustom_DrawEditFeedback(hWnd, memDC, st);
         }
-        EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        }
         if (st && st->surface.scrollSampleStartMs != 0)
         {
             CustomPageSurface_BeginPaintSample(&st->surface, paintStart);
@@ -3267,17 +3236,19 @@ static LRESULT OverlayCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM
                 st->editor.SelectAll();
             }
             if (keyboard) { screen = {item->rc.left, item->rc.bottom - st->scrollY}; ClientToScreen(hWnd, &screen); }
-            HMENU menu = CreatePopupMenu();
-            if (!menu) break;
-            AppendMenuW(menu, MF_STRING | (st->editor.CanUndo() ? 0 : MF_GRAYED), OVERLAY_EDIT_UNDO, L"Undo");
-            AppendMenuW(menu, MF_STRING | (st->editor.CanRedo() ? 0 : MF_GRAYED), OVERLAY_EDIT_REDO, L"Redo");
-            AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-            AppendMenuW(menu, MF_STRING | (st->editor.Selected() ? 0 : MF_GRAYED), OVERLAY_EDIT_CUT, L"Cut");
-            AppendMenuW(menu, MF_STRING | (st->editor.Selected() ? 0 : MF_GRAYED), OVERLAY_EDIT_COPY, L"Copy");
-            AppendMenuW(menu, MF_STRING | (IsClipboardFormatAvailable(CF_UNICODETEXT) ? 0 : MF_GRAYED), OVERLAY_EDIT_PASTE, L"Paste");
-            AppendMenuW(menu, MF_STRING, OVERLAY_EDIT_ALL, L"Select all");
-            const int chosen = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON, screen.x, screen.y, 0, hWnd, nullptr);
-            DestroyMenu(menu);
+            auto entry = [](UINT id, const wchar_t* text, const wchar_t* keys, bool enabled) {
+                halljoy::ui_menu::Item item; item.id = id; item.text = text; item.detail = keys; item.enabled = enabled; return item;
+            };
+            const std::vector<halljoy::ui_menu::Item> items{
+                entry(OVERLAY_EDIT_UNDO, L"Undo", L"Ctrl+Z", st->editor.CanUndo()),
+                entry(OVERLAY_EDIT_REDO, L"Redo", L"Ctrl+Y", st->editor.CanRedo()),
+                halljoy::ui_menu::Separator(),
+                entry(OVERLAY_EDIT_CUT, L"Cut", L"Ctrl+X", st->editor.Selected()),
+                entry(OVERLAY_EDIT_COPY, L"Copy", L"Ctrl+C", st->editor.Selected()),
+                entry(OVERLAY_EDIT_PASTE, L"Paste", L"Ctrl+V", IsClipboardFormatAvailable(CF_UNICODETEXT) != FALSE),
+                entry(OVERLAY_EDIT_ALL, L"Select all", L"Ctrl+A", true),
+            };
+            const int chosen = static_cast<int>(halljoy::ui_menu::Track(hWnd, items, screen));
             if (chosen && OverlayCustom_IsEdit(st->focusId)) OverlayCustom_EditCommand(hWnd, st, chosen);
             OverlayCustom_MarkCacheDirty(hWnd, st);
             return 0;
@@ -3411,9 +3382,9 @@ bool KeyboardSubpages_TestOverlayTextEditing()
         KeyboardLayout_SetOverlayPresetName(L"Keychron K4 HE"); // stable saved-name alias
         const auto fullOverlay = KeyboardLayout_GetOverlaySnapshot();
         bool hasKeypad = false;
-        for (const auto& key : fullOverlay->keys) {
-            if (key.hid == 0x59) hasKeypad = true;
-            if (halljoy::keycode::IsSupported(key.hid)) ok &= BackendUI_TestIsTracked(key.hid);
+        for (const auto& overlayKey : fullOverlay->keys) {
+            if (overlayKey.hid == 0x59) hasKeypad = true;
+            if (halljoy::keycode::IsSupported(overlayKey.hid)) ok &= BackendUI_TestIsTracked(overlayKey.hid);
         }
         ok &= hasKeypad && KeyboardLayout_GetCurrentPresetIndex() == mainLayout;
         if (!ok) throw std::runtime_error("overlay edit: full layout tracking failed");
@@ -3633,20 +3604,19 @@ LRESULT CALLBACK KeyboardSubpages_InputOverlayPageProc(HWND hWnd, UINT msg, WPAR
         }
         break;
 
+    case WM_PRINTCLIENT:
     case WM_PAINT:
     {
-        PAINTSTRUCT ps{};
-        HDC memDC = nullptr;
-        HBITMAP bmp = nullptr;
-        HGDIOBJ oldBmp = nullptr;
-        BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        {
+        CustomPagePaintScope paintScope(hWnd, msg, wParam);
+        HDC memDC = paintScope.Dc();
 
         RECT rc{};
         GetClientRect(hWnd, &rc);
         FillRect(memDC, &rc, UiTheme::Brush_PanelBg());
         OverlayPage_DrawScrollbar(hWnd, memDC, st);
 
-        EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        }
         return 0;
     }
 
@@ -7040,6 +7010,10 @@ static LRESULT CALLBACK PremiumSliderProc(HWND hWnd, UINT msg, WPARAM wParam, LP
     case WM_ERASEBKGND:
         return 1;
 
+    case WM_PRINTCLIENT:
+        PremiumSlider_Paint(hWnd, reinterpret_cast<HDC>(wParam));
+        return 0;
+
     case WM_PAINT:
     {
         PAINTSTRUCT ps{};
@@ -7261,6 +7235,10 @@ static LRESULT CALLBACK PremiumChipProc(HWND hWnd, UINT msg, WPARAM wParam, LPAR
             InvalidateRect(hWnd, nullptr, FALSE);
         }
         return TRUE;
+
+    case WM_PRINTCLIENT:
+        PremiumChip_Paint(hWnd, reinterpret_cast<HDC>(wParam));
+        return 0;
 
     case WM_PAINT:
     {
@@ -8398,13 +8376,12 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
     case WM_ERASEBKGND:
         return 1;
 
+    case WM_PRINTCLIENT:
     case WM_PAINT:
     {
-        PAINTSTRUCT ps{};
-        HDC memDC = nullptr;
-        HBITMAP bmp = nullptr;
-        HGDIOBJ oldBmp = nullptr;
-        BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp, true);
+        {
+        CustomPagePaintScope paintScope(hWnd, msg, wParam);
+        HDC memDC = paintScope.Dc();
         if (st)
         {
             st->surface.scrollY = st->scrollY;
@@ -8416,7 +8393,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             Global_UpdatePulse(hWnd, st);
             Global_DrawPulse(hWnd, memDC, st);
         }
-        EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        }
         return 0;
     }
 
@@ -9810,13 +9787,12 @@ static LRESULT MouseCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
             CustomPageSurface_MarkDirty(hWnd, &st->surface);
         }
         return 0;
+    case WM_PRINTCLIENT:
     case WM_PAINT:
     {
-        PAINTSTRUCT ps{};
-        HDC memDC = nullptr;
-        HBITMAP bmp = nullptr;
-        HGDIOBJ oldBmp = nullptr;
-        BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        {
+        CustomPagePaintScope paintScope(hWnd, msg, wParam);
+        HDC memDC = paintScope.Dc();
         if (st)
         {
             st->surface.contentHeight = st->contentHeight;
@@ -9824,7 +9800,7 @@ static LRESULT MouseCustom_PageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
             CustomPageSurface_Present(hWnd, memDC, &st->surface,
                 MouseCustom_RenderCacheContent, st, st->scroll.draggingThumb);
         }
-        EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        }
         return 0;
     }
     case WM_TIMER:
@@ -10070,13 +10046,12 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
     case WM_ERASEBKGND:
         return 1;
 
+    case WM_PRINTCLIENT:
     case WM_PAINT:
     {
-        PAINTSTRUCT ps{};
-        HDC memDC = nullptr;
-        HBITMAP bmp = nullptr;
-        HGDIOBJ oldBmp = nullptr;
-        BeginDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        {
+        CustomPagePaintScope paintScope(hWnd, msg, wParam);
+        HDC memDC = paintScope.Dc();
 
         SaveDC(memDC);
         if (st && st->scrollY != 0)
@@ -10085,7 +10060,7 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
         RestoreDC(memDC, -1);
 
         DrawMouseScrollbar(hWnd, memDC, st);
-        EndDoubleBufferPaint(hWnd, ps, memDC, bmp, oldBmp);
+        }
         return 0;
     }
 
@@ -10787,9 +10762,6 @@ struct ConfigPageState
     CustomPageSurface surface;
     // Persistent paint back buffer: graph and live-status repaints arrive at
     // display rate, so the client-sized bitmap is kept instead of recreated.
-    HBITMAP paintBuffer = nullptr;
-    int paintBufferW = 0;
-    int paintBufferH = 0;
     CustomPageScrollController scroll;
     int scrollY = 0;
     int contentHeight = 0;
@@ -12961,47 +12933,17 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         }
         return 0;
 
+    case WM_PRINTCLIENT:
     case WM_PAINT:
     {
         uint64_t paintStart = CustomPageSurface_QpcNow();
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hWnd, &ps);
-        paintAudit.Event(WM_PAINT, &ps.rcPaint);
+        {
+        CustomPagePaintScope paintScope(hWnd, msg, wParam);
+        PAINTSTRUCT& ps = paintScope.Ps();
+        HDC memDC = paintScope.Dc();
+        if (!paintScope.Printing()) paintAudit.Event(WM_PAINT, &ps.rcPaint);
         RECT rc{};
         GetClientRect(hWnd, &rc);
-
-        HDC memDC = CreateCompatibleDC(hdc);
-        const int bufferW = std::max(1, (int)(rc.right - rc.left));
-        const int bufferH = std::max(1, (int)(rc.bottom - rc.top));
-        HBITMAP bmp = nullptr;
-        if (st)
-        {
-            if (!st->paintBuffer || st->paintBufferW != bufferW || st->paintBufferH != bufferH)
-            {
-                if (st->paintBuffer) DeleteObject(st->paintBuffer);
-                // A top-down 32bpp DIB: GDI+ antialiasing then writes the
-                // pixels directly instead of reading back a device bitmap.
-                BITMAPINFO bi{};
-                bi.bmiHeader.biSize = sizeof(bi.bmiHeader);
-                bi.bmiHeader.biWidth = bufferW;
-                bi.bmiHeader.biHeight = -bufferH;
-                bi.bmiHeader.biPlanes = 1;
-                bi.bmiHeader.biBitCount = 32;
-                bi.bmiHeader.biCompression = BI_RGB;
-                void* bits = nullptr;
-                st->paintBuffer = CreateDIBSection(hdc, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
-                st->paintBufferW = st->paintBuffer ? bufferW : 0;
-                st->paintBufferH = st->paintBuffer ? bufferH : 0;
-            }
-            bmp = st->paintBuffer;
-        }
-        const bool ownBuffer = !bmp;
-        if (ownBuffer) bmp = CreateCompatibleBitmap(hdc, bufferW, bufferH);
-        HGDIOBJ oldBmp = SelectObject(memDC, bmp);
-        // Only ps.rcPaint reaches the screen, so all composition is clipped to
-        // it; buffer pixels outside it are never copied out.
-        IntersectClipRect(memDC, ps.rcPaint.left, ps.rcPaint.top, ps.rcPaint.right, ps.rcPaint.bottom);
-        FillRect(memDC, &ps.rcPaint, UiTheme::Brush_PanelBg());
 
         if (st && st->customControls)
         {
@@ -13026,14 +12968,7 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             DrawConfigScrollbar(hWnd, memDC, st);
         }
 
-        const RECT& dirty = ps.rcPaint;
-        if (dirty.right > dirty.left && dirty.bottom > dirty.top)
-            BitBlt(hdc, dirty.left, dirty.top, dirty.right - dirty.left, dirty.bottom - dirty.top,
-                memDC, dirty.left, dirty.top, SRCCOPY);
-        SelectObject(memDC, oldBmp);
-        if (ownBuffer) DeleteObject(bmp);
-        DeleteDC(memDC);
-        EndPaint(hWnd, &ps);
+        }
         if (st && st->customControls && st->surface.scrollSampleStartMs != 0)
         {
             CustomPageSurface_BeginPaintSample(&st->surface, paintStart);
@@ -13544,7 +13479,6 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
                 SnappyToggle_Free(st->chkLastKeyPriority);
             }
             CustomPageSurface_Destroy(&st->surface);
-            if (st->paintBuffer) DeleteObject(st->paintBuffer);
             delete st;
             SetWindowLongPtrW(hWnd, GWLP_USERDATA, 0);
         }

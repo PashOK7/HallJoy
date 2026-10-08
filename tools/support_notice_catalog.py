@@ -22,6 +22,9 @@ def render(data):
             assert key not in seen,key
             seen.add(key)
             assert model['status']=='Implemented; awaiting hardware testing'
+        # Generic-protocol models: the runtime flag comes from backend telemetry
+        # (no catalog token), so no NativeNotice condition is generated.
+        if group.get('runtime')=='generic-telemetry':continue
         condition=f"protocol=={group['protocol']}u"
         if group.get('tokens'):
             condition+=' && ('+' || '.join(f'token==0x{int(t,16):016X}ull' for t in group['tokens'])+')'

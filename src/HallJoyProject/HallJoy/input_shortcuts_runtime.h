@@ -2,6 +2,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <atomic>
+#include <array>
 #include <mutex>
 #include "input_shortcuts.h"
 #include "settings.h"
@@ -26,8 +27,18 @@ inline std::atomic<void (*)(Action)> dispatch{nullptr};
 constexpr UINT kCaptureMessage = WM_APP + 391;
 inline std::atomic<HWND> captureWindow{nullptr};
 
+// Game profile shortcuts, published by the profile service on the UI thread:
+// [0] next profile, [1] return to automatic, [2..] profile slots.
+inline std::array<std::atomic<unsigned>, 2 + kProfileSlots> profileBindings{};
+inline void SetProfileBindings(unsigned next, unsigned automatic, const unsigned (&slots)[kProfileSlots]) noexcept {
+    profileBindings[0].store(next);
+    profileBindings[1].store(automatic);
+    for (unsigned i = 0; i < kProfileSlots; ++i) profileBindings[2 + i].store(slots[i]);
+}
+
 inline Bindings CurrentBindings() noexcept {
     Bindings b{};
+    for (unsigned i = 0; i < profileBindings.size(); ++i) b[4 + i] = profileBindings[i].load();
     b[0] = Settings_GetBlockKeysHotkey();
     if (Settings_GetPauseSeparate()) {
         b[2] = Settings_GetPauseShortcut(1);

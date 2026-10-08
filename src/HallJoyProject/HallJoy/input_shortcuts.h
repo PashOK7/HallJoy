@@ -40,8 +40,17 @@ constexpr bool Valid(unsigned s) noexcept {
     return ValidKey(key) && !(IsModifier(key) && Mods(s));
 }
 
-enum class Action : std::uint8_t { None = 0, BlockToggle, PauseToggle, Pause, Resume };
-constexpr unsigned kActionCount = 4;
+enum class Action : std::uint8_t { None = 0, BlockToggle, PauseToggle, Pause, Resume,
+    NextProfile, AutoProfiles, ProfileSlot0 };
+// Game profile commands: next profile, return to automatic, and one slot per
+// profile that has its own shortcut (game_profile_rules.h kMaxProfileShortcuts).
+constexpr unsigned kProfileSlots = 12;
+constexpr unsigned kActionCount = 6 + kProfileSlots;
+constexpr Action ProfileSlot(unsigned i) noexcept { return static_cast<Action>(static_cast<unsigned>(Action::ProfileSlot0) + i); }
+constexpr int ProfileSlotIndex(Action a) noexcept {
+    const unsigned v = static_cast<unsigned>(a), first = static_cast<unsigned>(Action::ProfileSlot0);
+    return v >= first && v < first + kProfileSlots ? static_cast<int>(v - first) : -1;
+}
 using Bindings = std::array<unsigned, kActionCount>; // index = Action - 1
 
 class Engine {

@@ -41,6 +41,7 @@
 #include "analog_key_codes.h"
 #include "bindings.h"
 #include "settings.h"
+#include "input_trace.h"
 #include "input_shortcuts_runtime.h"
 #include "debug_log.h"
 #include "diagnostic_rate_limit.h"
@@ -3539,6 +3540,19 @@ void Backend_Tick()
             frames.providerNeutralFieldMask;
         const XUSB_REPORT report = ToLegacyXusbReport(frames.qualified);
         g_reports[(size_t)pad] = report;
+        {
+            InputTracePad traced{};
+            traced.lx = report.sThumbLX; traced.ly = report.sThumbLY;
+            traced.rx = report.sThumbRX; traced.ry = report.sThumbRY;
+            traced.lt = report.bLeftTrigger; traced.rt = report.bRightTrigger;
+            traced.buttons = report.wButtons;
+            InputTrace_Pad(pad, traced, cache.raw.data(), cache.filtered.data(), cache.raw.size(),
+                [](const void* context, std::uint16_t hid) -> int {
+                    const auto& c = *static_cast<const HidCache*>(context);
+                    return hid < c.native.size() && c.hasNative.test(hid) && c.native[hid].owned
+                        ? static_cast<int>(c.native[hid].milli) : -1;
+                }, &cache);
+        }
 
         PublishLastReport(pad, report);
 #if defined(HALLJOY_ANALOG_SIMULATOR)

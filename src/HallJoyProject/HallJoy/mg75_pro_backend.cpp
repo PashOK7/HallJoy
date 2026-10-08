@@ -8,10 +8,12 @@
 // clang-format on
 #include "mg75_pro_backend.h"
 #include "debug_log.h"
+#include "support_log.h"
 #include "generated/layout_pipeline/identities.h"
 #include "hid_io_operation.h"
 #include "mg75_pro_protocol.h"
 #include "jingtai_v1_profiles.h"
+#include "wlmouse_ying75_protocol.h"
 #include "native_analog_routing.h"
 #include "native_layout_state.h"
 #include "physical_analog_state.h"
@@ -28,6 +30,7 @@
 namespace {
 namespace mg = halljoy::mg75pro;
 namespace jt = halljoy::jingtai_v1;
+namespace ying = halljoy::wlmouse_ying75;
 constexpr jt::Model kLegacyModel{"MG75PRO-1CA5-0807",L"IROK MG75 Pro",mg::kFactoryActions,81,3500};
 std::atomic<unsigned> g_vid{0}, g_pid{0}, g_mapped{0}, g_range{0};
 constexpr DWORD kStopTimeoutMs = 3000;
@@ -168,6 +171,7 @@ std::vector<Candidate> Enumerate(bool log) {
     a.Size = sizeof(a);
     if (!HidD_GetAttributes(meta.v, &a) ||
         !((a.VendorID == mg::kVendorId && a.ProductID == mg::kProductId) ||
+          (a.VendorID == ying::kVendorId && a.ProductID == ying::kProductId) ||
           jt::Candidate(a.VendorID,a.ProductID)))
       continue;
     PHIDP_PREPARSED_DATA pp = nullptr;
@@ -202,7 +206,9 @@ std::vector<Candidate> Enumerate(bool log) {
       return static_cast<wchar_t>(towupper(ch));
     });
     const auto* model = mg::ExactModel(a.VendorID,a.ProductID,name)
-        ? &kLegacyModel : jt::Find(a.VendorID,a.ProductID,name);
+        ? &kLegacyModel
+        : ying::ExactModel(a.VendorID,a.ProductID,name)
+        ? &ying::kModel : jt::Find(a.VendorID,a.ProductID,name);
     if (exact && model)
       out.push_back({detail->DevicePath, a, caps, model});
   }
@@ -210,9 +216,19 @@ std::vector<Candidate> Enumerate(bool log) {
   return out;
 }
 
+// Last failed exchange of a session, for the support log (structure only).
+struct ExchangeFailure {
+  std::uint8_t stage = 0;   // 1 write, 2 timeout, 3 read, 4 frame rejected, 5 foreign reply (shared)
+  std::uint8_t command = 0, reject = 0, reports = 0;
+  std::array<std::uint8_t, 5> head{};
+  DWORD error = 0;
+};
+
 class Session {
 public:
-  explicit Session(const Candidate &c) : candidate(c) {}
+  explicit Session(const Candidate &c)
+      : candidate(c), lenient(c.model == &ying::kModel) {}
+  ExchangeFailure failure;
   ~Session() {
     std::lock_guard<std::mutex> lock(g_activeLock);
     if (g_active == handle.v)
@@ -224,6 +240,19 @@ public:
     handle = Handle(CreateFileW(
         candidate.path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, nullptr));
+    // Ying75: another program (the vendor Web Hub tab, RGB services) may keep
+    // the interface open; its official client opens it shared too. Shared
+    // sessions check for foreign replies before every request (Exchange).
+    if (!handle && lenient && GetLastError() == ERROR_SHARING_VIOLATION) {
+      handle = Handle(CreateFileW(
+          candidate.path.c_str(), GENERIC_READ | GENERIC_WRITE,
+          FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
+          FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, nullptr));
+      shared = static_cast<bool>(handle);
+      static std::atomic<bool> logged{false};
+      if (shared && !logged.exchange(true))
+        SupportLog_Event("mg75.shared_open", 1);
+    }
     if (!handle)
       return false;
     if (!HidD_SetNumInputBuffers(handle.v, 64) || !HidD_FlushQueue(handle.v))
@@ -235,24 +264,43 @@ public:
   bool Exchange(const mg::Report &request, mg::Frame &response) {
     if (poisoned || g_stop.load())
       return false;
+    if (shared) {
+      // A reply we did not ask for means another program is talking to the
+      // keyboard. Travel replies carry no half id, so they could be mistaken
+      // for ours: end the session instead of risking wrong keys.
+      for (unsigned i = 0; i < 8; ++i) {
+        mg::Report rx{};
+        DWORD n = 0;
+        if (!TimedIo(handle.v, false, rx.data(), static_cast<DWORD>(rx.size()), 0, &n) || !n)
+          break;
+        if (rx[1] == 0x5c && (rx[3] & 0x80)) {
+          mg::Frame foreign;
+          std::copy_n(rx.begin() + 1, foreign.head.size(), foreign.head.begin());
+          foreign.reports = 1;
+          return Failed(5, request[3], foreign);
+        }
+      }
+    }
     auto tx = request;
     DWORD sent = 0;
     if (!TimedIo(handle.v, true, tx.data(), static_cast<DWORD>(tx.size()), 50,
                  &sent) ||
         sent != tx.size())
-      return poisoned = true, false;
+      return Failed(1, request[3], response);
     response = {};
+    response.lenient = lenient;
     const auto deadline = GetTickCount64() + 120;
     while (!response.Complete() && !g_stop.load()) {
       const auto now = GetTickCount64();
       if (now >= deadline)
-        return poisoned = true, false;
+        return Failed(2, request[3], response);
       mg::Report rx{};
       DWORD n = 0;
       if (!TimedIo(handle.v, false, rx.data(), static_cast<DWORD>(rx.size()),
-                   static_cast<DWORD>(deadline - now), &n) ||
-          !response.Push(rx, n, request[3]))
-        return poisoned = true, false;
+                   static_cast<DWORD>(deadline - now), &n))
+        return Failed(3, request[3], response);
+      if (!response.Push(rx, n, request[3]))
+        return Failed(4, request[3], response);
     }
     if (!response.Complete())
       return poisoned = true, false;
@@ -260,10 +308,38 @@ public:
   }
 
 private:
+  bool Failed(std::uint8_t stage, std::uint8_t command, const mg::Frame &frame) {
+    failure.error = GetLastError();
+    failure.stage = stage;
+    failure.command = command;
+    failure.reject = frame.reject;
+    failure.reports = static_cast<std::uint8_t>(std::min<std::size_t>(255, frame.reports));
+    failure.head = frame.head;
+    poisoned = true;
+    return false;
+  }
   Candidate candidate;
   Handle handle;
+  bool lenient = false;
+  bool shared = false;
   bool poisoned = false;
 };
+
+// Admission failure in the support log: phase (1 open, 2 factory map,
+// 3 travel, 4 assignments, 5 factory mismatch), exchange stage, reject cause,
+// command and the first reply header bytes. Repeats of the same failure are
+// not logged again, so a retry loop cannot flood the log.
+void LogAdmissionFailure(std::uint8_t phase, const ExchangeFailure &f) {
+  const std::uint64_t value =
+      (std::uint64_t{phase} << 56) | (std::uint64_t{f.stage} << 48) |
+      (std::uint64_t{f.reject} << 40) | (std::uint64_t{f.command} << 32) |
+      (std::uint64_t{f.head[1]} << 24) | (std::uint64_t{f.head[2]} << 16) |
+      (std::uint64_t{f.head[4]} << 8) | f.reports;
+  static std::atomic<std::uint64_t> last{0};
+  if (last.exchange(value) == value)
+    return;
+  SupportLog_Event("mg75.admission_failed", value, SupportLog_Win32(f.error));
+}
 void Clear() {
   g_connected.store(false);
   halljoy::native_layout::Clear(g_token.exchange(0));
@@ -272,17 +348,31 @@ void Clear() {
   g_last.store(0);
   g_vid.store(0); g_pid.store(0); g_mapped.store(0); g_range.store(0);
 }
-bool Proof(Session &s, const jt::Model& model = kLegacyModel) {
-  // Keep firmware-derived factory proof for the existing MG75 Pro path.
-  // Legacy V1 peers use pinned vendor maps; their client does not establish2B.
-  if (&model == &kLegacyModel) for (unsigned row = 0; row < 6; row += 2) {
-    mg::Frame f;
-    if (!s.Exchange(mg::Factory(row), f) || !mg::MatchFactory(f, row))
-      return false;
+bool Proof(Session &s, const jt::Model& model = kLegacyModel,
+           std::uint8_t *phase = nullptr) {
+  const auto at = [&](std::uint8_t p) { if (phase) *phase = p; };
+  // Keep firmware-derived factory proof for MG75 Pro and Ying75 (whose official
+  // client reads 0x2B too). Legacy V1 peers use pinned vendor maps; their
+  // client does not establish 2B.
+  if (&model == &kLegacyModel || &model == &ying::kModel) {
+    // Ying75 in macOS mode reports the same matrix with Left Win/Alt swapped.
+    auto mac = model.actions;
+    std::swap(mac[106], mac[107]);
+    for (unsigned row = 0; row < 6; row += 2) {
+      mg::Frame f;
+      at(2);
+      if (!s.Exchange(mg::Factory(row), f))
+        return false;
+      at(5);
+      if (!mg::MatchFactoryActions(f, row, model.actions) &&
+          !(&model == &ying::kModel && mg::MatchFactoryActions(f, row, mac)))
+        return false;
+    }
   }
   for (unsigned half = 1; half <= 2; ++half) {
     mg::Frame f;
     mg::Values v;
+    at(3);
     if (!s.Exchange(mg::Travel(half), f) || !mg::ParseTravel(f, v))
       return false;
   }
@@ -361,12 +451,16 @@ bool Run(const Candidate &c) {
   Clear();
   Session s(c);
   const char *phase = "open";
-  const bool ready = s.Open() && (phase = "identity proof", Proof(s,*c.model)) &&
-                     (phase = "assignments", Map(s,*c.model));
+  std::uint8_t phaseCode = 1;
+  const bool opened = s.Open();
+  if (!opened) s.failure.error = GetLastError();
+  const bool ready = opened && (phase = "identity proof", Proof(s,*c.model,&phaseCode)) &&
+                     (phase = "assignments", phaseCode = 4, Map(s,*c.model));
   if (!ready) {
     ++g_bad;
     DebugLog_Write(L"[irok.mg75pro] admission failed phase=%hs error=%lu",
                    phase, GetLastError());
+    LogAdmissionFailure(phaseCode, s.failure);
     Clear();
     return false;
   }

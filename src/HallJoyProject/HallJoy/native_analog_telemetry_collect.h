@@ -32,6 +32,7 @@ void CollectNativeAnalogTelemetry(BackendAnalogTelemetry& t, bool diagnostic,
         }
         dst.verifiedLayoutToken=n.verifiedLayoutToken;
         dst.present=n.present; dst.connected=n.connected;
+        dst.genericProtocol=n.connected && n.genericProtocol;
         dst.vendorId=n.vendorId; dst.productId=n.productId;
         dst.usagePage=n.usagePage; dst.usage=n.usage;
         dst.mappedKeys=n.mappedKeys; dst.activeKeys=n.activeKeys;

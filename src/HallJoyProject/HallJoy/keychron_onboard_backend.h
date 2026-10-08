@@ -17,3 +17,7 @@ bool KeychronOnboard_CopyPad(std::uint8_t* destination,std::size_t size) noexcep
 std::uint64_t KeychronOnboard_MonitorGeneration() noexcept;
 
 bool KeychronOnboard_WorkerHealthy() noexcept;
+// True when a K4 running HallJoy onboard firmware is present but this engine
+// generation does not own it (it was absent or busy at startup). The
+// application then starts a fresh generation so the onboard route takes it.
+bool KeychronOnboard_NeedsTakeover() noexcept;

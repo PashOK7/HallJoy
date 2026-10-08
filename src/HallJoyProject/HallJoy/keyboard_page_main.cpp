@@ -45,6 +45,9 @@
 #include "ui_theme.h"
 #include "tab_dark.h"
 #include "profiles_page.h"
+#include "game_profile_service.h"
+#include "tab_transition.h"
+#include "app.h"
 #include <thread>
 #include "debug_log.h"
 
@@ -63,6 +66,12 @@ static bool Mad68LimitedVisible() { return (halljoy::keyboard_support::GetStatus
 static bool Mix87LimitedVisible() { return (halljoy::keyboard_support::GetStatusSnapshot().frozenModels & halljoy::keyboard_support::Mix87Limited) != 0; }
 static bool KnownLimitedVisible() { return Mad68LimitedVisible() || Mix87LimitedVisible(); }
 static bool CommunicationWarningVisible() { return halljoy::keyboard_support::GetStatusSnapshot().communicationWarning; }
+// Alumix 68 present but its firmware version was not recognized: the backend
+// withholds the depth path and no analog source is connected.
+static bool Alumix68Unverified() {
+    const auto s = halljoy::keyboard_support::GetStatusSnapshot();
+    return (s.frozenModels & halljoy::keyboard_support::RedSquareAlumix68) && !s.analogSourceConnected;
+}
 static bool FrozenSupportVisible() { return CommunicationWarningVisible() || halljoy::keyboard_support::GetStatusSnapshot().frozenModels != 0; }
 static bool ImplementedSupportVisible() { return CommunicationWarningVisible() || (halljoy::keyboard_support::GetStatusSnapshot().frozenModels & halljoy::keyboard_support::ImplementedModels) != 0; }
 static int SupportBannerHeight() { return FrozenSupportVisible() ? 154 : kSupportBannerHeightPx; }
@@ -70,8 +79,10 @@ static const wchar_t* FrozenSupportTitle() {
     if(Mix87LimitedVisible()) return L"MCHOSE Mix87 III: limited analog";
     if(Mad68LimitedVisible()) return L"MAD 68 V2 Dual: low-quality firmware analog";
     if(CommunicationWarningVisible())return L"Keyboard communication is unstable";
+    if(Alumix68Unverified()) return L"Red Square Alumix 68: unrecognized firmware";
     using namespace halljoy::keyboard_support;
     switch(GetStatusSnapshot().frozenModels) {
+    case RedSquareAlumix68: return L"Red Square Alumix 68: hardware testing incomplete";
     case Alumix104Research: return L"Alumix 104 Yotei: исследование аналога";
     case FamilyCandidate: return L"Keyboard support is unverified";
     case NA87: return L"IROK NA87: testing incomplete";
@@ -86,6 +97,8 @@ static const wchar_t* FrozenSupportTitle() {
     case AtkHex80Family: return L"ATK: hardware testing incomplete";
     case MchoseFamily: return L"MCHOSE: hardware testing incomplete";
     case RoyalKludgeHe: return L"Royal Kludge RK68 HE: hardware testing incomplete";
+    case LogitechRapid: return L"Logitech G RAPID: hardware testing incomplete";
+    case GenericProtocol: return L"Keyboard not in the list: hardware testing incomplete";
     case Neo65: return L"Neo65 SONIC HE+: hardware testing incomplete";
     case SparkLinkV2: return L"Keyboard: hardware testing incomplete";
     case RongYuanStream: return L"Keyboard: hardware testing incomplete";
@@ -105,10 +118,14 @@ static const wchar_t* FrozenSupportBody() {
     if(Mad68LimitedVisible()) return L"This firmware has no suitable analog protocol. This is the best available method: shallow input is lost, small changes are delayed, and normal typing is blocked. Exit HallJoy to restore typing.";
     if(CommunicationWarningVisible())return L"Another app may be interfering. Close keyboard configuration apps and browser configurator tabs, then try again. Keep software required for analog input running. If this continues, check the USB connection.";
     const auto models=halljoy::keyboard_support::GetStatusSnapshot().frozenModels;
+    if(Alumix68Unverified())
+        return L"Red Square Alumix 68 is connected, but this firmware version is not recognized. Analog input is not enabled to avoid reading the wrong data. Report the HallJoy.log on Discord so this version can be added.";
     if(models==halljoy::keyboard_support::Alumix104Research)
         return L"Клавиатура обнаружена. Аналоговый ввод пока не подтверждён. Нажимайте тестовые буквы; когда заголовок окна попросит лог, закройте HallJoy и отправьте HallJoy.log.";
     if(models==halljoy::keyboard_support::TartarusPro)
         return L"Support is enabled; hardware testing is incomplete. Keep Razer Synapse running. HallJoy uses factory key positions; Synapse remaps are not imported.";
+    if(models==halljoy::keyboard_support::GenericProtocol)
+        return L"This keyboard is not in HallJoy's list, but it uses a supported protocol, so analog input is enabled. Key positions come from the keyboard itself; range and behavior are not verified. Report it on Discord with HallJoy.log so the model can be added.";
     if(models==halljoy::keyboard_support::NuPhy)
         return L"The analog report mapping for this firmware is not verified. This model is not yet listed as supported. Report problems on Discord.";
     if(models==halljoy::keyboard_support::FamilyCandidate)
@@ -123,10 +140,13 @@ static const wchar_t* FrozenSupportBody() {
 // Mouse settings currently work poorly and are disabled in the UI.
 // Keep the implementation as a foundation for future fixes; do not delete it.
 static constexpr bool kMouseSettingsPageEnabled = false;
-// Temporarily hidden at owner request; retain the implementation for later.
-static constexpr bool kProfilesPageEnabled = false;
+// Game profiles v2 (docs/current/GAME_PROFILES_V2_2026-10-03.md).
+static constexpr bool kProfilesPageEnabled = true;
 
 static HWND g_hSupportBanner = nullptr;
+static HWND g_hProfileSelector = nullptr;
+static int g_shownSubTab = 0; // page actually displayed (end of a transition)
+static bool g_profileVisualPending = false;
 static HWND g_hPausePreview = nullptr;
 
 // Scaling shortcut
@@ -182,7 +202,7 @@ static void ComputeMousePanelRect(HWND hWnd, RECT& outRc);
 
 // Version 3 / EC-M QR for kDiscordInviteUrl; DrawSupportQr adds four quiet modules.
 static constexpr const char* kDiscordQrRows[] = {
-    "11111110101100000000101111111", "10000010010110001111001000001", "10111010010101011100001011101", "10111010111000111000101011101", "10111010101001101101001011101", "10000010100011110011101000001", "11111110101010101010101111111", "00000000111010100111100000000", "10001011111001111111111111001", "10110000111110000001001111111", "01100011001001110010100010001", "00010100010101011110100101011", "01110011110111000101010000010", "10000100110111101100111111111", "10001111011110001100111011101", "01000101001010100111110100011", "11110110100101111000110100010", "10010101000010000100101111011", "00011111011001110000101000101", "00100100101001011101111110011", "11001010011001000101111111001", "00000000110011101111100010001", "11111110110110001101101011101", "10000010011100100101100010011", "10111010111111111011111111011", "10111010011000000110000000010", "10111010011011010011010001111", "10000010000011111000100101011", "11111110111000000000101111010",
+    "11111110100001110001101111111", "10000010101011001000001000001", "10111010010110001011001011101", "10111010111100110000101011101", "10111010011000101010001011101", "10000010001001011101101000001", "11111110101010101010101111111", "00000000101010011100000000000", "10110111001001010011101001011", "01110000011011110111011110001", "10101011001001001000111010110", "01111100100110001001010000001", "10011110001100110101100001100", "11000001101100101100011000111", "10011111000101011011101110111", "01110001001000101011111010010", "10110010101100111111110011010", "00110101011000101100000101110", "10011010011001111100100110100", "00011101101011100101000110100", "01111010010111101101111111100", "00000000101110011000100011111", "11111110110100110111101011010", "10000010111011110010100011011", "10111010001010000100111110101", "10111010111111000101000111010", "10111010100100001000000100101", "10000010000011110000101011010", "11111110111010000101101000010",
 };
 enum class SupportBannerAction { None, Join, Copy, Log, Mix87Mode };
 static constexpr UINT_PTR kMix87ModeTimer = 2;
@@ -867,11 +887,16 @@ static LRESULT CALLBACK PausePreviewProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
             const bool fault = state->state == halljoy::runtime_command::State::PauseFaulted;
             RECT title{ S(hwnd, 20), S(hwnd, 14), button.left - S(hwnd, 12), rc.bottom / 2 + S(hwnd, 6) };
             SelectObject(dc, state->heading ? state->heading : GetStockObject(SYSTEM_FONT));
-            CustomPage_DrawText(dc, fault ? L"Restart required" : PausePreview_CanResume(*state) ? L"HallJoy is paused" : L"Resuming…",
+            // A failed start is not a pause the user asked for: say so.
+            const int startFailure = fault ? 0 : App_EngineStartFailure();
+            CustomPage_DrawText(dc, fault ? L"Restart required" : !PausePreview_CanResume(*state) ? L"Resuming…" :
+                startFailure ? L"Input could not start" : L"HallJoy is paused",
                 title, RGB(250, 219, 166), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
             RECT detail{ title.left, title.bottom, title.right, rc.bottom - S(hwnd, 14) };
             SelectObject(dc, state->body ? state->body : GetStockObject(SYSTEM_FONT));
-            CustomPage_DrawText(dc, fault ? L"Devices could not be restored" : L"Input processing is stopped", detail,
+            CustomPage_DrawText(dc, fault ? L"Devices could not be restored" :
+                startFailure == 1 ? L"Retrying automatically" : startFailure == 2 ? L"Click Resume to try again" :
+                L"Input processing is stopped", detail,
                 UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
             CustomPage_DrawButton(g, dc, button, L"Resume", state->hot, state->pressed, PausePreview_CanResume(*state));
         }
@@ -1067,22 +1092,57 @@ static void SetSelectedHid(uint16_t hid)
     RequestKeyboardCanvasFrame();
 }
 
-static void ShowSubPage(int idx)
+// Page window of a tab (nullptr when that tab has none).
+static HWND SubPageWindow(int idx)
 {
+    switch (idx)
+    {
+    case 0: return g_hPageRemap;
+    case 1: return g_hPageConfig;
+    case 2: return g_hPageTester;
+    case 3: return g_hPageGlobal;
+    case 4: return g_hPageInputOverlay;
+    default: break;
+    }
+    if (kProfilesPageEnabled && idx == 5) return ProfilesPage_Window();
+    if (idx == (kProfilesPageEnabled ? 6 : 5)) return g_hPageMouse;
+    return nullptr;
+}
+
+// Shows exactly the page of tab idx (instant switch, end of a transition).
+static void ApplySubPageVisibility(int idx)
+{
+    g_shownSubTab = idx;
+    if (g_hPageRemap)  ShowWindow(g_hPageRemap, idx == 0 ? SW_SHOW : SW_HIDE);
+    if (g_hPageConfig) ShowWindow(g_hPageConfig, idx == 1 ? SW_SHOW : SW_HIDE);
+    if (g_hPageTester) ShowWindow(g_hPageTester, idx == 2 ? SW_SHOW : SW_HIDE);
+    if (g_hPageGlobal) ShowWindow(g_hPageGlobal, idx == 3 ? SW_SHOW : SW_HIDE);
+    if (g_hPageInputOverlay) ShowWindow(g_hPageInputOverlay, idx == 4 ? SW_SHOW : SW_HIDE);
+    if (HWND profiles = ProfilesPage_Window()) ShowWindow(profiles, idx == 5 ? SW_SHOW : SW_HIDE);
+    if (g_hPageMouse)  ShowWindow(g_hPageMouse, idx == (kProfilesPageEnabled ? 6 : 5) ? SW_SHOW : SW_HIDE);
+
+    if (g_hSubTab) InvalidateRect(g_hSubTab, nullptr, FALSE);
+}
+
+// Logical switch happens at once (selection, live-refresh gating); the
+// visible change is animated by tab_transition when `animate` is set.
+static void ShowSubPage(int idx, bool animate = false)
+{
+    const int shown = g_activeSubTab;
     g_activeSubTab = idx;
 
     // NEW: clear selection when leaving Configuration tab
     if (idx != 1 && g_selectedHid != 0)
         SetSelectedHid(0);
 
-    if (g_hPageRemap)  ShowWindow(g_hPageRemap, idx == 0 ? SW_SHOW : SW_HIDE);
-    if (g_hPageConfig) ShowWindow(g_hPageConfig, idx == 1 ? SW_SHOW : SW_HIDE);
-    if (g_hPageTester) ShowWindow(g_hPageTester, idx == 2 ? SW_SHOW : SW_HIDE);
-    if (g_hPageGlobal) ShowWindow(g_hPageGlobal, idx == 3 ? SW_SHOW : SW_HIDE);
-    if (g_hPageInputOverlay) ShowWindow(g_hPageInputOverlay, idx == 4 ? SW_SHOW : SW_HIDE);
-    if (halljoy::profiles::ui::page) ShowWindow(halljoy::profiles::ui::page, idx == 5 ? SW_SHOW : SW_HIDE);
-    if (g_hPageMouse)  ShowWindow(g_hPageMouse, idx == (kProfilesPageEnabled ? 6 : 5) ? SW_SHOW : SW_HIDE);
-
+    if (!animate)
+    {
+        halljoy::tab_transition::JumpTo(idx);
+        ApplySubPageVisibility(idx);
+        return;
+    }
+    if (!halljoy::tab_transition::SwitchTo(shown, idx))
+        ApplySubPageVisibility(idx);
     if (g_hSubTab) InvalidateRect(g_hSubTab, nullptr, FALSE);
 }
 
@@ -1141,10 +1201,12 @@ static void ResizeSubUi(HWND hWnd)
     if (g_hPageInputOverlay)
         SetWindowPos(g_hPageInputOverlay, nullptr, tabRc.left, tabRc.top, pw, ph, SWP_NOZORDER);
 
-    if (halljoy::profiles::ui::page)
-        SetWindowPos(halljoy::profiles::ui::page, nullptr, tabRc.left, tabRc.top, pw, ph, SWP_NOZORDER);
+    if (HWND profiles = ProfilesPage_Window())
+        SetWindowPos(profiles, nullptr, tabRc.left, tabRc.top, pw, ph, SWP_NOZORDER);
+    ProfileSelector_Place(g_hProfileSelector, g_hSubTab);
     if (g_hPageMouse)
         SetWindowPos(g_hPageMouse, nullptr, tabRc.left, tabRc.top, pw, ph, SWP_NOZORDER);
+    halljoy::tab_transition::OnLayout();
 }
 
 // ----- Right-click unbind on key button + drag bound icon (subclass) -----
@@ -2827,7 +2889,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         {
             int idx = TabCtrl_GetCurSel(g_hSubTab);
             if (idx < 0) idx = 0;
-            ShowSubPage(idx);
+            ShowSubPage(idx, true);
 
             if (g_activeSubTab == 2 && g_hPageTester)
                 InvalidateRect(g_hPageTester, nullptr, FALSE);
@@ -2933,7 +2995,16 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         {
             tie.pszText = (LPWSTR)L"Profiles";
             TabCtrl_InsertItem(g_hSubTab, 5, &tie);
-            halljoy::profiles::ui::Create(g_hSubTab, hInst);
+            ProfilesPage_Create(g_hSubTab, hInst);
+            g_hProfileSelector = ProfileSelector_Create(hWnd, hInst);
+            // Profile changes made by the service (automatic, shortcut, user)
+            // refresh the other pages; rebuilding waits while HallJoy is hidden.
+            halljoy::profiles::service::onChanged = [hWnd](bool runtime) {
+                if (runtime) { g_profileVisualPending = true; halljoy::tab_transition::InvalidateCache(); }
+                ProfilesUi_Refresh();
+                PostMessageW(hWnd, WM_APP_PROFILES_RESUME_VISUAL, 0, 0);
+            };
+            halljoy::profiles::service::Start(GetAncestor(hWnd, GA_ROOT));
         }
 
         if (kMouseSettingsPageEnabled)
@@ -3032,6 +3103,23 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         ResizeSubUi(hWnd);
         TabCtrl_SetCurSel(g_hSubTab, 0);
         ShowSubPage(0);
+        {
+            halljoy::tab_transition::Host host{};
+            host.parent = hWnd;
+            host.tab = g_hSubTab;
+            host.count = TabCtrl_GetItemCount(g_hSubTab);
+            host.page = SubPageWindow;
+            host.commit = ApplySubPageVisibility;
+            halljoy::tab_transition::Initialize(host);
+            // The highlight shows the page that is actually displayed (or the
+            // camera), never the tab control's own selection: the control
+            // selects and may repaint before HallJoy hears of the click,
+            // which would flash the new tab for one frame.
+            TabDark::IndicatorSource = []() -> float {
+                const float camera = halljoy::tab_transition::IndicatorPosition();
+                return camera >= 0.f ? camera : (float)g_shownSubTab;
+            };
+        }
         halljoy::perf::Mark("ui.page.layout.end");
 
         for (uint16_t hid2 : g_hids)
@@ -3080,7 +3168,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         {
             int idx = TabCtrl_GetCurSel(g_hSubTab);
             if (idx < 0) idx = 0;
-            ShowSubPage(idx);
+            ShowSubPage(idx, true);
             if (g_activeSubTab == 2 && g_hPageTester)
                 InvalidateRect(g_hPageTester, nullptr, FALSE);
             return 0;
@@ -3302,10 +3390,27 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         return 0;
 
     case WM_APP_PROFILES_RESUME_VISUAL:
-        halljoy::profiles::ui::ResumeVisual();
+        if (g_profileVisualPending) {
+            const HWND root = GetAncestor(hWnd, GA_ROOT);
+            if (IsWindowVisible(root) && !IsIconic(root)) {
+                g_profileVisualPending = false;
+                if (g_hPageConfig) PostMessageW(g_hPageConfig, WM_APP + 121, 0, 0);
+                if (g_hPageGlobal) PostMessageW(g_hPageGlobal, WM_APP + 122, 0, 0);
+                PostMessageW(hWnd, WM_APP_KEYBOARD_LAYOUT_CHANGED, 0, 0);
+                ProfilesUi_Refresh();
+            }
+        }
+        return 0;
+
+    case WM_APP_PROFILES_OPEN_TAB:
+        if (g_hSubTab && kProfilesPageEnabled) {
+            TabCtrl_SetCurSel(g_hSubTab, 5);
+            ShowSubPage(5, true);
+        }
         return 0;
 
     case WM_APP_KEYBOARD_LAYOUT_CHANGED:
+        halljoy::tab_transition::InvalidateCache();
         if (g_hPageGlobal) PostMessageW(g_hPageGlobal, WM_APP_KEYBOARD_LAYOUT_CHANGED, 0, 0);
         if (wParam==KeyboardLayoutChange_StatusOnly) return 0;
         // Rebuild visible keyboard immediately when layout preset changes from subpages.
@@ -3361,6 +3466,11 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
     }
 
     case WM_DESTROY:
+        TabDark::IndicatorSource = nullptr;
+        halljoy::tab_transition::Shutdown();
+        halljoy::profiles::service::onChanged = nullptr;
+        halljoy::profiles::service::Stop();
+        g_hProfileSelector = nullptr;
         g_keyboardCanvas = nullptr; // destroyed with the page as its child
         g_hSupportBanner = nullptr;
         g_hPausePreview = nullptr; // The child destroys its timer/fonts with the parent.
@@ -3418,40 +3528,4 @@ extern "C" HWND KeyboardPageMain_CreatePage(HWND hParent, HINSTANCE hInst)
         0, 0, 100, 100, hParent, nullptr, hInst, nullptr);
 }
 
-#if defined(HALLJOY_ANALOG_SIMULATOR)
-bool ProfilesPage_Test() {
-    return halljoy::test_desktop::RunOnPrivateDesktop(L"HallJoyProfilesTest", []() -> bool {
-        using namespace halljoy::profiles;
-        using namespace halljoy::profiles::ui;
-        const auto active=GlobalProfiles_GetActiveName();
-        HWND root=CreateWindowW(L"STATIC",L"Profiles test",WS_POPUP,0,0,850,600,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
-        HWND tab=CreateWindowW(L"STATIC",L"",WS_CHILD,0,0,850,600,root,nullptr,GetModuleHandleW(nullptr),nullptr);
-        HWND view=Create(tab,GetModuleHandleW(nullptr));
-        bool ok=view!=nullptr;
-        if(view) {
-            SetWindowPos(view,nullptr,0,0,700,320,SWP_NOZORDER);
-            const auto before=GlobalProfiles_GetActiveName();
-            const int count=(int)SendMessageW(Control(List),LB_GETCOUNT,0,0);
-            if(count>1) {
-                SendMessageW(Control(List),LB_SETCURSEL,Same(names[0],before)?1:0,0);
-                SendMessageW(view,WM_COMMAND,MAKEWPARAM(List,LBN_SELCHANGE),(LPARAM)Control(List));
-                ok &= GlobalProfiles_GetActiveName()==before && !Same(selected,before);
-                ok &= !IsWindowEnabled(Control(Undo));
-            } else ok=false;
-            SendMessageW(view,WM_VSCROLL,SB_PAGEDOWN,0);
-            RECT client{},list{};GetClientRect(body,&client);GetWindowRect(Control(List),&list);
-            ok &= scroll>0 && client.bottom>0 && GetParent(Control(Name))==body && GetParent(Control(List))==view;
-            ok &= IsWindow(Control(Activate))&&IsWindow(Control(AddRunning));
-            session.error=L"Deliberate error for fixed-header containment test";Update();
-            RECT header{},viewport{};GetWindowRect(Control(Error),&header);GetWindowRect(body,&viewport);
-            ok &= GetParent(Control(Error))==view && header.bottom<=viewport.top;
-            visualPending=true;ResumeVisual();ok &= visualPending; // Hidden parent must defer rebuilding UI.
 
-            DestroyWindow(view);
-            ok &= page==nullptr && hook==nullptr;
-        }
-        DestroyWindow(root);
-        return ok;
-    });
-}
-#endif

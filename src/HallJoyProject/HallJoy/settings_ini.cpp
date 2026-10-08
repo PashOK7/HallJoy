@@ -824,6 +824,7 @@ namespace
         ProfileSettings,
         OverlayUpdate,
         WindowUpdate,
+        LayoutUpdate, // [KeyboardLayout] of the base file only
     };
 
     struct SettingsTransactionContext
@@ -845,6 +846,11 @@ namespace
         {
             if (!IniUtil_CopyExistingForUpdate(context->destinationPath, temporaryPath, errorOut)) return false;
             ok = SettingsIni_WriteWindow(temporaryPath);
+        }
+        else if (context->kind == SettingsTransactionKind::LayoutUpdate)
+        {
+            if (!IniUtil_CopyExistingForUpdate(context->destinationPath, temporaryPath, errorOut)) return false;
+            ok = KeyboardLayout_SaveToIni(temporaryPath);
         }
         else if (context->kind == SettingsTransactionKind::OverlayUpdate)
         {
@@ -908,6 +914,12 @@ namespace
             if (!valid && errorOut) *errorOut = ERROR_INVALID_DATA;
             return valid;
         }
+        if (context->kind == SettingsTransactionKind::LayoutUpdate) {
+            const bool valid = ReadExpectedIniValue(temporaryPath, L"KeyboardLayout", L"Automatic",
+                KeyboardLayout_GetAutomatic() ? L"1" : L"0");
+            if (!valid && errorOut) *errorOut = ERROR_INVALID_DATA;
+            return valid;
+        }
         bool ok = ReadExpectedIniValue(temporaryPath, L"HallJoyPersistence", L"SchemaVersion", L"1") &&
             ReadExpectedIniValue(
                 temporaryPath,
@@ -943,6 +955,7 @@ namespace
         // Preserve the readable legacy document before its first bundle commit.
         // Legacy bindings remain untouched beside it; no rollback needs an older EXE.
         if (preserveLegacy && kind != SettingsTransactionKind::OverlayUpdate && kind != SettingsTransactionKind::WindowUpdate &&
+            kind != SettingsTransactionKind::LayoutUpdate &&
             GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES && !halljoy::ini::HasBundle(path)) {
             const std::wstring backup = std::wstring(path) + L".pre-bundle.bak";
             if (!CopyFileW(path, backup.c_str(), TRUE) && GetLastError() != ERROR_FILE_EXISTS) {
@@ -990,6 +1003,14 @@ bool SettingsIni_SaveWindow(const wchar_t* path)
     // Never turn a missing base file into a geometry-only profile.
     if (!path || GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) return false;
     return SaveSettingsTransaction(path, SettingsTransactionKind::WindowUpdate, L"window position");
+}
+
+bool SettingsIni_SaveLayout(const wchar_t* path)
+{
+    // The keyboard layout (automatic flag, manual and last automatic preset)
+    // is global: named profiles do not carry it, so it lives in the base file.
+    if (!path || GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES) return false;
+    return SaveSettingsTransaction(path, SettingsTransactionKind::LayoutUpdate, L"keyboard layout");
 }
 
 bool SettingsIni_PrepareProfile(const wchar_t* path, std::function<void()>& apply) {

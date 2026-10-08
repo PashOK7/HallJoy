@@ -17,6 +17,7 @@
 #include "tray_window_test.h"
 #include "game_profiles_test.h"
 extern bool ProfilesPage_Test();
+extern bool CustomPage_TestPrintTree();
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -345,7 +346,47 @@ bool HallJoy_RunProfileTransactionTests() {
         Check(Bytes(windowFile) == windowBeforeFault, "failed window save damaged base file");
         const auto missingWindow = root / "missing-window.ini";
         Check(!SettingsIni_SaveWindow(missingWindow.c_str()) && !fs::exists(missingWindow), "window-only save created an incomplete base");
-        result << "window_roundtrip_and_profile_isolation=PASS window_atomic_failure=PASS\n";
+        // Layout-only save (named profile active): only [KeyboardLayout] changes
+        // and "Automatic layout" survives a reload of the base file.
+        {
+            const auto sectionsExcept = [&](const wchar_t* skip) {
+                std::wstring contents;
+                wchar_t sections[32768]{};
+                GetPrivateProfileSectionNamesW(sections, 32768, windowFile.c_str());
+                for (const wchar_t* section = sections; *section; section += wcslen(section) + 1) {
+                    if (_wcsicmp(section, skip) == 0) continue;
+                    wchar_t values[32768]{};
+                    const DWORD size = GetPrivateProfileSectionW(section, values, 32768, windowFile.c_str());
+                    contents.append(section).push_back(L'\0');
+                    contents.append(values, size);
+                }
+                return contents;
+            };
+            const bool automaticBefore = KeyboardLayout_GetAutomatic();
+            KeyboardLayout_SetAutomatic(false);
+            Check(SettingsIni_SaveLayout(windowFile.c_str()), "layout-only save (off) failed");
+            const auto otherSections = sectionsExcept(L"KeyboardLayout");
+            KeyboardLayout_SetAutomatic(true);
+            Check(SettingsIni_SaveLayout(windowFile.c_str()), "layout-only save (on) failed");
+            Check(sectionsExcept(L"KeyboardLayout") == otherSections, "layout-only update changed other sections");
+            wchar_t automatic[8]{};
+            GetPrivateProfileStringW(L"KeyboardLayout", L"Automatic", L"", automatic, 8, windowFile.c_str());
+            Check(wcscmp(automatic, L"1") == 0, "automatic layout flag not written");
+            KeyboardLayout_SetAutomatic(false);
+            Check(KeyboardLayout_LoadFromIni(windowFile.c_str()) && KeyboardLayout_GetAutomatic(),
+                "automatic layout did not survive a reload");
+            const auto layoutBeforeFault = Bytes(windowFile);
+            KeyboardLayout_SetAutomatic(false);
+            IniUtil_TestSetFailureStage(HallJoyPersistence::SaveStage::Replace);
+            Check(!SettingsIni_SaveLayout(windowFile.c_str()), "layout commit fault accepted");
+            IniUtil_TestSetFailureStage(HallJoyPersistence::SaveStage::None);
+            Check(Bytes(windowFile) == layoutBeforeFault, "failed layout save damaged base file");
+            const auto missingLayout = root / "missing-layout.ini";
+            Check(!SettingsIni_SaveLayout(missingLayout.c_str()) && !fs::exists(missingLayout),
+                "layout-only save created an incomplete base");
+            KeyboardLayout_SetAutomatic(automaticBefore);
+        }
+        result << "window_roundtrip_and_profile_isolation=PASS window_atomic_failure=PASS layout_base_save=PASS\n";
         Check(halljoy::tray::test::Run(), "tray lifecycle failed");
         result << "tray_lifecycle=PASS shell_failure_restart_restore_maximized private_desktop=PASS\n";
         Check(KeyboardSubpages_TestOverlayTextEditing(), "overlay edit production event test failed");
@@ -443,6 +484,7 @@ bool HallJoy_RunProfileTransactionTests() {
         result << "configuration_hidden_controls_layout_selection_resize=PASS\n";
         Check(halljoy::profiles::test::Run(), "game profile catalog/activation/recovery tests failed");
         Check(ProfilesPage_Test(), "profiles page browse/scroll/selection tests failed");
+        Check(CustomPage_TestPrintTree(), "page snapshot (print tree) tests failed");
         result << "game_profiles_management_foreground_policy_atomic_failure_undo=PASS\n";
         result << "bundle_failure_stages=5 PASS backend_init_attempts=0\nPROFILE_TRANSACTION_WINDOWS_TEST=PASS\n";
         return true;

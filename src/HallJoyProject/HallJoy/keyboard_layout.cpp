@@ -1016,6 +1016,15 @@ namespace
         return merge ? FindExactPresetByName(merge->name) : -1;
     }
 
+    // Owner decision 2026-10-07: without saved settings (and whenever no manual
+    // preset can be resolved) show the anonymous full-size keyboard, not the
+    // first catalog entry (a specific vendor model).
+    static int DefaultPresetIndex()
+    {
+        const int generic = FindExactPresetByName(L"Generic 100% ANSI");
+        return generic >= 0 ? generic : 0;
+    }
+
     static const wchar_t* ResolveSavedPresetName(const wchar_t* name)
     {
         return name && NamesEquivalent(name, L"Keychron K4 HE")
@@ -1142,7 +1151,7 @@ namespace
                 LoadPresetsFromDir();
             }
             halljoy::perf::Scope activate("layout.catalog.activate");
-            ActivatePreset(0);
+            ActivatePreset(DefaultPresetIndex());
             StabilityTrace_Write(L"INFO", L"layout-catalog", L"init.complete",
                 L"presets=%zu duration_ms=%llu builtin_files_created=0", g_presets.size(), GetTickCount64() - started);
         });
@@ -1886,7 +1895,7 @@ bool KeyboardLayout_LoadFromIni(const wchar_t* path)
         }
     }
 
-    ActivatePreset(0);
+    ActivatePreset(DefaultPresetIndex());
     g_manualPreset = g_presets[g_currentPresetIdx].name;
     restorePreview();
     return true;
@@ -1929,7 +1938,7 @@ void KeyboardLayout_SetAutomatic(bool enabled)
     halljoy::native_layout::activeToken.store(0);
     if (g_automaticLocked || g_automaticPreview) {
         const auto index=FindPresetByName(g_manualPreset);
-        ActivatePreset(index>=0 ? index : 0);
+        ActivatePreset(index>=0 ? index : DefaultPresetIndex());
     }
     g_automaticLocked=false;g_automaticPreview=false;g_automaticToken=g_automaticRevision=0;
     g_automaticStatus=enabled ? AutomaticStatus::Searching : AutomaticStatus::Disabled;
@@ -2009,7 +2018,7 @@ bool KeyboardLayout_UpdateAutomatic(bool searchCompleted, const BackendAnalogTel
             g_automaticPreview=true;
         } else if (!pending && (g_automaticLocked || g_automaticPreview)) {
             const auto manual=FindPresetByName(g_manualPreset);
-            ActivatePreset(manual>=0 ? manual : 0);
+            ActivatePreset(manual>=0 ? manual : DefaultPresetIndex());
             g_automaticPreview=false;
         }
         g_automaticLocked=false;g_automaticToken=g_automaticRevision=0;

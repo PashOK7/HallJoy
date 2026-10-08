@@ -10,8 +10,8 @@ inline unsigned NativeNotice(unsigned protocol, std::uint64_t token, bool connec
     if(protocol==6u && (token==0x57494E363050524Full || token==0x57494E363850524Full || token==0x484552363850524Full))result|=8192u; // AulaRm
     if(protocol==6u && (token==0x98E6602F43E0E69Cull || token==0x93B5A992A4E00487ull))result|=512u; // GravaStar
     if(protocol==3u && (token==0x798EDA38A47F0E95ull || token==0x36A3739BD6AEEEF8ull || token==0xBEE2B020B2BFBA27ull))result|=1024u; // Ipi
-    if(protocol==18u)result|=128u; // Mg75Pro
-    if(protocol==7u && (token==0xF3B7ECFB2D628746ull || token==0x4B36313700000001ull || token==0x4B36313700000002ull))result|=2048u; // Redragon
+    if(protocol==18u && !(token==0xE6D996D6FD1177ECull && productId==63623u))result|=128u; // Mg75Pro
+    if(protocol==7u && (token==0xF3B7ECFB2D628746ull || token==0x4B36313700000001ull || token==0x4B36313700000002ull || token==0xBB4DA08AE1DC0AE0ull || token==0x500507220128AACFull || token==0x76353BB82B7776D5ull))result|=2048u; // Redragon
     if(protocol==20u)result|=16384u; // Slice75
     if(protocol==21u)result|=32768u; // RongYuan
     if(protocol==22u && !(token==0x5F95BAB8BCAB36D1ull && productId==20528u))result|=65536u; // RongYuanStream
@@ -21,7 +21,9 @@ inline unsigned NativeNotice(unsigned protocol, std::uint64_t token, bool connec
     if(protocol==25u && !(token==0x0000000000000000ull && productId==5648u))result|=1048576u; // SteelSeriesApex
     if(protocol==2u && (token==0x0C198DF29CA9F131ull || token==0x122DA12FD67E0EAFull || token==0x326B33923E7CB2CBull || token==0x33CC0CE586CC352Eull || token==0x3B6C8B81F9762CB4ull || token==0x420C00E8C2ABAC9Bull || token==0x50947FC601DAF980ull || token==0x590523E95F3D75FEull || token==0x7FD89DDD0506AFEDull || token==0x879AE0EED47B9613ull || token==0xA53EEC3221CAAE86ull || token==0xAA7F8F1561F93524ull || token==0xB20BD447BB53432Full || token==0xB8F5B1060E7934B6ull || token==0xCD46342E663772DFull))result|=16777216u; // AtkHex80Family
     if(protocol==29u && (token==0xC19BC9D40FAC0AA4ull || token==0x0AC93D48E90B5C30ull || token==0x9B4588C88D53AF15ull || token==0x03762ECD7D6E5678ull || token==0x9F7EF505885301C3ull) && !(token==0x0AC93D48E90B5C30ull && productId==8474u))result|=33554432u; // MchoseFamily
-    if(protocol==27u && (token==0xC19BC9D40FAC0AA4ull || token==0x30F502E69E60CBE0ull))result|=33554432u; // MchoseArmFamily
+    if(protocol==27u && (token==0xC19BC9D40FAC0AA4ull || token==0x30F502E69E60CBE0ull) && !(token==0xC19BC9D40FAC0AA4ull && productId==8498u))result|=33554432u; // MchoseArmFamily
+    if(protocol==30u)result|=134217728u; // LogitechRapid
+    if(protocol==31u)result|=268435456u; // RedSquareAlumix68
     return result;
 }
 }

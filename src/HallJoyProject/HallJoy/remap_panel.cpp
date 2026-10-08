@@ -39,6 +39,7 @@
 #include "mouse_bind_codes.h"
 #include "custom_page_surface.h"
 #include "custom_page_controls.h"
+#include "display_pacer.h"
 
 using namespace Gdiplus;
 
@@ -49,8 +50,9 @@ static constexpr int ICON_GAP_X = 6;
 static constexpr int ICON_GAP_Y = 6;
 static constexpr int ICON_COLS = 13;
 
-static constexpr UINT_PTR DRAG_ANIM_TIMER_ID = 9009;
-static constexpr UINT_PTR BIND_HINT_TIMER_ID = 9010;
+// Drag/fly-back animation frames: one per refresh of the monitor the ghost is
+// on (display_pacer), not SetTimer, which ticks at ~64-100 Hz.
+static constexpr UINT WM_APP_REMAP_ANIM_FRAME = WM_APP + 0x3A2;
 static constexpr int REMAP_ID_ADD_GAMEPAD = 1901;
 static constexpr int REMAP_ID_REMOVE_GAMEPAD_BASE = 3000;
 static constexpr int REMAP_ICON_ID_BASE = 2100;
@@ -102,10 +104,11 @@ static void AddRoundRectPath(GraphicsPath& path, const RectF& r, float rad)
     path.CloseFigure();
 }
 
-static UINT GetAnimIntervalMs()
+// Animation clock in milliseconds. QPC based: GetTickCount advances in
+// ~16 ms steps, which shows as uneven motion on high refresh monitors.
+static DWORD AnimNowMs()
 {
-    UINT ms = Settings_GetUIRefreshMs();
-    return std::clamp(ms, 1u, 200u);
+    return (DWORD)(uint64_t)(halljoy::display_pacer::NowSeconds() * 1000.0);
 }
 
 static void InvalidateHidKey(uint16_t hid)
@@ -342,11 +345,31 @@ struct RemapPanelState
     HGDIOBJ ghostOldBmp = nullptr;
     void* ghostBits = nullptr;
 
+    // Motion blur: the sharp ghost is averaged along its motion into a padded
+    // surface (premultiplied alpha), which is what the layered window shows.
+    HDC     blurMemDC = nullptr;
+    HBITMAP blurBmp = nullptr;
+    HGDIOBJ blurOldBmp = nullptr;
+    void* blurBits = nullptr;
+    int blurPad = 0, blurW = 0, blurH = 0;
+    std::vector<uint16_t> blurAccum;
+    bool blurHavePrev = false;
+    float blurPrevX = 0.0f, blurPrevY = 0.0f;
+    float blurVelX = 0.0f, blurVelY = 0.0f;
+    LARGE_INTEGER blurPrevQpc{};
+
     float gx = 0.0f, gy = 0.0f; // ghost top-left (screen)
     float tx = 0.0f, ty = 0.0f; // ghost target top-left (screen)
-    DWORD lastTick = 0;
+    double lastFrameTime = 0.0; // display_pacer::NowSeconds of the previous frame
 
-    UINT animIntervalMs = 0;
+    // A copied state (the WM_CREATE init) starts with an idle pacer.
+    struct AnimPacer
+    {
+        halljoy::display_pacer::Pacer pacer;
+        AnimPacer() = default;
+        AnimPacer(const AnimPacer&) {}
+        AnimPacer& operator=(const AnimPacer&) { return *this; }
+    } anim;
     std::vector<HWND> iconBtns;
     std::vector<HWND> packLabels;
     std::vector<HWND> packRemoveBtns;
@@ -378,6 +401,25 @@ struct RemapPanelState
     float postX0 = 0.0f, postY0 = 0.0f;
     float postX1 = 0.0f, postY1 = 0.0f;
 };
+
+// The monitor the ghost is on (its centre), so frames follow that monitor's refresh.
+static HMONITOR Anim_GhostMonitor(const RemapPanelState* st)
+{
+    POINT c{ (LONG)std::lround(st->gx) + st->ghostW / 2, (LONG)std::lround(st->gy) + st->ghostH / 2 };
+    return MonitorFromPoint(c, MONITOR_DEFAULTTONEAREST);
+}
+
+static void Anim_Start(HWND hPanel, RemapPanelState* st)
+{
+    if (!st->anim.pacer.Running()) st->lastFrameTime = 0.0;
+    st->anim.pacer.Start(hPanel, WM_APP_REMAP_ANIM_FRAME, Anim_GhostMonitor(st));
+}
+
+static void Anim_Stop(RemapPanelState* st)
+{
+    st->anim.pacer.Stop();
+    st->lastFrameTime = 0.0;
+}
 
 static COLORREF Remap_GetPackTileColor(RemapPanelState* st, int packIdx, bool stronger);
 
@@ -438,6 +480,19 @@ static void Ghost_FreeSurface(RemapPanelState* st)
     st->ghostRenderedIconIdx = -1;
     st->ghostRenderedSize = 0;
     st->ghostRenderedStyleVariant = -1;
+
+    if (st->blurMemDC)
+    {
+        if (st->blurOldBmp) SelectObject(st->blurMemDC, st->blurOldBmp);
+        st->blurOldBmp = nullptr;
+        DeleteDC(st->blurMemDC);
+        st->blurMemDC = nullptr;
+    }
+    if (st->blurBmp) { DeleteObject(st->blurBmp); st->blurBmp = nullptr; }
+    st->blurBits = nullptr;
+    st->blurW = st->blurH = st->blurPad = 0;
+    st->blurAccum.clear();
+    st->blurHavePrev = false;
 }
 
 static bool Ghost_EnsureSurface(RemapPanelState* st)
@@ -468,7 +523,65 @@ static bool Ghost_EnsureSurface(RemapPanelState* st)
     }
 
     st->ghostOldBmp = SelectObject(st->ghostMemDC, st->ghostBmp);
+
+    // Room around the icon for its streak.
+    st->blurPad = std::max(4, (std::max(st->ghostW, st->ghostH) * 3) / 4);
+    st->blurW = st->ghostW + 2 * st->blurPad;
+    st->blurH = st->ghostH + 2 * st->blurPad;
+    HDC screen2 = GetDC(nullptr);
+    st->blurMemDC = CreateCompatibleDC(screen2);
+    BITMAPINFO bb = bi;
+    bb.bmiHeader.biWidth = st->blurW;
+    bb.bmiHeader.biHeight = -st->blurH;
+    st->blurBmp = CreateDIBSection(screen2, &bb, DIB_RGB_COLORS, &st->blurBits, nullptr, 0);
+    ReleaseDC(nullptr, screen2);
+    if (!st->blurMemDC || !st->blurBmp || !st->blurBits)
+    {
+        // Without the blur surface the ghost still works, just sharp.
+        if (st->blurMemDC) DeleteDC(st->blurMemDC);
+        if (st->blurBmp) DeleteObject(st->blurBmp);
+        st->blurMemDC = nullptr; st->blurBmp = nullptr; st->blurBits = nullptr;
+        st->blurW = st->blurH = st->blurPad = 0;
+        return true;
+    }
+    st->blurOldBmp = SelectObject(st->blurMemDC, st->blurBmp);
+    st->blurAccum.assign((size_t)st->blurW * (size_t)st->blurH * 4, 0);
     return true;
+}
+
+// Averages the sharp ghost along (lx, ly) pixels, centred on its rest
+// position, into the padded blur surface. Premultiplied BGRA averages
+// correctly: the streak fades out without dark fringes.
+static void Ghost_ComposeBlur(RemapPanelState* st, float lx, float ly)
+{
+    const int w = st->ghostW, h = st->ghostH, bw = st->blurW, bh = st->blurH, pad = st->blurPad;
+    const float length = std::sqrt(lx * lx + ly * ly);
+    const int samples = std::clamp((int)std::ceil(length / 1.25f) + 1, 1, 32);
+    std::fill(st->blurAccum.begin(), st->blurAccum.end(), (uint16_t)0);
+    const auto* src = static_cast<const uint8_t*>(st->ghostBits);
+    for (int k = 0; k < samples; ++k)
+    {
+        const float f = samples > 1 ? (float)k / (float)(samples - 1) - 0.5f : 0.0f;
+        const int ox = pad + (int)std::lround(lx * f), oy = pad + (int)std::lround(ly * f);
+        for (int y = 0; y < h; ++y)
+        {
+            const int ty = oy + y;
+            if (ty < 0 || ty >= bh) continue;
+            const uint8_t* row = src + (size_t)y * (size_t)w * 4;
+            uint16_t* acc = st->blurAccum.data() + ((size_t)ty * (size_t)bw + (size_t)std::max(0, ox)) * 4;
+            for (int x = std::max(0, -ox); x < w && ox + x < bw; ++x)
+            {
+                const uint8_t* s4 = row + (size_t)x * 4;
+                if (!s4[3]) { acc += 4; continue; }
+                acc[0] += s4[0]; acc[1] += s4[1]; acc[2] += s4[2]; acc[3] += s4[3];
+                acc += 4;
+            }
+        }
+    }
+    auto* dst = static_cast<uint8_t*>(st->blurBits);
+    const size_t count = (size_t)bw * (size_t)bh * 4;
+    for (size_t i = 0; i < count; ++i)
+        dst[i] = (uint8_t)((st->blurAccum[i] + samples / 2) / samples);
 }
 
 static void Ghost_RenderFullPressedCachedIfNeeded(RemapPanelState* st)
@@ -545,9 +658,43 @@ static void Ghost_UpdateLayered(RemapPanelState* st, int x, int y)
 
     BYTE alpha = st->hintActive ? st->hintAlpha : 255;
 
-    HDC screen = GetDC(nullptr);
+    // Ghost velocity from its smoothed (float) position; the streak covers the
+    // distance travelled in half the measured frame time (180-degree shutter),
+    // so it fades to sharp as the ghost settles.
+    HDC source = st->ghostMemDC;
     POINT ptPos{ x, y };
     SIZE  sz{ st->ghostW, st->ghostH };
+    if (st->blurMemDC)
+    {
+        LARGE_INTEGER now{}, freq{};
+        QueryPerformanceCounter(&now);
+        QueryPerformanceFrequency(&freq);
+        float frame = 1.0f / 60.0f;
+        if (st->blurHavePrev)
+        {
+            frame = std::clamp((float)(now.QuadPart - st->blurPrevQpc.QuadPart) / (float)freq.QuadPart, 1.0f / 240.0f, 1.0f / 30.0f);
+            const float vx = (st->gx - st->blurPrevX) / frame, vy = (st->gy - st->blurPrevY) / frame;
+            st->blurVelX += (vx - st->blurVelX) * 0.6f;
+            st->blurVelY += (vy - st->blurVelY) * 0.6f;
+        }
+        else
+        {
+            st->blurVelX = st->blurVelY = 0.0f;
+        }
+        st->blurHavePrev = true;
+        st->blurPrevX = st->gx; st->blurPrevY = st->gy;
+        st->blurPrevQpc = now;
+        float lx = st->blurVelX * frame * 0.5f, ly = st->blurVelY * frame * 0.5f;
+        const float maxLength = (float)st->blurPad * 1.8f;
+        const float length = std::sqrt(lx * lx + ly * ly);
+        if (length > maxLength) { lx *= maxLength / length; ly *= maxLength / length; }
+        Ghost_ComposeBlur(st, length < 1.0f ? 0.0f : lx, length < 1.0f ? 0.0f : ly);
+        source = st->blurMemDC;
+        ptPos = POINT{ x - st->blurPad, y - st->blurPad };
+        sz = SIZE{ st->blurW, st->blurH };
+    }
+
+    HDC screen = GetDC(nullptr);
     POINT ptSrc{ 0, 0 };
 
     BLENDFUNCTION bf{};
@@ -556,7 +703,7 @@ static void Ghost_UpdateLayered(RemapPanelState* st, int x, int y)
     bf.SourceConstantAlpha = alpha;
     bf.AlphaFormat = AC_SRC_ALPHA;
 
-    UpdateLayeredWindow(st->hGhost, screen, &ptPos, &sz, st->ghostMemDC, &ptSrc, 0, &bf, ULW_ALPHA);
+    UpdateLayeredWindow(st->hGhost, screen, &ptPos, &sz, source, &ptSrc, 0, &bf, ULW_ALPHA);
     ReleaseDC(nullptr, screen);
 
     ShowWindow(st->hGhost, SW_SHOWNOACTIVATE);
@@ -653,6 +800,7 @@ static void Ghost_ShowScaledAt(RemapPanelState* st, float x, float y, float scal
 static void Ghost_Hide(RemapPanelState* st)
 {
     if (!st || !st->hGhost) return;
+    st->blurHavePrev = false; // the next appearance starts sharp
     ShowWindow(st->hGhost, SW_HIDE);
 }
 
@@ -745,8 +893,7 @@ static void StopAllPanelAnim_Immediate(HWND hPanel, RemapPanelState* st)
     if (src) InvalidateRect(src, nullptr, FALSE);
     CustomPageSurface_MarkDirty(hPanel, &st->surface);
 
-    KillTimer(hPanel, DRAG_ANIM_TIMER_ID);
-    st->animIntervalMs = 0;
+    Anim_Stop(st);
 
     Ghost_Hide(st);
 
@@ -761,7 +908,7 @@ static void PostAnim_StartShrinkAway(HWND hPanel, RemapPanelState* st)
     st->postMode = RemapPostAnimMode::ShrinkAway;
     st->postPhase = 0;
 
-    st->shrinkStartMs = GetTickCount();
+    st->shrinkStartMs = AnimNowMs();
     st->shrinkDurMs = 140;
 
     // Ensure source icon is visible in this mode
@@ -773,9 +920,7 @@ static void PostAnim_StartShrinkAway(HWND hPanel, RemapPanelState* st)
         CustomPageSurface_MarkDirty(hPanel, &st->surface);
     }
 
-    UINT wantMs = GetAnimIntervalMs();
-    st->animIntervalMs = wantMs;
-    SetTimer(hPanel, DRAG_ANIM_TIMER_ID, st->animIntervalMs, nullptr);
+    Anim_Start(hPanel, st);
 }
 
 static void PostAnim_StartFlyBack(HWND hPanel, RemapPanelState* st)
@@ -796,7 +941,7 @@ static void PostAnim_StartFlyBack(HWND hPanel, RemapPanelState* st)
 
     st->postMode = RemapPostAnimMode::FlyBack;
     st->postPhase = 0;
-    st->postPhaseStartTick = GetTickCount();
+    st->postPhaseStartTick = AnimNowMs();
     st->postPhaseDurationMs = FLY_FLY_MS;
 
     st->postX0 = st->gx;
@@ -810,9 +955,7 @@ static void PostAnim_StartFlyBack(HWND hPanel, RemapPanelState* st)
     InvalidateRect(st->dragSrcIconBtn, nullptr, FALSE);
     CustomPageSurface_MarkDirty(hPanel, &st->surface);
 
-    UINT wantMs = GetAnimIntervalMs();
-    st->animIntervalMs = wantMs;
-    SetTimer(hPanel, DRAG_ANIM_TIMER_ID, st->animIntervalMs, nullptr);
+    Anim_Start(hPanel, st);
 }
 
 static bool PostAnim_Tick(HWND hPanel, RemapPanelState* st)
@@ -820,7 +963,7 @@ static bool PostAnim_Tick(HWND hPanel, RemapPanelState* st)
     if (!st) return true;
     if (st->postMode == RemapPostAnimMode::None) return true;
 
-    DWORD now = GetTickCount();
+    DWORD now = AnimNowMs();
 
     if (st->postMode == RemapPostAnimMode::ShrinkAway)
     {
@@ -943,10 +1086,7 @@ static void PostAnim_Finish(HWND hPanel, RemapPanelState* st)
     CustomPageSurface_MarkDirty(hPanel, &st->surface);
 
     if (!st->dragging)
-    {
-        KillTimer(hPanel, DRAG_ANIM_TIMER_ID);
-        st->animIntervalMs = 0;
-    }
+        Anim_Stop(st);
 }
 
 // ---------------- Icon buttons (owner-draw) ----------------
@@ -1757,30 +1897,24 @@ static void DragTick(HWND hPanel, RemapPanelState* st, float dt)
     Ghost_ShowFullAt(st, st->gx, st->gy);
 }
 
-// ---------------- Timer tick ----------------
+// ---------------- Frame tick (one per display refresh) ----------------
 static void PanelAnimTick(HWND hPanel, RemapPanelState* st)
 {
     if (!st) return;
 
-    UINT wantMs = GetAnimIntervalMs();
-    if (wantMs != st->animIntervalMs)
-    {
-        st->animIntervalMs = wantMs;
-        SetTimer(hPanel, DRAG_ANIM_TIMER_ID, st->animIntervalMs, nullptr);
-    }
-
-    DWORD now = GetTickCount();
+    // dt between the refreshes that produced the frames: evenly spaced even
+    // when the UI thread handles a frame message a little late.
+    double now = st->anim.pacer.FrameTime();
+    if (now <= 0.0) now = halljoy::display_pacer::NowSeconds();
     float dt = 0.016f;
-    if (st->lastTick != 0)
-    {
-        dt = (float)(now - st->lastTick) / 1000.0f;
-        dt = std::clamp(dt, 0.001f, 0.050f);
-    }
-    st->lastTick = now;
+    if (st->lastFrameTime > 0.0)
+        dt = std::clamp((float)(now - st->lastFrameTime), 0.001f, 0.050f);
+    st->lastFrameTime = now;
 
     if (st->dragging)
     {
         DragTick(hPanel, st, dt);
+        st->anim.pacer.SetMonitor(Anim_GhostMonitor(st));
         return;
     }
 
@@ -1789,11 +1923,12 @@ static void PanelAnimTick(HWND hPanel, RemapPanelState* st)
         bool done = PostAnim_Tick(hPanel, st);
         if (done)
             PostAnim_Finish(hPanel, st);
+        else
+            st->anim.pacer.SetMonitor(Anim_GhostMonitor(st));
         return;
     }
 
-    KillTimer(hPanel, DRAG_ANIM_TIMER_ID);
-    st->animIntervalMs = 0;
+    Anim_Stop(st);
 }
 
 // ---------------- Panel background ----------------
@@ -1976,44 +2111,15 @@ static bool Remap_BeginRetainedIconDrag(HWND hWnd, RemapPanelState* st, int flat
     return true;
 }
 
-static void PaintPanelBg(HWND hWnd, RemapPanelState* st)
+static void PaintPanelBg(HWND hWnd, UINT msg, WPARAM wParam, RemapPanelState* st)
 {
-    PAINTSTRUCT ps;
-    HDC hdc = BeginPaint(hWnd, &ps);
-    RECT rc{};
-    GetClientRect(hWnd, &rc);
-
-    int w = (int)(rc.right - rc.left);
-    int h = (int)(rc.bottom - rc.top);
-    if (w <= 0 || h <= 0)
+    if (st)
     {
-        EndPaint(hWnd, &ps);
-        return;
+        st->surface.scrollY = st->scrollY;
+        st->surface.contentHeight = st->contentHeight;
     }
-
-    HDC mem = CreateCompatibleDC(hdc);
-    HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
-    if (!mem || !bmp)
-    {
-        if (bmp) DeleteObject(bmp);
-        if (mem) DeleteDC(mem);
-        FillRect(hdc, &rc, UiTheme::Brush_PanelBg());
-        EndPaint(hWnd, &ps);
-        return;
-    }
-
-    HGDIOBJ oldBmp = SelectObject(mem, bmp);
-    st->surface.scrollY = st->scrollY;
-    st->surface.contentHeight = st->contentHeight;
-    CustomPageSurface_Present(hWnd, mem, &st->surface,
-        Remap_RenderCacheContent, st, st->scroll.draggingThumb);
-
-    BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
-
-    SelectObject(mem, oldBmp);
-    DeleteObject(bmp);
-    DeleteDC(mem);
-    EndPaint(hWnd, &ps);
+    CustomPageSurface_Paint(hWnd, msg, wParam, st ? &st->surface : nullptr,
+        Remap_RenderCacheContent, st, st && st->scroll.draggingThumb);
 }
 
 // ---------------- Apply binding helpers ----------------
@@ -2076,8 +2182,7 @@ static void ApplyBindingNow(HWND hWnd, RemapPanelState* st, uint16_t newHid, boo
     st->shrinkStartMs = 0;
     st->shrinkDurMs = 0;
 
-    KillTimer(hWnd, DRAG_ANIM_TIMER_ID);
-    st->animIntervalMs = 0;
+    Anim_Stop(st);
     Ghost_Hide(st);
     CustomPageSurface_MarkDirty(hWnd, &st->surface);
 }
@@ -2106,7 +2211,9 @@ static void Remap_StopBindingHint(HWND panel, RemapPanelState* st)
     if (!st || !st->hintActive) return;
     st->hintActive = false;
     st->hintKey = nullptr;
-    KillTimer(panel, BIND_HINT_TIMER_ID);
+    // The hint yields to a drag or post-animation, which keep the frames.
+    if (!st->dragging && st->postMode == RemapPostAnimMode::None)
+        Anim_Stop(st);
     Ghost_Hide(st);
 }
 
@@ -2116,7 +2223,7 @@ static void Remap_TickBindingHint(HWND panel, RemapPanelState* st)
     RECT keyRect{}, panelRect{};
     GetWindowRect(panel, &panelRect);
     GetWindowRect(st->hintKey, &keyRect);
-    const ULONGLONG elapsed = GetTickCount64() - st->hintStarted;
+    const ULONGLONG elapsed = (ULONGLONG)AnimNowMs() - st->hintStarted;
     const auto frame = halljoy::remap_hint::FrameAt(elapsed);
     const HWND capture = GetCapture();
     // Repeated preview clicks temporarily capture the mouse. They must neither
@@ -2177,8 +2284,9 @@ void RemapPanel_ShowBindingHint(HWND panel)
         if (!st->hGhost || !Ghost_EnsureSurfaceAndResetCache(st)) return;
         st->hintActive = true;
         st->hintKey = key;
-        st->hintStarted = GetTickCount64();
-        if (!SetTimer(panel, BIND_HINT_TIMER_ID, 16, nullptr))
+        st->hintStarted = (ULONGLONG)AnimNowMs();
+        Anim_Start(panel, st);
+        if (!st->anim.pacer.Running())
         {
             Remap_StopBindingHint(panel, st);
             return;
@@ -2242,14 +2350,12 @@ static LRESULT CALLBACK IconSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, LPA
             st->tx = (float)(pt.x - st->ghostW / 2);
             st->ty = (float)(pt.y - st->ghostH / 2);
 
-            st->lastTick = 0;
             BuildKeyCache(st);
 
             SetFocus(hPanel);
             SetCapture(hPanel);
 
-            st->animIntervalMs = GetAnimIntervalMs();
-            SetTimer(hPanel, DRAG_ANIM_TIMER_ID, st->animIntervalMs, nullptr);
+            Anim_Start(hPanel, st);
 
             KeyboardUI_SetDragHoverHid(0);
 
@@ -2273,8 +2379,9 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
     {
     case WM_ERASEBKGND: return 1;
 
+    case WM_PRINTCLIENT:
     case WM_PAINT:
-        PaintPanelBg(hWnd, st);
+        PaintPanelBg(hWnd, msg, wParam, st);
         return 0;
 
     case WM_CTLCOLORSTATIC:
@@ -2524,17 +2631,23 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         }
         return 0;
 
-    case WM_TIMER:
-        if (!HallJoyUiVisible(hWnd)) return 0;
-        if (wParam == BIND_HINT_TIMER_ID)
+    case WM_APP_REMAP_ANIM_FRAME:
+        if (st)
         {
-            Remap_TickBindingHint(hWnd, st);
-            return 0;
-        }
-        if (wParam == DRAG_ANIM_TIMER_ID && st)
-        {
-            PanelAnimTick(hWnd, st);
-            return 0;
+            st->anim.pacer.FrameConsumed();
+            // A frame message can arrive once after the pacer stopped.
+            if (st->anim.pacer.Running() && HallJoyUiVisible(hWnd))
+            {
+                if (st->hintActive)
+                {
+                    Remap_TickBindingHint(hWnd, st);
+                    if (st->hintActive) st->anim.pacer.SetMonitor(Anim_GhostMonitor(st));
+                }
+                else
+                {
+                    PanelAnimTick(hWnd, st);
+                }
+            }
         }
         return 0;
 

@@ -73,7 +73,10 @@ bool Prepare() {
     // a previous session the K4 re-enumerates (native mode off) and its vendor
     // interface can be briefly missing or still held. While the K4 is plugged
     // in, wait a bounded time instead of falling back to UAP for the session.
-    const auto deadline=GetTickCount64()+3000;
+    // A K4 running HJO1 that was removed moments ago is re-enumerating (its
+    // previous session ended) and is waited for even while no node is present.
+    const bool returning=!K4UsbDevicePresent() && K4HjoRecentlyRemoved(5000);
+    const auto deadline=GetTickCount64()+(returning?4000:3000);
     PrepareStage stage=PrepareStage::NoDevice;
     unsigned attempts=0;
     Device claimed{};
@@ -81,14 +84,23 @@ bool Prepare() {
         ++attempts;
         stage=TryPrepareOnce(claimed);
         if(stage==PrepareStage::Claimed || stage==PrepareStage::Capability || stage==PrepareStage::Routing) break;
-        if(GetTickCount64()>=deadline || !K4UsbDevicePresent()) break;
+        if(GetTickCount64()>=deadline || (!returning && !K4UsbDevicePresent())) break;
         Sleep(100);
     }
     if(stage!=PrepareStage::Claimed) {
         if(K4UsbDevicePresent() || stage!=PrepareStage::NoDevice)
             SupportLog_Event("k4.onboard_prepare_failed",static_cast<unsigned>(stage),SupportLog_Data(attempts));
+        // HJO1 firmware is served by the onboard protocol only, never by the
+        // UAP fallback: reserve its vendor collection so the analog host skips
+        // it. The application retries the onboard route when it can
+        // (App: K4 late takeover).
+        unsigned held=0;
+        for(const auto& path:K4HjoVendorInterfaces())
+            if(NativeAnalogRouting_Claim(0x3434,0x0e40,path.c_str(),NativeAnalogProtocol::KeychronOnboard)) ++held;
+        if(held) SupportLog_Event("k4.onboard_reserved_for_retry",held);
         return false;
     }
+    if(returning) SupportLog_Event("k4.onboard_prepare_waited_return",attempts);
     if(attempts>1) SupportLog_Event("k4.onboard_prepare_retried",attempts);
     chosen=claimed;reserved.store(true);present.store(true);return true;
 }
@@ -302,6 +314,9 @@ bool KeychronOnboard_CopyPad(std::uint8_t* destination,std::size_t size) noexcep
 }
 std::uint64_t KeychronOnboard_MonitorGeneration() noexcept {return updates.load();}
 bool KeychronOnboard_OwnsOutput() noexcept {return reserved.load();}
+bool KeychronOnboard_NeedsTakeover() noexcept {
+    try { return !reserved.load() && !K4HjoVendorInterfaces().empty(); } catch (...) { return false; }
+}
 void KeychronOnboard_SetAdmission(bool on) noexcept {admitted.store(on);}
 void KeychronOnboard_SetParkOnStop(bool park) noexcept {parkOnStop.store(park);}
 void KeychronOnboard_ReleaseParked() noexcept {

@@ -12,12 +12,15 @@ def check():
     profiles=json.loads((ROOT/'docs/research/rongyuan-stream/profiles.json').read_bytes())
     header=(ROOT/'src/HallJoyProject/HallJoy/rongyuan_stream_protocol.h').read_text(encoding='utf8')
     body=re.search(r'kUsbAliases\[\]=\{(.*?)\};',header,re.S)[1]
-    actual={tuple(map(int,x)) for x in re.findall(r'\{(\d+),(\d+),(\d+),(\d+),(\d+)\}',body)}
+    actual={tuple(map(int,x)) for x in re.findall(r'\{(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\}',body)}
     expected=set()
     for a in evidence['aliases']:
-        key=tuple(a[k] for k in ('board','vid','pid','canonical_vid','canonical_pid'))
+        # canonical_board differs only for a revision whose official class carries
+        # the canonical board's identical matrix (checked below like every alias).
+        canonical_board=a.get('canonical_board',a['board'])
+        key=tuple(a[k] for k in ('board','vid','pid','canonical_vid','canonical_pid'))+(canonical_board,)
         assert key not in expected;expected.add(key)
-        canonical=next(p for p in profiles if (p['board'],p['vid'],p['pid'])==(a['board'],a['canonical_vid'],a['canonical_pid']))
+        canonical=next(p for p in profiles if (p['board'],p['vid'],p['pid'])==(canonical_board,a['canonical_vid'],a['canonical_pid']))
         record=a['source_record']['record']
         assert f"id:{a['board']},vid:{a['vid']},pid:{a['pid']}," in record
         model=a['model_class'];matrix=json.loads(a['matrix_literal']) if a.get('kind')=='firmware-stream' else json.loads(re.search(r'defaultMatrix=(\[[0-9,]+\])',model)[1])

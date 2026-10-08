@@ -435,3 +435,223 @@ bool CustomPageSurface_Present(
     CustomPageSurface_DrawScrollbar(hWnd, targetDC, surface, draggingScrollbar);
     return true;
 }
+
+namespace
+{
+struct PaintBuffer
+{
+    HBITMAP bitmap = nullptr;
+    int width = 0;
+    int height = 0;
+    bool inUse = false;
+};
+// UI thread only. Pages paint one at a time, so one buffer is normally
+// enough; a nested paint (a handler forcing another window to paint) takes
+// a second one.
+PaintBuffer g_paintBuffers[4];
+
+int AcquirePaintBuffer(HDC reference, int width, int height)
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        PaintBuffer& b = g_paintBuffers[i];
+        if (b.inUse) continue;
+        if (!b.bitmap || b.width < width || b.height < height)
+        {
+            const int w = std::max(width, b.width), h = std::max(height, b.height);
+            BITMAPINFO bi{};
+            bi.bmiHeader.biSize = sizeof(bi.bmiHeader);
+            bi.bmiHeader.biWidth = w;
+            bi.bmiHeader.biHeight = -h;
+            bi.bmiHeader.biPlanes = 1;
+            bi.bmiHeader.biBitCount = 32;
+            bi.bmiHeader.biCompression = BI_RGB;
+            void* bits = nullptr;
+            HBITMAP next = CreateDIBSection(reference, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
+            if (!next) return -1;
+            if (b.bitmap) DeleteObject(b.bitmap);
+            b.bitmap = next; b.width = w; b.height = h;
+        }
+        b.inUse = true;
+        return i;
+    }
+    return -1;
+}
+}
+
+CustomPagePaintScope::CustomPagePaintScope(HWND hWnd, UINT message, WPARAM wParam)
+    : hwnd_(hWnd), printing_(message == WM_PRINTCLIENT)
+{
+    if (printing_)
+    {
+        dc_ = reinterpret_cast<HDC>(wParam);
+        GetClientRect(hWnd, &ps_.rcPaint);
+        ps_.hdc = dc_;
+        if (dc_)
+        {
+            savedDc_ = SaveDC(dc_);
+            FillRect(dc_, &ps_.rcPaint, UiTheme::Brush_PanelBg());
+        }
+        return;
+    }
+    target_ = BeginPaint(hWnd, &ps_);
+    RECT client{};
+    GetClientRect(hWnd, &client);
+    buffer_ = AcquirePaintBuffer(target_, std::max(1, (int)client.right), std::max(1, (int)client.bottom));
+    dc_ = CreateCompatibleDC(target_);
+    if (!dc_ || buffer_ < 0)
+    {
+        // Out of GDI resources: paint directly rather than not at all.
+        if (dc_) DeleteDC(dc_);
+        if (buffer_ >= 0) g_paintBuffers[buffer_].inUse = false;
+        buffer_ = -1;
+        dc_ = target_;
+        savedDc_ = SaveDC(dc_);
+    }
+    else
+    {
+        oldBmp_ = SelectObject(dc_, g_paintBuffers[buffer_].bitmap);
+    }
+    IntersectClipRect(dc_, ps_.rcPaint.left, ps_.rcPaint.top, ps_.rcPaint.right, ps_.rcPaint.bottom);
+    FillRect(dc_, &ps_.rcPaint, UiTheme::Brush_PanelBg());
+}
+
+CustomPagePaintScope::~CustomPagePaintScope()
+{
+    if (printing_)
+    {
+        if (dc_ && savedDc_) RestoreDC(dc_, savedDc_);
+        return;
+    }
+    if (buffer_ >= 0)
+    {
+        const RECT& dirty = ps_.rcPaint;
+        if (dirty.right > dirty.left && dirty.bottom > dirty.top)
+            BitBlt(target_, dirty.left, dirty.top, dirty.right - dirty.left, dirty.bottom - dirty.top,
+                dc_, dirty.left, dirty.top, SRCCOPY);
+        SelectObject(dc_, oldBmp_);
+        DeleteDC(dc_);
+        g_paintBuffers[buffer_].inUse = false;
+    }
+    else if (savedDc_)
+    {
+        RestoreDC(dc_, savedDc_);
+    }
+    EndPaint(hwnd_, &ps_);
+}
+
+void CustomPageSurface_Paint(HWND hWnd, UINT message, WPARAM wParam, CustomPageSurface* surface,
+    CustomPageRenderContentFn renderContent, void* user, bool draggingScrollbar,
+    CustomPagePaintOverlayFn overlay, void* overlayUser)
+{
+    CustomPagePaintScope paint(hWnd, message, wParam);
+    if (paint.Dc() && surface && renderContent)
+    {
+        CustomPageSurface_Present(hWnd, paint.Dc(), surface, renderContent, user, draggingScrollbar);
+        if (overlay) overlay(hWnd, paint.Dc(), overlayUser);
+    }
+}
+
+void CustomPage_PrintTree(HWND root, HDC dc)
+{
+    if (!root || !dc) return;
+    const int saved = SaveDC(dc);
+    SendMessageW(root, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc), PRF_CLIENT | PRF_ERASEBKGND);
+    RestoreDC(dc, saved);
+    // GW_CHILD is the top of the z-order: draw bottom-up.
+    HWND children[256]{};
+    int count = 0;
+    for (HWND child = GetWindow(root, GW_CHILD); child && count < 256; child = GetWindow(child, GW_HWNDNEXT))
+        children[count++] = child;
+    for (int i = count - 1; i >= 0; --i)
+    {
+        HWND child = children[i];
+        if (!(GetWindowLongW(child, GWL_STYLE) & WS_VISIBLE)) continue;
+        RECT rc{};
+        GetWindowRect(child, &rc);
+        MapWindowPoints(nullptr, root, reinterpret_cast<POINT*>(&rc), 2);
+        RECT client{};
+        GetClientRect(child, &client);
+        POINT origin{ 0, 0 };
+        ClientToScreen(child, &origin);
+        ScreenToClient(root, &origin);
+        const int childSaved = SaveDC(dc);
+        IntersectClipRect(dc, rc.left, rc.top, rc.right, rc.bottom);
+        OffsetViewportOrgEx(dc, origin.x, origin.y, nullptr);
+        CustomPage_PrintTree(child, dc);
+        RestoreDC(dc, childSaved);
+        (void)client;
+    }
+}
+
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+#include "test_thread_desktop.h"
+namespace
+{
+COLORREF g_printTestFill[4] = { RGB(0, 0, 255), RGB(0, 255, 0), RGB(255, 0, 0), RGB(255, 255, 0) };
+LRESULT CALLBACK PrintTestProc(HWND h, UINT m, WPARAM w, LPARAM l)
+{
+    if (m == WM_PAINT || m == WM_PRINTCLIENT)
+    {
+        CustomPagePaintScope paint(h, m, w);
+        const int kind = (int)GetWindowLongPtrW(h, GWLP_USERDATA);
+        RECT rc{}; GetClientRect(h, &rc);
+        if (kind == 0) rc = RECT{ 10, 10, 50, 50 }; // the root fills only a square
+        HBRUSH brush = CreateSolidBrush(g_printTestFill[kind]);
+        FillRect(paint.Dc(), &rc, brush);
+        DeleteObject(brush);
+        return 0;
+    }
+    if (m == WM_ERASEBKGND) return 1;
+    return DefWindowProcW(h, m, w, l);
+}
+}
+// Snapshots of hidden pages: offsets of nested children, z-order, hidden
+// children skipped, and the paint scope's WM_PRINTCLIENT path.
+bool CustomPage_TestPrintTree()
+{
+    return halljoy::test_desktop::RunOnPrivateDesktop(L"HallJoyPrintTreeTest", []() -> bool {
+        WNDCLASSW wc{}; wc.lpfnWndProc = PrintTestProc; wc.hInstance = GetModuleHandleW(nullptr);
+        wc.lpszClassName = L"HallJoyPrintTreeTest"; RegisterClassW(&wc);
+        auto make = [&](HWND parent, int kind, int x, int y, int w, int h, bool visible) {
+            HWND hwnd = CreateWindowW(wc.lpszClassName, L"", (parent ? WS_CHILD : WS_POPUP) | (visible ? WS_VISIBLE : 0),
+                x, y, w, h, parent, nullptr, wc.hInstance, nullptr);
+            if (hwnd) SetWindowLongPtrW(hwnd, GWLP_USERDATA, kind);
+            return hwnd;
+        };
+        HWND root = make(nullptr, 0, 0, 0, 200, 100, false);       // a hidden page
+        HWND child = make(root, 1, 100, 20, 40, 40, true);
+        HWND grandchild = make(child, 3, 5, 5, 10, 10, true);
+        HWND hidden = make(root, 2, 150, 20, 30, 30, false);
+        bool ok = root && child && grandchild && hidden;
+        HDC screen = GetDC(nullptr);
+        HDC dc = CreateCompatibleDC(screen);
+        BITMAPINFO bi{}; bi.bmiHeader.biSize = sizeof(bi.bmiHeader); bi.bmiHeader.biWidth = 200;
+        bi.bmiHeader.biHeight = -100; bi.bmiHeader.biPlanes = 1; bi.bmiHeader.biBitCount = 32;
+        void* bits = nullptr;
+        HBITMAP dib = CreateDIBSection(screen, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
+        ok &= dc && dib;
+        if (ok)
+        {
+            HGDIOBJ old = SelectObject(dc, dib);
+            CustomPage_PrintTree(root, dc);
+            GdiFlush();
+            auto at = [&](int x, int y) { const auto p = static_cast<const std::uint32_t*>(bits)[y * 200 + x];
+                return RGB((p >> 16) & 255, (p >> 8) & 255, p & 255); };
+            const COLORREF bg = UiTheme::Color_PanelBg();
+            ok &= at(20, 20) == RGB(0, 0, 255);      // root content
+            ok &= at(2, 2) == bg;                     // root background from the scope
+            ok &= at(120, 50) == RGB(0, 255, 0);     // child at its offset
+            ok &= at(108, 28) == RGB(255, 255, 0);   // grandchild inside the child
+            ok &= at(160, 30) == bg;                  // hidden child skipped
+            ok &= at(145, 30) == bg;                  // nothing outside the children
+            SelectObject(dc, old);
+        }
+        if (dib) DeleteObject(dib);
+        if (dc) DeleteDC(dc);
+        ReleaseDC(nullptr, screen);
+        if (root) DestroyWindow(root);
+        return ok;
+    });
+}
+#endif

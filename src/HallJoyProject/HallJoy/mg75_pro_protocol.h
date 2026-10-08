@@ -73,26 +73,57 @@ inline Report Factory(unsigned firstRow) {
 }
 // One request at a time; a failed/late exchange poisons the session. No attempt
 // to guess continuation ownership or reuse a partial response on a new half.
+// Why a frame was rejected (first cause), for support diagnostics.
+enum FrameReject : std::uint8_t { kRejectNone = 0, kRejectReport = 1, kRejectHeader = 2,
+  kRejectLength = 3, kRejectCommand = 4, kRejectStatus = 5, kRejectChecksum = 6, kRejectOverflow = 7 };
 struct Frame {
   std::array<std::uint8_t, 256> bytes{};
-  std::size_t size = 0, received = 0;
+  std::size_t size = 0, received = 0, reports = 0;
   bool failed = false;
+  // Official WebHID client rules (WLMOUSE Ying75 Web Hub): no status or
+  // checksum check, and a travel reply is always three reports (its length
+  // byte is not used). Header and command echo are still required.
+  bool lenient = false;
+  std::uint8_t reject = kRejectNone;
+  std::array<std::uint8_t, 5> head{}; // first report: 5C, length, command, checksum, status
+  bool Fail(std::uint8_t why) noexcept {
+    if (!reject) reject = why;
+    failed = true;
+    return false;
+  }
   bool Push(const Report &r, std::size_t n, std::uint8_t command) noexcept {
-    if (failed || n != kReportBytes || r[0] != 0 || (size && received >= size))
-      return failed = true, false;
+    if (failed)
+      return false;
+    if (n != kReportBytes || r[0] != 0)
+      return Fail(kRejectReport);
+    if (size && received >= size)
+      return Fail(kRejectOverflow);
+    ++reports;
     if (received == 0) {
-      if (r[1] != 0x5c || r[2] > 252 || r[3] != (command | 0x80))
-        return failed = true, false;
-      size = 4 + r[2];
-      if (size < 5)
-        return failed = true, false;
+      std::copy_n(r.begin() + 1, head.size(), head.begin());
+      if (r[1] != 0x5c)
+        return Fail(kRejectHeader);
+      if (r[3] != (command | 0x80))
+        return Fail(kRejectCommand);
+      if (lenient && command == 0x12) {
+        size = 132;
+      } else {
+        if (r[2] > 252)
+          return Fail(kRejectLength);
+        size = 4 + r[2];
+        if (size < 5)
+          return Fail(kRejectLength);
+      }
     }
     const auto count = std::min<std::size_t>(64, size - received);
     std::copy_n(r.begin() + 1, count, bytes.begin() + received);
     received += count;
-    if (received == size &&
-        (bytes[4] != 0 || bytes[3] != Checksum(bytes.data())))
-      return failed = true, false;
+    if (received == size && !lenient) {
+      if (bytes[4] != 0)
+        return Fail(kRejectStatus);
+      if (bytes[3] != Checksum(bytes.data()))
+        return Fail(kRejectChecksum);
+    }
     return true;
   }
   bool Complete() const noexcept { return !failed && size && received == size; }
@@ -127,15 +158,23 @@ inline bool ParseLayout(const Frame &f, const Keys &keys,
   out = next;
   return true;
 }
-inline bool MatchFactory(const Frame &f, unsigned row) noexcept {
+// Factory rows (command 0x2B) against any 126-slot action table.
+inline bool MatchFactoryActions(const Frame &f, unsigned row,
+                                const std::array<std::uint16_t, kSlots> &actions) noexcept {
   if (row > 4 || row % 2 || !f.Complete() || f.size != 49 ||
       f.bytes[2] != 0xab || f.bytes[5] != row || f.bytes[27] != row + 1)
     return false;
+  const auto selector = [&](std::size_t slot) {
+    return actions[slot] == 0xf001 ? std::uint8_t{1} : static_cast<std::uint8_t>(actions[slot]);
+  };
   for (unsigned c = 0; c < 21; ++c)
-    if (f.bytes[6 + c] != Selector(row * 21 + c) ||
-        f.bytes[28 + c] != Selector((row + 1) * 21 + c))
+    if (f.bytes[6 + c] != selector(row * 21 + c) ||
+        f.bytes[28 + c] != selector((row + 1) * 21 + c))
       return false;
   return true;
+}
+inline bool MatchFactory(const Frame &f, unsigned row) noexcept {
+  return MatchFactoryActions(f, row, kFactoryActions);
 }
 inline std::uint16_t Normalize(std::uint16_t raw, unsigned range = kRange) noexcept {
   if (!range) return 0;

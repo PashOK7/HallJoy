@@ -23,9 +23,16 @@ int main() {
  features[3]=3;assert(!Units(0x300,features,true));
  for(const auto& alias:kUsbAliases){
   assert(Candidate(alias.vid,alias.pid));
-  assert(Find(alias.board,alias.vid,alias.pid)==Find(alias.board,alias.canonicalVid,alias.canonicalPid));
-  assert(!Find(alias.board,alias.vid^1,alias.pid));
+  assert(Find(alias.board,alias.vid,alias.pid)==Find(alias.canonicalBoard,alias.canonicalVid,alias.canonicalPid));
+  assert(Find(alias.board,alias.vid,alias.pid) && !Find(alias.board,alias.vid^1,alias.pid));
  }
+ // FUN60 Pro board 2304 (3151:502D) uses the 2600 profile: all 61 keys,
+ // including [ ' \ in slots 68/69/80 (official matrix identical to 2600).
+ const Model* fun60=Find(2304,0x3151,0x502d);
+ assert(fun60 && fun60->board==2600 && fun60==Find(2600,0x3151,0x5029));
+ assert(Decode(fun60->matrix.data()+68*4)==0x2f && Decode(fun60->matrix.data()+69*4)==0x34 &&
+        Decode(fun60->matrix.data()+80*4)==0x31);
+ assert(!Find(2304,0x3151,0x5029) && !Find(2304,0x3151,0x5030) && !Find(2305,0x3151,0x502d));
  assert(!Find(2609,12625,20513)); // Historical board-number collision: YC3123.
  assert(!Find(2368,12625,20528)); // Different old factory map, not an alias.
  unsigned revisions=0;

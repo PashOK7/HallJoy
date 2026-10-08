@@ -22,6 +22,7 @@ SCRIPTS = ('check_rongyuan_stream_profiles.py', 'check_atk_hex80_native_map.py',
            'build_epomaker_layouts.py', 'build_neo_k617_layouts.py',
            'prepare_madlions_layouts.py', 'prepare_atk_hex80_layout.py',
            'prepare_ipi_layouts.py', 'build_ipi_native_catalog.py', 'build_everglide_layouts.py',
+           'build_wlmouse_layouts.py', 'build_logitech_layouts.py',
            'research_layout_checks.py')
 
 

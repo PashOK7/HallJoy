@@ -295,3 +295,103 @@ Physical log47 contained this false attribution at shutdown. The corrected
 writer test verifies that an explicit snapshot retains the request marker
 without manufacturing a banner event, while a real missing-source report
 still produces the banner marker.
+
+## Failed start / Resume — 2026-10-05
+
+A Resume that rolls back to Paused is an incident, not a user pause:
+`engine.resume_failed` (Win32 detail = owner's last native error) goes through
+`SupportLog_ReportFailure`, so the log is saved automatically.
+`engine.resume_step_failed value=<step>` names the step (1 reset providers,
+2 catalog, 3 backend init with the init-issue mask as detail, 4 dependency
+guidance, 5 start generation, 6 restore UI input) and
+`engine.resume_retry value=<attempt>` each automatic retry. Structural values
+only; no keys, input values or paths. See
+`docs/current/STARTUP_PAUSE_FIX_2026-10-05.md`.
+
+## JingTai/IROK admission failure — 2026-10-05
+
+`mg75.admission_failed value=<packed>` (Win32 detail) records why the
+`irok-mg75-pro` backend could not admit a present keyboard: phase, exchange
+stage, frame reject cause, command and the first reply header bytes (length,
+command echo, status) plus the report count. Header metadata only, never
+travel values or key data; identical repeats are suppressed. Layout of the
+value: `docs/current/WLMOUSE_YING75_2026-10-05.md`.
+`mg75.shared_open value=1` (once per process): a WLMOUSE Ying75 session had to
+open the vendor interface shared because another program held it; stage 5 of
+`mg75.admission_failed` means a foreign reply was seen and the session stopped.
+
+## W669 release evidence — 2026-10-05
+
+`w669.travel_config` (once per session: range, unit, minimum actuation) and
+`w669.release` (aggregate presses/releases, number of keys left with a
+residual value and the largest such value in permille, floored-event count)
+let a support log show whether a W669 keyboard reports release-to-zero. No
+key identities or per-key values. Layout of the values:
+`docs/current/REDRAGON_K686_2026-10-05.md`.
+
+## Input configuration summary — 2026-10-06
+
+Every snapshot adds `input.config seq=N` (after `uap`) with aggregate counts
+of the active profile: `virtual`, `pads`, `global_invert`, `global_curve`,
+`global_low/high/cap` (permille), `unique_keys`/`unique_inverted` (per-key
+curves), `axis_directions`/`axis_inverted`/`axis_same_key`,
+`triggers`/`triggers_inverted`, `button_keys`/`buttons_inverted`
+(inverted = effective curve inverted: such a key outputs full value at rest).
+No key codes, names or input values. Provider: `input_config_summary.cpp`,
+registered after the startup profile loads.
+
+## Input-chain trace — 2026-10-06 (owner decision)
+
+Owner: aggregate-only logs could not explain a tester's "sticks reversed,
+triggers always pressed" (Redragon K686), and anonymizing everything made the
+log useless for that bug. The ordinary log now carries a bounded input-chain
+trace (`input_trace.h`, header `bound_key_trace=1`), kept in its own window of
+the newest 4000 lines so snapshots and trace never evict each other:
+
+- `trace.bindings` — binding table per pad (HallJoy key codes in hex, `!` =
+  effective curve inverted, `*` = own per-key curve), global invert, snappy and
+  last-key flags; on change and every 10 s.
+- `trace.pad` — gamepad output (sticks, triggers, buttons) with
+  `key=raw/filtered[/nNATIVE]` permille of every axis/trigger key and of
+  button keys while they carry a value; on change, at most every 16 ms per pad.
+- `trace.src w669` — each W669 event of a bound key: row, column, travel,
+  published permille, key code; `trace.session w669` — product, factory
+  profile, range, floor, mapped keys.
+- `trace.os_key` — Windows Raw Input down/up of a bound key (keyboard id
+  hashed), the physical reference for the provider's key identity.
+
+Only keys bound to the gamepad are traced, never other keys; event producers
+share a 300 lines/s budget. Writing still follows the normal policy (banner,
+Open log, logging enabled).
+
+## Format capture store — 2026-10-06 (owner decision)
+
+Owner: decoding an unknown protocol must not depend on time windows or on
+instructions for the user; opening HallJoy, pressing any keys for 5-10 s and
+sending the log must be enough. `SupportLog_Capture` stores records starting
+with `capture.` immediately (own lock, own `uptime_ms`), outside the timed
+queue and the trace window; the first 8000 records are kept, never evicted,
+and every written report contains them (appended live in continuous mode).
+Bounded by content only.
+
+- `capture.logitech n=.. <hex>` / `capture.logitech repeat=N` — raw HID++
+  reports of a Logitech 0x1B08 version without an established event layout
+  (PRO X2 RAPID, version 2); nothing is published meanwhile; closed by
+  `logitech.raw_capture` (records, detail 1 = store full). Since the same
+  day version 2 is decoded and published; the capture (and `capture.key`)
+  keeps running alongside until the store is full, to complete the key table.
+- `capture.key hid=.. down=.. keyboard=..` — while a capture runs, the first
+  two presses of every key (any keyboard, id hashed) as physical reference.
+
+This includes Logitech key ids of pressed keys; it is needed to decode the
+format (owner rule 2026-10-06). See `docs/current/LOGITECH_RAPID_2026-10-05.md`.
+
+## Generic protocol events — 2026-10-07
+
+- `ipi.generic_profile` value = BY UUID outside the catalog, detail =
+  present IDs << 16 | calibrated IDs (generic BY discovery, read-only).
+- `logitech.generic_analog` value = PID of a Logitech device outside the
+  catalog that reported HID++ 0x1B08, detail = feature index << 8 | version;
+  `logitech.generic_model` replaces `logitech.model` for such a session.
+- The UI notice `GenericProtocol` is driven by telemetry `genericProtocol`.
+See `docs/current/GENERIC_PROTOCOL_SUPPORT_2026-10-07.md`.

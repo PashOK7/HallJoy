@@ -371,6 +371,10 @@ LRESULT CALLBACK PremiumComboInternal::ComboProc(HWND hWnd, UINT msg, WPARAM wPa
     case WM_ERASEBKGND:
         return 1;
 
+    case WM_PRINTCLIENT:
+        PremiumComboInternal::PaintCombo(hWnd, st, reinterpret_cast<HDC>(wParam));
+        return 0;
+
     case WM_PAINT:
     {
         PAINTSTRUCT ps{};

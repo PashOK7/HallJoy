@@ -5,14 +5,27 @@
 #include <span>
 namespace halljoy::mini60diag {
 // Only commands justified by the archived SDK and the inspected 80A2/80A1 images.
+// Device info length 48 is the Driveall configurator read (AJAZZ 80B1).
 inline std::array<std::uint8_t,65> Request(unsigned command,unsigned length=0,unsigned offset=0) {
     std::array<std::uint8_t,65> r{};
-    if (!((command==0x10 && length==56 && offset==0) ||
+    if (!((command==0x10 && (length==56 || length==48) && offset==0) ||
           (command==0x12 && length>0 && length<=56 && offset+length<=512) ||
+          (command==0x11 && length==56 && offset==0) ||
           ((command==0x66 || command==0x67) && length==0 && offset==0))) return r;
     r[1]=0xaa;r[2]=static_cast<std::uint8_t>(command);r[3]=static_cast<std::uint8_t>(length);
     r[4]=static_cast<std::uint8_t>(offset);r[5]=static_cast<std::uint8_t>(offset>>8);
     r[7]=(command==0x12 && offset+length<512)?0:1;return r;
+}
+// Driveall GET_MAGNETIC_AXIS_STATUS (0x68): up to 7 key positions in 8-byte
+// slots, one final packet. Reply slots: status, ADC u16, current stroke u16.
+inline std::array<std::uint8_t,65> StatusRequest(const std::uint8_t* positions,unsigned count,unsigned offset=0){
+    std::array<std::uint8_t,65> r{};
+    if(!positions || !count || count>7 || offset>0xffff)return r;
+    for(unsigned i=0;i<count;++i)if(positions[i]>=126)return r;
+    r[1]=0xaa;r[2]=0x68;r[3]=static_cast<std::uint8_t>(count*8);
+    r[4]=static_cast<std::uint8_t>(offset);r[5]=static_cast<std::uint8_t>(offset>>8);r[7]=1;
+    for(unsigned i=0;i<count;++i)r[9+i*8]=positions[i];
+    return r;
 }
 inline unsigned U16(const std::uint8_t* p){return p[0] | (unsigned(p[1])<<8);}
 inline std::span<const std::uint8_t> Payload(std::span<const std::uint8_t> r){
@@ -25,6 +38,13 @@ inline bool Decode(std::span<const std::uint8_t> r,Sample& s){
     r=Payload(r);if(r.empty() || r[1]!=0xfb || r[2]>=126 || r[3]>1)return false;
     s={r[2],r[3],U16(r.data()+4),U16(r.data()+6)&0x7fff,U16(r.data()+8),U16(r.data()+10),U16(r.data()+12)};
     return true; // Preserve unexpected ranges as evidence, without normalising them.
+}
+// Driveall decoder (Sd): any calibration status, key index below 128. AK820
+// 0C45:80B1 sends packets that the stricter MINI60 rule above rejects.
+inline bool DecodeVendor(std::span<const std::uint8_t> r,Sample& s){
+    r=Payload(r);if(r.empty() || r[1]!=0xfb || r[2]>=128)return false;
+    s={r[2],r[3],U16(r.data()+4),U16(r.data()+6)&0x7fff,U16(r.data()+8),U16(r.data()+10),U16(r.data()+12)};
+    return true;
 }
 inline bool Reply(std::span<const std::uint8_t> p,unsigned c,unsigned n,unsigned offset){
     return p.size()==64 && p[0]==0x55 && p[1]==c && p[2]==n && U16(p.data()+3)==offset;

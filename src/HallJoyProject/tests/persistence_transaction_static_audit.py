@@ -93,11 +93,12 @@ layout_init = layout.find("static void EnsureInit()")
 layout_init_order = [
     layout.find("AddBuiltinDefaults();", layout_init),
     layout.find("LoadPresetsFromDir();", layout_init),
-    layout.find("ActivatePreset(0);", layout_init),
+    # Default preset (Generic 100% ANSI, owner decision 2026-10-07) after the merge.
+    layout.find("ActivatePreset(DefaultPresetIndex());", layout_init),
 ]
 if any(position < 0 for position in layout_init_order) or layout_init_order != sorted(layout_init_order):
     raise SystemExit("FAIL: built-in layout merge order is missing or unsafe")
-print("PASS: built-ins load first, user files override them, and preset zero remains the default")
+print("PASS: built-ins load first, user files override them, then the default preset (Generic 100% ANSI) is activated")
 
 keychron_begin = layout.find("static const PresetDef g_builtinPresets[]")
 imported = (Path(__file__).resolve().parents[1] / "HallJoy" / "imported_layouts.h").read_text(encoding="utf-8-sig")

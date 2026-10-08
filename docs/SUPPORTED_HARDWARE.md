@@ -59,7 +59,8 @@ to synthesize analogue depth.
 | ATK | **Hex80** | — |
 | ATK (experimental, wired USB) | **EDGE 60 HE**, **60 RX**, **EDGE 63 HE**, **RS63 Air**, **RS6**, **RS6 Ultra**, **RS6+**, **RS6 Ultra+**, **RS6 Cube**, **68 V3**, **68 RX**, **RS6 Air**, **EDGE 75 HE**, **RS7 V2**, **RS7 V2 Ultra**, **RS7 Air**, **RS7 Turbo**, **RS7**, **68 V2 Pro** | Same `02 96 1C` travel buffer as Hex80 (ATK hub: BITYUAN and DUCKBREAD controllers), read-only; exact PIDs from the ATK hub; matrix size from the hub device filter; automatic layouts. Yellow notice; no tester yet. 75% boards: one top-row key without a reliable identity is not mapped. Not included: 68, 68 V2 (different controller), 68 V2 S, 75, RS7 Pro. [Details](current/ATK_HEX80_FAMILY_2026-10-01.md). |
 | MCHOSE (wired USB) | **Jet 75 II** | Supported after tester confirmation (2026-10-02, "works perfectly", firmware 1.17). Exact `41E4:211A`; any firmware version whose protocol data checks pass (version is logged). Same M HUB analog report and saved analog-mode flag as Mix 87 III: enabled automatically at start/resume, disabled at pause/exit; 79 keys plus Fn, automatic ANSI layout; no testing notice. If the keyboard was just flashed or factory reset, it restarts once when the mode changes. [Details](current/MCHOSE_JET75_2026-10-02.md) |
-| MCHOSE (experimental, wired USB) | **Ace 68** (I `41E4:2114`, II `41E4:2116` "Ace68-II", III `3837:3003`), **Ace 68 Air** (II, III, 2), **Ace 68 V2 III**, **Ace 68 Turbo 8K**, **Ace 75 8K**, **Ace 60 Pro**, **Ace 60 Pro Nordic** (ISO), **Ace 60X I**, **Ace 60X II**, **Jet 75 I**, **Mix 87 I**, **Zero75X** | Same M HUB analog report and saved analog-mode flag as Jet 75 II (RISC-V boards) or Mix 87 III (ARM boards); every official firmware image was compared with the supported model (commands, writer and flag; ARM writers replayed in an emulator). Enabled automatically at start/resume, disabled at pause/exit; automatic layouts. Any firmware version whose protocol data checks pass. Yellow notice; no tester yet. Not included: Ace 60 (ARM, different build), Ace 68 GT, Ace 68 Turbo 16K, Ace 75 16K, Jet 75 III, GOD 60. [RISC-V](current/MCHOSE_RISCV_FAMILY_2026-10-02.md), [ARM](current/MCHOSE_ARM_FAMILY_2026-10-02.md) |
+| MCHOSE (wired USB) | **Ace 68 Air III** | Supported after tester confirmation (2026-10-05, HallJoy 1.6.7: connected, 67 keys, 0 failures). Exact `41E4:2132`; any firmware version whose protocol data checks pass (version is logged; tester firmware 1.16). Mix 87 III analog report and saved analog-mode flag: enabled automatically at start/resume, disabled at pause/exit; 67 keys plus Fn, automatic Ace 68 ANSI layout; no testing notice. Ace 68 Air II and Air 2 remain experimental. [Details](current/MCHOSE_ARM_FAMILY_2026-10-02.md) |
+| MCHOSE (experimental, wired USB) | **Ace 68** (I `41E4:2114`, II `41E4:2116` "Ace68-II", III `3837:3003`), **Ace 68 Air** (II, 2), **Ace 68 V2 III**, **Ace 68 Turbo 8K**, **Ace 75 8K**, **Ace 60 Pro**, **Ace 60 Pro Nordic** (ISO), **Ace 60X I**, **Ace 60X II**, **Jet 75 I**, **Mix 87 I**, **Zero75X** | Same M HUB analog report and saved analog-mode flag as Jet 75 II (RISC-V boards) or Mix 87 III (ARM boards); every official firmware image was compared with the supported model (commands, writer and flag; ARM writers replayed in an emulator). Enabled automatically at start/resume, disabled at pause/exit; automatic layouts. Any firmware version whose protocol data checks pass. Yellow notice; no tester yet. Not included: Ace 60 (ARM, different build), Ace 68 GT, Ace 68 Turbo 16K, Ace 75 16K, Jet 75 III, GOD 60. [RISC-V](current/MCHOSE_RISCV_FAMILY_2026-10-02.md), [ARM](current/MCHOSE_ARM_FAMILY_2026-10-02.md) |
 | MADLIONS (wired USB) | **MAD68 HE V2 Flagship** | Supported after tester confirmation (2026-09-30): analog, gameplay and Pause/Resume. Exact `373B:1125` on the Hex80-family `02 96 1C` travel buffer (firmware V103, 5x15 matrix, 68 keys including Fn), read-only; fixed 3.30 mm scale from firmware; automatic MAD68HE ANSI layout; no testing notice. Not the MAD 68 V2 Dual (`28E9:3265`). [Details](current/MAD68_HE_V2_FLAGSHIP_2026-09-30.md). |
 | SayoDevice | **O3C** | O3C depth is tested. Automatic layout always has three independent keys, labelled from device bindings or Key 1/2/3 if unavailable. Manual layout uses Z/X/C. New binding reads await device validation. Other SayoDevice models are unconfirmed. |
 | Royal Kludge (wired USB) | **RK68 HE** (`372E:10BF`) and **RK68 HE UK** (`372E:10C0`, ISO) | Same BY (hubx) platform and read-only addressed protocol as the IPI boards: exact UUID, live key map and device calibration are read at start; automatic ANSI/ISO layouts. RK68 HE firmware is not published: its key IDs come from the official RK web driver and equal the firmware ID tables of three published BY 68-key images. Supported after tester confirmation (2026-10-02: connected, 68 keys, 17,982 updates, 0 failures); no testing notice. The UK (ISO) unit shares the protocol and ships its own built-in layout. [Details](current/RK68HE_HUBX_2026-10-02.md) |
@@ -83,7 +84,7 @@ are implemented. No physical testing of these models is claimed.
 | Akko | TAC75 HE | 2782 |
 | GamaKay | TK75 TMR | 3590 ANSI, 3591 ISO |
 | Keydous | NJ80-CP V3 HE, NJ81-CP V3 HE, NJ98-CP V4 HE | 3466, 3459, 3496 respectively |
-| MonsGeek | FUN60 Pro, M1 V5 TMR | 2600/2785; 2949 respectively |
+| MonsGeek | FUN60 Pro, M1 V5 TMR | 2600/2785/2304; 2949 respectively |
 | Womier | SK75 TMR | 2518, 3804 |
 | YUNZII | RT75 Pro | 2865, 3100, 2445, 3755 |
 
@@ -132,6 +133,7 @@ See [implementation record](current/TARTARUS_PRO_INTEGRATION_2026-09-24.md).
 | Route | Current behavior and evidence | Remaining limits |
 |---|---|---|
 | ATTACK SHARK RY5088 | 37 exact reviewed board profiles enabled over wired USB, plus the R68 HE alternate USB identity established by log31 (local fix; analog retest pending); 16 automatic ANSI layout groups. X65 Pro tester reported independent depth and gameplay; R85 HE tester log confirms changing wired depth and successful shared access. | Other admitted revisions are enabled with yellow notices; no tester prerequisite. Factory/Fn maps only; custom remaps and receivers are not enabled. Provisional normalization and per-bank limits remain unresolved. X65 Pro and R85 HE have ordinary support; other admitted models retain a yellow testing notice. |
+| WLMOUSE Ying75 | **Supported** (2026-10-05, tester log: connected, 84 keys, 7,182 travel updates in 15 s, 0 failures). Same JingTai route as IROK MG75 Pro (exact `36A7:F887` "WLKB YING 75"), 84 keys including Fn from the official firmware matrix, automatic ANSI layout, 3.3 mm scale (two switch types end at 3.4 mm); no testing notice. Close the WLMOUSE Web Hub tab while using HallJoy. [Details](current/WLMOUSE_YING75_2026-10-05.md) | Another program on the vendor interface (Web Hub) can stop the session. |
 | IROK MG75 Pro | Separate native SparkLink V1 route, independent travel for 81 keys including Fn, automatic layout/base assignments, vendor 3.5 mm scale. Enabled with orange notice. | No physical tester result yet; not the MG75 Max V2 protocol. |
 | AULA HERO / WIN experimental families | Exact identity, automatic ANSI layout, live/base maps, analog bindings and virtual gamepad enabled. HERO uses addressed travel; WIN PRO/MAX and HERO PRO use the existing RM6x21 full capability proof. | Yellow notices cover remaining range/firmware nuances. No tester prerequisite. See the [2026-09-22 integration](current/AULA_EXPERIMENTAL_SUPPORT_SYNC_2026-09-22.md). |
 | GravaStar Mercury V75 / Pro / Lite | Legacy identities 1CA5:2201, 1CA5:2202, 1CA2:2201 plus board proof; 79-key geometry and session remaps. Owner confirms a user reported working support (2026-09-20). | The new confirmation does not identify every tested revision; do not extend it to all Pro/Lite/newer revisions. Earlier source/firmware evidence is retained. |
@@ -184,7 +186,7 @@ IROK ND75 and ROG Azoth 96 HE are not enabled in ordinary builds. The earlier NA
 Their retained research and device notices are not working support claims.
 
 See the [complete layout catalog](KEYBOARD_LAYOUTS.md) for exact regional
-variants and the [HallJoy Discord](https://discord.gg/5FQ297yZh) for reporting a
+variants and the [HallJoy Discord](https://discord.gg/X5QsZJdN5a) for reporting a
 specific device result. Historical audits are evidence at their recorded date;
 later integration records and owner decisions supersede their status statements.
 
@@ -219,6 +221,36 @@ with exact manufacturer ANSI (7153USHEXYXCPARGB) and Brazilian
 (7153BRHEXYXCPARGB) identities and 61/63-position factory maps. Normal keymap
 reads, live independent travel events, firmware-reported range, start/stop and
 HallJoy bindings/gamepad output are enabled; hardware validation is pending.
+
+Experimental Logitech G PRO X TKL RAPID (`046D:C35B`) and PRO X2 RAPID (`046D:C364`)
+(2026-10-05): HID++ 2.0 feature `0x1B08` live key-depth stream in 0.1 mm steps,
+switched on while HallJoy runs and off at pause/exit; no settings are written.
+The stream may drop events during fast typing (source report); PRO X2 RAPID key ids
+are verified through the log. Automatic TKL layouts (the X2 without Pause/PgUp/PgDn). [Details](current/LOGITECH_RAPID_2026-10-05.md)
+
+Experimental Red Square Alumix 68 Yotei (Magnetite Ice) (`0C45:80A2`, RSQ-20058,
+2026-10-06): read-only polling of the live key-depth table with the ordinary
+vendor read command, ONLY on the exact official firmware v1.30 (scan map and
+command-dispatcher code verified over HID before any read); any other firmware
+does not connect and is logged. 68 keys, 3.3 mm. [Details](current/ALUMIX68_RSQ20058_2026-10-06.md)
+
+Red AJAZZ AK820 MAX HE, Sonix revision (`0C45:80B1`, Driveall "AK820MAX", 2026-10-08):
+not supported. The model is not admitted by any build; the keyboard is not detected.
+The implementation stays in the tree behind `Ak820Admitted=false` for a future decision.
+Owner decision and the evidence that led to it: [details](current/AJAZZ_AK820MAX_SONIX_80B1_2026-10-08.md).
+The Witmod unit (`0416:7372`) is Supported separately.
+
+Generic support (2026-10-07): BY/IPI keyboards (`372E`) whose UUID is not in the
+catalog, e.g. FuryCube M35HE (`372E:10A3`, UUID `0x110000000065`), connect with keys,
+live map and calibration read from the keyboard; Logitech devices reporting HID++
+`0x1B08` connect with run-time key learning. Yellow "Keyboard not in the list"
+notice. [Details](current/GENERIC_PROTOCOL_SUPPORT_2026-10-07.md)
+
+Experimental Redragon K686 HE (2026-10-05) uses the same W669 transport with exact
+official identities `7431USHEXYXK686JCARGB` (K686BG-RGB-M ANSI),
+`7431BRHEXYXJCARGB` (K686BG-RGB-M ISO) and `7431UKHEXYXBJCARGB` (K686RGB-M ISO),
+98/99-position factory maps and automatic layouts; hardware validation is pending.
+[Details](current/REDRAGON_K686_2026-10-05.md)
 
 ### Further native protocol additions (local, unreleased)
 

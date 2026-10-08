@@ -1,5 +1,6 @@
 #include "mg75_pro_protocol.h"
 #include "jingtai_v1_profiles.h"
+#include "wlmouse_ying75_protocol.h"
 #include "physical_analog_state.h"
 #include <set>
 #include <cassert>
@@ -19,6 +20,44 @@ Frame Assemble(const std::array<std::uint8_t, 132> &data) {
   return f;
 }
 int main() {
+  {
+    // WLMOUSE Ying75: exact identity, 84 unique keys, Fn, 3300 um range.
+    namespace ying=halljoy::wlmouse_ying75;
+    assert(ying::ExactModel(0x36a7,0xf887,L"WLKB YING 75"));
+    assert(!ying::ExactModel(0x36a7,0xf887,L"KEYBOARD") && !ying::ExactModel(0x36a7,0x0001,L"WLKB YING 75"));
+    std::set<unsigned> keys; unsigned fn=0;
+    for(const auto action:ying::kModel.actions) if(action){ fn+=action==0xf001; assert(keys.insert(Decode(action)).second); }
+    assert(keys.size()==ying::kModel.count && ying::kModel.count==84 && fn==1 && ying::kModel.range==3300);
+    assert(Decode(ying::kModel.actions[0])==41 && Decode(ying::kModel.actions[126-5-1])==79);
+    assert(Normalize(3300,ying::kModel.range)==1000 && Normalize(1650,ying::kModel.range)==500);
+    // A travel reply whose length/status/checksum bytes do not follow the
+    // legacy rules: strict mode names the cause, lenient (official client)
+    // mode accepts the three reports and the values parse.
+    std::array<std::uint8_t,192> raw{};
+    raw[0]=0x5c; raw[1]=0; raw[2]=0x92; raw[3]=0x00; raw[4]=7; raw[5]=2;
+    for(unsigned i=0;i<63;++i){ raw[6+2*i]=static_cast<std::uint8_t>(i*10); raw[7+2*i]=static_cast<std::uint8_t>(i>>3); }
+    const auto push=[&](Frame& f){
+      for(unsigned part=0;part<3;++part){ Report r{}; r[0]=0; std::copy_n(raw.begin()+part*64,64,r.begin()+1);
+        if(!f.Push(r,65,0x12)) return false; if(f.Complete()) return part==2; }
+      return f.Complete(); };
+    Frame strict; assert(!push(strict) && strict.reject==kRejectLength); // length byte 0
+    assert(strict.head[0]==0x5c && strict.head[2]==0x92 && strict.reports==1);
+    Frame lenient; lenient.lenient=true; assert(push(lenient) && lenient.size==132 && lenient.reports==3);
+    Values values{}; assert(ParseTravel(lenient,values) && values[0]==0 && values[62]==((62*10)&0xff)+((62>>3)<<8));
+    raw[2]=0x93; Frame wrong; wrong.lenient=true; assert(!push(wrong) && wrong.reject==kRejectCommand); raw[2]=0x92;
+    // Factory map proof for Ying75: Windows matrix, or the macOS one with Left Win/Alt swapped.
+    for(unsigned row=0;row<6;row+=2) for(int mac=0;mac<2;++mac){
+      auto actions=ying::kModel.actions; if(mac) std::swap(actions[106],actions[107]);
+      std::array<std::uint8_t,49> fr{}; fr[0]=0x5c; fr[1]=45; fr[2]=0xab; fr[5]=static_cast<std::uint8_t>(row); fr[27]=static_cast<std::uint8_t>(row+1);
+      for(unsigned c=0;c<21;++c){ auto sel=[&](unsigned s){ return actions[s]==0xf001?1:static_cast<std::uint8_t>(actions[s]); };
+        fr[6+c]=sel(row*21+c); fr[28+c]=sel((row+1)*21+c); }
+      fr[3]=Checksum(fr.data());
+      Frame f; Report r{}; r[0]=0; std::copy(fr.begin(),fr.end(),r.begin()+1); assert(f.Push(r,65,0x2b) && f.Complete());
+      assert(MatchFactoryActions(f,row,actions));
+      assert(MatchFactoryActions(f,row,ying::kModel.actions)==(row!=4 || !mac));
+      if(row==0) assert(!MatchFactory(f,row)); // top row differs from MG75 Pro
+    }
+  }
   // Exercise exact admission and both sparse halves through the real physical
   // publication component, including Fn, aliased assignments and release.
   for (const auto& identity : halljoy::jingtai_v1::identities) {

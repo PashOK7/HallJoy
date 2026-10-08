@@ -8,8 +8,10 @@ header = (root / "HallJoy" / "engine_runtime_ui_bridge.h").read_text(encoding="u
 
 for token in (
     "PostMessageW(g_window, g_message",
-    "WaitForSingleObject(completion, kUiAcknowledgementTimeoutMs)",
-    "kUiAcknowledgementTimeoutMs = 5000u",
+    "WaitForSingleObject(completion, g_timeoutMs.load())",
+    "kUiAcknowledgementTimeoutMs = 15000u",
+    "RequestState::Abandoned",
+    "Operation::RestoreInput",
     "RequestState::Cancelled",
     "void CancelPending() noexcept",
     "bool Dispatch(std::uintptr_t token) noexcept",

@@ -13,6 +13,7 @@
 #include <cwctype>
 #include <filesystem>
 #include <map>
+#include <set>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -29,6 +30,8 @@
 #include "native_layout_state.h"
 #include "physical_analog_state.h"
 #include "realtime_loop.h"
+#include "support_log.h"
+#include "input_trace.h"
 #pragma comment(lib,"setupapi.lib")
 #pragma comment(lib,"hid.lib")
 namespace {
@@ -47,6 +50,7 @@ std::thread supervisor;
 struct Shared {
     volatile LONG keys=0,released=0,held=0,lastChange=0,topology=0;
     volatile LONG nativeReady=0,mapReady=0,mapRevision=0,heartbeat=0,productId=0;
+    volatile LONG releaseFloor=0; // AK820 top dead zone, 0.01 mm (GET_GAME_MODE)
     volatile LONG assigned[126]{};
     alignas(8) volatile LONG64 samples[126]{};
 };
@@ -92,7 +96,7 @@ std::vector<Device> Find(){
         if(!SetupDiGetDeviceInterfaceDetailW(list,&item,detail,size,nullptr,nullptr))continue;
         std::wstring path=detail->DevicePath;std::wstring lower=path;
         std::transform(lower.begin(),lower.end(),lower.begin(),towlower);
-        if(lower.find(L"vid_0c45&pid_8032")==std::wstring::npos && lower.find(L"vid_0c45&pid_80a2")==std::wstring::npos && lower.find(L"vid_0c45&pid_80a1")==std::wstring::npos && lower.find(L"vid_0c45&pid_fefe")==std::wstring::npos && lower.find(L"vid_0c45&pid_fefc")==std::wstring::npos)continue;
+        if(lower.find(L"vid_0c45&pid_8032")==std::wstring::npos && lower.find(L"vid_0c45&pid_80a2")==std::wstring::npos && lower.find(L"vid_0c45&pid_80a1")==std::wstring::npos && lower.find(L"vid_0c45&pid_80b1")==std::wstring::npos && lower.find(L"vid_0c45&pid_fefe")==std::wstring::npos && lower.find(L"vid_0c45&pid_fefc")==std::wstring::npos)continue;
         Handle meta(CreateFileW(path.c_str(),0,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_EXISTING,0,nullptr));
         if(!meta){Event("metadata_open_failed",GetLastError());continue;}
         HIDD_ATTRIBUTES attr{};attr.Size=sizeof(attr);
@@ -113,12 +117,18 @@ std::vector<Device> Find(){
 struct Session {
     Handle device;Metrics metrics,chords;bool outputControl=false,modeAttempted=false,ioBroken=false;
     unsigned phase=0,readErrors=0,timeouts=0,acks=0;std::array<unsigned,256> unknownCommands{};unsigned chordPackets=0;std::map<unsigned,unsigned> malformedShapes;
+    // AK820 0x68 probe: the latest 0x68 reply and each key's latest stream travel.
+    std::array<std::uint8_t,64> statusReply{};bool statusSeen=false;std::array<unsigned,126> lastTravel{};
+    bool vendorDecode=false; // AK820: Driveall packet rule; packets the MINI60 rule rejects are logged
     explicit Session(const std::wstring& path):device(CreateFileW(path.c_str(),GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_EXISTING,FILE_FLAG_OVERLAPPED,nullptr)){
         if(!device)Event("data_open_failed",GetLastError());
         else {bool ok=HidD_SetNumInputBuffers(device.h,512)!=FALSE;Line("input_queue requested=512 ok="+std::to_string(ok));}
     }
     bool Send(unsigned cmd,unsigned len=0,unsigned off=0){
         auto r=Request(cmd,len,off);if(r[1]!=0xaa){Event("command_rejected");return false;}
+        return SendFrame(r,cmd,len,off);
+    }
+    bool SendFrame(std::array<std::uint8_t,65> r,unsigned cmd,unsigned len,unsigned off){
         DWORD error=0,got=0;bool ok=false;
         if(outputControl){ok=HidD_SetOutputReport(device.h,r.data(),static_cast<ULONG>(r.size()))!=FALSE;if(!ok)error=GetLastError();}
         else {HidIoOperation op(device.h);auto started=op.StartWrite(r.data(),static_cast<DWORD>(r.size()),&error);
@@ -143,12 +153,31 @@ struct Session {
         if(p.empty() && malformedShapes.size()<16){unsigned shape=(got<<16)|(got?r[0]<<8:0)|(got>1?r[1]:0);++malformedShapes[shape];}
         if(!p.empty() && p[1]==expected && Reply(p,expected,len,off)){
             ++acks;if(reply)std::copy(p.begin(),p.end(),reply->begin());return true;}
+        if(!p.empty() && p[1]==0x68){std::copy(p.begin(),p.end(),statusReply.begin());statusSeen=true;return false;}
         if(!p.empty() && p[1]!=0xfb)++unknownCommands[p[1]];
+        if(vendorDecode){
+            Sample vendor{},strict{};
+            const bool vendorOk=DecodeVendor(raw,vendor),strictOk=Decode(raw,strict);
+            if(!vendorOk || !strictOk){
+                char hex[2*65+1]{};for(DWORD i=0;i<got && i<65;++i)sprintf_s(hex+i*2,3,"%02x",r[i]);
+                Line(std::string(vendorOk?"stream_vendor_only":"stream_unparsed")+" len="+std::to_string(got)+" hex="+hex);
+            }
+            if(vendorOk){
+                metrics.Add(raw,GetTickCount64(),phase);
+                if(vendor.key<126)lastTravel[vendor.key]=vendor.travel;
+                if(liveWorker && modeAttempted && shared && Load(shared->mapReady) && vendor.key<126 && halljoy::mini60::Ak820Factory[vendor.key]){
+                    InterlockedExchange64(&shared->samples[vendor.key],static_cast<LONG64>(halljoy::mini60::Pack(vendor.travel,vendor.stroke,GetTickCount())));
+                    InterlockedExchange(&shared->nativeReady,1);
+                }
+            }
+            return false;
+        }
         if(metrics.Add(raw,GetTickCount64(),phase)){
+            if(Sample decoded{};Decode(raw,decoded))lastTravel[decoded.key]=decoded.travel;
             if(shared && Load(shared->held)>=2){++chordPackets;chords.Add(raw,GetTickCount64(),phase);}
             if(liveWorker && modeAttempted && shared && Load(shared->mapReady)){
                 Sample sample{};
-                if(Decode(raw,sample) && halljoy::mini60::Factory[sample.key]){
+                if(Decode(raw,sample) && halljoy::mini60::FactoryFor(static_cast<unsigned>(Load(shared->productId)))[sample.key]){
                     InterlockedExchange64(&shared->samples[sample.key],static_cast<LONG64>(halljoy::mini60::Pack(sample.travel,sample.stroke,GetTickCount())));
                     InterlockedExchange(&shared->nativeReady,1);
                 }
@@ -161,6 +190,28 @@ struct Session {
         const auto end=GetTickCount64()+450;
         while(GetTickCount64()<end && (!Stop() || cleanup) && !ioBroken)if(Pump(cmd,len,off,reply))return true;
         Line("reply_missing command="+std::to_string(cmd)+" transport_broken="+std::to_string(ioBroken));return false;
+    }
+    // Sends one 0x68 query and logs the raw reply; stream reports read meanwhile
+    // are processed normally. Read-only command of the official configurator.
+    void ProbeStatus(const char* phase,const std::uint8_t* positions,unsigned count){
+        std::string keys,travel;
+        for(unsigned i=0;i<count;++i){keys+=(i?",":"")+std::to_string(positions[i]);travel+=(i?",":"")+std::to_string(lastTravel[positions[i]]);}
+        auto r=StatusRequest(positions,count);if(r[1]!=0xaa)return;
+        statusSeen=false;
+        const bool sent=SendFrame(r,0x68,count*8,0);
+        const auto end=GetTickCount64()+450;
+        while(sent && !statusSeen && GetTickCount64()<end && !ioBroken && !Stop())Pump();
+        const std::string head="probe status phase="+std::string(phase)+" keys="+keys+" stream_travel="+travel+" sent="+std::to_string(sent);
+        if(!statusSeen){Line(head+" reply=none");return;}
+        char hex[2*64+1]{};const unsigned n=std::min(64u,8+count*8);
+        for(unsigned i=0;i<n;++i)sprintf_s(hex+i*2,3,"%02x",statusReply[i]);
+        const bool echo=std::equal(statusReply.begin()+8,statusReply.begin()+8+count*8,r.begin()+9);
+        Line(head+" echo="+std::to_string(echo)+" hex="+hex);
+        if(echo)return;
+        std::string slots;
+        for(unsigned i=0;i<count;++i){const auto* q=statusReply.data()+8+i*8;
+            slots+=(i?" ":"")+std::to_string(positions[i])+":st="+std::to_string(q[0])+":adc="+std::to_string(U16(q+1))+":stroke="+std::to_string(U16(q+3));}
+        Line("probe status_slots phase="+std::string(phase)+" "+slots);
     }
     bool Cleanup(){
         if(!modeAttempted)return true;
@@ -203,11 +254,18 @@ int Capture(bool cleanupOnly){
         for(unsigned route=0;route<2 && !Stop();++route){
             s.outputControl=route!=0;std::array<std::uint8_t,64> reply{};
             for(unsigned retry=0;retry<2 && !Stop();++retry){
-                if(s.Exchange(0x10,56,0,&reply)){
+                if(s.Exchange(0x10,halljoy::mini60::InfoLength(devices[0].productId),0,&reply)){
                     const auto vid=U16(reply.data()+12),pid=U16(reply.data()+14);
                     if(!halljoy::mini60::Identity(devices[0].productId,vid,pid,U16(reply.data()+20),U16(reply.data()+22))){Line("identity_mismatch commands_stopped=1");return 7;}
                     if(liveWorker)InterlockedExchange(&shared->productId,static_cast<LONG>(pid));
-                    char b[250];sprintf_s(b,"device_info vid=%04x pid=%04x version_bytes=%02x:%02x manufacturer=%u product=%u work_mode=%u",vid,pid,reply[16],reply[17],U16(reply.data()+20),U16(reply.data()+22),reply[24]);Line(b);info=true;break;
+                    char b[250];sprintf_s(b,"device_info vid=%04x pid=%04x version_bytes=%02x:%02x manufacturer=%u product=%u work_mode=%u",vid,pid,reply[16],reply[17],U16(reply.data()+20),U16(reply.data()+22),reply[24]);Line(b);info=true;
+                    if(pid==halljoy::mini60::Ak820Pid){
+                        // Driveall fields: romSize +0, rtPrecision +29, frameVersion +30, lightingVersion +31, firmwareStatus +32.
+                        sprintf_s(b,"probe device_info rom_size=%u rt_precision=%u frame_version=%u lighting_version=%u firmware_status=%u",reply[8],reply[37],reply[38],reply[39],reply[40]);Line(b);
+                        char hex[2*56+1]{};for(unsigned i=0;i<56;++i)sprintf_s(hex+i*2,3,"%02x",reply[8+i]);
+                        Line(std::string("probe device_info_hex ")+hex);
+                    }
+                    break;
                 }
                 if(s.ioBroken)break;
             }
@@ -215,6 +273,18 @@ int Capture(bool cleanupOnly){
         }
         if(!info)Line("device_info_unavailable identity=usb_descriptor_only firmware_version_unknown=1");
         if(liveWorker && !info){Line("native_identity_required retry=1");if(Stop())return 4;continue;}
+        if(devices[0].productId==halljoy::mini60::Ak820Pid){
+            s.vendorDecode=true;
+            // Official configurator read: top/bottom dead zone etc. (0.01 mm).
+            std::array<std::uint8_t,64> mode{};bool ok=false;
+            for(unsigned retry=0;info && retry<2 && !Stop() && !ok;++retry)ok=s.Exchange(0x11,56,0,&mode);
+            if(ok){
+                char hex[2*56+1]{};for(unsigned i=0;i<56;++i)sprintf_s(hex+i*2,3,"%02x",mode[8+i]);
+                char b[200];sprintf_s(b,"probe game_mode top_dead_zone=%u bottom_dead_zone=%u stability=%u auto_calibration=%u report_rate=%u",mode[16],mode[17],mode[19],mode[22],mode[13]);
+                Line(b);Line(std::string("probe game_mode_hex ")+hex);
+                if(liveWorker)InterlockedExchange(&shared->releaseFloor,static_cast<LONG>(mode[16]));
+            } else {Line("probe game_mode reply=none release_floor=0");if(liveWorker)InterlockedExchange(&shared->releaseFloor,0);}
+        }
         // Read only key assignments. Never read macro bodies or user text.
         if(info && !Stop()){
             std::array<std::uint8_t,512> map{};std::array<bool,512> valid{};
@@ -223,23 +293,29 @@ int Capture(bool cleanupOnly){
                 for(unsigned retry=0;retry<2 && !Stop();++retry)if(s.Exchange(0x12,n,off,&reply)){ok=true;break;}
                 if(ok)for(unsigned j=0;j<n;++j){map[off+j]=reply[8+j];valid[off+j]=true;}
             }
+            const bool driveall=devices[0].productId==halljoy::mini60::Ak820Pid;
             for(unsigned k=0;k<126;++k){unsigned o=k*4;if(!valid[o] || !valid[o+3])continue;
-                Line("assignment index="+std::to_string(k)+" type="+std::to_string(map[o])+" usage="+std::to_string(map[o]==2?map[o+2]:0)+" modifiers="+std::to_string(map[o]==2?map[o+1]:0));}
+                if(driveall && !map[o])continue; // factory default; only changed records are evidence
+                Line("assignment index="+std::to_string(k)+" type="+std::to_string(map[o])+" p1="+std::to_string(map[o+1])+" p2="+std::to_string(map[o+2])+" p3="+std::to_string(map[o+3])+
+                    " hid="+std::to_string(halljoy::mini60::Assigned(halljoy::mini60::FactoryFor(devices[0].productId),k,map.data()+o,driveall)));}
             Line("keymap bytes_read="+std::to_string(std::count(valid.begin(),valid.end(),true)));
             if(liveWorker && std::all_of(valid.begin(),valid.end(),[](bool v){return v;})){
-                unsigned mapped=0,unsupported=0;
+                unsigned mapped=0,unsupported=0;const auto& factory=halljoy::mini60::FactoryFor(devices[0].productId);
                 for(unsigned k=0;k<126;++k){
-                    auto usage=halljoy::mini60::Assigned(k,map.data()+k*4);
+                    auto usage=halljoy::mini60::Assigned(factory,k,map.data()+k*4,devices[0].productId==halljoy::mini60::Ak820Pid);
                     InterlockedExchange(&shared->assigned[k],usage);mapped+=usage!=0;
-                    unsupported+=halljoy::mini60::Factory[k] && !usage;
+                    unsupported+=factory[k] && !usage;
                 }
                 InterlockedIncrement(&shared->mapRevision);InterlockedExchange(&shared->mapReady,1);
-                Line("native_mapping factory=61 assigned="+std::to_string(mapped)+" unsupported_assignments="+std::to_string(unsupported));
+                Line("native_mapping factory="+std::to_string(halljoy::mini60::KeyCount(devices[0].productId))+" assigned="+std::to_string(mapped)+" unsupported_assignments="+std::to_string(unsupported));
             }
         }
         if(Stop())return 4;
         if(liveWorker && !Load(shared->mapReady)){Line("native_map_incomplete retry=1");continue;}
         if(s.ioBroken){s.Summary(true);Sleep(200);devices=Find();if(devices.size()!=1)return 6;continue;}
+        const bool ak820=devices[0].productId==halljoy::mini60::Ak820Pid;
+        static constexpr std::uint8_t kRestKeys[]={34,49,50,51,83,64,80}; // W A S D Space LShift LCtrl
+        if(ak820 && info)s.ProbeStatus("rest_before_stream",kRestKeys,7);
         s.modeAttempted=true;Line("mode_attempted value=1");bool ack=s.Exchange(0x66);
         if(!ack && !s.metrics.packets && !s.ioBroken && !Stop()){if(!info)s.outputControl=!s.outputControl;ack=s.Exchange(0x66);}
         Line("start_ack value="+std::to_string(ack));
@@ -247,9 +323,21 @@ int Capture(bool cleanupOnly){
             InterlockedExchange(&shared->heartbeat,static_cast<LONG>(GetTickCount()));
             if(ack)InterlockedExchange(&shared->nativeReady,1);
             Line(Load(shared->nativeReady)?"status state=12":"status state=2");auto next=GetTickCount64(),detail=next+30000,proofDeadline=next+2000;
+            if(ak820 && info)s.ProbeStatus("rest_stream_on",kRestKeys,7);
+            // Every new set of 1..7 keys held according to the stream gets one
+            // 0x68 query: bounded by distinct sets, no time limit.
+            std::set<std::string> probedSets;
             while(!Stop() && !s.ioBroken){
                 InterlockedExchange(&shared->heartbeat,static_cast<LONG>(GetTickCount()));
                 s.Pump();
+                if(ak820 && info){
+                    std::array<std::uint8_t,7> held{};unsigned count=0;std::string key;
+                    for(unsigned i=0;i<126;++i)if(s.lastTravel[i] && halljoy::mini60::Ak820Factory[i]){
+                        if(count<held.size())held[count]=static_cast<std::uint8_t>(i);
+                        ++count;key+=std::to_string(i)+",";}
+                    if(count && count<=held.size() && probedSets.insert(key).second)
+                        s.ProbeStatus(count>=2?"held_chord":"held_single",held.data(),count);
+                }
                 auto now=GetTickCount64();
                 if(!Load(shared->nativeReady) && now>=proofDeadline){Line("native_no_start_proof retry=1");break;}
                 if(now>=next){s.Summary(false);next=now+2000;}
@@ -291,9 +379,32 @@ int Capture(bool cleanupOnly){
 
 unsigned coverageKeys=0,coverageVarying=0,coverageClean=0,coverageComplete=0;
 bool attemptedMode=false,pipeTestSeen=false;
+// AK820 0C45:80B1 (unconfirmed): the worker's identity, descriptor, changed
+// key records, 0x68 probes and start/stop go whole into the ordinary
+// HallJoy.log evidence store; stream checkpoints (when keys/recent50_max
+// change) go to its first/newest part.
+bool ak820Worker=false;std::string ak820Checkpoint;
+void ForwardAk820(const std::string& line){
+    if(line.find("pid=80b1")!=std::string::npos)ak820Worker=true;
+    if(!ak820Worker)return;
+    static constexpr const char* kinds[]={"descriptor ","device_info ","device_info_unavailable","identity_mismatch","assignment ","keymap ",
+        "native_mapping ","native_identity_required","native_map_incomplete","mode_attempted","start_ack ","native_no_start_proof",
+        "reply_missing ","data_open_failed","read_","cleanup ","native_session_end","inventory ","malformed_shape ","probe ","tx command=104","tx command=17"};
+    bool wanted=false;for(auto kind:kinds)wanted=wanted || line.starts_with(kind);
+    if(wanted){SupportLog_Evidence(("evidence.ak820w "+line).c_str(),true);return;}
+    if(line.starts_with("stream_vendor_only ") || line.starts_with("stream_unparsed ")){SupportLog_Evidence(("evidence.ak820w "+line).c_str(),false);return;}
+    if(line.starts_with("checkpoint ")){
+        const auto keys=line.find(" keys="),recent=line.find(" recent50_max=");
+        if(keys!=std::string::npos && recent!=std::string::npos){
+            auto key=line.substr(keys,line.find(' ',keys+1)-keys)+line.substr(recent,line.find(' ',recent+1)-recent);
+            if(key!=ak820Checkpoint){ak820Checkpoint=key;SupportLog_Evidence(("evidence.ak820w "+line).c_str(),false);}
+        }
+    }
+}
 void ReceiveLine(const std::string& line){
     if(line=="waiting_for_device")return; // Liveness only; no idle log growth.
     if(line.size()>2000){StabilityTrace_AppendPlain(L"[mini60] oversized_worker_record dropped=1");return;}
+    ForwardAk820(line);
     std::wstring wide(line.begin(),line.end());StabilityTrace_AppendPlain((L"[mini60] "+wide).c_str());
     unsigned state=0;
     if(sscanf_s(line.c_str(),"status state=%u",&state)==1 && state>=1 && (state<=6 || state==11 || state==12))uiState=state;
@@ -371,8 +482,47 @@ static DWORD RunChild(const std::wstring& mode,DWORD budget,bool allowCancelled=
 LONG nativeRevision=-1;
 std::array<std::uint64_t,126> publishedSamples{};
 std::array<unsigned,126> previousValues{};
+// AK820 0C45:80B1 is not confirmed on hardware yet. Its stream goes to the
+// log's capture store so simultaneous presses can be checked from one ordinary
+// HallJoy.log: every new sample while 2+ keys are active, every press and
+// release, and every release forced by the 50 ms freshness limit (a held key
+// sent no new sample). Each record has the gap since that key's previous
+// sample and the active positions. Windows key events (capture.key) show
+// whether typing works while the stream is on; they are diagnostics only and
+// never enter analog values. Every period with 2+ active keys also gets one
+// kept summary (per key: samples and largest gap). Bounded by content.
+bool streamCapture=false,keyCaptureOn=false;
+struct ChordEpisode {
+    bool open=false;std::uint64_t start=0;unsigned maxActive=0,expired=0;
+    std::array<unsigned,126> samples{},maxGap{};std::array<bool,126> keys{};
+};
+ChordEpisode chord;
+void CaptureStream(const char* kind,unsigned position,std::uint64_t packed,unsigned value,unsigned gap){
+    if(!streamCapture)return;
+    char active[64]{};unsigned count=0;size_t used=0;
+    for(unsigned i=0;i<126;++i)if(previousValues[i]){
+        if(++count<=12 && used<sizeof(active))used+=std::max(0,_snprintf_s(active+used,sizeof(active)-used,_TRUNCATE,count==1?"%u":",%u",i));
+    }
+    char line[200]{};
+    _snprintf_s(line,sizeof(line),_TRUNCATE,"evidence.ak820 %s p=%u t=%u s=%u v=%u gap=%u act=%u:%s",kind,position,
+        unsigned(packed&65535),unsigned((packed>>16)&65535),value,gap,count,count?active:"-");
+    SupportLog_Evidence(line,false);
+}
+void CloseChord(std::uint64_t now){
+    if(!chord.open)return;
+    char line[240]{};size_t used=static_cast<size_t>(std::max(0,_snprintf_s(line,sizeof(line),_TRUNCATE,
+        "evidence.ak820 chord ms=%llu max_active=%u expired=%u keys=",now-chord.start,chord.maxActive,chord.expired)));
+    for(unsigned i=0;i<126 && used<sizeof(line);++i)if(chord.keys[i]){
+        const int n=_snprintf_s(line+used,sizeof(line)-used,_TRUNCATE,"%u:%u:%u,",i,chord.samples[i],chord.maxGap[i]);
+        if(n<0)break;used+=static_cast<size_t>(n);
+    }
+    SupportLog_Evidence(line,true);chord=ChordEpisode{};
+}
 void ClearNative(){
     const bool was=nativeConnected.exchange(false);
+    if(keyCaptureOn){InputTrace_SetKeyCapture(false);keyCaptureOn=false;}
+    if(streamCapture)CloseChord(GetTickCount64());
+    streamCapture=false;
     if(!was && nativeRevision==-1 && !nativeProduct.load())return;
     factoryValues.Clear();assignedValues.Clear();nativeMapped=0;nativeRevision=-1;
     publishedSamples.fill(0);previousValues.fill(0);
@@ -389,35 +539,77 @@ void PumpNative(){
     if(!halljoy::mini60::SupportedProduct(product)){ClearNative();return;}
     LONG revision=Load(shared->mapRevision);
     if(revision!=nativeRevision || product!=nativeProduct.load()){
-        ClearNative();nativeProduct=product;std::array<halljoy::native_layout::Key,61> map{};unsigned count=0;
-        for(unsigned i=0;i<126;++i)if(auto hid=halljoy::mini60::Factory[i]){
+        ClearNative();nativeProduct=product;std::array<halljoy::native_layout::Key,126> map{};unsigned count=0;
+        for(unsigned i=0;i<126;++i)if(auto hid=halljoy::mini60::FactoryFor(product)[i]){
             auto assigned=static_cast<std::uint16_t>(Load(shared->assigned[i]));
             if(assigned>=halljoy::native_layout::kHidCount)assigned=0;
             factoryValues.Bind(static_cast<std::uint8_t>(i+1),hid);
             if(assigned)assignedValues.Bind(static_cast<std::uint8_t>(i+1),assigned);
             map[count++]={hid,assigned};
         }
-        if(count!=map.size() || !halljoy::native_layout::Publish(NativeToken(),map.data(),count))return;
+        if(count!=halljoy::mini60::KeyCount(product) || !halljoy::native_layout::Publish(NativeToken(),map.data(),count))return;
         nativeMapped=count;nativeRevision=revision;
         StabilityTrace_Write(L"INFO",L"mini60",L"native_map_published",L"keys=%u revision=%ld normalization=travel_div_stroke_times10 stale_ms=50",count,revision);
+        if(product==halljoy::mini60::Ak820Pid){
+            streamCapture=true;InputTrace_SetKeyCapture(true);keyCaptureOn=true;
+            char line[96]{};_snprintf_s(line,sizeof(line),_TRUNCATE,"evidence.ak820 session keys=%u hold=1 release_floor=%ld",count,Load(shared->releaseFloor));
+            SupportLog_Evidence(line,true);
+        }
     }
-    bool changed=false;
-    for(unsigned i=0;i<126;++i)if(halljoy::mini60::Factory[i]){
+    bool changed=false;const bool hold=product==halljoy::mini60::Ak820Pid;
+    const unsigned releaseFloor=hold?static_cast<unsigned>(Load(shared->releaseFloor)):0;
+    struct Pending{const char* kind;unsigned position,value,gap;std::uint64_t packed;};
+    std::array<Pending,126> pending{};unsigned pendingCount=0;
+    for(unsigned i=0;i<126;++i)if(halljoy::mini60::FactoryFor(product)[i]){
         auto packed=static_cast<std::uint64_t>(InterlockedCompareExchange64(&shared->samples[i],0,0));
         // Read the clock after the shared sample. A producer update at a tick
         // boundary must not look like an ancient sample through unsigned wrap.
         const auto sampleNow=GetTickCount64();const auto sampleTick=static_cast<DWORD>(sampleNow);
-        const auto value=halljoy::mini60::Read(packed,sampleTick);
-        if(previousValues[i] && !value && packed && DWORD(sampleTick-DWORD(packed>>32))>halljoy::mini60::FreshMs)++nativeExpired;
-        if(packed!=publishedSamples[i]){++nativeUpdates;publishedSamples[i]=packed;}
+        const auto value=hold?halljoy::mini60::Held(packed,releaseFloor):halljoy::mini60::Read(packed,sampleTick);
+        const unsigned before=previousValues[i];
+        const bool expired=!hold && before && !value && packed && DWORD(sampleTick-DWORD(packed>>32))>halljoy::mini60::FreshMs;
+        if(expired)++nativeExpired;
+        bool fresh=false;unsigned gap=0;
+        if(packed!=publishedSamples[i]){
+            ++nativeUpdates;fresh=true;
+            gap=publishedSamples[i]?DWORD(DWORD(packed>>32)-DWORD(publishedSamples[i]>>32)):0;
+            publishedSamples[i]=packed;
+        }
         // Also publish expiry zeros to wake the common realtime consumer.
         if(value!=previousValues[i] || value){
             const auto age=packed?DWORD(sampleTick-DWORD(packed>>32)):0;
-            const auto stamp=value?sampleNow-age:sampleNow;
+            // A held AK820 value stays current until the firmware releases it.
+            const auto stamp=value && !hold?sampleNow-age:sampleNow;
             factoryValues.Publish(static_cast<std::uint8_t>(i+1),static_cast<std::uint16_t>(value),stamp);
             assignedValues.Publish(static_cast<std::uint8_t>(i+1),static_cast<std::uint16_t>(value),stamp);
             changed=changed || value!=previousValues[i];previousValues[i]=value;
         }
+        if(streamCapture){
+            if(expired)pending[pendingCount++]={"expire",i,before,DWORD(sampleTick-DWORD(packed>>32)),packed};
+            else if(fresh && !before && value)pending[pendingCount++]={"press",i,value,gap,packed};
+            else if(fresh && before && !value)pending[pendingCount++]={"release",i,value,gap,packed};
+            else if(fresh && value)pending[pendingCount++]={"sample",i,value,gap,packed};
+        }
+    }
+    if(streamCapture){
+        unsigned active=0;for(auto v:previousValues)active+=v!=0;
+        if(active>=2 && !chord.open){chord.open=true;chord.start=now;}
+        if(chord.open){
+            chord.maxActive=std::max(chord.maxActive,active);
+            for(unsigned i=0;i<126;++i)if(previousValues[i])chord.keys[i]=true;
+            for(unsigned k=0;k<pendingCount;++k){
+                const auto& e=pending[k];chord.keys[e.position]=true;
+                if(e.kind[0]=='e')++chord.expired;
+                else{++chord.samples[e.position];chord.maxGap[e.position]=std::max(chord.maxGap[e.position],e.gap);}
+            }
+        }
+        for(unsigned k=0;k<pendingCount;++k){
+            const auto& e=pending[k];
+            // Plain samples matter only during chords; presses/releases always.
+            if(e.kind[0]=='s' && active<2)continue;
+            CaptureStream(e.kind,e.position,e.packed,e.value,e.gap);
+        }
+        if(active<2)CloseChord(now);
     }
     nativeConnected=true;uiState=12;
     static std::uint64_t nextLog=0;
@@ -451,7 +643,9 @@ void NativeTelemetry(NativeAnalogBackendTelemetry* out){
     out->inputReportBytes=65;out->outputReportBytes=65;out->nominalRawLevels=341;
     out->successfulUpdates=nativeUpdates.load();
     if(out->connected)out->verifiedLayoutToken=NativeToken();
-    wcscpy_s(out->status,nativeProduct.load()==0x8032?L"MINI60 HE: wired analog; per-key freshness 50 ms":nativeProduct.load()==0x80a1?L"MINI60 HE MAX: wired analog; per-key freshness 50 ms":L"MINI60 HE Pro: wired analog; per-key freshness 50 ms");
+    const auto product=nativeProduct.load();
+    if(product==halljoy::mini60::Ak820Pid)wcscpy_s(out->deviceName,L"AJAZZ AK820 MAX HE (0C45:80B1)");
+    wcscpy_s(out->status,product==0x8032?L"MINI60 HE: wired analog; per-key freshness 50 ms":product==0x80a1?L"MINI60 HE MAX: wired analog; per-key freshness 50 ms":product==halljoy::mini60::Ak820Pid?L"AJAZZ AK820 MAX HE 0C45:80B1: wired analog; per-key freshness 50 ms":L"MINI60 HE Pro: wired analog; per-key freshness 50 ms");
 }
 
 void Supervise() noexcept {
@@ -494,14 +688,21 @@ void DigitalSummary(){
 }
 void Require(bool v){if(!v)throw 1;}
 void SelfTest(unsigned product){
+    const bool ak820=product==halljoy::mini60::Ak820Pid;const auto& factory=halljoy::mini60::FactoryFor(product);
     Require(halljoy::mini60::Identity(product,0x0c45,product,0x0166,0x110c));
     Require(!halljoy::mini60::Identity(product,0x0c45,product^1,0x0166,0x110c));
-    Require(!halljoy::mini60::Identity(product,0x0c45,product,0,0x110c));
+    Require(!halljoy::mini60::Identity(product,0x0c46,product,0x0166,0x110c));
+    // AK820 accepts any manufacturer/product; AULA keeps the 0x0166 restriction.
+    Require(halljoy::mini60::Identity(product,0x0c45,product,0,0x110c)==ak820);
+    Require(Request(0x10,halljoy::mini60::InfoLength(product))[3]==(ak820?48:56));
+    Require(halljoy::mini60::KeyCount(product)==(ak820?82u:61u));
+    Require(!ak820 || (factory[1]==58 && factory[90]==82 && factory[106]==76 && factory[85]==0x409 && !factory[86]));
+    Require(ak820 || (!factory[1] && factory[86]==101));
     Require(!halljoy::mini60::SupportedProduct(0xfefc) && !halljoy::mini60::SupportedProduct(0x80b2));
     // Exercise the actual publication/getMilli path without HID or app startup.
     parentStop=false;halljoy::native_layout::activeToken=0;
     InterlockedExchange(&shared->productId,static_cast<LONG>(product));
-    for(unsigned i=0;i<126;++i)InterlockedExchange(&shared->assigned[i],halljoy::mini60::Factory[i]);
+    for(unsigned i=0;i<126;++i)InterlockedExchange(&shared->assigned[i],factory[i]);
     auto tick=GetTickCount();InterlockedExchange(&shared->heartbeat,static_cast<LONG>(tick));
     InterlockedExchange(&shared->mapReady,1);InterlockedIncrement(&shared->mapRevision);InterlockedExchange(&shared->nativeReady,1);
     InterlockedExchange64(&shared->samples[34],halljoy::mini60::Pack(170,34,tick));
@@ -519,21 +720,31 @@ void SelfTest(unsigned product){
     auto frame=halljoy::configured_xusb::BuildReport(config,input,gameState);
     Require(frame.leftStickX==-32767 && frame.leftStickY==16384);
     InterlockedExchange64(&shared->samples[34],halljoy::mini60::Pack(170,34,tick-51));
-    PumpNative();Require(NativeToken()==halljoy::mini60::Token(product));Require(NativeOwns(26) && NativeGet(26)==0 && NativeGet(4)==1000);
+    // MINI60 expires a silent key after 50 ms; AK820 holds it until released.
+    PumpNative();Require(NativeToken()==halljoy::mini60::Token(product));Require(NativeOwns(26) && NativeGet(26)==(ak820?500:0) && NativeGet(4)==1000);
     InterlockedExchange(&shared->assigned[49],26);InterlockedIncrement(&shared->mapRevision);
     PumpNative();halljoy::native_layout::activeToken=halljoy::mini60::Token(product);
     Require(NativeGet(26)==1000 && !NativeOwns(4));
-    InterlockedExchange64(&shared->samples[49],halljoy::mini60::Pack(0,34,GetTickCount()));PumpNative();Require(NativeGet(26)==0);
+    InterlockedExchange64(&shared->samples[49],halljoy::mini60::Pack(0,34,GetTickCount()));PumpNative();Require(NativeGet(26)==(ak820?500:0));
+    if(ak820){
+        // A last value inside the keyboard's top dead zone releases the key.
+        InterlockedExchange(&shared->releaseFloor,30);
+        InterlockedExchange64(&shared->samples[34],halljoy::mini60::Pack(28,34,GetTickCount()));PumpNative();Require(NativeGet(26)==0);
+        InterlockedExchange64(&shared->samples[34],halljoy::mini60::Pack(31,34,GetTickCount()));PumpNative();Require(NativeGet(26)==91);
+        InterlockedExchange(&shared->releaseFloor,0);
+    }
+    InterlockedExchange64(&shared->samples[34],halljoy::mini60::Pack(0,34,GetTickCount()));PumpNative();Require(NativeGet(26)==0);
     InterlockedExchange(&shared->nativeReady,0);PumpNative();Require(!NativeConnected() && NativeGet(26)==0);
     Require(halljoy::mini60::Milli(369,34)==1000 && halljoy::mini60::Milli(170,0)==0 && halljoy::mini60::Milli(65535,34)==0);
     Require(halljoy::mini60::Read(halljoy::mini60::Pack(170,34,0xfffffff0u),10)==500);
     Require(halljoy::mini60::Read(halljoy::mini60::Pack(170,34,0xfffffff0u),100)==0);
-    std::array<std::uint8_t,4> assign{2,0,26,0};Require(halljoy::mini60::Assigned(49,assign.data())==26);
-    assign={2,1,26,0};Require(halljoy::mini60::Assigned(49,assign.data())==0);
-    assign={2,1,0,0};Require(halljoy::mini60::Assigned(49,assign.data())==224);
-    assign={6,0,0,0};Require(halljoy::mini60::Assigned(49,assign.data())==0);
-    assign={2,0,0xaf,0};Require(halljoy::mini60::Assigned(85,assign.data())==0x409);
-    assign={2,1,0xaf,0};Require(halljoy::mini60::Assigned(85,assign.data())==0);
+    std::array<std::uint8_t,4> assign{2,0,26,0};Require(halljoy::mini60::Assigned(factory,49,assign.data())==26);
+    assign={2,1,26,0};Require(halljoy::mini60::Assigned(factory,49,assign.data())==0);
+    assign={2,1,0,0};Require(halljoy::mini60::Assigned(factory,49,assign.data())==224);
+    assign={6,0,0,0};Require(halljoy::mini60::Assigned(factory,49,assign.data())==0);
+    assign={2,0,0xaf,0};Require(halljoy::mini60::Assigned(factory,85,assign.data())==0x409);
+    assign={2,1,0xaf,0};Require(halljoy::mini60::Assigned(factory,85,assign.data())==0);
+    assign={0,0,0,0};Require(halljoy::mini60::Assigned(factory,1,assign.data())==(ak820?58u:0u));
     Coverage c;
     c.Update(7,4,8,8,0,1000,20,2,1,100);Require(c.phase==0);
     c.Update(8,4,8,8,2,1000,20,1,1,200);Require(c.phase==1);
@@ -568,7 +779,7 @@ bool Mini60Diagnostic_TryRunCommand(int& result) noexcept {
     bool test=argc==2 && wcscmp(argv[1],L"--halljoy-mini60-self-test")==0;
     if(!worker && !test){LocalFree(argv);return false;}
     try{
-        if(test){CreateShared();SelfTest(0x80a2);SelfTest(0x80a1);SelfTest(0x8032);result=0;}
+        if(test){CreateShared();SelfTest(0x80a2);SelfTest(0x80a1);SelfTest(0x8032);if(halljoy::mini60::Ak820Admitted)SelfTest(halljoy::mini60::Ak820Pid);result=0;}
         else{
             childCancel=reinterpret_cast<HANDLE>(static_cast<uintptr_t>(_wcstoui64(argv[3],nullptr,10)));
             DWORD flags=0;if(!childCancel || !GetHandleInformation(childCancel,&flags))throw 1;
@@ -591,7 +802,7 @@ void Mini60Diagnostic_Start() noexcept {
     if(!StabilityTrace_IsEnabled()){uiState=10;return;}
 #endif
     parentStop=false;collecting=false;uiState=1;
-    StabilityTrace_WriteCritical(L"INFO",L"mini60",L"start",L"schema=2 build=20260919-native-2 mode=continuous_analog no_test_deadline=1 stale_release_ms=50 scope=0c45:80a2,80a1,8032:ff68:0061 wireless_commands=0 gamepad_unchanged=1 firmware_writes=0 calibration=0 typed_text=0");
+    StabilityTrace_WriteCritical(L"INFO",L"mini60",L"start",L"schema=2 build=20260919-native-2 mode=continuous_analog no_test_deadline=1 stale_release_ms=50 scope=0c45:80a2,80a1,8032,80b1:ff68:0061 wireless_commands=0 gamepad_unchanged=1 firmware_writes=0 calibration=0 typed_text=0");
     try{CreateShared();
         InterlockedExchange(&shared->nativeReady,0);InterlockedExchange(&shared->mapReady,0);
         keyCount=0;releaseCount=0;maximumHeld=0;
@@ -647,7 +858,7 @@ void Mini60Diagnostic_ObserveRawInput(HRAWINPUT input) noexcept {
             wchar_t path[2048]{};UINT n=_countof(path);Digital d;
             if(GetRawInputDeviceInfoW(raw.header.hDevice,RIDI_DEVICENAME,path,&n)!=UINT(-1)){
                 std::wstring value=path;std::transform(value.begin(),value.end(),value.begin(),towlower);
-                d.target=value.find(L"vid_0c45&pid_8032")!=std::wstring::npos || value.find(L"vid_0c45&pid_80a2")!=std::wstring::npos || value.find(L"vid_0c45&pid_80a1")!=std::wstring::npos;
+                d.target=value.find(L"vid_0c45&pid_8032")!=std::wstring::npos || value.find(L"vid_0c45&pid_80a2")!=std::wstring::npos || value.find(L"vid_0c45&pid_80a1")!=std::wstring::npos || value.find(L"vid_0c45&pid_80b1")!=std::wstring::npos;
             }
             found=digital.emplace(raw.header.hDevice,d).first;
         }
@@ -672,7 +883,7 @@ void Mini60Diagnostic_ObserveRawInput(HRAWINPUT input) noexcept {
 const NativeAnalogBackendDescriptor& Mini60_GetNativeBackendDescriptor(){
     static const NativeAnalogBackendDescriptor descriptor{
         kNativeAnalogBackendAbiVersion,sizeof(NativeAnalogBackendDescriptor),
-        "aula-mini60-he-pro",L"AULA MINI60 HE / Pro / MAX",NativeAnalogProtocol::AulaMini60HePro,
+        "aula-mini60-he-pro",L"AULA MINI60 HE / Pro / MAX, AJAZZ AK820 MAX HE 80B1",NativeAnalogProtocol::AulaMini60HePro,
         NativeAnalogStartPhase::AfterRawInput,
         NativeAnalogBackendFlag_StreamTransport|NativeAnalogBackendFlag_ReversibleControlProbe|NativeAnalogBackendFlag_RequiresRawInput,
         nullptr,&NativeStart,&NativeStop,nullptr,&NativeConnected,&NativeConnected,&NativeOwns,&NativeGet,&NativeTelemetry};

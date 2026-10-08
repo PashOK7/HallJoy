@@ -4,7 +4,7 @@
     "check_rongyuan_stream_profiles.py": [
       {
         "path": "docs/development/keyboard_support_notices.json",
-        "sha256": "7ae8c4691bc920cceeefce8b7d78c844e1e391a765b33714ca207c5631b6d49c",
+        "sha256": "0a5fbe659007412725ed2427108e0da6075a5fa5d0887e2c3ab6e4e913d72e59",
         "private": false
       },
       {
@@ -1244,7 +1244,7 @@
       },
       {
         "path": "src/HallJoyProject/HallJoy/rongyuan_stream_protocol.h",
-        "sha256": "675b2cca47d0aa4ad9e29ff50c5334d4aeea398ad5583e820b60ba2b3703d673",
+        "sha256": "e74defd64496becd1bbb1756d1f5c672914c9bfdc671cd6e74e54b88454a35b2",
         "private": false
       },
       {
@@ -1254,7 +1254,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "c8885365a42d4e8df2611005236495d8276da53374fc53a6083bd7921c4309a9",
+        "sha256": "26fcac16c880512810d3f774c3259d44dfb423360a5c5a1eb5136f1dd5c2abd9",
         "private": false
       }
     ],
@@ -1809,7 +1809,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "c8885365a42d4e8df2611005236495d8276da53374fc53a6083bd7921c4309a9",
+        "sha256": "26fcac16c880512810d3f774c3259d44dfb423360a5c5a1eb5136f1dd5c2abd9",
         "private": false
       },
       {
@@ -1958,12 +1958,12 @@
       },
       {
         "path": "docs/research/neo-k617-layouts/redragon_k617_he_ansi.json",
-        "sha256": "f7f7042ba8001204a5669000a904ebbabf6e8817bbe95d8650843417b7cd6f3f",
+        "sha256": "846bf0809a3a33f6cbe9a9e21b43f2fac625d064a113b9058b638dfc5db382aa",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/aula_w669_protocol.cpp",
-        "sha256": "cd417a46b0a2db5ceabe22d940163cf31849a4d19e3de8a19e99ca1e1ca4baf8",
+        "sha256": "734bacdcf0213373e63beb7156f2c0b065182dbb66fa4e4ea1c838817247bc8c",
         "private": false
       },
       {
@@ -2399,6 +2399,55 @@
       {
         "path": "tools/build_everglide_layouts.py",
         "sha256": "6d510cea40348dab68cc94e5dc5164071137896d7dbec6287dc633fc5380a2b7",
+        "private": false
+      }
+    ],
+    "build_wlmouse_layouts.py": [
+      {
+        "path": "docs/research/wlmouse-layout-reports/wlmouse_ying75_ansi.json",
+        "sha256": "67598155f0526d8814793429892b82be1bf1c742d0fb80cc4dfb8631e70aed0a",
+        "private": false
+      },
+      {
+        "path": "docs/research/wlmouse-layout-sources/ying75-geometry.json",
+        "sha256": "088c4bb2985c9179b043992488991dd02cd5461fcb29af06e9a5bde4318e9819",
+        "private": false
+      },
+      {
+        "path": "src/HallJoyProject/HallJoy/wlmouse_ying75_protocol.h",
+        "sha256": "fd7731fd6498a4f20886f9f5f96f20252d4a2deaf3d7a8d2d154f982053639b1",
+        "private": false
+      },
+      {
+        "path": "tools/build_wlmouse_layouts.py",
+        "sha256": "abf5d169cb0329d6229af1d88d37d180f7e04095df357e3fb4c305a0422af5ae",
+        "private": false
+      }
+    ],
+    "build_logitech_layouts.py": [
+      {
+        "path": "docs/research/logitech-layout-reports/logitech_pro_x2_rapid_ansi.json",
+        "sha256": "83dcf9f5f68c8ea4512ef3b351de606c7371489c89a4839da4f700ba357bff85",
+        "private": false
+      },
+      {
+        "path": "docs/research/logitech-layout-reports/logitech_pro_x_tkl_rapid_ansi.json",
+        "sha256": "503f853ae638c0162d13a4162c85ea0d5d139d19c654f8af23391ca218b7f149",
+        "private": false
+      },
+      {
+        "path": "docs/research/logitech-layout-sources/logitech-rapid-geometry.json",
+        "sha256": "589402b17a4ceed8eaf8c9963ca4da41a81f44962d9773fe497fb3e6aad6f419",
+        "private": false
+      },
+      {
+        "path": "src/HallJoyProject/HallJoy/logitech_rapid_protocol.h",
+        "sha256": "75f8d1a386136a517b0dfc0cc277bbdbb33c5126101a78d43126fdc2cda3a674",
+        "private": false
+      },
+      {
+        "path": "tools/build_logitech_layouts.py",
+        "sha256": "161604c80473f45bd4fc264a6019d2e2225d9a27f883a023f47252b08ee85d90",
         "private": false
       }
     ],
@@ -3190,12 +3239,12 @@
       },
       {
         "path": "docs/exports/layout-pipeline/aula_win60_standard_ansi-review.json",
-        "sha256": "c5ce91db54e6292fe50511a03953ada1f5a9aa3ab3ecd03990df81bfb7d8d3a1",
+        "sha256": "f0c6ab34642ca924fc502ac3eef0e2ef3bd884beff9d618c76e89f59273dd90d",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/aula_win68_standard_ansi-review.json",
-        "sha256": "1673dc847bba4019e34a0c1d71079d17329ffd59906ff2edc8aa995f4692ee47",
+        "sha256": "11371d9cf65dc8ceabf981b3ae07db924b1df751b94edff2fa5a3428689a4e1a",
         "private": false
       },
       {
@@ -3524,6 +3573,26 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/Logitech G PRO X TKL RAPID ANSI.ini",
+        "sha256": "e80c1c8ba94443c9e00a026cb92e47db7ef6125d7057f7b5d77197a23bb85b9a",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/Logitech G PRO X2 RAPID ANSI.ini",
+        "sha256": "0ec59a21f05cc7602cb3d9366fb80a3e39388d0872b9198e1067d4a2cd05af57",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/logitech_pro_x2_rapid_ansi-review.json",
+        "sha256": "adafc7a07f8ddbee6279eea3200e8c822d4963412a2a670e392958663c925ed2",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/logitech_pro_x_tkl_rapid_ansi-review.json",
+        "sha256": "adf77fef84c703512629758614a39f0891ac61eaec016b317ead7603ee965a10",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/MADLIONS MAD 68 Pro R ANSI.ini",
         "sha256": "4f9cdd1f2b77acf41fe5902656f648cfd68075afc25529304e0bb319c938b2ab",
         "private": false
@@ -3839,23 +3908,53 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/Redragon K686BG-RGB-M ANSI.ini",
+        "sha256": "6777b3bb8cef108149c028a43baeed28ad900d8d3489c8bcdd69503c8ba802f7",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/Redragon K686BG-RGB-M ISO.ini",
+        "sha256": "6447961799143f154e81c06e02ccb55088600861549408fd8b86670f93d7828a",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/Redragon K686RGB-M ISO.ini",
+        "sha256": "7045609630b0feb9d572ee6c6d91322f7debcb7923b10f3da474f8362eb4e870",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/redragon_k617_he_ansi-review.json",
-        "sha256": "f7f7042ba8001204a5669000a904ebbabf6e8817bbe95d8650843417b7cd6f3f",
+        "sha256": "846bf0809a3a33f6cbe9a9e21b43f2fac625d064a113b9058b638dfc5db382aa",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/redragon_k673_br_abnt2-review.json",
-        "sha256": "ceb81a3d41199516433587ee4e9c583b66bc2566dd8f1766e392bcccab179ce4",
+        "sha256": "13a3f4a834bebe59a0ab9065ba40c431624f9682f2cbcdda7b996f7851453722",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/redragon_k673_uk_iso-review.json",
-        "sha256": "940f5b70a38cf412d21ffedb3dbf52d7ceb041272ee7a8d0340c3c48aac1e8ba",
+        "sha256": "6cc6698dbfa203351d08e02de729e7cbac8d47228abf642bb40cff705dd181d8",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/redragon_k673_us_ansi-review.json",
-        "sha256": "4a6efa0dd59c80d3760f1ac0f0fcb6e73f574e89c7bbd81d4390db1647441aa0",
+        "sha256": "1380383094a5d8435df81d5e66d7e0fb3b5baa0b1d987b6b090b83095484717d",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/redragon_k686_uk_iso-review.json",
+        "sha256": "37afd4f0809faa4cce002db60f2acd9cd49a82639a89fbeabc999cc34b1267dd",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/redragon_k686bg_br_iso-review.json",
+        "sha256": "c162ae38d456980b29ab5503528fe54a82134922b3462bca68d4b19974c36c88",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/redragon_k686bg_us_ansi-review.json",
+        "sha256": "b0cba1a9116e3ef373c51b627f4e936801ac63d0e06277db93941ad2d15b6d2c",
         "private": false
       },
       {
@@ -4076,6 +4175,16 @@
       {
         "path": "docs/exports/layout-pipeline/UluGames Howl 75 ANSI.ini",
         "sha256": "20cc892c29cd3ee1f215efdffaf17901391de813abae7fde61ed05fd7847c63f",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/WLMOUSE Ying75 ANSI.ini",
+        "sha256": "ea32c7d888900e76cd679fdf8d3b76e1b75da2fb0aa1b9d0142884aa65338468",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/wlmouse_ying75_ansi-review.json",
+        "sha256": "71a25aec0c7b265745be67e5662b1b53898ff9b77fffd41f729e355d3fda2e3d",
         "private": false
       },
       {
@@ -5674,6 +5783,21 @@
         "private": false
       },
       {
+        "path": "docs/research/logitech-layout-reports/logitech_pro_x2_rapid_ansi.json",
+        "sha256": "83dcf9f5f68c8ea4512ef3b351de606c7371489c89a4839da4f700ba357bff85",
+        "private": false
+      },
+      {
+        "path": "docs/research/logitech-layout-reports/logitech_pro_x_tkl_rapid_ansi.json",
+        "sha256": "503f853ae638c0162d13a4162c85ea0d5d139d19c654f8af23391ca218b7f149",
+        "private": false
+      },
+      {
+        "path": "docs/research/logitech-layout-sources/logitech-rapid-geometry.json",
+        "sha256": "589402b17a4ceed8eaf8c9963ca4da41a81f44962d9773fe497fb3e6aad6f419",
+        "private": false
+      },
+      {
         "path": "docs/research/madlions-layout-reports/madlions_mad60he_ansi.json",
         "sha256": "e68e8263a0f860d4c5c7b7fe34286cd334565ab5520127bf3ae86390542ffd55",
         "private": false
@@ -5730,7 +5854,7 @@
       },
       {
         "path": "docs/research/neo-k617-layouts/redragon_k617_he_ansi.json",
-        "sha256": "f7f7042ba8001204a5669000a904ebbabf6e8817bbe95d8650843417b7cd6f3f",
+        "sha256": "846bf0809a3a33f6cbe9a9e21b43f2fac625d064a113b9058b638dfc5db382aa",
         "private": false
       },
       {
@@ -5841,6 +5965,21 @@
       {
         "path": "docs/research/redragon-layout-sources/7272USHEXYXK673JCARGB.json",
         "sha256": "d2afff5d026cde62bd7f24d274b21aa0f654f4e282c37bd4ade5e05cf24f5abd",
+        "private": false
+      },
+      {
+        "path": "docs/research/redragon-layout-sources/7431BRHEXYXJCARGB.json",
+        "sha256": "763771c5a2577bca238839cb86a7bf0c5e6c5ed699b04c603469ed08f793a636",
+        "private": false
+      },
+      {
+        "path": "docs/research/redragon-layout-sources/7431UKHEXYXBJCARGB.json",
+        "sha256": "5f052bd929308528ecd9fafdb8dacdcf042ab83d0ea770a9403fd6d9b7ff1bd3",
+        "private": false
+      },
+      {
+        "path": "docs/research/redragon-layout-sources/7431USHEXYXK686JCARGB.json",
+        "sha256": "317076c60c22be6b77a01c44c9304d1ad3dc97eab8f36a29006156a39989c9f0",
         "private": false
       },
       {
@@ -6434,6 +6573,16 @@
         "private": true
       },
       {
+        "path": "docs/research/wlmouse-layout-reports/wlmouse_ying75_ansi.json",
+        "sha256": "67598155f0526d8814793429892b82be1bf1c742d0fb80cc4dfb8631e70aed0a",
+        "private": false
+      },
+      {
+        "path": "docs/research/wlmouse-layout-sources/ying75-geometry.json",
+        "sha256": "088c4bb2985c9179b043992488991dd02cd5461fcb29af06e9a5bde4318e9819",
+        "private": false
+      },
+      {
         "path": "docs/research/wooting-extended-layout-reports-20260919/wooting_60he_v2_ansi.json",
         "sha256": "82a12d4818ba641a8c3176be00d203c11c91fd7327c178b1ae722cb196eb9044",
         "private": false
@@ -6480,7 +6629,7 @@
       },
       {
         "path": "src/HallJoyProject/HallJoy/aula_w669_protocol.cpp",
-        "sha256": "cd417a46b0a2db5ceabe22d940163cf31849a4d19e3de8a19e99ca1e1ca4baf8",
+        "sha256": "734bacdcf0213373e63beb7156f2c0b065182dbb66fa4e4ea1c838817247bc8c",
         "private": false
       },
       {
@@ -6495,22 +6644,22 @@
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.h",
-        "sha256": "3215f53463536cc27878e670dcf744af27cea72153e2a7df2898c536971e3ec0",
+        "sha256": "6c2340d0521f09b1bbc09be3b617b1e0eb1529990cba1ac1731ac25d81d1b587",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.inc",
-        "sha256": "93cfcb51fc1f871a5531ff50e39d4274bc00d7c2dda9f242aecb1bcae130086b",
+        "sha256": "a7c6fddcd2bb3daa7948530b27df3a523e9c53d191de7e7a7aabb6e595f2ea36",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/layouts.h",
-        "sha256": "10b6cb1a3f1f05799bfe5aca288f81619330188f67135dbc6787b1b3fbebf1e9",
+        "sha256": "cd7bb324d1d678540dd22c4a6f95dc2078d6b068df5c70b08ea7254a9c986f90",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/presets.inc",
-        "sha256": "54a6bfcebedfc29746e5e83221a028ded6421bbbae91a13a8f28a01195b9617a",
+        "sha256": "2c12d38e0a96cc755097a1cc82b58182c1100d106a096e416c7c1fb201d2e053",
         "private": false
       },
       {
@@ -6585,12 +6734,12 @@
       },
       {
         "path": "tools/layout_aula_w669.py",
-        "sha256": "40db24d067d3cf33ca0d8ab62b000e9e0cad689cc23e231bb460b12c4b2960ad",
+        "sha256": "0df5df92ef5c13edf3b4e6af78619cbb1325e8fc7629e3aa0775d68a6534cbd5",
         "private": false
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "c8885365a42d4e8df2611005236495d8276da53374fc53a6083bd7921c4309a9",
+        "sha256": "26fcac16c880512810d3f774c3259d44dfb423360a5c5a1eb5136f1dd5c2abd9",
         "private": false
       },
       {
@@ -6605,7 +6754,7 @@
       },
       {
         "path": "tools/layout_redragon_w669.py",
-        "sha256": "ad365d3eb5608afa567cf88496ad4f20a1046e0f8a78b1a04cd2b854f8093319",
+        "sha256": "a40eb5ee6ed856e0998064a537f0c99dd63421beaac00e2577f1f1e57fe71bc4",
         "private": false
       },
       {
@@ -6625,7 +6774,7 @@
       },
       {
         "path": "tools/research_layout_checks.py",
-        "sha256": "32ffd8bf0500dafc8f2e37635e79531c08d9578d97375c1f2ee3cb623d5acd4f",
+        "sha256": "130829f5a94710daec63c522c9bb24b607789168e8135b7e34a23f2fd38a576e",
         "private": false
       },
       {

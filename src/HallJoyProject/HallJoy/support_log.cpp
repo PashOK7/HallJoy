@@ -25,9 +25,23 @@
 #include <vector>
 
 namespace {
-constexpr size_t kLineBytes = 1024, kQueueLines = 512, kHistoryLines = 512;
+constexpr size_t kLineBytes = 1024, kQueueLines = 512, kHistoryLines = 512, kTraceLines = 4000;
 constexpr DWORD kFileLimit = 4 * 1024 * 1024;
+constexpr size_t kCaptureLineBytes = 192, kCaptureLines = 8000;
 using Line = std::array<char, kLineBytes>;
+using CaptureLine = std::array<char, kCaptureLineBytes>;
+SRWLOCK captureLock = SRWLOCK_INIT;
+std::vector<CaptureLine> captureStore; // append-only, first kCaptureLines records
+// Device evidence (SupportLog_Evidence): kept records are stored whole; stream
+// records keep the first kEvidenceHead and the newest kEvidenceTail, so the
+// start of the session and what the tester did just before Open log are both
+// in the report. Written with every full report.
+constexpr size_t kEvidenceLineBytes = 384, kEvidenceHead = 2000, kEvidenceTail = 8000;
+using EvidenceLine = std::array<char, kEvidenceLineBytes>;
+SRWLOCK evidenceLock = SRWLOCK_INIT;
+std::vector<EvidenceLine> evidenceKept, evidenceHead;
+std::deque<EvidenceLine> evidenceTail;
+std::uint64_t evidenceOmitted = 0;
 SRWLOCK queueLock = SRWLOCK_INIT;
 std::array<Line, kQueueLines> queue{};
 size_t queued = 0;
@@ -39,6 +53,7 @@ std::atomic<bool> failurePending{false};
 std::atomic<bool> researchPending{false};
 std::atomic<HWND> uiWindow{nullptr};
 std::atomic<DWORD> lastError{0};
+std::atomic<SupportLogInputConfigProvider> inputConfigProvider{nullptr};
 HANDLE worker = nullptr, stopEvent = nullptr;
 std::wstring testMirrorDirectory;
 std::wstring testDirectory; // Optional isolated destination for real writer tests.
@@ -139,6 +154,11 @@ void Snapshot() {
         seq,t.pluginHostAvailable,t.pluginHostReady,t.pluginHostStatus,t.pluginHostLastError,
         t.pluginHostTransportError,t.pluginHostRestartCount,t.pluginHostInvalidSnapshots);
     Enqueue(line);
+    if (const auto provider = inputConfigProvider.load()) {
+        char config[kLineBytes - 32]{};
+        provider(config, sizeof(config));
+        if (config[0]) { sprintf_s(line, "input.config seq=%llu %s", seq, config); Enqueue(line); }
+    }
     for (int i=0; i<t.nativeProtocolCount && i<kBackendMaxNativeProtocols; ++i) {
         const auto& n = t.nativeProtocols[i];
         const char* state=!n.telemetryAvailable?"unavailable":n.connected?"connected":n.present?"present_not_connected":"not_present";
@@ -167,14 +187,16 @@ bool ReplaceLog(const std::wstring& source, const std::wstring& target) noexcept
         Sleep(25);
     }
 }
-bool WriteLine(HANDLE file, const Line& line) {
+template <size_t N>
+bool WriteLine(HANDLE file, const std::array<char, N>& line) {
     const DWORD length = static_cast<DWORD>(strlen(line.data())); DWORD written = 0;
     if (!WriteFile(file, line.data(), length, &written, nullptr) || written != length) return false;
     return WriteFile(file, "\r\n", 2, &written, nullptr) && written == 2;
 }
 DWORD WINAPI Run(void*) noexcept {
     try {
-        std::deque<Line> history, researchEvidence;
+        std::deque<Line> history, researchEvidence, traceEvidence;
+        std::vector<CaptureLine> capture; // writer copy of captureStore
         std::vector<Line> batch(kQueueLines);
         bool previousIncident = false, previousContinuous = false;
         struct Destination {
@@ -182,6 +204,7 @@ DWORD WINAPI Run(void*) noexcept {
             bool opened = false, retryPending = false;
             ULONGLONG retryAfter = 0;
             DWORD fileBytes = 0, error = 0;
+            size_t captureWritten = 0; // capture records already in the file
         };
         const auto primary = testDirectory.empty() ? SupportLog_Directory() : testDirectory;
         const auto mirror = testDirectory.empty() ? AppPaths_LegacyDataRoot() : testMirrorDirectory;
@@ -241,6 +264,9 @@ DWORD WINAPI Run(void*) noexcept {
             queued=0;
             ReleaseSRWLockExclusive(&queueLock);
             const unsigned lost = dropped.exchange(0);
+            AcquireSRWLockShared(&captureLock);
+            for (size_t i = capture.size(); i < captureStore.size(); ++i) capture.push_back(captureStore[i]);
+            ReleaseSRWLockShared(&captureLock);
             if (lost) SupportLog_Event("logging.queue_dropped", lost);
             // Keep reviewed research through Open log snapshot resets; no extra file.
             // The batch itself decides: the producer sets researchPending only
@@ -265,7 +291,16 @@ DWORD WINAPI Run(void*) noexcept {
                     researchEvidence.push_back(batch[i]);
                 }
             }
-            for(size_t i=0;i<count;++i) { history.push_back(batch[i]); if(history.size()>kHistoryLines) history.pop_front(); }
+            for(size_t i=0;i<count;++i) {
+                // Input-chain trace keeps its own window so it neither evicts
+                // nor is evicted by snapshots (support_log.h).
+                if(strstr(batch[i].data()," trace.")) {
+                    traceEvidence.push_back(batch[i]);
+                    if(traceEvidence.size()>kTraceLines) traceEvidence.pop_front();
+                    continue;
+                }
+                history.push_back(batch[i]); if(history.size()>kHistoryLines) history.pop_front();
+            }
 #if defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_IROK_NA87_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG)
             for (size_t i=0;i<count;++i) DebugLog_Write(L"[support] %S", batch[i].data());
             (void)shouldWrite; (void)mirrorEnabled; (void)destinations; (void)distinctMirror;
@@ -304,14 +339,35 @@ DWORD WINAPI Run(void*) noexcept {
                                 const bool rawHidPayload=std::any_of(researchEvidence.begin(),researchEvidence.end(),[](const Line& line){
                                     return strstr(line.data(),"HallJoy RedSquare unknown packet trace v2;")!=nullptr;
                                 });
-                                sprintf_s(header.data(),header.size(),"HallJoy " HALLJOY_VERSION_STRING_FULL " support report schema=2 utc=%04u-%02u-%02uT%02u:%02u:%02uZ bounded_history=512 no_keyboard_text=1 raw_hid_payload=%u",snapshotUtc.wYear,snapshotUtc.wMonth,snapshotUtc.wDay,snapshotUtc.wHour,snapshotUtc.wMinute,snapshotUtc.wSecond,rawHidPayload?1u:0u);
+                                sprintf_s(header.data(),header.size(),"HallJoy " HALLJOY_VERSION_STRING_FULL " support report schema=2 utc=%04u-%02u-%02uT%02u:%02u:%02uZ bounded_history=512 no_keyboard_text=1 raw_hid_payload=%u bound_key_trace=%u",snapshotUtc.wYear,snapshotUtc.wMonth,snapshotUtc.wDay,snapshotUtc.wHour,snapshotUtc.wMinute,snapshotUtc.wSecond,rawHidPayload?1u:0u,traceEvidence.empty()?0u:1u);
                                 ok=WriteLine(file,header); fileBytes=DWORD(strlen(header.data())+2);
                                 for (const auto& line : researchEvidence) { if (!ok || !(ok=WriteLine(file,line))) break; fileBytes += DWORD(strlen(line.data())+2); }
                                 for (const auto& line : history) { if(strstr(line.data()," redsquare.research "))continue; if (!ok || !(ok=WriteLine(file,line))) break; fileBytes += DWORD(strlen(line.data())+2); }
+                                for (const auto& line : traceEvidence) { if (!ok || !(ok=WriteLine(file,line))) break; fileBytes += DWORD(strlen(line.data())+2); }
+                                for (const auto& line : capture) { if (!ok || !(ok=WriteLine(file,line))) break; fileBytes += DWORD(strlen(line.data())+2); }
+                                std::vector<EvidenceLine> evidence;
+                                std::uint64_t omitted = 0;
+                                try {
+                                    AcquireSRWLockShared(&evidenceLock);
+                                    evidence.reserve(evidenceKept.size()+evidenceHead.size()+evidenceTail.size()+1);
+                                    evidence.insert(evidence.end(),evidenceKept.begin(),evidenceKept.end());
+                                    evidence.insert(evidence.end(),evidenceHead.begin(),evidenceHead.end());
+                                    omitted = evidenceOmitted;
+                                    if (omitted) {
+                                        evidence.emplace_back();
+                                        _snprintf_s(evidence.back().data(),kEvidenceLineBytes,_TRUNCATE,
+                                            "evidence.omitted records=%llu between_first=%zu and_newest=%zu",omitted,evidenceHead.size(),evidenceTail.size());
+                                    }
+                                    evidence.insert(evidence.end(),evidenceTail.begin(),evidenceTail.end());
+                                } catch (...) {}
+                                ReleaseSRWLockShared(&evidenceLock);
+                                for (const auto& line : evidence) { if (!ok || !(ok=WriteLine(file,line))) break; fileBytes += DWORD(strlen(line.data())+2); }
                             } else {
                                 SetFilePointer(file, 0, nullptr, FILE_END);
                                 for(size_t i=0;i<count;++i) { if(!(ok=WriteLine(file,batch[i]))) break; fileBytes += DWORD(strlen(batch[i].data())+2); }
+                                for(size_t i=state.captureWritten;ok && i<capture.size();++i) { if(!(ok=WriteLine(file,capture[i]))) break; fileBytes += DWORD(strlen(capture[i].data())+2); }
                             }
+                            if (ok) state.captureWritten = capture.size();
                             DWORD error = ok ? 0 : GetLastError();
                             CloseHandle(file);
                             if(ok && reset && !ReplaceLog(destination, path)) {
@@ -391,7 +447,45 @@ void SupportLog_ReportFailure(const char* category, std::uint64_t error) noexcep
 void SupportLog_SetWindow(HWND window) noexcept { uiWindow=window; }
 DWORD SupportLog_LastError() noexcept { return lastError.load(); }
 std::uint64_t SupportLog_RequestSnapshot() noexcept { return ++requestedSnapshot; }
+void SupportLog_SetInputConfigProvider(SupportLogInputConfigProvider provider) noexcept { inputConfigProvider.store(provider); }
+void SupportLog_Trace(const char* record) noexcept {
+    if (!record || strncmp(record, "trace.", 6) != 0) return;
+    Enqueue(record);
+}
+bool SupportLog_Capture(const char* record) noexcept {
+    if (!record || strncmp(record, "capture.", 8) != 0) return false;
+    bool stored = false;
+    AcquireSRWLockExclusive(&captureLock);
+    try {
+        if (captureStore.size() < kCaptureLines) {
+            if (captureStore.empty()) captureStore.reserve(kCaptureLines);
+            captureStore.emplace_back();
+            _snprintf_s(captureStore.back().data(), kCaptureLineBytes, _TRUNCATE, "uptime_ms=%llu %s",
+                GetTickCount64(), record);
+            stored = true;
+        }
+    } catch (...) {
+    }
+    ReleaseSRWLockExclusive(&captureLock);
+    return stored;
+}
 std::uint64_t SupportLog_CompletedSnapshot() noexcept { return completedSnapshot.load(); }
+void SupportLog_Evidence(const char* record, bool keep) noexcept {
+    if (!record || strncmp(record, "evidence.", 9) != 0) return;
+    AcquireSRWLockExclusive(&evidenceLock);
+    try {
+        EvidenceLine line{};
+        _snprintf_s(line.data(), kEvidenceLineBytes, _TRUNCATE, "uptime_ms=%llu %s", GetTickCount64(), record);
+        if (keep) evidenceKept.push_back(line);
+        else if (evidenceHead.size() < kEvidenceHead) evidenceHead.push_back(line);
+        else {
+            evidenceTail.push_back(line);
+            if (evidenceTail.size() > kEvidenceTail) { evidenceTail.pop_front(); ++evidenceOmitted; }
+        }
+    } catch (...) {
+    }
+    ReleaseSRWLockExclusive(&evidenceLock);
+}
 
 bool SupportLog_RedSquareResearch(const char* record) noexcept {
     if(!record)return false;

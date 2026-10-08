@@ -1,3 +1,4 @@
+> Superseded 2026-10-03 by GAME_PROFILES_V2_2026-10-03.md (v2 page, service, shortcuts, import/export).
 # Game profiles — local implementation, 2026-09-27
 
 Owner follow-up: Profiles temporarily hidden; production page and foreground service creation disabled. Code and saved data retained. See MAD68_V2_DUAL_REVIEW_2026-09-27.md.

@@ -1,3 +1,18 @@
+> AJAZZ: [AK820 MAX HE Sonix revision 0C45:80B1 on the MINI60 stream backend, yellow, Sheet sync pending](current/AJAZZ_AK820MAX_SONIX_80B1_2026-10-08.md).
+> Red Square: [Alumix 68 Yotei, firmware v1.30-only read path, Sheet yellow](current/ALUMIX68_RSQ20058_2026-10-06.md).
+> Generic: [yellow support for unlisted BY/IPI and Logitech 0x1B08 keyboards; default 100% layout](current/GENERIC_PROTOCOL_SUPPORT_2026-10-07.md).
+> FuryCube: [M35HE research: BY/IPI firmware and web driver](current/FURYCUBE_M35HE_2026-10-07.md).
+> MonsGeek: [FUN60 Pro board 2304 (3151:502D) as an alias of 2600](current/FUN60_PRO_2304_2026-10-07.md).
+> Fix: [Automatic layout lost on restart while a named profile is active](current/LAYOUT_SAVE_NAMED_PROFILE_2026-10-06.md).
+> Logitech: [G RAPID HID++ analog stream](current/LOGITECH_RAPID_2026-10-05.md).
+> Startup: [paused at start fix](current/STARTUP_PAUSE_FIX_2026-10-05.md).
+> WLMOUSE: [Ying75 experimental JingTai profile](current/WLMOUSE_YING75_2026-10-05.md).
+> Redragon: [K686 HE experimental W669 profiles](current/REDRAGON_K686_2026-10-05.md).
+> MCHOSE: [Ace 68 Air III Supported](current/MCHOSE_ARM_FAMILY_2026-10-02.md).
+> Remap: [drag ghost motion blur and per-monitor refresh pacing](current/REMAP_GHOST_MOTION_BLUR_2026-10-03.md).
+> UI: [one paint standard and tab transitions](current/TAB_TRANSITIONS_2026-10-03.md).
+> K4 HE: [onboard route only for HallJoy firmware](current/K4_ONBOARD_ONLY_2026-10-03.md).
+> Game profiles v2: [design and implementation](current/GAME_PROFILES_V2_2026-10-03.md).
 > Build speed: [parallel/cached checks](current/FAST_CHECKS_2026-10-02.md).
 > Support log: [USB product names in HID inventory](current/SUPPORT_LOG_PRODUCT_NAMES_2026-10-02.md).
 > Everglide: [SU75 Pro on the SparkLink V2 path](current/EVERGLIDE_SU75PRO_2026-10-02.md).
@@ -145,7 +160,7 @@ are not all active requirements. Later owner decisions take precedence.
 - [1.6.0 candidate release notes](releases/RELEASE_NOTES_v1.6.0.md).
 - [Application README](../README.md) and [hardware compatibility](SUPPORTED_HARDWARE.md).
 - [Built-in layout catalog](KEYBOARD_LAYOUTS.md), including the documented local additions.
-- [Support on Discord](https://discord.gg/5FQ297yZh).
+- [Support on Discord](https://discord.gg/X5QsZJdN5a).
 
 ## Required support-status workflow
 

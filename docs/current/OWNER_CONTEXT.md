@@ -1,3 +1,130 @@
+> 2026-10-08 AK820 80B1 probe log: 0x68 = echo only (frame_version 0); stream carries several keys but is
+> change-only, so the MINI60 50 ms expiry released still held keys = the "one key" bug. Fix (80B1 only): hold last
+> depth, release on 0 or inside the keyboard's top dead zone (GET_GAME_MODE 0x11), Driveall packet rule; rejected
+> packets logged. Firmware DOES provide the data; not "unsupported". EXE 3a4e06e2. See AJAZZ_AK820MAX_SONIX_80B1.
+> 2026-10-08 OWNER: AK820 80B1 probe build, no time/log limits. Official commands only: raw device info
+> (frame_version/rt_precision), 0x68 status read outside calibration at rest + per new held-key set, stream 0x66;
+> new SupportLog_Evidence store (kept whole + first 2000/newest 8000 stream records), chord summaries.
+> Digital key events are diagnostics only, never analog (owner). Memory reads outside documented data are
+> not used. EXE 20b60e5e. See AJAZZ_AK820MAX_SONIX_80B1 doc.
+> 2026-10-08 AK820 80B1 log 16: connected (82 keys, stream OK) but log had no chord/key-record data (agent error,
+> owner angry). Screenshot: WASD "Unassign" = Driveall advanced keys (SOCD/RS/DKS/MT/TGL pages 8..12) -> now keep
+> factory key (AK820 only). Ordinary log capture store now has worker identity/records/checkpoints (capture.ak820w),
+> press/release/expire/chord samples (capture.ak820) and capture.key. EXE 7d0a3558. See AJAZZ_AK820MAX_SONIX_80B1 doc.
+> 2026-10-08 OWNER: support the user's AK820 MAX HE 0C45:80B1. Done as yellow on the MINI60 stream backend
+> (protocol 16): official Driveall config 3141:32945 "AK820MAX" = same AA/55 commands, 55 FB stream, units and
+> key-record format as MINI60; 82-key map from Driveall; existing AK820 MAX HE ANSI layout token; notice group
+> AjazzAk820Sonix. No firmware published (Driveall API empty; ajazz.net "AK820 Max Driver" is the mechanical BY
+> model). PENDING: Sheet row "AK820 MAX HE (wired, RGB, 0C45:80B1)" yellow (no Sheets connector this session).
+> All gates PASS (build_release + native checks), EXE 500c9eea. See AJAZZ_AK820MAX_SONIX_80B1_2026-10-08.md.
+> 2026-10-08 OWNER: Discord invite expired -> new https://discord.gg/X5QsZJdN5a in app (community_links.h +
+> regenerated banner QR, decoded back with OpenCV), README/docs/static audit. Needs a rebuild to reach users.
+> See DISCORD_SETTINGS_2026-09-09.md latest section.
+> 2026-10-08 Log "message (15).txt" (user claims AK820 MAX HE): device is 0C45:80B1 "AK820MAX", a different
+> revision from the supported 0416:7372 RGB unit; nothing admitted. No support change. See AJAZZ_AK820MAX_REVIEW.
+> 2026-10-07 OWNER: finish Red Square Alumix 68 and give the tester an EXE bound to the firmware version.
+> CORRECTION of 2026-10-06 line below: the owner overruled the rejection; the v1.30-only path (exact
+> scan-map + dispatcher-code fingerprint, fail closed + logged otherwise) IS the support path. Backend
+> shipped since 2026-10-06; now documented (ALUMIX68_RSQ20058_2026-10-06.md), catalog name = Sheet name
+> "Alumix 68 Yotei (Magnetite Ice)", README/SUPPORTED_HARDWARE, Sheet Main!C658 yellow. Live checks:
+> support_notice_catalog --sheet PASS (287), sheet structure PASS (150). Tester EXE b8f43358. Pending item below resolved.
+> 2026-10-07 Sheet access restored (owner reconnected Google Sheets). Live Main!C321 FuryCube M35HE ->
+> Implemented; awaiting hardware testing (yellow, generic BY); structure PASS (150 blocks). PENDING owner
+> decision: Red Square Alumix 68 backend (protocol 31, redsquare_alumix68_backend.cpp, 2026-10-06, yellow
+> notice, in every build) has no current doc, OWNER_CONTEXT still says "rejected", catalog model name
+> "Alumix 68" != Sheet "Alumix 68 Yotei (Magnetite Ice)" which is still Not investigated ->
+> support_notice_catalog.py --sheet fails only on this row.
+> 2026-10-07 OWNER: yellow support for every keyboard on a known protocol + anonymous 100% default layout.
+> Done for the safe families: BY/IPI (any 372E except HERO84; unknown UUID -> keys/map/calibration read
+> from the keyboard) and Logitech HID++ 0x1B08 (any 046D device reporting it; keys learned). RongYuan NOT
+> generic (shares VID/PID with ATTACK SHARK). New notice flag GenericProtocol. Default preset = "Generic
+> 100% ANSI". FuryCube M35HE covered by the BY path. EXE b8f43358. See GENERIC_PROTOCOL_SUPPORT_2026-10-07.md.
+> 2026-10-07 FuryCube M35HE (log 58, 372E:10A3): BY/IPI platform, UUID 0x110000000065 (official firmware
+> V1.6 + web driver he.furycube.com). Firmware has the 94/02 live read HallJoy uses; 37 keys. Not admitted
+> (10A3 not on the IPI path). Research only, no build. See FURYCUBE_M35HE_2026-10-07.md.
+> 2026-10-07 Logitech + FUN60 2304 + layout-save build: EXE a47370a0 (all gates PASS).
+> 2026-10-07 OWNER: fork BoneDrk/HallJoy found (build-time patch for FUN60 Pro board 2304, 3151:502D).
+> Only its facts used, no code (dual license). Official MonsGeek driver: board 2304 class has the exact 2600
+> matrix (61 keys incl. [ ' \) -> USB alias with canonical board 2600; telemetry/log use the reported board.
+> FUN60 Pro stays yellow. See FUN60_PRO_2304_2026-10-07.md.
+> 2026-10-07 Logitech PRO X2 RAPID log V6 (every key pressed once): 28 learned pairs + PrtSc (key-up only)
+> and Fn (raw capture) -> all 84 keys in the static `kKeyMapV2`. Stays yellow. See LOGITECH_RAPID doc.
+> 2026-10-07 Logitech PRO X2 RAPID: tester confirms analog in the gamepad (2 games); F2-F12, arrows, some
+> system keys not analog (not in table). Log v5: 5 = 0x0f, 6 = 0x0e (54 ids). New run-time learning: an
+> unknown id is paired with the Windows key-down of the same keyboard (unique candidate only), analog from
+> the 2nd press, logged as `logitech.learned_key`. Offline on logs v4/v5: 42 learned, 0 wrong. Yellow. EXE 28e97567.
+> 2026-10-06 OWNER: "automatic layout resets after restart". Cause: with a named global profile active
+> (owner: `123`) the save path never wrote [KeyboardLayout] (global, base settings.ini only). Fixed with an
+> atomic layout-only base-file save + regression test. EXE cb738c6b (also has Logitech v2). See LAYOUT_SAVE_NAMED_PROFILE_2026-10-06.md.
+> 2026-10-06 Logitech PRO X2 RAPID logs v4 (+GHUB): format decoded from the capture -> analog published.
+> Frames of 5 x [key id][depth16 0.01 mm] per report (`more` byte chains up to 10 keys), released keys
+> absent; one-frame hold for lost reports. 52 key ids mapped (49 seen, 3 by column rule; WASD, Space,
+> Shift, Ctrl, digits 1-4/7-0, letters all mapped); F2-F12, 5, 6, arrows, nav, right mods not yet:
+> logged + raw capture keeps running to complete them. Stays yellow. EXE 7b863a5f. See LOGITECH_RAPID doc.
+> 2026-10-06 Logitech PRO X2 RAPID log "Logitech v3" (new build 422776fa): stream on, travel 4.00 mm
+> (16-bit 0.01 mm reading confirmed), but the first analog event is a multi-record packet (data in payload
+> bytes 1,3,4,7,10,13), not [key][depth16] -> depth_format_mismatch, nothing published (correct). Now an
+> unverified feature version publishes nothing and captures the raw stream. OWNER: no time limits, no
+> instructions; "open HallJoy, press anything 5-10 s, send the log" must suffice -> new content-bounded
+> capture store in the support log (`SupportLog_Capture`, first 8000 records, never evicted, no queue):
+> `capture.logitech` raw reports for the whole session + `capture.key` first presses of every key as
+> physical reference. Stays yellow. EXE 132d74c2. See LOGITECH_RAPID_2026-10-05.md.
+> 2026-10-06 OWNER: (1) no support that depends on one firmware version's internals (e.g. Alumix68
+> v1.30 out-of-range 0x16 RAM read): an update would silently break it -> rejected as a support path.
+> (2) Logs must carry the data needed to find a bug; over-anonymized aggregates are useless. Tester
+> checked: Invert is off. Added bound-key input-chain trace (trace.src/os_key/pad/bindings) to the
+> ordinary log. EXE b20cd238. See SUPPORT_DIAGNOSTICS_CONTRACT.md 2026-10-06.
+> 2026-10-06 OWNER: refusing a profile in K4 onboard mode locked users out of Default -> profiles are
+> never refused for backend limits; the onboard notice is advisory after activation (GAME_PROFILES_V2).
+> Redragon K686 log 57: releases == presses, 0 residual keys -> sticking fixed. New tester report
+> "sticks reversed, triggers always pressed" matches an inverted curve (global/per-key Invert) or a
+> DirectInput view, not W669; config was not logged -> new aggregate `input.config` snapshot line.
+> Stays yellow. Logitech log v3 was the old build (no new data). EXE b10a1843.
+> 2026-10-05 Logitech PRO X2 RAPID log v2: found, 0x1B08 is version 2 (info "02 05 80 01 ..", TKL v0 had
+> travel at byte 3); not connected (nothing published). Now version-aware: v2 tries 16-bit travel in
+> 0.01 mm (3..6 mm) with depth checks; otherwise a 30 s shape probe logs the format. EXE 422776fa.
+> 2026-10-05 OWNER: Logitech PRO X2 RAPID (046D:C364) + PRO X TKL RAPID (C35B) -> Implemented (yellow):
+> new backend `logitech_rapid` (protocol 30), HID++ feature 0x1B08 live depth stream (0.1 mm), facts
+> from RigDeck notes (GPL, no code copied). Risks: lossy stream, C364 key ids/feature unverified (logged).
+> PRO X2 RAPID is a TKL (84 keys, OLED/roller instead of Pause/PgUp/PgDn); automatic layouts for both.
+> EXE 17b3f4b5. See LOGITECH_RAPID_2026-10-05.md.
+> 2026-10-05 WLMOUSE Ying75 -> Supported (log 55: connected, 84 keys, 7182 updates, 0 failures; Sheet
+> C775 green, notice excluded by token+PID). Redragon K686 log 56 works but tester says buttons stick:
+> stays yellow; release floor at the keyboard's minimum actuation + `w669.release` aggregate evidence.
+> EXE a068ebe0. See WLMOUSE_YING75 / REDRAGON_K686 docs.
+> 2026-10-05 Ying75 log 54: open failed with ERROR_SHARING_VIOLATION (another program holds the
+> vendor interface, likely the WLMOUSE Web Hub tab or an RGB service). Ying75 now falls back to a
+> shared open with foreign-reply detection. EXE 2aaf8fbb. See WLMOUSE_YING75_2026-10-05.md.
+> 2026-10-05 WLMOUSE Ying75 log 52 (local build): detected but never connected (failures 1->9).
+> Official client checks no status/checksum and reads 3 reports per travel reply; Ying75 now uses
+> those rules plus a factory-map proof, and the support log names any admission failure
+> (`mg75.admission_failed`). EXE f70dd8d8. See WLMOUSE_YING75_2026-10-05.md.
+> 2026-10-05 OWNER: fix "HallJoy is paused" at start even though it cannot be reproduced. Found:
+> startup Resume times out on a busy UI thread and the engine/UI bridge then refuses every later
+> request until restart. Fixed the bridge, added automatic Resume retries, a working Resume button,
+> honest card text and step diagnostics. See STARTUP_PAUSE_FIX_2026-10-05.md.
+> 2026-10-05 WLMOUSE Ying75 (`36A7:F887`) -> Implemented (yellow): same JingTai protocol as IROK
+> MG75 Pro; factory matrix and range from the official firmware, layout from the official Web
+> Hub width table, Sheet brand block inserted. See WLMOUSE_YING75_2026-10-05.md.
+> 2026-10-05 Redragon K686 HE (K686BG-RGB-M US/BR, K686RGB-M UK; `2E3C:C365`) -> Implemented
+> (yellow): exact W669 profiles from official iLLumiPC key files, three automatic layouts, Sheet
+> C668. Tester log showed it not admitted in 1.6.7. See REDRAGON_K686_2026-10-05.md.
+> 2026-10-05 MCHOSE Ace 68 Air III (`41E4:2132`) -> Supported: tester log 14 (1.6.7, 67 keys,
+> 0 failures). Sheet row "Ace 68 Air" split into II revision / III revision (green) / Air 2;
+> notice excludes PID 0x2132; README + SUPPORTED_HARDWARE updated. The tester's "paused at
+> start" is fixed separately (see STARTUP_PAUSE_FIX_2026-10-05.md).
+> See MCHOSE_ARM_FAMILY_2026-10-02.md latest section.
+> 2026-10-03 OWNER: tab transition duration 0.2 s (was 0.3), quintic ease, motion blur on.
+> 2026-10-03 OWNER: one paint standard for all tabs (CustomPagePaintScope: pooled DIB, dirty clip,
+> WM_PRINTCLIENT) and 0.3 s camera tab transitions on a Direct2D layer (fly-through, retarget with
+> velocity, resize-safe, moving indicator). See TAB_TRANSITIONS_2026-10-03.md.
+> 2026-10-03 OWNER: K4 with HJO firmware must use onboard only, re-enumerate only at HallJoy
+> start/exit (no deferred stop, no permanent pad). Host fix: REV_1212/1213 metadata marker, wait for
+> a returning K4, UAP exclusion, automatic late takeover. Firmware unchanged. See K4_ONBOARD_ONLY_2026-10-03.md.
+> 2026-10-03 OWNER: game profiles v2 built locally (not published). Profile selector in the tab
+> strip, custom Profiles tab, EXE-name/title rules, alt-tab setting (default keep while running),
+> optional notification (off), next/auto/per-profile shortcuts, .hjprofile import/export. Default
+> unchanged; profile file format unchanged. EXE 1e95ccfe. See GAME_PROFILES_V2_2026-10-03.md.
 > 2026-10-03 PUBLISHED stable/latest 1.6.7: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.7 .
 > Owner checked layouts visually and authorized publication. Commit 35d879f, EXE SHA256 5b49adb2...;
 > 60 assets, prior 56 unchanged; CI success. See RELEASE_1.6.7_PUBLICATION_2026-10-03.md.

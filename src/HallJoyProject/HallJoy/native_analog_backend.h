@@ -55,6 +55,9 @@ struct NativeAnalogBackendTelemetry
     std::uint64_t failedUpdates = 0;
     wchar_t status[kNativeAnalogBackendStatusChars]{};
     wchar_t deviceName[96]{}; // Optional exact model for shared transports.
+    // Connected through a protocol-family match: the model is not in the catalog
+    // (no layout token), the keyboard described itself. Shown as its own notice.
+    bool genericProtocol = false;
 };
 
 struct NativeAnalogBackendDescriptor

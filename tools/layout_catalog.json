@@ -148,6 +148,54 @@
           ]
         },
         {
+          "id": "redragon_k686bg_us_ansi",
+          "model": "K686BG-RGB-M",
+          "variant": "ANSI",
+          "count": 98,
+          "source": "docs/research/redragon-layout-sources/7431USHEXYXK686JCARGB.json",
+          "url": "https://www.illumipc.com/config/keys/7431USHEXYXK686JCARGB.json",
+          "sha256": "caddf413c45eb0f836b24b657e95eac273aa46ae33199509c213abdcfcea1e23",
+          "css": "docs/research/redragon-layout-sources/mainIndex8.min.css",
+          "cssUrl": "https://www.illumipc.com/css/mainIndex8.min.css",
+          "cssSha256": "e90906657ed201b9cfbde5de88d082920e9184c8a0d4a807f630065752f62c43",
+          "factory": "K686UsFactoryMap",
+          "products": [
+            "7431USHEXYXK686JCARGB"
+          ]
+        },
+        {
+          "id": "redragon_k686bg_br_iso",
+          "model": "K686BG-RGB-M",
+          "variant": "ISO",
+          "count": 99,
+          "source": "docs/research/redragon-layout-sources/7431BRHEXYXJCARGB.json",
+          "url": "https://www.illumipc.com/config/keys/7431BRHEXYXJCARGB.json",
+          "sha256": "bbea08d041d80ff8335490c9f60438ec5effcfd2dd250ac589138c8dda06ec01",
+          "css": "docs/research/redragon-layout-sources/mainIndex8.min.css",
+          "cssUrl": "https://www.illumipc.com/css/mainIndex8.min.css",
+          "cssSha256": "e90906657ed201b9cfbde5de88d082920e9184c8a0d4a807f630065752f62c43",
+          "factory": "K686BrFactoryMap",
+          "products": [
+            "7431BRHEXYXJCARGB"
+          ]
+        },
+        {
+          "id": "redragon_k686_uk_iso",
+          "model": "K686RGB-M",
+          "variant": "ISO",
+          "count": 99,
+          "source": "docs/research/redragon-layout-sources/7431UKHEXYXBJCARGB.json",
+          "url": "https://www.illumipc.com/config/keys/7431UKHEXYXBJCARGB.json",
+          "sha256": "5d611d101c1c4d3d1fb078dc2cfaad044220c5740496afbe42253257ced5235d",
+          "css": "docs/research/redragon-layout-sources/mainIndex8.min.css",
+          "cssUrl": "https://www.illumipc.com/css/mainIndex8.min.css",
+          "cssSha256": "e90906657ed201b9cfbde5de88d082920e9184c8a0d4a807f630065752f62c43",
+          "factory": "K686UkFactoryMap",
+          "products": [
+            "7431UKHEXYXBJCARGB"
+          ]
+        },
+        {
           "adapter": "reviewed-report",
           "id": "redragon_k617_he_ansi",
           "brand": "Redragon",
@@ -155,7 +203,7 @@
           "variant": "ANSI",
           "count": 61,
           "source": "docs/research/neo-k617-layouts/redragon_k617_he_ansi.json",
-          "sha256": "f7f7042ba8001204a5669000a904ebbabf6e8817bbe95d8650843417b7cd6f3f",
+          "sha256": "846bf0809a3a33f6cbe9a9e21b43f2fac625d064a113b9058b638dfc5db382aa",
           "products": [
             "7153USHEXYXCPARGB"
           ],
@@ -2044,6 +2092,59 @@
           "sha256": "bec08887491576a9a4539a501c83fd9912528832111fcf5b3cc856d33c83c8ee",
           "products": [
             "RY1B-3475"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "Logitech G": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/LOGITECH_RAPID_2026-10-05.md",
+      "models": [
+        {
+          "id": "logitech_pro_x_tkl_rapid_ansi",
+          "brand": "Logitech G",
+          "model": "PRO X TKL RAPID",
+          "variant": "ANSI",
+          "count": 87,
+          "source": "docs/research/logitech-layout-reports/logitech_pro_x_tkl_rapid_ansi.json",
+          "sha256": "503f853ae638c0162d13a4162c85ea0d5d139d19c654f8af23391ca218b7f149",
+          "products": [
+            "PROXTKLRAPID-046D-C35B"
+          ],
+          "url": ""
+        },
+        {
+          "id": "logitech_pro_x2_rapid_ansi",
+          "brand": "Logitech G",
+          "model": "PRO X2 RAPID",
+          "variant": "ANSI",
+          "count": 84,
+          "source": "docs/research/logitech-layout-reports/logitech_pro_x2_rapid_ansi.json",
+          "sha256": "83dcf9f5f68c8ea4512ef3b351de606c7371489c89a4839da4f700ba357bff85",
+          "products": [
+            "PROX2RAPID-046D-C364"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "WLMOUSE": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/WLMOUSE_YING75_2026-10-05.md",
+      "models": [
+        {
+          "id": "wlmouse_ying75_ansi",
+          "brand": "WLMOUSE",
+          "model": "Ying75",
+          "variant": "ANSI",
+          "count": 84,
+          "source": "docs/research/wlmouse-layout-reports/wlmouse_ying75_ansi.json",
+          "sha256": "67598155f0526d8814793429892b82be1bf1c742d0fb80cc4dfb8631e70aed0a",
+          "products": [
+            "YING75-36A7-F887"
           ],
           "url": ""
         }

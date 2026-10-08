@@ -43,3 +43,20 @@ Top placement retains the compact geometry and derives width directly from the
 page dimensions, without depending on controls laid out later. The static audit
 guards placement before Global profile. Previous executable checkpoint:
 `.local/backups/discord-top-20260909/`.
+
+## Invite replacement, 2026-10-08
+
+The owner reported that `https://discord.gg/5FQ297yZh` expired; the new invite
+is `https://discord.gg/X5QsZJdN5a`. Updated `community_links.h`
+(`kDiscordInviteUrl`), the static audit expectation, README, docs/README,
+SUPPORT_REPORT, SUPPORTED_HARDWARE, the offline sheet exporter and the
+1.5/1.5.1/1.6.1 patch notes. Archived research records (`docs/archive`,
+`docs/v1.4`) keep the old URL as history. The live Google Sheet snapshot of
+2026-10-07 contains no Discord link.
+
+The banner QR (`kDiscordQrRows`, keyboard_page_main.cpp) was regenerated as
+version 3 / EC-M with segno. An independent OpenCV decoder reads the old
+matrix as the old URL and the new matrix in the source file as the new URL.
+`HallJoy-Discord-512*.png` are logos, not QR codes. Static audit PASS. The
+running EXE still has the old link until the next build/release; no visual
+check by the agent. Backup: `.local/backups/discord-invite-20261008/`.

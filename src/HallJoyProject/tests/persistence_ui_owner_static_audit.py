@@ -10,7 +10,9 @@ ui = (hall / "keyboard_ui.cpp").read_text(encoding="utf-8")
 header = (hall / "keyboard_ui.h").read_text(encoding="utf-8")
 
 assert "static bool SaveSettingsByActiveGlobalProfile()" in app
-assert "const bool saved = activeMarkerSaved && overlaySaved && profileSaved && windowSaved;" in app
+assert "const bool saved = activeMarkerSaved && overlaySaved && profileSaved && windowSaved && layoutSaved;" in app
+# A named profile does not carry the layout: it must still reach the base file.
+assert "const bool layoutSaved = SettingsIni_SaveLayout(AppPaths_SettingsIni().c_str());" in app
 assert "return saved;" in app
 assert panel.count("KeyboardUI_SaveBindingsAfterUserChange(parent)") == 2
 assert "GlobalProfiles_Save(GlobalProfiles_GetActiveName()); // autosave" not in panel

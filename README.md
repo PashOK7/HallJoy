@@ -77,13 +77,14 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 **Keychron:** Q1 HE, Q2 HE (ANSI), Q3 HE, Q4 HE (ANSI), Q5 HE, Q6 HE, Q12 HE, Q1 HE 8K, Q3 HE 8K, Q5 HE 8K, Q6 HE 8K, K2 HE, K3 HE, K4 HE, K6 HE (ANSI), K8 HE, K10 HE — requires compatible [custom firmware](https://analogsense.org/firmware/).  
 **Lemokey:** P1 HE  
 **MADLIONS:** MAD 68 Pro R, MAD60HE, MAD68 HE V2 Flagship, MAD68HE, MAD68R  
-**MCHOSE:** Jet 75 II, Mix 87 III  
+**MCHOSE:** Ace 68 Air III, Jet 75 II, Mix 87 III  
 **NuPhy:** Air60 HE, Air75 HE, Field75 HE  
 **Razer:** Huntsman V2 Analog, Huntsman Mini Analog, Huntsman V3 Pro, Huntsman V3 Pro Mini, Huntsman V3 Pro Tenkeyless  
 **Redragon:** K673RGB-M  
 **Royal Kludge:** RK68 HE  
 **SayoDevice:** O3C  
 **SteelSeries:** Apex Pro  
+**WLMOUSE:** Ying75  
 **Wooting:** 60HE, 60HE+, 60HE v2 (including Split), 80HE, 80HE+ (including Split), One, Two, Two HE, UwU, UwU RGB
 
 ### Experimental support
@@ -120,6 +121,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **Fuego:** GKB904  
 **Funbey:** AST V68, Coke V68  
 **Fury:** Kanabo K6  
+**FuryCube:** M35HE (generic BY/IPI support)  
 **G TUNE:** GMK82  
 **GamaKay:** NS68, NS75, TK75 HE, TK75 TMR  
 **Game Arena:** GKX68 MAGNUM  
@@ -142,11 +144,12 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **Koda:** A68  
 **KYSONA:** KM82 HE  
 **LinkerFoo:** LF67R1  
+**Logitech G:** PRO X TKL RAPID, PRO X2 RAPID  
 **LOMZ:** 75S  
 **M4G:** MAG 68 HE  
 **MageGee:** AIR68, Captain87 JIS, MK-BOX (magnetic version)  
 **MAMBASNAKE:** M82 HE, X60 HE  
-**MCHOSE:** Ace 60 Pro, Ace 60 Pro Nordic, Ace 60X I, Ace 60X II, Ace 68 (I, II, III), Ace 68 Air (II, III, 2), Ace 68 Turbo 8K, Ace 68 V2 III, Ace 75 8K, Jet 75 I, Mix 87 I, Zero75X  
+**MCHOSE:** Ace 60 Pro, Ace 60 Pro Nordic, Ace 60X I, Ace 60X II, Ace 68 (I, II, III), Ace 68 Air (II, 2), Ace 68 Turbo 8K, Ace 68 V2 III, Ace 75 8K, Jet 75 I, Mix 87 I, Zero75X  
 **MechLands:** M75  
 **MEETION:** Magic A68, Magic A75  
 **MICROPACK:** K-68M  
@@ -163,7 +166,8 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **PSYCommu:** PSY P1  
 **Rampage:** KAISEL, ZENITH PRO  
 **Razer:** Tartarus Pro (requires Razer Synapse)  
-**Redragon:** K617 HE, K673WB-RGB-M  
+**Red Square:** Alumix 68 Yotei (Magnetite Ice), firmware v1.30 only  
+**Redragon:** K617 HE, K673WB-RGB-M, K686 HE  
 **Royal Kludge:** A72HE  
 **ROYALAXE:** X68  
 **SALPIDO:** SHOT209  
@@ -185,7 +189,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 ## Support
 
 Have a problem or want support for another keyboard? Write to me on
-[HallJoy Discord](https://discord.gg/5FQ297yZh).
+[HallJoy Discord](https://discord.gg/X5QsZJdN5a).
 
 ## Input Overlay for OBS
 

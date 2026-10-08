@@ -44,7 +44,7 @@ def main() -> int:
             "No supported analogue keyboard detected" in page and
             "Join Discord" in page and "CustomPage_DrawButton" in page and
             "Copy link" in page and "DrawSupportQr" in page and
-            "https://discord.gg/5FQ297yZh" in links and '#include "community_links.h"' in page and "ShellExecuteW" in page and
+            "https://discord.gg/X5QsZJdN5a" in links and '#include "community_links.h"' in page and "ShellExecuteW" in page and
             "SetClipboardData(CF_UNICODETEXT" in page,
             "absent source gets a visible Discord banner with one real invite URL and QR")
     require('#include "community_links.h"' in ui and 'GLOB_ID_DISCORD, &st->rcDiscord' in ui and

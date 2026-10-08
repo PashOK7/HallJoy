@@ -12,6 +12,8 @@ bool SettingsIni_SaveProfile(const wchar_t* path);
 bool SettingsIni_SaveOverlay(const wchar_t* path);
 // Atomic update of window geometry only, preserving Default and named profiles.
 bool SettingsIni_SaveWindow(const wchar_t* path);
+// Base file only: [KeyboardLayout] (global, not part of named profiles).
+bool SettingsIni_SaveLayout(const wchar_t* path);
 
 #include <functional>
 // The prepared closure owns all profile data. Invoke once under CommitLease.

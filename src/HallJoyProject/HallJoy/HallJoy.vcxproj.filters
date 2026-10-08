@@ -223,6 +223,27 @@
     <ClCompile Include="profile_ini.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="profiles_page.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="tab_transition.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="display_pacer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="input_config_summary.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="input_trace.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="logitech_rapid_backend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ui_popup_menu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="realtime_loop.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -742,11 +763,14 @@
     <ClCompile Include="rongyuan_snapshot_backend.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="rongyuan_stream_backend.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="alumix104_backend.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="redsquare_alumix68_backend.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="tartarus_backend.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="neo65_backend.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClInclude Include="rongyuan_stream_backend.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="alumix104_backend.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="alumix104_protocol.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="redsquare_alumix68_backend.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="redsquare_alumix68_protocol.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="tartarus_backend.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="neo65_backend.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="rongyuan_stream_protocol.h"><Filter>Header Files</Filter></ClInclude>

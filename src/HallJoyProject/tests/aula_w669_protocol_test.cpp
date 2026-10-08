@@ -9,11 +9,16 @@
 int main()
 {
     using namespace aula_w669;
-    for(auto profile:{FactoryLayoutProfile::K617Us,FactoryLayoutProfile::K617Br}) {
+    for(auto profile:{FactoryLayoutProfile::K617Us,FactoryLayoutProfile::K617Br,FactoryLayoutProfile::K686Us,
+                      FactoryLayoutProfile::K686Br,FactoryLayoutProfile::K686Uk}) {
         const auto map=FactoryMap(profile);std::array<std::uint8_t,kColumns> mask{};
         unsigned count=0;for(unsigned pos=0;pos<map.size();++pos)if(map[pos]){++count;mask[pos%kColumns]|=1u<<(pos/kColumns);}
-        assert(count==(profile==FactoryLayoutProfile::K617Us?61u:63u));
+        const unsigned expected=profile==FactoryLayoutProfile::K617Us?61u:profile==FactoryLayoutProfile::K617Br?63u:
+            profile==FactoryLayoutProfile::K686Us?98u:99u;
+        assert(count==expected);
         assert(map[46]==26 && map[68]==4 && map[69]==22 && map[70]==7 && map[120]==0xfa);
+        if(profile>=FactoryLayoutProfile::K686Us) // full-size block: numpad and arrows
+            assert(map[37]==0x53 && map[126]==0x62 && map[106]==0x58 && map[102]==0x52 && map[18]==0);
         const auto subscription=BuildSubscriptionRequest(mask);
         for(unsigned pos=0;pos<map.size();++pos)assert(bool(subscription[7+pos%kColumns]&(1u<<(pos/kColumns)))==bool(map[pos]));
         for(unsigned pos=0;pos<map.size();++pos)if(map[pos]) {
@@ -26,6 +31,19 @@ int main()
     assert(FactoryProfileForProduct("7153USHEXYXCPARGB")==FactoryLayoutProfile::K617Us);
     assert(FactoryProfileForProduct("7153BRHEXYXCPARGB")==FactoryLayoutProfile::K617Br);
     assert(FactoryProfileForProduct("7153UNKNOWN")==FactoryLayoutProfile::Unknown);
+    assert(FactoryProfileForProduct("7431USHEXYXK686JCARGB")==FactoryLayoutProfile::K686Us);
+    assert(FactoryProfileForProduct("7431BRHEXYXJCARGB")==FactoryLayoutProfile::K686Br);
+    assert(FactoryProfileForProduct("7431UKHEXYXBJCARGB")==FactoryLayoutProfile::K686Uk);
+    assert(FactoryMap(FactoryLayoutProfile::K686Br)[79]==0x32 && FactoryMap(FactoryLayoutProfile::K686Uk)[79]==0x31);
+    assert(FactoryMap(FactoryLayoutProfile::K686Us)[58]==0x31 && FactoryMap(FactoryLayoutProfile::K686Us)[89]==0);
+    // Release floor = the keyboard's own minimum actuation (21/04 byte), if plausible.
+    {
+        TravelInfo travel{}; travel.maximum=340; travel.formatCode=10;
+        assert(ReleaseFloor(travel)==10 && ApplyReleaseFloor(10,10)==0 && ApplyReleaseFloor(11,10)==11 && ApplyReleaseFloor(0,10)==0);
+        travel.formatCode=68; assert(ReleaseFloor(travel)==0); // 20% of the range: not a minimum
+        travel.formatCode=0; assert(ReleaseFloor(travel)==0 && ApplyReleaseFloor(1,0)==1);
+        travel.maximum=0; travel.formatCode=5; assert(ReleaseFloor(travel)==0);
+    }
 
     const auto mapHash = [](const PositionToHid& values) {
         std::uint64_t hash = 1469598103934665603ull;

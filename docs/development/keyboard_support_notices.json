@@ -313,6 +313,12 @@
           "model": "MU68 Pro",
           "status": "Implemented; awaiting hardware testing"
         }
+      ],
+      "confirmed_devices": [
+        {
+          "token": "E6D996D6FD1177EC",
+          "pid": 63623
+        }
       ]
     },
     {
@@ -322,12 +328,20 @@
       "tokens": [
         "F3B7ECFB2D628746",
         "4B36313700000001",
-        "4B36313700000002"
+        "4B36313700000002",
+        "BB4DA08AE1DC0AE0",
+        "500507220128AACF",
+        "76353BB82B7776D5"
       ],
       "models": [
         {
           "brand": "Redragon",
           "model": "K673WB-RGB-M",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Redragon",
+          "model": "K686 HE",
           "status": "Implemented; awaiting hardware testing"
         },
         {
@@ -1579,7 +1593,7 @@
         },
         {
           "brand": "MCHOSE",
-          "model": "Ace 68 Air",
+          "model": "Ace 68 Air (II revision)",
           "status": "Implemented; awaiting hardware testing"
         },
         {
@@ -1616,6 +1630,11 @@
       "models": [
         {
           "brand": "MCHOSE",
+          "model": "Ace 68 Air 2",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MCHOSE",
           "model": "Ace 68 Turbo 8K",
           "status": "Implemented; awaiting hardware testing"
         },
@@ -1627,6 +1646,55 @@
         {
           "brand": "MCHOSE",
           "model": "Ace 75 8K",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ],
+      "confirmed_devices": [
+        {
+          "token": "C19BC9D40FAC0AA4",
+          "pid": 8498
+        }
+      ]
+    },
+    {
+      "id": "LogitechRapid",
+      "flag": 134217728,
+      "protocol": 30,
+      "models": [
+        {
+          "brand": "Logitech G",
+          "model": "PRO X TKL RAPID",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Logitech G",
+          "model": "PRO X2 RAPID",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "RedSquareAlumix68",
+      "flag": 268435456,
+      "protocol": 31,
+      "models": [
+        {
+          "brand": "Red Square",
+          "model": "Alumix 68 Yotei (Magnetite Ice)",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
+      "id": "GenericProtocol",
+      "flag": 536870912,
+      "protocol": 3,
+      "runtime": "generic-telemetry",
+      "note": "Flag comes from backend telemetry genericProtocol (family match, no catalog token); no NativeNotice condition is generated. docs/current/GENERIC_PROTOCOL_SUPPORT_2026-10-07.md",
+      "models": [
+        {
+          "brand": "FuryCube",
+          "model": "M35HE",
           "status": "Implemented; awaiting hardware testing"
         }
       ]

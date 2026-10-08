@@ -107,6 +107,7 @@ struct BackendNativeProtocolTelemetry
     std::uint64_t verifiedLayoutToken = 0;
     bool present = false;
     bool connected = false;
+    bool genericProtocol = false; // NativeAnalogBackendTelemetry::genericProtocol
     std::uint16_t protocol = 0;
     std::uint16_t vendorId = 0;
     std::uint16_t productId = 0;

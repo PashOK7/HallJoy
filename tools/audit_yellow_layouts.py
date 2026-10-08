@@ -23,7 +23,9 @@ def audit(catalog):
     profiles=json.loads((ROOT/'docs/research/rongyuan-stream/profiles.json').read_bytes())
     held={r['product']:r['reason'] for r in json.loads((ROOT/'docs/research/rongyuan-layouts/inventory.json').read_bytes())['held']}
     aliases={('ATTACK SHARK','X65'):'ATTACK SHARK X65 Pro HE ANSI',
-             ('AULA','WIN 68 HE MAX'):'Aula WIN 68 HE PRO / MAX ANSI'}
+             ('AULA','WIN 68 HE MAX'):'Aula WIN 68 HE PRO / MAX ANSI',
+             # One Sheet row, three official firmware products (iLLumiPC names).
+             ('Redragon','K686 HE'):('Redragon K686BG-RGB-M ANSI','Redragon K686BG-RGB-M ISO','Redragon K686RGB-M ISO')}
     rows=[]
     for group in notices['groups']:
         for model in group['models']:
@@ -50,7 +52,8 @@ def audit(catalog):
                     members=tail.split(' + ')
                     if any(norm(label)==norm(part) for part in members):matches.append(name)
                 explicit=aliases.get((brand,label))
-                if explicit:assert explicit in names;matches.append(explicit)
+                for name in ((explicit,) if isinstance(explicit,str) else explicit or ()):
+                    assert name in names,name;matches.append(name)
                 if brand=='AULA' and label=='WIN 68 HE PRO':
                     name='Aula WIN 68 HE PRO / MAX ANSI';assert name in names;matches.append(name)
                 reason=('Vendor renderer derives geometry from runtime layout and model-specific transforms; no simple exact preset admitted in this batch.'

@@ -297,3 +297,33 @@ bool Profile_WriteBindingsSections(const wchar_t* path) {
     }
     return ok;
 }
+
+bool Profile_WriteBindingsSnapshot(const wchar_t* path, const BindingsSnapshot& snapshot) {
+    auto put = [&](const std::wstring& section, const wchar_t* key, const std::wstring& value) {
+        return WritePrivateProfileStringW(section.c_str(), key, value.c_str(), path) != FALSE;
+    };
+    bool ok = put(L"HallJoyProfile", L"BundleVersion", L"1");
+    ok &= put(L"General", L"Pads", std::to_wstring(BINDINGS_MAX_GAMEPADS));
+    for (int p=0; p<BINDINGS_MAX_GAMEPADS; ++p) {
+        const auto prefix = L"Pad" + std::to_wstring(p+1);
+        const auto axes = prefix + L"_Axes", triggers = prefix + L"_Triggers", buttons = prefix + L"_Buttons";
+        for (int a=0; a<4; ++a) {
+            ok &= put(axes, (std::wstring(kAxes[a])+L"_Minus").c_str(), std::to_wstring(snapshot.axes[p][a].minusHid));
+            ok &= put(axes, (std::wstring(kAxes[a])+L"_Plus").c_str(), std::to_wstring(snapshot.axes[p][a].plusHid));
+        }
+        ok &= put(triggers, L"LT", std::to_wstring(snapshot.triggers[p][0]));
+        ok &= put(triggers, L"RT", std::to_wstring(snapshot.triggers[p][1]));
+        for (int b=0; b<15; ++b) {
+            std::wstring csv;
+            const auto& mask = snapshot.buttons[p][b];
+            for (std::size_t chunk=0; chunk<mask.size(); ++chunk)
+                for (unsigned bit=0; bit<64; ++bit)
+                    if (mask[chunk] & (uint64_t{1} << bit)) {
+                        if (!csv.empty()) csv += L",";
+                        csv += std::to_wstring(chunk*64 + bit);
+                    }
+            ok &= put(buttons, kButtons[b], csv);
+        }
+    }
+    return ok;
+}

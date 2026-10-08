@@ -6,6 +6,7 @@
 #include "keyboard_support_status.h"
 #include "engine_runtime_owner.h"
 #include <atomic>
+#include <cstdio>
 #include <fstream>
 #include <filesystem>
 #include <iostream>
@@ -71,6 +72,8 @@ int main() {
     const std::wstring path=directory+L"\\HallJoy.log";
     const auto mirrorDir = directory+L"\\mirror", mirrorPath=mirrorDir+L"\\HallJoy.log";
     try {
+        SupportLog_SetInputConfigProvider([](char* text, std::size_t capacity) noexcept {
+            snprintf(text, capacity, "global_invert=1 triggers=2 triggers_inverted=2"); });
         Check(SupportLog_Start(directory.c_str(), mirrorDir.c_str()));
         SupportLog_Event("before.failure",42,SupportLog_Win32(5));
         SupportLog_Event("metadata.profile",1,SupportLog_Data(2));
@@ -97,6 +100,21 @@ int main() {
         unstable=true; missing=true;
         Sleep(1300);
         Check(GetFileAttributesW(path.c_str())==INVALID_FILE_ATTRIBUTES);
+        SupportLog_Trace("trace.pad p=0 lx=1 ly=0"); SupportLog_Trace("not.a.trace");
+        // Format capture: own store of the first 8000 records, no queue, no time bound.
+        Check(!SupportLog_Capture("not.a.capture") && !SupportLog_Capture(nullptr));
+        for (int i = 0; i < 8000; ++i) {
+            char record[64]{}; sprintf_s(record, "capture.test n=%d", i);
+            Check(SupportLog_Capture(record));
+        }
+        Check(!SupportLog_Capture("capture.test overflow"));
+        // Device evidence: kept records whole; stream records first 2000 + newest 8000.
+        SupportLog_Evidence("not.evidence",true); SupportLog_Evidence(nullptr,false);
+        SupportLog_Evidence("evidence.test kept probe",true);
+        for (int i = 0; i < 12000; ++i) {
+            char record[64]{}; sprintf_s(record, "evidence.test s=%d", i);
+            SupportLog_Evidence(record,false);
+        }
         SupportLog_Event("manual.snapshot",17);
         const auto request=SupportLog_RequestSnapshot();
         const auto deadline=GetTickCount64()+7000;
@@ -105,6 +123,24 @@ int main() {
         const auto manualEvidence=Read(path);
         Check(manualEvidence.find("manual.snapshot value=17")!=std::string::npos);
         Check(manualEvidence.find("support.snapshot_requested source=api")!=std::string::npos);
+        Check(manualEvidence.find(" input.config seq=")!=std::string::npos &&
+              manualEvidence.find("global_invert=1 triggers=2 triggers_inverted=2")!=std::string::npos);
+        Check(manualEvidence.find(" trace.pad p=0 lx=1 ly=0")!=std::string::npos &&
+              manualEvidence.find("bound_key_trace=1")!=std::string::npos &&
+              manualEvidence.find("not.a.trace")==std::string::npos);
+        Check(manualEvidence.find(" capture.test n=0\n")!=std::string::npos &&
+              manualEvidence.find(" capture.test n=7999\n")!=std::string::npos &&
+              manualEvidence.find("capture.test overflow")==std::string::npos &&
+              manualEvidence.find("not.a.capture")==std::string::npos);
+        Check(manualEvidence.find(" evidence.test kept probe\n")!=std::string::npos &&
+              manualEvidence.find(" evidence.test s=0\n")!=std::string::npos &&
+              manualEvidence.find(" evidence.test s=1999\n")!=std::string::npos &&
+              manualEvidence.find(" evidence.test s=2000\n")==std::string::npos &&
+              manualEvidence.find(" evidence.test s=3999\n")==std::string::npos &&
+              manualEvidence.find("evidence.omitted records=2000 between_first=2000 and_newest=8000")!=std::string::npos &&
+              manualEvidence.find(" evidence.test s=4000\n")!=std::string::npos &&
+              manualEvidence.find(" evidence.test s=11999\n")!=std::string::npos &&
+              manualEvidence.find("not.evidence")==std::string::npos);
         Check(manualEvidence.find("support.banner_shown") == std::string::npos);
         Check(GetFileAttributesW(mirrorPath.c_str())==INVALID_FILE_ATTRIBUTES);
         missing=false; unstable=false; experimental=true;
@@ -341,7 +377,7 @@ int main() {
 #if defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
         std::cout<<"INPUT_PATH_LOG_WINDOWS=PASS forced_logging two_banks aggregate_counts output_ack final_flush io_failure recovery\n";
 #else
-        std::cout<<"SUPPORT_LOG_WINDOWS=PASS off_no_file auto_incident prehistory recovery opt_in io_failure\n";
+        std::cout<<"SUPPORT_LOG_WINDOWS=PASS off_no_file auto_incident prehistory recovery opt_in io_failure capture_store evidence_store\n";
 #endif
         return 0;
     } catch(...) {

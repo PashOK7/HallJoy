@@ -52,7 +52,7 @@ runtime is embedded. Close connected keyboard web-driver tabs, which commonly
 conflict with HallJoy. Desktop software such as Razer Synapse may coexist and
 only needs closing when troubleshooting a suspected conflict.
 
-Use [HallJoy Discord](https://discord.gg/5FQ297yZh) and the
+Use [HallJoy Discord](https://discord.gg/X5QsZJdN5a) and the
 [support report template](../SUPPORT_REPORT.md). Do not send passwords or typed
 text. Open HallJoy folder provides access to the diagnostic log.
 

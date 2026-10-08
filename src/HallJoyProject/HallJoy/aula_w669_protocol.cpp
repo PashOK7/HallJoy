@@ -181,6 +181,24 @@ PositionToHid K617BrFactoryMap() noexcept
     return {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,41,30,31,32,33,34,35,36,37,38,39,45,46,0,42,0,0,0,0,0,0,0,43,20,26,8,21,23,28,24,12,18,19,47,48,0,0,0,0,0,0,0,0,0,57,0,4,22,7,9,10,11,13,14,15,51,52,50,40,0,0,0,0,0,0,0,225,100,29,27,6,25,5,17,16,54,55,56,135,0,229,0,0,0,0,0,0,0,224,227,226,0,0,0,44,0,0,230,250,101,0,0,228,0,0,0,0,0,0,0};
 }
 
+PositionToHid K686UsFactoryMap() noexcept
+{
+    // Official iLLumiPC 7431USHEXYXK686JCARGB physical matrix (Fn = 0xFA).
+    return {41,0,58,59,60,61,62,63,64,65,66,67,68,69,76,73,75,78,0,0,0,0,53,30,31,32,33,34,35,36,37,38,39,45,46,0,42,83,84,85,86,0,0,0,43,20,26,8,21,23,28,24,12,18,19,47,48,0,49,95,96,97,87,0,0,0,57,0,4,22,7,9,10,11,13,14,15,51,52,0,40,92,93,94,0,0,0,0,225,0,29,27,6,25,5,17,16,54,55,56,229,0,82,89,90,91,88,0,0,0,224,227,226,0,0,0,44,0,0,230,250,228,0,80,81,79,98,99,0,0,0,0};
+}
+
+PositionToHid K686BrFactoryMap() noexcept
+{
+    // Official iLLumiPC 7431BRHEXYXJCARGB physical matrix (Fn = 0xFA).
+    return {41,0,58,59,60,61,62,63,64,65,66,67,68,69,76,73,75,78,0,0,0,0,53,30,31,32,33,34,35,36,37,38,39,45,46,0,42,83,84,85,86,0,0,0,43,20,26,8,21,23,28,24,12,18,19,47,48,0,0,95,96,97,87,0,0,0,57,0,4,22,7,9,10,11,13,14,15,51,52,50,40,92,93,94,0,0,0,0,225,100,29,27,6,25,5,17,16,54,55,56,229,0,82,89,90,91,88,0,0,0,224,227,226,0,0,0,44,0,0,230,250,228,0,80,81,79,98,99,0,0,0,0};
+}
+
+PositionToHid K686UkFactoryMap() noexcept
+{
+    // Official iLLumiPC 7431UKHEXYXBJCARGB physical matrix (Fn = 0xFA).
+    return {41,0,58,59,60,61,62,63,64,65,66,67,68,69,76,73,75,78,0,0,0,0,53,30,31,32,33,34,35,36,37,38,39,45,46,0,42,83,84,85,86,0,0,0,43,20,26,8,21,23,28,24,12,18,19,47,48,0,0,95,96,97,87,0,0,0,57,0,4,22,7,9,10,11,13,14,15,51,52,49,40,92,93,94,0,0,0,0,225,100,29,27,6,25,5,17,16,54,55,56,229,0,82,89,90,91,88,0,0,0,224,227,226,0,0,0,44,0,0,230,250,228,0,80,81,79,98,99,0,0,0,0};
+}
+
 FactoryLayoutProfile FactoryProfileForProduct(const char* product) noexcept
 {
     if (!product) return FactoryLayoutProfile::Unknown;
@@ -208,6 +226,9 @@ FactoryLayoutProfile FactoryProfileForProduct(const char* product) noexcept
         return FactoryLayoutProfile::K673Uk;
     if (is("7153USHEXYXCPARGB")) return FactoryLayoutProfile::K617Us;
     if (is("7153BRHEXYXCPARGB")) return FactoryLayoutProfile::K617Br;
+    if (is("7431USHEXYXK686JCARGB")) return FactoryLayoutProfile::K686Us;
+    if (is("7431BRHEXYXJCARGB")) return FactoryLayoutProfile::K686Br;
+    if (is("7431UKHEXYXBJCARGB")) return FactoryLayoutProfile::K686Uk;
     if (is("7272USHEXYXK673JCARGB"))
         return FactoryLayoutProfile::K673Us;
     return FactoryLayoutProfile::Unknown;
@@ -225,6 +246,9 @@ PositionToHid FactoryMap(FactoryLayoutProfile profile) noexcept
     case FactoryLayoutProfile::K673Us: return K673UsFactoryMap();
     case FactoryLayoutProfile::K617Us: return K617UsFactoryMap();
     case FactoryLayoutProfile::K617Br: return K617BrFactoryMap();
+    case FactoryLayoutProfile::K686Us: return K686UsFactoryMap();
+    case FactoryLayoutProfile::K686Br: return K686BrFactoryMap();
+    case FactoryLayoutProfile::K686Uk: return K686UkFactoryMap();
     default: return {};
     }
 }
@@ -351,6 +375,12 @@ bool DecodePollRate(const std::uint8_t* r, std::size_t bytes,
     default: return false;
     }
     *code = value; *nominalHz = hz; return true;
+}
+
+std::uint16_t ReleaseFloor(const TravelInfo& travel) noexcept
+{
+    const std::uint32_t floor = travel.formatCode;
+    return travel.maximum && floor * 5u < travel.maximum ? static_cast<std::uint16_t>(floor) : 0;
 }
 
 std::uint16_t ToMilli(std::uint16_t travel, std::uint16_t maximum) noexcept

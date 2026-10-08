@@ -227,6 +227,24 @@
           "record": "{id:2763,vid:12625,pid:20521,keyLayout:KeyLayout.Common87_MK25022B,name:\"ry5088_gzs_mk129us_1m_8k\",displayName:\"MK129\",type:\"keyboard\",company:\"rongyuan\",layer:3,fnSysLayer:{win:1},magnetism:!0,lightLayout:lightXX,other:{supportedSwitchTypes:[\"\\u78C1\\u6A59\",\"\\u78C1\\u7389\",\"\\u78C1\\u7389pro\",\"\\u78C1\\u7389gaming\",\"\\u5929\\u738B\",\"\\u4E07\\u78C1\\u738B\"],isSwitchReplaceable:!0}}"
         }
       ]
+    },
+    {
+      "board": 2304,
+      "vid": 12625,
+      "pid": 20525,
+      "decision": "approved: FUN60 Pro revision; official class matrix identical to board 2600, same stream parent; canonical board 2600",
+      "evidence": [
+        {
+          "source": ".local/research/monsgeek-20260922/index.13c08899.js",
+          "sha256": "e88543d0138780139c5c8dbadeac4f3f860d728a5b3d1c39dbb430d494ccb96a",
+          "record": "{id:2304,vid:12625,pid:20525,keyLayout:h.Common61_gk06,name:\"ry5088_akko_fun60pro_1m_8k\",displayName:\"FUN60 PRO\",type:\"keyboard\",company:\"MonsGeek\",lightLayout:Ee,layer:4,fnSysLayer:{win:2,mac:2},magnetism:!0,other:{isSwitchReplaceable:!0,supportedSwitchTypes:[\"高特\",\"磁玉\",\"磁玉pro\",\"磁玉gaming\",\"天王\",\"万磁王\"],specialSwitchDisplayName:{高特:\"炫光\"}}"
+        },
+        {
+          "source": ".local/research/monsgeek-20260922/a0c3a7d8.js",
+          "sha256": "c721ddc06480359ef8bc31908b7a80e724b0883d51e646274ccf47628c1774e6",
+          "record": "case\"ry5088_akko_fun60pro_1m_8k\":return new i8(a); class i8 extends k (matrix sha256 5b19444ce95fc4e8654a5a5e7c26f684197376cbbd88fe5c7fc4875523de8ab4)"
+        }
+      ]
     }
   ]
 }

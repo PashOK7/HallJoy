@@ -4,6 +4,8 @@
 #include <setupapi.h>
 #include <hidsdi.h>
 #include <hidpi.h>
+#include <initguid.h>
+#include <devpkey.h>
 #include "keychron_onboard_channel.h"
 #include "hid_io_operation.h"
 #include <array>
@@ -73,6 +75,64 @@ bool K4UsbDevicePresent() {
         if (!SetupDiGetDeviceInstanceIdW(set,&info,id,512,nullptr)) continue;
         for (auto& c:id) { if (!c) break; c=static_cast<wchar_t>(towupper(c)); }
         if (std::wcsstr(id,L"VID_3434&PID_0E40")) return true;
+    }
+    return false;
+}
+namespace {
+bool HjoHardwareIds(HDEVINFO set, SP_DEVINFO_DATA& info, const wchar_t* collection) {
+    std::array<wchar_t, 4096> ids{};
+    DWORD type = 0;
+    if (!SetupDiGetDeviceRegistryPropertyW(set, &info, SPDRP_HARDWAREID, &type,
+            reinterpret_cast<PBYTE>(ids.data()), static_cast<DWORD>((ids.size() - 2) * sizeof(wchar_t)), nullptr) ||
+        type != REG_MULTI_SZ) return false;
+    bool device = false, firmware = false, usage = collection == nullptr;
+    for (const wchar_t* id = ids.data(); *id; id += std::wcslen(id) + 1) {
+        std::wstring upper(id);
+        for (auto& c : upper) c = static_cast<wchar_t>(towupper(c));
+        device |= upper.find(L"VID_3434&PID_0E40") != std::wstring::npos;
+        firmware |= upper.find(L"REV_1212") != std::wstring::npos || upper.find(L"REV_1213") != std::wstring::npos;
+        if (collection) usage |= upper.find(collection) != std::wstring::npos;
+    }
+    return device && firmware && usage;
+}
+}
+std::vector<std::wstring> K4HjoVendorInterfaces() {
+    std::vector<std::wstring> result;
+    GUID hid{}; HidD_GetHidGuid(&hid);
+    const auto set = SetupDiGetClassDevsW(&hid, nullptr, nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+    if (set == INVALID_HANDLE_VALUE) return result;
+    struct Guard { HDEVINFO set; ~Guard() { SetupDiDestroyDeviceInfoList(set); } } guard{ set };
+    for (DWORD i = 0; i < 256; ++i) {
+        SP_DEVICE_INTERFACE_DATA iface{}; iface.cbSize = sizeof(iface);
+        if (!SetupDiEnumDeviceInterfaces(set, nullptr, &hid, i, &iface)) break;
+        DWORD needed = 0;
+        SetupDiGetDeviceInterfaceDetailW(set, &iface, nullptr, 0, &needed, nullptr);
+        if (!needed || needed > 4096) continue;
+        std::vector<std::uint8_t> buffer(needed);
+        auto* detail = reinterpret_cast<SP_DEVICE_INTERFACE_DETAIL_DATA_W*>(buffer.data());
+        detail->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
+        SP_DEVINFO_DATA info{}; info.cbSize = sizeof(info);
+        if (!SetupDiGetDeviceInterfaceDetailW(set, &iface, detail, needed, nullptr, &info)) continue;
+        if (HjoHardwareIds(set, info, L"HID_DEVICE_UP:FF60_U:0061")) result.emplace_back(detail->DevicePath);
+    }
+    return result;
+}
+bool K4HjoRecentlyRemoved(unsigned withinMs) {
+    // Not-present nodes keep their hardware IDs and last removal time.
+    const auto set = SetupDiGetClassDevsW(nullptr, L"USB", nullptr, DIGCF_ALLCLASSES);
+    if (set == INVALID_HANDLE_VALUE) return false;
+    struct Guard { HDEVINFO set; ~Guard() { SetupDiDestroyDeviceInfoList(set); } } guard{ set };
+    FILETIME nowFt{}; GetSystemTimeAsFileTime(&nowFt);
+    const ULONGLONG now = (ULONGLONG(nowFt.dwHighDateTime) << 32) | nowFt.dwLowDateTime;
+    for (DWORD i = 0; i < 4096; ++i) {
+        SP_DEVINFO_DATA info{}; info.cbSize = sizeof(info);
+        if (!SetupDiEnumDeviceInfo(set, i, &info)) { if (GetLastError() == ERROR_NO_MORE_ITEMS) break; continue; }
+        if (!HjoHardwareIds(set, info, nullptr)) continue;
+        FILETIME removed{}; DEVPROPTYPE type = 0;
+        if (!SetupDiGetDevicePropertyW(set, &info, &DEVPKEY_Device_LastRemovalDate, &type,
+                reinterpret_cast<PBYTE>(&removed), sizeof(removed), nullptr, 0) || type != DEVPROP_TYPE_FILETIME) continue;
+        const ULONGLONG at = (ULONGLONG(removed.dwHighDateTime) << 32) | removed.dwLowDateTime;
+        if (at <= now && now - at <= ULONGLONG(withinMs) * 10000ULL) return true;
     }
     return false;
 }

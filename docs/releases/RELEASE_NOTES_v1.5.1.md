@@ -39,4 +39,4 @@ SHA-256 of HallJoy.exe:
 `4BA1CD93D1F1BED775B67DB9B65DBB9EE294F03D47AFE6EC948147303DF776C4`
 
 HallJoy is not Authenticode-signed; Windows may show an unknown publisher.
-For help and feedback, join [HallJoy Discord](https://discord.gg/5FQ297yZh).
+For help and feedback, join [HallJoy Discord](https://discord.gg/X5QsZJdN5a).

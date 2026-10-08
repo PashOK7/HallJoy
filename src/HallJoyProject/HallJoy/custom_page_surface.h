@@ -86,3 +86,52 @@ bool CustomPageSurface_Present(
     CustomPageRenderContentFn renderContent,
     void* user,
     bool draggingScrollbar);
+
+// ---------------------------------------------------------------------------
+// The one paint standard for custom pages and their custom controls. Never
+// pass the window DC to CustomPageSurface_Present: it clears the client
+// first, so a direct call flashes the background and the scrollbar on every
+// repaint. Every handler of WM_PAINT also handles WM_PRINTCLIENT with the same
+// drawing code. (Checked by tests/custom_page_paint_static_audit.py.)
+
+// One paint session for WM_PAINT and WM_PRINTCLIENT alike.
+// WM_PAINT: composition happens in client coordinates in a pooled, persistent
+// top-down 32bpp DIB (no allocation per paint; GDI+ writes the pixels
+// directly), clipped to the invalidated region, which alone is copied to the
+// window in one blit when the scope ends.
+// WM_PRINTCLIENT: the whole client is drawn into the caller's DC (tab
+// transition snapshots). Both start from the panel background, so one drawing
+// code serves both and a snapshot cannot differ from the screen.
+class CustomPagePaintScope
+{
+public:
+    CustomPagePaintScope(HWND hWnd, UINT message, WPARAM wParam);
+    ~CustomPagePaintScope();
+    CustomPagePaintScope(const CustomPagePaintScope&) = delete;
+    CustomPagePaintScope& operator=(const CustomPagePaintScope&) = delete;
+    HDC Dc() const { return dc_; }
+    // rcPaint is the region to compose (the client when printing).
+    PAINTSTRUCT& Ps() { return ps_; }
+    bool Printing() const { return printing_; }
+private:
+    HWND hwnd_ = nullptr;
+    bool printing_ = false;
+    PAINTSTRUCT ps_{};
+    HDC dc_ = nullptr;
+    HDC target_ = nullptr;
+    HGDIOBJ oldBmp_ = nullptr;
+    int buffer_ = -1;
+    int savedDc_ = 0;
+};
+
+// Optional drawing on top of the presented page (same off-screen buffer).
+using CustomPagePaintOverlayFn = void(*)(HWND hWnd, HDC hdc, void* user);
+// Complete WM_PAINT / WM_PRINTCLIENT handler for a scrollable retained page.
+void CustomPageSurface_Paint(HWND hWnd, UINT message, WPARAM wParam, CustomPageSurface* surface,
+    CustomPageRenderContentFn renderContent, void* user, bool draggingScrollbar,
+    CustomPagePaintOverlayFn overlay = nullptr, void* overlayUser = nullptr);
+
+// Draws `root` and every descendant whose WS_VISIBLE style is set (whether or
+// not an ancestor is hidden) into `dc`, in z-order, through WM_PRINTCLIENT.
+// The client origin of `root` maps to the DC origin.
+void CustomPage_PrintTree(HWND root, HDC dc);

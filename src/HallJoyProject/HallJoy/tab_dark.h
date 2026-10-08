@@ -23,6 +23,18 @@ namespace TabDark
         return msg;
     }
 
+    // Tab transition camera position in tab units (2.5 = halfway between tabs
+    // 2 and 3), or negative when no transition runs. The selection highlight
+    // and underline follow it; at rest they sit on the selected tab.
+    inline float (*IndicatorSource)() = nullptr;
+
+    inline COLORREF Blend(COLORREF a, COLORREF b, float t)
+    {
+        t = t < 0.f ? 0.f : (t > 1.f ? 1.f : t);
+        auto mix = [t](int x, int y) { return (int)(x + (y - x) * t + 0.5f); };
+        return RGB(mix(GetRValue(a), GetRValue(b)), mix(GetGValue(a), GetGValue(b)), mix(GetBValue(a), GetBValue(b)));
+    }
+
     static HPEN PenBorder()
     {
         static HPEN p = CreatePen(PS_SOLID, 1, UiTheme::Color_Border());
@@ -72,15 +84,34 @@ namespace TabDark
         int curSel = TabCtrl_GetCurSel(hTab);
         int count = TabCtrl_GetItemCount(hTab);
 
+        // Highlight position: the camera while a transition runs, else the selection.
+        float pos = IndicatorSource ? IndicatorSource() : -1.f;
+        if (pos < 0.f) pos = (float)(curSel < 0 ? 0 : curSel);
+        if (count > 0 && pos > (float)(count - 1)) pos = (float)(count - 1);
+        const int a = count > 0 ? (int)pos : 0;
+        const int b = a + 1 < count ? a + 1 : a;
+        const float frac = pos - (float)a;
+        RECT ra{}, rb{}, pill{};
+        const bool havePill = count > 0 && curSel >= 0 &&
+            TabCtrl_GetItemRect(hTab, a, &ra) && TabCtrl_GetItemRect(hTab, b, &rb);
+        if (havePill)
+        {
+            auto lerp = [frac](LONG x, LONG y) { return (LONG)(x + (y - x) * frac + (x <= y ? 0.5f : -0.5f)); };
+            pill = RECT{ lerp(ra.left, rb.left), lerp(ra.top, rb.top), lerp(ra.right, rb.right), lerp(ra.bottom, rb.bottom) };
+        }
+
+        for (int i = 0; i < count; ++i)
+        {
+            RECT rci{};
+            if (TabCtrl_GetItemRect(hTab, i, &rci)) FillRect(hdc, &rci, UiTheme::Brush_PanelBg());
+        }
+        if (havePill) FillRect(hdc, &pill, UiTheme::Brush_ControlBg());
+
         for (int i = 0; i < count; ++i)
         {
             RECT rci{};
             if (!TabCtrl_GetItemRect(hTab, i, &rci))
                 continue;
-
-            bool selected = (i == curSel);
-
-            FillRect(hdc, &rci, selected ? UiTheme::Brush_ControlBg() : UiTheme::Brush_PanelBg());
 
             // border
             HGDIOBJ oldPen = SelectObject(hdc, PenBorder());
@@ -89,7 +120,7 @@ namespace TabDark
             SelectObject(hdc, oldBrush);
             SelectObject(hdc, oldPen);
 
-            // text
+            // text: full colour under the highlight, muted elsewhere
             wchar_t text[128]{};
             TCITEMW it{};
             it.mask = TCIF_TEXT;
@@ -97,17 +128,18 @@ namespace TabDark
             it.cchTextMax = (int)(sizeof(text) / sizeof(text[0]));
             TabCtrl_GetItem(hTab, i, &it);
 
-            SetTextColor(hdc, selected ? UiTheme::Color_Text() : UiTheme::Color_TextMuted());
+            const float distance = (float)i > pos ? (float)i - pos : pos - (float)i;
+            SetTextColor(hdc, Blend(UiTheme::Color_TextMuted(), UiTheme::Color_Text(), 1.f - distance));
             DrawTextW(hdc, text, -1, &rci, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+        }
 
-            // accent underline
-            if (selected)
-            {
-                HGDIOBJ oldPen2 = SelectObject(hdc, PenAccent());
-                MoveToEx(hdc, rci.left + 2, rci.bottom - 2, nullptr);
-                LineTo(hdc, rci.right - 2, rci.bottom - 2);
-                SelectObject(hdc, oldPen2);
-            }
+        // accent underline
+        if (havePill)
+        {
+            HGDIOBJ oldPen2 = SelectObject(hdc, PenAccent());
+            MoveToEx(hdc, pill.left + 2, pill.bottom - 2, nullptr);
+            LineTo(hdc, pill.right - 2, pill.bottom - 2);
+            SelectObject(hdc, oldPen2);
         }
 
         // border around page

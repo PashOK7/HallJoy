@@ -261,10 +261,13 @@ inline constexpr Model kModels[]={
  {2790,12625,20524,L"Game Arena GKX68 MAGNUM","RY1B-2790",4000,false,{{0,0,0,0,0,0,41,0,0,0,43,0,0,0,57,0,0,0,225,0,0,0,224,0,0,0,0,0,0,0,30,0,0,0,20,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,31,0,0,0,26,0,0,0,22,0,0,0,29,0,0,0,227,0,0,0,0,0,0,0,32,0,0,0,8,0,0,0,7,0,0,0,27,0,0,0,226,0,0,0,0,0,0,0,33,0,0,0,21,0,0,0,9,0,0,0,6,0,0,0,0,0,0,0,0,0,0,0,34,0,0,0,23,0,0,0,10,0,0,0,25,0,0,0,0,0,0,0,0,0,0,0,35,0,0,0,28,0,0,0,11,0,0,0,5,0,0,0,44,0,0,0,0,0,0,0,36,0,0,0,24,0,0,0,13,0,0,0,17,0,0,0,0,0,0,0,0,0,0,0,37,0,0,0,12,0,0,0,14,0,0,0,16,0,0,0,0,0,0,0,0,0,0,0,38,0,0,0,18,0,0,0,15,0,0,0,54,0,0,0,230,0,0,0,0,0,0,0,39,0,0,0,19,0,0,0,51,0,0,0,55,0,10,1,0,0,0,0,0,0,0,0,45,0,0,0,47,0,0,0,52,0,0,0,56,0,0,0,228,0,0,0,0,0,0,0,46,0,0,0,48,0,0,0,0,0,0,0,229,0,0,0,80,0,0,0,0,0,0,0,42,0,0,0,49,0,0,0,40,0,0,0,82,0,0,0,81,0,0,0,0,0,0,0,73,0,0,0,76,0,0,0,75,0,0,0,78,0,0,0,79,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}}},
 };
 // Exact alternate USB identities, verified against independent vendor classes/maps.
-struct UsbAlias { unsigned board,vid,pid,canonicalVid,canonicalPid; };
-inline constexpr UsbAlias kUsbAliases[]={{2683,12625,20528,12625,20521},{2704,12625,20528,12625,20521},{2398,14154,41506,12625,20528}};
+// canonicalBoard differs only for a revision whose official class carries the
+// canonical board's identical factory matrix and stream parent (FUN60 Pro 2304:
+// MonsGeek web driver class `extends k`, matrix equal to 2600's; 2026-10-07).
+struct UsbAlias { unsigned board,vid,pid,canonicalVid,canonicalPid,canonicalBoard; };
+inline constexpr UsbAlias kUsbAliases[]={{2683,12625,20528,12625,20521,2683},{2704,12625,20528,12625,20521,2704},{2398,14154,41506,12625,20528,2398},{2304,12625,20525,12625,20521,2600}};
 inline const Model* Find(unsigned board,unsigned vid,unsigned pid) noexcept {
- for(const auto& a:kUsbAliases)if(a.board==board && a.vid==vid && a.pid==pid){vid=a.canonicalVid;pid=a.canonicalPid;break;}
+ for(const auto& a:kUsbAliases)if(a.board==board && a.vid==vid && a.pid==pid){board=a.canonicalBoard;vid=a.canonicalVid;pid=a.canonicalPid;break;}
  for(const auto& m:kModels)if(m.board==board && m.vid==vid && m.pid==pid)return &m;return nullptr;
 }
 inline bool Candidate(unsigned vid,unsigned pid) noexcept {for(const auto& a:kUsbAliases)if(a.vid==vid&&a.pid==pid)return true;for(const auto& m:kModels)if(m.vid==vid&&m.pid==pid)return true;return false;}

@@ -3,15 +3,23 @@
 
 #include "engine_runtime_ui_bridge.h"
 
+#include <atomic>
 #include <mutex>
 
 namespace halljoy::engine_runtime::ui_bridge
 {
 namespace
 {
-constexpr DWORD kUiAcknowledgementTimeoutMs = 5000u;
+// Bounded, but long enough for a busy UI thread: at startup the engine runs in
+// parallel with building the main page, and a timeout fails the whole Resume.
+constexpr DWORD kUiAcknowledgementTimeoutMs = 15000u;
 
-enum class RequestState : std::uint8_t { Idle, Pending, Executing, Completed, Cancelled };
+// Abandoned: the waiter timed out while the UI thread was already executing the
+// handler. Cancelled/Abandoned/stale Completed never block the next request;
+// earlier they did, and every later Resume failed with ERROR_BUSY until restart.
+enum class RequestState : std::uint8_t { Idle, Pending, Executing, Completed, Cancelled, Abandoned };
+
+std::atomic<DWORD> g_timeoutMs{ kUiAcknowledgementTimeoutMs };
 
 std::mutex g_mutex;
 HWND g_window = nullptr;
@@ -54,7 +62,10 @@ bool Execute(Operation operation, std::uint32_t& nativeError) noexcept
     HANDLE completion = nullptr;
     {
         const std::lock_guard<std::mutex> lock(g_mutex);
-        if (!IsStartedLocked() || g_state != RequestState::Idle)
+        // A request the UI thread is still running keeps the bridge busy;
+        // finished or dropped requests from an earlier wait do not.
+        if (!IsStartedLocked() || g_state == RequestState::Pending ||
+            g_state == RequestState::Executing || g_state == RequestState::Abandoned)
         {
             nativeError = ERROR_BUSY;
             return false;
@@ -76,12 +87,22 @@ bool Execute(Operation operation, std::uint32_t& nativeError) noexcept
         }
     }
 
-    const DWORD wait = WaitForSingleObject(completion, kUiAcknowledgementTimeoutMs);
+    const DWORD wait = WaitForSingleObject(completion, g_timeoutMs.load());
     const std::lock_guard<std::mutex> lock(g_mutex);
+    // The handler may complete between the timeout and this lock: use it.
+    if (g_token == token && g_state == RequestState::Completed)
+    {
+        nativeError = g_error;
+        const bool result = g_result;
+        g_state = RequestState::Idle;
+        return result;
+    }
     if (wait != WAIT_OBJECT_0 || g_token != token || g_state == RequestState::Cancelled)
     {
-        if (g_state == RequestState::Pending)
-            g_state = RequestState::Cancelled;
+        if (g_token == token && g_state == RequestState::Pending)
+            g_state = RequestState::Cancelled; // never dispatched: will not run
+        else if (g_token == token && g_state == RequestState::Executing)
+            g_state = RequestState::Abandoned; // running: Dispatch finishes it
         nativeError = wait == WAIT_FAILED ? GetLastError() : ERROR_TIMEOUT;
         return false;
     }
@@ -112,14 +133,33 @@ bool Dispatch(std::uintptr_t token) noexcept
     std::uint32_t error = ERROR_SUCCESS;
     const bool result = handler(operation, error);
 
-    const std::lock_guard<std::mutex> lock(g_mutex);
-    if (token != g_token || g_state != RequestState::Executing)
-        return false;
-    g_result = result;
-    g_error = error;
-    g_state = RequestState::Completed;
-    SetEvent(g_completionEvent);
-    return true;
+    bool undoRestore = false;
+    {
+        const std::lock_guard<std::mutex> lock(g_mutex);
+        if (token == g_token && g_state == RequestState::Abandoned)
+        {
+            // The engine already treated this operation as failed. A late
+            // input restore must not leave hooks active while it is paused.
+            undoRestore = result && operation == Operation::RestoreInput;
+            g_state = RequestState::Idle;
+        }
+        else if (token != g_token || g_state != RequestState::Executing)
+            return false;
+        else
+        {
+            g_result = result;
+            g_error = error;
+            g_state = RequestState::Completed;
+            SetEvent(g_completionEvent);
+            return true;
+        }
+    }
+    if (undoRestore)
+    {
+        std::uint32_t ignored = ERROR_SUCCESS;
+        (void)handler(Operation::ReleaseInput, ignored);
+    }
+    return false;
 }
 
 void CancelPending() noexcept
@@ -138,7 +178,8 @@ bool Stop() noexcept
     const std::lock_guard<std::mutex> lock(g_mutex);
     if (!g_completionEvent)
         return true;
-    if (g_state == RequestState::Pending || g_state == RequestState::Executing)
+    if (g_state == RequestState::Pending || g_state == RequestState::Executing ||
+        g_state == RequestState::Abandoned)
         return false;
     CloseHandle(g_completionEvent);
     g_completionEvent = nullptr;
@@ -147,6 +188,11 @@ bool Stop() noexcept
     g_handler = nullptr;
     g_state = RequestState::Idle;
     return true;
+}
+
+void SetTimeoutForTesting(unsigned milliseconds) noexcept
+{
+    g_timeoutMs.store(milliseconds ? milliseconds : kUiAcknowledgementTimeoutMs);
 }
 
 } // namespace halljoy::engine_runtime::ui_bridge

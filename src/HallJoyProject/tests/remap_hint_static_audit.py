@@ -10,7 +10,7 @@ for forbidden in ("BindingActions_Apply", "BindingActions_Append", "SaveBindings
     assert forbidden not in hint, forbidden
 for guard in ("BINDINGS_MAX_GAMEPADS", "Bindings_GetAxisForPad", "Bindings_GetTriggerForPad", "Bindings_GetButtonForPad",
               "GetCapture()", "Remap_HasAnyBindings()", "st->hintActive", "IsWindowVisible(panel)",
-              "GetForegroundWindow()", "EqualRect", "KillTimer(panel, BIND_HINT_TIMER_ID)", "frame.finished"):
+              "GetForegroundWindow()", "EqualRect", "Anim_Stop(st)", "Anim_Start(panel, st)", "frame.finished"):
     assert guard in hint, guard
 assert "Remap_StopBindingHint(hPanel, st);" in source[source.index("static LRESULT CALLBACK IconSubclassProc"):]
 assert "msg == WM_MOUSEWHEEL || msg == WM_VSCROLL || msg == WM_CANCELMODE" in source

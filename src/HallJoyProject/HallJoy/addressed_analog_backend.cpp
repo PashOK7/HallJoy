@@ -32,6 +32,7 @@
 #include "stability_trace.h"
 #include "hid_io_operation.h"
 #include "native_analog_routing.h"
+#include "support_log.h"
 #include "realtime_loop.h"
 #include "monotonic_time.h"
 #include "worker_exception_barrier.h"
@@ -135,6 +136,10 @@ struct DeviceProfile
     std::size_t mapEntries = 0;
     const ipi::Model* ipiModel = nullptr;
     std::array<ipi::Calibration, 256> calibration{};
+    // BY/IPI keyboard outside the catalog: physical IDs, live map and
+    // calibration come from the keyboard itself (no layout token).
+    bool genericBy = false;
+    std::uint64_t uuid = 0;
 };
 
 struct ClaimState
@@ -193,6 +198,7 @@ ipi::Publication g_publication;
 std::array<std::atomic<std::uint16_t>, 256> g_releaseRawByKey{};
 std::array<std::atomic<std::uint16_t>, 256> g_bottomRawByKey{};
 std::atomic<std::uint64_t> g_ipiUuid{0};
+std::atomic<bool> g_genericBy{false};
 std::atomic<std::uint64_t> g_verifiedLayoutToken{0};
 HANDLE g_wakeEvent = nullptr;
 HANDLE g_responseEvent = nullptr;
@@ -476,6 +482,96 @@ bool ReadNextPayload(HANDLE handle, const HidPath& path, DWORD timeoutMs,
     return true;
 }
 
+// One physical ID through a read-only command: 83 00 (assigned code) or
+// 94 02 (live sample). Firmware audit 2026-10-07 (FuryCube M35HE image, same
+// handlers as the IPI/RK set): both handlers skip an ID that is not in the
+// firmware's ID table, so a reply that does not echo the ID means "absent".
+// 94 05 (calibration) has no such check and is asked only for present IDs.
+enum class IdProbe { Present, Absent, NoReply };
+IdProbe ProbeIpiId(const HidPath& path, Transport& transport, HANDLE handle, std::uint8_t cmd,
+                   std::uint8_t sub, std::uint8_t id, std::array<std::uint16_t, 256>& mapping)
+{
+    ipi::Frame request{};
+    if (!ipi::Request(cmd, sub, &id, 1, request) || !transport.Send(request)) return IdProbe::NoReply;
+    const auto deadline = GetTickCount64() + 30;
+    while (GetTickCount64() < deadline)
+    {
+        const auto remaining = halljoy::monotonic_time::RemainingTimeoutMs(GetTickCount64(), deadline);
+        if (!remaining) break;
+        ipi::Frame reply{};
+        if (!ReadNextPayload(handle, path, remaining, reply)) continue;
+        unsigned sum = 0;
+        for (auto b : reply) sum += b;
+        if ((sum & 255) != 255 || reply[0] != 9 || reply[1] != cmd || reply[2] != sub) continue;
+        if (cmd == 0x83) return ipi::Map(reply, &id, 1, mapping) ? IdProbe::Present : IdProbe::Absent;
+        std::array<ipi::Sample, ipi::kBatchKeys> sample{};
+        return ipi::Samples(reply, &id, 1, sample) ? IdProbe::Present : IdProbe::Absent;
+    }
+    return IdProbe::NoReply;
+}
+
+// BY/IPI keyboard whose UUID is not in the verified catalog (owner decision
+// 2026-10-07: yellow support for keyboards on a known protocol). Read-only:
+// IDs 1..127 are probed one at a time with 83 00 and 94 02; an ID counts only
+// when both echo it. Calibration (94 05) is then read for those IDs; keys with
+// invalid calibration are dropped. At least 8 keys are required.
+bool ReadGenericIpiProfile(const HidPath& path, Transport& transport, HANDLE handle,
+                           std::uint64_t uuid, DeviceProfile& profile)
+{
+    std::array<std::uint16_t, 256> mapping{};
+    std::vector<std::uint8_t> present;
+    unsigned silent = 0;
+    bool answered = false;
+    for (unsigned id = 1; id < 128; ++id)
+    {
+        const auto byte = static_cast<std::uint8_t>(id);
+        auto map = ProbeIpiId(path, transport, handle, 0x83, 0, byte, mapping);
+        if (map == IdProbe::NoReply && !answered) map = ProbeIpiId(path, transport, handle, 0x83, 0, byte, mapping);
+        // Long gaps of absent IDs are normal (M35HE: 73..111); give up only
+        // when the keyboard never answered this framing at all.
+        if (map == IdProbe::NoReply && !answered && ++silent > 16) break;
+        if (map == IdProbe::NoReply) continue;
+        answered = true;
+        if (map != IdProbe::Present) continue;
+        auto live = ProbeIpiId(path, transport, handle, 0x94, 2, byte, mapping);
+        if (live == IdProbe::NoReply) live = ProbeIpiId(path, transport, handle, 0x94, 2, byte, mapping);
+        if (live == IdProbe::Present) present.push_back(byte);
+    }
+    std::array<ipi::Calibration, 256> calibration{};
+    std::vector<std::uint8_t> calibrated;
+    for (const auto id : present)
+    {
+        ipi::Frame request{};
+        if (!ipi::Request(0x94, 5, &id, 1, request)) continue;
+        for (unsigned attempt = 0; attempt < 2; ++attempt)
+        {
+            if (!transport.Send(request)) break;
+            bool accepted = false;
+            const auto deadline = GetTickCount64() + 40;
+            while (GetTickCount64() < deadline)
+            {
+                const auto remaining = halljoy::monotonic_time::RemainingTimeoutMs(GetTickCount64(), deadline);
+                if (!remaining) break;
+                ipi::Frame reply{};
+                if (!ReadNextPayload(handle, path, remaining, reply)) continue;
+                if ((accepted = ipi::Calibrations(reply, &id, 1, calibration))) break;
+            }
+            if (accepted) { calibrated.push_back(id); break; }
+        }
+    }
+    SupportLog_Event("ipi.generic_profile", uuid,
+        SupportLog_Data((std::uint64_t{present.size()} << 16) | calibrated.size()));
+    if (calibrated.size() < 8) return false;
+    profile = DeviceProfile{};
+    profile.genericBy = true;
+    profile.uuid = uuid;
+    profile.calibration = calibration;
+    profile.source = L"BY/IPI generic: UUID outside catalog, IDs + live map + calibration from the keyboard";
+    profile.mapEntries = calibrated.size();
+    for (const auto id : calibrated) profile.keys.push_back({id, mapping[id]});
+    return true;
+}
+
 enum class IpiProfileResult { Unidentified, Ready, Rejected };
 IpiProfileResult ReadIpiProfile(const HidPath& path, Transport& transport,
                                 HANDLE handle, DeviceProfile& profile)
@@ -483,10 +579,13 @@ IpiProfileResult ReadIpiProfile(const HidPath& path, Transport& transport,
     // Other addressed devices retain their previous protocol proof path.
     // 105C/106C: IPI boards; 10BF/10C0: Royal Kludge RK68 HE / RK68 HE UK on the
     // same BY platform (exact UUID still required; RK68HE_HUBX_2026-10-02.md).
-    if (path.attrs.VendorID != 0x372E ||
-        (path.attrs.ProductID != 0x105C && path.attrs.ProductID != 0x106C &&
-         path.attrs.ProductID != 0x10BF && path.attrs.ProductID != 0x10C0))
-        return IpiProfileResult::Unidentified;
+    // Any other 372E PID is asked for its BY UUID too (generic BY support,
+    // 2026-10-07); without a UUID reply it keeps the previous path.
+    if (path.attrs.VendorID != 0x372E) return IpiProfileResult::Unidentified;
+    // AULA HERO84 HE (103E) has its own backend; never probe it here.
+    if (path.attrs.ProductID == 0x103E) return IpiProfileResult::Unidentified;
+    const bool listed = path.attrs.ProductID == 0x105C || path.attrs.ProductID == 0x106C ||
+                        path.attrs.ProductID == 0x10BF || path.attrs.ProductID == 0x10C0;
     std::uint64_t uuid = 0;
     for (unsigned attempt = 0; attempt < 2 && !uuid; ++attempt)
     {
@@ -503,14 +602,16 @@ IpiProfileResult ReadIpiProfile(const HidPath& path, Transport& transport,
     }
     if (!uuid)
     {
+        if (!listed) return IpiProfileResult::Unidentified;
         SupportLog(L"IPI UUID unavailable; generic mapping disabled for this shared USB identity");
         return IpiProfileResult::Rejected;
     }
     const auto* model = ipi::FindModel(uuid);
     if (!model)
     {
-        SupportLog(L"IPI UUID not in verified catalog uuid=%012llX", static_cast<unsigned long long>(uuid));
-        return IpiProfileResult::Rejected;
+        SupportLog(L"IPI UUID not in verified catalog uuid=%012llX; generic BY discovery", static_cast<unsigned long long>(uuid));
+        return ReadGenericIpiProfile(path, transport, handle, uuid, profile)
+            ? IpiProfileResult::Ready : IpiProfileResult::Rejected;
     }
     std::array<std::uint16_t, 256> mapping{};
     std::array<ipi::Calibration, 256> calibration{};
@@ -828,6 +929,15 @@ void ClearClaimForPath(const std::wstring& path)
     if (g_claim.valid && SamePath(g_claim.device.path, path)) g_claim = ClaimState{};
 }
 
+// Physical key identity. Catalog models use the BY factory table; a generic
+// BY keyboard uses it where it has an entry and its own live code otherwise.
+std::uint16_t FactoryHid(const DeviceProfile& profile, const addressed::PollKeyConfig& key) noexcept
+{
+    if (profile.ipiModel) return ipi::factoryHids[key.keyId];
+    if (profile.genericBy) return ipi::factoryHids[key.keyId] ? ipi::factoryHids[key.keyId] : key.hidUsage;
+    return key.hidUsage;
+}
+
 void ResetPublished(const DeviceProfile* profile = nullptr) noexcept
 {
     g_connected.store(false, std::memory_order_release);
@@ -836,7 +946,9 @@ void ResetPublished(const DeviceProfile* profile = nullptr) noexcept
     const bool analogueChanged = g_publication.Clear() || factoryChanged;
     for (auto& v : g_releaseRawByKey) v.store(0, std::memory_order_relaxed);
     for (auto& v : g_bottomRawByKey) v.store(0, std::memory_order_relaxed);
-    g_ipiUuid.store(profile && profile->ipiModel ? profile->ipiModel->uuid : 0, std::memory_order_release);
+    g_ipiUuid.store(profile && profile->ipiModel ? profile->ipiModel->uuid :
+                    profile && profile->genericBy ? profile->uuid : 0, std::memory_order_release);
+    g_genericBy.store(profile && profile->genericBy, std::memory_order_release);
     g_verifiedLayoutToken.store(profile && profile->ipiModel
         ? halljoy::layout_identity::Token("ipi-addressed", profile->ipiModel->product) : 0, std::memory_order_release);
     if (profile)
@@ -848,10 +960,10 @@ void ResetPublished(const DeviceProfile* profile = nullptr) noexcept
             {
                 g_publication.Bind(key.keyId, key.hidUsage);
             }
-            const auto factory = profile->ipiModel ? ipi::factoryHids[key.keyId] : key.hidUsage;
+            const auto factory = FactoryHid(*profile, key);
             g_factoryPublication.Bind(key.keyId, factory);
             if (profile->ipiModel && factory) remaps.push_back({factory,key.hidUsage});
-            if (profile->ipiModel)
+            if (profile->ipiModel || profile->genericBy)
             {
                 const auto c = profile->calibration[key.keyId];
                 g_releaseRawByKey[key.keyId].store(c.released, std::memory_order_relaxed);
@@ -1233,7 +1345,7 @@ void RefreshBindings(const DeviceProfile& profile)
     if (!g_scheduler) return;
     const bool remapped=halljoy::native_layout::UsesRemapping(g_verifiedLayoutToken.load());
     for (const auto& key : profile.keys) {
-        const auto hid=profile.ipiModel && !remapped ? ipi::factoryHids[key.keyId] : key.hidUsage;
+        const auto hid=(profile.ipiModel || profile.genericBy) && !remapped ? FactoryHid(profile,key) : key.hidUsage;
         g_scheduler->SetPhysicalBound(key.keyId,hid && Bindings_IsHidBound(hid));
     }
 }
@@ -1805,6 +1917,7 @@ void AddressedAnalog_FillGenericTelemetry(NativeAnalogBackendTelemetry* out)
         out->verifiedLayoutToken = identity;
     out->present = t.present;
     out->connected = t.connected;
+    out->genericProtocol = t.connected && g_genericBy.load(std::memory_order_acquire);
     out->vendorId = t.vendorId;
     out->productId = t.productId;
     out->usagePage = 0xFF60;

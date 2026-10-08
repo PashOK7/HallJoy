@@ -87,3 +87,35 @@ reviewed), Ace 75 16K / Jet 75 III / GOD 60 / Ace 60 Pro ISO FR (no image).
   presses are cut off (≤ 0.09 mm), and the analog-mode flag is saved in the
   keyboard (disabled again at pause/exit).
 - The replay does not model flash erase/program timing or power loss.
+
+## Ace 68 Air III: Supported (2026-10-05)
+
+Tester log `message (14).txt` (HallJoy 1.6.7, 11:39 UTC): USB product
+"Ace 68 Air-III" `41E4:2132`, firmware 1.16 (`mix87.firmware_version=278`),
+analog mode enabled automatically, protocol 27 `connected`, 67 mapped keys,
+81 updates, 0 failures. Under the owner rule of 2026-10-02 (criteria met, trust
+the tester's model) the model is Supported.
+
+- Built-in layout "MCHOSE Ace 68 ANSI" (already selected automatically by the
+  `ACE68AIRIII-41E4-2132` identity); `supported_layouts.json` entry
+  "Ace 68 Air (III revision)" with `shownAs` "Ace 68": the picker lists this
+  shared geometry as "MCHOSE Ace 68 ANSI"; the preset is not renamed because
+  saved profiles store preset names.
+- Testing notice: `MchoseArmFamily` keeps the shared Ace 68 preset token but
+  excludes product ID 0x2132 (`confirmed_devices`); test asserts no notice for
+  0x2132 and a notice for 0x300A.
+- Sheet (live, read back): the single "Ace 68 Air" row covered three boards.
+  Renamed to "Ace 68 Air (II revision)" (`41E4:2120`, Implemented); inserted
+  "Ace 68 Air 2" (`3837:300A`, Implemented) and "Ace 68 Air (III revision)"
+  (Supported, green) with the batch planner. Full re-read compared with the
+  before snapshot: only the renamed B cell changed among existing rows; structure
+  PASS (149 blocks), notices PASS (282 yellow), supported layouts PASS (71).
+  Snapshots: `.local/research/mchose-ace68air-sheet-20261005/`.
+- README Supported list and SUPPORTED_HARDWARE row updated.
+- Separate incident in the same tester's first run: HallJoy showed "HallJoy is
+  paused" at start and Resume did not help; a HallJoy restart fixed it, and the
+  log above is from the working run. Mechanism in code: a failed step of the
+  startup Resume transaction rolls back to Paused (generation > 0 shows the
+  card), Resume retries the same steps, and no support log is auto-saved because
+  the search never ran. Not linked to this keyboard. Owner: no tester build, but
+  fix the potential causes: done in STARTUP_PAUSE_FIX_2026-10-05.md.

@@ -833,7 +833,7 @@
     },
     "factory": {
       "path": "src/HallJoyProject/HallJoy/aula_w669_protocol.cpp",
-      "sha256": "cd417a46b0a2db5ceabe22d940163cf31849a4d19e3de8a19e99ca1e1ca4baf8"
+      "sha256": "734bacdcf0213373e63beb7156f2c0b065182dbb66fa4e4ea1c838817247bc8c"
     }
   },
   "scale": "42/35, absolute edges rounded half-up; source origin removed",

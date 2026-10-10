@@ -1,3 +1,6 @@
+> 2026-10-11 PUBLISHED stable/latest 1.6.9: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.9 (commit 036881d,
+> EXE e748cb7f, 4 assets verified). OWNER: no Keychron in patch notes (HJO1 firmware is only on the owner's keyboard).
+> Pending from 1.6.8: AK820 80B1 red row. See RELEASE_1.6.9_PUBLICATION_2026-10-11.md.
 > 2026-10-11 OWNER: FUN60 Ultra TMR (board 2352) -> Supported after tester log 3 (connected, 61 keys, 0 failures).
 > OWNER RULE: keep the 4 mm full-travel scale for hot-swappable boards; the end deadzone for shorter switches
 > is the user's setting (do not rescale support to the stock switch). Sheet row green, audits PASS. EXE 22fd82b5.

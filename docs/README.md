@@ -1,3 +1,5 @@
+> Published: [HallJoy 1.6.9 publication record](current/RELEASE_1.6.9_PUBLICATION_2026-10-11.md).
+
 > MonsGeek: [FUN60 Ultra TMR board 2352, Supported (tester-confirmed)](current/FUN60_ULTRA_2352_2026-10-10.md).
 
 > K4 HE: [found while a game holds the keyboard (shared vendor open)](current/K4_SHARED_VENDOR_OPEN_2026-10-10.md).

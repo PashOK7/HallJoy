@@ -19,7 +19,7 @@ jobs:
       - name: Static audits and native tests
         # LLVM clang uses the MSVC runtime: no MinGW libstdc++ DLL mix-up from PATH.
         env:
-          CXX: C:\Program Files\LLVMin\clang++.exe
+          CXX: C:/Program Files/LLVM/bin/clang++.exe
         run: python tools/run_native_backend_checks.py --require-compiler
 
   windows-release:

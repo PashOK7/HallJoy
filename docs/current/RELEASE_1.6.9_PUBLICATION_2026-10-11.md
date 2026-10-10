@@ -52,3 +52,11 @@ Support changes since 1.6.8: MonsGeek FUN60 Ultra TMR -> Supported (Sheet row 57
 SUPPORTED_LAYOUTS/SUPPORT_NOTICE_CATALOG/SHEET_STRUCTURE PASS on 2026-10-11).
 Still pending from 1.6.8: the AJAZZ AK820 MAX HE 0C45:80B1 red row and the 1.6.8
 red/green reconciliation (see RELEASE_1.6.8_PUBLICATION_2026-10-08.md).
+
+## CI
+
+GitHub "Native backend checks" failed on the release commit 036881d, as it already did on
+1.6.8 (08c381b): the portable Linux job compiled `engine_runtime_ui_bridge_test.cpp`, whose
+implementation includes `<windows.h>`. Not caused by 1.6.9 changes; the release EXE is
+unaffected (built and tested on Windows). Fixed in b69963f: the test runs in the Windows-only
+list. CI on b69963f: success.

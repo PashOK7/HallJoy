@@ -2,7 +2,6 @@
   "schemaVersion": 1,
   "toolchains": {
     "python": "3.12",
-    "linuxRunner": "ubuntu-24.04",
     "windowsRunner": "windows-2022",
     "visualStudio": "2022",
     "cppStandard": "c++20"

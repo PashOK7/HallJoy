@@ -53,10 +53,10 @@ checks = {
         'L"https://github.com/nefarius/ViGEmBus/releases/tag/v1.22.0"' in guidance_policy and
         "89220A7865076B342892F98865F3499FB7C4CFD673159E89D352C360FD014C6A" in guidance_policy and
         "6278576u" in guidance_policy,
+    # HallJoy is Windows-only: every CI job runs on the locked Windows runner.
     "workflow uses fixed runner labels":
-        f'runs-on: {lock["toolchains"]["linuxRunner"]}' in workflow and
-        f'runs-on: {lock["toolchains"]["windowsRunner"]}' in workflow and
-        "ubuntu-latest" not in workflow,
+        workflow.count("runs-on:") == workflow.count(f'runs-on: {lock["toolchains"]["windowsRunner"]}') > 0 and
+        "ubuntu" not in workflow and "linuxRunner" not in lock["toolchains"],
     "workflow uses every locked action SHA": all(
         f'{action["name"]}@{action["commit"]}' in workflow
         for action in lock["githubActions"].values()

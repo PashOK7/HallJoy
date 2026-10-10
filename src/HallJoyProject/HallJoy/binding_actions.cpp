@@ -1,8 +1,26 @@
 #include "binding_actions.h"
 
+#include <algorithm>
+
 #include "bindings.h"
 #include "debug_log.h"
 #include "realtime_loop.h"
+
+// Replace mode (drop): the direction becomes exactly this key.
+// Append mode (Shift-drop): the key is added to the direction's key list.
+static void ApplyAxisKey(int padIndex, Axis axis, bool minusSide, uint16_t hid, bool replace)
+{
+    if (replace)
+    {
+        if (minusSide) Bindings_SetAxisMinusForPad(padIndex, axis, hid);
+        else Bindings_SetAxisPlusForPad(padIndex, axis, hid);
+    }
+    else
+    {
+        if (minusSide) Bindings_AddAxisMinusForPad(padIndex, axis, hid);
+        else Bindings_AddAxisPlusForPad(padIndex, axis, hid);
+    }
+}
 
 static void BindingActions_ApplyForPadInternal(int padIndex, BindAction a, uint16_t hid, bool clearExistingForHid)
 {
@@ -19,15 +37,15 @@ static void BindingActions_ApplyForPadInternal(int padIndex, BindAction a, uint1
 
     switch (a)
     {
-        // ---- Axes (still single HID per direction) ----
-    case BindAction::Axis_LX_Minus: Bindings_SetAxisMinusForPad(padIndex, Axis::LX, hid); break;
-    case BindAction::Axis_LX_Plus:  Bindings_SetAxisPlusForPad(padIndex, Axis::LX, hid);  break;
-    case BindAction::Axis_LY_Minus: Bindings_SetAxisMinusForPad(padIndex, Axis::LY, hid); break;
-    case BindAction::Axis_LY_Plus:  Bindings_SetAxisPlusForPad(padIndex, Axis::LY, hid);  break;
-    case BindAction::Axis_RX_Minus: Bindings_SetAxisMinusForPad(padIndex, Axis::RX, hid); break;
-    case BindAction::Axis_RX_Plus:  Bindings_SetAxisPlusForPad(padIndex, Axis::RX, hid);  break;
-    case BindAction::Axis_RY_Minus: Bindings_SetAxisMinusForPad(padIndex, Axis::RY, hid); break;
-    case BindAction::Axis_RY_Plus:  Bindings_SetAxisPlusForPad(padIndex, Axis::RY, hid);  break;
+        // ---- Axes (several keys per direction; drop replaces, Shift adds) ----
+    case BindAction::Axis_LX_Minus: ApplyAxisKey(padIndex, Axis::LX, true, hid, clearExistingForHid); break;
+    case BindAction::Axis_LX_Plus:  ApplyAxisKey(padIndex, Axis::LX, false, hid, clearExistingForHid); break;
+    case BindAction::Axis_LY_Minus: ApplyAxisKey(padIndex, Axis::LY, true, hid, clearExistingForHid); break;
+    case BindAction::Axis_LY_Plus:  ApplyAxisKey(padIndex, Axis::LY, false, hid, clearExistingForHid); break;
+    case BindAction::Axis_RX_Minus: ApplyAxisKey(padIndex, Axis::RX, true, hid, clearExistingForHid); break;
+    case BindAction::Axis_RX_Plus:  ApplyAxisKey(padIndex, Axis::RX, false, hid, clearExistingForHid); break;
+    case BindAction::Axis_RY_Minus: ApplyAxisKey(padIndex, Axis::RY, true, hid, clearExistingForHid); break;
+    case BindAction::Axis_RY_Plus:  ApplyAxisKey(padIndex, Axis::RY, false, hid, clearExistingForHid); break;
 
         // ---- Triggers (still single HID) ----
     case BindAction::Trigger_LT: Bindings_SetTriggerForPad(padIndex, Trigger::LT, hid); break;
@@ -108,30 +126,14 @@ void BindingActions_RemoveFromPad(int padIndex, BindAction a, uint16_t hid)
 
     switch (a)
     {
-    case BindAction::Axis_LX_Minus:
-        if (Bindings_GetAxisForPad(padIndex, Axis::LX).minusHid == hid) Bindings_SetAxisMinusForPad(padIndex, Axis::LX, 0);
-        break;
-    case BindAction::Axis_LX_Plus:
-        if (Bindings_GetAxisForPad(padIndex, Axis::LX).plusHid == hid) Bindings_SetAxisPlusForPad(padIndex, Axis::LX, 0);
-        break;
-    case BindAction::Axis_LY_Minus:
-        if (Bindings_GetAxisForPad(padIndex, Axis::LY).minusHid == hid) Bindings_SetAxisMinusForPad(padIndex, Axis::LY, 0);
-        break;
-    case BindAction::Axis_LY_Plus:
-        if (Bindings_GetAxisForPad(padIndex, Axis::LY).plusHid == hid) Bindings_SetAxisPlusForPad(padIndex, Axis::LY, 0);
-        break;
-    case BindAction::Axis_RX_Minus:
-        if (Bindings_GetAxisForPad(padIndex, Axis::RX).minusHid == hid) Bindings_SetAxisMinusForPad(padIndex, Axis::RX, 0);
-        break;
-    case BindAction::Axis_RX_Plus:
-        if (Bindings_GetAxisForPad(padIndex, Axis::RX).plusHid == hid) Bindings_SetAxisPlusForPad(padIndex, Axis::RX, 0);
-        break;
-    case BindAction::Axis_RY_Minus:
-        if (Bindings_GetAxisForPad(padIndex, Axis::RY).minusHid == hid) Bindings_SetAxisMinusForPad(padIndex, Axis::RY, 0);
-        break;
-    case BindAction::Axis_RY_Plus:
-        if (Bindings_GetAxisForPad(padIndex, Axis::RY).plusHid == hid) Bindings_SetAxisPlusForPad(padIndex, Axis::RY, 0);
-        break;
+    case BindAction::Axis_LX_Minus: Bindings_RemoveAxisMinusForPad(padIndex, Axis::LX, hid); break;
+    case BindAction::Axis_LX_Plus:  Bindings_RemoveAxisPlusForPad(padIndex, Axis::LX, hid); break;
+    case BindAction::Axis_LY_Minus: Bindings_RemoveAxisMinusForPad(padIndex, Axis::LY, hid); break;
+    case BindAction::Axis_LY_Plus:  Bindings_RemoveAxisPlusForPad(padIndex, Axis::LY, hid); break;
+    case BindAction::Axis_RX_Minus: Bindings_RemoveAxisMinusForPad(padIndex, Axis::RX, hid); break;
+    case BindAction::Axis_RX_Plus:  Bindings_RemoveAxisPlusForPad(padIndex, Axis::RX, hid); break;
+    case BindAction::Axis_RY_Minus: Bindings_RemoveAxisMinusForPad(padIndex, Axis::RY, hid); break;
+    case BindAction::Axis_RY_Plus:  Bindings_RemoveAxisPlusForPad(padIndex, Axis::RY, hid); break;
     case BindAction::Trigger_LT:
         if (Bindings_GetTriggerForPad(padIndex, Trigger::LT) == hid) Bindings_SetTriggerForPad(padIndex, Trigger::LT, 0);
         break;
@@ -171,9 +173,12 @@ int BindingActions_CollectByHidForPad(int padIndex, uint16_t hid, BindAction* ou
     // Axes
     auto ax = [&](Axis a, BindAction minusA, BindAction plusA) -> bool
         {
-            AxisBinding b = Bindings_GetAxisForPad(padIndex, a);
-            if (hid == b.minusHid && add(minusA)) return true;
-            if (hid == b.plusHid && add(plusA)) return true;
+            const AxisBinding b = Bindings_GetAxisForPad(padIndex, a);
+            const auto has = [hid](const AxisKeys& keys) {
+                return std::find(keys.begin(), keys.end(), hid) != keys.end();
+            };
+            if (has(b.minusHids) && add(minusA)) return true;
+            if (has(b.plusHids) && add(plusA)) return true;
             return false;
         };
 

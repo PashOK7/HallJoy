@@ -114,7 +114,9 @@ bool Bindings_IsHidBoundForPad(int pad, std::uint16_t hid) {
 }
 bool Bindings_IsHidBound(std::uint16_t hid) { return hid == 4; }
 AxisBinding Bindings_GetAxisForPad(int pad, Axis axis) {
-    return pad == 0 && axis == Axis::LX ? AxisBinding{4, 0} : AxisBinding{};
+    AxisBinding binding{};
+    if (pad == 0 && axis == Axis::LX) binding.minusHids[0] = 4;
+    return binding;
 }
 std::uint16_t Bindings_GetTriggerForPad(int, Trigger) { return 0; }
 bool Bindings_ButtonHasHidForPad(int, GameButton, std::uint16_t) { return false; }

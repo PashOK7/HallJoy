@@ -21,10 +21,10 @@ int main()
 {
     using namespace halljoy::configured_xusb;
     PadConfiguration configuration{};
-    configuration.axes[0] = { 4, 7 };
-    configuration.axes[1] = { 22, 26 };
-    configuration.axes[2] = { 27, 29 };
-    configuration.axes[3] = { 6, 25 };
+    configuration.axes[0] = AxisBinding::Single(4, 7);
+    configuration.axes[1] = AxisBinding::Single(22, 26);
+    configuration.axes[2] = AxisBinding::Single(27, 29);
+    configuration.axes[3] = AxisBinding::Single(6, 25);
     configuration.triggers = { 8, 9 };
     BindButton(configuration, 0, 10); // A
     BindButton(configuration, 8, halljoy::keycode::kFn); // Guide
@@ -128,7 +128,7 @@ int main()
     const auto releasedFrame = BuildReport(priority, released, qualifiedState);
     assert(releasedFrame.leftStickX == 0);
     PadConfiguration replacement = priority;
-    replacement.axes[0] = { 7, 4 };
+    replacement.axes[0] = AxisBinding::Single(7, 4);
     BuilderState replacementState{};
     const auto replacementFrame = BuildReport(replacement, paired, replacementState);
     assert(replacementFrame.leftStickX > 0);

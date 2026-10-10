@@ -22,7 +22,7 @@ int main() {
             "[Pad1_Buttons]\nA=7,65543\n"}) {
         { std::ofstream file(path); file << invalid; }
         assert(!Profile_LoadIni(path.c_str()));
-        assert(Bindings_GetAxis(Axis::LX).plusHid==26);
+        assert(Bindings_GetAxis(Axis::LX).plusHid()==26);
     }
     { std::ofstream file(path); file << "[Pad1_Buttons]\nA=";
       for (unsigned i=1; i<halljoy::keycode::kCount; ++i) file << (i==1?"":",") << i;

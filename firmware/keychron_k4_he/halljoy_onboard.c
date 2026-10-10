@@ -25,10 +25,10 @@ static bool staging_committed;
 static uint32_t profile_crc;
 typedef struct {uint16_t raw,depth,scan_us,zero,full;uint8_t travel,valid;} hj_capture_sample;
 // Capture is allowed only OFF; OPEN invalidates it before profile staging.
-static union {uint8_t staging[HJO_PROFILE_BYTES];hj_capture_sample capture[512];} scratch;
+static union {uint8_t staging[HJO_PROFILE_BYTES_MAX];hj_capture_sample capture[512];} scratch;
 #define staging scratch.staging
 #define capture scratch.capture
-static uint8_t received[(HJO_PROFILE_BYTES + 7) / 8];
+static uint8_t received[(HJO_PROFILE_BYTES_MAX + 7) / 8];
 static uint8_t response[32];
 static bool response_pending;
 static volatile bool native_descriptor;
@@ -97,19 +97,29 @@ bool halljoy_onboard_suppressed(uint8_t row, uint8_t col) {
            hjo_suppressed(&profile.mapping, row * MATRIX_COLS + col);
 }
 
-static bool all_received(void) {
-    for (unsigned i = 0; i < HJO_PROFILE_BYTES; ++i)
+static bool all_received(unsigned size) {
+    for (unsigned i = 0; i < size; ++i)
         if (!(received[i / 8] & (1u << (i % 8)))) return false;
     return true;
 }
 
-static bool valid_physical_bindings(void) {
+// Size of the staged profile, from its magic once bytes 0..7 have arrived.
+// Returns 0 while the header is incomplete or matches neither HJP1 nor HJP2.
+static unsigned staged_size(void) {
+    for (unsigned i = 0; i < 8; ++i)
+        if (!(received[i / 8] & (1u << (i % 8)))) return 0;
+    return hjo_profile_size_from_magic(staging);
+}
+
+// COMMIT failure detail, returned in the reply (bytes 12..13) with status 8.
+// kind: 0 stick direction, 1 trigger, 2 extra stick key, 3 button key.
+static uint8_t commit_bad_slot, commit_bad_kind;
+
+static int physical_slot(unsigned slot) { return physical(slot) ? 1 : 0; }
+
+static bool valid_physical_bindings(unsigned size) {
     // Validate staging before touching active profile. Wire slots are bytes.
-    for (unsigned i = 12; i < 22; ++i)
-        if (staging[i] != HJO_UNBOUND && !physical(staging[i])) return false;
-    for (unsigned i = 0; i < HJO_SLOTS; ++i)
-        if (hjk4_u16(staging + 24 + 2*i) && !physical(i)) return false;
-    return true;
+    return !hjo_profile_first_unphysical(staging, size, physical_slot, &commit_bad_slot, &commit_bad_kind);
 }
 
 static void burst_page(uint8_t page) {
@@ -171,21 +181,26 @@ bool halljoy_onboard_rx(uint8_t *data, uint8_t length) {
         case 0x73: { // CHUNK: token[4:8], offset[8:10], count[10], bytes[11:32]
             const unsigned offset = hjk4_u16(data + 8), count = data[10];
             if (!uploading || token != session.generation || session.phase == HJO_OFF || session.phase == HJO_PARKED ||
-                !count || count > 21 || offset + count > HJO_PROFILE_BYTES) { status = 2; break; }
+                !count || count > 21 || offset + count > HJO_PROFILE_BYTES_MAX) { status = 2; break; }
             for (unsigned i = 0; i < count; ++i) {
                 staging[offset+i] = data[11+i];
                 received[(offset+i)/8] |= (uint8_t)(1u << ((offset+i)%8));
             }
             break;
         }
-        case 0x74: // COMMIT: validated before changing any active profile fields
-            if (!uploading || token != session.generation || session.phase == HJO_OFF || session.phase == HJO_PARKED ||
-                !all_received() || !valid_physical_bindings() ||
-                !hjo_profile_decode(&profile, staging, sizeof(staging))) { status = 3; break; }
-            profile_crc = hjk4_u32(staging + HJO_PROFILE_BYTES - 4);
+        case 0x74: { // COMMIT: validated before changing any active profile fields.
+            // Status codes name the failed check: 3 session state, 7 incomplete
+            // upload, 8 non-physical key (detail in reply bytes 12..13), 9 decode.
+            const unsigned size = staged_size();
+            if (!uploading || token != session.generation || session.phase == HJO_OFF || session.phase == HJO_PARKED) { status = 3; break; }
+            if (!size || !all_received(size)) { status = 7; break; }
+            if (!valid_physical_bindings(size)) { status = 8; break; }
+            if (!hjo_profile_decode(&profile, staging, size)) { status = 9; break; }
+            profile_crc = hjk4_u32(staging + size - 4);
             profile_ready = true; uploading = false; staging_committed = true;
             memset(&mapper, 0, sizeof(mapper)); have_last_report = false;
             break;
+        }
         case 0x75: // START after reconnect and complete validated profile
             usb_reset_seen = false; neutral_submitted = false;
             if (!profile_ready || reconnect_pending || get_transport() != TRANSPORT_USB ||
@@ -231,9 +246,11 @@ bool halljoy_onboard_rx(uint8_t *data, uint8_t length) {
         response[16]=native_descriptor;
         response[17]=(profile_ready ? 1u : 0u) | 2u | 4u | 8u | 16u | HJO_CAP_KEEP_ALT_TAB |
                      HJO_CAP_DELTA_UPLOAD | HJO_CAP_PARK;
-        hjk4_put16(response+18,HJO_PROFILE_BYTES);
+        // r9 announces the HJP2 size: the host sends several keys per direction only then.
+        hjk4_put16(response+18,HJO_PROFILE_BYTES_V2);
         hjk4_put32(response+20,scan_sequence); hjk4_put32(response+24,last_scan_us);
         hjk4_put32(response+28,maximum_scan_us);
+        if (command==0x74 && status==8) { response[12]=commit_bad_slot; response[13]=commit_bad_kind; }
     }
     if (command==0x7A && !status) {
         memset(response+12,0,20);

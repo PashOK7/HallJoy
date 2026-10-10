@@ -11,20 +11,6 @@
 #include <intrin.h>
 #endif
 
-// ---- Axis packing (unchanged) ----
-static uint32_t PackAxis(uint16_t minusHid, uint16_t plusHid)
-{
-    return (uint32_t)minusHid | ((uint32_t)plusHid << 16);
-}
-
-static AxisBinding UnpackAxis(uint32_t p)
-{
-    AxisBinding b{};
-    b.minusHid = (uint16_t)(p & 0xFFFFu);
-    b.plusHid = (uint16_t)((p >> 16) & 0xFFFFu);
-    return b;
-}
-
 static int AxisIdx(Axis a) { return (int)a; }
 static int TrigIdx(Trigger t) { return (int)t; }
 static int BtnIdx(GameButton b) { return (int)b; }
@@ -34,8 +20,10 @@ static bool IsValidPadIndex(int padIndex)
     return padIndex >= 0 && padIndex < BINDINGS_MAX_GAMEPADS;
 }
 
-// Thread-safe storage (backend thread reads, UI thread writes)
-static std::array<std::array<std::atomic<uint32_t>, 4>, BINDINGS_MAX_GAMEPADS> g_axes{};     // packed AxisBinding: minus|plus
+// Thread-safe storage (backend thread reads, UI thread writes).
+// Axis keys: one slot per key, per pad, per axis, per side (0 = minus, 1 = plus).
+using AxisSideSlots = std::array<std::atomic<std::uint16_t>, BINDINGS_MAX_AXIS_KEYS>;
+static std::array<std::array<std::array<AxisSideSlots, 2>, 4>, BINDINGS_MAX_GAMEPADS> g_axisKeys{};
 static std::array<std::array<std::atomic<uint16_t>, 2>, BINDINGS_MAX_GAMEPADS> g_triggers{}; // LT,RT
 
 // Buttons: 15 buttons * complete HallJoy key-code bitset.
@@ -47,40 +35,104 @@ static std::array<int, BINDINGS_MAX_GAMEPADS> g_padStyle{ 1, 2, 3, 4 };
 
 static int ClampStyleVariant(int v) { return std::clamp(v, 1, BINDINGS_MAX_GAMEPADS); }
 
+// ---- Axis keys (ordered, compact, unique per side) ----
+static AxisKeys LoadSide(const AxisSideSlots& slots)
+{
+    AxisKeys keys{};
+    for (std::size_t i = 0; i < keys.size(); ++i)
+        keys[i] = slots[i].load(std::memory_order_acquire);
+    return keys;
+}
+
+static void StoreSide(AxisSideSlots& slots, const AxisKeys& keys)
+{
+    for (std::size_t i = 0; i < keys.size(); ++i)
+        slots[i].store(keys[i], std::memory_order_release);
+}
+
+static bool Contains(const AxisKeys& keys, std::uint16_t hid)
+{
+    return std::find(keys.begin(), keys.end(), hid) != keys.end();
+}
+
+static void SetSide(int padIndex, Axis a, int side, std::uint16_t hid)
+{
+    AxisKeys keys{};
+    if (hid) keys[0] = hid;
+    StoreSide(g_axisKeys[(size_t)padIndex][AxisIdx(a)][(size_t)side], keys);
+}
+
+static bool AddSide(int padIndex, Axis a, int side, std::uint16_t hid)
+{
+    if (!IsValidPadIndex(padIndex) || !hid) return false;
+    auto& slots = g_axisKeys[(size_t)padIndex][AxisIdx(a)][(size_t)side];
+    AxisKeys keys = LoadSide(slots);
+    if (Contains(keys, hid)) return true;
+    const auto free = std::find(keys.begin(), keys.end(), std::uint16_t{ 0 });
+    if (free == keys.end()) return false;
+    *free = hid;
+    StoreSide(slots, keys);
+    return true;
+}
+
+static void RemoveSide(AxisSideSlots& slots, std::uint16_t hid)
+{
+    AxisKeys keys = LoadSide(slots);
+    const auto found = std::find(keys.begin(), keys.end(), hid);
+    if (!hid || found == keys.end()) return;
+    std::rotate(found, found + 1, keys.end());
+    keys.back() = 0;
+    StoreSide(slots, keys);
+}
+
 // ---- Axes ----
 void Bindings_SetAxisMinusForPad(int padIndex, Axis a, uint16_t hid)
 {
     if (!IsValidPadIndex(padIndex)) return;
-    auto& atom = g_axes[(size_t)padIndex][AxisIdx(a)];
-    uint32_t old = atom.load(std::memory_order_relaxed);
-    for (;;)
-    {
-        AxisBinding b = UnpackAxis(old);
-        uint32_t nw = PackAxis(hid, b.plusHid);
-        if (atom.compare_exchange_weak(old, nw, std::memory_order_release, std::memory_order_relaxed))
-            return;
-    }
+    SetSide(padIndex, a, 0, hid);
 }
 
 void Bindings_SetAxisPlusForPad(int padIndex, Axis a, uint16_t hid)
 {
     if (!IsValidPadIndex(padIndex)) return;
-    auto& atom = g_axes[(size_t)padIndex][AxisIdx(a)];
-    uint32_t old = atom.load(std::memory_order_relaxed);
-    for (;;)
-    {
-        AxisBinding b = UnpackAxis(old);
-        uint32_t nw = PackAxis(b.minusHid, hid);
-        if (atom.compare_exchange_weak(old, nw, std::memory_order_release, std::memory_order_relaxed))
-            return;
-    }
+    SetSide(padIndex, a, 1, hid);
+}
+
+bool Bindings_AddAxisMinusForPad(int padIndex, Axis a, uint16_t hid)
+{
+    return AddSide(padIndex, a, 0, hid);
+}
+
+bool Bindings_AddAxisPlusForPad(int padIndex, Axis a, uint16_t hid)
+{
+    return AddSide(padIndex, a, 1, hid);
+}
+
+void Bindings_RemoveAxisMinusForPad(int padIndex, Axis a, uint16_t hid)
+{
+    if (!IsValidPadIndex(padIndex)) return;
+    RemoveSide(g_axisKeys[(size_t)padIndex][AxisIdx(a)][0], hid);
+}
+
+void Bindings_RemoveAxisPlusForPad(int padIndex, Axis a, uint16_t hid)
+{
+    if (!IsValidPadIndex(padIndex)) return;
+    RemoveSide(g_axisKeys[(size_t)padIndex][AxisIdx(a)][1], hid);
+}
+
+void Bindings_RemoveAxisKeyForPad(int padIndex, Axis a, uint16_t hid)
+{
+    Bindings_RemoveAxisMinusForPad(padIndex, a, hid);
+    Bindings_RemoveAxisPlusForPad(padIndex, a, hid);
 }
 
 AxisBinding Bindings_GetAxisForPad(int padIndex, Axis a)
 {
     if (!IsValidPadIndex(padIndex)) return AxisBinding{};
-    uint32_t p = g_axes[(size_t)padIndex][AxisIdx(a)].load(std::memory_order_acquire);
-    return UnpackAxis(p);
+    AxisBinding binding{};
+    binding.minusHids = LoadSide(g_axisKeys[(size_t)padIndex][AxisIdx(a)][0]);
+    binding.plusHids = LoadSide(g_axisKeys[(size_t)padIndex][AxisIdx(a)][1]);
+    return binding;
 }
 
 void Bindings_SetAxisMinus(Axis a, uint16_t hid) { Bindings_SetAxisMinusForPad(0, a, hid); }
@@ -194,25 +246,10 @@ void Bindings_ClearHidForPad(int padIndex, uint16_t hid)
     if (!IsValidPadIndex(padIndex)) return;
     if (!hid) return;
 
-    // axes (packed CAS update)
-    for (auto& atom : g_axes[(size_t)padIndex])
-    {
-        uint32_t old = atom.load(std::memory_order_relaxed);
-        for (;;)
-        {
-            AxisBinding b = UnpackAxis(old);
-            bool changed = false;
-
-            if (b.minusHid == hid) { b.minusHid = 0; changed = true; }
-            if (b.plusHid == hid) { b.plusHid = 0; changed = true; }
-
-            if (!changed) break;
-
-            uint32_t nw = PackAxis(b.minusHid, b.plusHid);
-            if (atom.compare_exchange_weak(old, nw, std::memory_order_release, std::memory_order_relaxed))
-                break;
-        }
-    }
+    // axes (every key of every direction)
+    for (auto& axis : g_axisKeys[(size_t)padIndex])
+        for (auto& side : axis)
+            RemoveSide(side, hid);
 
     // triggers
     for (auto& t : g_triggers[(size_t)padIndex])
@@ -243,9 +280,11 @@ bool Bindings_IsHidBoundForPad(int padIndex, uint16_t hid)
 
     for (int i = 0; i < 4; ++i)
     {
-        AxisBinding a = UnpackAxis(g_axes[(size_t)padIndex][(size_t)i].load(std::memory_order_acquire));
-        if (a.minusHid == hid || a.plusHid == hid)
-            return true;
+        for (int side = 0; side < 2; ++side)
+        {
+            if (Contains(LoadSide(g_axisKeys[(size_t)padIndex][(size_t)i][(size_t)side]), hid))
+                return true;
+        }
     }
 
     for (int i = 0; i < 2; ++i)
@@ -292,10 +331,9 @@ static void CopyPadBindingsAtomic(int dstPad, int srcPad)
     if (!IsValidPadIndex(dstPad) || !IsValidPadIndex(srcPad)) return;
 
     for (int a = 0; a < 4; ++a)
-    {
-        uint32_t v = g_axes[(size_t)srcPad][(size_t)a].load(std::memory_order_acquire);
-        g_axes[(size_t)dstPad][(size_t)a].store(v, std::memory_order_release);
-    }
+        for (int side = 0; side < 2; ++side)
+            StoreSide(g_axisKeys[(size_t)dstPad][(size_t)a][(size_t)side],
+                LoadSide(g_axisKeys[(size_t)srcPad][(size_t)a][(size_t)side]));
 
     for (int t = 0; t < 2; ++t)
     {
@@ -318,7 +356,8 @@ static void ClearPadBindingsAtomic(int padIndex)
     if (!IsValidPadIndex(padIndex)) return;
 
     for (int a = 0; a < 4; ++a)
-        g_axes[(size_t)padIndex][(size_t)a].store(0u, std::memory_order_release);
+        for (int side = 0; side < 2; ++side)
+            StoreSide(g_axisKeys[(size_t)padIndex][(size_t)a][(size_t)side], AxisKeys{});
 
     for (int t = 0; t < 2; ++t)
         g_triggers[(size_t)padIndex][(size_t)t].store(0u, std::memory_order_release);
@@ -385,8 +424,10 @@ void Bindings_Capture(BindingsSnapshot& out) noexcept {
 }
 void Bindings_Apply(const BindingsSnapshot& snapshot) noexcept {
     for (int p=0; p<BINDINGS_MAX_GAMEPADS; ++p) {
-        for (int a=0; a<4; ++a) g_axes[p][a].store(
-            PackAxis(snapshot.axes[p][a].minusHid, snapshot.axes[p][a].plusHid), std::memory_order_release);
+        for (int a=0; a<4; ++a) {
+            StoreSide(g_axisKeys[p][a][0], snapshot.axes[p][a].minusHids);
+            StoreSide(g_axisKeys[p][a][1], snapshot.axes[p][a].plusHids);
+        }
         for (int t=0; t<2; ++t) g_triggers[p][t].store(snapshot.triggers[p][t], std::memory_order_release);
         for (int b=0; b<15; ++b)
             for (std::size_t c=0; c<halljoy::keycode::kMaskChunkCount; ++c)

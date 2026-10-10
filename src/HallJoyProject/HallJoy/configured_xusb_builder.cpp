@@ -16,6 +16,25 @@ float Read(const InputValues& input, std::uint16_t key) noexcept
     return input.filtered[key];
 }
 
+// One side of an axis: the most pressed key wins. Values are already curved,
+// so per-key curves decide each key's output range.
+float ReadSide(const InputValues& input, const AxisKeys& keys) noexcept
+{
+    // Only bound keys count; a single key returns exactly its own value.
+    float most = 0.0f;
+    bool any = false;
+    for (const std::uint16_t key : keys)
+    {
+        if (!key)
+            continue;
+        const float value = Read(input, key);
+        if (!any || value > most)
+            most = value;
+        any = true;
+    }
+    return most;
+}
+
 bool Pressed(float value) noexcept
 {
     return std::isfinite(value) && value >= kPressedThreshold;
@@ -168,8 +187,8 @@ controller::VirtualControllerFrameV1 BuildReport(
     for (std::size_t axis = 0; axis < kAxisCount; ++axis)
     {
         const AxisBinding& binding = configuration.axes[axis];
-        *outputs[axis] = Stick(ResolveAxis(axis, Read(input, binding.minusHid),
-            Read(input, binding.plusHid), configuration, state));
+        *outputs[axis] = Stick(ResolveAxis(axis, ReadSide(input, binding.minusHids),
+            ReadSide(input, binding.plusHids), configuration, state));
     }
 
     if (input.mouseEnabled)

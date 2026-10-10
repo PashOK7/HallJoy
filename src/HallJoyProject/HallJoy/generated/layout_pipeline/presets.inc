@@ -105,6 +105,7 @@
     {L"MonsGeek M1 V5 HE ANSI", g_monsgeek_m1_v5_he_ansi, (int)std::size(g_monsgeek_m1_v5_he_ansi), L"MonsGeek"},
     {L"MonsGeek M1 V5 TMR ANSI", g_monsgeek_m1_v5_tmr_ansi, (int)std::size(g_monsgeek_m1_v5_tmr_ansi), L"MonsGeek"},
     {L"MonsGeek FUN68 HE ANSI", g_ry_layout_2811, (int)std::size(g_ry_layout_2811), L"MonsGeek"},
+    {L"MonsGeek FUN60 Ultra TMR ANSI", g_ry_layout_2352, (int)std::size(g_ry_layout_2352), L"MonsGeek"},
     {L"GamaKay TK75 TMR ANSI", g_gamakay_tk75_tmr_ansi, (int)std::size(g_gamakay_tk75_tmr_ansi), L"GamaKay"},
     {L"GamaKay TK75 TMR ISO", g_gamakay_tk75_tmr_iso, (int)std::size(g_gamakay_tk75_tmr_iso), L"GamaKay"},
     {L"GamaKay TK75 HE ANSI", g_ry_layout_2334, (int)std::size(g_ry_layout_2334), L"GamaKay"},

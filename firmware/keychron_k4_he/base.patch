@@ -360,3 +360,63 @@ index 60426c2e87..84cbd0eb56 100644
  #endif
  }
  
+diff --git a/keyboards/keychron/common/state_notify.c b/keyboards/keychron/common/state_notify.c
+index 85e072c05c..ecf4be4fc7 100644
+--- a/keyboards/keychron/common/state_notify.c
++++ b/keyboards/keychron/common/state_notify.c
+@@ -19,50 +19,21 @@
+ #include "raw_hid.h"
+ #include "usb_descriptor.h"
+ 
+-static void layer_changed_nofity(layer_state_t default_layer, layer_state_t layer) {
+-#ifdef RAW_ENABLE
+-    uint8_t buf[RAW_EPSIZE] = {0};
+-
+-    buf[0] = KC_GET_DEFAULT_LAYER;
+-    buf[1] = get_highest_layer(default_layer);
+-    buf[2] = get_highest_layer(layer);
+-    raw_hid_send(buf, RAW_EPSIZE);
+-#endif
+-}
+-
++// The RAW endpoint carries only HJO1 replies on this build. Keychron notifications
++// are not sent: an unsolicited frame queued before the next HJO1 reply made the
++// host drop the session, so one Fn press (a layer change) ended a HallJoy session.
+ layer_state_t default_layer_state_set_kb(layer_state_t state) {
+-    layer_changed_nofity(state, layer_state);
+     return default_layer_state_set_user(state);
+ }
+ 
+ layer_state_t layer_state_set_kb(layer_state_t state) {
+-    layer_changed_nofity(default_layer_state, state);
+     return layer_state_set_user(state);
+ }
+ 
+-void factory_reset_nofity(void) {
+-#ifdef RAW_ENABLE
+-    uint8_t buf[RAW_EPSIZE] = {0};
+-
+-    buf[0] = KC_MISC_CMD_GROUP;
+-    buf[1] = FACTORY_RESET;
+-
+-    raw_hid_send(buf, RAW_EPSIZE);
+-#endif
+-}
++void factory_reset_nofity(void) {}
+ 
+ #ifdef USB_REPORT_INTERVAL_ENABLE
+ void usb_report_rate_notify(uint8_t report_rate_div) {
+-#    ifdef RAW_ENABLE
+-    uint8_t buf[RAW_EPSIZE] = {0};
+-
+-    buf[0] = KC_MISC_CMD_GROUP;
+-    buf[1] = REPORT_RATE_GET;
+-    buf[2] = 0;
+-    buf[3] = report_rate_div;
+-    buf[4] = 0x7F;
+-
+-    raw_hid_send(buf, RAW_EPSIZE);
+-#    endif
++    (void)report_rate_div; // no unsolicited RAW frame, see default_layer_state_set_kb
+ }
+ #endif

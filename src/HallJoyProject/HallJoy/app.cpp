@@ -1904,10 +1904,16 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             KillTimer(hwnd, K4_TAKEOVER_TIMER_ID);
             const auto engine = halljoy::engine_runtime::EngineRuntimeOwner_Snapshot().state;
             const bool needed = KeychronOnboard_NeedsTakeover();
+            const ULONGLONG sinceLast = GetTickCount64() - g_k4TakeoverLastMs;
             if (!needed) g_k4TakeoverAttempts = 0; // resolved or the K4 left: allow a new cycle later
             else if (!g_k4TakeoverPausing && !g_shutdownStarted.load(std::memory_order_acquire) &&
-                engine == halljoy::runtime_command::State::Active && g_k4TakeoverAttempts < 2 &&
-                GetTickCount64() - g_k4TakeoverLastMs >= 5000) {
+                engine == halljoy::runtime_command::State::Active && g_k4TakeoverAttempts < 2 && sinceLast < 5000) {
+                // Too soon after the previous attempt: wait out the spacing instead
+                // of dropping the retry (nothing else re-arms this timer).
+                SetTimer(hwnd, K4_TAKEOVER_TIMER_ID, static_cast<UINT>(5000 - sinceLast), nullptr);
+            }
+            else if (!g_k4TakeoverPausing && !g_shutdownStarted.load(std::memory_order_acquire) &&
+                engine == halljoy::runtime_command::State::Active && g_k4TakeoverAttempts < 2) {
                 ++g_k4TakeoverAttempts;
                 g_k4TakeoverLastMs = GetTickCount64();
                 g_k4TakeoverPausing = true;

@@ -66,7 +66,8 @@ def trace(script, output):
         if not p.is_file() or p.suffix == '.pyc' or p == Path(__file__).resolve():
             continue
         name = p.relative_to(ROOT).as_posix()
-        private = name in denied
+        # .local/ is never published: its files are private sources by definition.
+        private = name in denied or name.startswith('.local/')
         records.append({'path': name, 'sha256': digest(p, private), 'private': private})
     with output.open('x', encoding='utf8') as f:
         json.dump(records, f, indent=2)

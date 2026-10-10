@@ -47,12 +47,12 @@ void Bind() {
 }
 // Why the onboard session could not claim the keyboard (support log only).
 enum class PrepareStage : unsigned { Claimed=0, NoDevice=1, Ambiguous=2, Open=3, Status=4, Capability=5, Routing=6 };
-PrepareStage TryPrepareOnce(Device& claimed) {
+PrepareStage TryPrepareOnce(Device& claimed,DWORD& openError) {
     const auto devices=EnumerateDevices();
     if(devices.empty()) return PrepareStage::NoDevice;
     if(devices.size()!=1) return PrepareStage::Ambiguous;
     WindowsChannel channel(devices[0]);
-    if(!channel.Connect()) return PrepareStage::Open;
+    if(!channel.Connect()) {openError=channel.LastOpenError();return PrepareStage::Open;}
     Client client(channel);Packet reply{};
     // The firmware drops a request while it is busy; one silent drop must not
     // push the keyboard onto the fallback route for the whole session.
@@ -80,9 +80,10 @@ bool Prepare() {
     PrepareStage stage=PrepareStage::NoDevice;
     unsigned attempts=0;
     Device claimed{};
+    DWORD openError=0;
     for(;;) {
         ++attempts;
-        stage=TryPrepareOnce(claimed);
+        stage=TryPrepareOnce(claimed,openError);
         if(stage==PrepareStage::Claimed || stage==PrepareStage::Capability || stage==PrepareStage::Routing) break;
         if(GetTickCount64()>=deadline || (!returning && !K4UsbDevicePresent())) break;
         Sleep(100);
@@ -90,6 +91,7 @@ bool Prepare() {
     if(stage!=PrepareStage::Claimed) {
         if(K4UsbDevicePresent() || stage!=PrepareStage::NoDevice)
             SupportLog_Event("k4.onboard_prepare_failed",static_cast<unsigned>(stage),SupportLog_Data(attempts));
+        if(stage==PrepareStage::Open) SupportLog_Event("k4.onboard_open_failed",attempts,SupportLog_Win32(openError));
         // HJO1 firmware is served by the onboard protocol only, never by the
         // UAP fallback: reserve its vendor collection so the analog host skips
         // it. The application retries the onboard route when it can
@@ -158,8 +160,16 @@ struct PerfTracedChannel final : Channel {
     std::uint64_t NowMs() const override {return inner.NowMs();}
     bool Cancelled() const override {return inner.Cancelled();}
 };
+// Failed sessions back off: 500 ms doubling to 30 s. A session that stayed up
+// this long counts as healthy and resets the backoff.
+constexpr unsigned kHealthySessionMs=10000;
+constexpr unsigned kMaxBackoffSteps=6;
+unsigned retryDelayMs(unsigned consecutive) {
+    return std::min(30000u, 500u << std::min(consecutive, kMaxBackoffSteps));
+}
 unsigned Body() {
     PadMonitor padMonitor;
+    unsigned consecutiveFailures=0;
 
     while(!stopping.load()) {
         WindowsChannel channel(chosen,cancel);
@@ -178,6 +188,10 @@ unsigned Body() {
         telemetryLevels.store(client.PreciseTelemetry()?65536:241);
         present.store(true);connected.store(true);Bind();state.store(2);
         bool healthy=true;
+        // Diagnostics: which session step failed (0 = none). Logged once per failure.
+        enum : unsigned { StepNone=0, StepOpen=2, StepProfile=3, StepKeepAlive=4, StepDepth=5, StepPark=6 };
+        unsigned failedStep=StepNone;
+        const auto sessionStart=GetTickCount64();
         auto nextProfile=uint64_t{0};
         auto appliedRevision=uint64_t{0};
         while(!stopping.load() && healthy) {
@@ -187,6 +201,7 @@ unsigned Body() {
                 state.store(2);ClearPad();
                 if(client.SupportsPark()) {healthy=client.Park();parkedSession.store(true);}
                 else healthy=client.Close();
+                if(!healthy) failedStep=StepPark;
             }
             const auto revision=halljoy::profile_runtime::revision.load(std::memory_order_acquire);
             if(enabled && (now>=nextProfile || revision!=appliedRevision)) {
@@ -199,6 +214,7 @@ unsigned Body() {
                     if(!client.SupportsKeepAltTab()) profile.mapping.flags=static_cast<uint8_t>(profile.mapping.flags & ~HJO_KEEP_ALT_TAB);
                     state.store(client.Active()?4:3);
                     healthy=client.Active()?client.Update(profile):client.Open(profile);
+                    if(!healthy) failedStep=client.Active()?StepProfile:StepOpen;
                     if(healthy) parkedSession.store(false);
                     if(healthy) state.store(4);
                 } else if(captured!=ProfileResult::Busy) {
@@ -208,10 +224,12 @@ unsigned Body() {
             }
             if(!healthy) break;
             healthy=client.KeepAlive();
+            if(!healthy) failedStep=StepKeepAlive;
             const bool shortcutsNeedAnalog=halljoy::shortcuts::NeedsAnalog();
             if(healthy && (now<monitorUntil.load() || shortcutsNeedAnalog)) {
                 std::array<uint16_t,HJO_SLOTS> depth{};
                 healthy=client.Depth(depth);
+                if(!healthy) failedStep=StepDepth;
                 if(healthy) {
                     const auto stamp=GetTickCount64();
                     for(unsigned i=0;i<HJO_SLOTS;++i) if(kSlotHid[i])
@@ -225,7 +243,18 @@ unsigned Body() {
         }
         halljoy::perf::Mark("k4.loop_exit",healthy?1:0);
         Clear();
-        if(!healthy) {failures.fetch_add(1);state.store(5);}
+        const auto sessionMs=GetTickCount64()-sessionStart;
+        if(!healthy) {
+            failures.fetch_add(1);state.store(5);
+            SupportLog_Event("k4.session_failed",failedStep,SupportLog_Protocol(client.LastStatus()));
+            if(client.StrayReports()) SupportLog_Event("k4.stray_reports",client.StrayReports(),SupportLog_Protocol(client.LastStatus()));
+            if(client.LastStatus()==8)
+                SupportLog_Event("k4.commit_non_physical",client.LastDetailSlot(),SupportLog_Data(client.LastDetailKind()));
+            if(sessionMs>=kHealthySessionMs) consecutiveFailures=0;
+            else if(consecutiveFailures<kMaxBackoffSteps) ++consecutiveFailures;
+        } else {
+            consecutiveFailures=0;
+        }
         // Cancel only the in-flight operation, then permit bounded orderly STOP.
         // stopping is a separate gate and prevents another activation.
         if(stopping.load()) ResetEvent(cancel);
@@ -253,7 +282,9 @@ unsigned Body() {
             halljoy::perf::Scope closeScope("k4.stop.close",client.Token()!=0?1:0);
             (void)client.Close();
         }
-        if(!stopping.load()) WaitForSingleObject(cancel,500);
+        // Exponential pause between failed sessions (0.5 s .. 30 s): every new
+        // session re-enumerates the keyboard, so a fast retry loop is a reconnect storm.
+        if(!stopping.load()) WaitForSingleObject(cancel,retryDelayMs(consecutiveFailures));
     }
     state.store(0);return 0;
 }

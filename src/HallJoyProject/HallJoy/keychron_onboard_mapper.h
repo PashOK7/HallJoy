@@ -17,9 +17,12 @@
 // (Alt+Tab) although they are gamepad-bound. Requires status capability bit 5.
 #define HJO_KEEP_ALT_TAB 8u
 #define HJO_CAP_KEEP_ALT_TAB 32u
+// Keys per stick direction (r9+). Entry 0 is the legacy single key; entries 1..7
+// are the extra keys of the HJP2 profile. HJO_UNBOUND marks an empty entry.
+#define HJO_AXIS_KEYS 8u
 
 typedef struct hjo_mapping {
-    uint8_t axes[4][2];
+    uint8_t axes[4][2][HJO_AXIS_KEYS];
     uint8_t triggers[2];
     uint8_t flags;
     float sensitivity;
@@ -50,7 +53,14 @@ static inline int hjo_mapping_valid(const hjo_mapping *p) {
         (p->flags & ~(HJO_SNAP | HJO_LKP | HJO_SUPPRESS | HJO_KEEP_ALT_TAB))) return 0;
     for (unsigned i = 0; i < 4; ++i)
         for (unsigned j = 0; j < 2; ++j)
-            if (p->axes[i][j] >= HJO_SLOTS && p->axes[i][j] != HJO_UNBOUND) return 0;
+            for (unsigned k = 0; k < HJO_AXIS_KEYS; ++k) {
+                const uint8_t key = p->axes[i][j][k];
+                if (key >= HJO_SLOTS && key != HJO_UNBOUND) return 0;
+                // A bound key may appear once per direction only.
+                if (key != HJO_UNBOUND)
+                    for (unsigned later = k + 1; later < HJO_AXIS_KEYS; ++later)
+                        if (p->axes[i][j][later] == key) return 0;
+            }
     for (unsigned i = 0; i < 2; ++i)
         if (p->triggers[i] >= HJO_SLOTS && p->triggers[i] != HJO_UNBOUND) return 0;
     for (unsigned i = 0; i < HJO_SLOTS; ++i)
@@ -58,11 +68,17 @@ static inline int hjo_mapping_valid(const hjo_mapping *p) {
     return 1;
 }
 
+static inline int hjo_axis_bound(const uint8_t keys[HJO_AXIS_KEYS], unsigned slot) {
+    for (unsigned k = 0; k < HJO_AXIS_KEYS; ++k)
+        if (keys[k] == slot) return 1;
+    return 0;
+}
+
 static inline int hjo_bound(const hjo_mapping *p, unsigned slot) {
     if (slot >= HJO_SLOTS) return 0;
     if (p->buttons[slot]) return 1;
     for (unsigned i = 0; i < 4; ++i)
-        if (p->axes[i][0] == slot || p->axes[i][1] == slot) return 1;
+        if (hjo_axis_bound(p->axes[i][0], slot) || hjo_axis_bound(p->axes[i][1], slot)) return 1;
     return p->triggers[0] == slot || p->triggers[1] == slot;
 }
 
@@ -79,6 +95,22 @@ static inline int hjo_suppressed(const hjo_mapping *p, unsigned slot) {
 
 static inline float hjo_value(const float values[HJO_SLOTS], uint8_t slot) {
     return slot < HJO_SLOTS ? values[slot] : 0.0f;
+}
+
+// One stick direction: the most pressed bound key wins. Values are curve-filtered,
+// so per-key curves decide each key's range. Two keys never add up. Mirrors
+// configured_xusb_builder.cpp ReadSide exactly (first bound value starts the max).
+static inline float hjo_side_value(const float values[HJO_SLOTS],
+                                   const uint8_t keys[HJO_AXIS_KEYS]) {
+    float most = 0.0f;
+    int any = 0;
+    for (unsigned k = 0; k < HJO_AXIS_KEYS; ++k) {
+        if (keys[k] >= HJO_SLOTS) continue;
+        const float value = values[keys[k]];
+        if (!any || value > most) most = value;
+        any = 1;
+    }
+    return most;
 }
 
 static inline float hjo_resolve(unsigned a, float mn, float pl,
@@ -133,8 +165,8 @@ static inline void hjo_map(const hjo_mapping *p, const float values[HJO_SLOTS],
                            hjo_mapper_state *s, hjo_pad *out) {
     memset(out, 0, sizeof(*out));
     for (unsigned a = 0; a < 4; ++a) {
-        float v = hjo_resolve(a, hjo_value(values, p->axes[a][0]),
-                              hjo_value(values, p->axes[a][1]), p, s);
+        float v = hjo_resolve(a, hjo_side_value(values, p->axes[a][0]),
+                              hjo_side_value(values, p->axes[a][1]), p, s);
         if (!isfinite(v)) v = 0;
         out->axes[a] = (int16_t)lroundf(hjo_clamp(v, -1, 1) * 32767.0f);
     }

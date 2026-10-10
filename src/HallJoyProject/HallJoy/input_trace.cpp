@@ -54,6 +54,17 @@ void AppendKey(char*& p, char* end, std::uint16_t hid, bool globalInvert) {
     if (unique) inverted = KeySettings_Get(hid).invert;
     p += std::max(0, snprintf(p, end - p, "%x%s%s", hid, inverted ? "!" : "", unique ? "*" : ""));
 }
+// Every key of one axis side, separated by '+'.
+void AppendSideKeys(char*& p, char* end, const AxisKeys& keys, bool globalInvert) {
+    bool any = false;
+    for (const std::uint16_t hid : keys) {
+        if (!hid) continue;
+        if (any && p < end) *p++ = '+';
+        any = true;
+        AppendKey(p, end, hid, globalInvert);
+    }
+    if (!any) AppendKey(p, end, 0, globalInvert);
+}
 
 std::size_t BindingsText(char* text, std::size_t capacity) {
     char* p = text;
@@ -67,9 +78,9 @@ std::size_t BindingsText(char* text, std::size_t capacity) {
         for (int a = 0; a < 4 && p < end; ++a) {
             const AxisBinding b = Bindings_GetAxisForPad(pad, static_cast<Axis>(a));
             p += std::max(0, snprintf(p, end - p, " %s=", axes[a]));
-            AppendKey(p, end, b.minusHid, invert);
+            AppendSideKeys(p, end, b.minusHids, invert);
             if (p < end) *p++ = '/';
-            AppendKey(p, end, b.plusHid, invert);
+            AppendSideKeys(p, end, b.plusHids, invert);
         }
         for (int t = 0; t < 2 && p < end; ++t) {
             p += std::max(0, snprintf(p, end - p, " %s=", t ? "rt" : "lt"));
@@ -95,7 +106,7 @@ std::size_t BindingsText(char* text, std::size_t capacity) {
 
 struct PadState {
     InputTracePad last{};
-    std::array<std::uint16_t, 10> lastAnalog{};
+    std::array<std::uint16_t, 4 * 2 * BINDINGS_MAX_AXIS_KEYS + 2> lastAnalog{}; // see the layout below
     ULONGLONG lastEmit = 0;
     bool pending = false, emitted = false;
 };
@@ -132,14 +143,19 @@ void InputTrace_Pad(int pad, const InputTracePad& out, const float* raw, const f
             }
         }
         // Analog targets: axis directions and triggers.
-        std::array<std::uint16_t, 10> keys{};
+        // Layout: 4 axes x 2 sides x kAxisKeys slots, then LT and RT.
+        constexpr std::size_t kTriggerSlot = static_cast<std::size_t>(4 * 2 * BINDINGS_MAX_AXIS_KEYS);
+        std::array<std::uint16_t, kTriggerSlot + 2> keys{};
         for (int a = 0; a < 4; ++a) {
             const AxisBinding b = Bindings_GetAxisForPad(pad, static_cast<Axis>(a));
-            keys[a * 2] = b.minusHid; keys[a * 2 + 1] = b.plusHid;
+            for (std::size_t i = 0; i < b.minusHids.size(); ++i) {
+                keys[(a * 2) * BINDINGS_MAX_AXIS_KEYS + i] = b.minusHids[i];
+                keys[(a * 2 + 1) * BINDINGS_MAX_AXIS_KEYS + i] = b.plusHids[i];
+            }
         }
-        keys[8] = Bindings_GetTriggerForPad(pad, Trigger::LT);
-        keys[9] = Bindings_GetTriggerForPad(pad, Trigger::RT);
-        std::array<std::uint16_t, 10> analog{};
+        keys[kTriggerSlot] = Bindings_GetTriggerForPad(pad, Trigger::LT);
+        keys[kTriggerSlot + 1] = Bindings_GetTriggerForPad(pad, Trigger::RT);
+        std::array<std::uint16_t, kTriggerSlot + 2> analog{};
         for (std::size_t i = 0; i < keys.size(); ++i)
             if (keys[i] && keys[i] < count) analog[i] = static_cast<std::uint16_t>(Milli(raw[keys[i]]));
         auto& s = g_pads[static_cast<std::size_t>(pad)];

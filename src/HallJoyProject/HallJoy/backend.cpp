@@ -2053,8 +2053,10 @@ static PadFramePair BuildReportFramesForPad(int padIndex, HidCache& cache,
     {
         configuration.axes[axis] = Bindings_GetAxisForPad(
             boundedPad, static_cast<Axis>(axis));
-        readIntoInput(configuration.axes[axis].minusHid);
-        readIntoInput(configuration.axes[axis].plusHid);
+        for (const std::uint16_t hid : configuration.axes[axis].minusHids)
+            readIntoInput(hid);
+        for (const std::uint16_t hid : configuration.axes[axis].plusHids)
+            readIntoInput(hid);
     }
     for (std::size_t trigger = 0; trigger < kTriggerCount; ++trigger)
     {
@@ -2096,8 +2098,10 @@ static PadFramePair BuildReportFramesForPad(int padIndex, HidCache& cache,
     {
         const auto& binding = configuration.axes[axis];
         const std::uint32_t fieldMask = 1u << (3u + axis);
-        recordProviderKey(binding.minusHid, fieldMask);
-        recordProviderKey(binding.plusHid, fieldMask);
+        for (const std::uint16_t hid : binding.minusHids)
+            recordProviderKey(hid, fieldMask);
+        for (const std::uint16_t hid : binding.plusHids)
+            recordProviderKey(hid, fieldMask);
     }
     for (std::size_t trigger = 0; trigger < kTriggerCount; ++trigger)
     {

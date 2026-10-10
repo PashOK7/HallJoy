@@ -79,9 +79,13 @@ static bool Profile_SaveIni_Internal(const wchar_t* path)
         f << L"[Pad" << padNum << L"_Axes]\n";
         auto wAxis = [&](Axis a, const wchar_t* name)
             {
-                AxisBinding b = Bindings_GetAxisForPad(pad, a);
-                f << name << L"_Minus=" << b.minusHid << L"\n";
-                f << name << L"_Plus=" << b.plusHid << L"\n";
+                const AxisBinding b = Bindings_GetAxisForPad(pad, a);
+                f << name << L"_Minus=" << b.minusHids[0] << L"\n";
+                f << name << L"_Plus=" << b.plusHids[0] << L"\n";
+                for (std::size_t i = 1; i < b.minusHids.size(); ++i)
+                    if (b.minusHids[i]) f << name << L"_Minus" << (i + 1) << L"=" << b.minusHids[i] << L"\n";
+                for (std::size_t i = 1; i < b.plusHids.size(); ++i)
+                    if (b.plusHids[i]) f << name << L"_Plus" << (i + 1) << L"=" << b.plusHids[i] << L"\n";
             };
         wAxis(Axis::LX, L"LX");
         wAxis(Axis::LY, L"LY");
@@ -197,6 +201,44 @@ bool ReadCode(const wchar_t* path, const wchar_t* section, const wchar_t* key,
         return false;
     code = static_cast<uint16_t>(parsed); return true;
 }
+// One axis side: the first key stays in <Axis>_Minus/_Plus (earlier HallJoy
+// versions read exactly that), further keys in <Axis>_Minus2.._Minus8 and
+// <Axis>_Plus2.._Plus8. Keys are kept in order, unique, without gaps.
+bool ReadAxisSide(const wchar_t* path, const wchar_t* section, const std::wstring& base,
+    bool required, bool& recognized, AxisKeys& out) {
+    uint16_t first = 0;
+    if (!ReadCode(path, section, base.c_str(), first, required, recognized)) return false;
+    AxisKeys keys{};
+    std::size_t count = 0;
+    const auto push = [&](uint16_t hid) {
+        if (!hid || std::find(keys.begin(), keys.begin() + count, hid) != keys.begin() + count) return true;
+        if (count >= keys.size()) return false;
+        keys[count++] = hid;
+        return true;
+    };
+    if (!push(first)) return false;
+    for (int i = 2; i <= BINDINGS_MAX_AXIS_KEYS; ++i) {
+        const auto key = base + std::to_wstring(i);
+        wchar_t presence[32]{};
+        GetPrivateProfileStringW(section, key.c_str(), L"{missing}", presence, 32, path);
+        if (wcscmp(presence, L"{missing}") == 0) continue;
+        uint16_t hid = 0;
+        if (!ReadCode(path, section, key.c_str(), hid, false, recognized) || !push(hid)) return false;
+    }
+    out = keys;
+    return true;
+}
+
+// Writes every key slot of one axis side; unused extra slots are written empty
+// so a stale extra key from an earlier file can never survive.
+template <class Put>
+bool PutAxisSide(const std::wstring& section, const std::wstring& base, const AxisKeys& keys, Put&& put) {
+    bool ok = put(section, base, std::to_wstring(keys[0]));
+    for (std::size_t i = 1; i < keys.size(); ++i)
+        ok &= put(section, base + std::to_wstring(i + 1), keys[i] ? std::to_wstring(keys[i]) : std::wstring{});
+    return ok;
+}
+
 bool ParseCodes(const std::wstring& text,
     std::array<uint64_t, halljoy::keycode::kMaskChunkCount>& mask) {
     std::size_t pos = 0;
@@ -242,8 +284,8 @@ bool Profile_PrepareIni(const wchar_t* path, BindingsSnapshot& out) {
             if (bundled && !present) return false;
         }
         for (int a=0; a<4; ++a) {
-            if (!ReadCode(path, axes.c_str(), (std::wstring(kAxes[a])+L"_Minus").c_str(), candidate.axes[p][a].minusHid, bundled, recognized) ||
-                !ReadCode(path, axes.c_str(), (std::wstring(kAxes[a])+L"_Plus").c_str(), candidate.axes[p][a].plusHid, bundled, recognized)) return false;
+            if (!ReadAxisSide(path, axes.c_str(), std::wstring(kAxes[a])+L"_Minus", bundled, recognized, candidate.axes[p][a].minusHids) ||
+                !ReadAxisSide(path, axes.c_str(), std::wstring(kAxes[a])+L"_Plus", bundled, recognized, candidate.axes[p][a].plusHids)) return false;
         }
         if (!ReadCode(path, triggers.c_str(), L"LT", candidate.triggers[p][0], bundled, recognized) ||
             !ReadCode(path, triggers.c_str(), L"RT", candidate.triggers[p][1], bundled, recognized)) return false;
@@ -283,10 +325,11 @@ bool Profile_WriteBindingsSections(const wchar_t* path) {
         const auto axes = prefix + L"_Axes", triggers = prefix + L"_Triggers", buttons = prefix + L"_Buttons";
         for (int a=0; a<4; ++a) {
             const auto binding = Bindings_GetAxisForPad(p, static_cast<Axis>(a));
-            ok &= halljoy::ini::WriteBatch::Put(axes.c_str(), (std::wstring(kAxes[a])+L"_Minus").c_str(),
-                std::to_wstring(binding.minusHid).c_str(), path) != FALSE;
-            ok &= halljoy::ini::WriteBatch::Put(axes.c_str(), (std::wstring(kAxes[a])+L"_Plus").c_str(),
-                std::to_wstring(binding.plusHid).c_str(), path) != FALSE;
+            const auto put = [&](const std::wstring& section, const std::wstring& key, const std::wstring& value) {
+                return halljoy::ini::WriteBatch::Put(section.c_str(), key.c_str(), value.c_str(), path) != FALSE;
+            };
+            ok &= PutAxisSide(axes, std::wstring(kAxes[a])+L"_Minus", binding.minusHids, put);
+            ok &= PutAxisSide(axes, std::wstring(kAxes[a])+L"_Plus", binding.plusHids, put);
         }
         for (int t=0; t<2; ++t)
             ok &= halljoy::ini::WriteBatch::Put(triggers.c_str(), t == 0 ? L"LT" : L"RT",
@@ -308,8 +351,11 @@ bool Profile_WriteBindingsSnapshot(const wchar_t* path, const BindingsSnapshot& 
         const auto prefix = L"Pad" + std::to_wstring(p+1);
         const auto axes = prefix + L"_Axes", triggers = prefix + L"_Triggers", buttons = prefix + L"_Buttons";
         for (int a=0; a<4; ++a) {
-            ok &= put(axes, (std::wstring(kAxes[a])+L"_Minus").c_str(), std::to_wstring(snapshot.axes[p][a].minusHid));
-            ok &= put(axes, (std::wstring(kAxes[a])+L"_Plus").c_str(), std::to_wstring(snapshot.axes[p][a].plusHid));
+            const auto write = [&](const std::wstring& section, const std::wstring& key, const std::wstring& value) {
+                return put(section, key.c_str(), value);
+            };
+            ok &= PutAxisSide(axes, std::wstring(kAxes[a])+L"_Minus", snapshot.axes[p][a].minusHids, write);
+            ok &= PutAxisSide(axes, std::wstring(kAxes[a])+L"_Plus", snapshot.axes[p][a].plusHids, write);
         }
         ok &= put(triggers, L"LT", std::to_wstring(snapshot.triggers[p][0]));
         ok &= put(triggers, L"RT", std::to_wstring(snapshot.triggers[p][1]));

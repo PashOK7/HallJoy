@@ -815,7 +815,7 @@ bool AulaHero84He_TestPublication(int* failedLine) {
             Publish({key.position,10000,0,false});if(Get(key.hid)!=0)return fail(__LINE__);
         }
         Publish({30,7500,0,false});Publish({43,5000,0,false});
-        halljoy::configured_xusb::PadConfiguration config{};config.axes[0]={4,7};config.axes[1]={22,26};
+        halljoy::configured_xusb::PadConfiguration config{};config.axes[0] = AxisBinding::Single(4,7);config.axes[1] = AxisBinding::Single(22,26);
         halljoy::configured_xusb::InputValues input{};
         for(unsigned hid:{4u,7u,22u,26u})input.filtered[hid]=Get(static_cast<std::uint16_t>(hid))/1000.0f;
         halljoy::configured_xusb::BuilderState state{};

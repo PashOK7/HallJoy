@@ -1,3 +1,61 @@
+> 2026-10-11 OWNER: FUN60 Ultra TMR (board 2352) -> Supported after tester log 3 (connected, 61 keys, 0 failures).
+> OWNER RULE: keep the 4 mm full-travel scale for hot-swappable boards; the end deadzone for shorter switches
+> is the user's setting (do not rescale support to the stock switch). Sheet row green, audits PASS. EXE 22fd82b5.
+> 2026-10-10 FUN60 Ultra TMR tester log 2: board 2352 identity accepted, assignments read timed out (121); Attack
+> Shark probe then held the keyboard and RY1B slept forever. Fixed: vendor 10 ms send/read timing, RY1B rescans
+> visible-unpaired keyboards, shark yields RY1B-owned boards. EXE 04643a7c. Pending: tester log 3.
+> 2026-10-10 FUN60 Ultra TMR (board 2352, 3151:5029) admitted yellow on RY1B for a tester EXE: own matrix
+> (official class l8), firmware v305 stream chain checked, automatic 61-key layout from vendor geometry.
+> Also: RY1B control collection now falls back to a shared open (games/vendor app holding it); test cache
+> fixed (multi-source tests were reused stale). EXE d77528f9. Sheet row 573 set yellow (readback, notice and
+> structure audits PASS). Pending: tester log, layout visual check. See FUN60_ULTRA_2352_2026-10-10.md "Admission".
+> 2026-10-10 OWNER correction (FUN60 Ultra TMR log HallJoy.log): the keyboard in the log is the
+> tester's FUN60 Ultra TMR = 3151:5029 board 2352. Do not read the configurator name "FUN60 Ultra" as Hall
+> or ask for a sticker; 3853/38EE:0001 is another revision. Pending: owner decision on 2352 RY1B support
+> (own matrix) and stock 2352 v305 image analysis. See FUN60_ULTRA_2352_2026-10-10.md.
+> 2026-10-10 Owner report: K4 HE (HJO1) shown as "No supported analogue keyboard" while Valheim ran.
+> Cause: the K4 vendor interface was opened exclusively; valheim.exe (Unity opens every HID interface)
+> held it read/write -> prepare stage Open x29, late takeover retry dropped by the 5 s spacing. Fix: shared
+> open (ownership = HJO1 session token), foreign reports skipped between depth pages, takeover retry
+> re-armed, new k4.onboard_open_failed (Win32 error). Release EXE a678c859. Owner check pending.
+> See K4_SHARED_VENDOR_OPEN_2026-10-10.md.
+> 2026-10-10 Owner: download all MonsGeek firmware. Vendor API (api2.rongyuan.tech) queried for the 47 MonsGeek board ids
+> (devices.json + vendor driver): 18 images, local only in .local/research/monsgeek-firmware-20261010 (not published).
+> 15 AT32 images match the flasher SHA-256 manifest (incl. 2352 v305, 2307 v306). Boards 3853 TMR, 2600, 2785, 3269,
+> 3429 and 25 others return HTTP 500 (no firmware served). See FUN60_ULTRA_2352_2026-10-10.md.
+> 2026-10-10 Tester log HallJoy.log (1.6.8.0, "MonsGeek FUN60 Ultra TMR"): USB 3151:5029 "MonsGeek
+> Keyboard", identity board 2352. Official MonsGeek catalog (local copy .local/research/monsgeek-20260922): board 2352 =
+> "FUN60 Ultra" (ry5088_fun60ultra_8k_dm_dfn4, Common61_gk06); "FUN60 Ultra TMR" = board 3853, USB 38EE:0001, not seen in the
+> log. Not admitted: Attack Shark identity probe rejects 2352 on 5029; no rongyuan.* events; no analog path. Keys bound
+> to LX worked as ordinary keys (OS hook only). Found defect: the Attack Shark probe (SharkDiagnostic_Start, ordinary
+> builds) re-probes an unknown 3151:5029 keyboard every ~3.1 s for the whole session (2x 0x8F per attempt, 690 log lines in
+> ~45 s); nothing waits for a topology change after an identity rejection. Owner: fix the probe. Done in source: 3 identity
+> passes per topology, then wait for a device change (open failures keep the 3 s retry); event shark.identity_waiting.
+> RY1B enumeration logs rongyuan.enumerate / rongyuan.enumerate_pairing on change. Board 2352 vendor matrix differs from
+> 2600 in slots 59-83 (RAlt/Menu/RCtrl shifted): no 2600 reuse. Pending: tester model (sticker), owner decision on FUN60
+> Ultra support, owner approval for the stock 2352 image download. See FUN60_ULTRA_2352_2026-10-10.md.
+> 2026-10-10 K4 Fn reconnect (owner report: pressing Fn with HallJoy running re-enumerates the keyboard). Cause: the
+> RAW endpoint is shared by HJO1 replies and QMK notifications. Every layer change (Fn is MO(layer)) sent an
+> unsolicited 0xA3 frame; the host took it as the reply, the query failed and the session ended. Fix: r9stray
+> firmware sends no layer, factory-reset or report-rate notifications; host Query skips up to 8 unsolicited reports
+> (k4.stray_reports logged on failure). Flashed (readback SHA256 624612d3...), HJP2 handshake PASS, release EXE
+> installed, native checks PASS. Owner Fn test pending. Lease expiry still re-enumerates; decision pending.
+> 2026-10-10 K4 reconnect storm: COMMIT physical check in firmware scanned 112 extension bytes (8 axes) instead of
+> 56 (4 axes x 2 sides x 7) and read the HJP2 CRC bytes -> status 8 (slot 102, kind 2) -> session failure -> re-enumeration
+> loop. Fixed by the shared hjo_profile_first_unphysical; r9physical flashed (DFU backup
+> .local/backups/k4-r9physical-flash-backup-20261010.bin, readback SHA256 ffb5a952...). Host: failed sessions back off
+> 500 ms..30 s; k4.session_failed / k4.commit_non_physical logged. Live check with monitors off (owner report): native
+> session held ~5 min, keyboard not re-enumerated, no session failures. Display state does not reach the lease (refreshed
+> only by heartbeat 0x76). See K4_MULTIKEY_R9_2026-10-09.md.
+> 2026-10-09 OWNER: several keys per gamepad stick direction (Discord request: D 0-25%, F 25-50%, ...). Built as
+> owner specified: up to 8 keys per direction, stick takes the most pressed key after each key's curve; ranges via
+> the existing per-key curve (low>0 required). Shift-drop adds, drop replaces. K4 onboard: >1 key per direction
+> keeps the controller off (notice). Profiles: extra keys in <Axis>_Minus2..8 (old HallJoy reads the first key).
+> Build EXE 36d663fc (version still 1.6.8 until release). See AXIS_MULTIKEY_2026-10-09.md.
+> 2026-10-08 OWNER: AK820 80B1 -> NOT SUPPORTED, red (Ak820Admitted=false; notice group removed).
+> 2026-10-08 PUBLISHED stable/latest 1.6.8: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.8 (commit 08c381b,
+> EXE 6ee67277, 4 assets verified). PENDING Sheet sync (no Sheets connector this session): red row for 0C45:80B1,
+> yellow/green reconciliation for all 1.6.8 changes. See RELEASE_1.6.8_PUBLICATION_2026-10-08.md.
 > 2026-10-08 AK820 80B1 probe log: 0x68 = echo only (frame_version 0); stream carries several keys but is
 > change-only, so the MINI60 50 ms expiry released still held keys = the "one key" bug. Fix (80B1 only): hold last
 > depth, release on 0 or inside the keyboard's top dead zone (GET_GAME_MODE 0x11), Driveall packet rule; rejected

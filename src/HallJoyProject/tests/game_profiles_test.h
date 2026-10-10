@@ -87,7 +87,7 @@ inline bool Run() {
     ok &= ShortcutFor(s.catalog,L"Game Test Renamed")!=0&&ShortcutFor(s.catalog,L"Game Test Copy")==0;
     ok &= !Exists(L"Game Test Copy");
     ok &= s.Activate(L"Game Test Factory",false);
-    ok &= std::abs(Settings_GetInputDeadzoneLow()-.08f)<.001f && Bindings_GetAxis(Axis::LX).plusHid==0;
+    ok &= std::abs(Settings_GetInputDeadzoneLow()-.08f)<.001f && Bindings_GetAxis(Axis::LX).plusHid()==0;
     ok &= s.Remove(L"Game Test Renamed")&&!Exists(L"Game Test Renamed")&&s.catalog.games.size()==1&&s.catalog.shortcuts.empty();
     ok &= !s.Remove(L"Default")&&!s.Rename(L"Default",L"Bad rename");
     ok &= s.Activate(original,false);

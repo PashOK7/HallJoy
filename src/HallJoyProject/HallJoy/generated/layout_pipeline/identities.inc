@@ -101,6 +101,7 @@
     {"rongyuan-snapshot", "M1V5HE-2819", 0x3F95ED9532FDD7F4ull, L"MonsGeek M1 V5 HE ANSI"},
     {"rongyuan-stream", "RY1B-2949", 0xB51ADB7F896F227Full, L"MonsGeek M1 V5 TMR ANSI"},
     {"rongyuan-stream", "RY1B-2811", 0x58D32FE0DD99F70Eull, L"MonsGeek FUN68 HE ANSI"},
+    {"rongyuan-stream", "RY1B-2352", 0xA8F2AB22424F610Full, L"MonsGeek FUN60 Ultra TMR ANSI"},
     {"rongyuan-stream", "RY1B-3590", 0x8014C5D18BD9F4F0ull, L"GamaKay TK75 TMR ANSI"},
     {"rongyuan-stream", "RY1B-3591", 0x273E874FFBD47F67ull, L"GamaKay TK75 TMR ISO"},
     {"rongyuan-stream", "RY1B-2334", 0x425369D390861354ull, L"GamaKay TK75 HE ANSI"},

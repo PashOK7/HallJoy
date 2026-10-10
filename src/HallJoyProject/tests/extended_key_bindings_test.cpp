@@ -33,12 +33,12 @@ int main()
 
     Bindings_SetAxisPlusForPad(0, Axis::LX, kFn);
     Bindings_SetTriggerForPad(0, Trigger::LT, kOem1);
-    assert(Bindings_GetAxisForPad(0, Axis::LX).plusHid == kFn);
+    assert(Bindings_GetAxisForPad(0, Axis::LX).plusHid() == kFn);
     assert(Bindings_GetTriggerForPad(0, Trigger::LT) == kOem1);
 
     Bindings_ClearHidForPad(0, kFn);
     assert(!Bindings_ButtonHasHidForPad(0, GameButton::A, kFn));
-    assert(Bindings_GetAxisForPad(0, Axis::LX).plusHid == 0);
+    assert(Bindings_GetAxisForPad(0, Axis::LX).plusHid() == 0);
     assert(Bindings_ButtonHasHidForPad(0, GameButton::A, kOem1));
 
     Bindings_ClearHidForPad(0, kOem1);

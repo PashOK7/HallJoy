@@ -25,6 +25,7 @@
 #include "attackshark_pro_diagnostic_model.h"
 #include "attackshark_pro_native_model.h"
 #include "attackshark_pro_layout_identity.h"
+#include "rongyuan_stream_protocol.h"
 #include "native_analog_backend.h"
 #include "native_analog_backend_registry.h"
 #include "configured_xusb_builder.h"
@@ -213,6 +214,8 @@ std::vector<Device> Find(){
 }
 struct Session {
  unsigned wireCount[4]{},wireDelay[4]{};ULONGLONG wireNext[4]{};
+ // The board answered belongs to the RongYuan stream backend on this VID/PID.
+ bool streamOwned=false;unsigned streamBoard=0;
  Handle device;Handle timer=PreciseTimer();unsigned delay=1,errors=0,identity=0;std::uint64_t calls=0,totalUs=0,maxUs=0,maxWaitUs=0,maxSetUs=0,maxGetUs=0;ULONGLONG began=GetTickCount64();
  DWORD firstOpenError=0,lastOpenError=0,accessMode=GENERIC_READ|GENERIC_WRITE,shareMode=0;
  explicit Session(const Device& d){
@@ -276,6 +279,9 @@ struct Session {
 #endif
     return true;}
    if(Identity(a) && Identity(a)==Identity(b) && !Known(Identity(a),d.pid))Line("identity_pair_rejected board="+std::to_string(Identity(a))+" pid="+std::to_string(d.pid));
+   // Another backend owns this keyboard: stop at once, its admission must not race
+   // further exclusive probe handles and feature exchanges.
+   if(Identity(a) && Identity(a)==Identity(b) && halljoy::ry_stream::Find(Identity(a),0x3151,d.pid)){streamOwned=true;streamBoard=Identity(a);return false;}
    Line("identity_attempt delay_ms="+std::to_string(delay)+" id="+std::to_string(Identity(a))+" repeated_id="+std::to_string(Identity(b))+" reply_command="+std::to_string(a[1])+" repeated_command="+std::to_string(b[1])+" report_id="+std::to_string(b[0]));
   }return false;
  }
@@ -304,6 +310,11 @@ int Capture(){
  const auto* expected=halljoy::sharkplay::Find(3123);
  for(unsigned slot=0;slot<expected->factory.size();++slot)if(expected->factory[slot])Line("r85_factory slot="+std::to_string(slot)+" factory_usage="+std::to_string(expected->factory[slot]));
 #endif
+ // An identity this probe does not admit is stable for the same device. Retry it a
+ // few passes (replies can be late right after plug-in), then wait for a device change
+ // instead of re-probing the unknown keyboard every few seconds.
+ constexpr unsigned kIdentityPassesPerTopology=3;
+ LONG identityTopology=-1;unsigned identityPasses=0;
  for(;;){
   const auto topology=Load(shared->topology);auto devices=Find();
   if(devices.empty()){
@@ -311,9 +322,11 @@ int Capture(){
    while(!Stop() && Load(shared->topology)==topology){Sleep(100);if(GetTickCount64()-heartbeat>=1000){Line("waiting_for_device");heartbeat=GetTickCount64();}}
    if(Stop()){Line("session_end outcome=no_eligible_device analog_samples=0 settings_unchanged=1");return 4;}continue;
   }
+  if(topology!=identityTopology){identityTopology=topology;identityPasses=0;}
+  bool identityRejected=false,otherFailure=false,streamOwned=false;
   for(const auto& d:devices){
-   if(Stop())return 4;Session s(d);if(!s.device){Line("status state=5");continue;}
-   unsigned usb=0;if(!s.Identify(d,usb)){Line("identity_rejected no_depth_commands=1");continue;}
+   if(Stop())return 4;Session s(d);if(!s.device){otherFailure=true;Line("status state=5");continue;}
+   unsigned usb=0;if(!s.Identify(d,usb)){identityRejected=true;streamOwned=streamOwned||s.streamOwned;Line(s.streamOwned?"identity_stream_owned board="+std::to_string(s.streamBoard)+" pid="+std::to_string(d.pid):"identity_rejected no_depth_commands=1");continue;}
    const bool playable=halljoy::sharkplay::Supported(s.identity,usb);
 #if !defined(HALLJOY_ATTACKSHARK_PRO_DIAGNOSTIC)
    if(!playable){Line("unsupported_revision no_depth_commands=1");continue;}
@@ -360,6 +373,13 @@ int Capture(){
    }
    Summary(m,s,true);Line("session_end cancelled=1 settings_unchanged=1 sufficient="+std::to_string(sufficient));return 4;
   }
+  // Only identity rejections (no open failure) count toward the wait for a device change.
+  if(identityRejected && !otherFailure && (streamOwned || ++identityPasses>=kIdentityPassesPerTopology)){
+   Line("identity_waiting_for_change passes="+std::to_string(identityPasses)+" pid="+std::to_string(devices.front().pid));
+   while(!Stop() && Load(shared->topology)==topology)Sleep(100);
+   if(Stop())return 4;
+   continue;
+  }
   Line("status state=5");Line("candidates_unavailable retry_on_close_driver_or_reconnect=1");
   for(unsigned i=0;i<30 && !Stop();++i)Sleep(100);if(Stop())return 4;
  }
@@ -388,6 +408,8 @@ void ReceiveLine(const std::string& line){
  }
  if(line.rfind("identity_pair_rejected ",0)==0)SupportLog_Event("shark.identity_pair_rejected",number("board="),SupportLog_Data(number("pid=")));
  if(line.rfind("identity_rejected ",0)==0)SupportLog_Event("shark.identity_rejected",1);
+ if(line.rfind("identity_stream_owned ",0)==0)SupportLog_Event("shark.identity_stream_owned",number("board="),SupportLog_Data(number("pid=")));
+ if(line.rfind("identity_waiting_for_change ",0)==0)SupportLog_Event("shark.identity_waiting",number("passes="),SupportLog_Data(number("pid=")));
  const char* failures[]={"inventory_failed","metadata_open_failed","attributes_failed",
   "preparsed_data_failed","caps_failed","exclusive_open_failed","set_feature_failed","get_feature_failed"};
  for(const auto* name:failures) if(line.rfind(std::string(name)+" error=",0)==0) {
@@ -533,6 +555,7 @@ void TestOrdinaryFailureLog(){
  ReceiveLine("identity_attempt delay_ms=10 id=3123 repeated_id=9999 reply_command=143 repeated_command=0 report_id=0");
  ReceiveLine("get_feature_failed error=5");
  ReceiveLine("identity_rejected no_depth_commands=1");
+ ReceiveLine("identity_waiting_for_change passes=3 pid=20521");
  ReceiveLine("descriptor vid=3151 pid=5029 bcd=0123 usage=ffff:0002 in=0 out=0 feature=65 receiver=0");
  ReceiveLine("key slot=PRIVACY_SENTINEL samples=PRIVATE_VALUES path=PRIVATE_PATH");
  SupportLog_ReportMissingSource();
@@ -552,6 +575,7 @@ void TestOrdinaryFailureLog(){
  Require(text.find("shark.get_feature_failed value=1 error=5")!=std::string::npos);
  Require(text.find("shark.probe_identity value=3123 error=0 detail=9999 detail_kind=data")!=std::string::npos);
  Require(text.find("shark.identity_rejected value=1")!=std::string::npos);
+ Require(text.find("shark.identity_waiting value=3 error=0 detail=20521 detail_kind=data")!=std::string::npos);
  Require(text.find("shark.collection_usage value=65535 error=0 detail=2 detail_kind=data")!=std::string::npos);
  Require(text.find("PRIVATE_")==std::string::npos && text.find("PRIVACY_SENTINEL")==std::string::npos);
  Line("SHARK_ORDINARY_FAILURE_LOG=PASS actual_file=1 failure_reasons=1 private_payload_excluded=1");
@@ -586,7 +610,7 @@ void SelfTest(){
  PublishPage(0,sample);PumpNative();
  Require(NativeAnalogBackends_CatalogIsValid());
  auto routed=NativeAnalogBackends_ReadMilli(26);Require(routed.connected && routed.owned && routed.milli==500);
- halljoy::configured_xusb::PadConfiguration config{};config.axes[0]={4,7};config.axes[1]={22,26};
+ halljoy::configured_xusb::PadConfiguration config{};config.axes[0] = AxisBinding::Single(4,7);config.axes[1] = AxisBinding::Single(22,26);
  halljoy::configured_xusb::InputValues input{};
  for(unsigned hid:{4u,7u,22u,26u})input.filtered[hid]=NativeAnalogBackends_ReadMilli(static_cast<std::uint16_t>(hid)).milli/1000.0f;
  halljoy::configured_xusb::BuilderState gameState{};const auto frame=halljoy::configured_xusb::BuildReport(config,input,gameState);

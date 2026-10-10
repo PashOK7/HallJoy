@@ -14,7 +14,7 @@ inline unsigned NativeNotice(unsigned protocol, std::uint64_t token, bool connec
     if(protocol==7u && (token==0xF3B7ECFB2D628746ull || token==0x4B36313700000001ull || token==0x4B36313700000002ull || token==0xBB4DA08AE1DC0AE0ull || token==0x500507220128AACFull || token==0x76353BB82B7776D5ull))result|=2048u; // Redragon
     if(protocol==20u)result|=16384u; // Slice75
     if(protocol==21u)result|=32768u; // RongYuan
-    if(protocol==22u && !(token==0x5F95BAB8BCAB36D1ull && productId==20528u))result|=65536u; // RongYuanStream
+    if(protocol==22u && !(token==0x5F95BAB8BCAB36D1ull && productId==20528u) && !(token==0xA8F2AB22424F610Full && productId==20521u))result|=65536u; // RongYuanStream
     if(protocol==23u)result|=131072u; // TartarusPro
     if(protocol==24u)result|=262144u; // Neo65
     if(protocol==4u && (token==0x000000001CA60528ull || token==0x000000001CA6052Aull || token==0x000000001CA6052Cull || token==0x000000001CA60531ull || token==0x000000001CA6052Bull || token==0x000000001CA6052Dull || token==0x000000001CA60540ull || token==0x000000001CA61C0Aull || token==0x000000001CA61C0Cull || token==0x000000001CA61C12ull || token==0x000000001CA61C14ull || token==0x000000001CA61C1Aull || token==0x000000001CA61C1Full || token==0x000000001CA61C23ull || token==0x000000001CA61C24ull || token==0x000000001CA61C2Bull || token==0x000000001CA61C2Cull || token==0x000000001CA61C2Full || token==0x000000001CA61C37ull || token==0x000000001CA61C3Cull || token==0x000000001CA61C3Dull || token==0x000000001CA61C45ull || token==0x000000001CA61C4Aull || token==0x000000001CA61C4Cull || token==0x000000001CA62708ull || token==0x000000001CA62709ull || token==0x000000001CA6270Aull || token==0x000000001CA65E01ull))result|=524288u; // SparkLinkV2

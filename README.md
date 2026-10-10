@@ -78,6 +78,7 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 **Lemokey:** P1 HE  
 **MADLIONS:** MAD 68 Pro R, MAD60HE, MAD68 HE V2 Flagship, MAD68HE, MAD68R  
 **MCHOSE:** Ace 68 Air III, Jet 75 II, Mix 87 III  
+**MonsGeek:** FUN60 Ultra TMR (USB)  
 **NuPhy:** Air60 HE, Air75 HE, Field75 HE  
 **Razer:** Huntsman V2 Analog, Huntsman Mini Analog, Huntsman V3 Pro, Huntsman V3 Pro Mini, Huntsman V3 Pro Tenkeyless  
 **Redragon:** K673RGB-M  

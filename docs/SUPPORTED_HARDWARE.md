@@ -13,6 +13,7 @@
 
 > 2026-09-27 limited implementation retained: **MADLIONS MAD 68 V2 Dual — Analog available; low quality** (red). Tester confirms usable analog and loss of ordinary typing. Stock firmware also suppresses shallow input and delays small changes. Included in the ordinary local build, outside supported/experimental lists; warning alone does not force logging. [Details](current/MAD68_V2_DUAL_REVIEW_2026-09-27.md).
 
+> 2026-10-11: MonsGeek FUN60 Ultra TMR (board 2352, 3151:5029, USB) is Supported: the tester's keyboard streams analog through the RongYuan stream path (61 keys, automatic layout). Full-travel scale stays 4 mm for hot-swapped 4 mm switches; with 3.5 mm switches the user sets the end deadzone. [Details](current/FUN60_ULTRA_2352_2026-10-10.md).
 > 2026-09-26 (1.6.4): EPOMAKER HE108 (USB) is Supported following tester confirmation relayed by the owner. This supersedes its historical experimental entries below. Seven additional EPOMAKER layout presets; HE68 Mag geometry remains unresolved. [Details](current/EPOMAKER_HE108_2026-09-26.md).
 
 > 2026-09-24 visual layout update: [41 existing experimental models](current/ALL_YELLOW_LAYOUTS_2026-09-24.md) gain exact ANSI presets and automatic selection. Some revisions/regions remain manual; protocol support statuses below are unchanged.
@@ -106,7 +107,7 @@ snapshot route. It requires matching board identity and USB collections, reads
 base assignments without changing them, and preserves stationary key holds.
 Full-travel normalization is provisionally 4 mm; exact switch ranges and firmware
 behavior remain untested. Keydous requires its advertised precision enum.
-Automatic geometry is supplied for TK75 TMR ANSI/ISO and M1 V5 TMR ANSI;
+Automatic geometry is supplied for TK75 TMR ANSI/ISO, M1 V5 TMR ANSI and FUN60 Ultra TMR ANSI;
 other models can use manual layouts and factory-position bindings. Magnetic
 switch positions only; mechanical switches do not gain analog sensing.
 Wireless receivers/Bluetooth are not included.

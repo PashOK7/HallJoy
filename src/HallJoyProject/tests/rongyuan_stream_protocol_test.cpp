@@ -33,6 +33,15 @@ int main() {
  assert(Decode(fun60->matrix.data()+68*4)==0x2f && Decode(fun60->matrix.data()+69*4)==0x34 &&
         Decode(fun60->matrix.data()+80*4)==0x31);
  assert(!Find(2304,0x3151,0x5029) && !Find(2304,0x3151,0x5030) && !Find(2305,0x3151,0x502d));
+ // FUN60 Ultra TMR board 2352 (same USB 3151:5029 as FUN60 Pro 2600) has its own
+ // official matrix: RAlt/Fn/Menu/RCtrl sit in slots 59/65/71/77, one column left of 2600.
+ const Model* ultra=Find(2352,0x3151,0x5029);
+ assert(ultra && ultra->board==2352 && ultra!=Find(2600,0x3151,0x5029) && !Find(2352,0x3151,0x502d));
+ assert(Decode(ultra->matrix.data()+59*4)==230 && Decode(ultra->matrix.data()+71*4)==101 &&
+        Decode(ultra->matrix.data()+77*4)==228 && !Decode(ultra->matrix.data()+83*4));
+ assert(Decode(fun60->matrix.data()+65*4)==230 && Decode(fun60->matrix.data()+83*4)==228);
+ unsigned ultraKeys=0;for(unsigned slot=0;slot<128;++slot)ultraKeys+=Decode(ultra->matrix.data()+slot*4)!=0;
+ assert(ultraKeys==61);
  assert(!Find(2609,12625,20513)); // Historical board-number collision: YC3123.
  assert(!Find(2368,12625,20528)); // Different old factory map, not an alias.
  unsigned revisions=0;
@@ -82,7 +91,7 @@ int main() {
   publication.Clear();assert(!publication.Read(4,60103,~std::uint64_t{0}).fresh);
   ++revisions;
  }
- assert(revisions==253);
+ assert(revisions==254);
  physical_analog::Publication aliases;assert(aliases.Bind(1,26)&&aliases.Bind(2,26));
  aliases.Publish(1,500,100);aliases.Publish(2,700,101);aliases.Publish(2,0,102);
  assert(aliases.Read(26,60000,~std::uint64_t{0}).milli==500);

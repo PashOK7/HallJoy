@@ -40,6 +40,7 @@ std::atomic<bool> g_running{false}, g_stop{false}, g_present{false},
 std::atomic<std::uint64_t> g_token{0}, g_ok{0}, g_bad{0}, g_last{0};
 std::atomic<std::uint32_t> g_avgUs{0}, g_maxUs{0};
 std::atomic<unsigned> g_board{0}, g_units{0}, g_mapped{0}, g_vid{0}, g_pid{0};
+std::atomic<unsigned> g_topology{0}; // device changes; resets identity retries
 std::mutex g_service, g_activeLock;
 HANDLE g_thread = nullptr, g_wake = nullptr, g_active = INVALID_HANDLE_VALUE;
 halljoy::physical_analog::Publication g_factory, g_assigned;
@@ -104,7 +105,9 @@ bool Feature(HANDLE h, bool write, mg::Report &data) {
   return valid;
 }
 
-std::vector<Candidate> Enumerate(bool log) {
+// `visible` counts matching HID interfaces whose metadata could be read: a keyboard that
+// is visible but not paired (a collection busy in another program) must be retried.
+std::vector<Candidate> Enumerate(bool log, unsigned* visible = nullptr) {
   GUID guid{};
   HidD_GetHidGuid(&guid);
   HDEVINFO set = SetupDiGetClassDevsW(&guid, nullptr, nullptr,
@@ -112,6 +115,8 @@ std::vector<Candidate> Enumerate(bool log) {
   if (set == INVALID_HANDLE_VALUE)
     return {};
   std::vector<Candidate> out;
+  // Support diagnostics: a matching keyboard that never pairs is otherwise silent.
+  unsigned matching = 0, exactCount = 0, inputCount = 0;
   for (DWORD i = 0;; ++i) {
     SP_DEVICE_INTERFACE_DATA iface{};
     iface.cbSize = sizeof(iface);
@@ -141,6 +146,7 @@ std::vector<Candidate> Enumerate(bool log) {
     a.Size = sizeof(a);
     if (!HidD_GetAttributes(meta.v, &a) || !mg::Candidate(a.VendorID,a.ProductID))
       continue;
+    ++matching;
     PHIDP_PREPARSED_DATA pp = nullptr;
     if (!HidD_GetPreparsedData(meta.v, &pp))
       continue;
@@ -155,6 +161,8 @@ std::vector<Candidate> Enumerate(bool log) {
     const bool exact = status == HIDP_STATUS_SUCCESS &&
                        (caps.UsagePage == 0xffff || caps.UsagePage == 0xff00) &&
                        caps.Usage == 2 && caps.FeatureReportByteLength == 65;
+    exactCount += exact ? 1u : 0u;
+    inputCount += input ? 1u : 0u;
     if (log)
       DebugLog_Write(
           L"[rongyuan.stream.enumerate] path_hash=%016llX version=%04X "
@@ -172,6 +180,16 @@ std::vector<Candidate> Enumerate(bool log) {
     for(const auto& i:out)if(i.input && i.attributes.VendorID==c.attributes.VendorID && i.attributes.ProductID==c.attributes.ProductID && IsEqualGUID(i.container,c.container)) {c.inputPath=i.path;++matches;}
     if(matches==1)paired.push_back(c);
   }
+  // Logged only when the counts change; the worker repeats this scan every second.
+  if(matching) {
+    static std::atomic<std::uint64_t> lastSignature{~0ull};
+    const std::uint64_t signature=(std::uint64_t(matching)<<48)|(std::uint64_t(exactCount)<<32)|(std::uint64_t(inputCount)<<16)|std::uint64_t(paired.size());
+    if(lastSignature.exchange(signature)!=signature) {
+      SupportLog_Event("rongyuan.enumerate",matching,SupportLog_Data(exactCount));
+      SupportLog_Event("rongyuan.enumerate_pairing",inputCount,SupportLog_Data(static_cast<unsigned>(paired.size())));
+    }
+  }
+  if (visible) *visible = matching;
   return paired;
 }
 
@@ -182,7 +200,7 @@ public:
   unsigned units = 0;
   explicit Session(const Candidate &c) : candidate(c) {}
   ~Session() {
-    if(enabled) {auto disable=mg::Request(0x1b,0);Feature(handle.v,true,disable);}
+    if(enabled) {auto disable=mg::Request(0x1b,0);Send(disable);}
     std::lock_guard<std::mutex> lock(g_activeLock);
     if (g_active == handle.v)
       g_active = INVALID_HANDLE_VALUE;
@@ -191,6 +209,20 @@ public:
     handle = Handle(CreateFileW(
         candidate.path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, nullptr));
+    // Games (Unity opens every HID interface) and vendor tools often keep the
+    // control collection open. Exclusive ownership is preferred, but a shared
+    // handle (HIDAPI convention) still works: every reply is validated by command
+    // and the identity proof, and the stream arrives on its own input collection.
+    const DWORD exclusiveError = handle ? ERROR_SUCCESS : GetLastError();
+    if (exclusiveError==ERROR_SHARING_VIOLATION || exclusiveError==ERROR_ACCESS_DENIED) {
+      // Once per device: the worker retries every second while a session fails.
+      static std::atomic<unsigned> loggedPid{0};
+      if (loggedPid.exchange(candidate.attributes.ProductID)!=candidate.attributes.ProductID)
+        SupportLog_Event("rongyuan.shared_open",candidate.attributes.ProductID,SupportLog_Win32(exclusiveError));
+      handle = Handle(CreateFileW(
+          candidate.path.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, nullptr));
+    }
     if (!handle) {
       const DWORD error=GetLastError();
       SupportLog_Event("rongyuan.exclusive_open_failed",candidate.attributes.ProductID,SupportLog_Win32(error));
@@ -209,17 +241,19 @@ public:
     if (poisoned || g_stop.load())
       return false;
     auto tx = request;
-    if (!Feature(handle.v, true, tx))
+    if (!Send(tx))
       return poisoned = true, false;
-    const auto deadline = GetTickCount64() + 50;
+    const auto deadline = GetTickCount64() + 100;
     do {
+      // Manufacturer driver timing (commonMsg -> readMsg): 10 ms before each
+      // GET_FEATURE. RY5088 firmware stalls the control pipe (USB timeout,
+      // ERROR_SEM_TIMEOUT) when a reply is read while it is still building it.
+      Sleep(kExchangeGapMs);
       reply = {};
       if (!Feature(handle.v, false, reply))
         return poisoned = true, false;
       if (valid(reply))
         return true;
-      if (g_wake)
-        WaitForSingleObject(g_wake, 1);
     } while (!g_stop.load() && GetTickCount64() < deadline);
     if (!optional)
       poisoned = true;
@@ -233,7 +267,7 @@ public:
   bool Enable() {
     auto command=mg::Request(0x1b,1);
     enabled=true; // Also restore if a timed-out write reached the device.
-    return Feature(handle.v,true,command);
+    return Send(command);
   }
   HANDLE Input() const {return input.v;}
   unsigned VendorId() const {return candidate.attributes.VendorID;}
@@ -241,16 +275,30 @@ public:
   bool Match(const mg::Report& r) {
     const auto board=mg::Board(r);
     const bool match=mg::Find(board,candidate.attributes.VendorID,candidate.attributes.ProductID)!=nullptr;
+    if(board && !match) identityRejected=true;
     if(board && !match && board!=lastRejectedBoard){lastRejectedBoard=board;
       SupportLog_Event("rongyuan.identity_pair_rejected",board,SupportLog_Data((unsigned(candidate.attributes.VendorID)<<16)|candidate.attributes.ProductID));
     }
     return match;
   }
+  // The keyboard answered with a board this table does not admit on its VID/PID.
+  bool IdentityRejected() const {return identityRejected;}
+  // Command of the last feature request sent (support log on admission failure).
+  unsigned LastCommand() const {return lastCommand;}
   const mg::Model* Model(const mg::Report& r) {return mg::Find(mg::Board(r),candidate.attributes.VendorID,candidate.attributes.ProductID);}
 
 private:
+  // Manufacturer driver timing (commonMsg -> sendMsg): 10 ms before each SET_FEATURE.
+  static constexpr DWORD kExchangeGapMs = 10;
+  bool Send(mg::Report &request) {
+    Sleep(kExchangeGapMs);
+    lastCommand = request[1];
+    return Feature(handle.v, true, request);
+  }
   Candidate candidate;
   unsigned lastRejectedBoard=0;
+  unsigned lastCommand=0;
+  bool identityRejected=false;
   Handle handle,input;
   bool enabled=false;
   bool poisoned = false;
@@ -333,7 +381,7 @@ bool Publish(const mg::Sample& sample, const mg::Model& model, std::uint64_t now
   g_factory.Publish(id,value,now);g_assigned.Publish(id,value,now);
   g_last.store(now);++g_ok;return true;
 }
-bool Run(const Candidate &c) {
+bool Run(const Candidate &c, bool &identityRejected) {
   Clear();
   Session s(c);
   const char *phase = "open";
@@ -346,6 +394,8 @@ bool Run(const Candidate &c) {
     const DWORD error=GetLastError();
     ++g_bad;
     SupportLog_Event("rongyuan.admission_failed",phaseCode,SupportLog_Win32(error));
+    if (phaseCode >= 2) SupportLog_Event("rongyuan.admission_command",s.LastCommand(),SupportLog_Win32(error));
+    identityRejected = s.IdentityRejected();
     DebugLog_Write(L"[rongyuan.stream] admission failed phase=%hs error=%lu",
                    phase, error);
     Clear();
@@ -407,23 +457,46 @@ bool Run(const Candidate &c) {
   return false;
 }
 unsigned __stdcall Worker(void *) {
+  // A board this table does not admit is stable for the same device: retry it a few
+  // times (a reply can be late after plug-in), then wait for a device change instead
+  // of querying the unknown keyboard every second.
+  constexpr unsigned kIdentityAttempts = 3;
+  std::vector<std::pair<std::wstring, unsigned>> rejected;
+  unsigned topology = g_topology.load();
   try {
     while (!g_stop.load()) {
-      const auto candidates = Enumerate(false);
+      if (g_topology.load() != topology) {topology = g_topology.load(); rejected.clear();}
+      unsigned visible = 0;
+      const auto candidates = Enumerate(false, &visible);
       g_present.store(!candidates.empty());
+      bool retry = false;
       for (const auto &c : candidates) {
         if (g_stop.load())
           break;
         if (NativeAnalogRouting_IsClaimed(c.path.c_str()) &&
             !NativeAnalogRouting_IsClaimedBy(
-                c.path.c_str(), NativeAnalogProtocol::RongYuanStream))
+                c.path.c_str(), NativeAnalogProtocol::RongYuanStream)) {
+          retry = true; // owned by another protocol now; routing can change later
           continue;
-        Run(c);
+        }
+        auto entry = std::find_if(rejected.begin(), rejected.end(), [&](const auto &r) {return r.first == c.path;});
+        if (entry != rejected.end() && entry->second >= kIdentityAttempts)
+          continue;
+        bool identityRejected = false;
+        Run(c, identityRejected);
+        if (!identityRejected) {retry = true; continue;}
+        const unsigned attempts = entry == rejected.end() ? 1u : ++entry->second;
+        if (entry == rejected.end()) rejected.emplace_back(c.path, attempts);
+        if (attempts < kIdentityAttempts) retry = true;
+        else SupportLog_Event("rongyuan.identity_waiting", kIdentityAttempts, SupportLog_Data(c.attributes.ProductID));
         if (g_stop.load())
           break;
       }
       if (g_wake && !g_stop.load())
-        WaitForSingleObject(g_wake, candidates.empty() ? INFINITE : 1000);
+        // Nothing usable: sleep until a device change. A visible keyboard whose
+        // control/input pair is not usable yet (held by another program, still
+        // enumerating) is retried, since releasing a handle raises no device change.
+        WaitForSingleObject(g_wake, retry ? 1000 : (candidates.empty() && visible) ? 2000 : INFINITE);
     }
   } catch (...) {
     ++g_bad;
@@ -504,6 +577,7 @@ Stop(halljoy::lifecycle::GenerationId generation) {
   return NativeAnalogBackendStopJoined(generation);
 }
 void Notify() {
+  g_topology.fetch_add(1);
   std::lock_guard<std::mutex> lock(g_service);
   if (g_wake)
     SetEvent(g_wake);

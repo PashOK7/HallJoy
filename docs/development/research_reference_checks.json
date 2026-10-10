@@ -3,8 +3,18 @@
   "checks": {
     "check_rongyuan_stream_profiles.py": [
       {
+        "path": ".local/research/monsgeek-20260922/a0c3a7d8.js",
+        "sha256": "c721ddc06480359ef8bc31908b7a80e724b0883d51e646274ccf47628c1774e6",
+        "private": true
+      },
+      {
+        "path": ".local/research/monsgeek-firmware-20261010/extract/2352_v305/decompressed.bin",
+        "sha256": "56842a287a9b68b3d6b0ff02c8edf8dbc2034e78599adf288882347f76ea4fed",
+        "private": true
+      },
+      {
         "path": "docs/development/keyboard_support_notices.json",
-        "sha256": "0a5fbe659007412725ed2427108e0da6075a5fa5d0887e2c3ab6e4e913d72e59",
+        "sha256": "4271bde0888d4b2dbdb8d4f55f21b6e2038e240d9d9ada8b587c4d909e75617f",
         "private": false
       },
       {
@@ -1218,8 +1228,13 @@
         "private": true
       },
       {
+        "path": "docs/research/rongyuan-stream/monsgeek-app-models.json",
+        "sha256": "b6e1d9da018fec7581283eade1ff7a779947cd888f122016a49d254be0aa07fd",
+        "private": false
+      },
+      {
         "path": "docs/research/rongyuan-stream/profiles.json",
-        "sha256": "8b2a5d32a90df3bdf8671d83a16305c1e5b487136749eea29f12cdec9304d49b",
+        "sha256": "9ccec7e129b1761c5b17ad85e55f6c532a432bdd7398fa6ef1a4c84c4ff8e8a4",
         "private": false
       },
       {
@@ -1243,18 +1258,23 @@
         "private": false
       },
       {
+        "path": "docs/research/usb-identity-audit/approved-aliases.json",
+        "sha256": "345c50710349af3c293dc948a1b3a4be2ad0fd0cf1bc79983be64c1b0a42668a",
+        "private": false
+      },
+      {
         "path": "src/HallJoyProject/HallJoy/rongyuan_stream_protocol.h",
-        "sha256": "e74defd64496becd1bbb1756d1f5c672914c9bfdc671cd6e74e54b88454a35b2",
+        "sha256": "761c10b10dd2b2b74e9b41d25b3c9bd5db5ef07d3f0f871274ad72546778bff1",
         "private": false
       },
       {
         "path": "tools/check_rongyuan_stream_profiles.py",
-        "sha256": "091bfe6320387b5a4243cf15543a91cdaea1d137dd8f5443f451142518f3ab5c",
+        "sha256": "0313fc0b7ae0369fd7e829b924ea61e70d11fbb3a92c38484c384c987930890f",
         "private": false
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "26fcac16c880512810d3f774c3259d44dfb423360a5c5a1eb5136f1dd5c2abd9",
+        "sha256": "a9c72cb94f2eae5f8555d166ef2b217585c348b223d489906e5ba255f1f49b18",
         "private": false
       }
     ],
@@ -1404,162 +1424,162 @@
     "build_rongyuan_layouts.py": [
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2255.json",
-        "sha256": "5d1870593a3811257c13faee6a9fa40346d57822721e77bf6f96dbde7045c274",
+        "sha256": "06968a1c59cf2aaf34815c7a70f8fdba89445b4994fd129ff8306fba2e54fef4",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2310.json",
-        "sha256": "12940662e49b7b693ec3cb10c133a7a3de208f1d77a35369ff16d6ef7076e10e",
+        "sha256": "2d19ffcbe96b55e0b8692fcd83ca79c63b2c1cb299a1a22aae5baa80f193425e",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2334.json",
-        "sha256": "3dece9bfca1aae7818c278af50e41db977f8cf9b29fc1552e914cd89bcca9342",
+        "sha256": "abb331aedea1c8c105a06b9b3f1c19e7218f63b8945f3921f19cc3655b1fd6b0",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2335.json",
-        "sha256": "9595b7d22c14ba2cd0dfb59aa807408b06405839161819db72e3f299967457a6",
+        "sha256": "86e0d38c25cc48dd0fe6cc6424f718c39d561cce853678c88544b63dbb2e7134",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2376.json",
-        "sha256": "7416b70771f1761ae998c7d6fe371788a2fea7839ebe026a1c5b1e098b439155",
+        "sha256": "fee5c1f03b48d9576f0c97b357d33675126e354905f587bfbb96a6ea5df960b9",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2546.json",
-        "sha256": "439243caedf7675507e8299c4fcb2c2175c63ba5bb84143acc782c99823de6db",
+        "sha256": "2ada549efef31150d52e245dc9e70ede79cefd1b7a05058070ab10644e56a3cd",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2621.json",
-        "sha256": "9b96e889094ed494c2a4a86b00fcd556cfbedc420f7505ad4a9afa891020ee0c",
+        "sha256": "de5d28d72e4de38c207af3d75c48f844499f59cc1ec546a34c7215ab6985e03c",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2674.json",
-        "sha256": "5dcc5452dda3e50bcdc79ac8bb9030cfa07895b931de7e92e9474e93ca51737c",
+        "sha256": "6c451324e2a840cb5db92dd0ac43d778ff19165dc9a5322689c3787ca0e0dd0c",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2683.json",
-        "sha256": "47cd6b6ab7c97cb23fdb34667cb3777164b230434b8be0bb1c03e36d3d99543a",
+        "sha256": "e4a189fc3ba3062cabcf12253ba0205bb9539e1fce96b68ee77845e60cb3570b",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2703.json",
-        "sha256": "5eb52e964b77108bb9c834daf106670046d187318f5dbe4580a17b4059e6742c",
+        "sha256": "78aad99c3754bc6a3d218d601e95afc6f6aedb171bba7290a9abb8a128168475",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2743.json",
-        "sha256": "4fa310802d7e82bff29ff0cb2cb03a7aab3d459be1baeb6e689487d02d516b57",
+        "sha256": "6b272ab3b9a444d11c7259c83a0f44b2619bde9948bc7f9402ad0d942cf88445",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2746.json",
-        "sha256": "d27b35d03673024a249fa4cade44b66b946d94891851cfde373209611e0fdc8a",
+        "sha256": "4bbd26f84d2c77e91bc74f2a94f9050b0ca7ab3e4c6d691bd35d973ac4df7628",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2761.json",
-        "sha256": "c4b957bdae59b0806231d92ac2c92342bc721b5c98a730f7d03c31ebe7e95f4c",
+        "sha256": "e7a8a28ba78f329aad59dbb3553fffa0de3ad7f9ea6d8aefb237d32c512ebf2d",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2763.json",
-        "sha256": "18eea33218b4479f94b9c94931d76188b572b14af3aa957755f0d0f5a0534123",
+        "sha256": "0c1aa8416256aadf3da83e30c00f2b770bd14be3dbdc8ebc114edb2e9df02f15",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2770.json",
-        "sha256": "ebc93d06565757420b6ba1dab549b7d47d21fabac44bc3eccf82484db5e68511",
+        "sha256": "f08b904eafdd3dbc46364b21a9bf5de131e4deed87aee692b4cc00f4d092d8a5",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2780.json",
-        "sha256": "a5aac870306b3a4261bbbc9c2c36bc803a4096b5afd73d3a0131f8c2a1360275",
+        "sha256": "30ab1ca269d4818afc26f701db2f7476c3796c56e112247ef55eb56884bb1fbf",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2799.json",
-        "sha256": "d1df4290094989d8965e9b0fa5901bb5d1021c3f46423ff2dc55937edc833271",
+        "sha256": "45a45dd6fc9eb7f117baad7711426a66b243d17722dcbbe470883969ca1a649f",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2811.json",
-        "sha256": "169084b4723eae75ebab708454e04dd8a908ebf794fada32c8d5726bfceb2099",
+        "sha256": "939d03830cf24e6473f9b5387c106c9462ce7ac928169b5e6ce946f2d1c7e43f",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2930.json",
-        "sha256": "0da3929557a0264e0d6980021fa75ebe59902598076e3036a1bc545fbdfd912b",
+        "sha256": "ec02717cffdd9b996e3b32f7cdde8de64df2f2befff2bb6b00b5f90aab78f71a",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3011.json",
-        "sha256": "d5a362f84b6ad05d07f8756958e2bc630dca9da033149a038213b641bd42dcdb",
+        "sha256": "ec90a69130aae948c29a0bef2089a997cc79ec2a39b974f00fbe11b8350e15db",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3151.json",
-        "sha256": "7a656edfea6a91faa76d7f1d0abec61dec3e9b2393d567ec3ffd27f19629110e",
+        "sha256": "a521d75f7f244b0a231786ab52db77bb9f64e33ccd5ba998d992be83a5ecdf86",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3225.json",
-        "sha256": "4241d9d153dc46543194261c4f09f9c540ad036e7638dfeb1bab85d39c818048",
+        "sha256": "45533755305c8351655663748af66a9b79d2dc813a19ea67865a2c868a3d753d",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3244.json",
-        "sha256": "d809eb2caa57488b2caccd3ad362a90ba8a3cd462bd12180fdf2dc461d293e84",
+        "sha256": "0d6b42bd5c258d57f2ae0ecab0eb24786f572bec3a58376424cd89ca8dbd4a74",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3291.json",
-        "sha256": "ffec46a7261c3529e44b713f434d3ae1ebee5543e136890fa3f51ed57f83efe0",
+        "sha256": "2230a78697d85bfe8f7de1fd8db8aeffcb82e0bed1aba0ce051158b963ad467e",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3340.json",
-        "sha256": "6207e02c6221969bdf447947584b822f1ebd5c88d76f8306511c4216e979d45f",
+        "sha256": "ccd3946e22ee8d3101e892484f81381ad8b55e3355a2208e24911156630bf639",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3367.json",
-        "sha256": "4e37a32b65389d0d04270c38965b151525d341a956266b8647c6882b477c4ee1",
+        "sha256": "d87b8981966895075e9b541238893d82ec2d5c07f10c292bec3b718cdf9650c4",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3389.json",
-        "sha256": "af9a81faa795c8e996ad4840b9fcfb3c7a8eeea1b81dfa9c26bfd52c28e0bdf8",
+        "sha256": "1f4bad9706aface26cc5815ad56651a70a62b79520e0917895fad58c266ed924",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3403.json",
-        "sha256": "f1ed4ea5c0221a40fc491d0fa8ee458eae810eab603102a75beefd9f0e8b8a3a",
+        "sha256": "844d6d3aa84a81fc46ba49bfa2a20b70b3858b7628519506057172327386f6cd",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3475.json",
-        "sha256": "bec08887491576a9a4539a501c83fd9912528832111fcf5b3cc856d33c83c8ee",
+        "sha256": "900d3debc4580063c6966e08cec65c0f318679472993d3ffbc2cb9c74d1afea3",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3486.json",
-        "sha256": "e305ea9d02bbd7bb8ceae083cf4fd15bcce1e3fffdf5eab3a918730133e77a2f",
+        "sha256": "eac6798816e2cbcc9525a8e9c1ed4afc19741ab01fcde1a135e64c879c763ec3",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3708.json",
-        "sha256": "4fcb3ea59933066b1f0897f6f8527e4e08d4171dac023af9e1ff5a833ce01d1d",
+        "sha256": "671c51cfd251b994bf5a0938c7a14c7a5c3d8e8b3585fafc5ea2c7d33cee9764",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3727.json",
-        "sha256": "b2f6c5f6e07d7b589d7033b675273958b093e0066a0d8ae9d74c4e5aca276d25",
+        "sha256": "229bb797651ca8c61410415e5fd9c1ab2c684bb59e2c5d2f42629869f26f9f28",
         "private": false
       },
       {
@@ -1784,7 +1804,7 @@
       },
       {
         "path": "docs/research/rongyuan-stream/profiles.json",
-        "sha256": "8b2a5d32a90df3bdf8671d83a16305c1e5b487136749eea29f12cdec9304d49b",
+        "sha256": "9ccec7e129b1761c5b17ad85e55f6c532a432bdd7398fa6ef1a4c84c4ff8e8a4",
         "private": false
       },
       {
@@ -1809,7 +1829,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "26fcac16c880512810d3f774c3259d44dfb423360a5c5a1eb5136f1dd5c2abd9",
+        "sha256": "a9c72cb94f2eae5f8555d166ef2b217585c348b223d489906e5ba255f1f49b18",
         "private": false
       },
       {
@@ -1826,37 +1846,37 @@
     "build_epomaker_layouts.py": [
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_2520.json",
-        "sha256": "7c2f02957cbc0b1a7fe620e4150248333cb217efb4493937814d4f737aa681e5",
+        "sha256": "c63c83da44ff1c143a243137e4de441f0f31cf8ed2f17301be6a93d36e4d03fb",
         "private": false
       },
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_3365.json",
-        "sha256": "b8214027815ace96587de464ede8dbfbcc1d4c8bc7111c7ce9d87dd09cb46742",
+        "sha256": "7b0583e23ceb649d0106a479589a226ca37db7d9c317648a7e528663ad8352ec",
         "private": false
       },
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_3518.json",
-        "sha256": "a6c2078d4d973b3c6e7baefd34497394a8a256f65a1da6c17872b97d292da306",
+        "sha256": "1231aa4c747a21b8e5a3fcebd509926f3539ec6a77e6ad1d23c08128e9f1cbdd",
         "private": false
       },
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_3664.json",
-        "sha256": "6dc667f471713065746c6341b9a95a16b2d90a219f2b9752736942abdb7efeef",
+        "sha256": "56061a5676ade5bd3e0edde49a2d907ff789345d877297b50c32be860507aeb2",
         "private": false
       },
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_3691.json",
-        "sha256": "9eaca241cdc8bce9205017697e9018f656fd9736fd8773874753ab4388421ee0",
+        "sha256": "be695b5bf289714531d4135ea03c3b89ac747ab9f1df5a065eefc49f6c19a2f7",
         "private": false
       },
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_3692.json",
-        "sha256": "c1da742d7eb2d5b4a772d2910ee65c3e026d17ef6361f715ff1c7a5e705e853e",
+        "sha256": "056d78dc1b902e198e6ea21feb96e2c3c82522c5e36e1ce73838e099431ca72c",
         "private": false
       },
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_3703.json",
-        "sha256": "07400af55302803064f5f39b52b90dc176faf5c57314dbfd17c437913c98bcec",
+        "sha256": "0f47a9264e463d8a128f8c6d03977ae314606bace7f6341cb63345d1a7872549",
         "private": false
       },
       {
@@ -1906,7 +1926,7 @@
       },
       {
         "path": "docs/research/rongyuan-stream/profiles.json",
-        "sha256": "8b2a5d32a90df3bdf8671d83a16305c1e5b487136749eea29f12cdec9304d49b",
+        "sha256": "9ccec7e129b1761c5b17ad85e55f6c532a432bdd7398fa6ef1a4c84c4ff8e8a4",
         "private": false
       },
       {
@@ -3319,37 +3339,37 @@
       },
       {
         "path": "docs/exports/layout-pipeline/epomaker_layout_2520-review.json",
-        "sha256": "7c2f02957cbc0b1a7fe620e4150248333cb217efb4493937814d4f737aa681e5",
+        "sha256": "c63c83da44ff1c143a243137e4de441f0f31cf8ed2f17301be6a93d36e4d03fb",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/epomaker_layout_3365-review.json",
-        "sha256": "b8214027815ace96587de464ede8dbfbcc1d4c8bc7111c7ce9d87dd09cb46742",
+        "sha256": "7b0583e23ceb649d0106a479589a226ca37db7d9c317648a7e528663ad8352ec",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/epomaker_layout_3518-review.json",
-        "sha256": "a6c2078d4d973b3c6e7baefd34497394a8a256f65a1da6c17872b97d292da306",
+        "sha256": "1231aa4c747a21b8e5a3fcebd509926f3539ec6a77e6ad1d23c08128e9f1cbdd",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/epomaker_layout_3664-review.json",
-        "sha256": "6dc667f471713065746c6341b9a95a16b2d90a219f2b9752736942abdb7efeef",
+        "sha256": "56061a5676ade5bd3e0edde49a2d907ff789345d877297b50c32be860507aeb2",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/epomaker_layout_3691-review.json",
-        "sha256": "9eaca241cdc8bce9205017697e9018f656fd9736fd8773874753ab4388421ee0",
+        "sha256": "be695b5bf289714531d4135ea03c3b89ac747ab9f1df5a065eefc49f6c19a2f7",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/epomaker_layout_3692-review.json",
-        "sha256": "c1da742d7eb2d5b4a772d2910ee65c3e026d17ef6361f715ff1c7a5e705e853e",
+        "sha256": "056d78dc1b902e198e6ea21feb96e2c3c82522c5e36e1ce73838e099431ca72c",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/epomaker_layout_3703-review.json",
-        "sha256": "07400af55302803064f5f39b52b90dc176faf5c57314dbfd17c437913c98bcec",
+        "sha256": "0f47a9264e463d8a128f8c6d03977ae314606bace7f6341cb63345d1a7872549",
         "private": false
       },
       {
@@ -3708,6 +3728,11 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/MonsGeek FUN60 Ultra TMR ANSI.ini",
+        "sha256": "85881ec48b2d1e4d5d97d412efd5e764d0c4c1859e1c94ca33ca66965f7b6f78",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/MonsGeek FUN68 HE ANSI.ini",
         "sha256": "111aa0bafed333db6d3f4b9a58a02e63549a7c19175c4ca0a57363dd2729d005",
         "private": false
@@ -3979,162 +4004,167 @@
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2255-review.json",
-        "sha256": "5d1870593a3811257c13faee6a9fa40346d57822721e77bf6f96dbde7045c274",
+        "sha256": "06968a1c59cf2aaf34815c7a70f8fdba89445b4994fd129ff8306fba2e54fef4",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2310-review.json",
-        "sha256": "12940662e49b7b693ec3cb10c133a7a3de208f1d77a35369ff16d6ef7076e10e",
+        "sha256": "2d19ffcbe96b55e0b8692fcd83ca79c63b2c1cb299a1a22aae5baa80f193425e",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2334-review.json",
-        "sha256": "3dece9bfca1aae7818c278af50e41db977f8cf9b29fc1552e914cd89bcca9342",
+        "sha256": "abb331aedea1c8c105a06b9b3f1c19e7218f63b8945f3921f19cc3655b1fd6b0",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2335-review.json",
-        "sha256": "9595b7d22c14ba2cd0dfb59aa807408b06405839161819db72e3f299967457a6",
+        "sha256": "86e0d38c25cc48dd0fe6cc6424f718c39d561cce853678c88544b63dbb2e7134",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/ry_layout_2352-review.json",
+        "sha256": "7dd84d0678b23a92c1d61a9d4f3ca27713c5b27694705166bb4bc3a543fb5303",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2376-review.json",
-        "sha256": "7416b70771f1761ae998c7d6fe371788a2fea7839ebe026a1c5b1e098b439155",
+        "sha256": "fee5c1f03b48d9576f0c97b357d33675126e354905f587bfbb96a6ea5df960b9",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2546-review.json",
-        "sha256": "439243caedf7675507e8299c4fcb2c2175c63ba5bb84143acc782c99823de6db",
+        "sha256": "2ada549efef31150d52e245dc9e70ede79cefd1b7a05058070ab10644e56a3cd",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2621-review.json",
-        "sha256": "9b96e889094ed494c2a4a86b00fcd556cfbedc420f7505ad4a9afa891020ee0c",
+        "sha256": "de5d28d72e4de38c207af3d75c48f844499f59cc1ec546a34c7215ab6985e03c",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2674-review.json",
-        "sha256": "5dcc5452dda3e50bcdc79ac8bb9030cfa07895b931de7e92e9474e93ca51737c",
+        "sha256": "6c451324e2a840cb5db92dd0ac43d778ff19165dc9a5322689c3787ca0e0dd0c",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2683-review.json",
-        "sha256": "47cd6b6ab7c97cb23fdb34667cb3777164b230434b8be0bb1c03e36d3d99543a",
+        "sha256": "e4a189fc3ba3062cabcf12253ba0205bb9539e1fce96b68ee77845e60cb3570b",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2703-review.json",
-        "sha256": "5eb52e964b77108bb9c834daf106670046d187318f5dbe4580a17b4059e6742c",
+        "sha256": "78aad99c3754bc6a3d218d601e95afc6f6aedb171bba7290a9abb8a128168475",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2743-review.json",
-        "sha256": "4fa310802d7e82bff29ff0cb2cb03a7aab3d459be1baeb6e689487d02d516b57",
+        "sha256": "6b272ab3b9a444d11c7259c83a0f44b2619bde9948bc7f9402ad0d942cf88445",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2746-review.json",
-        "sha256": "d27b35d03673024a249fa4cade44b66b946d94891851cfde373209611e0fdc8a",
+        "sha256": "4bbd26f84d2c77e91bc74f2a94f9050b0ca7ab3e4c6d691bd35d973ac4df7628",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2761-review.json",
-        "sha256": "c4b957bdae59b0806231d92ac2c92342bc721b5c98a730f7d03c31ebe7e95f4c",
+        "sha256": "e7a8a28ba78f329aad59dbb3553fffa0de3ad7f9ea6d8aefb237d32c512ebf2d",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2763-review.json",
-        "sha256": "18eea33218b4479f94b9c94931d76188b572b14af3aa957755f0d0f5a0534123",
+        "sha256": "0c1aa8416256aadf3da83e30c00f2b770bd14be3dbdc8ebc114edb2e9df02f15",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2770-review.json",
-        "sha256": "ebc93d06565757420b6ba1dab549b7d47d21fabac44bc3eccf82484db5e68511",
+        "sha256": "f08b904eafdd3dbc46364b21a9bf5de131e4deed87aee692b4cc00f4d092d8a5",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2780-review.json",
-        "sha256": "a5aac870306b3a4261bbbc9c2c36bc803a4096b5afd73d3a0131f8c2a1360275",
+        "sha256": "30ab1ca269d4818afc26f701db2f7476c3796c56e112247ef55eb56884bb1fbf",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2799-review.json",
-        "sha256": "d1df4290094989d8965e9b0fa5901bb5d1021c3f46423ff2dc55937edc833271",
+        "sha256": "45a45dd6fc9eb7f117baad7711426a66b243d17722dcbbe470883969ca1a649f",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2811-review.json",
-        "sha256": "169084b4723eae75ebab708454e04dd8a908ebf794fada32c8d5726bfceb2099",
+        "sha256": "939d03830cf24e6473f9b5387c106c9462ce7ac928169b5e6ce946f2d1c7e43f",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2930-review.json",
-        "sha256": "0da3929557a0264e0d6980021fa75ebe59902598076e3036a1bc545fbdfd912b",
+        "sha256": "ec02717cffdd9b996e3b32f7cdde8de64df2f2befff2bb6b00b5f90aab78f71a",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_3011-review.json",
-        "sha256": "d5a362f84b6ad05d07f8756958e2bc630dca9da033149a038213b641bd42dcdb",
+        "sha256": "ec90a69130aae948c29a0bef2089a997cc79ec2a39b974f00fbe11b8350e15db",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_3151-review.json",
-        "sha256": "7a656edfea6a91faa76d7f1d0abec61dec3e9b2393d567ec3ffd27f19629110e",
+        "sha256": "a521d75f7f244b0a231786ab52db77bb9f64e33ccd5ba998d992be83a5ecdf86",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_3225-review.json",
-        "sha256": "4241d9d153dc46543194261c4f09f9c540ad036e7638dfeb1bab85d39c818048",
+        "sha256": "45533755305c8351655663748af66a9b79d2dc813a19ea67865a2c868a3d753d",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_3244-review.json",
-        "sha256": "d809eb2caa57488b2caccd3ad362a90ba8a3cd462bd12180fdf2dc461d293e84",
+        "sha256": "0d6b42bd5c258d57f2ae0ecab0eb24786f572bec3a58376424cd89ca8dbd4a74",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_3291-review.json",
-        "sha256": "ffec46a7261c3529e44b713f434d3ae1ebee5543e136890fa3f51ed57f83efe0",
+        "sha256": "2230a78697d85bfe8f7de1fd8db8aeffcb82e0bed1aba0ce051158b963ad467e",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_3340-review.json",
-        "sha256": "6207e02c6221969bdf447947584b822f1ebd5c88d76f8306511c4216e979d45f",
+        "sha256": "ccd3946e22ee8d3101e892484f81381ad8b55e3355a2208e24911156630bf639",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_3367-review.json",
-        "sha256": "4e37a32b65389d0d04270c38965b151525d341a956266b8647c6882b477c4ee1",
+        "sha256": "d87b8981966895075e9b541238893d82ec2d5c07f10c292bec3b718cdf9650c4",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_3389-review.json",
-        "sha256": "af9a81faa795c8e996ad4840b9fcfb3c7a8eeea1b81dfa9c26bfd52c28e0bdf8",
+        "sha256": "1f4bad9706aface26cc5815ad56651a70a62b79520e0917895fad58c266ed924",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_3403-review.json",
-        "sha256": "f1ed4ea5c0221a40fc491d0fa8ee458eae810eab603102a75beefd9f0e8b8a3a",
+        "sha256": "844d6d3aa84a81fc46ba49bfa2a20b70b3858b7628519506057172327386f6cd",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_3475-review.json",
-        "sha256": "bec08887491576a9a4539a501c83fd9912528832111fcf5b3cc856d33c83c8ee",
+        "sha256": "900d3debc4580063c6966e08cec65c0f318679472993d3ffbc2cb9c74d1afea3",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_3486-review.json",
-        "sha256": "e305ea9d02bbd7bb8ceae083cf4fd15bcce1e3fffdf5eab3a918730133e77a2f",
+        "sha256": "eac6798816e2cbcc9525a8e9c1ed4afc19741ab01fcde1a135e64c879c763ec3",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_3708-review.json",
-        "sha256": "4fcb3ea59933066b1f0897f6f8527e4e08d4171dac023af9e1ff5a833ce01d1d",
+        "sha256": "671c51cfd251b994bf5a0938c7a14c7a5c3d8e8b3585fafc5ea2c7d33cee9764",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/ry_layout_3727-review.json",
-        "sha256": "b2f6c5f6e07d7b589d7033b675273958b093e0066a0d8ae9d74c4e5aca276d25",
+        "sha256": "229bb797651ca8c61410415e5fd9c1ab2c684bb59e2c5d2f42629869f26f9f28",
         "private": false
       },
       {
@@ -4929,37 +4959,37 @@
       },
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_2520.json",
-        "sha256": "7c2f02957cbc0b1a7fe620e4150248333cb217efb4493937814d4f737aa681e5",
+        "sha256": "c63c83da44ff1c143a243137e4de441f0f31cf8ed2f17301be6a93d36e4d03fb",
         "private": false
       },
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_3365.json",
-        "sha256": "b8214027815ace96587de464ede8dbfbcc1d4c8bc7111c7ce9d87dd09cb46742",
+        "sha256": "7b0583e23ceb649d0106a479589a226ca37db7d9c317648a7e528663ad8352ec",
         "private": false
       },
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_3518.json",
-        "sha256": "a6c2078d4d973b3c6e7baefd34497394a8a256f65a1da6c17872b97d292da306",
+        "sha256": "1231aa4c747a21b8e5a3fcebd509926f3539ec6a77e6ad1d23c08128e9f1cbdd",
         "private": false
       },
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_3664.json",
-        "sha256": "6dc667f471713065746c6341b9a95a16b2d90a219f2b9752736942abdb7efeef",
+        "sha256": "56061a5676ade5bd3e0edde49a2d907ff789345d877297b50c32be860507aeb2",
         "private": false
       },
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_3691.json",
-        "sha256": "9eaca241cdc8bce9205017697e9018f656fd9736fd8773874753ab4388421ee0",
+        "sha256": "be695b5bf289714531d4135ea03c3b89ac747ab9f1df5a065eefc49f6c19a2f7",
         "private": false
       },
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_3692.json",
-        "sha256": "c1da742d7eb2d5b4a772d2910ee65c3e026d17ef6361f715ff1c7a5e705e853e",
+        "sha256": "056d78dc1b902e198e6ea21feb96e2c3c82522c5e36e1ce73838e099431ca72c",
         "private": false
       },
       {
         "path": "docs/research/epomaker-layouts/epomaker_layout_3703.json",
-        "sha256": "07400af55302803064f5f39b52b90dc176faf5c57314dbfd17c437913c98bcec",
+        "sha256": "0f47a9264e463d8a128f8c6d03977ae314606bace7f6341cb63345d1a7872549",
         "private": false
       },
       {
@@ -6084,162 +6114,167 @@
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2255.json",
-        "sha256": "5d1870593a3811257c13faee6a9fa40346d57822721e77bf6f96dbde7045c274",
+        "sha256": "06968a1c59cf2aaf34815c7a70f8fdba89445b4994fd129ff8306fba2e54fef4",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2310.json",
-        "sha256": "12940662e49b7b693ec3cb10c133a7a3de208f1d77a35369ff16d6ef7076e10e",
+        "sha256": "2d19ffcbe96b55e0b8692fcd83ca79c63b2c1cb299a1a22aae5baa80f193425e",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2334.json",
-        "sha256": "3dece9bfca1aae7818c278af50e41db977f8cf9b29fc1552e914cd89bcca9342",
+        "sha256": "abb331aedea1c8c105a06b9b3f1c19e7218f63b8945f3921f19cc3655b1fd6b0",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2335.json",
-        "sha256": "9595b7d22c14ba2cd0dfb59aa807408b06405839161819db72e3f299967457a6",
+        "sha256": "86e0d38c25cc48dd0fe6cc6424f718c39d561cce853678c88544b63dbb2e7134",
+        "private": false
+      },
+      {
+        "path": "docs/research/rongyuan-layouts/ry_layout_2352.json",
+        "sha256": "7dd84d0678b23a92c1d61a9d4f3ca27713c5b27694705166bb4bc3a543fb5303",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2376.json",
-        "sha256": "7416b70771f1761ae998c7d6fe371788a2fea7839ebe026a1c5b1e098b439155",
+        "sha256": "fee5c1f03b48d9576f0c97b357d33675126e354905f587bfbb96a6ea5df960b9",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2546.json",
-        "sha256": "439243caedf7675507e8299c4fcb2c2175c63ba5bb84143acc782c99823de6db",
+        "sha256": "2ada549efef31150d52e245dc9e70ede79cefd1b7a05058070ab10644e56a3cd",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2621.json",
-        "sha256": "9b96e889094ed494c2a4a86b00fcd556cfbedc420f7505ad4a9afa891020ee0c",
+        "sha256": "de5d28d72e4de38c207af3d75c48f844499f59cc1ec546a34c7215ab6985e03c",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2674.json",
-        "sha256": "5dcc5452dda3e50bcdc79ac8bb9030cfa07895b931de7e92e9474e93ca51737c",
+        "sha256": "6c451324e2a840cb5db92dd0ac43d778ff19165dc9a5322689c3787ca0e0dd0c",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2683.json",
-        "sha256": "47cd6b6ab7c97cb23fdb34667cb3777164b230434b8be0bb1c03e36d3d99543a",
+        "sha256": "e4a189fc3ba3062cabcf12253ba0205bb9539e1fce96b68ee77845e60cb3570b",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2703.json",
-        "sha256": "5eb52e964b77108bb9c834daf106670046d187318f5dbe4580a17b4059e6742c",
+        "sha256": "78aad99c3754bc6a3d218d601e95afc6f6aedb171bba7290a9abb8a128168475",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2743.json",
-        "sha256": "4fa310802d7e82bff29ff0cb2cb03a7aab3d459be1baeb6e689487d02d516b57",
+        "sha256": "6b272ab3b9a444d11c7259c83a0f44b2619bde9948bc7f9402ad0d942cf88445",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2746.json",
-        "sha256": "d27b35d03673024a249fa4cade44b66b946d94891851cfde373209611e0fdc8a",
+        "sha256": "4bbd26f84d2c77e91bc74f2a94f9050b0ca7ab3e4c6d691bd35d973ac4df7628",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2761.json",
-        "sha256": "c4b957bdae59b0806231d92ac2c92342bc721b5c98a730f7d03c31ebe7e95f4c",
+        "sha256": "e7a8a28ba78f329aad59dbb3553fffa0de3ad7f9ea6d8aefb237d32c512ebf2d",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2763.json",
-        "sha256": "18eea33218b4479f94b9c94931d76188b572b14af3aa957755f0d0f5a0534123",
+        "sha256": "0c1aa8416256aadf3da83e30c00f2b770bd14be3dbdc8ebc114edb2e9df02f15",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2770.json",
-        "sha256": "ebc93d06565757420b6ba1dab549b7d47d21fabac44bc3eccf82484db5e68511",
+        "sha256": "f08b904eafdd3dbc46364b21a9bf5de131e4deed87aee692b4cc00f4d092d8a5",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2780.json",
-        "sha256": "a5aac870306b3a4261bbbc9c2c36bc803a4096b5afd73d3a0131f8c2a1360275",
+        "sha256": "30ab1ca269d4818afc26f701db2f7476c3796c56e112247ef55eb56884bb1fbf",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2799.json",
-        "sha256": "d1df4290094989d8965e9b0fa5901bb5d1021c3f46423ff2dc55937edc833271",
+        "sha256": "45a45dd6fc9eb7f117baad7711426a66b243d17722dcbbe470883969ca1a649f",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2811.json",
-        "sha256": "169084b4723eae75ebab708454e04dd8a908ebf794fada32c8d5726bfceb2099",
+        "sha256": "939d03830cf24e6473f9b5387c106c9462ce7ac928169b5e6ce946f2d1c7e43f",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2930.json",
-        "sha256": "0da3929557a0264e0d6980021fa75ebe59902598076e3036a1bc545fbdfd912b",
+        "sha256": "ec02717cffdd9b996e3b32f7cdde8de64df2f2befff2bb6b00b5f90aab78f71a",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3011.json",
-        "sha256": "d5a362f84b6ad05d07f8756958e2bc630dca9da033149a038213b641bd42dcdb",
+        "sha256": "ec90a69130aae948c29a0bef2089a997cc79ec2a39b974f00fbe11b8350e15db",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3151.json",
-        "sha256": "7a656edfea6a91faa76d7f1d0abec61dec3e9b2393d567ec3ffd27f19629110e",
+        "sha256": "a521d75f7f244b0a231786ab52db77bb9f64e33ccd5ba998d992be83a5ecdf86",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3225.json",
-        "sha256": "4241d9d153dc46543194261c4f09f9c540ad036e7638dfeb1bab85d39c818048",
+        "sha256": "45533755305c8351655663748af66a9b79d2dc813a19ea67865a2c868a3d753d",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3244.json",
-        "sha256": "d809eb2caa57488b2caccd3ad362a90ba8a3cd462bd12180fdf2dc461d293e84",
+        "sha256": "0d6b42bd5c258d57f2ae0ecab0eb24786f572bec3a58376424cd89ca8dbd4a74",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3291.json",
-        "sha256": "ffec46a7261c3529e44b713f434d3ae1ebee5543e136890fa3f51ed57f83efe0",
+        "sha256": "2230a78697d85bfe8f7de1fd8db8aeffcb82e0bed1aba0ce051158b963ad467e",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3340.json",
-        "sha256": "6207e02c6221969bdf447947584b822f1ebd5c88d76f8306511c4216e979d45f",
+        "sha256": "ccd3946e22ee8d3101e892484f81381ad8b55e3355a2208e24911156630bf639",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3367.json",
-        "sha256": "4e37a32b65389d0d04270c38965b151525d341a956266b8647c6882b477c4ee1",
+        "sha256": "d87b8981966895075e9b541238893d82ec2d5c07f10c292bec3b718cdf9650c4",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3389.json",
-        "sha256": "af9a81faa795c8e996ad4840b9fcfb3c7a8eeea1b81dfa9c26bfd52c28e0bdf8",
+        "sha256": "1f4bad9706aface26cc5815ad56651a70a62b79520e0917895fad58c266ed924",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3403.json",
-        "sha256": "f1ed4ea5c0221a40fc491d0fa8ee458eae810eab603102a75beefd9f0e8b8a3a",
+        "sha256": "844d6d3aa84a81fc46ba49bfa2a20b70b3858b7628519506057172327386f6cd",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3475.json",
-        "sha256": "bec08887491576a9a4539a501c83fd9912528832111fcf5b3cc856d33c83c8ee",
+        "sha256": "900d3debc4580063c6966e08cec65c0f318679472993d3ffbc2cb9c74d1afea3",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3486.json",
-        "sha256": "e305ea9d02bbd7bb8ceae083cf4fd15bcce1e3fffdf5eab3a918730133e77a2f",
+        "sha256": "eac6798816e2cbcc9525a8e9c1ed4afc19741ab01fcde1a135e64c879c763ec3",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3708.json",
-        "sha256": "4fcb3ea59933066b1f0897f6f8527e4e08d4171dac023af9e1ff5a833ce01d1d",
+        "sha256": "671c51cfd251b994bf5a0938c7a14c7a5c3d8e8b3585fafc5ea2c7d33cee9764",
         "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_3727.json",
-        "sha256": "b2f6c5f6e07d7b589d7033b675273958b093e0066a0d8ae9d74c4e5aca276d25",
+        "sha256": "229bb797651ca8c61410415e5fd9c1ab2c684bb59e2c5d2f42629869f26f9f28",
         "private": false
       },
       {
@@ -6414,8 +6449,13 @@
       },
       {
         "path": "docs/research/rongyuan-stream/profiles.json",
-        "sha256": "8b2a5d32a90df3bdf8671d83a16305c1e5b487136749eea29f12cdec9304d49b",
+        "sha256": "9ccec7e129b1761c5b17ad85e55f6c532a432bdd7398fa6ef1a4c84c4ff8e8a4",
         "private": false
+      },
+      {
+        "path": "docs/research/rongyuan-stream/sources/fun60ultra-2352-geometry.js",
+        "sha256": "fe393c56dea1d5791872841222ea519e5ac5ec600f6eba41b97ec407790a3dd6",
+        "private": true
       },
       {
         "path": "docs/research/rongyuan-stream/tk75-layout-ansi.json",
@@ -6644,22 +6684,22 @@
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.h",
-        "sha256": "6c2340d0521f09b1bbc09be3b617b1e0eb1529990cba1ac1731ac25d81d1b587",
+        "sha256": "16848197a75ee330bbf8e0118e0ccb24ea1fa35919d5d3cabaa92570e29263c2",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.inc",
-        "sha256": "a7c6fddcd2bb3daa7948530b27df3a523e9c53d191de7e7a7aabb6e595f2ea36",
+        "sha256": "6bca67fd39f3e53280c4c01777ca15140a3c8f3d8aa75225f053bfb8411b5428",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/layouts.h",
-        "sha256": "cd7bb324d1d678540dd22c4a6f95dc2078d6b068df5c70b08ea7254a9c986f90",
+        "sha256": "ad4908ceb8fe7ba8dad15064c6a5dee47009d6792a211c4340245f0cd61c0ebd",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/presets.inc",
-        "sha256": "2c12d38e0a96cc755097a1cc82b58182c1100d106a096e416c7c1fb201d2e053",
+        "sha256": "6faec97e1b167ca727e9d48c1cc98755169648edb1be71f7a9fe883b9ca6beb8",
         "private": false
       },
       {
@@ -6739,7 +6779,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "26fcac16c880512810d3f774c3259d44dfb423360a5c5a1eb5136f1dd5c2abd9",
+        "sha256": "a9c72cb94f2eae5f8555d166ef2b217585c348b223d489906e5ba255f1f49b18",
         "private": false
       },
       {

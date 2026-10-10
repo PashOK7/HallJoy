@@ -81,7 +81,7 @@ bool HallJoy_RunProfileTransactionTests() {
              std::string("[HallJoyPersistence]\nSchemaVersion=9\nKind=Bindings\n[Pad1_Axes]\nLX_Plus=7\n")}) {
             Write(fixture, invalid);
             Check(!Profile_LoadIni(fixture.c_str()), "invalid profile accepted");
-            Check(Bindings_GetAxis(Axis::LX).plusHid == 26, "failed load changed bindings");
+            Check(Bindings_GetAxis(Axis::LX).plusHid() == 26, "failed load changed bindings");
         }
         std::string full = "[Pad1_Buttons]\nA=";
         for (unsigned i=1; i<halljoy::keycode::kCount; ++i) full += (i==1 ? "" : ",") + std::to_string(i);
@@ -95,7 +95,16 @@ bool HallJoy_RunProfileTransactionTests() {
         Write(AppPaths_BindingsIni(), "[Pad1_Axes]\nLX_Plus=7\n");
         const auto legacyBindings = Bytes(AppPaths_BindingsIni());
         Check(GlobalProfiles_Load(L"Default"), "legacy pair did not load");
-        Check(Settings_GetSparkRowLimit()==3 && Bindings_GetAxis(Axis::LX).plusHid==7, "legacy pair wrong");
+        Check(Settings_GetSparkRowLimit()==3 && Bindings_GetAxis(Axis::LX).plusHid()==7, "legacy pair wrong");
+        // Extra axis keys: kept in order, duplicates and out-of-range slots ignored.
+        Write(AppPaths_BindingsIni(), "[Pad1_Axes]\nLX_Plus=7\nLX_Plus2=26\nLX_Plus3=7\nLX_Plus9=5\n");
+        Check(GlobalProfiles_Load(L"Default"), "extra axis keys did not load");
+        {
+            const auto plus = Bindings_GetAxis(Axis::LX).plusHids;
+            Check(plus[0]==7 && plus[1]==26 && plus[2]==0, "extra axis keys wrong order or duplicate kept");
+        }
+        Write(AppPaths_BindingsIni(), "[Pad1_Axes]\nLX_Plus=7\n");
+        Check(GlobalProfiles_Load(L"Default"), "legacy pair reload failed");
         Check(Settings_GetPollingMs()==1 && Settings_GetUIRefreshMs()==1, "legacy timing still controls runtime");
         Settings_SetPollingMs(20); Settings_SetUIRefreshMs(200);
         Check(Settings_GetPollingMs()==1 && Settings_GetUIRefreshMs()==1, "timing setters still change cadence");
@@ -118,7 +127,7 @@ bool HallJoy_RunProfileTransactionTests() {
         KeySettings_Set(halljoy::keycode::kFn, unique);
         Check(GlobalProfiles_Save(L"B"), "B save failed");
         Check(GlobalProfiles_Load(L"Default"), "bundle reload failed");
-        Check(Settings_GetSparkRowLimit()==3 && Bindings_GetAxis(Axis::LX).plusHid==7, "bundle reload mixed");
+        Check(Settings_GetSparkRowLimit()==3 && Bindings_GetAxis(Axis::LX).plusHid()==7, "bundle reload mixed");
         Check(GlobalProfiles_Switch(L"A"), "switch A failed");
         Write(GlobalProfiles_GetSettingsPath(L"Missing"), "[Main]\nPollingMs=5\n");
         Check(!GlobalProfiles_Switch(L"Missing"), "incomplete profile switched");
@@ -135,7 +144,7 @@ bool HallJoy_RunProfileTransactionTests() {
         Check(!switchedWhileLocked && GlobalProfiles_GetActiveName()==L"A", "marker failure switched profile");
         Check(!GlobalProfiles_Delete(L"A"), "active profile deleted after failed switch");
         Check(GlobalProfiles_Switch(L"B"), "switch B failed");
-        Check(Settings_GetSparkRowLimit()==7 && Bindings_GetAxis(Axis::LX).plusHid==26 &&
+        Check(Settings_GetSparkRowLimit()==7 && Bindings_GetAxis(Axis::LX).plusHid()==26 &&
             KeySettings_Get(halljoy::keycode::kFn).useUnique, "B not applied completely");
         result << "legacy_migration=PASS switch_failure=PASS delete_guard=PASS\n";
 
@@ -146,7 +155,7 @@ bool HallJoy_RunProfileTransactionTests() {
                 halljoy::profile_runtime::ReadLease lease;
                 if (!lease) continue;
                 const auto poll = Settings_GetSparkRowLimit();
-                const auto key = Bindings_GetAxis(Axis::LX).plusHid;
+                const auto key = Bindings_GetAxis(Axis::LX).plusHid();
                 if (!((poll==3 && key==7) || (poll==7 && key==26))) mixed = true;
                 ++reads;
             }
@@ -165,7 +174,7 @@ bool HallJoy_RunProfileTransactionTests() {
             IniUtil_TestSetFailureStage(HallJoyPersistence::SaveStage::None);
             Check(!saved && Bytes(GlobalProfiles_GetSettingsPath(L"B"))==committed, "failed save changed bundle");
             Check(GlobalProfiles_Load(L"B"), "reload after fault failed");
-            Check(Settings_GetSparkRowLimit()==7 && Bindings_GetAxis(Axis::LX).plusHid==26, "pair mixed after fault");
+            Check(Settings_GetSparkRowLimit()==7 && Bindings_GetAxis(Axis::LX).plusHid()==26, "pair mixed after fault");
         }
         for (const auto& entry : fs::recursive_directory_iterator(root))
             Check(entry.path().filename().wstring().find(L".halljoy-new-")==std::wstring::npos, "temporary file survived");

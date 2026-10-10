@@ -10,11 +10,48 @@ for filename, digest in json.loads((DATA/'source-lock.json').read_bytes()).items
 profiles = json.loads((DATA / 'profiles.json').read_bytes())
 records = json.loads((DATA / 'admission_sources.json').read_bytes())['records']
 header = (ROOT / 'src/HallJoyProject/HallJoy/rongyuan_stream_protocol.h').read_text(encoding='utf8')
+def header_row(m, matrix):
+    return ('{'+','.join(str(m[k]) for k in ('board','vid','pid'))+',L"'+m['brand']+' '+m['model']+'","'+m['product']+'",'
+            +str(m['range_um'])+','+str(m['precision_enum']).lower()+',{{'+','.join(map(str,matrix))+'}}}')
+def check_app_evidence(m, key):
+    """Profiles admitted from the official MonsGeek web driver (RY5088 class chunk) rather
+    than a per-class manufacturer chunk. The chunk and its stream parent k are the ones
+    reviewed in usb-identity-audit/approved-aliases.json; stock firmware fragments are
+    re-checked whenever the local image is present (tools/extract_monsgeek_fun60_ultra_2352.py)."""
+    evidence = json.loads((DATA/m['evidence']).read_bytes())
+    entry = next(e for e in evidence['models'] if (e['board'], e['vid'], e['pid']) == key)
+    assert (entry['brand'], entry['model'], entry['product']) == (m['brand'], m['model'], m['product'])
+    assert m['product'] == f"RY1B-{m['board']}" and not m['precision_enum'] and 'parent' not in m
+    assert entry['source_record']['record'].startswith(f"{{id:{m['board']},vid:{m['vid']},pid:{m['pid']},")
+    assert 'magnetism:!0' in entry['source_record']['record']
+    model = entry['model_class']
+    assert re.fullmatch(r'class \w+ extends k\{\}', re.sub(r'default\w*Matrix=\[[0-9,]+\];?', '', model)), key
+    matrix = json.loads(re.search(r'defaultMatrix=(\[[0-9,]+\])', model)[1])
+    assert len(matrix) == 512 and matrix == m['matrix'], key
+    assert hashlib.sha256(bytes(matrix)).hexdigest() == entry['matrix_sha256']
+    aliases = json.loads((ROOT/'docs/research/usb-identity-audit/approved-aliases.json').read_bytes())
+    assert 'class k extends t{' in aliases['parent_class']
+    assert any(a.get('model_source', {}).get('sha256') == entry['model_source']['sha256'] for a in aliases['aliases']), key
+    chunk = ROOT/entry['model_source']['source']
+    if chunk.exists():
+        raw = chunk.read_bytes()
+        assert hashlib.sha256(raw).hexdigest() == entry['model_source']['sha256'] and model.encode() in raw, key
+    firmware = ROOT/entry['firmware_local']
+    if firmware.exists():
+        raw = firmware.read_bytes()
+        assert hashlib.sha256(raw).hexdigest() == entry['firmware_sha256'], key
+        for field in ('enable', 'producer', 'sender'):
+            fragment = bytes.fromhex(entry[field+'_hex'])
+            assert raw[entry[field+'_offset']:entry[field+'_offset']+len(fragment)] == fragment, (key, field)
+    assert header_row(m, matrix) in header, key
 seen = set()
 for m in profiles:
     key = (m['board'], m['vid'], m['pid'])
     assert key not in seen
     seen.add(key)
+    if 'evidence' in m:
+        check_app_evidence(m, key)
+        continue
     source = (DATA / m['source']).read_bytes()
     assert hashlib.sha256(source).hexdigest() == m['sha256']
     text = source.decode('utf8')

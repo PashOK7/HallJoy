@@ -8,7 +8,7 @@ int main() {
     source.mapping.sensitivity=.02f;
     memset(source.mapping.axes,HJO_UNBOUND,sizeof(source.mapping.axes));
     memset(source.mapping.triggers,HJO_UNBOUND,sizeof(source.mapping.triggers));
-    source.mapping.axes[0][0]=0; source.mapping.axes[0][1]=113;
+    source.mapping.axes[0][0][0]=0; source.mapping.axes[0][1][0]=113;
     source.mapping.buttons[113]=0x4001;
     for(auto &c:source.curves) {
         c.x[0]=0; c.x[1]=.3f; c.x[2]=.7f; c.x[3]=1;
@@ -17,7 +17,7 @@ int main() {
     std::array<uint8_t,HJO_PROFILE_BYTES> wire{};
     assert(hjo_profile_encode(wire.data(),wire.size(),&source));
     assert(hjo_profile_decode(&target,wire.data(),wire.size()));
-    assert(target.mapping.axes[0][1]==113 && target.mapping.buttons[113]==0x4001);
+    assert(target.mapping.axes[0][1][0]==113 && target.mapping.buttons[113]==0x4001);
     assert(hjo_curve_apply(&target.curves[113],.5f)==hjo_curve_apply(&source.curves[113],.5f));
     const auto original=target;
     for(size_t i=0;i<wire.size();++i) {

@@ -1233,6 +1233,13 @@
           "brand": "EPOMAKER",
           "model": "HE108",
           "board": 3365
+        },
+        {
+          "token": "0xa8f2ab22424f610f",
+          "pid": 20521,
+          "brand": "MonsGeek",
+          "model": "FUN60 Ultra TMR",
+          "board": 2352
         }
       ]
     },

@@ -7,6 +7,7 @@
 #include "game_profiles.h"
 #include "input_shortcuts_runtime.h"
 #include "keychron_onboard_backend.h"
+#include "keychron_onboard_client.h"
 #include "keychron_onboard_host_profile.h"
 #include "backend.h"
 #include "settings.h"
@@ -264,12 +265,23 @@ inline std::wstring OnboardNotice(const std::wstring& name) {
         GetPrivateProfileIntW(L"Main", L"MouseToStickEnabled", 0, path.c_str()) == 0;
     BindingsSnapshot bindings;
     if (!Profile_PrepareIni(GlobalProfiles_GetBindingsPath(name).c_str(), bindings)) return {};
-    for (const auto& axis : bindings.axes[0])
-        supported &= k4_onboard::SlotForHid(axis.minusHid) >= 0 && k4_onboard::SlotForHid(axis.plusHid) >= 0;
+    // The K4 onboard mapping holds one key per axis direction: several keys on
+    // one direction cannot be represented, so the controller stays off.
+    // Several keys on one stick direction need K4 firmware r9 (HJP2).
+    bool multiKey = false;
+    for (const auto& axis : bindings.axes[0]) {
+        for (unsigned k = 0; k < HJO_AXIS_KEYS; ++k) {
+            supported &= k4_onboard::SlotForHid(axis.minusHids[k]) >= 0 && k4_onboard::SlotForHid(axis.plusHids[k]) >= 0;
+            multiKey |= k > 0 && (axis.minusHids[k] != 0 || axis.plusHids[k] != 0);
+        }
+    }
     for (auto hid : bindings.triggers[0]) supported &= k4_onboard::SlotForHid(hid) >= 0;
     for (const auto& button : bindings.buttons[0])
         for (unsigned hid = 1; hid < keycode::kCount; ++hid)
             if (button[hid / 64] & (uint64_t{ 1 } << (hid % 64))) supported &= k4_onboard::SlotForHid(static_cast<uint16_t>(hid)) >= 0;
+    if (multiKey && k4_onboard::K4FirmwareMultiKey().load() != 1)
+        return L"Profile activated. This K4 firmware has one key per stick direction. Several keys on one stick "
+               L"direction need K4 firmware r9; the controller stays off until the keyboard is updated.";
     if (supported) return {};
     return L"Profile activated. In K4 HE onboard mode the controller stays off until this profile uses "
            L"one gamepad, only K4 keys and no mouse-to-stick; change those bindings to turn it on.";

@@ -1,19 +1,40 @@
 #pragma once
+#include <array>
 #include <cstdint>
 
 // NOTE: We support "many keys per GAMEPAD BUTTON" for the complete HallJoy
 // key-code space, including Soup/UAP extended Fn/OEM codes.
-// Axes and triggers remain single-HID as before.
+// Axes support several keys per direction (2026-10-09): the virtual stick takes
+// the most pressed key on each side, so per-key curves can split one direction
+// into ranges (for example 0-50% and 50-100%). Triggers remain single-HID.
 
 enum class Axis
 {
     LX, LY, RX, RY
 };
 
+// Maximum keys per axis direction. Keys in one direction are unique and kept
+// compact from index 0; 0 means empty.
+constexpr int BINDINGS_MAX_AXIS_KEYS = 8;
+using AxisKeys = std::array<std::uint16_t, BINDINGS_MAX_AXIS_KEYS>;
+
 struct AxisBinding
 {
-    uint16_t minusHid = 0;
-    uint16_t plusHid = 0;
+    AxisKeys minusHids{};
+    AxisKeys plusHids{};
+
+    // First key of each side, or 0. Kept for single-key call sites.
+    std::uint16_t minusHid() const noexcept { return minusHids[0]; }
+    std::uint16_t plusHid() const noexcept { return plusHids[0]; }
+
+    // One key per direction; 0 means empty.
+    static AxisBinding Single(std::uint16_t minus, std::uint16_t plus) noexcept
+    {
+        AxisBinding binding{};
+        binding.minusHids[0] = minus;
+        binding.plusHids[0] = plus;
+        return binding;
+    }
 };
 
 enum class Trigger
@@ -34,8 +55,17 @@ enum class GameButton
 constexpr int BINDINGS_MAX_GAMEPADS = 4;
 
 // ---- Per-gamepad API ----
-void Bindings_SetAxisMinusForPad(int padIndex, Axis a, uint16_t hid);
-void Bindings_SetAxisPlusForPad(int padIndex, Axis a, uint16_t hid);
+// Set* replaces every key of that direction (0 clears it).
+void Bindings_SetAxisMinusForPad(int padIndex, Axis a, std::uint16_t hid);
+void Bindings_SetAxisPlusForPad(int padIndex, Axis a, std::uint16_t hid);
+// Add* appends one key to a direction; false when the key is 0, the direction
+// is full or the pad/axis is invalid. Adding an existing key is a no-op success.
+bool Bindings_AddAxisMinusForPad(int padIndex, Axis a, std::uint16_t hid);
+bool Bindings_AddAxisPlusForPad(int padIndex, Axis a, std::uint16_t hid);
+// Removes one key from one direction (minus/plus) or from both directions.
+void Bindings_RemoveAxisMinusForPad(int padIndex, Axis a, std::uint16_t hid);
+void Bindings_RemoveAxisPlusForPad(int padIndex, Axis a, std::uint16_t hid);
+void Bindings_RemoveAxisKeyForPad(int padIndex, Axis a, std::uint16_t hid);
 AxisBinding Bindings_GetAxisForPad(int padIndex, Axis a);
 
 void Bindings_SetTriggerForPad(int padIndex, Trigger t, uint16_t hid);
@@ -59,9 +89,9 @@ int  Bindings_GetPadStyleVariant(int padIndex);
 // Example: removePadIndex=2, activePadCount=4 => old pad3 becomes pad2.
 void Bindings_RemovePadAndCompact(int removePadIndex, int activePadCount);
 
-// ---- Axes (unchanged: 1 key per direction) ----
-void Bindings_SetAxisMinus(Axis a, uint16_t hid);
-void Bindings_SetAxisPlus(Axis a, uint16_t hid);
+// ---- Axes (pad 0 shortcuts) ----
+void Bindings_SetAxisMinus(Axis a, std::uint16_t hid);
+void Bindings_SetAxisPlus(Axis a, std::uint16_t hid);
 AxisBinding Bindings_GetAxis(Axis a);
 
 // ---- Triggers (unchanged: 1 key per trigger) ----
@@ -90,7 +120,7 @@ uint64_t Bindings_GetButtonMaskChunk(GameButton b, int chunk);
 uint16_t Bindings_GetButton(GameButton b);
 
 // Removes this HID from ALL actions:
-// - axes (minus/plus)
+// - axes (minus/plus, every key)
 // - triggers
 // - buttons (mask bits)
 // across ALL virtual gamepads.
@@ -102,7 +132,6 @@ bool Bindings_IsHidBound(uint16_t hid);
 
 
 // Complete prepared profile value; publication is guarded by profile_runtime_gate.
-#include <array>
 #include "analog_key_codes.h"
 struct BindingsSnapshot {
     std::array<std::array<AxisBinding, 4>, BINDINGS_MAX_GAMEPADS> axes{};

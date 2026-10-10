@@ -469,8 +469,10 @@ unsigned BindingActionMask(std::uint16_t hid, int pad) {
     unsigned mask = 0;
     for (unsigned axis = 0; axis < 4; ++axis) {
         const auto binding = Bindings_GetAxisForPad(pad, static_cast<Axis>(axis));
-        if (binding.minusHid == hid) mask |= 1u << axis;
-        if (binding.plusHid == hid) mask |= 1u << (axis + 4);
+        if (std::find(binding.minusHids.begin(), binding.minusHids.end(), hid) != binding.minusHids.end())
+            mask |= 1u << axis;
+        if (std::find(binding.plusHids.begin(), binding.plusHids.end(), hid) != binding.plusHids.end())
+            mask |= 1u << (axis + 4);
     }
     for (unsigned trigger = 0; trigger < 2; ++trigger)
         if (Bindings_GetTriggerForPad(pad, static_cast<Trigger>(trigger)) == hid)

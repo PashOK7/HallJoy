@@ -19,12 +19,18 @@ ProfileResult CaptureProfile(hjo_profile& destination) {
         // session strips it for older firmware, which would reject the profile.
         (Settings_GetBlockBoundKeys() && Settings_GetBlockKeysAllowAltTab()?HJO_KEEP_ALT_TAB:0);
     next.mapping.sensitivity=Settings_GetLastKeyPrioritySensitivity();
+    // Every key of a stick direction (up to HJO_AXIS_KEYS) maps to its firmware
+    // slot. Empty entries are HJO_UNBOUND; the firmware combines them as the most
+    // pressed key, exactly like the host builder.
     for (unsigned a=0;a<4;++a) {
-        const int minus=SlotForHid(bindings.axes[0][a].minusHid);
-        const int plus=SlotForHid(bindings.axes[0][a].plusHid);
-        if (minus<0 || plus<0) return ProfileResult::UnknownKey;
-        next.mapping.axes[a][0]=static_cast<uint8_t>(minus);
-        next.mapping.axes[a][1]=static_cast<uint8_t>(plus);
+        for (unsigned side=0;side<2;++side) {
+            const auto& keys = side==0 ? bindings.axes[0][a].minusHids : bindings.axes[0][a].plusHids;
+            for (unsigned k=0;k<HJO_AXIS_KEYS;++k) {
+                const int slot=SlotForHid(keys[k]);
+                if (slot<0) return ProfileResult::UnknownKey;
+                next.mapping.axes[a][side][k]=static_cast<uint8_t>(slot);
+            }
+        }
     }
     for (unsigned t=0;t<2;++t) {
         const int slot=SlotForHid(bindings.triggers[0][t]);

@@ -38,9 +38,12 @@ void InputConfig_Summary(char* text, std::size_t capacity) noexcept {
         for (int pad = 0; pad < pads; ++pad) {
             for (const Axis axis : {Axis::LX, Axis::LY, Axis::RX, Axis::RY}) {
                 const AxisBinding binding = Bindings_GetAxisForPad(pad, axis);
-                for (const std::uint16_t hid : {binding.minusHid, binding.plusHid})
-                    if (hid) { ++axisDirections; axisInverted += inverted(hid) ? 1u : 0u; }
-                if (binding.minusHid && binding.minusHid == binding.plusHid) ++axisSameKey;
+                for (const auto& side : {binding.minusHids, binding.plusHids})
+                    for (const std::uint16_t hid : side)
+                        if (hid) { ++axisDirections; axisInverted += inverted(hid) ? 1u : 0u; }
+                for (const std::uint16_t hid : binding.minusHids)
+                    if (hid && std::find(binding.plusHids.begin(), binding.plusHids.end(), hid) != binding.plusHids.end())
+                        { ++axisSameKey; break; }
             }
             for (const Trigger trigger : {Trigger::LT, Trigger::RT})
                 if (const std::uint16_t hid = Bindings_GetTriggerForPad(pad, trigger)) {

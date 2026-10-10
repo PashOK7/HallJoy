@@ -140,9 +140,14 @@ WindowsChannel::~WindowsChannel() { if(handle_!=INVALID_HANDLE_VALUE) CloseHandl
 bool WindowsChannel::Connect() {
     if (handle_!=INVALID_HANDLE_VALUE) { CloseHandle(handle_); handle_=INVALID_HANDLE_VALUE; }
     if (Cancelled()) return false;
-    // Exclusive read/write ownership prevents two hosts interleaving commands.
-    handle_=CreateFileW(device_.path.c_str(),GENERIC_READ|GENERIC_WRITE,0,nullptr,
+    // Shared open: other software routinely keeps every HID interface open
+    // (Unity games, RGB and launcher tools), and an exclusive open would lose the
+    // keyboard to them for the whole session. Ownership is the firmware's HJO1
+    // session token (a foreign session is never taken over); replies are matched
+    // by tag, command and token, and foreign reports on the RAW endpoint are skipped.
+    handle_=CreateFileW(device_.path.c_str(),GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,
         OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL|FILE_FLAG_OVERLAPPED,nullptr);
+    openError_=handle_==INVALID_HANDLE_VALUE?GetLastError():0;
     return handle_!=INVALID_HANDLE_VALUE;
 }
 bool WindowsChannel::Transfer(bool write,void* data,DWORD bytes) {

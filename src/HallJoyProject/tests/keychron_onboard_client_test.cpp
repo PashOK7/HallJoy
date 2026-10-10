@@ -95,7 +95,10 @@ struct Fake : Channel {
         hjk4_put16(r.data()+30,hjk4_sparse_crc(r.data()));
         if(corruptPage)r[14]^=1;
     }
+    // Reports another program on the shared RAW endpoint provokes (a VIA reply).
+    unsigned foreign=0;
     bool Read(Packet& r) override {
+        if(foreign){--foreign;r={};r[0]=0x01;r[1]=0x0c;return true;}
         now+=readDelay;
         if(sparseSupported){if(sparseCursor>=HJO_SLOTS)return false;FillSparse(r);return true;}
         if(nextPage>=6)return false;FillBurst(r);return true;
@@ -105,7 +108,7 @@ struct Fake : Channel {
     bool Cancelled() const override {return cancel;}
 };
 hjo_profile Profile() {
-    hjo_profile p{}; std::memset(p.mapping.axes,255,8); std::memset(p.mapping.triggers,255,2);
+    hjo_profile p{}; std::memset(p.mapping.axes,255,sizeof(p.mapping.axes)); std::memset(p.mapping.triggers,255,2);
     p.mapping.sensitivity=.02f;
     for(auto& c:p.curves) {c={{0,.3f,.7f,1},{0,.3f,.7f,1},{1,1},1,0};}
     return p;
@@ -173,7 +176,17 @@ int main() {
     assert(fresh.Depth(depth));fast.repeatScan=true;assert(!fresh.Depth(depth));fast.repeatScan=false;
     assert(fresh.Open(Profile()));fast.wrongToken=true;
     assert(!fresh.Depth(depth) && depth==intact);fast.wrongToken=false;
-    assert(fresh.Depth(depth));assert(fresh.Close());
+    assert(fresh.Depth(depth));
+    // The vendor interface is opened shared: foreign reports between pages are
+    // skipped (bounded), more than the bound fail the read without touching depth.
+    fast.foreign=8;assert(fresh.Depth(depth) && depth==intact && fast.foreign==0);
+    fast.foreign=9;assert(!fresh.Depth(depth) && depth==intact);fast.foreign=0;
+    assert(fresh.Close());
+    {   Fake burst;Client b(burst);std::array<uint16_t,114> values{};
+        assert(b.Status(info) && b.Depth(values));
+        burst.foreign=8;assert(b.Depth(values) && burst.foreign==0);
+        burst.foreign=9;assert(!b.Depth(values));
+    }
     // Reject malformed records even when packet CRC is recomputed correctly.
     for(unsigned mutation=0;mutation<7;++mutation) {
         Packet packet{};unsigned cursor=0;hjk4_sparse_assembly assembly{};

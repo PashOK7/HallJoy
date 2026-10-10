@@ -2123,22 +2123,30 @@ static void PaintPanelBg(HWND hWnd, UINT msg, WPARAM wParam, RemapPanelState* st
 }
 
 // ---------------- Apply binding helpers ----------------
-static uint16_t GetOldHidForAction(int padIndex, BindAction act)
+// Every key the action's direction holds before the change (repaint targets).
+static std::array<uint16_t, BINDINGS_MAX_AXIS_KEYS + 1> GetOldHidsForAction(int padIndex, BindAction act)
 {
+    std::array<uint16_t, BINDINGS_MAX_AXIS_KEYS + 1> out{};
+    const auto side = [&](Axis a, bool minus) {
+        const AxisBinding b = Bindings_GetAxisForPad(padIndex, a);
+        const AxisKeys& keys = minus ? b.minusHids : b.plusHids;
+        for (std::size_t i = 0; i < keys.size(); ++i) out[i] = keys[i];
+    };
     switch (act)
     {
-    case BindAction::Axis_LX_Minus: return Bindings_GetAxisForPad(padIndex, Axis::LX).minusHid;
-    case BindAction::Axis_LX_Plus:  return Bindings_GetAxisForPad(padIndex, Axis::LX).plusHid;
-    case BindAction::Axis_LY_Minus: return Bindings_GetAxisForPad(padIndex, Axis::LY).minusHid;
-    case BindAction::Axis_LY_Plus:  return Bindings_GetAxisForPad(padIndex, Axis::LY).plusHid;
-    case BindAction::Axis_RX_Minus: return Bindings_GetAxisForPad(padIndex, Axis::RX).minusHid;
-    case BindAction::Axis_RX_Plus:  return Bindings_GetAxisForPad(padIndex, Axis::RX).plusHid;
-    case BindAction::Axis_RY_Minus: return Bindings_GetAxisForPad(padIndex, Axis::RY).minusHid;
-    case BindAction::Axis_RY_Plus:  return Bindings_GetAxisForPad(padIndex, Axis::RY).plusHid;
-    case BindAction::Trigger_LT:    return Bindings_GetTriggerForPad(padIndex, Trigger::LT);
-    case BindAction::Trigger_RT:    return Bindings_GetTriggerForPad(padIndex, Trigger::RT);
-    default: return 0;
+    case BindAction::Axis_LX_Minus: side(Axis::LX, true); break;
+    case BindAction::Axis_LX_Plus:  side(Axis::LX, false); break;
+    case BindAction::Axis_LY_Minus: side(Axis::LY, true); break;
+    case BindAction::Axis_LY_Plus:  side(Axis::LY, false); break;
+    case BindAction::Axis_RX_Minus: side(Axis::RX, true); break;
+    case BindAction::Axis_RX_Plus:  side(Axis::RX, false); break;
+    case BindAction::Axis_RY_Minus: side(Axis::RY, true); break;
+    case BindAction::Axis_RY_Plus:  side(Axis::RY, false); break;
+    case BindAction::Trigger_LT:    out[0] = Bindings_GetTriggerForPad(padIndex, Trigger::LT); break;
+    case BindAction::Trigger_RT:    out[0] = Bindings_GetTriggerForPad(padIndex, Trigger::RT); break;
+    default: break;
     }
+    return out;
 }
 
 static void ApplyBindingNow(HWND hWnd, RemapPanelState* st, uint16_t newHid, bool appendToExistingHid = false)
@@ -2146,14 +2154,15 @@ static void ApplyBindingNow(HWND hWnd, RemapPanelState* st, uint16_t newHid, boo
     if (!st || newHid == 0) return;
 
     BindAction act = st->dragAction;
-    uint16_t oldHid = GetOldHidForAction(st->dragPadIndex, act);
+    const auto oldHids = GetOldHidsForAction(st->dragPadIndex, act);
 
     if (appendToExistingHid)
         BindingActions_AppendForPad(st->dragPadIndex, act, newHid);
     else
         BindingActions_ApplyForPad(st->dragPadIndex, act, newHid);
     KeyboardUI_SaveBindingsAfterUserChange(hWnd);
-    InvalidateHidKey(oldHid);
+    for (const uint16_t oldHid : oldHids)
+        InvalidateHidKey(oldHid);
     InvalidateHidKey(newHid);
     if (st->hKeyboardHost) InvalidateRect(st->hKeyboardHost, nullptr, FALSE);
 
@@ -2196,7 +2205,7 @@ static bool Remap_HasAnyBindings()
         for (int axis = 0; axis <= (int)Axis::RY; ++axis)
         {
             const auto binding = Bindings_GetAxisForPad(pad, (Axis)axis);
-            if (binding.minusHid || binding.plusHid) return true;
+            if (binding.minusHids[0] || binding.plusHids[0]) return true;
         }
         for (int trigger = 0; trigger <= (int)Trigger::RT; ++trigger)
             if (Bindings_GetTriggerForPad(pad, (Trigger)trigger)) return true;

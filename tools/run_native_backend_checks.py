@@ -120,6 +120,9 @@ def _parse_depfile(text: str) -> list[str]:
 def _cache_key(command: list[str], output: Path) -> str:
     h = hashlib.sha256()
     compiler = Path(shutil.which(command[0]) or command[0])
+    # Cache format 2: dependencies of every translation unit (format 1 kept only the
+    # last unit's list for multi-source tests, so their binaries went stale).
+    h.update(b"deps-per-unit-v2\0")
     try:
         st = compiler.stat(); h.update(f"{compiler}|{st.st_size}|{st.st_mtime_ns}".encode())
     except OSError:
@@ -127,6 +130,27 @@ def _cache_key(command: list[str], output: Path) -> str:
     for arg in command[1:]:
         h.update(("<out>" if arg == str(output) else arg).encode("utf-8", "surrogateescape") + b"\0")
     return h.hexdigest()[:32]
+
+
+def _unit_dependencies(command: list[str], output: Path) -> list[str] | None:
+    """Dependencies of every source on the command line, one -M pass per unit.
+
+    A single -MD -MF for a multi-source compile is rewritten by each unit, so only
+    the last unit's dependencies survived. None means: do not cache this binary."""
+    sources = [a for a in command[1:] if a.lower().endswith((".cpp", ".cc", ".c")) and Path(a).is_file()]
+    flags = [a for a in command[1:-2] if a not in sources and not a.startswith("-l")]
+    deps: set[str] = set()
+    for index, source in enumerate(sources):
+        depfile = output.with_name(f"{output.name}.{index}.d")
+        result = subprocess.run([command[0], *flags, "-M", "-MF", str(depfile), source],
+                                capture_output=True, text=True, timeout=300)
+        if result.returncode != 0 or not depfile.is_file():
+            return None
+        unit = _parse_depfile(depfile.read_text(encoding="utf-8", errors="surrogateescape"))
+        if not any(Path(d).resolve() == Path(source).resolve() for d in unit):
+            return None
+        deps.update(unit)
+    return sorted(deps) if sources else None
 
 
 def _build(command: list[str], output: Path) -> str:
@@ -141,16 +165,14 @@ def _build(command: list[str], output: Path) -> str:
             target = output.with_name((entry / "name.txt").read_text(encoding="utf-8"))
             shutil.copyfile(entry / "bin", target)
             return f"= cached (identical inputs) {output.name}"
-    depfile = output.with_name(output.name + ".d")
-    full = command[:-2] + ["-MD", "-MF", str(depfile)] + command[-2:]
     started = time.time_ns() - 2_000_000_000  # filesystem timestamp slack
-    result = subprocess.run(full, capture_output=True, text=True, timeout=300)
+    result = subprocess.run(command, capture_output=True, text=True, timeout=300)
     if result.returncode != 0:
         raise RuntimeError("+ " + " ".join(command) + "\n" + result.stdout + result.stderr)
     log = "+ " + " ".join(command) + ("\n" + (result.stdout + result.stderr).rstrip() if (result.stdout + result.stderr).strip() else "")
     built = exe if exe.is_file() else output
-    if use_cache and depfile.is_file() and built.is_file():
-        deps = _parse_depfile(depfile.read_text(encoding="utf-8", errors="surrogateescape"))
+    deps = _unit_dependencies(command, output) if use_cache and built.is_file() else None
+    if deps:
         digest = _digest_files(deps)
         try:  # an input edited during compilation must never be cached
             stable = all(Path(d).stat().st_mtime_ns < started for d in deps)
@@ -365,7 +387,10 @@ def main() -> int:
             ("keychron_onboard_compact", [tests / "keychron_onboard_compact_test.cpp"]),
             ("keychron_onboard_client", [tests / "keychron_onboard_client_test.cpp"]),
             ("keychron_onboard_profile", [tests / "keychron_onboard_profile_test.cpp"]),
+            ("keychron_onboard_profile_v2", [tests / "keychron_onboard_profile_v2_test.cpp"]),
             ("keychron_onboard_mapper", [tests / "keychron_onboard_mapper_test.cpp", hall / "configured_xusb_builder.cpp"]),
+            ("keychron_onboard_multikey", [tests / "keychron_onboard_multikey_test.cpp", hall / "configured_xusb_builder.cpp"]),
+            ("keychron_onboard_stray_report", [tests / "keychron_onboard_stray_report_test.cpp"]),
             ("uap_snapshot_pinning", [tests / "uap_snapshot_pinning_test.cpp"]),
             ("windows_command_line", [tests / "windows_command_line_test.cpp"]),
             ("mg75_pro_protocol", [tests / "mg75_pro_protocol_test.cpp"]),
@@ -399,6 +424,14 @@ def main() -> int:
             ("extended_key_bindings", [
                 tests / "extended_key_bindings_test.cpp",
                 hall / "bindings.cpp",
+            ]),
+            ("axis_multikey_bindings", [
+                tests / "axis_multikey_bindings_test.cpp",
+                hall / "bindings.cpp",
+            ]),
+            ("axis_most_pressed_builder", [
+                tests / "axis_most_pressed_builder_test.cpp",
+                hall / "configured_xusb_builder.cpp",
             ]),
             ("protocol_parser_fuzz_smoke", [
                 tests / "protocol_parser_fuzz_smoke_test.cpp",

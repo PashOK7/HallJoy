@@ -713,7 +713,7 @@ void SelfTest(unsigned product){
     Require(NativeToken()==halljoy::mini60::Token(product));Require(NativeOwns(26) && NativeGet(26)==500 && NativeGet(4)==1000 && NativeGet(41)==250);
     Require(NativeAnalogBackends_CatalogIsValid());
     auto routed=NativeAnalogBackends_ReadMilli(26);Require(routed.connected && routed.owned && routed.milli==500);
-    halljoy::configured_xusb::PadConfiguration config{};config.axes[0]={4,7};config.axes[1]={22,26};
+    halljoy::configured_xusb::PadConfiguration config{};config.axes[0] = AxisBinding::Single(4,7);config.axes[1] = AxisBinding::Single(22,26);
     halljoy::configured_xusb::InputValues input{};
     for(unsigned hid:{4u,7u,22u,26u})input.filtered[hid]=NativeAnalogBackends_ReadMilli(static_cast<std::uint16_t>(hid)).milli/1000.0f;
     halljoy::configured_xusb::BuilderState gameState{};

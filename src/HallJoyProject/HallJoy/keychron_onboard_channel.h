@@ -27,6 +27,7 @@ class WindowsChannel final : public Channel {
     Device device_;
     HANDLE handle_=INVALID_HANDLE_VALUE;
     HANDLE cancel_=nullptr;
+    DWORD openError_=0;
     bool Transfer(bool write,void* data,DWORD bytes);
 public:
     explicit WindowsChannel(Device device,HANDLE cancel=nullptr):device_(std::move(device)),cancel_(cancel) {}
@@ -40,5 +41,7 @@ public:
     std::uint64_t NowMs() const override { return GetTickCount64(); }
     bool Cancelled() const override { return cancel_ && WaitForSingleObject(cancel_,0)==WAIT_OBJECT_0; }
     const Device& Identity() const { return device_; }
+    // Win32 error of the last failed Connect (0 after a successful one).
+    DWORD LastOpenError() const { return openError_; }
 };
 }

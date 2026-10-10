@@ -10,13 +10,15 @@ int main() {
     namespace ref = halljoy::configured_xusb;
     std::mt19937 random(0x484a4b34);
     hjo_mapping p{};
+    // Slot 0 is a real key (Esc): empty entries must be HJO_UNBOUND, never 0.
+    memset(p.axes, HJO_UNBOUND, sizeof(p.axes));
     p.sensitivity = .15f;
     ref::PadConfiguration config{};
     config.lastKeyPrioritySensitivity = p.sensitivity;
     for (unsigned a = 0; a < 4; ++a) {
-        p.axes[a][0] = static_cast<uint8_t>(2 * a);
-        p.axes[a][1] = static_cast<uint8_t>(2 * a + 1);
-        config.axes[a] = {static_cast<uint16_t>(2 * a + 1), static_cast<uint16_t>(2 * a + 2)};
+        p.axes[a][0][0] = static_cast<uint8_t>(2 * a);
+        p.axes[a][1][0] = static_cast<uint8_t>(2 * a + 1);
+        config.axes[a] = AxisBinding::Single(static_cast<uint16_t>(2 * a + 1), static_cast<uint16_t>(2 * a + 2));
     }
     p.triggers[0] = 8; p.triggers[1] = 9;
     config.triggers = {9, 10};
@@ -56,8 +58,8 @@ int main() {
             }
         }
     }
-    p.axes[0][0] = 114; assert(!hjo_mapping_valid(&p));
-    p.axes[0][0] = HJO_UNBOUND; assert(hjo_mapping_valid(&p));
+    p.axes[0][0][0] = 114; assert(!hjo_mapping_valid(&p));
+    p.axes[0][0][0] = HJO_UNBOUND; assert(hjo_mapping_valid(&p));
     p.sensitivity = std::numeric_limits<float>::quiet_NaN(); assert(!hjo_mapping_valid(&p));
     assert(hjo_xinput_buttons(1) == 0x1000);
     assert(hjo_xinput_buttons(0x7fff) == 0xf7ff);

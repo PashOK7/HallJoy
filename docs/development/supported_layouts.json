@@ -169,6 +169,14 @@
   },
   {
    "brand": "Keychron",
+   "model": "K10 HE",
+   "presets": [
+    "Keychron K10 HE ANSI",
+    "Keychron K10 HE ISO"
+   ]
+  },
+  {
+   "brand": "Keychron",
    "model": "K2 HE",
    "presets": [
     "Keychron K2 HE ANSI",
@@ -212,14 +220,6 @@
   },
   {
    "brand": "Keychron",
-   "model": "K10 HE",
-   "presets": [
-    "Keychron K10 HE ANSI",
-    "Keychron K10 HE ISO"
-   ]
-  },
-  {
-   "brand": "Keychron",
    "model": "Q1 HE",
    "presets": [
     "Keychron Q1 HE ANSI - Imported",
@@ -234,6 +234,14 @@
     "Keychron Q1 HE 8K ANSI",
     "Keychron Q1 HE 8K ISO",
     "Keychron Q1 HE 8K JIS"
+   ]
+  },
+  {
+   "brand": "Keychron",
+   "model": "Q12 HE",
+   "presets": [
+    "Keychron Q12 HE ANSI",
+    "Keychron Q12 HE ISO"
    ]
   },
   {
@@ -301,14 +309,6 @@
    ]
   },
   {
-   "brand": "Keychron",
-   "model": "Q12 HE",
-   "presets": [
-    "Keychron Q12 HE ANSI",
-    "Keychron Q12 HE ISO"
-   ]
-  },
-  {
    "brand": "Lemokey",
    "model": "P1 HE",
    "presets": [
@@ -353,11 +353,34 @@
   },
   {
    "brand": "MCHOSE",
+   "model": "Ace 68 Air (III revision)",
+   "presets": [
+    "MCHOSE Ace 68 ANSI"
+   ],
+   "shownAs": "Ace 68"
+  },
+  {
+   "brand": "MCHOSE",
+   "model": "Jet 75 (II revision)",
+   "presets": [
+    "MCHOSE Jet 75 II ANSI"
+   ],
+   "shownAs": "Jet 75 II"
+  },
+  {
+   "brand": "MCHOSE",
    "model": "Mix 87 (III revision)",
    "presets": [
     "MCHOSE Mix 87 III ANSI"
    ],
    "shownAs": "Mix 87 III"
+  },
+  {
+   "brand": "MonsGeek",
+   "model": "FUN60 Ultra TMR",
+   "presets": [
+    "MonsGeek FUN60 Ultra TMR ANSI"
+   ]
   },
   {
    "brand": "NuPhy",
@@ -453,6 +476,13 @@
    ]
   },
   {
+   "brand": "WLMOUSE",
+   "model": "Ying75",
+   "presets": [
+    "WLMOUSE Ying75 ANSI"
+   ]
+  },
+  {
    "brand": "Wooting",
    "model": "60HE",
    "presets": [
@@ -533,29 +563,6 @@
    "model": "UwU RGB",
    "presets": [
     "Wooting UwU + UwU RGB ANSI"
-   ]
-  },
-  {
-   "brand": "MCHOSE",
-   "model": "Jet 75 (II revision)",
-   "presets": [
-    "MCHOSE Jet 75 II ANSI"
-   ],
-   "shownAs": "Jet 75 II"
-  },
-  {
-   "brand": "MCHOSE",
-   "model": "Ace 68 Air (III revision)",
-   "presets": [
-    "MCHOSE Ace 68 ANSI"
-   ],
-   "shownAs": "Ace 68"
-  },
-  {
-   "brand": "WLMOUSE",
-   "model": "Ying75",
-   "presets": [
-    "WLMOUSE Ying75 ANSI"
    ]
   }
  ]

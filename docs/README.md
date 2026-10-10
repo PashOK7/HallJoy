@@ -1,3 +1,7 @@
+> MonsGeek: [FUN60 Ultra TMR board 2352, Supported (tester-confirmed)](current/FUN60_ULTRA_2352_2026-10-10.md).
+
+> K4 HE: [found while a game holds the keyboard (shared vendor open)](current/K4_SHARED_VENDOR_OPEN_2026-10-10.md).
+
 > AJAZZ: [AK820 MAX HE Sonix revision 0C45:80B1 on the MINI60 stream backend, yellow, Sheet sync pending](current/AJAZZ_AK820MAX_SONIX_80B1_2026-10-08.md).
 > Red Square: [Alumix 68 Yotei, firmware v1.30-only read path, Sheet yellow](current/ALUMIX68_RSQ20058_2026-10-06.md).
 > Generic: [yellow support for unlisted BY/IPI and Logitech 0x1B08 keyboards; default 100% layout](current/GENERIC_PROTOCOL_SUPPORT_2026-10-07.md).

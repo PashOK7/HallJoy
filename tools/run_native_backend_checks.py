@@ -295,7 +295,6 @@ def main() -> int:
             ("profile_runtime_gate", [tests / "profile_runtime_gate_test.cpp"]),
             ("game_profile_rules", [tests / "game_profile_rules_test.cpp"]),
             ("tab_transition_motion", [tests / "tab_transition_motion_test.cpp"]),
-            ("engine_runtime_ui_bridge", [tests / "engine_runtime_ui_bridge_test.cpp"]),
             ("analog_simulator", [tests / "analog_simulator_model_test.cpp", hall / "analog_simulator_model.cpp"]),
             ("addressed_scheduler", [tests / "addressed_poll_scheduler_test.cpp", hall / "addressed_poll_scheduler.cpp"]),
             ("hid_lifecycle", [tests / "hid_io_operation_lifecycle_test.cpp"]),
@@ -502,6 +501,8 @@ def main() -> int:
             fixed_tests.append(("support_log_windows", [
                 tests / "support_log_windows_test.cpp", hall / "support_log.cpp"
             ]))
+            # The bridge implementation includes <windows.h>: not portable.
+            fixed_tests.append(("engine_runtime_ui_bridge", [tests / "engine_runtime_ui_bridge_test.cpp"]))
             fixed_tests.append(("engine_runtime_notification_windows", [
                 tests / "engine_runtime_notification_windows_test.cpp", hall / "engine_runtime_owner.cpp", hall / "perf_trace.cpp"
             ]))

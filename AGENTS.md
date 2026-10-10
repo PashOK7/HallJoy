@@ -78,3 +78,17 @@ check. Keep the independent expected catalog explicit; do not generate the test
 expectation from the same conditional manifest it must validate. New protocol
 admissions must update this expectation; deliberate exclusions need an explicit
 owner decision. Local builds are not GitHub publication authorization.
+
+## Lean checks and releases (owner decision, 2026-10-11)
+
+Checks must cost little compared with the change. For an ordinary change: run
+`tools/run_native_backend_checks.py --require-compiler` once (the test cache is
+valid; never `HALLJOY_NO_TEST_CACHE=1`) and `tools/build_release.ps1` once. Run
+`research_reference_checks.py --record` only when a referenced source changed.
+Release: write `docs/releases/RELEASE_NOTES_v<version>.md`, then
+`python tools/release.py <version> "v<version>: title" --publish`. It bumps the
+version, transfers under the publication policy, scans for private data, runs
+the suite and the release build once, packages, tags, publishes, checks the
+server-side asset hashes and records the publication. GitHub CI (Windows only)
+is the clean-checkout run; do not repeat it locally. Do not rerun a passed
+check without a change that affects it.

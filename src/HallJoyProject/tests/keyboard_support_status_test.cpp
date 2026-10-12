@@ -101,7 +101,8 @@ int main()
     assert(ClassifyFrozen(0x36a7,0xf887,L"WLKB YING 75")==0);
     assert(NativeNotice(30,0,true,0xC364)==LogitechRapid && NativeNotice(30,0,false,0xC364)==0); // Logitech G RAPID: yellow
     // Red Square Alumix 68 (0C45:80A2): yellow when the verified firmware streams.
-    assert(NativeNotice(31,0,true,0x80a2)==RedSquareAlumix68 && NativeNotice(31,0,false,0x80a2)==0);
+    // Alumix 68 is switched off (owner decision 2026-10-12): no catalog notice group is generated for it.
+    assert(NativeNotice(31,0,true,0x80a2)==0 && NativeNotice(31,0,false,0x80a2)==0);
     assert(NativeNotice(22,0x5F95BAB8BCAB36D1ull,true,0x5030)==0);
     assert(NativeNotice(22,0x5F95BAB8BCAB36D1ull,true,0x5029)!=0);
     assert(NativeNotice(22,0,true,0x5030)!=0);

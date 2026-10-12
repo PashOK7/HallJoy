@@ -167,7 +167,6 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **PSYCommu:** PSY P1  
 **Rampage:** KAISEL, ZENITH PRO  
 **Razer:** Tartarus Pro (requires Razer Synapse)  
-**Red Square:** Alumix 68 Yotei (Magnetite Ice), firmware v1.30 only  
 **Redragon:** K617 HE, K673WB-RGB-M, K686 HE  
 **Royal Kludge:** A72HE  
 **ROYALAXE:** X68  

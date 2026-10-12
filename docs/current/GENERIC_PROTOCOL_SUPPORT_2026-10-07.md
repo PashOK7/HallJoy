@@ -10,6 +10,7 @@ HallJoy itself; and show an anonymous 100% layout by default.
 | --- | --- | --- |
 | BY/IPI UUID platform (VID 372E: IPI, QBZ, Royal Kludge, FuryCube, AULA BY boards) | Yes | Read-only commands only (`82 01` UUID, `83 00` map, `94 02` live, `94 05` calibration); the keyboard describes its own keys; BY key IDs share one factory table. |
 | Logitech HID++ `0x1B08` | Yes | Self-describing feature lookup; `0x1B08` stream is a volatile on/off; keys are learned at run time. |
+| SparkLink V2 (VID/PID in the vendor's official keyboard list, FFB0:1) | Implemented 2026-10-12, disabled in the 1.6.9.1 hotfix (`kGenericAdmission=false`) | See [SPARKLINK_GENERIC_ADMISSION_2026-10-12.md](SPARKLINK_GENERIC_ADMISSION_2026-10-12.md): official identity list gate, device-info proof, one live travel read before it is shown as connected; VID 3151 excluded. |
 | RongYuan RY5088 (3151:...) | No | Same VID/PIDs as ATTACK SHARK with a different protocol; a generic path would send the stream-enable command to them; board numbers collide across OEM catalogs. Exact boards and reviewed aliases only. |
 | W669, MCHOSE Jet75/Mix87, Hex80, others | No | Need exact factory profiles or perform settings writes. |
 

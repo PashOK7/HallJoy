@@ -1,3 +1,4 @@
+#include "aula_mini60_name.h"
 #include "aula_mini60_native_model.h"
 #include <cassert>
 #include <array>
@@ -31,6 +32,15 @@ int main(){
     assert(!Ak820Admitted && !SupportedProduct(Ak820Pid) && !SupportedProduct(0x80b0) && Token(Ak820Pid)==Ak820LayoutToken && Ak820LayoutToken==0xE73449D3F54AAB62ull);
     assert(Identity(Ak820Pid,0x0c45,Ak820Pid,0,0) && !Identity(Ak820Pid,0x0c45,0x80a2,0x0166,0x110c) && !Identity(0x80a2,0x0c45,Ak820Pid,0,0) && !Identity(Ak820Pid,0x0416,Ak820Pid,0,0));
     assert(!Identity(0x80a2,0x0c45,0x80a2,0,0x110c) && Identity(0x80a2,0x0c45,0x80a2,0x0166,0x110c));
+    // A unit named "MINI 60 HE PRO" is accepted even when its device-info product register differs.
+    assert(Identity(0x80a2,0x0c45,0x80a2,0x0166,0x1234,true) && !Identity(0x80a2,0x0c45,0x80a2,0x0166,0x1234));
+    assert(!Identity(0x80a2,0x0c45,0x80a2,0x0167,0x1234,true) && !Identity(0x80a2,0x0c45,0x80a1,0x0166,0x1234,true));
+    assert(!Identity(0x80a2,0x0c46,0x80a2,0x0166,0x1234,true));
+    assert(halljoy::mini60::IsMini60ProName(L"MINI 60 HE PRO") && halljoy::mini60::IsMini60ProName(L"Mini60 HE Pro") &&
+           halljoy::mini60::IsMini60ProName(L"AULA MINI 60  HE  PRO V2"));
+    assert(!halljoy::mini60::IsMini60ProName(L"") && !halljoy::mini60::IsMini60ProName(nullptr) &&
+           !halljoy::mini60::IsMini60ProName(L"MINI 60 HE MAX") && !halljoy::mini60::IsMini60ProName(L"RSQ-20058") &&
+           !halljoy::mini60::IsMini60ProName(L"Alumix 68"));
     assert(InfoLength(Ak820Pid)==48 && InfoLength(0x80a2)==56);
     // AK820 hold: last depth stays until 0 or a value inside the top dead zone; no time expiry.
     assert(Held(Pack(170,34,0),0)==500 && Held(Pack(170,34,0),30)==500 && Held(Pack(28,34,0),30)==0);

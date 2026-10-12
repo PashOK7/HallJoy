@@ -6,7 +6,9 @@
 static constexpr size_t kSparkKeyCount = halljoy::sparklink::kKeyCount;
 
 #include <chrono>
+#include <map>
 #include <mutex>
+#include <set>
 
 // ---- native HID path for SparkLink / XD keyboard protocol ----
 static constexpr uint16_t kSparkUsagePageV2 = 0xFFB0;
@@ -70,6 +72,65 @@ static halljoy::worker::WorkerExceptionRecord g_sparkWorkerFaultRecord{};
 static std::atomic<DWORD>         g_sparkWorkerSehCode{ 0 };
 static std::atomic<bool>          g_sparkWorkerExited{ true };
 static std::timed_mutex           g_sparkLifecycleMutex;
+// Official-list identities that are not named models connect through the protocol match
+// only. A device whose probe, travel read or layout fails three times is remembered by
+// interface path and not touched again until it leaves the bus.
+static std::mutex                 g_sparkRejectMutex;
+static std::map<std::wstring,int> g_sparkGenericFailures;
+static std::set<std::wstring>     g_sparkRejectedPaths;
+static std::wstring               g_sparkSessionPath;
+static std::atomic<bool>          g_sparkSessionGeneric{ false };
+static constexpr int              kSparkGenericFailureLimit = 3;
+static std::wstring SparkNormalizePath(const wchar_t* path)
+{
+    std::wstring key = path ? path : L"";
+    for (wchar_t& c : key) c = static_cast<wchar_t>(std::towlower(c));
+    return key;
+}
+static bool SparkPathRejected(const wchar_t* path)
+{
+    const std::lock_guard<std::mutex> lock(g_sparkRejectMutex);
+    return g_sparkRejectedPaths.count(SparkNormalizePath(path)) != 0;
+}
+static void SparkNoteGenericFailure(const wchar_t* path, const wchar_t* reason)
+{
+    if (!path || !*path) return;
+    const std::wstring key = SparkNormalizePath(path);
+    int failures = 0;
+    bool rejected = false;
+    {
+        const std::lock_guard<std::mutex> lock(g_sparkRejectMutex);
+        failures = ++g_sparkGenericFailures[key];
+        if (failures >= kSparkGenericFailureLimit)
+            rejected = g_sparkRejectedPaths.insert(key).second;
+    }
+    StabilityTrace_Write(L"WARN", L"spark", L"generic.failure",
+        L"reason=%s failures=%d rejected=%d", reason, failures, rejected ? 1 : 0);
+}
+static void SparkNoteGenericSuccess(const wchar_t* path)
+{
+    if (!path || !*path) return;
+    const std::lock_guard<std::mutex> lock(g_sparkRejectMutex);
+    g_sparkGenericFailures.erase(SparkNormalizePath(path));
+}
+static void SparkPruneGenericMemory(const std::set<std::wstring>& seen)
+{
+    const std::lock_guard<std::mutex> lock(g_sparkRejectMutex);
+    for (auto it = g_sparkRejectedPaths.begin(); it != g_sparkRejectedPaths.end();)
+        it = seen.count(*it) ? std::next(it) : g_sparkRejectedPaths.erase(it);
+    for (auto it = g_sparkGenericFailures.begin(); it != g_sparkGenericFailures.end();)
+        it = seen.count(it->first) ? std::next(it) : g_sparkGenericFailures.erase(it);
+}
+static void SparkNoteSessionFailure(const wchar_t* reason)
+{
+    if (!g_sparkSessionGeneric.load(std::memory_order_acquire)) return;
+    std::wstring path;
+    {
+        const std::lock_guard<std::mutex> lock(g_sparkRejectMutex);
+        path = g_sparkSessionPath;
+    }
+    SparkNoteGenericFailure(path.c_str(), reason);
+}
 static halljoy::lifecycle::WorkerLifecycle g_sparkLifecycle;
 static std::atomic<bool>          g_sparkRestartBlocked{ false };
 static std::atomic<bool>          g_sparkServiceRunning{ false };
@@ -985,6 +1046,7 @@ static HANDLE SparkTryOpenDevice(
     uint16_t bestReadOnlyPid = 0;
     uint16_t bestReadOnlyUsagePage = 0;
     uint32_t dedicated6x21Skipped = 0;
+    std::set<std::wstring> seenGeneric;
 
     for (DWORD idx = 0;; ++idx)
     {
@@ -1031,6 +1093,11 @@ static HANDLE SparkTryOpenDevice(
             halljoy::sparklink::ProbeIdentity(identity.VendorID,identity.ProductID);
         CloseHandle(metadata);
         if(!known)continue;
+        if(halljoy::sparklink::GenericOnly(identity.VendorID,identity.ProductID))
+        {
+            seenGeneric.insert(SparkNormalizePath(detail->DevicePath));
+            if(SparkPathRejected(detail->DevicePath))continue;
+        }
 
         bool writeCapable = true;
         HANDLE h = CreateFileW(
@@ -1155,6 +1222,7 @@ static HANDLE SparkTryOpenDevice(
     }
 
     SetupDiDestroyDeviceInfoList(devInfo);
+    SparkPruneGenericMemory(seenGeneric);
 
     if (bestWritable)
     {
@@ -1213,6 +1281,7 @@ static DWORD SparkPollThreadProcImpl()
     if (!SparkQueryDeviceInfo(devInfo) || devInfo[2] != 0x01)
     {
         DebugLog_Write(L"[backend.spark] device_info probe failed");
+        SparkNoteSessionFailure(L"worker_device_info");
         g_sparkConnected.store(false, std::memory_order_release);
         return 0;
     }
@@ -1223,6 +1292,7 @@ static DWORD SparkPollThreadProcImpl()
     if (rowCount <= 0)
     {
         DebugLog_Write(L"[backend.spark] no layout rows discovered");
+        SparkNoteSessionFailure(L"no_layout_rows");
         g_sparkConnected.store(false, std::memory_order_release);
         return 0;
     }
@@ -1235,6 +1305,7 @@ static DWORD SparkPollThreadProcImpl()
         (unsigned)g_sparkUsagePage.load(std::memory_order_relaxed));
 
     int failStreak = 0;
+    bool endedByFailures = false;
     uint8_t nextRouteRow = 0;
     while (WaitForSingleObject(g_sparkStopEvent, 0) != WAIT_OBJECT_0)
     {
@@ -1329,7 +1400,10 @@ static DWORD SparkPollThreadProcImpl()
         {
             ++failStreak;
             if (failStreak >= 6)
+            {
+                endedByFailures = true;
                 break;
+            }
             Sleep(15);
             continue;
         }
@@ -1378,6 +1452,20 @@ static DWORD SparkPollThreadProcImpl()
         }
     }
 
+    if (g_sparkSessionGeneric.load(std::memory_order_acquire))
+    {
+        if (endedByFailures && g_sparkRouteOkSeq.load(std::memory_order_relaxed) == 0)
+            SparkNoteSessionFailure(L"no_travel");
+        else if (g_sparkRouteOkSeq.load(std::memory_order_relaxed) != 0)
+        {
+            std::wstring sessionPath;
+            {
+                const std::lock_guard<std::mutex> lock(g_sparkRejectMutex);
+                sessionPath = g_sparkSessionPath;
+            }
+            SparkNoteGenericSuccess(sessionPath.c_str());
+        }
+    }
     const bool releasedAny = SparkReleasePublishedInput();
     StabilityTrace_Write(
         L"INFO", L"spark", L"worker.stats",
@@ -1679,6 +1767,12 @@ static bool SparkStart()
     StabilityTrace_Write(L"INFO", L"spark", L"device.open",
         L"vid=0x%04X pid=0x%04X usage_page=0x%04X write_capable=%d",
         (unsigned)vid, (unsigned)pid, (unsigned)usagePage, writeCapable ? 1 : 0);
+    const bool genericSession = halljoy::sparklink::GenericOnly(vid, pid);
+    g_sparkSessionGeneric.store(genericSession, std::memory_order_release);
+    {
+        const std::lock_guard<std::mutex> lock(g_sparkRejectMutex);
+        g_sparkSessionPath = genericSession ? path : std::wstring();
+    }
     if (!writeCapable)
     {
         StabilityTrace_Write(L"WARN", L"spark", L"start.failed", L"stage=write_capability");
@@ -1704,8 +1798,34 @@ static bool SparkStart()
         g_sparkWriteCapable.store(false, std::memory_order_release);
         g_sparkUsagePage.store(0, std::memory_order_relaxed);
         StabilityTrace_Write(L"WARN", L"spark", L"start.failed", L"stage=protocol_probe");
+        if (genericSession) SparkNoteGenericFailure(path.c_str(), L"protocol_probe");
         (void)g_sparkLifecycle.FailStartBeforeWorker(start.generation);
         return false;
+    }
+
+    // A keyboard admitted only by the official identity list must also answer one live
+    // travel read before it is published, so a non-analog board of the same platform is
+    // never shown as connected and never claims its keys.
+    if (genericSession)
+    {
+        std::array<uint16_t, kSparkColsPerRow> travelProbe{};
+        bool travelOk = false;
+        for (int attempt = 0; attempt < 3 && !travelOk; ++attempt)
+            travelOk = SparkQueryRouteRow(0, travelProbe);
+        if (!travelOk)
+        {
+            CloseHandle(g_sparkHandle);
+            g_sparkHandle = nullptr;
+            g_sparkWriteCapable.store(false, std::memory_order_release);
+            g_sparkUsagePage.store(0, std::memory_order_relaxed);
+            StabilityTrace_Write(L"WARN", L"spark", L"start.failed", L"stage=travel_probe");
+            SparkNoteGenericFailure(path.c_str(), L"travel_probe");
+            (void)g_sparkLifecycle.FailStartBeforeWorker(start.generation);
+            return false;
+        }
+        StabilityTrace_Write(L"INFO", L"spark", L"generic.admitted",
+            L"vid=0x%04X pid=0x%04X official_list=1 device_info=1 travel=1",
+            (unsigned)vid, (unsigned)pid);
     }
 
     g_sparkStopEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);

@@ -2,6 +2,8 @@
 #include "sparklink_key_codes.h"
 #include "support_notice_catalog.h"
 #include "keyboard_support_status.h"
+#include "aula_win60he_protocol.h"
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 int main(){
@@ -12,6 +14,28 @@ int main(){
  assert(!sparklink::ProbeInterface(0x1ca6,0x529,0xffc0,1));
  assert(!sparklink::ProbeInterface(0x1ca6,0x529,0xffb0,2));
  assert(!sparklink::ProbeIdentity(0x1ca6,0xffff));
+ // Generic admission: the vendor's official identity list, never a bare vendor page.
+ assert(std::is_sorted(sparklink::kOfficialIdentities.begin(),sparklink::kOfficialIdentities.end()));
+ assert(std::adjacent_find(sparklink::kOfficialIdentities.begin(),sparklink::kOfficialIdentities.end())==sparklink::kOfficialIdentities.end());
+ assert(sparklink::kOfficialIdentities.size()==551);
+ for(auto id:sparklink::kOfficialIdentities) {
+  const unsigned vid=id>>16,pid=id&0xffffu;
+  assert(sparklink::OfficialListed(vid,pid));
+  // Generic admission is a release switch: off in 1.6.9.1, so only exact models are admitted.
+  assert(sparklink::ProbeIdentity(vid,pid)==(sparklink::ExactModel(vid,pid)||sparklink::kGenericAdmission));
+  assert(sparklink::ProbeInterface(vid,pid,0xffb0,1)==sparklink::ProbeIdentity(vid,pid) && !sparklink::ProbeInterface(vid,pid,0xffb0,2) && !sparklink::ProbeInterface(vid,pid,0xffa0,1));
+  assert(sparklink::GenericOnly(vid,pid)==(sparklink::kGenericAdmission && !sparklink::ExactModel(vid,pid)));
+  assert(vid!=0x3151); // shared with RongYuan / Attack Shark boards that use another protocol
+  assert(!aula_win60he::FindKnownUsbIdentity(static_cast<std::uint16_t>(vid),static_cast<std::uint16_t>(pid)));
+ }
+ assert(!sparklink::OfficialListed(0x3151,0x4010) && !sparklink::ProbeIdentity(0x3151,0x4010));
+ assert(sparklink::OfficialListed(0x1ca6,0x1a0f) && sparklink::GenericOnly(0x1ca6,0x1a0f)==sparklink::kGenericAdmission && !sparklink::ExactModel(0x1ca6,0x1a0f)); // IPI Flash75 Pro candidate
+ assert(sparklink::OfficialListed(0x38a6,0x28de) && sparklink::GenericOnly(0x38a6,0x28de)==sparklink::kGenericAdmission); // AULA AG75 HE
+ assert(sparklink::ExactModel(0x1ca6,0x3002) && !sparklink::GenericOnly(0x1ca6,0x3002)); // Supported SU75 Pro
+ assert(sparklink::ExactModel(0x1ca6,0x529) && !sparklink::GenericOnly(0x1ca6,0x529));
+ assert(sparklink::ExactModel(0x1ca6,0x528) && !sparklink::OfficialListed(0x1ca6,0x528) && sparklink::ProbeIdentity(0x1ca6,0x528));
+ assert(!sparklink::GenericOnly(0x1ca6,0xffff) && !sparklink::GenericOnly(0x1038,0x1614) && !sparklink::ProbeIdentity(0x1038,0x1614));
+ assert(!sparklink::OfficialListed(0x10000u,0x3002u));
  assert(sparklink::ProbeInterface(0x1ca6,0x529,0xffb0,1));
  for(unsigned pid=0;pid<65536;++pid)if(sparklink::ExperimentalToken(0x1ca6,pid,0xffb0))assert(sparklink::ProbeInterface(0x1ca6,pid,0xffb0,1));
 
@@ -29,5 +53,5 @@ int main(){
  assert(!keyboard_support::NativeNotice(4,0,true));
  assert(sparklink::DecodeKey(0xf101)==0x409 && sparklink::DecodeKey(0xf102)==0);
  for(unsigned key=4;key<256;++key)assert(sparklink::DecodeKey(key)==key);
- std::cout<<"SPARKLINK_MODEL_PROFILES=PASS exact identities notices confirmed-model exclusion Fn\n";
+ std::cout<<"SPARKLINK_MODEL_PROFILES=PASS exact identities official list generic admission notices confirmed-model exclusion Fn\n";
 }

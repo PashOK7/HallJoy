@@ -23,7 +23,6 @@ inline unsigned NativeNotice(unsigned protocol, std::uint64_t token, bool connec
     if(protocol==29u && (token==0xC19BC9D40FAC0AA4ull || token==0x0AC93D48E90B5C30ull || token==0x9B4588C88D53AF15ull || token==0x03762ECD7D6E5678ull || token==0x9F7EF505885301C3ull) && !(token==0x0AC93D48E90B5C30ull && productId==8474u))result|=33554432u; // MchoseFamily
     if(protocol==27u && (token==0xC19BC9D40FAC0AA4ull || token==0x30F502E69E60CBE0ull) && !(token==0xC19BC9D40FAC0AA4ull && productId==8498u))result|=33554432u; // MchoseArmFamily
     if(protocol==30u)result|=134217728u; // LogitechRapid
-    if(protocol==31u)result|=268435456u; // RedSquareAlumix68
     return result;
 }
 }

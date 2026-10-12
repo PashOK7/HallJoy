@@ -10,6 +10,7 @@ int main()
     namespace a68 = halljoy::redsquare_alumix68;
 
     assert(a68::SelfTest());
+    static_assert(!a68::kAdmitted, "Alumix 68 is disabled by owner decision 2026-10-12");
 
     // Exact identity and vendor collection.
     assert(a68::kVendorId == 0x0c45 && a68::kProductId == 0x80a2);
@@ -45,6 +46,31 @@ int main()
     // Stroke -> permille against the 3.3 mm (330 unit) full scale.
     assert(a68::ToMilli(0) == 0 && a68::ToMilli(165) == 500 && a68::ToMilli(330) == 1000 &&
            a68::ToMilli(340) == 1000 && a68::kFullScaleStroke == 330);
+
+    // AULA MINI 60 HE PRO shares 0C45:80A2: recognized by its device info (manufacturer 0x0166,
+    // product 0x110C), never by the VID/PID alone; Alumix replies and garbage are not AULA.
+    {
+        std::array<std::uint8_t, a68::kReportBytes> infoRequest{};
+        assert(a68::MakeReadRequest(a68::kCmdDeviceInfo, a68::kDeviceInfoBytes, 0, infoRequest));
+        assert(infoRequest[0] == 0 && infoRequest[1] == 0xaa && infoRequest[2] == 0x10 &&
+               infoRequest[3] == 56 && infoRequest[4] == 0 && infoRequest[5] == 0 && infoRequest[7] == 1);
+        std::array<std::uint8_t, a68::kDeviceInfoBytes> info{};
+        info[4] = 0x45; info[5] = 0x0c; info[6] = 0xa2; info[7] = 0x80;     // device bytes 12..15
+        info[12] = 0x66; info[13] = 0x01; info[14] = 0x0c; info[15] = 0x11;  // device bytes 20..23
+        assert(a68::IsAulaMini60DeviceInfo(info.data()));
+        auto other = info; other[12] = 0x67;  assert(!a68::IsAulaMini60DeviceInfo(other.data()));   // manufacturer
+        other = info; other[14] = 0x0d;       assert(!a68::IsAulaMini60DeviceInfo(other.data()));   // product
+        other = info; other[6] = 0xa1;        assert(!a68::IsAulaMini60DeviceInfo(other.data()));   // pid
+        other = info; other[4] = 0x46;        assert(!a68::IsAulaMini60DeviceInfo(other.data()));   // vid
+        std::array<std::uint8_t, a68::kDeviceInfoBytes> zero{};
+        assert(!a68::IsAulaMini60DeviceInfo(zero.data()) && !a68::IsAulaMini60DeviceInfo(nullptr));
+        // The info reply parses with the ordinary read framing.
+        std::array<std::uint8_t, a68::kReportBytes> infoReply{};
+        infoReply[1] = a68::kReplyPrefix; infoReply[2] = a68::kCmdDeviceInfo; infoReply[3] = 56;
+        std::copy(info.begin(), info.end(), infoReply.begin() + 9);
+        const auto* parsed = a68::ParseReadReply(a68::kCmdDeviceInfo, 56, 0, infoReply.data(), infoReply.size());
+        assert(parsed && a68::IsAulaMini60DeviceInfo(parsed));
+    }
 
     // A read request is the 0xAA frame; its reply is validated and decoded.
     std::array<std::uint8_t, a68::kReportBytes> request{};

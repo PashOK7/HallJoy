@@ -23,14 +23,17 @@ inline constexpr bool SupportedProduct(unsigned pid){return pid==0x80a2 || pid==
 inline constexpr std::uint64_t Token(unsigned pid){return pid==0x80a1?MaxLayoutToken:pid==0x80a2?LayoutToken:pid==0x8032?BaseLayoutToken:pid==Ak820Pid?Ak820LayoutToken:0;}
 // Driveall reads 48 device-info bytes; the AULA SDK reads 56.
 inline constexpr unsigned InfoLength(unsigned pid){return pid==Ak820Pid?48:56;}
-inline constexpr bool Identity(unsigned descriptorPid,unsigned vid,unsigned pid,unsigned manufacturer,unsigned product){
+inline constexpr bool Identity(unsigned descriptorPid,unsigned vid,unsigned pid,unsigned manufacturer,unsigned product,bool namedMini60Pro=false){
     // Base/MAX device-info product is supplied by the MCU identification register,
-    // not a fixed value in the firmware. Keep the established PRO restriction.
+    // not a fixed value in the firmware. Keep the established PRO restriction, but accept a
+    // 0C45:80A2 unit whose USB product string is "MINI 60 HE PRO" (the Red Square Alumix 68
+    // with the same VID/PID has another name) when the AULA manufacturer 0x0166 and the VID/PID
+    // echo still match (owner rule: the device in the log is the tester's model).
     // AK820 manufacturer/product values are unknown: the device-info VID/PID
     // echo is the proof, and the values are logged.
     if(pid==Ak820Pid)return vid==0x0c45 && pid==descriptorPid;
     return vid==0x0c45 && SupportedProduct(pid) && pid==descriptorPid &&
-        manufacturer==0x0166 && (pid!=0x80a2 || product==0x110c);
+        manufacturer==0x0166 && (pid!=0x80a2 || product==0x110c || namedMini60Pro);
 }
 inline constexpr unsigned FreshMs=50;
 // Physical positions from pinned HFD layout o and master map y (61 keys).

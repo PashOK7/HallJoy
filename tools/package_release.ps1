@@ -6,8 +6,9 @@ $root = Split-Path -Parent $PSScriptRoot
 $release = Join-Path $root 'build/bin/Release/x64'
 $exe = Join-Path $release 'HallJoy.exe'
 $version = (Get-Item -LiteralPath $exe).VersionInfo.ProductVersion
-if ($version -notmatch '^\d+\.\d+\.\d+\.0$') { throw 'Unexpected executable version' }
-$publicVersion = $version.Substring(0, $version.Length - 2)
+if ($version -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Unexpected executable version' }
+# X.Y.Z.0 is released as X.Y.Z; a hotfix X.Y.Z.N keeps all four numbers.
+$publicVersion = if ($version.EndsWith('.0')) { $version.Substring(0, $version.Length - 2) } else { $version }
 $names = @('HallJoy.exe', 'LICENSE', 'dependency-lock.json', 'THIRD_PARTY_NOTICES.md', 'SHA256SUMS.txt')
 $sources = @{
     'HallJoy.exe' = $exe

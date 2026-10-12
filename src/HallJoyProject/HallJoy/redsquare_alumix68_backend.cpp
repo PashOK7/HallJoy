@@ -17,6 +17,7 @@
 
 #include "redsquare_alumix68_backend.h"
 #include "redsquare_alumix68_protocol.h"
+#include "aula_mini60_name.h"
 #include "hid_io_operation.h"
 #include "input_trace.h"
 #include "native_analog_routing.h"
@@ -70,6 +71,7 @@ void BindSlots() {
 }
 
 std::vector<std::wstring> Enumerate() {
+    if (!proto::kAdmitted) return {};  // owner decision 2026-10-12: disabled; nothing is opened or sent
     GUID guid{}; HidD_GetHidGuid(&guid);
     HDEVINFO set = SetupDiGetClassDevsW(&guid, nullptr, nullptr,
                                         DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
@@ -92,6 +94,14 @@ std::vector<std::wstring> Enumerate() {
         HIDD_ATTRIBUTES a{}; a.Size = sizeof(a);
         if (!HidD_GetAttributes(meta.v, &a) || a.VendorID != proto::kVendorId ||
             a.ProductID != proto::kProductId) continue;
+        // The AULA MINI 60 HE PRO shares 0C45:80A2. Its USB product string says so; read it with a
+        // control request (no vendor command) and leave such a device entirely to the AULA backend.
+        wchar_t productName[126]{};
+        if (HidD_GetProductString(meta.v, productName, sizeof(productName)) &&
+            halljoy::mini60::IsMini60ProName(productName)) {
+            SupportLog_Event("alumix68.skipped_mini60_name", 1u);
+            continue;
+        }
         PHIDP_PREPARSED_DATA data = nullptr;
         if (!HidD_GetPreparsedData(meta.v, &data)) continue;
         HIDP_CAPS caps{}; const auto status = HidP_GetCaps(data, &caps);
@@ -213,10 +223,32 @@ void Run(const std::wstring& path) {
     if (g_blocked.load()) return;  // unrecognized firmware; wait for a device change
     Clear();
     struct End { ~End() { Clear(); } } end;
+    // Another protocol (for example the AULA MINI 60 backend, same 0C45:80A2) already owns
+    // this interface: send nothing, show nothing.
+    if (NativeAnalogRouting_IsClaimed(path.c_str()) &&
+        !NativeAnalogRouting_IsClaimedBy(path.c_str(), NativeAnalogProtocol::RedSquareAlumix68))
+        return;
     BindSlots();
     Session session(path);
     if (!session.Valid()) {
         Failure("alumix68.open_failed", SupportLog_Win32(GetLastError()));
+        return;
+    }
+    // The AULA MINI 60 HE PRO shares this USB identity and transport. Recognize it by its
+    // own device info (the identity the AULA backend requires) before any flash read, so it
+    // never gets the "unrecognized firmware" notice and never sees the fingerprint reads.
+    const auto* info = session.Transact(proto::kCmdDeviceInfo, proto::kDeviceInfoBytes, 0);
+    if (info) {
+        // The identity values go to the log whichever backend ends up owning the device.
+        const auto le = [info](std::size_t i) {
+            return static_cast<std::uint64_t>(info[i]) | (static_cast<std::uint64_t>(info[i + 1]) << 8);
+        };
+        SupportLog_Event("alumix68.device_info", (le(12) << 16) | le(14),
+                         SupportLog_Data((le(4) << 16) | le(6)));  // value=manufacturer<<16|product, detail=vid<<16|pid
+    }
+    if (info && proto::IsAulaMini60DeviceInfo(info)) {
+        SupportLog_Event("alumix68.not_alumix_aula_mini60", 1u);
+        g_blocked.store(true, std::memory_order_release);
         return;
     }
     if (!VerifyFirmware(session)) {

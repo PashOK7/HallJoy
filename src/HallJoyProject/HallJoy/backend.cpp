@@ -4540,6 +4540,13 @@ void BackendNative_SparkTelemetry(NativeAnalogBackendTelemetry* out)
     _snwprintf_s(out->status, kNativeAnalogBackendStatusChars, _TRUNCATE,
         L"row polling, %d active rows, route ok/fail %u/%u",
         SparkActiveRowCount(), static_cast<unsigned>(ok), static_cast<unsigned>(fail));
+    // Official-list identity outside the named models: shown only after the live travel
+    // read has succeeded, with the "keyboard not in the list" notice.
+    if (out->connected && halljoy::sparklink::GenericOnly(out->vendorId, out->productId))
+    {
+        out->connected = ok != 0;
+        out->genericProtocol = out->connected;
+    }
 }
 
 bool BackendNative_SayoPresent()

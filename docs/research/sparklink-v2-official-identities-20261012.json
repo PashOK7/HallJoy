@@ -1,0 +1,3877 @@
+{
+ "source": "SparkLink PlayJoy official keyboard list (getKeyboardListEncrypt), decrypted 2026-10-12; identifiers only",
+ "interface": {
+  "usagePage": "0xffb0",
+  "usage": "0x01"
+ },
+ "note": "Generic admission excludes VID 0x3151 (shared with RongYuan/Attack Shark boards that use a different protocol).",
+ "identities": [
+  {
+   "vid": "0x17EF",
+   "pid": "0x6301",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0103",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0104",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0105",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x030B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x030D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x030E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x030F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0310",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0311",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0408",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0409",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0511",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0527",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0529",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x052C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0531",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0532",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0535",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0537",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x053A",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x053B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x053D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x053E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0540",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0541",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0542",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0543",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0544",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0545",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x054A",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x054B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x054C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x054D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x054E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x054F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0550",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0551",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0552",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0554",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0607",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0814",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0834",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0838",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0849",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x085C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x085F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0863",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0867",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0868",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x086B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x086C",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x086E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0905",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0906",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0907",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x090C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x090D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x090E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x090F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0910",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0911",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0912",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0913",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0914",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0916",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0917",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0918",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0919",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x091A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x091C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x091D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0A0A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0A23",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0A24",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0E04",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0E05",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0F0B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0F0C",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0F0D",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0F0E",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0F0F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0F10",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x0F11",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1107",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1108",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1109",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1305",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1306",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1504",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1506",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1507",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1508",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x150C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x150D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1608",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1905",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1A08",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1A0A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1A0B",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1A0C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1A0D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1A0E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1A0F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1A10",
+   "classes": [
+    "public",
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1A11",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1A13",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1A14",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B05",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B07",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B08",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B09",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B0A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B0B",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B0C",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B0D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B0F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B10",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B11",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B13",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B14",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B15",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1B19",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C04",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C0A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C0C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C0F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C10",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C11",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C12",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C13",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C14",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C15",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C18",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C19",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C1A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C1F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C20",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C23",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C24",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C2A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C2B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C2C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C2D",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C2E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C2F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C30",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C31",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C32",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C33",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C34",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C35",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C37",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C38",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C3A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C3B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C3C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C3D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C3E",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C3F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C40",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C42",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C43",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C45",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C47",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C48",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C49",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C4A",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C4B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C4C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C4D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C4E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C50",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1C51",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1E03",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1E04",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1E05",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1F03",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x1F06",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2204",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2403",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2404",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2405",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2406",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2407",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2501",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2503",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2602",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2706",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2707",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2708",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2709",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x270A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2802",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2B02",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C03",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C08",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C09",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C0A",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C0B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C0C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C0D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C0E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C0F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C12",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C13",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C14",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C18",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C19",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C1A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C1B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C1C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C1D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C20",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C21",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C22",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C24",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C25",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C26",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C27",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C28",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C29",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C2A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2C2B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2F02",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2F03",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2F04",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x2F05",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3001",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3002",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3003",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3006",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3007",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3008",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3009",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x300A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x300B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x300D",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x300E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x300F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3503",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3504",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3505",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3506",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3507",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3508",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3509",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x350A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x350B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x350C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x350D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3701",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3702",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3801",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3803",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3804",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3904",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3906",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x390A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x390B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x390C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3912",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3914",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3916",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3919",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x391F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3920",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3925",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3926",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3927",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3928",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3929",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x392A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x392B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x392C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x392F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3A03",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3A04",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3A05",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3A06",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3A09",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3A0B",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3C01",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3D06",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3D08",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3D09",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3D0A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3D0B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3D0C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3D0D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3D0F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3D10",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3D11",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3D13",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3D14",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x3E01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4001",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4102",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4201",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4302",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4303",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4401",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4402",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4405",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4506",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4507",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4508",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4509",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x450B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x450F",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4510",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4512",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4519",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x451A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x451C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4520",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4525",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4526",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4527",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4528",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4529",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x452A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x452C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4703",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4802",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4B04",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4B05",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4B07",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4C03",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4C08",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4C09",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4C0A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4C0D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4C0E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x4E01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5001",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5003",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5004",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5201",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5301",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5303",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5401",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5405",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5406",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5407",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5409",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x540B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x540C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x540D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x540E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x540F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5411",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5412",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5414",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5415",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5418",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5419",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x541A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x541B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x541C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x541D",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x541E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x541F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5420",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5421",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5422",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5423",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5501",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5601",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5701",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5801",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5802",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5803",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5804",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5806",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5807",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5808",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5901",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5902",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5904",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5905",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5906",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5907",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5908",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5909",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x590A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x590B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5A01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5A02",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5E01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5E03",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5E04",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5E07",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5E08",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5E0A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5E0B",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x5E0E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6001",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6002",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6101",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6301",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6302",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6303",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6401",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6402",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6501",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6502",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6503",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6504",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6506",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6507",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6601",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6701",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6703",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6705",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6801",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6803",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6804",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6805",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6808",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6901",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6A03",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6A04",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6A05",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6A06",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6A07",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6A08",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6A09",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6B01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6B02",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6B03",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6C01",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6C03",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6C04",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6C05",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6D01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6D02",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6E01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6E02",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6E03",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6E04",
+   "classes": [
+    "other",
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6E05",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6E06",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6E07",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6F01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6F02",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6F03",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6F05",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6F06",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x6F07",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7002",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7102",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7201",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7202",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7203",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7204",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7207",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7302",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7401",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7501",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7502",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7604",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7701",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7802",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7803",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7902",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7903",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7A01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7A02",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7A03",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7B01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7B02",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7B04",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7B05",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7D01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7E01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7F01",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7F02",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7F03",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x7F04",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x8101",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x8202",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x8501",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x8601",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x8701",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x8801",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x1CA6",
+   "pid": "0x8901",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x2DC8",
+   "pid": "0x206F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x3151",
+   "pid": "0x4010",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x3233",
+   "pid": "0x2601",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x3233",
+   "pid": "0x2602",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x3233",
+   "pid": "0x2603",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x3233",
+   "pid": "0x2604",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x3233",
+   "pid": "0x2605",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x3233",
+   "pid": "0x2606",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x32CA",
+   "pid": "0x28E9",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x36B5",
+   "pid": "0x75D2",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x36B5",
+   "pid": "0x75D4",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x371C",
+   "pid": "0xC001",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x371C",
+   "pid": "0xD001",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x371C",
+   "pid": "0xD002",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x371C",
+   "pid": "0xD003",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x371C",
+   "pid": "0xD004",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x371C",
+   "pid": "0xE001",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x371C",
+   "pid": "0xF001",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x271C",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x272C",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x272D",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x272E",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x272F",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2730",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2731",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2743",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2745",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2754",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2763",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28D0",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28D1",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28D2",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28DB",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28DD",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28DE",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28DF",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28E0",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28E1",
+   "classes": [
+    "shuangzixin"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28EF",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28F0",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28F1",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28F2",
+   "classes": [
+    "other"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28F5",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x28F6",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2902",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2903",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2904",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2905",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2906",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2907",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2909",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x290A",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38A6",
+   "pid": "0x2912",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x38EE",
+   "pid": "0x0036",
+   "classes": [
+    "public",
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x38EE",
+   "pid": "0x0037",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x391D",
+   "pid": "0x2002",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x3973",
+   "pid": "0x0105",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x3973",
+   "pid": "0x0106",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x3973",
+   "pid": "0x0108",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x3973",
+   "pid": "0x0109",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x39A5",
+   "pid": "0x5E11",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x39A5",
+   "pid": "0x5E12",
+   "classes": [
+    "public"
+   ]
+  },
+  {
+   "vid": "0x3CA2",
+   "pid": "0x0A2C",
+   "classes": [
+    "shuangzixinAndPublic"
+   ]
+  },
+  {
+   "vid": "0x7968",
+   "pid": "0x7000",
+   "classes": [
+    "public"
+   ]
+  }
+ ]
+}

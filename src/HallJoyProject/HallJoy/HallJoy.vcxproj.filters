@@ -777,6 +777,7 @@
     <ClInclude Include="tartarus_protocol.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="neo65_protocol.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="sparklink_model_profiles.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="sparklink_official_identities.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="rongyuan_snapshot_backend.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="rongyuan_snapshot_protocol.h"><Filter>Header Files</Filter></ClInclude>
   </ItemGroup>

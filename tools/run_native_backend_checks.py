@@ -253,6 +253,7 @@ def main() -> int:
     run([sys.executable, str(root / "tools" / "test_block_keys_group.py")])
     run([sys.executable, str(root / "tools" / "research_reference_checks.py")])
     run([sys.executable, str(project_root / "tools" / "validate_addressed_protocol_backend.py")])
+    run([sys.executable, str(root / "tools" / "build_sparklink_official_identities.py"), "--check"])
 
     for script in sorted(tests.glob("*audit.py")):
         run([sys.executable, str(script)])

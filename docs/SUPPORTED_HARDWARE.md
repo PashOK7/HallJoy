@@ -229,11 +229,11 @@ switched on while HallJoy runs and off at pause/exit; no settings are written.
 The stream may drop events during fast typing (source report); PRO X2 RAPID key ids
 are verified through the log. Automatic TKL layouts (the X2 without Pause/PgUp/PgDn). [Details](current/LOGITECH_RAPID_2026-10-05.md)
 
-Experimental Red Square Alumix 68 Yotei (Magnetite Ice) (`0C45:80A2`, RSQ-20058,
-2026-10-06): read-only polling of the live key-depth table with the ordinary
-vendor read command, ONLY on the exact official firmware v1.30 (scan map and
-command-dispatcher code verified over HID before any read); any other firmware
-does not connect and is logged. 68 keys, 3.3 mm. [Details](current/ALUMIX68_RSQ20058_2026-10-06.md)
+Switched off: Red Square Alumix 68 Yotei (Magnetite Ice) (`0C45:80A2`, RSQ-20058,
+2026-10-12). Owner decision; Sheet status "Research frozen; tester needed" (gray). The AULA MINI 60 HE PRO has the same USB identity and
+transport, and the Alumix backend had been probing and mislabeling it; the implementation (read-only
+polling of the key-depth table on exact firmware v1.30) stays in the tree behind `kAdmitted=false`
+and no build detects or talks to the device. [Details](current/ALUMIX68_RSQ20058_2026-10-06.md)
 
 Red AJAZZ AK820 MAX HE, Sonix revision (`0C45:80B1`, Driveall "AK820MAX", 2026-10-08):
 not supported. The model is not admitted by any build; the keyboard is not detected.
@@ -246,6 +246,12 @@ catalog, e.g. FuryCube M35HE (`372E:10A3`, UUID `0x110000000065`), connect with 
 live map and calibration read from the keyboard; Logitech devices reporting HID++
 `0x1B08` connect with run-time key learning. Yellow "Keyboard not in the list"
 notice. [Details](current/GENERIC_PROTOCOL_SUPPORT_2026-10-07.md)
+
+Generic SparkLink V2 (implemented 2026-10-12, NOT enabled in 1.6.9.1: `kGenericAdmission=false`): any keyboard whose VID:PID is in the SparkLink PlayJoy
+vendor's official keyboard list (551 identities; IPI, AULA, Everglide and many other brands),
+not named above, connects after the device-info reply and one live travel read succeed.
+Key positions come from the keyboard; manual/default layout; same yellow notice. VID `3151`
+is excluded. [Details](current/SPARKLINK_GENERIC_ADMISSION_2026-10-12.md)
 
 Experimental Redragon K686 HE (2026-10-05) uses the same W669 transport with exact
 official identities `7431USHEXYXK686JCARGB` (K686BG-RGB-M ANSI),

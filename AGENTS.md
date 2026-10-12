@@ -92,3 +92,19 @@ the suite and the release build once, packages, tags, publishes, checks the
 server-side asset hashes and records the publication. GitHub CI (Windows only)
 is the clean-checkout run; do not repeat it locally. Do not rerun a passed
 check without a change that affects it.
+
+
+## Protocol-match admission (owner decision, 2026-10-12)
+
+If a protocol explicitly identifies itself and HallJoy can establish with certainty
+that a keyboard speaking an implemented protocol is connected, the keyboard works and
+shows the yellow "Keyboard not in the list: hardware testing incomplete" notice
+(protocol match, not tested). Certainty means all of: (1) a safe identity gate before
+any command that could harm other devices (the vendor's official identity list for
+that protocol, or the protocol's own read-only self-identification), never a bare
+vendor usage page; (2) the protocol's reply proof; (3) a live analog read before the
+keyboard is shown as connected; (4) no identity shared with another implemented
+protocol (for example RongYuan 3151 stays out of generic SparkLink). If any condition
+cannot be met, admission stays an exact list of Supported or implemented-untested
+models. A device that fails the proof is remembered and not probed again until it
+leaves the bus. Details: docs/current/SPARKLINK_GENERIC_ADMISSION_2026-10-12.md.

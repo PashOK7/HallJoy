@@ -1,3 +1,39 @@
+> 2026-10-12 OWNER question: SparkLink V2 breadth. Official keyboard list = 552 identities (487 on 1CA6, 35 AULA 38A6,
+> 30 other VIDs); HallJoy admits 26 (+4 IROK). PID high byte tracks the brand (05 IROK, 08 AULA, 1A IPI, 1C EWEADN, 30 Everglide);
+> three asked brands = ~74 identities, 1 admitted (3002). No hidden support (exact identity gate). Options: exact blocks with
+> evidence, or generic official-list admission like BY on 10-07 (owner decision). See SPARKLINK_V2_PLATFORM_SURVEY_2026-10-12.md.
+> 2026-10-12 OWNER: release 1.6.9.1 as a fixes-only hotfix. The generic SparkLink V2 admission (new, untested on hardware) is therefore
+> implemented but disabled by kGenericAdmission=false; flip it in a feature release. Hotfix content: AULA MINI 60 HE PRO identity/Alumix
+> collision fix, Alumix 68 off, MINI 60 identity log lines.
+> 2026-10-12 OWNER: Alumix 68 switched OFF (kAdmitted=false, notice group removed, README/SUPPORTED_HARDWARE updated) so it can never
+> outrank AULA on 0C45:80A2. Sheet Main!C658: "Implemented; awaiting hardware testing" -> "Research frozen; tester needed" (gray; no
+> "not supported" dropdown value, owner may add one). Audit PASS. See ALUMIX68_RSQ20058_2026-10-06.md.
+> 2026-10-12 Tester log (Delta, MINI 60 HE PRO) still showed alumix68.firmware_unknown with the first fix: his device-info differs from the
+> hard-coded AULA identity. Second fix: skip Alumix by USB product string "MINI 60 HE PRO", accept AULA identity by name + manufacturer 0x0166,
+> log device-info/identity values into HallJoy.log. Local EXE f34f2eac... (not published). See ALUMIX68_RSQ20058_2026-10-06.md.
+> 2026-10-12 FIX: AULA MINI 60 HE PRO and Red Square Alumix 68 share 0C45:80A2/FF68:61; the Alumix backend probed every such device and
+> showed "Alumix 68: unrecognized firmware" to MINI 60 owners (Discord report). It now reads device info first and skips AULA identities
+> (manufacturer 0x0166, product 0x110C) and claimed interfaces. Whether the user's AULA itself connects needs his HallJoy.log. See
+> ALUMIX68_RSQ20058_2026-10-06.md.
+> 2026-10-12 OWNER RULE (permanent): if a protocol explicitly identifies itself and HallJoy can be certain that a keyboard with an
+> implemented protocol is connected, it works with the yellow "Keyboard not in the list" notice (protocol match, untested); if
+> certainty is not possible, exact list of Supported/implemented-untested models. Applied to SparkLink V2: VID:PID in the vendor's
+> official list (551 identities, VID 3151 excluded) + device-info reply + one live travel read before "connected"; three failures
+> remember the path until the device leaves the bus. Local build, unreleased. See SPARKLINK_GENERIC_ADMISSION_2026-10-12.md and AGENTS.md.
+> 2026-10-12 Corsair K70 MAX firmware 1.17.96 reversed (base 0x10000, ROM USB stack, Bragi v1.0 dispatcher 0x28AAC,
+> notification channel FF42:2). Only digital key bitmap (ID 2), property change (1) and calibration progress (3); no
+> analog depth (ID 12 never emitted), handles are config files. Not suitable for HallJoy; no code change. See
+> IPI_FLASH75_AULA_AG75_CORSAIR_K70MAX_2026-10-12.md.
+> 2026-10-12 OWNER: check Everglide SU75 (Pro) V2. Same xsyd.top web app / SparkLink v2 platform as the
+> Supported SU75 Pro (1CA6:3002); driver bundles unchanged since 10-02; catalog +5 PIDs (1A14, 1C51, 4506,
+> 6C05, 7903) but no model names, so the V2 PID is not established (may be 3002 = already works). Needs one
+> tester log or Device Manager hardware ID. No code change. See EVERGLIDE_SU75_PRO_V2_CHECK_2026-10-12.md.
+> 2026-10-12 OWNER: research IPI Flash75 Pro, AULA AG75, Corsair K70 MAX (firmware + feasibility). Found:
+> Flash75 Pro (Gemini) = SparkLink V2 1CA6:1A08/1A0F/1A10/1A11 (dc.ipigame.cn), AG75 HE = SparkLink V2
+> 38A6:28DE/28DF/28E0/28E1/28F0/28F1/28F2 (heu.aulacn.com); same route read as supported SparkLink, only
+> admission missing (38A6 is a new VID). Firmware for both needs the keyboard's board ID. Flash75 BY version
+> (372E:10F8/10F9) is covered by the generic BY path. K70 MAX = Bragi 1B1C:1BC0, firmware K70MAX_1.17.96
+> downloaded (unencrypted); analog read not established. No code change. See IPI_FLASH75_AULA_AG75_CORSAIR_K70MAX_2026-10-12.md.
 > 2026-10-11 PUBLISHED stable/latest 1.6.9: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.9 (commit 036881d,
 > EXE e748cb7f, 4 assets verified). OWNER: no Keychron in patch notes (HJO1 firmware is only on the owner's keyboard).
 > Pending from 1.6.8: AK820 80B1 red row. See RELEASE_1.6.9_PUBLICATION_2026-10-11.md.

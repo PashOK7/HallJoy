@@ -1681,18 +1681,6 @@
       ]
     },
     {
-      "id": "RedSquareAlumix68",
-      "flag": 268435456,
-      "protocol": 31,
-      "models": [
-        {
-          "brand": "Red Square",
-          "model": "Alumix 68 Yotei (Magnetite Ice)",
-          "status": "Implemented; awaiting hardware testing"
-        }
-      ]
-    },
-    {
       "id": "GenericProtocol",
       "flag": 536870912,
       "protocol": 3,

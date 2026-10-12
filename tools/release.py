@@ -72,15 +72,23 @@ def with_eol(data, style):
     return data.replace(b'\n', b'\r\n') if style == 'crlf' else data
 
 
+def full_version(version):
+    """X.Y.Z -> X.Y.Z.0 ; X.Y.Z.N (hotfix) unchanged."""
+    return version if version.count('.') == 3 else version + '.0'
+
+
 def bump_version(version):
-    major, minor, patch = (int(x) for x in version.split('.'))
+    major, minor, patch, build = (int(x) for x in full_version(version).split('.'))
+    public = f'{major}.{minor}.{patch}'
     path = ROOT / 'src/HallJoyProject/HallJoy/version.h'
     text = path.read_bytes().decode()
     text = re.sub(r'(HALLJOY_VERSION_MAJOR )\d+', rf'\g<1>{major}', text)
     text = re.sub(r'(HALLJOY_VERSION_MINOR )\d+', rf'\g<1>{minor}', text)
     text = re.sub(r'(HALLJOY_VERSION_PATCH )\d+', rf'\g<1>{patch}', text)
-    text = re.sub(r'HALLJOY_VERSION_TUPLE \d+,\d+,\d+,0', f'HALLJOY_VERSION_TUPLE {major},{minor},{patch},0', text)
-    text = re.sub(r'\d+\.\d+\.\d+(?=(?:\.0)?")', version, text)
+    text = re.sub(r'(HALLJOY_VERSION_BUILD )\d+', rf'\g<1>{build}', text)
+    text = re.sub(r'HALLJOY_VERSION_TUPLE \d+,\d+,\d+,\d+', f'HALLJOY_VERSION_TUPLE {major},{minor},{patch},{build}', text)
+    text = re.sub(r'\d+\.\d+\.\d+(?=(?:\.\d+)?")', public, text)
+    text = re.sub(r'(HALLJOY_VERSION_STRING_FULL )"[^"]*"', rf'\g<1>"{major}.{minor}.{patch}.{build}"', text)
     path.write_bytes(text.encode())
     index = ROOT / 'docs/releases/README.md'
     text = index.read_bytes().decode('utf8')
@@ -204,7 +212,7 @@ Title: {title}. Published with `tools/release.py`.
 - Transfer: {transfer_counts[0]} files written, {transfer_counts[1]} normalised to main's line endings;
   denied, local and local-only paths skipped. Private-data scan and check_publication_inputs: PASS.
 - Native suite and build_release.ps1: PASS. Workspace = clone for every tracked file.
-- EXE SHA-256 `{exe}`, version {version}.0. Server-side SHA-256 of {", ".join(ASSETS)} equals the package.
+- EXE SHA-256 `{exe}`, version {full_version(version)}. Server-side SHA-256 of {", ".join(ASSETS)} equals the package.
 - Clean-checkout tests: GitHub CI (Windows) on {commit}.
 '''.encode('utf8'))
     context = ROOT / 'docs/current/OWNER_CONTEXT.md'
@@ -232,8 +240,8 @@ def main():
     parser.add_argument('title')
     parser.add_argument('--publish', action='store_true')
     args = parser.parse_args()
-    if not re.fullmatch(r'\d+\.\d+\.\d+', args.version):
-        raise SystemExit('version must look like 1.6.10')
+    if not re.fullmatch(r'\d+\.\d+\.\d+(\.[1-9]\d*)?', args.version):
+        raise SystemExit('version must look like 1.6.10 or, for a hotfix, 1.6.9.1')
     notes = ROOT / f'docs/releases/RELEASE_NOTES_v{args.version}.md'
     if not notes.is_file():
         raise SystemExit(f'Write {notes.relative_to(ROOT)} first (public patch notes).')

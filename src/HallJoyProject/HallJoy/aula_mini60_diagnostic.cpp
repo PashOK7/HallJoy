@@ -24,6 +24,7 @@
 #include "stability_trace.h"
 #include "debug_log.h"
 #include "aula_mini60_native_model.h"
+#include "aula_mini60_name.h"
 #include "native_analog_backend.h"
 #include "native_analog_backend_registry.h"
 #include "configured_xusb_builder.h"
@@ -80,7 +81,7 @@ void Line(const std::string& s){DWORD n=0;std::string l=s+"\n";WriteFile(GetStdH
 void Event(const char* name,unsigned error=0){Line(std::string(name)+" error="+std::to_string(error));}
 std::wstring ThisExe(){wchar_t b[32768]{};auto n=GetModuleFileNameW(nullptr,b,_countof(b));if(!n || n>=_countof(b))throw 1;return {b,n};}
 std::wstring Quote(const std::wstring& s){return L"\""+s+L"\"";}
-struct Device {std::wstring path;unsigned productId=0;};
+struct Device {std::wstring path;unsigned productId=0;bool namedPro=false;};
 std::vector<Device> Find(){
     std::vector<Device> result;unsigned receiver=0,wired=0,rejected=0;
     GUID guid{};HidD_GetHidGuid(&guid);
@@ -108,8 +109,10 @@ std::vector<Device> Find(){
         if(attr.ProductID==0xfefe || attr.ProductID==0xfefc){++receiver;continue;}
         if(!halljoy::mini60::SupportedProduct(attr.ProductID))continue;
         ++wired;
-        char line[300];sprintf_s(line,"descriptor vid=0c45 pid=%04x bcd=%04x usage=%04x:%04x in=%u out=%u feature=%u",attr.ProductID,attr.VersionNumber,caps.UsagePage,caps.Usage,caps.InputReportByteLength,caps.OutputReportByteLength,caps.FeatureReportByteLength);Line(line);
-        if(caps.UsagePage==0xff68 && caps.Usage==0x61 && caps.InputReportByteLength==65 && caps.OutputReportByteLength==65)result.push_back({path,attr.ProductID});else ++rejected;
+        // USB product string only (a control read, no vendor command): the PRO is named "MINI 60 HE PRO".
+        wchar_t productName[126]{};const bool namedPro=HidD_GetProductString(meta.h,productName,sizeof(productName)) && halljoy::mini60::IsMini60ProName(productName);
+        char line[320];sprintf_s(line,"descriptor vid=0c45 pid=%04x bcd=%04x usage=%04x:%04x in=%u out=%u feature=%u name_pro=%d",attr.ProductID,attr.VersionNumber,caps.UsagePage,caps.Usage,caps.InputReportByteLength,caps.OutputReportByteLength,caps.FeatureReportByteLength,namedPro?1:0);Line(line);
+        if(caps.UsagePage==0xff68 && caps.Usage==0x61 && caps.InputReportByteLength==65 && caps.OutputReportByteLength==65)result.push_back({path,attr.ProductID,namedPro});else ++rejected;
     }
     Line("inventory wired_collections="+std::to_string(wired)+" receiver_collections="+std::to_string(receiver)+" rejected_collections="+std::to_string(rejected)+" eligible="+std::to_string(result.size())+" receiver_commands=0");
     return result;
@@ -256,9 +259,11 @@ int Capture(bool cleanupOnly){
             for(unsigned retry=0;retry<2 && !Stop();++retry){
                 if(s.Exchange(0x10,halljoy::mini60::InfoLength(devices[0].productId),0,&reply)){
                     const auto vid=U16(reply.data()+12),pid=U16(reply.data()+14);
-                    if(!halljoy::mini60::Identity(devices[0].productId,vid,pid,U16(reply.data()+20),U16(reply.data()+22))){Line("identity_mismatch commands_stopped=1");return 7;}
+                    if(!halljoy::mini60::Identity(devices[0].productId,vid,pid,U16(reply.data()+20),U16(reply.data()+22),devices[0].namedPro)){
+                        char mismatch[250];sprintf_s(mismatch,"identity_mismatch commands_stopped=1 descriptor_pid=%04x vid=%04x pid=%04x manufacturer=%u product=%u name_pro=%d version_bytes=%02x:%02x",devices[0].productId,vid,pid,U16(reply.data()+20),U16(reply.data()+22),devices[0].namedPro?1:0,reply[16],reply[17]);
+                        Line(mismatch);return 7;}
                     if(liveWorker)InterlockedExchange(&shared->productId,static_cast<LONG>(pid));
-                    char b[250];sprintf_s(b,"device_info vid=%04x pid=%04x version_bytes=%02x:%02x manufacturer=%u product=%u work_mode=%u",vid,pid,reply[16],reply[17],U16(reply.data()+20),U16(reply.data()+22),reply[24]);Line(b);info=true;
+                    char b[250];sprintf_s(b,"device_info vid=%04x pid=%04x version_bytes=%02x:%02x manufacturer=%u product=%u work_mode=%u name_pro=%d",vid,pid,reply[16],reply[17],U16(reply.data()+20),U16(reply.data()+22),reply[24],devices[0].namedPro?1:0);Line(b);info=true;
                     if(pid==halljoy::mini60::Ak820Pid){
                         // Driveall fields: romSize +0, rtPrecision +29, frameVersion +30, lightingVersion +31, firmwareStatus +32.
                         sprintf_s(b,"probe device_info rom_size=%u rt_precision=%u frame_version=%u lighting_version=%u firmware_status=%u",reply[8],reply[37],reply[38],reply[39],reply[40]);Line(b);
@@ -401,10 +406,22 @@ void ForwardAk820(const std::string& line){
         }
     }
 }
+// Finite identity results of every wired device of this family go to HallJoy.log (owner rule: the
+// log must carry the data), not only the AK820 ones.
+void ForwardIdentity(const std::string& line){
+    static constexpr const char* kinds[]={"descriptor ","device_info ","device_info_unavailable","identity_mismatch","no_wired_device","multiple_wired_devices","data_open_failed","inventory "};
+    // Kept evidence is unbounded: each distinct line goes once per process, at most 48 of them.
+    static std::set<std::string> forwarded;
+    for(auto kind:kinds)if(line.starts_with(kind)){
+        if(forwarded.size()>=48 || !forwarded.insert(line).second)return;
+        SupportLog_Evidence(("evidence.mini60 "+line).c_str(),true);return;
+    }
+}
 void ReceiveLine(const std::string& line){
     if(line=="waiting_for_device")return; // Liveness only; no idle log growth.
     if(line.size()>2000){StabilityTrace_AppendPlain(L"[mini60] oversized_worker_record dropped=1");return;}
     ForwardAk820(line);
+    if(!ak820Worker)ForwardIdentity(line);
     std::wstring wide(line.begin(),line.end());StabilityTrace_AppendPlain((L"[mini60] "+wide).c_str());
     unsigned state=0;
     if(sscanf_s(line.c_str(),"status state=%u",&state)==1 && state>=1 && (state<=6 || state==11 || state==12))uiState=state;
@@ -690,6 +707,9 @@ void Require(bool v){if(!v)throw 1;}
 void SelfTest(unsigned product){
     const bool ak820=product==halljoy::mini60::Ak820Pid;const auto& factory=halljoy::mini60::FactoryFor(product);
     Require(halljoy::mini60::Identity(product,0x0c45,product,0x0166,0x110c));
+    // A 0C45:80A2 unit named "MINI 60 HE PRO" is accepted without the 0x110C product register value.
+    Require(halljoy::mini60::Identity(0x80a2,0x0c45,0x80a2,0x0166,0x1234,true) && !halljoy::mini60::Identity(0x80a2,0x0c45,0x80a2,0x0166,0x1234,false));
+    Require(!halljoy::mini60::Identity(0x80a2,0x0c45,0x80a2,0x0167,0x1234,true) && !halljoy::mini60::Identity(0x80a2,0x0c45,0x80a1,0x0166,0x1234,true));
     Require(!halljoy::mini60::Identity(product,0x0c45,product^1,0x0166,0x110c));
     Require(!halljoy::mini60::Identity(product,0x0c46,product,0x0166,0x110c));
     // AK820 accepts any manufacturer/product; AULA keeps the 0x0166 restriction.

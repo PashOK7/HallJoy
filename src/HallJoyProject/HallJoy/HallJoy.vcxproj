@@ -468,6 +468,7 @@
     <ClInclude Include="attackshark_pro_diagnostic_model.h" />
     <ClInclude Include="attackshark_pro_native_model.h" />
     <ClInclude Include="aula_mini60_native_model.h" />
+    <ClInclude Include="aula_mini60_name.h" />
     <ClInclude Include="aula_mini60_layout.h" />
     <ClInclude Include="attackshark_pro_layouts.h" />
     <ClInclude Include="attackshark_pro_layout_identity.h" />
@@ -675,6 +676,7 @@
     <ClInclude Include="tartarus_protocol.h" />
     <ClInclude Include="neo65_protocol.h" />
     <ClInclude Include="sparklink_model_profiles.h" />
+    <ClInclude Include="sparklink_official_identities.h" />
     <ClCompile Include="aula_hero84he_diagnostic_backend.cpp">
       <ExcludedFromBuild Condition="'$(HallJoyAulaHero84HeDiagnostic)'!='true'">true</ExcludedFromBuild>
     </ClCompile>

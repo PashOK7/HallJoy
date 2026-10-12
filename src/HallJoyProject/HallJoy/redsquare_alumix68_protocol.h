@@ -24,6 +24,12 @@ namespace halljoy::redsquare_alumix68 {
 inline constexpr std::uint16_t kVendorId = 0x0c45;
 inline constexpr std::uint16_t kProductId = 0x80a2;
 
+// Owner decision 2026-10-12: Alumix 68 support is switched off (not supported, red). The AULA MINI 60
+// HE PRO has the same USB identity 0C45:80A2 and transport; the implementation stays in the tree but
+// the backend enumerates nothing and sends nothing while this is false. Re-enabling needs a new owner
+// decision (and a reliable way to tell the two keyboards apart).
+inline constexpr bool kAdmitted = false;
+
 // Windows HID interrupt reports carry a leading report-id byte; the device frame
 // (the emulator's view) is 64 bytes. The sibling Alumix 104 exposes the vendor
 // transport on collection FF68:61 with 65/65-byte reports; the same holds here.
@@ -35,6 +41,8 @@ inline constexpr std::uint8_t kRequestPrefix = 0xaa;
 inline constexpr std::uint8_t kReplyPrefix = 0x55;
 inline constexpr std::uint8_t kCmdReadRam = 0x16;    // reads RAM 0x20002A9C + offset
 inline constexpr std::uint8_t kCmdReadFlash = 0x12;  // reads flash 0x9600 + offset
+inline constexpr std::uint8_t kCmdDeviceInfo = 0x10;  // SONiX device info, same read framing
+inline constexpr std::size_t kDeviceInfoBytes = 56;
 
 // Depth table: 128 LE16 scan-slot strokes at RAM 0x20002C9C (0x20002A9C + 0x200).
 inline constexpr std::uint16_t kDepthOffset = 0x200;
@@ -100,6 +108,18 @@ inline bool ExactCollection(unsigned page, unsigned usage,
 inline std::uint16_t ToMilli(std::uint16_t stroke) noexcept {
     const std::uint32_t scaled = std::uint32_t(stroke) * 1000u / kFullScaleStroke;
     return static_cast<std::uint16_t>(scaled > 1000u ? 1000u : scaled);
+}
+
+// The AULA MINI 60 HE PRO (wired) has the same USB identity 0C45:80A2, collection FF68:61 and
+// transport. Its device info (payload = device byte 8 onward) carries VID/PID at device bytes
+// 12..15 and manufacturer 0x0166 / product 0x110C at 20..23, the identity the AULA backend
+// requires. Such a device is not an Alumix 68: skip it before any firmware probe or notice.
+inline bool IsAulaMini60DeviceInfo(const std::uint8_t* payload) noexcept {
+    if (!payload) return false;
+    const auto le = [payload](std::size_t index) {
+        return static_cast<unsigned>(payload[index]) | (static_cast<unsigned>(payload[index + 1]) << 8);
+    };
+    return le(4) == kVendorId && le(6) == kProductId && le(12) == 0x0166u && le(14) == 0x110cu;
 }
 
 // Build a Windows output report requesting `length` bytes at `offset`.

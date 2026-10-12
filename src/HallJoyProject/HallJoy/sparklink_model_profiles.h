@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "sparklink_official_identities.h"
 namespace halljoy::sparklink {
 // Exact wired JingTai V2 identities in the official IROK and EWEADN clients. The ordinary
 // backend still proves device/layout/travel replies before claiming the HID path.
@@ -35,14 +36,43 @@ constexpr std::uint64_t ExperimentalToken(unsigned vid,unsigned pid,unsigned pag
  case 0x270a: // EWEADN: DK75 HE
  case 0x5e01: // EWEADN: DK63 HE
   return (static_cast<std::uint64_t>(vid)<<16)|pid;
- default:return 0; // MG75 Max and Everglide SU75 Pro (0x3002) are Supported.
+ default:return 0; // MG75 Max and Everglide SU75 Pro (0x3002) are Supported (see ExactModel).
  }
 }
-// Admission before any SparkLink command, not merely a status classification.
-constexpr bool ProbeIdentity(unsigned vid,unsigned pid) noexcept {
- // 0x3002: Everglide SU75 Pro (xsyd.top; official catalog: public v2, FFB0/1),
- // tester-confirmed 2026-10-02 (126 mapped keys, no failures).
+// Exact models HallJoy lists by name: the confirmed MG75 Max (0x0529), the Supported
+// Everglide SU75 Pro (0x3002, xsyd.top; catalog public v2, FFB0/1; tester-confirmed
+// 2026-10-02) and the experimental identities above.
+constexpr bool ExactModel(unsigned vid,unsigned pid) noexcept {
  return vid==0x1ca6 && (pid==0x0529 || pid==0x3002 || ExperimentalToken(vid,pid,0xffb0)!=0);
+}
+// The vendor's own driver lists this VID:PID as a SparkLink V2 keyboard (usage page 0xFFB0,
+// usage 1). Identifiers only; the table is generated and sorted.
+constexpr bool OfficialListed(unsigned vid,unsigned pid) noexcept {
+ if(vid>0xffffu || pid>0xffffu)return false;
+ const std::uint32_t key=(static_cast<std::uint32_t>(vid)<<16)|static_cast<std::uint32_t>(pid);
+ std::size_t lo=0,hi=kOfficialIdentities.size();
+ while(lo<hi) {
+  const std::size_t mid=lo+(hi-lo)/2;
+  if(kOfficialIdentities[mid]==key)return true;
+  if(kOfficialIdentities[mid]<key)lo=mid+1; else hi=mid;
+ }
+ return false;
+}
+// Release switch (owner decision 2026-10-12): the generic path below is implemented and tested in
+// software but NOT enabled in the 1.6.9.1 hotfix. Enabling it is a new feature (no hardware test).
+inline constexpr bool kGenericAdmission=false;
+// Official-list identity that is not a named model: connected through the protocol match
+// only. The backend must prove the device-info reply and live travel reads before it is
+// shown as connected, and shows the "keyboard not in the list" notice.
+constexpr bool GenericOnly(unsigned vid,unsigned pid) noexcept {
+ return kGenericAdmission && OfficialListed(vid,pid) && !ExactModel(vid,pid);
+}
+// Admission before any SparkLink command, not merely a status classification. Sending
+// 01 02 to an unlisted device is unsafe (it is a reset command on SteelSeries Apex Pro),
+// so the gate is the exact model list or the vendor's official identity list, never a
+// bare vendor usage page.
+constexpr bool ProbeIdentity(unsigned vid,unsigned pid) noexcept {
+ return ExactModel(vid,pid) || GenericOnly(vid,pid);
 }
 constexpr bool ProbeInterface(unsigned vid,unsigned pid,unsigned page,unsigned usage) noexcept {
  return ProbeIdentity(vid,pid) && page==0xffb0 && usage==1;

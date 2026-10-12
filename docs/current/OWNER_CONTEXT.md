@@ -1,3 +1,4 @@
+> 2026-10-12 PUBLISHED stable/latest 1.6.9.1: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.9.1 (commit 99078e8, EXE 24e5afdb). See RELEASE_1.6.9.1_PUBLICATION_2026-10-12.md.
 > 2026-10-12 OWNER question: SparkLink V2 breadth. Official keyboard list = 552 identities (487 on 1CA6, 35 AULA 38A6,
 > 30 other VIDs); HallJoy admits 26 (+4 IROK). PID high byte tracks the brand (05 IROK, 08 AULA, 1A IPI, 1C EWEADN, 30 Everglide);
 > three asked brands = ~74 identities, 1 admitted (3002). No hidden support (exact identity gate). Options: exact blocks with

@@ -1,3 +1,4 @@
+> 2026-10-19 PUBLISHED stable/latest 1.6.10: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.10 (commit ed4f256, EXE 440e69f2). See RELEASE_1.6.10_PUBLICATION_2026-10-19.md.
 > 2026-10-19 OWNER: release 1.6.10 with generic SparkLink V2 admission ON (kGenericAdmission=true), busy notice extended to MG75/JingTai,
 > Slice75, Neo65, SteelSeries Apex, RongYuan snapshot; MADE68 Air key lines limited to bound keys (no typing in the log).
 > 2026-10-19 AULA WIN 60 HE PRO (1CA2:1902, HallJoy (5).log) and WIN 68 HE MAX (1CA2:1901, HallJoy (6).log), 1.6.9.1: red "no supported

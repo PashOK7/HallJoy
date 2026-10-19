@@ -763,12 +763,15 @@
     <ClCompile Include="rongyuan_snapshot_backend.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="rongyuan_stream_backend.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="alumix104_backend.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="melgeek_made68air_backend.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="redsquare_alumix68_backend.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="tartarus_backend.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="neo65_backend.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClInclude Include="rongyuan_stream_backend.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="alumix104_backend.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="alumix104_protocol.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="melgeek_made68air_backend.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="melgeek_made68air_protocol.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="redsquare_alumix68_backend.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="redsquare_alumix68_protocol.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="tartarus_backend.h"><Filter>Header Files</Filter></ClInclude>

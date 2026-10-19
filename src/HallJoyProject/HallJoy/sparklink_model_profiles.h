@@ -58,9 +58,9 @@ constexpr bool OfficialListed(unsigned vid,unsigned pid) noexcept {
  }
  return false;
 }
-// Release switch (owner decision 2026-10-12): the generic path below is implemented and tested in
-// software but NOT enabled in the 1.6.9.1 hotfix. Enabling it is a new feature (no hardware test).
-inline constexpr bool kGenericAdmission=false;
+// Release switch: off in the 1.6.9.1 hotfix (owner decision 2026-10-12), enabled for 1.6.10
+// (owner decision 2026-10-19). The generic path is software-tested, not hardware-tested.
+inline constexpr bool kGenericAdmission=true;
 // Official-list identity that is not a named model: connected through the protocol match
 // only. The backend must prove the device-info reply and live travel reads before it is
 // shown as connected, and shows the "keyboard not in the list" notice.

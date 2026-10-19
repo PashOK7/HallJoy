@@ -13,17 +13,21 @@
 #include <initguid.h>
 #include <devpkey.h>
 // clang-format on
+#include <avrt.h>
 #include "rongyuan_stream_backend.h"
 #include "debug_log.h"
 #include "generated/layout_pipeline/identities.h"
 #include "hid_io_operation.h"
+#include "input_trace.h"
 #include "native_analog_routing.h"
 #include "native_layout_state.h"
 #include "physical_analog_state.h"
+#include "rongyuan_press_timing.h"
 #include "rongyuan_stream_protocol.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cstdio>
 #include <cwctype>
 #include <mutex>
 #include <process.h>
@@ -31,12 +35,13 @@
 #include <vector>
 #pragma comment(lib, "setupapi.lib")
 #pragma comment(lib, "hid.lib")
+#pragma comment(lib, "avrt.lib")
 namespace {
 namespace mg = halljoy::ry_stream;
 constexpr DWORD kStopTimeoutMs = 3000;
 constexpr ULONGLONG kFreshMs = ~ULONGLONG{0}; // Delta values persist until release/disconnect.
 std::atomic<bool> g_running{false}, g_stop{false}, g_present{false},
-    g_connected{false};
+    g_connected{false}, g_mmcss{false};
 std::atomic<std::uint64_t> g_token{0}, g_ok{0}, g_bad{0}, g_last{0};
 std::atomic<std::uint32_t> g_avgUs{0}, g_maxUs{0};
 std::atomic<unsigned> g_board{0}, g_units{0}, g_mapped{0}, g_vid{0}, g_pid{0};
@@ -44,6 +49,70 @@ std::atomic<unsigned> g_topology{0}; // device changes; resets identity retries
 std::mutex g_service, g_activeLock;
 HANDLE g_thread = nullptr, g_wake = nullptr, g_active = INVALID_HANDLE_VALUE;
 halljoy::physical_analog::Publication g_factory, g_assigned;
+std::array<std::uint16_t, 128> g_slotFactory{}, g_slotAssigned{}; // worker thread only
+
+// Press timing of keys bound to the gamepad (rongyuan_press_timing.h). Windows key events
+// of this keyboard go from the UI thread to the reader through a single-producer ring;
+// every finished press is one evidence line, slow presses are also kept whole.
+struct OsKey { std::uint16_t hid; bool down; LONGLONG us; unsigned uiMs; };
+std::array<OsKey, 128> g_osKeys{};
+std::atomic<unsigned> g_osHead{0}, g_osTail{0};
+HANDLE OsKeyEvent() {
+  static const HANDLE event = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+  return event;
+}
+constexpr std::int64_t kSlowUs = 30000; // either edge slower than this: kept as a slow press
+constexpr unsigned kBacklogSlow = 16, kSlowLines = 256, kReaderLines = 16;
+halljoy::ry_stream::PressTiming g_timing; // worker thread only
+struct PressStats {
+  unsigned presses = 0, windowsOnly = 0, slow = 0, slowLines = 0, nextSummary = 1;
+  unsigned maxBacklog = 0, maxUiMs = 0;
+  std::int64_t maxDownWaitUs = 0, maxUpWaitUs = 0;
+} g_pressStats; // worker thread only, whole run
+LONGLONG NowUs() {
+  static const LONGLONG freq = [] { LARGE_INTEGER f; QueryPerformanceFrequency(&f); return f.QuadPart; }();
+  LARGE_INTEGER t; QueryPerformanceCounter(&t);
+  return static_cast<LONGLONG>(static_cast<long double>(t.QuadPart) * 1000000.0L / static_cast<long double>(freq));
+}
+double Ms(std::int64_t us) { return static_cast<double>(us) / 1000.0; }
+void WritePress(const halljoy::ry_stream::PressRecord &r) {
+  auto &s = g_pressStats;
+  ++s.presses;
+  if (r.os && !r.stream) ++s.windowsOnly;
+  s.maxDownWaitUs = std::max(s.maxDownWaitUs, r.downWaitUs);
+  s.maxUpWaitUs = std::max(s.maxUpWaitUs, r.upWaitUs);
+  s.maxBacklog = std::max(s.maxBacklog, r.backlog);
+  s.maxUiMs = std::max(s.maxUiMs, r.uiDelayMs);
+  const bool slow = (r.os && !r.stream) || r.downWaitUs >= kSlowUs || r.upWaitUs >= kSlowUs ||
+                    r.backlog >= kBacklogSlow;
+  if (slow) ++s.slow;
+  char line[352]{};
+  int at = _snprintf_s(line, _TRUNCATE,
+      "evidence.rongyuan press hid=%02x os=%d stream=%d lead_ms=%.1f down_wait_ms=%.1f up_wait_ms=%.1f "
+      "samples=%u max_gap_ms=%.1f peak=%u dur_ms=%.1f backlog=%u ui_ms=%u slow=%d",
+      r.hid, r.os ? 1 : 0, r.stream ? 1 : 0, Ms(r.leadUs), Ms(r.downWaitUs), Ms(r.upWaitUs), r.samples,
+      Ms(r.maxGapUs), r.peak, Ms(r.durationUs), r.backlog, r.uiDelayMs, slow ? 1 : 0);
+  if (at > 0 && r.afterReleaseUs >= 0)
+    _snprintf_s(line + at, sizeof(line) - at, _TRUNCATE, " after_release_ms=%.1f", Ms(r.afterReleaseUs));
+  SupportLog_Evidence(line, slow && s.slowLines++ < kSlowLines);
+  if (s.presses != s.nextSummary) return;
+  s.nextSummary *= 2;
+  _snprintf_s(line, _TRUNCATE,
+      "evidence.rongyuan press_summary presses=%u slow=%u windows_only=%u max_down_wait_ms=%.1f "
+      "max_up_wait_ms=%.1f max_backlog=%u max_ui_ms=%u",
+      s.presses, s.slow, s.windowsOnly, Ms(s.maxDownWaitUs), Ms(s.maxUpWaitUs), s.maxBacklog, s.maxUiMs);
+  SupportLog_Evidence(line, true);
+}
+void DrainOsKeys() {
+  unsigned tail = g_osTail.load(std::memory_order_acquire);
+  const unsigned head = g_osHead.load(std::memory_order_acquire);
+  for (; tail != head; ++tail) {
+    const OsKey key = g_osKeys[tail % g_osKeys.size()];
+    halljoy::ry_stream::PressRecord record{};
+    if (g_timing.OsKey(key.hid, key.down, key.us, key.uiMs, record)) WritePress(record);
+  }
+  g_osTail.store(tail, std::memory_order_release);
+}
 bool Remapped() {
   return halljoy::native_layout::UsesRemapping(g_token.load());
 }
@@ -351,6 +420,8 @@ bool Map(Session &s) {
   }
   std::array<halljoy::native_layout::Key, 128> keys{};
   unsigned count = 0;
+  g_slotFactory = {};
+  g_slotAssigned = {};
   for (unsigned slot = 0; slot < 128; ++slot) {
     const auto factory = mg::Decode(s.model->matrix.data() + slot * 4);
     if (!factory)
@@ -360,6 +431,8 @@ bool Map(Session &s) {
     if (!g_factory.Bind(id, factory) ||
         (action && !g_assigned.Bind(id, action)))
       return false;
+    g_slotFactory[slot] = factory;
+    g_slotAssigned[slot] = action;
     keys[count++] = {factory, action};
   }
   const auto token =
@@ -373,12 +446,16 @@ bool Map(Session &s) {
   g_mapped.store(count);
   return true;
 }
-bool Publish(const mg::Sample& sample, const mg::Model& model, std::uint64_t now) {
+// `hid` receives the key the sample belongs to (0 for non-key slots), `milli` its depth.
+bool Publish(const mg::Sample& sample, const mg::Model& model, std::uint64_t now, std::uint16_t& hid, unsigned& milli) {
+  hid=0;milli=0;
   if(sample.raw>6*g_units.load())return false;
   if(!mg::Decode(model.matrix.data()+sample.slot*4))return true; // Known non-key/encoder slots never become analog keys.
   const auto id=static_cast<std::uint8_t>(sample.slot+1);
   const auto value=mg::Normalize(sample.raw,g_units.load(),model.rangeUm);
   g_factory.Publish(id,value,now);g_assigned.Publish(id,value,now);
+  hid=(Remapped()?g_slotAssigned:g_slotFactory)[sample.slot];
+  milli=std::min<unsigned>(value,1000);
   g_last.store(now);++g_ok;return true;
 }
 bool Run(const Candidate &c, bool &identityRejected) {
@@ -417,29 +494,52 @@ bool Run(const Candidate &c, bool &identityRejected) {
   DebugLog_Write(L"[rongyuan.stream] connected board=%u keys=%u "
                  L"units_per_mm=%u experimental=1",
                  s.model->board, g_mapped.load(), s.units);
+  {
+    static unsigned readerLines=0;
+    if(readerLines++<kReaderLines) {
+      char line[128]{};
+      _snprintf_s(line,_TRUNCATE,"evidence.rongyuan reader board=%u pid=%04x priority=%d mmcss=%d",
+                  s.board,s.ProductId(),GetThreadPriority(GetCurrentThread()),g_mmcss.load()?1:0);
+      SupportLog_Evidence(line,true);
+    }
+  }
+  // Press timing starts clean: no record or Windows key event of an earlier session.
+  g_timing.Reset();
+  g_osTail.store(g_osHead.load(std::memory_order_acquire),std::memory_order_release);
   std::array<unsigned char,32> report{};
   HidIoOperation read(s.Input());
   DWORD endError=ERROR_SUCCESS;
   unsigned endReason=0; // 0 stop, 1 read start, 2 wait, 3 read finish, 4 invalid packet
+  unsigned backlog=0;   // reports in a row that were already queued when the read started
   while (!g_stop.load()) {
     DWORD error=0,done=0;
     const auto start=read.StartRead(report.data(),static_cast<DWORD>(report.size()),&error);
     if(start==HidIoOperation::StartResult::Failed) {endReason=1;endError=error;++g_bad;break;}
     bool failed=false;
     if(start==HidIoOperation::StartResult::Pending) {
-      HANDLE events[]={read.Event(),g_wake};
+      backlog=0;
+      HANDLE events[]={read.Event(),g_wake,OsKeyEvent()};
       while(!g_stop.load()) {
-        const auto wait=WaitForMultipleObjects(2,events,FALSE,1000);
+        const auto wait=WaitForMultipleObjects(events[2]?3:2,events,FALSE,1000);
         if(wait==WAIT_OBJECT_0)break;
+        if(wait==WAIT_OBJECT_0+2) {DrainOsKeys();continue;}
         if(wait==WAIT_FAILED) {endReason=2;endError=GetLastError();failed=true;break;}
       }
-    }
+    } else ++backlog;
     if(g_stop.load() || failed) {read.CancelAndDrain(&done,&error);break;}
     if(!read.Finish(&done,&error,false)) {endReason=3;endError=error;++g_bad;break;}
+    const LONGLONG sampleUs=NowUs();
     // RID5 also carries vendor notifications unrelated to key travel.
     if(done==32 && report[0]==5 && report[1]!=0x1b)continue;
     mg::Sample sample{};
-    if(!mg::Parse(report.data(),done,sample) || !Publish(sample,*s.model,GetTickCount64())) {
+    std::uint16_t hid=0;unsigned milli=0;
+    const bool published=mg::Parse(report.data(),done,sample) && Publish(sample,*s.model,GetTickCount64(),hid,milli);
+    if(published && hid) {
+      DrainOsKeys(); // Windows events up to now first, so their order against this sample holds.
+      halljoy::ry_stream::PressRecord record{};
+      if((!milli || InputTrace_IsBound(hid)) && g_timing.Sample(hid,milli,sampleUs,backlog,record))WritePress(record);
+    }
+    if(!published) {
       endReason=4;endError=ERROR_INVALID_DATA;
       ++g_bad;DebugLog_Write(L"[rongyuan.stream] invalid input bytes=%lu; session stopped",done);break;
     }
@@ -463,6 +563,13 @@ unsigned __stdcall Worker(void *) {
   constexpr unsigned kIdentityAttempts = 3;
   std::vector<std::pair<std::wstring, unsigned>> rejected;
   unsigned topology = g_topology.load();
+  // The reader must not wait behind a busy foreground game (tester report 2026-10-16: wired
+  // M1 V5 TMR sometimes lags): the scheduling of the realtime loop that consumes its values,
+  // MMCSS "Games" plus highest priority. The thread sleeps in the HID read almost always.
+  DWORD mmcssTask = 0;
+  const HANDLE mmcss = AvSetMmThreadCharacteristicsW(L"Games", &mmcssTask);
+  g_mmcss.store(mmcss != nullptr);
+  SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
   try {
     while (!g_stop.load()) {
       if (g_topology.load() != topology) {topology = g_topology.load(); rejected.clear();}
@@ -503,6 +610,8 @@ unsigned __stdcall Worker(void *) {
     DebugLog_Write(L"[rongyuan.stream] worker exception; input cleared");
   }
   Clear();
+  if (mmcss)
+    AvRevertMmThreadCharacteristics(mmcss);
   g_running.store(false);
   return 0;
 }
@@ -626,6 +735,40 @@ void Telemetry(NativeAnalogBackendTelemetry *out) {
                model ? model->name : L"RongYuan");
 }
 } // namespace
+// Windows key events of the connected keyboard (UI thread, WM_INPUT) for the press timing.
+// Key-downs only of keys bound to the gamepad; key-ups always, so an open press can end.
+void RongYuanStream_ObserveRawKey(void *device, std::uint16_t hid, bool down) noexcept {
+  if (!hid || !g_connected.load() || (down && !InputTrace_IsBound(hid)))
+    return;
+  static void *lastDevice = nullptr;
+  static unsigned lastIdentity = 0;
+  static bool lastMatch = false;
+  const unsigned identity = (g_vid.load() << 16) | g_pid.load();
+  if (device != lastDevice || identity != lastIdentity) {
+    lastDevice = device;
+    lastIdentity = identity;
+    lastMatch = false;
+    wchar_t name[512]{};
+    UINT size = static_cast<UINT>(std::size(name));
+    if (device && GetRawInputDeviceInfoW(static_cast<HANDLE>(device), RIDI_DEVICENAME, name, &size) != static_cast<UINT>(-1)) {
+      for (auto &ch : name) ch = static_cast<wchar_t>(towlower(ch));
+      wchar_t want[32]{};
+      swprintf_s(want, L"vid_%04x&pid_%04x", identity >> 16, identity & 0xffffu);
+      lastMatch = wcsstr(name, want) != nullptr;
+    }
+  }
+  if (!lastMatch)
+    return;
+  // How long WM_INPUT waited in the UI queue (16 ms tick resolution).
+  const LONG queued = static_cast<LONG>(GetTickCount() - static_cast<DWORD>(GetMessageTime()));
+  const unsigned head = g_osHead.load();
+  if (head - g_osTail.load() >= g_osKeys.size())
+    return; // reader behind: drop
+  g_osKeys[head % g_osKeys.size()] = OsKey{hid, down, NowUs(), queued > 0 && queued < 60000 ? static_cast<unsigned>(queued) : 0u};
+  g_osHead.store(head + 1, std::memory_order_release);
+  if (const HANDLE event = OsKeyEvent())
+    SetEvent(event);
+}
 const NativeAnalogBackendDescriptor &
 RongYuanStream_GetNativeBackendDescriptor() {
   static const NativeAnalogBackendDescriptor d{

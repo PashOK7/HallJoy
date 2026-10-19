@@ -12,6 +12,8 @@
 #include "support_log.h"
 #include "redsquare_code_probe.h"
 #include "logitech_rapid_backend.h"
+#include "melgeek_made68air_backend.h"
+#include "rongyuan_stream_backend.h"
 #include "irok_na87_diagnostic.h"
 #include "aula_mini60_diagnostic.h"
 #include "attackshark_pro_diagnostic.h"
@@ -1777,6 +1779,8 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                 const uint16_t hid = HidFromKeyboardScanCode(rk.MakeCode, extended, rk.VKey);
                 halljoy::redsquare_probe::ObserveRawKeyboard(ri->header.hDevice, hid, isDown);
                 LogitechRapid_ObserveRawKey(ri->header.hDevice, hid, isDown);
+                MelGeekMade68Air_ObserveRawKey(ri->header.hDevice, hid, isDown);
+                RongYuanStream_ObserveRawKey(ri->header.hDevice, hid, isDown);
                 InputTrace_OsKey(reinterpret_cast<std::uintptr_t>(ri->header.hDevice), hid, isDown);
                 if (isDown)
                     halljoy::input_privilege::detector.Digital(hid, false, GetTickCount64());

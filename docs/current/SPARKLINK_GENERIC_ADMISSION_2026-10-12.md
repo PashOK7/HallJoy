@@ -13,6 +13,8 @@ Context: [SPARKLINK_V2_PLATFORM_SURVEY_2026-10-12.md](SPARKLINK_V2_PLATFORM_SURV
 > (`sparklink_model_profiles.h`) in the 1.6.9.1 hotfix, which must contain fixes only. With the switch
 > off, `ProbeIdentity` equals the exact model list and `GenericOnly` is always false (behavior of
 > 1.6.9). Flip the switch in the next feature release after a decision.
+>
+> 2026-10-19 OWNER decision: enabled (`kGenericAdmission=true`) for the 1.6.10 feature release.
 
 ## Why this is "certain" for SparkLink V2
 

@@ -155,3 +155,10 @@ certainty, but none of the 55 references to the mode variable, the 73 references
 buffer base or the sender's single call site points to one. Scripts were scratch files
 (not kept). Re-check if Corsair publishes a newer K70 MAX firmware. The Web Hub also lists
 VANGUARD PRO 96 and MAKR (PRO) 75 magnetic boards with separate firmware that may differ.
+
+## 2026-10-15: GitHub issue #8 answered and closed; Sheet
+
+Owner-approved reply posted on PashOK7/HallJoy#8 (firmware 1.17.96 sends no analog key values, so the K70 MAX will not be
+supported; the issue can be reopened if Corsair ships firmware with analog data). Issue closed as "not planned".
+Sheet: Main!C180 Corsair / K70 MAX `Not investigated` -> `No usable analog found` (value-only write). Readback A179:C181:
+model K70 MAX, new status, dropdown preserved, red background (0.96/0.72/0.72), no note; K70 PRO TKL unchanged.

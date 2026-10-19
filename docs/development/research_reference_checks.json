@@ -14,7 +14,7 @@
       },
       {
         "path": "docs/development/keyboard_support_notices.json",
-        "sha256": "0ac38b058647afb0d43de85cea17331e25981f01664a34b1858530a4e2227995",
+        "sha256": "e70a46770f72cf0f65c96c60113d8fcb83be92d6b4a452e155b4bf84ee6fd392",
         "private": false
       },
       {
@@ -1274,7 +1274,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "a9c72cb94f2eae5f8555d166ef2b217585c348b223d489906e5ba255f1f49b18",
+        "sha256": "05f66f8dd2e925799f19e76c82ecffd51e87c3791eb795b7c5ff43500635c524",
         "private": false
       }
     ],
@@ -1829,7 +1829,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "a9c72cb94f2eae5f8555d166ef2b217585c348b223d489906e5ba255f1f49b18",
+        "sha256": "05f66f8dd2e925799f19e76c82ecffd51e87c3791eb795b7c5ff43500635c524",
         "private": false
       },
       {
@@ -2468,6 +2468,28 @@
       {
         "path": "tools/build_logitech_layouts.py",
         "sha256": "161604c80473f45bd4fc264a6019d2e2225d9a27f883a023f47252b08ee85d90",
+        "private": false
+      }
+    ],
+    "build_melgeek_layouts.py": [
+      {
+        "path": "docs/research/melgeek-layout-reports/melgeek_made68air_ansi.json",
+        "sha256": "7d7195c0ff7235637e0f706c5e6aad733b843a2a7c6f818c51a434a35c329d96",
+        "private": false
+      },
+      {
+        "path": "docs/research/melgeek-layout-sources/made68air-geometry.json",
+        "sha256": "d737ef44105c60539e1d8ff6759405150bd0b9b5ecc4fbbc9925b84aa616bb88",
+        "private": false
+      },
+      {
+        "path": "src/HallJoyProject/HallJoy/melgeek_made68air_protocol.h",
+        "sha256": "dea7b23cbbaca05a0c3c15bba1628371d1c88fc24aa06961d38962da55766f9b",
+        "private": false
+      },
+      {
+        "path": "tools/build_melgeek_layouts.py",
+        "sha256": "dc8ea5d1274e45fdccb8f255f78683cc167881293f78792d2a81ae93f7857c92",
         "private": false
       }
     ],
@@ -3720,6 +3742,16 @@
       {
         "path": "docs/exports/layout-pipeline/MEETION Magic A75 ANSI.ini",
         "sha256": "2b32d09ba80cbd34064012cd69a92d84df93af53f1a139d02055ffd4d59e2394",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/MelGeek MADE68 Air ANSI.ini",
+        "sha256": "048dac3a950ef92a4a947b2dba92f0d7f8ccbc5041c7157076082e505a905182",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/melgeek_made68air_ansi-review.json",
+        "sha256": "fc50c218b52d0b5d743215fce60b917a0d41e764566577774452b1b6016b8648",
         "private": false
       },
       {
@@ -5868,6 +5900,16 @@
         "private": true
       },
       {
+        "path": "docs/research/melgeek-layout-reports/melgeek_made68air_ansi.json",
+        "sha256": "7d7195c0ff7235637e0f706c5e6aad733b843a2a7c6f818c51a434a35c329d96",
+        "private": false
+      },
+      {
+        "path": "docs/research/melgeek-layout-sources/made68air-geometry.json",
+        "sha256": "d737ef44105c60539e1d8ff6759405150bd0b9b5ecc4fbbc9925b84aa616bb88",
+        "private": false
+      },
+      {
         "path": "docs/research/neo-k617-layouts/3848334949.json",
         "sha256": "c7f672d11ea14b61a20663f9ef6439a9150193e7e3d1bd6e0706caa771d51ba5",
         "private": false
@@ -6684,22 +6726,22 @@
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.h",
-        "sha256": "16848197a75ee330bbf8e0118e0ccb24ea1fa35919d5d3cabaa92570e29263c2",
+        "sha256": "3c3919c1ff4d0e6ff110aa15f8449707400f768a6bbaa8c0b37dc59015da0f5f",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.inc",
-        "sha256": "6bca67fd39f3e53280c4c01777ca15140a3c8f3d8aa75225f053bfb8411b5428",
+        "sha256": "eac6a129802a86a2538a71ccd80970c4ad39064ce9089a278da93f552a07aa3d",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/layouts.h",
-        "sha256": "ad4908ceb8fe7ba8dad15064c6a5dee47009d6792a211c4340245f0cd61c0ebd",
+        "sha256": "e35e98165a59f90b4b593813af9b9a9fd484c8c7f32839abb02aa8c357f10386",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/presets.inc",
-        "sha256": "6faec97e1b167ca727e9d48c1cc98755169648edb1be71f7a9fe883b9ca6beb8",
+        "sha256": "d79d4442e385c12c0e098c7fed25e139bf5e1d590830ca48ab5cf49db436afde",
         "private": false
       },
       {
@@ -6779,7 +6821,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "a9c72cb94f2eae5f8555d166ef2b217585c348b223d489906e5ba255f1f49b18",
+        "sha256": "05f66f8dd2e925799f19e76c82ecffd51e87c3791eb795b7c5ff43500635c524",
         "private": false
       },
       {

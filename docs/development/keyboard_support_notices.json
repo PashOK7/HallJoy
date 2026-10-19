@@ -1681,6 +1681,18 @@
       ]
     },
     {
+      "id": "MelGeekMade68Air",
+      "flag": 1073741824,
+      "protocol": 32,
+      "models": [
+        {
+          "brand": "MelGeek",
+          "model": "MADE68 Air",
+          "status": "Implemented; awaiting hardware testing"
+        }
+      ]
+    },
+    {
       "id": "GenericProtocol",
       "flag": 536870912,
       "protocol": 3,

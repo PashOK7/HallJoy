@@ -399,6 +399,7 @@ def main() -> int:
             ("mchose_jet75_protocol", [tests / "mchose_jet75_protocol_test.cpp"]),
             ("logitech_rapid_protocol", [tests / "logitech_rapid_protocol_test.cpp"]),
             ("redsquare_alumix68_protocol", [tests / "redsquare_alumix68_protocol_test.cpp"]),
+            ("melgeek_made68air_protocol", [tests / "melgeek_made68air_protocol_test.cpp"]),
             ("mad68_dual_trial_protocol", [tests / "mad68_dual_trial_protocol_test.cpp"]),
             ("input_shortcuts", [tests / "input_shortcuts_test.cpp"]),
             ("neo65_protocol", [tests / "neo65_protocol_test.cpp"]),

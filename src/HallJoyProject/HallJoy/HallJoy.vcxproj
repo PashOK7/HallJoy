@@ -616,6 +616,7 @@
     <ClCompile Include="input_config_summary.cpp" />
     <ClCompile Include="input_trace.cpp" />
     <ClCompile Include="logitech_rapid_backend.cpp" />
+    <ClCompile Include="melgeek_made68air_backend.cpp" />
     <ClCompile Include="redsquare_alumix68_backend.cpp" />
     <ClCompile Include="ui_popup_menu.cpp" />
     <ClCompile Include="..\tests\profile_transaction_windows_test.cpp">
@@ -668,6 +669,8 @@
     <ClInclude Include="rongyuan_stream_backend.h" />
     <ClInclude Include="alumix104_backend.h" />
     <ClInclude Include="alumix104_protocol.h" />
+    <ClInclude Include="melgeek_made68air_backend.h" />
+    <ClInclude Include="melgeek_made68air_protocol.h" />
     <ClInclude Include="redsquare_alumix68_backend.h" />
     <ClInclude Include="redsquare_alumix68_protocol.h" />
     <ClInclude Include="tartarus_backend.h" />

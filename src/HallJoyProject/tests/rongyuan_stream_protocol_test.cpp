@@ -1,4 +1,5 @@
 #include "rongyuan_stream_protocol.h"
+#include "rongyuan_press_timing.h"
 #include "physical_analog_state.h"
 #include "keyboard_support_status.h"
 #include "support_notice_catalog.h"
@@ -112,9 +113,32 @@ int main() {
  } else {
   std::cout<<"PRIVATE_CAPTURE_REPLAY=NOT_RUN (capture is not distributed)\n";
  }
+ // Press timing (tester report 2026-10-16: wired M1 V5 TMR sometimes lags).
+ {
+  PressTiming timing;PressRecord rec{};
+  constexpr std::int64_t ms=1000;
+  // Normal: travel starts before Windows' key-down, stream release 2 ms after key-up.
+  assert(!timing.Sample(0x1a,40,0,0,rec) && !timing.Sample(0x1a,500,10*ms,1,rec));
+  assert(!timing.OsKey(0x1a,true,15*ms,3,rec) && !timing.OsKey(0x1a,true,45*ms,0,rec)); // typematic repeat
+  assert(!timing.Sample(0x1a,850,30*ms,0,rec) && !timing.OsKey(0x1a,false,100*ms,0,rec));
+  assert(timing.Sample(0x1a,0,102*ms,0,rec));
+  assert(rec.hid==0x1a && rec.os && rec.stream && rec.leadUs==15*ms && rec.downWaitUs==0 && rec.upWaitUs==2*ms);
+  assert(rec.samples==4 && rec.peak==850 && rec.maxGapUs==72*ms && rec.backlog==1 && rec.uiDelayMs==3 && rec.durationUs==102*ms);
+  // The reported symptom: Windows has the key, the stream follows much later.
+  assert(!timing.OsKey(0x1a,true,1000*ms,0,rec) && !timing.Sample(0x1a,700,1200*ms,24,rec));
+  assert(!timing.OsKey(0x1a,false,1300*ms,0,rec) && timing.Sample(0x1a,0,1450*ms,0,rec));
+  assert(rec.downWaitUs==200*ms && rec.leadUs==-200*ms && rec.upWaitUs==150*ms && rec.backlog==24);
+  // Windows-only press: the stream never reported the key.
+  assert(!timing.OsKey(0x1a,true,2000*ms,0,rec) && timing.OsKey(0x1a,false,2100*ms,0,rec));
+  assert(rec.os && !rec.stream && rec.samples==0 && rec.afterReleaseUs==550*ms && rec.durationUs==100*ms);
+  // Stream-only light touch; a lone zero and foreign usages are ignored.
+  assert(!timing.Sample(0x16,0,0,0,rec) && !timing.Sample(0x200,500,0,0,rec) && !timing.OsKey(0x16,false,0,0,rec));
+  assert(!timing.Sample(0x16,45,3000*ms,0,rec) && timing.Sample(0x16,0,3020*ms,0,rec));
+  assert(!rec.os && rec.stream && rec.durationUs==20*ms && rec.afterReleaseUs==-1);
+ }
  std::cout<<"SYNTHETIC_WIRE_CASES="<<syntheticFrames<<"\n";
  using namespace keyboard_support;
  assert(NativeNotice(22,0,true)==RongYuanStream && NativeNotice(22,0,false)==0);
  SetSearchObservation(true,true,RongYuanStream);assert(GetStatusSnapshot().frozenModels==RongYuanStream);
- std::cout<<"RONGYUAN_STREAM=PASS revisions="<<revisions<<" captured_frames="<<frames<<" stationary_hold release aliases disconnect malformed precision identity notices\n";
+ std::cout<<"RONGYUAN_STREAM=PASS revisions="<<revisions<<" captured_frames="<<frames<<" stationary_hold release aliases disconnect malformed precision identity notices press_timing\n";
 }

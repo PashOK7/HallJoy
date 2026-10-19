@@ -153,6 +153,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **MCHOSE:** Ace 60 Pro, Ace 60 Pro Nordic, Ace 60X I, Ace 60X II, Ace 68 (I, II, III), Ace 68 Air (II, 2), Ace 68 Turbo 8K, Ace 68 V2 III, Ace 75 8K, Jet 75 I, Mix 87 I, Zero75X  
 **MechLands:** M75  
 **MEETION:** Magic A68, Magic A75  
+**MelGeek:** MADE68 Air  
 **MICROPACK:** K-68M  
 **MonsGeek:** FUN60 Pro, FUN68 HE, FUN75, M1 V5 HE, M1 V5 TMR, M2 V5 HE, M3 V5 HE  
 **MSI:** STRIKE 700 HE  

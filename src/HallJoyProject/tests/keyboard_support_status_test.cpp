@@ -43,6 +43,27 @@ int main()
     health={};assert(health.Observe(100,true,false,true));
     assert(health.Observe(101,false,false));
     assert(!health.Observe(30102,false,false)); // no forever-latched startup fault
+    // Every model flag survives the snapshot: bits 29 and 30 (GenericProtocol, MelGeekMade68Air) were once dropped,
+    // which hid their yellow banner and its Open log button.
+    for (unsigned bit = 0; bit < 32; ++bit) {
+        const unsigned flag = 1u << bit;
+        SetSearchObservation(true, true, flag, false);
+        assert(GetStatusSnapshot().frozenModels == flag && GetStatusSnapshot().searchCompleted &&
+               GetStatusSnapshot().analogSourceConnected && !GetStatusSnapshot().communicationWarning);
+    }
+    SetSearchObservation(true, false, GenericProtocol | MelGeekMade68Air | RedSquareAlumix68, true);
+    assert(GetStatusSnapshot().frozenModels == (GenericProtocol | MelGeekMade68Air | RedSquareAlumix68) &&
+           GetStatusSnapshot().communicationWarning && !GetStatusSnapshot().analogSourceConnected);
+    // A found keyboard held by another program (vendor web driver tab) is its own
+    // notice, never "no supported keyboard", and not an auto-saved log incident.
+    assert(BusyNotice(true,false,true)==KeyboardBusy);
+    assert(BusyNotice(true,true,true)==0 && BusyNotice(false,false,true)==0 && BusyNotice(true,false,false)==0);
+    assert((ImplementedModels & KeyboardBusy)==0 && (LimitedModels & KeyboardBusy)==0);
+    SetSearchObservation(true,false,KeyboardBusy,false);
+    assert(GetStatusSnapshot().frozenModels==KeyboardBusy && !GetStatusSnapshot().analogSourceConnected);
+    assert(!ShouldAutoSaveSupportLog(GetStatusSnapshot()));
+    SetSearchObservation(true,false,KeyboardBusy|AulaRm,false);
+    assert(ShouldAutoSaveSupportLog(GetStatusSnapshot()));
     SetSearchObservation(true,true,AttackShark,true);
     assert(GetStatusSnapshot().communicationWarning && GetStatusSnapshot().frozenModels==AttackShark);
     SetSearchObservation(false,true,AttackShark,true);
@@ -100,6 +121,9 @@ int main()
     assert(NativeNotice(18,0xE6D996D6FD1177ECull,true,0xF887)==0 && NativeNotice(18,0,true,0x0807)==Mg75Pro);
     assert(ClassifyFrozen(0x36a7,0xf887,L"WLKB YING 75")==0);
     assert(NativeNotice(30,0,true,0xC364)==LogitechRapid && NativeNotice(30,0,false,0xC364)==0); // Logitech G RAPID: yellow
+    // MelGeek MADE68 Air (0416:0114, protocol 32): yellow while the live report mode streams.
+    assert(NativeNotice(32,0,true,0x0114)==MelGeekMade68Air && NativeNotice(32,0,false,0x0114)==0);
+    assert((ImplementedModels & MelGeekMade68Air)!=0 && (LimitedModels & MelGeekMade68Air)==0);
     // Red Square Alumix 68 (0C45:80A2): yellow when the verified firmware streams.
     // Alumix 68 is switched off (owner decision 2026-10-12): no catalog notice group is generated for it.
     assert(NativeNotice(31,0,true,0x80a2)==0 && NativeNotice(31,0,false,0x80a2)==0);

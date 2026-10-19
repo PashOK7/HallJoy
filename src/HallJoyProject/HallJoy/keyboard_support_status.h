@@ -6,7 +6,7 @@
 #include "jingtai_v1_profiles.h"
 namespace halljoy::keyboard_support
 {
-enum FrozenModel : unsigned { NA87 = 1, NA87Pro = 2, ND75 = 4, Hero84 = 8, Azoth96 = 16, X68 = 32, FamilyCandidate = 64, Mg75Pro = 128, AttackShark = 256, GravaStar = 512, Ipi = 1024, Redragon = 2048, NuPhy = 4096, AulaRm = 8192, Slice75 = 16384, RongYuan = 32768, RongYuanStream = 65536, TartarusPro = 131072, Neo65 = 262144, SparkLinkV2 = 524288, SteelSeriesApex = 1048576, Mad68DualLimited = 2097152, Mix87Limited = 4194304, Alumix104Research = 8388608, AtkHex80Family = 16777216, MchoseFamily = 33554432, RoyalKludgeHe = 67108864, LogitechRapid = 134217728, RedSquareAlumix68 = 268435456, GenericProtocol = 536870912 };
+enum FrozenModel : unsigned { NA87 = 1, NA87Pro = 2, ND75 = 4, Hero84 = 8, Azoth96 = 16, X68 = 32, FamilyCandidate = 64, Mg75Pro = 128, AttackShark = 256, GravaStar = 512, Ipi = 1024, Redragon = 2048, NuPhy = 4096, AulaRm = 8192, Slice75 = 16384, RongYuan = 32768, RongYuanStream = 65536, TartarusPro = 131072, Neo65 = 262144, SparkLinkV2 = 524288, SteelSeriesApex = 1048576, Mad68DualLimited = 2097152, Mix87Limited = 4194304, Alumix104Research = 8388608, AtkHex80Family = 16777216, MchoseFamily = 33554432, RoyalKludgeHe = 67108864, LogitechRapid = 134217728, RedSquareAlumix68 = 268435456, GenericProtocol = 536870912, MelGeekMade68Air = 1073741824, KeyboardBusy = 2147483648u };
 inline constexpr unsigned LimitedModels = Mad68DualLimited | Mix87Limited;
 // Protocol 28 is the exact 0C45:80AC research backend. Present means the
 // physical device was found; connected would falsely imply usable analog.
@@ -21,7 +21,13 @@ inline unsigned ResearchNotice(unsigned protocol, unsigned vid, unsigned pid,
         return static_cast<unsigned>(RedSquareAlumix68);
     return 0u;
 }
-inline constexpr unsigned ImplementedModels = NA87 | Hero84 | Mg75Pro | AttackShark | GravaStar | Ipi | Redragon | AulaRm | Slice75 | RongYuan | RongYuanStream | TartarusPro | Neo65 | SparkLinkV2 | SteelSeriesApex | AtkHex80Family | MchoseFamily | RoyalKludgeHe | LogitechRapid | RedSquareAlumix68 | GenericProtocol;
+inline constexpr unsigned ImplementedModels = NA87 | Hero84 | Mg75Pro | AttackShark | GravaStar | Ipi | Redragon | AulaRm | Slice75 | RongYuan | RongYuanStream | TartarusPro | Neo65 | SparkLinkV2 | SteelSeriesApex | AtkHex80Family | MchoseFamily | RoyalKludgeHe | LogitechRapid | RedSquareAlumix68 | GenericProtocol | MelGeekMade68Air;
+// A native backend found its keyboard but could not open the interface it needs
+// because another program holds it (Win32 sharing/lock violation), e.g. a
+// vendor web driver tab. Not "no supported keyboard": its own notice.
+inline unsigned BusyNotice(bool present, bool connected, bool accessBusy) noexcept {
+    return present && !connected && accessBusy ? static_cast<unsigned>(KeyboardBusy) : 0u;
+}
 // A keyboard outside the catalog connected through a protocol-family match
 // (BY/IPI UUID platform, Logitech HID++ 0x1B08): yellow, model unverified.
 inline unsigned GenericNotice(bool connected, bool genericProtocol) noexcept {
@@ -62,7 +68,8 @@ struct StatusSnapshot final
 // Known low-quality firmware is a permanent limitation, not an automatic log incident.
 inline bool ShouldAutoSaveSupportLog(const StatusSnapshot& s) noexcept {
     if (!s.searchCompleted || s.communicationWarning) return false;
-    const auto advisoryOnly = LimitedModels | Alumix104Research;
+    // A busy keyboard is fixed by closing the other program; not a log incident.
+    const auto advisoryOnly = LimitedModels | Alumix104Research | KeyboardBusy;
     const auto other = s.frozenModels & ~advisoryOnly;
     if ((s.frozenModels & advisoryOnly) && !other) return false;
     return !s.analogSourceConnected || s.frozenModels != 0;

@@ -35,6 +35,7 @@ enum class NativeAnalogProtocol : std::uint8_t
     MchoseJet75 = 29,
     LogitechRapid = 30,
     RedSquareAlumix68 = 31,
+    MelGeekMade68Air = 32,
     Simulator = 250,
 };
 

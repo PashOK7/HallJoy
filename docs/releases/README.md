@@ -3,6 +3,7 @@
 Public patch notes, newest first. Published downloads are on
 [GitHub Releases](https://github.com/PashOK7/HallJoy/releases).
 
+- [1.6.10](RELEASE_NOTES_v1.6.10.md)
 - [1.6.9.1](RELEASE_NOTES_v1.6.9.1.md)
 - [1.6.9](RELEASE_NOTES_v1.6.9.md)
 - [1.6.8](RELEASE_NOTES_v1.6.8.md)

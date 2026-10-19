@@ -1,8 +1,82 @@
+> 2026-10-19 OWNER: release 1.6.10 with generic SparkLink V2 admission ON (kGenericAdmission=true), busy notice extended to MG75/JingTai,
+> Slice75, Neo65, SteelSeries Apex, RongYuan snapshot; MADE68 Air key lines limited to bound keys (no typing in the log).
+> 2026-10-19 AULA WIN 60 HE PRO (1CA2:1902, HallJoy (5).log) and WIN 68 HE MAX (1CA2:1901, HallJoy (6).log), 1.6.9.1: red "no supported
+> keyboard" banner. 6x21 backend present=1 connected=0 failures=0 (proof never ran). WIN 68 user confirmed the AULA web driver was open:
+> WebHID holds the vendor HID, exclusive open fails (sharing violation), and HallJoy wrongly said no supported keyboard. No unreleased fix existed.
+> Local fix (not released): KeyboardBusy notice "Keyboard found, but another app is using it" (amber, advisory), accessBusy telemetry, auto-connect
+> after the driver closes (1 s retry); evidence.aula6x21 discovery/selection/proof/claim/session lines in HallJoy.log; access_busy and ui_notices in
+> snapshots. Exclusive open kept (no transaction ID). Checks + build PASS, EXE dd56f393 (local). See AULA_6X21_BUSY_INTERFACE_2026-10-19.md.
+> 2026-10-17 AJAZZ AK680 V2 HE (user request): no official firmware anywhere (Driveall update.json 0 bytes, firmware API empty for
+> 80BC/80C1/80C2, ajazz.net has none), so no static analysis. Configurator: 3 PIDs, same Sonix command set as AK820 80B1, no new
+> multi-key read. Same family as GitHub #9 (stream follows one key, 0x68/0x60 echo): stays unsupported. See AJAZZ_AK680V2_FIRMWARE_2026-10-17.md.
+> 2026-10-17 OWNER approved: Sheet Main!C12 AJAZZ "AK680 V2" Not investigated -> No usable analog found (red); was missed on 2026-10-15.
+> Readback: only row 12 changed; structure PASS (150), presentation PASS, notices PASS (287), layouts PASS (73).
+> 2026-10-16 M1 V5 TMR tester log (HallJoy (4).log, 1.6.9.1, wired 3151:5030 + receiver 5038): ~55 W presses, analog 0-16 ms ahead of
+> Windows' key-down, release in sync, no stall: the reported lag (tester's "~200 ms" is an impression, owner: treat as any lag) is not in this run.
+> Log lost session-1 end/warning (512-line history filled by inventory/snapshots). Local EXE 55a97703 (not released): stream reader MMCSS Games +
+> HIGHEST (was normal priority vs a busy game), per-press evidence.rongyuan lines (stream/reader/Windows wait, QPC), state lines in own window.
+> Checks + build PASS. Next: tester log after a lag. See MONSGEEK_M1V5_TMR_LAG_2026-10-16.md.
+> 2026-10-15 MADE68 Air rev 6 log (message (10)): mode 1 works (128+ presses, 0 misses, 0 stuck, no fallback), change-driven,
+> but on the same 50 ms tick as mode 2 (gap_min 50.0 ms in 152/160 presses): no speed gain; lag median 13 ms. Decision pending: default mode.
+> 2026-10-15 GitHub #9 answered (owner text: AK820 MAX HE revisions, Sonix 80B1/80BC unsupported, why key-event fill is rejected); issue left open.
+> 2026-10-15 OWNER approved: Sheet row Main!A18:C18 AJAZZ "AK820 MAX HE (wired, RGB, Sonix 0C45:80B1)" = No usable analog found (red) added; structure
+> PASS (150), notices PASS (287), layouts PASS (73). All 1.6.8 Sheet pending items are now closed.
+> 2026-10-15 Sheet audit: full native read, structure PASS (150), notices PASS (287 yellow), supported layouts PASS (73); 1.6.8 pending
+> items resolved except the red AK820 80B1 Sonix row (owner decision). Colors re-materialized: MADE68 Air, Alumix 68, RT75, RT80, K70 MAX.
+> RT75/RT80 were set to "No usable analog found" outside this session (kept).
+> 2026-10-15 GitHub #8 (Corsair K70 MAX) answered with the owner text and closed (not planned); Sheet Main!C180 -> No usable analog found (red).
+> GitHub #9 (AJAZZ AK680 V2 HE 0C45:80BC, VanshajR): stream follows one key only; owner: key-event fill (option 2) is imitation = not analog; reply TBD.
+> 2026-10-15 RT80 ARM firmware static RE completed (Capstone): two switch tables (0x00-0x40 and 0x90-0x9F) share dispatcher 0x22632.
+> 0x1B: flag-only, no streaming; vendor UI shows one scalar, may stop typing.
+> 0x9C/0x9E: no mode gate, always respond, return static CALMAX/CALMIN from SRAM — calibration bounds, not live travel.
+> No per-key live analog path. Sheet Main!C810 -> No usable analog found. See YUNZII_RT80_2026-10-15.md.
+> 2026-10-15 RT80 follow-up: official fw 2068 v104_rfv202 downloaded (local only).
+> Tester also has RT75 (legacy, same hold as RT80; same platform confirmed via JS analysis; no firmware on update service; Sheet Main!C808 -> No usable analog found 2026-10-15),
+> RT75 Pro (implemented, yellow; 1.6.9.1 log can confirm), Apex Pro gen 1 (1610 Supported on FW 4.16.8; TKL 1614 experimental). See YUNZII_RT80_2026-10-15.md.
+> 2026-10-15 YUNZII RT80 tester log (1.6.8.0): wired 3151:4035 "RT80" + receiver 3151:4011; no backend claims it. 3151:4035 is shared by 4 RongYuan boards,
+> only board 2068 is named RT80 (board id not in the log). Legacy YC3121 CommonKbYc500 platform: only live path is the 0x1B "Simulation Test" (single value,
+> vendor warns typing may stop). Not supportable as is; probe needs owner decision. Sheet Main!C810 -> Research incomplete. See YUNZII_RT80_2026-10-15.md.
+> 2026-10-15 OWNER: test the real mode 1, no useless logs. MADE68 Air rev 6 (EXE c86588b8, local, not released): mode 1 from the start, connected at once
+> (no trial/wait), one `press` line per key press (samples, rise, gaps, QPC lag) from the first press, fallback to mode 2 only on press evidence
+> (3 missed presses in a row, 2 stuck releases, >20 % misses, read-back). Checks + build PASS. See MELGEEK_MADE68_AIR_2026-10-12.md.
+> 2026-10-15 MADE68 Air rev 5 log (message (9).txt): backend connected (68 keys, 0 failures). Mode 1 trial: set and read back, stream stopped after ~0.5 s,
+> reverted to mode 2 correctly; mode 2 = full scan, 50.0 ms period (20 Hz). Trial fps ignores silence and the event trial needs 0 frames, so "mode 1 on key
+> press" is still untested (fix proposed, not built). 52 keys confirmed, 0 conflicts (with log 8 the table is complete). Key-down to stream lag median 16 ms.
+> See MELGEEK_MADE68_AIR_2026-10-12.md.
 > 2026-10-12 PUBLISHED stable/latest 1.6.9.1: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.9.1 (commit 99078e8, EXE 24e5afdb). See RELEASE_1.6.9.1_PUBLICATION_2026-10-12.md.
 > 2026-10-12 OWNER question: SparkLink V2 breadth. Official keyboard list = 552 identities (487 on 1CA6, 35 AULA 38A6,
 > 30 other VIDs); HallJoy admits 26 (+4 IROK). PID high byte tracks the brand (05 IROK, 08 AULA, 1A IPI, 1C EWEADN, 30 Everglide);
 > three asked brands = ~74 identities, 1 admitted (3002). No hidden support (exact identity gate). Options: exact blocks with
 > evidence, or generic official-list admission like BY on 10-07 (owner decision). See SPARKLINK_V2_PLATFORM_SURVEY_2026-10-12.md.
+> 2026-10-12 MelGeek MADE68 Air tester log (0416:0114 "MADE68AIR ZG"): no backend recognizes it; HIVE protocol is in a Rust WASM core
+> (8-byte header + CRC16, hid_ver 256/257 handlers, up_trigger_adc only in 257, calibration UI). Not supported; Sheet Main!C561 Not investigated ->
+> Research incomplete. Next: inventory with usage pages/report sizes, read-only identity probe, firmware or capture. See MELGEEK_MADE68_AIR_2026-10-12.md.
+> 2026-10-12 OWNER asked for a HallJoy.exe with enough logging to decide "analog or not" for the MADE68 Air. Built: diagnostic backend
+> melgeek-made68air-probe (exact 0416:0114; HID collection inventory, passive readers with per-byte statistics, six empty-payload read-only
+> getters on the vendor collection; no setter/calibration command can be built; publishes no analog). Local EXE only, not released.
+> A conclusive "no" would need a calibration-state command (owner decision). See MELGEEK_MADE68_AIR_2026-10-12.md.
+> 2026-10-12 First probe log (message (2).txt): vendor FF60:61 (65/65, no report id) confirmed, all 6 getters answered with valid CRC, reply op = request op & 0x7F.
+> Log was written ~50 ms after the probe (system uptime 79 s, no key presses), so the stream question is open; need a second log after pressing keys.
+> 2026-10-12 Second probe log (message (3).txt, ~29 s window): vendor collection silent, same replies. NEW from HIVE JS: the Calibrate and Detect tabs
+> send set_perf_info --use_report 2 (live per-key ADC events), every other tab sends --use_report 0; get_report returned 0 (off). So the live
+> mode is report=2 (set_report: 0A 93 01 00 b4 00 crc + mode byte), not calibration. Proposed probe rev 2 = reversible enable + restore;
+> waiting for the owner's go-ahead. See MELGEEK_MADE68_AIR_2026-10-12.md.
+> 2026-10-12 OWNER approved rev 2 ("enabling the analog-report flag is fine if it is not calibration"): probe rev 2 writes set_report 0A 93 mode 2 only when
+> get_report reads 0, logs the live reports, restores 0 on exit (frame limit 20000, stop, session end), counts key-downs (count only). Local EXE, not released.
+> 2026-10-12 RESULT (message (4).txt, probe rev 2): set_report mode 2 was acknowledged and the MADE68 Air started streaming live per-key travel for
+> all 68 keys WITHOUT calibration: frames 08 09, entries [id u8][position 0..46][ADC u16], change-driven bursts about every 47-62 ms (~20 Hz per key).
+> Analog path EXISTS but is slow in this mode; open: faster mode, typing impact, restore check, key map.
+> 2026-10-12 OWNER: "enable the analog fully, then speed it up". MADE68 Air is now a real backend (melgeek-made68air, protocol 32): report mode 2 on/off with
+> restore, stream decode, run-time key learning via Raw Input, yellow notice, Sheet Main!C561 = Implemented; awaiting hardware testing. ~20 Hz per key.
+> Next: raise the rate (rate/key_gap lines in the log), collect the 68 key pairs, layout. Local EXE b68f6256 (7acef26a superseded), not released.
+> 2026-10-12 BUG FOUND: SetSearchObservation packed model flags into 29 bits, dropping GenericProtocol (1<<29, since 2026-10-07) and MelGeekMade68Air (1<<30):
+> no yellow banner and no Open log button for those keyboards (released builds also lack the Generic notice). Fixed (64-bit snapshot + test); hotfix decision pending.
+> 2026-10-12 First backend log (message (5).txt): analog works end to end (bound keys drive the gamepad), typing keeps working in mode 2, ~21 updates/s
+> (bursts every ~48 ms). Run-time learner mispaired 4 of 18 keys -> rev 4 uses a prior 68-key map (60 ids) that is checked, not trusted
+> (key_confirmed / key_conflict in the log). EXE 220e7a78. Speed work next (owner order).
+> 2026-10-12 Slow sequential log (message (8)) verified the table: 65/66 paired ids equal, id 14 = grave (not Home). Table now 68 ids, built-in ANSI layout
+> (melgeek_made68air_ansi) with automatic selection. Rev 5 also tries report mode 1 once per run (owner: raise the analog rate; roll back only when something goes
+> wrong, never by time): kept when clearly faster, else back to mode 2. EXE b85f2e73, not released.
 > 2026-10-12 OWNER: release 1.6.9.1 as a fixes-only hotfix. The generic SparkLink V2 admission (new, untested on hardware) is therefore
 > implemented but disabled by kGenericAdmission=false; flip it in a feature release. Hotfix content: AULA MINI 60 HE PRO identity/Alumix
 > collision fix, Alumix 68 off, MINI 60 identity log lines.

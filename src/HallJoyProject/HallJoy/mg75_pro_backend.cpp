@@ -37,6 +37,8 @@ constexpr DWORD kStopTimeoutMs = 3000;
 constexpr ULONGLONG kFreshMs = 150;
 std::atomic<bool> g_running{false}, g_stop{false}, g_present{false},
     g_connected{false};
+// The last exclusive open failed because another program holds the interface.
+std::atomic<bool> g_busy{false};
 std::atomic<std::uint64_t> g_token{0}, g_ok{0}, g_bad{0}, g_last{0};
 std::atomic<std::uint32_t> g_avgUs{0}, g_maxUs{0};
 std::mutex g_service, g_activeLock;
@@ -454,6 +456,7 @@ bool Run(const Candidate &c) {
   std::uint8_t phaseCode = 1;
   const bool opened = s.Open();
   if (!opened) s.failure.error = GetLastError();
+  g_busy.store(!opened && NativeAnalog_IsAccessBusyError(s.failure.error));
   const bool ready = opened && (phase = "identity proof", Proof(s,*c.model,&phaseCode)) &&
                      (phase = "assignments", phaseCode = 4, Map(s,*c.model));
   if (!ready) {
@@ -538,6 +541,7 @@ unsigned __stdcall Worker(void *) {
     DebugLog_Write(L"[irok.mg75pro] worker exception; input cleared");
   }
   Clear();
+  g_busy.store(false);
   g_running.store(false);
   return 0;
 }
@@ -633,6 +637,7 @@ void Telemetry(NativeAnalogBackendTelemetry *out) {
   *out = {};
   out->present = Present();
   out->connected = Connected();
+  out->accessBusy = out->present && !out->connected && g_busy.load();
   out->verifiedLayoutToken = Connected() ? g_token.load() : 0;
   out->vendorId = static_cast<std::uint16_t>(g_vid.load());
   out->productId = static_cast<std::uint16_t>(g_pid.load());

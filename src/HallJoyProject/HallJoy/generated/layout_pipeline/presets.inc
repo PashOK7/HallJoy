@@ -141,6 +141,7 @@
     {L"Logitech G PRO X TKL RAPID ANSI", g_logitech_pro_x_tkl_rapid_ansi, (int)std::size(g_logitech_pro_x_tkl_rapid_ansi), L"Logitech G"},
     {L"Logitech G PRO X2 RAPID ANSI", g_logitech_pro_x2_rapid_ansi, (int)std::size(g_logitech_pro_x2_rapid_ansi), L"Logitech G"},
     {L"WLMOUSE Ying75 ANSI", g_wlmouse_ying75_ansi, (int)std::size(g_wlmouse_ying75_ansi), L"WLMOUSE"},
+    {L"MelGeek MADE68 Air ANSI", g_melgeek_made68air_ansi, (int)std::size(g_melgeek_made68air_ansi), L"MelGeek"},
     {L"Womier SK61 HE ANSI", g_ry_layout_3708, (int)std::size(g_ry_layout_3708), L"Womier"},
     {L"Neo Neo65 Sonic HE+ ANSI", g_neo65_sonic_he_ansi, (int)std::size(g_neo65_sonic_he_ansi), L"Neo"},
     {L"MCHOSE Mix 87 III ANSI", g_mchose_mix_87_iii_ansi, (int)std::size(g_mchose_mix_87_iii_ansi), L"MCHOSE"},

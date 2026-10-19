@@ -229,6 +229,15 @@ switched on while HallJoy runs and off at pause/exit; no settings are written.
 The stream may drop events during fast typing (source report); PRO X2 RAPID key ids
 are verified through the log. Automatic TKL layouts (the X2 without Pause/PgUp/PgDn). [Details](current/LOGITECH_RAPID_2026-10-05.md)
 
+Experimental MelGeek MADE68 Air (`0416:0114`, 2026-10-12): live key travel for all 68 keys through the
+vendor report mode (`set_report` 2 on the vendor collection `FF60:61`, the mode the MelGeek HIVE configurator uses on its
+Calibrate/Detect tabs; no calibration). HallJoy switches the mode on while it runs (only when it reads 0) and writes 0 on exit.
+Position 0..46 per key, change-driven bursts about every 50 ms (about 20 updates per second per key in mode 2). The key-id table
+(68 ids, 65 verified on the keyboard by pairing with Windows key-downs, the rest from the photo) is built in and checked at run time;
+the built-in ANSI layout (68 keys) is selected automatically. Each run also tries report mode 1 once and keeps it only when it is
+clearly faster. Yellow notice "MelGeek MADE68 Air: hardware testing incomplete".
+[Details](current/MELGEEK_MADE68_AIR_2026-10-12.md)
+
 Switched off: Red Square Alumix 68 Yotei (Magnetite Ice) (`0C45:80A2`, RSQ-20058,
 2026-10-12). Owner decision; Sheet status "Research frozen; tester needed" (gray). The AULA MINI 60 HE PRO has the same USB identity and
 transport, and the Alumix backend had been probing and mislabeling it; the implementation (read-only
@@ -247,7 +256,7 @@ live map and calibration read from the keyboard; Logitech devices reporting HID+
 `0x1B08` connect with run-time key learning. Yellow "Keyboard not in the list"
 notice. [Details](current/GENERIC_PROTOCOL_SUPPORT_2026-10-07.md)
 
-Generic SparkLink V2 (implemented 2026-10-12, NOT enabled in 1.6.9.1: `kGenericAdmission=false`): any keyboard whose VID:PID is in the SparkLink PlayJoy
+Generic SparkLink V2 (implemented 2026-10-12, enabled in 1.6.10): any keyboard whose VID:PID is in the SparkLink PlayJoy
 vendor's official keyboard list (551 identities; IPI, AULA, Everglide and many other brands),
 not named above, connects after the device-info reply and one live travel read succeed.
 Key positions come from the keyboard; manual/default layout; same yellow notice. VID `3151`

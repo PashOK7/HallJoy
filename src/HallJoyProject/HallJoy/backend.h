@@ -108,6 +108,7 @@ struct BackendNativeProtocolTelemetry
     bool present = false;
     bool connected = false;
     bool genericProtocol = false; // NativeAnalogBackendTelemetry::genericProtocol
+    bool accessBusy = false; // NativeAnalogBackendTelemetry::accessBusy
     std::uint16_t protocol = 0;
     std::uint16_t vendorId = 0;
     std::uint16_t productId = 0;

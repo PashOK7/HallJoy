@@ -49,6 +49,8 @@ HALLJOY_NATIVE_BACKEND(MchoseJet75_GetNativeBackendDescriptor)
 HALLJOY_NATIVE_BACKEND(Alumix104_GetNativeBackendDescriptor)
 HALLJOY_NATIVE_BACKEND(LogitechRapid_GetNativeBackendDescriptor)
 HALLJOY_NATIVE_BACKEND(RedSquareAlumix68_GetNativeBackendDescriptor)
+// MelGeek MADE68 Air: live per-key travel through the vendor report mode (set_report 2).
+HALLJOY_NATIVE_BACKEND(MelGeekMade68Air_GetNativeBackendDescriptor)
 HALLJOY_NATIVE_BACKEND(BackendNative_GetSparkDescriptor)
 HALLJOY_NATIVE_BACKEND(BackendNative_GetSayoDescriptor)
 #if defined(HALLJOY_ANALOG_SIMULATOR)

@@ -66,18 +66,23 @@ static bool Mad68LimitedVisible() { return (halljoy::keyboard_support::GetStatus
 static bool Mix87LimitedVisible() { return (halljoy::keyboard_support::GetStatusSnapshot().frozenModels & halljoy::keyboard_support::Mix87Limited) != 0; }
 static bool KnownLimitedVisible() { return Mad68LimitedVisible() || Mix87LimitedVisible(); }
 static bool CommunicationWarningVisible() { return halljoy::keyboard_support::GetStatusSnapshot().communicationWarning; }
+// A supported keyboard was found, but another program (for example its web
+// driver in a browser tab) holds the interface HallJoy must open.
+static bool KeyboardBusyVisible() { return (halljoy::keyboard_support::GetStatusSnapshot().frozenModels & halljoy::keyboard_support::KeyboardBusy) != 0; }
+static bool AppConflictVisible() { return CommunicationWarningVisible() || KeyboardBusyVisible(); }
 // Alumix 68 present but its firmware version was not recognized: the backend
 // withholds the depth path and no analog source is connected.
 static bool Alumix68Unverified() {
     const auto s = halljoy::keyboard_support::GetStatusSnapshot();
     return (s.frozenModels & halljoy::keyboard_support::RedSquareAlumix68) && !s.analogSourceConnected;
 }
-static bool FrozenSupportVisible() { return CommunicationWarningVisible() || halljoy::keyboard_support::GetStatusSnapshot().frozenModels != 0; }
-static bool ImplementedSupportVisible() { return CommunicationWarningVisible() || (halljoy::keyboard_support::GetStatusSnapshot().frozenModels & halljoy::keyboard_support::ImplementedModels) != 0; }
+static bool FrozenSupportVisible() { return AppConflictVisible() || halljoy::keyboard_support::GetStatusSnapshot().frozenModels != 0; }
+static bool ImplementedSupportVisible() { return AppConflictVisible() || (halljoy::keyboard_support::GetStatusSnapshot().frozenModels & halljoy::keyboard_support::ImplementedModels) != 0; }
 static int SupportBannerHeight() { return FrozenSupportVisible() ? 154 : kSupportBannerHeightPx; }
 static const wchar_t* FrozenSupportTitle() {
     if(Mix87LimitedVisible()) return L"MCHOSE Mix87 III: limited analog";
     if(Mad68LimitedVisible()) return L"MAD 68 V2 Dual: low-quality firmware analog";
+    if(KeyboardBusyVisible())return L"Keyboard found, but another app is using it";
     if(CommunicationWarningVisible())return L"Keyboard communication is unstable";
     if(Alumix68Unverified()) return L"Red Square Alumix 68: unrecognized firmware";
     using namespace halljoy::keyboard_support;
@@ -98,6 +103,7 @@ static const wchar_t* FrozenSupportTitle() {
     case MchoseFamily: return L"MCHOSE: hardware testing incomplete";
     case RoyalKludgeHe: return L"Royal Kludge RK68 HE: hardware testing incomplete";
     case LogitechRapid: return L"Logitech G RAPID: hardware testing incomplete";
+    case MelGeekMade68Air: return L"MelGeek MADE68 Air: hardware testing incomplete";
     case GenericProtocol: return L"Keyboard not in the list: hardware testing incomplete";
     case Neo65: return L"Neo65 SONIC HE+: hardware testing incomplete";
     case SparkLinkV2: return L"Keyboard: hardware testing incomplete";
@@ -116,6 +122,7 @@ static const wchar_t* FrozenSupportTitle() {
 static const wchar_t* FrozenSupportBody() {
     if(Mix87LimitedVisible()) return L"Very shallow presses are not reported by this firmware. Analog mode is saved in the keyboard and stays enabled after closing HallJoy.";
     if(Mad68LimitedVisible()) return L"This firmware has no suitable analog protocol. This is the best available method: shallow input is lost, small changes are delayed, and normal typing is blocked. Exit HallJoy to restore typing.";
+    if(KeyboardBusyVisible())return L"HallJoy found a supported keyboard but cannot open it while another program holds it, such as the keyboard's web driver in a browser tab or a configuration app. Close that tab or app; HallJoy connects automatically.";
     if(CommunicationWarningVisible())return L"Another app may be interfering. Close keyboard configuration apps and browser configurator tabs, then try again. Keep software required for analog input running. If this continues, check the USB connection.";
     const auto models=halljoy::keyboard_support::GetStatusSnapshot().frozenModels;
     if(Alumix68Unverified())
@@ -265,7 +272,7 @@ static SupportBannerLayout SupportBanner_GetLayout(HWND hWnd, const RECT& rc)
         result.copy = {result.join.right + gap, result.join.top, result.join.right + gap + copyW, result.join.bottom};
     }
     result.log = {result.copy.right + gap, result.copy.top, result.copy.right + gap + S(hWnd,96), result.copy.bottom};
-    if (CommunicationWarningVisible()) {
+    if (AppConflictVisible()) {
         result.title.right=rc.right-pad;
         result.body={pad,result.title.bottom+S(hWnd,8),rc.right-pad,S(hWnd,108)};
         result.log={pad,S(hWnd,114),pad+S(hWnd,96),S(hWnd,146)};
@@ -418,7 +425,7 @@ static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LP
         }
         CustomPage_DrawButton(g, hdc, layout.log, L"Open log",
             g_supportBannerHot == SupportBannerAction::Log, g_supportBannerPressed == SupportBannerAction::Log, true);
-        if (!CommunicationWarningVisible() && !Mix87LimitedVisible()) {
+        if (!AppConflictVisible() && !Mix87LimitedVisible()) {
         CustomPage_DrawButton(g, hdc, layout.join, L"Join Discord",
             g_supportBannerHot == SupportBannerAction::Join, g_supportBannerPressed == SupportBannerAction::Join, true);
         CustomPage_DrawButton(g, hdc, layout.copy, L"Copy link",

@@ -223,7 +223,8 @@ int WINAPI wWinMain(
             NativeAnalogProtocol::SteelSeriesApex, NativeAnalogProtocol::Mad68DualTrial,
             NativeAnalogProtocol::MchoseMix87,
             NativeAnalogProtocol::Alumix104Yotei, NativeAnalogProtocol::MchoseJet75,
-            NativeAnalogProtocol::LogitechRapid, NativeAnalogProtocol::RedSquareAlumix68};
+            NativeAnalogProtocol::LogitechRapid, NativeAnalogProtocol::RedSquareAlumix68,
+            NativeAnalogProtocol::MelGeekMade68Air};
         for(const auto protocol:required){
             bool found=false;
             for(std::size_t i=0;i<NativeAnalogBackends_Count();++i){

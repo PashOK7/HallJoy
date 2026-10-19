@@ -33,6 +33,8 @@ void Backend_GetAnalogDiagnosticTelemetry(BackendAnalogTelemetry* out) {
     }
     auto& last=out->nativeProtocols[kBackendMaxNativeProtocols-1];
     last.present=last.connected=true; last.failedUpdates=7; last.successfulUpdates=42;
+    // A keyboard found but held by another program (vendor web driver tab).
+    auto& busy=out->nativeProtocols[0]; busy.present=true; busy.accessBusy=true;
 }
 namespace halljoy::keyboard_support {
 StatusSnapshot GetStatusSnapshot() noexcept { StatusSnapshot s{true,!missing.load()}; s.frozenModels=experimental ? ImplementedModels : 0; if(limited) s.frozenModels |= Mad68DualLimited; s.communicationWarning=unstable; return s; }
@@ -163,6 +165,10 @@ int main() {
         Await(path,"snapshot.end seq=");
         Check(Read(path).find("observation=not_present")!=std::string::npos);
         Check(Read(path).find("observation=connected")!=std::string::npos);
+        Check(Read(path).find("observation=present_not_connected")!=std::string::npos &&
+              Read(path).find("access_busy=1")!=std::string::npos &&
+              Read(path).find("access_busy=0")!=std::string::npos);
+        Check(Read(path).find("ui_notices=")!=std::string::npos);
         Await(path,"error=123");
         missing=false;
         Await(path,"support.banner value=0");
@@ -367,6 +373,27 @@ int main() {
             Check(SupportLog_LastError()==0);
         }
         Check(SupportLog_Stop());
+        // Periodic state (inventory, snapshots) has its own window: a burst of it
+        // (device changes) must not evict the events that explain the change.
+        Check(SupportLog_Start(directory.c_str()));
+        SupportLog_Event("state.window.event",1);
+        for (unsigned burst = 0; burst < 2; ++burst) {
+            for (unsigned i = 0; i < 400; ++i) SupportLog_Event("hid.candidate", burst * 400 + i);
+            Sleep(1300);
+        }
+        {
+            const auto request=SupportLog_RequestSnapshot();
+            const auto deadline=GetTickCount64()+7000;
+            while(SupportLog_CompletedSnapshot()<request && GetTickCount64()<deadline) Sleep(25);
+            Check(SupportLog_CompletedSnapshot()>=request);
+            const auto stateWindow=Read(path);
+            Check(stateWindow.find("bounded_state=512")!=std::string::npos);
+            Check(stateWindow.find("state.window.event value=1")!=std::string::npos);
+            Check(stateWindow.find("hid.candidate value=0 ")==std::string::npos);
+            Check(stateWindow.find("hid.candidate value=799 ")!=std::string::npos);
+            Check(stateWindow.find("state.window.event")<stateWindow.find("hid.candidate value=799 "));
+        }
+        Check(SupportLog_Stop());
         // Portable paths coincide: one writer, no duplicated session records.
         Check(SupportLog_Start(directory.c_str(),directory.c_str()));
         Check(SupportLog_Stop());
@@ -377,7 +404,7 @@ int main() {
 #if defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
         std::cout<<"INPUT_PATH_LOG_WINDOWS=PASS forced_logging two_banks aggregate_counts output_ack final_flush io_failure recovery\n";
 #else
-        std::cout<<"SUPPORT_LOG_WINDOWS=PASS off_no_file auto_incident prehistory recovery opt_in io_failure capture_store evidence_store\n";
+        std::cout<<"SUPPORT_LOG_WINDOWS=PASS off_no_file auto_incident prehistory recovery opt_in io_failure capture_store evidence_store state_window\n";
 #endif
         return 0;
     } catch(...) {

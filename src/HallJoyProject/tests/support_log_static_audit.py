@@ -9,7 +9,7 @@ assert 'g_diagnosticLogging{ false }' in settings
 policy = (root / 'keyboard_support_status.h').read_text(encoding='utf-8-sig')
 assert 'halljoy::keyboard_support::ShouldAutoSaveSupportLog(s)' in log
 assert 'if (!s.searchCompleted || s.communicationWarning) return false;' in policy
-assert 'const auto advisoryOnly = LimitedModels | Alumix104Research;' in policy
+assert 'const auto advisoryOnly = LimitedModels | Alumix104Research | KeyboardBusy;' in policy
 assert 'if ((s.frozenModels & advisoryOnly) && !other) return false;' in policy
 assert 'return !s.analogSourceConnected || s.frozenModels != 0;' in policy
 assert 'TryAcquireSRWLockExclusive' in log and 'kQueueLines = 512' in log

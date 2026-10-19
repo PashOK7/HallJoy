@@ -1,3 +1,7 @@
+> AULA: [6x21 keyboards held by the web driver: "found, but another app is using it" notice and stage-by-stage HallJoy.log evidence (2026-10-19)](current/AULA_6X21_BUSY_INTERFACE_2026-10-19.md).
+> MonsGeek: [M1 V5 TMR wired lag report: log review, reader priority, per-press timing evidence (2026-10-16)](current/MONSGEEK_M1V5_TMR_LAG_2026-10-16.md).
+> YUNZII: [RT80 (3151:4035) tester log, shared RongYuan PID, legacy YC3121 platform without per-key live analog (2026-10-15)](current/YUNZII_RT80_2026-10-15.md).
+> MelGeek: [MADE68 Air (0416:0114): research history, report-mode analog stream, analog backend (implemented 2026-10-12, hardware testing pending)](current/MELGEEK_MADE68_AIR_2026-10-12.md).
 > SparkLink: [generic V2 admission by the vendor's official identity list, owner rule 2026-10-12](current/SPARKLINK_GENERIC_ADMISSION_2026-10-12.md), [platform survey](current/SPARKLINK_V2_PLATFORM_SURVEY_2026-10-12.md).
 > Research: [IPI Flash75 Pro and AULA AG75 (SparkLink V2), Corsair K70 MAX (Bragi firmware)](current/IPI_FLASH75_AULA_AG75_CORSAIR_K70MAX_2026-10-12.md).
 
@@ -7,6 +11,7 @@
 
 > K4 HE: [found while a game holds the keyboard (shared vendor open)](current/K4_SHARED_VENDOR_OPEN_2026-10-10.md).
 
+> AJAZZ: [AK680 V2 HE (0C45:80BC/80C1/80C2) firmware search: none published, Sonix one-key stream, unsupported (2026-10-17)](current/AJAZZ_AK680V2_FIRMWARE_2026-10-17.md).
 > AJAZZ: [AK820 MAX HE Sonix revision 0C45:80B1 on the MINI60 stream backend, yellow, Sheet sync pending](current/AJAZZ_AK820MAX_SONIX_80B1_2026-10-08.md).
 > Red Square: [Alumix 68 Yotei switched off (not supported, red) on 2026-10-12; shares 0C45:80A2 with AULA MINI 60 HE PRO](current/ALUMIX68_RSQ20058_2026-10-06.md).
 > Generic: [yellow support for unlisted BY/IPI and Logitech 0x1B08 keyboards; default 100% layout](current/GENERIC_PROTOCOL_SUPPORT_2026-10-07.md).

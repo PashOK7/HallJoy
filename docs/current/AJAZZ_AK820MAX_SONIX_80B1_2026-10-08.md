@@ -255,3 +255,26 @@ hardware. Re-enabling needs a new owner decision with evidence.
 
 Sheet: the red status and the new row are a pending sync item (no Google
 Sheets connector in this session).
+
+## Sheet row added (2026-10-15, owner approval)
+
+Pending item resolved: new row Main!A18:C18 AJAZZ / "AK820 MAX HE (wired, RGB, 0C45:80B1)" / `No usable analog found`
+(red), directly below the supported "AK820 MAX HE (wired, RGB)" (0416:7372). Planned offline with
+`plan_keyboard_sheet_batch.py` (package `.local/ak820-80b1-sheet-package-20261015.json`, plan `...-plan-20261015.json`),
+applied in one revision-guarded batch (9 requests). Fresh full native read `.local/sheet-native-20261015-after-80b1.json`:
+all other values identical with the row shifted by one; C18 dropdown present, base and effective background red;
+`check_keyboard_sheet_structure.py` PASS (150 blocks, 0 issues), `support_notice_catalog.py --sheet` PASS (287),
+`check_supported_layouts.py --sheet` PASS (73). No notes or comments.
+Owner follow-up the same day: the model name was changed to "AK820 MAX HE (wired, RGB, Sonix 0C45:80B1)" (value-only write
+B18, readback: red base/effective, dropdown kept, neighbors unchanged) so the Sonix revision is recognizable without the USB id.
+
+## GitHub issue #9 (AJAZZ AK680 V2 HE, 0C45:80BC), 2026-10-15
+
+VanshajR reported the AK680 V2 HE on the same Sonix firmware 11.01 (device info identical to 80B1) with measurements: the
+0x66 stream follows only the most recently moved key, and a key the stream leaves never gets its release. Proposed
+option 1 (80BC identity, key map, stroke filter for buffer-race packets) and option 2 (fill held/released state and depth
+from Windows key events). Owner decision: option 2 is emulation, not analog, and is rejected (mixed real/guessed travel is
+unpredictable in games; plain digital keys are easier to play than partly guessed analog); option 1 alone does not make the
+family usable, so it stays unsupported. Owner-approved reply posted
+(https://github.com/PashOK7/HallJoy/issues/9#issuecomment-6195864455): revisions of "AK820 MAX HE", 80B1 not supported,
+the reason for the rule, revisit if AJAZZ ships a working multi-key read. Issue left open for the reporter's answer.

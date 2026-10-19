@@ -307,6 +307,34 @@ def main() -> int:
             (TESTS / "aula_win60he_diagnostic_metrics_test.cpp").is_file(),
             "portable runner covers diagnostic metrics and ten-key telemetry")
 
+    page = read(HALL / "keyboard_page_main.cpp")
+    ui = read(HALL / "keyboard_ui.cpp")
+    collect = read(HALL / "native_analog_telemetry_collect.h")
+    support_log = read(HALL / "support_log.cpp")
+    require(all(token in backend for token in (
+            "SupportLog_Evidence(line.c_str(), keep)", "\"evidence.aula6x21 \"",
+            "discovery known_usb_paths=", "selection=open_failed stage=%s win32=%lu reason=%s",
+            "selection=opened", "proof phase=%s ok=%u stage=%s", "last_tx=%s last_rx=%s",
+            "claim=blocked reason=", "session=connected", "session=ended phase=%s",
+            "&RecordLastReports")),
+        "ordinary HallJoy.log names every AULA 6x21 stage: discovery, open error, proof, claim and session")
+    busy_set = backend.find("const bool busy = std::strcmp(failedStage, \"exclusive_open\") == 0")
+    require(busy_set >= 0 and
+            "openError == ERROR_SHARING_VIOLATION || openError == ERROR_LOCK_VIOLATION" in backend[busy_set:busy_set + 300] and
+            "out->accessBusy = out->present && !out->connected" in backend and
+            "dst.accessBusy=n.present && !n.connected && n.accessBusy;" in collect and
+            "BusyNotice(device.present, device.connected, device.accessBusy)" in ui and
+            "Keyboard found, but another app is using it" in page and
+            "access_busy=%d" in support_log,
+        "a found keyboard held by another program shows its own notice, not 'no supported keyboard'")
+    for name in ("mg75_pro_backend.cpp", "slice75_backend.cpp", "neo65_backend.cpp",
+                 "steelseries_apex_backend.cpp", "rongyuan_snapshot_backend.cpp"):
+        source = read(HALL / name)
+        require("NativeAnalog_IsAccessBusyError(" in source and
+                "!out->connected && g_busy.load();" in source and
+                "g_busy.store(false)" in source,
+                f"{name}: a busy exclusive open reports accessBusy and clears it on stop")
+
     mutating_markers = ("SetKey", "WriteConfig", "FirmwareUpdate", "BuildCalibration")
     require(not any(marker in protocol_h + protocol + client_h + client for marker in mutating_markers),
             "production Aula protocol exposes no mutating builder")

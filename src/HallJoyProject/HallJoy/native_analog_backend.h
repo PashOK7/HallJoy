@@ -58,7 +58,19 @@ struct NativeAnalogBackendTelemetry
     // Connected through a protocol-family match: the model is not in the catalog
     // (no layout token), the keyboard described itself. Shown as its own notice.
     bool genericProtocol = false;
+    // Present but not connected because another program holds the interface the
+    // protocol must open exclusively (Win32 sharing/lock violation), e.g. a
+    // vendor web driver tab. Shown as "keyboard found, in use", not as missing.
+    bool accessBusy = false;
 };
+
+// Win32 errors of an exclusive open that mean another program holds the
+// interface: ERROR_SHARING_VIOLATION (32) and ERROR_LOCK_VIOLATION (33).
+// A present keyboard failing with these reports accessBusy.
+constexpr bool NativeAnalog_IsAccessBusyError(unsigned long error) noexcept
+{
+    return error == 32ul || error == 33ul;
+}
 
 struct NativeAnalogBackendDescriptor
 {

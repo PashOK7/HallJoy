@@ -162,6 +162,7 @@ inline constexpr Entry entries[] = {
     {"logitech-rapid", "PROXTKLRAPID-046D-C35B", 0xF6B5FD87390CCD05ull, L"Logitech G PRO X TKL RAPID ANSI"},
     {"logitech-rapid", "PROX2RAPID-046D-C364", 0x1A3105406B57023Cull, L"Logitech G PRO X2 RAPID ANSI"},
     {"irok-mg75-pro", "YING75-36A7-F887", 0xE6D996D6FD1177ECull, L"WLMOUSE Ying75 ANSI"},
+    {"melgeek-made68air", "MADE68AIR-0416-0114", 0x60EEB21E9B3A0C3Dull, L"MelGeek MADE68 Air ANSI"},
     {"rongyuan-stream", "RY1B-3708", 0x179EE743C273886Cull, L"Womier SK61 HE ANSI"},
     {"neo65", "ANSI", 0x8948325E19CAFA51ull, L"Neo Neo65 Sonic HE+ ANSI"},
     {"mchose-mix87", "MIX87III-3837-300D", 0x9F7EF505885301C3ull, L"MCHOSE Mix 87 III ANSI"},

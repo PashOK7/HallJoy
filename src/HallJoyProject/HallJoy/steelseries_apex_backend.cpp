@@ -26,6 +26,8 @@ namespace tp=halljoy::apex;
 constexpr std::uint64_t kHold=100;
 std::atomic<unsigned> g_pid{0},g_mapped{0};
 std::atomic<bool> g_stop{false},g_running{false},g_present{false},g_connected{false};
+// The last exclusive open failed because another program holds the interface.
+std::atomic<bool> g_busy{false};
 std::atomic<std::uint64_t> g_ok{0},g_bad{0},g_last{0};
 std::atomic<unsigned> g_bytes{0},g_page{0},g_usage{0};
 std::mutex g_service;
@@ -134,7 +136,14 @@ void Run(const Candidate& c) {
  Clear();g_pid.store(c.pid);g_bytes.store(65);g_page.store(c.caps.UsagePage);g_usage.store(c.caps.Usage);
  Handle input(CreateFileW(c.path.c_str(),GENERIC_READ|GENERIC_WRITE,0,
                          nullptr,OPEN_EXISTING,FILE_FLAG_OVERLAPPED,nullptr));
- if(!input) {SupportLog_Event("apex.open_failed",0,SupportLog_Win32(GetLastError()));++g_bad;DebugLog_Write(L"[steelseries_apex] exclusive vendor collection open failed error=%lu; another HID client may own it",GetLastError());return;}
+ const DWORD openError=input?ERROR_SUCCESS:GetLastError();
+ g_busy.store(!input && NativeAnalog_IsAccessBusyError(openError));
+ if(!input) {
+  // Once per distinct error: the worker retries every second.
+  static std::atomic<DWORD> lastError{ERROR_SUCCESS};
+  if(lastError.exchange(openError)!=openError)SupportLog_Event("apex.open_failed",0,SupportLog_Win32(openError));
+  ++g_bad;DebugLog_Write(L"[steelseries_apex] exclusive vendor collection open failed error=%lu; another HID client may own it",openError);return;
+ }
  // Revalidate the opened collection before any output after re-enumeration.
  HIDD_ATTRIBUTES live{};live.Size=sizeof(live);
  if(!HidD_GetAttributes(input.v,&live) || !tp::SupportedIdentity(live.VendorID,live.ProductID) || live.ProductID!=c.pid) {
@@ -204,7 +213,7 @@ unsigned __stdcall Worker(void*) {
    if(!g_stop.load())WaitForSingleObject(g_wake,devices.empty()?INFINITE:1000);
   }
  }catch(...) {++g_bad;DebugLog_Write(L"[steelseries_apex] worker exception; input cleared");}
- Clear();g_running.store(false);return 0;
+ Clear();g_busy.store(false);g_running.store(false);return 0;
 }
 bool Prepare() {
  std::lock_guard<std::mutex> lock(g_service);
@@ -240,6 +249,7 @@ std::uint16_t Get(std::uint16_t hid){return Owns(hid)?g_values.Read(hid,GetTickC
 void Telemetry(NativeAnalogBackendTelemetry* out) {
  if(!out)return;*out={};
  out->present=Present();out->connected=Connected();
+ out->accessBusy=out->present && !out->connected && g_busy.load();
  out->vendorId=tp::kVid;out->productId=static_cast<std::uint16_t>(g_pid.load());out->nominalRawLevels=0;
  out->mappedKeys=Connected()?g_mapped.load():0;out->outputReportBytes=65;out->inputReportBytes=g_bytes.load();
  out->usagePage=static_cast<std::uint16_t>(g_page.load());out->usage=static_cast<std::uint16_t>(g_usage.load());

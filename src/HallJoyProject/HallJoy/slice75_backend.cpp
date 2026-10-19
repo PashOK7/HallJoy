@@ -14,6 +14,7 @@
 #include "native_layout_state.h"
 #include "physical_analog_state.h"
 #include "slice75_protocol.h"
+#include "support_log.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -30,6 +31,8 @@ constexpr DWORD kStopTimeoutMs = 3000;
 constexpr ULONGLONG kFreshMs = 150;
 std::atomic<bool> g_running{false}, g_stop{false}, g_present{false},
     g_connected{false};
+// The last exclusive open failed because another program holds the interface.
+std::atomic<bool> g_busy{false};
 std::atomic<std::uint64_t> g_token{0}, g_ok{0}, g_bad{0}, g_last{0};
 std::atomic<std::uint32_t> g_avgUs{0}, g_maxUs{0};
 std::mutex g_service, g_activeLock;
@@ -342,12 +345,21 @@ bool Run(const Candidate &c) {
   Clear();
   Session s(c);
   const char *phase = "open";
-  const bool ready = s.Open() && (phase = "identity proof", Proof(s)) &&
+  const bool opened = s.Open();
+  const DWORD openError = opened ? ERROR_SUCCESS : GetLastError();
+  g_busy.store(!opened && NativeAnalog_IsAccessBusyError(openError));
+  if (!opened) {
+    // Once per distinct error: the worker retries every second.
+    static std::atomic<DWORD> lastError{ERROR_SUCCESS};
+    if (lastError.exchange(openError) != openError)
+      SupportLog_Event("slice75.open_failed", 0, SupportLog_Win32(openError));
+  }
+  const bool ready = opened && (phase = "identity proof", Proof(s)) &&
                      (phase = "assignments", Map(s));
   if (!ready) {
     ++g_bad;
     DebugLog_Write(L"[chilkey.slice75] admission failed phase=%hs error=%lu",
-                   phase, GetLastError());
+                   phase, opened ? GetLastError() : openError);
     Clear();
     return false;
   }
@@ -425,6 +437,7 @@ unsigned __stdcall Worker(void *) {
     DebugLog_Write(L"[chilkey.slice75] worker exception; input cleared");
   }
   Clear();
+  g_busy.store(false);
   g_running.store(false);
   return 0;
 }
@@ -519,6 +532,7 @@ void Telemetry(NativeAnalogBackendTelemetry *out) {
   *out = {};
   out->present = Present();
   out->connected = Connected();
+  out->accessBusy = out->present && !out->connected && g_busy.load();
   out->verifiedLayoutToken = Connected() ? g_token.load() : 0;
   out->vendorId = mg::kVendorId;
   out->productId = mg::kProductId;

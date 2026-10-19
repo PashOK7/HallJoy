@@ -25,7 +25,7 @@
 #include <vector>
 
 namespace {
-constexpr size_t kLineBytes = 1024, kQueueLines = 512, kHistoryLines = 512, kTraceLines = 4000;
+constexpr size_t kLineBytes = 1024, kQueueLines = 512, kHistoryLines = 512, kStateLines = 512, kTraceLines = 4000;
 constexpr DWORD kFileLimit = 4 * 1024 * 1024;
 constexpr size_t kCaptureLineBytes = 192, kCaptureLines = 8000;
 using Line = std::array<char, kLineBytes>;
@@ -58,6 +58,19 @@ HANDLE worker = nullptr, stopEvent = nullptr;
 std::wstring testMirrorDirectory;
 std::wstring testDirectory; // Optional isolated destination for real writer tests.
 
+// Periodic state (HID inventory, snapshots) has its own window: one device change
+// writes about 70 such lines, which evicted the events that explain the change
+// (M1 V5 TMR log 2026-10-16 lost the first session's end and warning).
+bool IsStateLine(const char* line) noexcept {
+    const char* body = strchr(line, ' ');
+    if (!body) return false;
+    ++body;
+    static constexpr const char* prefixes[] = {"hid.candidate ", "inventory.complete ", "snapshot.begin ",
+        "snapshot.end ", "diagnostics.coverage ", "uap seq=", "input.config seq=", "native seq="};
+    for (const char* prefix : prefixes)
+        if (strncmp(body, prefix, strlen(prefix)) == 0) return true;
+    return false;
+}
 void Error(DWORD error) noexcept {
     if (lastError.exchange(error) != error)
         if (auto hwnd = uiWindow.load()) PostMessageW(hwnd, WM_APP + 362, 0, 0);
@@ -143,9 +156,10 @@ void Snapshot() {
     const auto support = halljoy::keyboard_support::GetStatusSnapshot();
     // Fresh evidence and cached UI observation are deliberately separate.
     const char* source=t.deviceCount>0?"connected":t.nativeTelemetryComplete?"none_reported":"unknown";
-    sprintf_s(line, "snapshot.begin seq=%llu schema=2 engine=%u engine_error=%u search_complete_cached=%d source=%s ui_connected_cached=%d sdk_initialised=%d sources=%d sdk_sources=%u native_sources=%u analog_error=%d full_buffer_result=%d",
+    sprintf_s(line, "snapshot.begin seq=%llu schema=2 engine=%u engine_error=%u search_complete_cached=%d source=%s ui_connected_cached=%d sdk_initialised=%d sources=%d sdk_sources=%u native_sources=%u analog_error=%d full_buffer_result=%d ui_notices=%08X ui_communication_warning=%d",
         seq,unsigned(engine.state),engine.lastNativeError,support.searchCompleted,source,support.analogSourceConnected,
-        t.sdkInitialised,t.deviceCount,t.sdkDeviceCount,t.nativeConnectedCount,t.lastAnalogError,t.fullBufferRet);
+        t.sdkInitialised,t.deviceCount,t.sdkDeviceCount,t.nativeConnectedCount,t.lastAnalogError,t.fullBufferRet,
+        support.frozenModels,support.communicationWarning);
     Enqueue(line);
     sprintf_s(line,"diagnostics.coverage seq=%llu catalog=%u visited=%u rows=%d unavailable=%u complete=%d sampling=per_provider_not_atomic",
         seq,t.nativeCatalogCount,t.nativeVisitedCount,t.nativeProtocolCount,t.nativeTelemetryFailures,t.nativeTelemetryComplete);
@@ -163,10 +177,10 @@ void Snapshot() {
         const auto& n = t.nativeProtocols[i];
         const char* state=!n.telemetryAvailable?"unavailable":n.connected?"connected":n.present?"present_not_connected":"not_present";
         const char* transport=(n.flags&NativeAnalogBackendFlag_StreamTransport)?"stream":(n.flags&NativeAnalogBackendFlag_PolledTransport)?"polled":"unspecified";
-        sprintf_s(line, "native seq=%llu index=%u id=%s protocol=%u observation=%s vid=%04X pid=%04X usage_page=%04X usage=%04X present=%d connected=%d flags=%u transport=%s mapped_keys=%u input_bytes=%u output_bytes=%u updates=%llu failures=%llu age_ms=%u age_valid=%d lifecycle=%s generation=%llu lifecycle_error=%u lifecycle_operation=%u native_error=%u",
+        sprintf_s(line, "native seq=%llu index=%u id=%s protocol=%u observation=%s vid=%04X pid=%04X usage_page=%04X usage=%04X present=%d connected=%d flags=%u transport=%s mapped_keys=%u input_bytes=%u output_bytes=%u updates=%llu failures=%llu age_ms=%u age_valid=%d lifecycle=%s generation=%llu lifecycle_error=%u lifecycle_operation=%u native_error=%u access_busy=%d",
             seq,n.catalogIndex,n.id[0]?n.id:"unknown",n.protocol,state,n.vendorId,n.productId,n.usagePage,n.usage,n.present,n.connected,n.flags,transport,
             n.mappedKeys,n.inputReportBytes,n.outputReportBytes,n.successfulUpdates,n.failedUpdates,n.lastUpdateAgeMs,n.telemetryAvailable&&n.successfulUpdates!=0,
-            n.lifecycleAvailable?LifecycleName(n.lifecycleState):"unavailable",n.generation,n.lifecycleError,n.lifecycleOperation,n.nativeError);
+            n.lifecycleAvailable?LifecycleName(n.lifecycleState):"unavailable",n.generation,n.lifecycleError,n.lifecycleOperation,n.nativeError,n.accessBusy);
         Enqueue(line);
     }
     sprintf_s(line,"snapshot.end seq=%llu rows=%d complete=%d",seq,t.nativeProtocolCount,t.nativeTelemetryComplete);
@@ -195,7 +209,11 @@ bool WriteLine(HANDLE file, const std::array<char, N>& line) {
 }
 DWORD WINAPI Run(void*) noexcept {
     try {
-        std::deque<Line> history, researchEvidence, traceEvidence;
+        std::deque<Line> researchEvidence, traceEvidence;
+        // Events and periodic state in separate windows, written merged in arrival order.
+        struct Entry { std::uint64_t order; Line line; };
+        std::deque<Entry> history, stateHistory;
+        std::uint64_t order = 0;
         std::vector<CaptureLine> capture; // writer copy of captureStore
         std::vector<Line> batch(kQueueLines);
         bool previousIncident = false, previousContinuous = false;
@@ -299,7 +317,10 @@ DWORD WINAPI Run(void*) noexcept {
                     if(traceEvidence.size()>kTraceLines) traceEvidence.pop_front();
                     continue;
                 }
-                history.push_back(batch[i]); if(history.size()>kHistoryLines) history.pop_front();
+                const bool state = IsStateLine(batch[i].data());
+                auto& window = state ? stateHistory : history;
+                window.push_back({++order, batch[i]});
+                if (window.size() > (state ? kStateLines : kHistoryLines)) window.pop_front();
             }
 #if defined(HALLJOY_AULA_MINI60_DIAGNOSTIC) || defined(HALLJOY_IROK_NA87_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG)
             for (size_t i=0;i<count;++i) DebugLog_Write(L"[support] %S", batch[i].data());
@@ -339,10 +360,16 @@ DWORD WINAPI Run(void*) noexcept {
                                 const bool rawHidPayload=std::any_of(researchEvidence.begin(),researchEvidence.end(),[](const Line& line){
                                     return strstr(line.data(),"HallJoy RedSquare unknown packet trace v2;")!=nullptr;
                                 });
-                                sprintf_s(header.data(),header.size(),"HallJoy " HALLJOY_VERSION_STRING_FULL " support report schema=2 utc=%04u-%02u-%02uT%02u:%02u:%02uZ bounded_history=512 no_keyboard_text=1 raw_hid_payload=%u bound_key_trace=%u",snapshotUtc.wYear,snapshotUtc.wMonth,snapshotUtc.wDay,snapshotUtc.wHour,snapshotUtc.wMinute,snapshotUtc.wSecond,rawHidPayload?1u:0u,traceEvidence.empty()?0u:1u);
+                                sprintf_s(header.data(),header.size(),"HallJoy " HALLJOY_VERSION_STRING_FULL " support report schema=2 utc=%04u-%02u-%02uT%02u:%02u:%02uZ bounded_history=512 bounded_state=512 no_keyboard_text=1 raw_hid_payload=%u bound_key_trace=%u",snapshotUtc.wYear,snapshotUtc.wMonth,snapshotUtc.wDay,snapshotUtc.wHour,snapshotUtc.wMinute,snapshotUtc.wSecond,rawHidPayload?1u:0u,traceEvidence.empty()?0u:1u);
                                 ok=WriteLine(file,header); fileBytes=DWORD(strlen(header.data())+2);
                                 for (const auto& line : researchEvidence) { if (!ok || !(ok=WriteLine(file,line))) break; fileBytes += DWORD(strlen(line.data())+2); }
-                                for (const auto& line : history) { if(strstr(line.data()," redsquare.research "))continue; if (!ok || !(ok=WriteLine(file,line))) break; fileBytes += DWORD(strlen(line.data())+2); }
+                                for (size_t e = 0, st = 0; ok && (e < history.size() || st < stateHistory.size());) {
+                                    const bool event = st >= stateHistory.size() || (e < history.size() && history[e].order < stateHistory[st].order);
+                                    const Line& line = event ? history[e++].line : stateHistory[st++].line;
+                                    if (strstr(line.data()," redsquare.research ")) continue;
+                                    if (!(ok=WriteLine(file,line))) break;
+                                    fileBytes += DWORD(strlen(line.data())+2);
+                                }
                                 for (const auto& line : traceEvidence) { if (!ok || !(ok=WriteLine(file,line))) break; fileBytes += DWORD(strlen(line.data())+2); }
                                 for (const auto& line : capture) { if (!ok || !(ok=WriteLine(file,line))) break; fileBytes += DWORD(strlen(line.data())+2); }
                                 std::vector<EvidenceLine> evidence;

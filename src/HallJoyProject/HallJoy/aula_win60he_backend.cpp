@@ -12,9 +12,11 @@
 #include "analog_key_codes.h"
 #include "debug_log.h"
 #include "hid_io_operation.h"
+#include "keyboard_support_status.h"
 #include "native_analog_routing.h"
 #include "realtime_loop.h"
 #include "stability_trace.h"
+#include "support_log.h"
 #include "worker_exception_barrier.h"
 #include "worker_join_policy.h"
 #include "aula_win60he_client.h"
@@ -28,6 +30,7 @@
 #include <array>
 #include <atomic>
 #include <cerrno>
+#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cwchar>
@@ -112,8 +115,13 @@ struct EnumerationResult
     std::uint32_t interfaceDetailErrors = 0;
     std::uint32_t identityPrefilterRejected = 0;
     std::uint32_t metadataRejected = 0;
+    std::uint32_t foreignClaimed = 0;
     bool knownIdentityPathSeen = false;
     std::vector<Candidate> candidates;
+    // Family interfaces that passed the identity prefilter, for the support
+    // log: VID:PID, HID usage, report lengths, fingerprint verdict.
+    std::string familyInterfaces;
+    std::uint32_t familyInterfaceCount = 0;
 };
 
 struct RetainedDeviceIdentity
@@ -157,6 +165,70 @@ struct Session
     }
 };
 
+// Support-log evidence (HallJoy.log, Open log). Each slot records a line only
+// when its content changes, so a retry every second adds nothing until the
+// state moves. Never paths, serials or key values.
+enum class EvidenceSlot : unsigned
+{
+    Discovery = 0,
+    Selection,
+    Proof,
+    Session,
+    Count,
+};
+
+std::mutex g_evidenceMutex;
+std::array<std::string, static_cast<std::size_t>(EvidenceSlot::Count)> g_lastEvidence;
+
+void WriteEvidence(EvidenceSlot slot, bool keep, const char* format, ...) noexcept
+{
+    char body[640]{};
+    va_list args;
+    va_start(args, format);
+    (void)_vsnprintf_s(body, sizeof(body), _TRUNCATE, format, args);
+    va_end(args);
+    if (body[0] == '\0')
+        return;
+    try
+    {
+        std::string line("evidence.aula6x21 ");
+        line += body;
+        {
+            std::lock_guard<std::mutex> lock(g_evidenceMutex);
+            auto& last = g_lastEvidence[static_cast<std::size_t>(slot)];
+            if (last == line)
+                return;
+            last = line;
+        }
+        SupportLog_Evidence(line.c_str(), keep);
+    }
+    catch (...)
+    {
+    }
+}
+
+void ClearEvidence(EvidenceSlot slot) noexcept
+{
+    std::lock_guard<std::mutex> lock(g_evidenceMutex);
+    g_lastEvidence[static_cast<std::size_t>(slot)].clear();
+}
+
+const char* OpenErrorName(DWORD error) noexcept
+{
+    switch (error)
+    {
+    case ERROR_SUCCESS: return "none";
+    case ERROR_SHARING_VIOLATION: return "busy_other_program";
+    case ERROR_ACCESS_DENIED: return "access_denied";
+    case ERROR_LOCK_VIOLATION: return "locked_other_program";
+    case ERROR_FILE_NOT_FOUND:
+    case ERROR_DEVICE_NOT_CONNECTED:
+    case ERROR_GEN_FAILURE: return "device_gone";
+    case ERROR_INVALID_DATA: return "identity_or_metadata_changed";
+    default: return "other";
+    }
+}
+
 std::atomic<bool> g_routingPrepared{ false };
 std::mutex g_claimMutex;
 ClaimState g_claim{};
@@ -165,6 +237,9 @@ std::atomic<bool> g_running{ false };
 std::atomic<bool> g_stop{ false };
 std::atomic<bool> g_deviceChanged{ false };
 std::atomic<bool> g_candidatePresent{ false };
+// Exact candidate present, exclusive open refused because another program
+// holds the interface (sharing/lock violation). Cleared by any other outcome.
+std::atomic<bool> g_accessBusy{ false };
 std::atomic<bool> g_protocolPresent{ false };
 std::atomic<bool> g_connected{ false };
 std::atomic<std::uint64_t> g_verifiedLayoutToken{0};
@@ -1044,7 +1119,10 @@ EnumerationResult EnumerateCandidates()
         const bool claimedByAula = NativeAnalogRouting_IsClaimedBy(
             detail->DevicePath, NativeAnalogProtocol::AulaWin60He);
         if (NativeAnalogRouting_IsClaimed(detail->DevicePath) && !claimedByAula)
+        {
+            ++result.foreignClaimed;
             continue;
+        }
 
         Candidate candidate{};
         candidate.path = detail->DevicePath;
@@ -1064,9 +1142,35 @@ EnumerationResult EnumerateCandidates()
             OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL,
             nullptr));
-        [[maybe_unused]] const DWORD metadataOpenError =
+        const DWORD metadataOpenError =
             metadata ? ERROR_SUCCESS : GetLastError();
         const bool metadataOk = metadata && ReadMetadata(metadata.value, &candidate);
+        if (result.familyInterfaceCount < 16u)
+        {
+            char entry[112]{};
+            if (metadata)
+            {
+                _snprintf_s(entry, sizeof(entry), _TRUNCATE,
+                    " if%u=%04X:%04X/%04X:%04X/in%u/out%u/%s",
+                    static_cast<unsigned>(result.familyInterfaceCount),
+                    static_cast<unsigned>(candidate.attributes.VendorID),
+                    static_cast<unsigned>(candidate.attributes.ProductID),
+                    static_cast<unsigned>(candidate.caps.UsagePage),
+                    static_cast<unsigned>(candidate.caps.Usage),
+                    static_cast<unsigned>(candidate.caps.InputReportByteLength),
+                    static_cast<unsigned>(candidate.caps.OutputReportByteLength),
+                    metadataOk ? "fingerprint" : "other_shape");
+            }
+            else
+            {
+                _snprintf_s(entry, sizeof(entry), _TRUNCATE,
+                    " if%u=metadata_open_error_%lu",
+                    static_cast<unsigned>(result.familyInterfaceCount),
+                    static_cast<unsigned long>(metadataOpenError));
+            }
+            result.familyInterfaces += entry;
+        }
+        ++result.familyInterfaceCount;
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
         StabilityTrace_Write(metadataOk ? L"INFO" : L"WARN",
             L"aula-win60he", L"enumeration.candidate",
@@ -1165,13 +1269,19 @@ bool EnsureInputQueueCapacity(HANDLE handle, DWORD* error)
     return true;
 }
 
-bool OpenSession(const Candidate& candidate, Session* out, DWORD* openError)
+bool OpenSession(
+    const Candidate& candidate,
+    Session* out,
+    DWORD* openError,
+    const char** failedStage = nullptr)
 {
     if (out) *out = Session{};
     if (openError) *openError = ERROR_SUCCESS;
+    if (failedStage) *failedStage = "none";
     if (!out || !IsFingerprint(candidate) || candidate.path.empty())
     {
         if (openError) *openError = ERROR_INVALID_PARAMETER;
+        if (failedStage) *failedStage = "invalid_candidate";
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
         RecordDiagnosticFailure(DiagnosticFailure::SessionOpen);
         StabilityTrace_Write(L"WARN", L"aula-win60he", L"session.open_failed",
@@ -1194,6 +1304,7 @@ bool OpenSession(const Candidate& candidate, Session* out, DWORD* openError)
     if (!session.handle)
     {
         if (openError) *openError = GetLastError();
+        if (failedStage) *failedStage = "exclusive_open";
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
         RecordDiagnosticFailure(DiagnosticFailure::SessionOpen);
         StabilityTrace_Write(L"WARN", L"aula-win60he", L"session.open_failed",
@@ -1212,6 +1323,7 @@ bool OpenSession(const Candidate& candidate, Session* out, DWORD* openError)
             !EqualWindowsIdentity(openedInstanceId, candidate.instanceId)))
     {
         if (openError) *openError = ERROR_INVALID_DATA;
+        if (failedStage) *failedStage = "identity_recheck";
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
         RecordDiagnosticFailure(DiagnosticFailure::SessionOpen);
         StabilityTrace_Write(L"WARN", L"aula-win60he", L"session.open_failed",
@@ -1233,6 +1345,7 @@ bool OpenSession(const Candidate& candidate, Session* out, DWORD* openError)
     if (!ReadMetadata(session.handle.value, &session.candidate))
     {
         if (openError) *openError = ERROR_INVALID_DATA;
+        if (failedStage) *failedStage = "exclusive_metadata";
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
         RecordDiagnosticFailure(DiagnosticFailure::SessionOpen);
         StabilityTrace_Write(L"WARN", L"aula-win60he", L"session.open_failed",
@@ -1249,6 +1362,7 @@ bool OpenSession(const Candidate& candidate, Session* out, DWORD* openError)
     }
     if (!EnsureInputQueueCapacity(session.handle.value, openError))
     {
+        if (failedStage) *failedStage = "input_queue";
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
         RecordDiagnosticFailure(DiagnosticFailure::SessionOpen);
         StabilityTrace_Write(L"WARN", L"aula-win60he", L"session.open_failed",
@@ -1268,6 +1382,7 @@ bool OpenSession(const Candidate& candidate, Session* out, DWORD* openError)
     if (!session)
     {
         if (openError) *openError = eventError;
+        if (failedStage) *failedStage = "io_events";
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
         RecordDiagnosticFailure(DiagnosticFailure::SessionOpen);
         StabilityTrace_Write(L"WARN", L"aula-win60he", L"session.open_failed",
@@ -1398,6 +1513,7 @@ struct ClientTraceContext
     aula_win60he::Report lastReceive{};
     bool hasTransmit = false;
     bool hasReceive = false;
+    char lastError[48]{};
 };
 
 [[maybe_unused]] void TraceClientReport(
@@ -1508,6 +1624,36 @@ struct ClientTraceContext
 #endif
 }
 
+// Ordinary builds keep only the last request/reply and the last error label so
+// a failed proof can name what the keyboard answered (header bytes only).
+void RecordLastReports(
+    void* context,
+    aula_win60he::TraceKind kind,
+    const char* label,
+    const aula_win60he::Report* report) noexcept
+{
+    auto* state = static_cast<ClientTraceContext*>(context);
+    if (!state)
+        return;
+    if (kind == aula_win60he::TraceKind::Error)
+    {
+        strncpy_s(state->lastError, label ? label : "", _TRUNCATE);
+        return;
+    }
+    if (!report)
+        return;
+    if (kind == aula_win60he::TraceKind::Transmit)
+    {
+        state->lastTransmit = *report;
+        state->hasTransmit = true;
+    }
+    else if (kind == aula_win60he::TraceKind::Receive)
+    {
+        state->lastReceive = *report;
+        state->hasReceive = true;
+    }
+}
+
 aula_win60he::TraceSink MakeTraceSink(ClientTraceContext* context) noexcept
 {
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
@@ -1515,11 +1661,92 @@ aula_win60he::TraceSink MakeTraceSink(ClientTraceContext* context) noexcept
 #elif defined(HALLJOY_DIAGNOSTIC)
     if (DebugLog_IsDiagnosticBuild())
         return aula_win60he::TraceSink{ &TraceClientReport, context };
-    return {};
+    return aula_win60he::TraceSink{ &RecordLastReports, context };
 #else
-    (void)context;
-    return {};
+    return aula_win60he::TraceSink{ &RecordLastReports, context };
 #endif
+}
+
+// First eight bytes of a report: envelope, command and length. The sync serial
+// starts at byte 13, so no identity bytes are written.
+void FormatReportHeader(
+    bool available,
+    const aula_win60he::Report& report,
+    char* out,
+    std::size_t size) noexcept
+{
+    if (!out || size == 0)
+        return;
+    out[0] = '\0';
+    if (!available)
+    {
+        strncpy_s(out, size, "-", _TRUNCATE);
+        return;
+    }
+    std::size_t pos = 0;
+    for (std::size_t i = 0; i < 8u && i < report.size() && pos + 3u <= size; ++i)
+    {
+        const int written = _snprintf_s(out + pos, size - pos, _TRUNCATE,
+            i == 0 ? "%02X" : "-%02X", static_cast<unsigned>(report[i]));
+        if (written <= 0)
+            break;
+        pos += static_cast<std::size_t>(written);
+    }
+}
+
+void PrintableAscii(const char* source, std::size_t limit, char* out, std::size_t size) noexcept
+{
+    if (!out || size == 0)
+        return;
+    std::size_t pos = 0;
+    for (std::size_t i = 0; source && i < limit && source[i] != '\0' && pos + 1u < size; ++i)
+    {
+        const unsigned char c = static_cast<unsigned char>(source[i]);
+        out[pos++] = c > 0x20u && c < 0x7Fu ? static_cast<char>(c) : '_';
+    }
+    out[pos] = '\0';
+    if (pos == 0)
+        strncpy_s(out, size, "-", _TRUNCATE);
+}
+
+void WriteProofEvidence(
+    const char* phase,
+    const Session& session,
+    bool probeOk,
+    const aula_win60he::CapabilityProof& capability,
+    const aula_win60he::Failure& failure,
+    const ClientTraceContext& trace) noexcept
+{
+    char lastTx[32]{};
+    char lastRx[32]{};
+    char app[24]{};
+    char build[24]{};
+    FormatReportHeader(trace.hasTransmit, trace.lastTransmit, lastTx, sizeof(lastTx));
+    FormatReportHeader(trace.hasReceive, trace.lastReceive, lastRx, sizeof(lastRx));
+    PrintableAscii(capability.sync.appVersion.data(), capability.sync.appVersion.size(), app, sizeof(app));
+    PrintableAscii(capability.sync.buildLabel.data(), capability.sync.buildLabel.size(), build, sizeof(build));
+    const auto* known = aula_win60he::FindKnownUsbIdentity(
+        session.candidate.attributes.VendorID,
+        session.candidate.attributes.ProductID);
+    WriteEvidence(EvidenceSlot::Proof, false,
+        "proof phase=%s ok=%u stage=%s command=%02X selector=%02X index=%u mismatch=%08X board=%08X expected_board=%08X app=%s build=%s precision_um=%u max_um=%u physical=%u default_mapped=%u mapped=%u last_error=%s last_tx=%s last_rx=%s",
+        phase ? phase : "unknown",
+        static_cast<unsigned>(probeOk),
+        aula_win60he::FailureStageName(failure.stage),
+        static_cast<unsigned>(failure.command),
+        static_cast<unsigned>(failure.selector),
+        static_cast<unsigned>(failure.index),
+        static_cast<unsigned>(capability.compatibilityMismatchMask),
+        static_cast<unsigned>(capability.sync.boardId),
+        static_cast<unsigned>(known ? known->boardId : 0u),
+        app, build,
+        static_cast<unsigned>(capability.precision.precisionUm),
+        static_cast<unsigned>(capability.precision.maximumTravelUm),
+        static_cast<unsigned>(capability.physicalKeyPositions),
+        static_cast<unsigned>(capability.defaultMappedKeys),
+        static_cast<unsigned>(capability.mappedKeys),
+        trace.lastError[0] ? trace.lastError : "-",
+        lastTx, lastRx);
 }
 
 // An exact USB identity selects its independently proven board ID. Unknown
@@ -1675,6 +1902,14 @@ bool OpenSelectedSession(Session* out)
     g_invalidEnumeration.store(false, std::memory_order_relaxed);
     g_retainedIdentityMissing.store(false, std::memory_order_relaxed);
     g_firmwareSerialMismatch.store(false, std::memory_order_relaxed);
+    WriteEvidence(EvidenceSlot::Discovery, true,
+        "discovery known_usb_paths=%u family_interfaces=%u fingerprint_candidates=%u metadata_rejected=%u claimed_by_other_backend=%u%s",
+        static_cast<unsigned>(enumeration.knownIdentityPaths),
+        static_cast<unsigned>(enumeration.familyInterfaceCount),
+        static_cast<unsigned>(enumeration.candidates.size()),
+        static_cast<unsigned>(enumeration.metadataRejected),
+        static_cast<unsigned>(enumeration.foreignClaimed),
+        enumeration.familyInterfaces.c_str());
 
     std::vector<std::wstring> paths;
     std::vector<std::wstring> instanceIds;
@@ -1711,6 +1946,10 @@ bool OpenSelectedSession(Session* out)
 #endif
         DebugLog_WriteBuffered(
             L"[backend.aula_win60he] contradictory SetupAPI enumeration evidence; refusing device selection");
+        g_accessBusy.store(false, std::memory_order_release);
+        WriteEvidence(EvidenceSlot::Selection, false,
+            "selection=invalid_enumeration candidates=%u",
+            static_cast<unsigned>(enumeration.candidates.size()));
         return false;
     }
     if (selection.ambiguous)
@@ -1721,6 +1960,10 @@ bool OpenSelectedSession(Session* out)
 #endif
         DebugLog_WriteBuffered(
             L"[backend.aula_win60he] multiple or contradictory exact-fingerprint candidates; refusing implicit device selection");
+        g_accessBusy.store(false, std::memory_order_release);
+        WriteEvidence(EvidenceSlot::Selection, false,
+            "selection=ambiguous candidates=%u",
+            static_cast<unsigned>(enumeration.candidates.size()));
         return false;
     }
     if (selection.retainedIdentityMissing)
@@ -1731,6 +1974,10 @@ bool OpenSelectedSession(Session* out)
 #endif
         DebugLog_WriteBuffered(
             L"[backend.aula_win60he] retained Aula identity is absent; refusing path, instance or serial rebind until backend restart");
+        g_accessBusy.store(false, std::memory_order_release);
+        WriteEvidence(EvidenceSlot::Selection, false,
+            "selection=retained_identity_missing candidates=%u",
+            static_cast<unsigned>(enumeration.candidates.size()));
         return false;
     }
     if (selection.candidateIndices.size() != 1u ||
@@ -1744,15 +1991,34 @@ bool OpenSelectedSession(Session* out)
             enumeration.knownIdentityPaths,
             static_cast<unsigned>(enumeration.candidates.size()));
 #endif
+        g_accessBusy.store(false, std::memory_order_release);
+        WriteEvidence(EvidenceSlot::Selection, false,
+            "selection=none candidates=%u known_usb_paths=%u",
+            static_cast<unsigned>(enumeration.candidates.size()),
+            static_cast<unsigned>(enumeration.knownIdentityPaths));
         return false;
     }
 
     const Candidate& candidate =
         enumeration.candidates[selection.candidateIndices[0]];
     DWORD openError = ERROR_SUCCESS;
-    if (!OpenSession(candidate, out, &openError))
+    const char* failedStage = "none";
+    if (!OpenSession(candidate, out, &openError, &failedStage))
     {
         g_lastOpenError.store(openError, std::memory_order_relaxed);
+        // Another program (vendor web driver tab, configurator) holds the
+        // interface. The keyboard is present; the UI says so instead of
+        // "no supported keyboard", and the worker retries every second.
+        const bool busy = std::strcmp(failedStage, "exclusive_open") == 0 &&
+            (openError == ERROR_SHARING_VIOLATION || openError == ERROR_LOCK_VIOLATION);
+        g_accessBusy.store(busy, std::memory_order_release);
+        WriteEvidence(EvidenceSlot::Selection, false,
+            "selection=open_failed stage=%s win32=%lu reason=%s vid=%04X pid=%04X usage=%04X:%04X",
+            failedStage, static_cast<unsigned long>(openError), OpenErrorName(openError),
+            static_cast<unsigned>(candidate.attributes.VendorID),
+            static_cast<unsigned>(candidate.attributes.ProductID),
+            static_cast<unsigned>(candidate.caps.UsagePage),
+            static_cast<unsigned>(candidate.caps.Usage));
         if (openError == ERROR_SHARING_VIOLATION)
         {
             DebugLog_WriteBuffered(
@@ -1767,6 +2033,16 @@ bool OpenSelectedSession(Session* out)
         return false;
     }
     g_lastOpenError.store(ERROR_SUCCESS, std::memory_order_relaxed);
+    g_accessBusy.store(false, std::memory_order_release);
+    WriteEvidence(EvidenceSlot::Selection, false,
+        "selection=opened vid=%04X pid=%04X usage=%04X:%04X in=%u out=%u product_win60_pro=%u",
+        static_cast<unsigned>(out->candidate.attributes.VendorID),
+        static_cast<unsigned>(out->candidate.attributes.ProductID),
+        static_cast<unsigned>(out->candidate.caps.UsagePage),
+        static_cast<unsigned>(out->candidate.caps.Usage),
+        static_cast<unsigned>(out->candidate.caps.InputReportByteLength),
+        static_cast<unsigned>(out->candidate.caps.OutputReportByteLength),
+        static_cast<unsigned>(out->candidate.product == L"WIN 60 HE PRO"));
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
     StabilityTrace_Write(L"INFO", L"aula-win60he", L"selection.opened",
         L"attempt=%u candidate_index=%u",
@@ -1944,6 +2220,7 @@ std::uint32_t WorkerMain()
         const bool probeOk = client.Probe(
             &capability, &failure, ProbePolicyForSession(session));
         TraceCapabilityOutcome(L"worker", probeOk, capability, failure);
+        WriteProofEvidence("worker", session, probeOk, capability, failure, traceContext);
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
         g_diagnosticLastBoardId.store(
             capability.sync.boardId, std::memory_order_relaxed);
@@ -1986,6 +2263,9 @@ std::uint32_t WorkerMain()
                 static_cast<unsigned>(capability.compatibilityMismatchMask),
                 static_cast<unsigned>(kReconnectWaitMs));
 #endif
+            WriteEvidence(EvidenceSlot::Session, false,
+                "claim=blocked reason=semantic_mismatch mismatch=%08X retry=device_change",
+                static_cast<unsigned>(capability.compatibilityMismatchMask));
             g_protocolPresent.store(false, std::memory_order_release);
             g_connected.store(false, std::memory_order_release);
             ClearPublishedValues(false);
@@ -2002,6 +2282,8 @@ std::uint32_t WorkerMain()
 #endif
             DebugLog_WriteBuffered(
                 L"[backend.aula_win60he] proven Aula identity returned different retained path, instance or firmware-serial evidence; refusing session");
+            WriteEvidence(EvidenceSlot::Session, false,
+                "claim=blocked reason=retained_identity_mismatch retry=device_change");
             g_protocolPresent.store(false, std::memory_order_release);
             g_connected.store(false, std::memory_order_release);
             ClearPublishedValues(false);
@@ -2029,6 +2311,10 @@ std::uint32_t WorkerMain()
                 static_cast<unsigned>(routeClaimed),
                 static_cast<unsigned>(capability.sync.boardId));
 #endif
+            WriteEvidence(EvidenceSlot::Session, false,
+                "claim=blocked reason=%s board=%08X",
+                probeResultOk ? "route_claimed_by_other" : "board_or_fingerprint_mismatch",
+                static_cast<unsigned>(capability.sync.boardId));
             g_protocolPresent.store(false, std::memory_order_release);
             g_connected.store(false, std::memory_order_release);
             ClearPublishedValues(false);
@@ -2088,7 +2374,17 @@ std::uint32_t WorkerMain()
             static_cast<unsigned>(capability.precision.maximumTravelUm),
             static_cast<unsigned>(proof.inputReportBytes),
             static_cast<unsigned>(proof.outputReportBytes));
+        WriteEvidence(EvidenceSlot::Session, false,
+            "session=connected vid=%04X pid=%04X board=%08X mapped=%u precision_um=%u max_um=%u layout=%s",
+            static_cast<unsigned>(proof.vendorId),
+            static_cast<unsigned>(proof.productId),
+            static_cast<unsigned>(capability.sync.boardId),
+            static_cast<unsigned>(capability.mappedKeys),
+            static_cast<unsigned>(capability.precision.precisionUm),
+            static_cast<unsigned>(capability.precision.maximumTravelUm),
+            proof.win60Pro ? "win60_pro" : "board");
         signalInitialAttempt();
+        const char* sessionEndPhase = "stop";
 
         ULONGLONG nextActiveMapRefreshMs =
             GetTickCount64() + kActiveMapRefreshIntervalMs;
@@ -2126,6 +2422,7 @@ std::uint32_t WorkerMain()
 #endif
                     retryOnlyAfterDeviceChange =
                         IsDeterministicSemanticFailure(failure.stage);
+                    sessionEndPhase = "active_map";
                     break;
                 }
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
@@ -2197,6 +2494,7 @@ std::uint32_t WorkerMain()
 #endif
                 retryOnlyAfterDeviceChange =
                     IsDeterministicSemanticFailure(failure.stage);
+                sessionEndPhase = "travel";
                 break;
             }
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
@@ -2287,6 +2585,19 @@ std::uint32_t WorkerMain()
             diagnosticLifetime.currentActiveKeys;
 #endif
 
+        if (!g_stop.load(std::memory_order_acquire))
+        {
+            WriteEvidence(EvidenceSlot::Session, false,
+                "session=ended phase=%s stage=%s command=%02X selector=%02X index=%u retry=%s",
+                sessionEndPhase,
+                aula_win60he::FailureStageName(failure.stage),
+                static_cast<unsigned>(failure.command),
+                static_cast<unsigned>(failure.selector),
+                static_cast<unsigned>(failure.index),
+                retryOnlyAfterDeviceChange ? "device_change" : "reopen");
+            ClearEvidence(EvidenceSlot::Selection);
+            ClearEvidence(EvidenceSlot::Proof);
+        }
         g_protocolPresent.store(false, std::memory_order_release);
         g_connected.store(false, std::memory_order_release);
         ClearPublishedValues(false);
@@ -2322,6 +2633,7 @@ std::uint32_t WorkerMain()
     g_connected.store(false, std::memory_order_release);
     g_candidatePresent.store(false, std::memory_order_release);
     g_protocolPresent.store(false, std::memory_order_release);
+    g_accessBusy.store(false, std::memory_order_release);
     signalInitialAttempt();
     ClearPublishedValues(false);
     g_running.store(false, std::memory_order_release);
@@ -2371,6 +2683,8 @@ void FillTelemetry(NativeAnalogBackendTelemetry* out)
     *out = NativeAnalogBackendTelemetry{};
     out->present = g_candidatePresent.load(std::memory_order_acquire);
     out->connected = g_connected.load(std::memory_order_acquire);
+    out->accessBusy = out->present && !out->connected &&
+        g_accessBusy.load(std::memory_order_acquire);
     if (out->connected && identity == g_verifiedLayoutToken.load(std::memory_order_acquire))
         out->verifiedLayoutToken = identity;
     out->vendorId = g_vendorId.load(std::memory_order_relaxed);
@@ -2434,7 +2748,7 @@ void FillTelemetry(NativeAnalogBackendTelemetry* out)
         g_lastOpenError.load(std::memory_order_relaxed) == ERROR_SHARING_VIOLATION)
     {
         _snwprintf_s(out->status, kNativeAnalogBackendStatusChars, _TRUNCATE,
-            L"Aula vendor HID is busy; waiting for exclusive access");
+            L"Aula keyboard found; another program holds its vendor HID (web driver/configurator); retrying every second");
     }
     else if (out->present)
     {
@@ -2482,6 +2796,7 @@ bool AulaWin60He_PrepareProtocolRouting()
         const bool probeOk = client.Probe(
             &capability, &failure, ProbePolicyForSession(session));
         TraceCapabilityOutcome(L"pre_uap", probeOk, capability, failure);
+        WriteProofEvidence("pre_uap", session, probeOk, capability, failure, traceContext);
         const bool retainedIdentityOk =
             probeOk && MatchesRetainedProofIdentity(session, capability);
         const bool probeResultOk =
@@ -2733,6 +3048,9 @@ halljoy::lifecycle::StopResult AulaWin60He_Stop(
     g_candidatePresent.store(false, std::memory_order_release);
     g_protocolPresent.store(false, std::memory_order_release);
     g_connected.store(false, std::memory_order_release);
+    g_accessBusy.store(false, std::memory_order_release);
+    for (unsigned slot = 0; slot < static_cast<unsigned>(EvidenceSlot::Count); ++slot)
+        ClearEvidence(static_cast<EvidenceSlot>(slot));
     ClearPublishedValues(false);
 #if defined(HALLJOY_AULA_AGGRESSIVE_TRACE)
     TraceDiagnosticVerdict();

@@ -2163,6 +2163,26 @@
         }
       ]
     },
+    "MelGeek": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/MELGEEK_MADE68_AIR_2026-10-12.md",
+      "models": [
+        {
+          "id": "melgeek_made68air_ansi",
+          "brand": "MelGeek",
+          "model": "MADE68 Air",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/melgeek-layout-reports/melgeek_made68air_ansi.json",
+          "sha256": "7d7195c0ff7235637e0f706c5e6aad733b843a2a7c6f818c51a434a35c329d96",
+          "products": [
+            "MADE68AIR-0416-0114"
+          ],
+          "url": ""
+        }
+      ]
+    },
     "Womier": {
       "adapter": "reviewed-report",
       "runtime": true,

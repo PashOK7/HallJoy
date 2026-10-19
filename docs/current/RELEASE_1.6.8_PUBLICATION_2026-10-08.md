@@ -63,3 +63,12 @@ Required by `docs/development/SUPPORT_STATUS_SYNC.md` and not yet done:
   yellow, Redragon K686 HE (3 models) yellow, FUN60 Pro yellow.
 - Visual check of the game profiles v2 and tab transitions by the owner is not
   recorded in any document.
+
+### Resolved 2026-10-15 (except the 80B1 row)
+
+Fresh full native read (`.local/sheet-native-20261015.json`, Main A1:C1295): `check_keyboard_sheet_structure.py` PASS
+(150 blocks, 0 issues), `support_notice_catalog.py --sheet` PASS (287 yellow rows = runtime notices),
+`check_supported_layouts.py --sheet` PASS (73). The 1.6.8 statuses are present (Ying75 and Ace 68 Air III Supported; both
+Logitech RAPID, K686 HE and FUN60 Pro yellow). Base colors were re-materialized where they disagreed with the status:
+B:C561 MADE68 Air (gray -> yellow), B:C658 Alumix 68 (yellow -> gray), B:C808 RT75, B:C810 RT80 and B:C180 K70 MAX (gray -> red).
+The separate red row for AJAZZ AK820 MAX HE Sonix `0C45:80B1` was added the same day (Main!A18:C18, see the AK820 80B1 doc).

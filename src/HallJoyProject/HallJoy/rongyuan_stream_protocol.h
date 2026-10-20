@@ -266,7 +266,7 @@ inline constexpr Model kModels[]={
 // canonical board's identical factory matrix and stream parent (FUN60 Pro 2304:
 // MonsGeek web driver class `extends k`, matrix equal to 2600's; 2026-10-07).
 struct UsbAlias { unsigned board,vid,pid,canonicalVid,canonicalPid,canonicalBoard; };
-inline constexpr UsbAlias kUsbAliases[]={{2683,12625,20528,12625,20521,2683},{2704,12625,20528,12625,20521,2704},{2398,14154,41506,12625,20528,2398},{2304,12625,20525,12625,20521,2600}};
+inline constexpr UsbAlias kUsbAliases[]={{2683,12625,20528,12625,20521,2683},{2704,12625,20528,12625,20521,2704},{2398,14154,41506,12625,20528,2398},{2304,12625,20525,12625,20521,2600},{2307,12625,20528,12625,20521,2352}};
 inline const Model* Find(unsigned board,unsigned vid,unsigned pid) noexcept {
  for(const auto& a:kUsbAliases)if(a.board==board && a.vid==vid && a.pid==pid){board=a.canonicalBoard;vid=a.canonicalVid;pid=a.canonicalPid;break;}
  for(const auto& m:kModels)if(m.board==board && m.vid==vid && m.pid==pid)return &m;return nullptr;

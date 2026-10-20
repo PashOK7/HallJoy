@@ -1259,12 +1259,12 @@
       },
       {
         "path": "docs/research/usb-identity-audit/approved-aliases.json",
-        "sha256": "345c50710349af3c293dc948a1b3a4be2ad0fd0cf1bc79983be64c1b0a42668a",
+        "sha256": "d33d8de25398cf9debfbd4833b0f549cee905566b2c333af622b493b9d2766da",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/rongyuan_stream_protocol.h",
-        "sha256": "761c10b10dd2b2b74e9b41d25b3c9bd5db5ef07d3f0f871274ad72546778bff1",
+        "sha256": "7c38130f21a831633be3b02f6d0d6c5418106b1103f032c35a13ae3ccdd56b80",
         "private": false
       },
       {
@@ -4486,12 +4486,12 @@
       },
       {
         "path": "docs/exports/lemokey-he/ansi-review.json",
-        "sha256": "4a06fc6eaf4cdb858bdff56d75373f84e5daf59f0dd32ed11541f56aef1e5556",
+        "sha256": "d0c5866d6ae5e1d96f512f924227258b22f2044ed5b4cec21d448d9dc3041ece",
         "private": false
       },
       {
         "path": "docs/exports/lemokey-he/iso-review.json",
-        "sha256": "6526f3565244dc3ed6ab5fa9ec7817e1147030f9146e83fa8f03b9ede481535f",
+        "sha256": "ba5241e69f3b16f3fd2b9c573c9169ecb0832d60c3b9fe2a7368e9e2e94a2708",
         "private": false
       },
       {
@@ -6781,7 +6781,7 @@
       },
       {
         "path": "third_party/UniversalAnalogPluginFixed/overlay/Soup/soup/AnalogueKeyboard.cpp",
-        "sha256": "a69b1fa80cc23804ee42e6333566f4c55840921704b21842bc8754a2e873a73b",
+        "sha256": "cb8d241dec9496f707f43addf137cbc39852a3e5f08cd9200aeea5419753fbac",
         "private": false
       },
       {

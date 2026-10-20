@@ -17,6 +17,8 @@ NAMESPACE_SOUP
 		bool disconnected = false;
 		// Immutable after device admission; zero means identity not verified.
 		uint8_t drunkdeer_model = 0;
+		// halljoy::drunkdeer_identity::Tracking, set with drunkdeer_model.
+		uint8_t drunkdeer_tracking = 0;
 		union
 		{
 			struct

@@ -1101,7 +1101,7 @@
     },
     "uap": {
       "path": "third_party/UniversalAnalogPluginFixed/overlay/Soup/soup/AnalogueKeyboard.cpp",
-      "sha256": "a69b1fa80cc23804ee42e6333566f4c55840921704b21842bc8754a2e873a73b"
+      "sha256": "cb8d241dec9496f707f43addf137cbc39852a3e5f08cd9200aeea5419753fbac"
     }
   }
 }

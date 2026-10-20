@@ -1,3 +1,14 @@
+> 2026-10-20 FUN60 Ultra TMR tester log (HallJoy (7).log, 1.6.10): board 2307 on 3151:5030 (not 2352/5029) -> identity_pair_rejected,
+> FamilyCandidate "shared USB identity" notice, no analog. 2307 official class v5 = data-only on stream parent k, defaultMatrix equal
+> to 2352, same geometry object, stock fw 2307 v306 has the RY1B chain. OWNER: build a tester EXE. Done as reviewed USB alias
+> 2307/5030 -> 2352 (like 2304 -> 2600); yellow until a log shows rongyuan.connected for 2307. Checks + build PASS, EXE ca1db3c0
+> (local, not released). See FUN60_ULTRA_2352_2026-10-10.md "Board 2307".
+> 2026-10-20 YouTube comments (no logs). DrunkDeer A75 Ultra: official driver = identity 11/4/4 (type 756) on PID 2383, precision 2,
+> NEW tracking protocol FD 03 01 -> FD 06 frames, 16-bit values, full scale 660 (3.3 mm x 200); A75 Master 11/5/4 same. HallJoy/Soup
+> sends only B6/B7 and divides u8 by 40: wrong scale (full press early) and likely frame failures (communication warning). Also A75
+> fw>=35, A75 Pro fw>=17, A75 ISO fw>=25 run B7 in high precision (0.01 mm units, driver divides by 200): /40 saturates early. OWNER: fix and
+> release 1.6.11 -> implemented in the plugin, see DRUNKDEER_LAYOUTS.md "Tracking formats". FuryCube M68HE: retail name not mapped to a BY UUID; BY 68-key UUIDs exist in the
+> FuryCube web driver, so it likely connects through the generic BY path (yellow "not in the list"); needs a HallJoy.log to confirm.
 > 2026-10-19 PUBLISHED stable/latest 1.6.10: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.10 (commit ed4f256, EXE 440e69f2). See RELEASE_1.6.10_PUBLICATION_2026-10-19.md.
 > 2026-10-19 OWNER: release 1.6.10 with generic SparkLink V2 admission ON (kGenericAdmission=true), busy notice extended to MG75/JingTai,
 > Slice75, Neo65, SteelSeries Apex, RongYuan snapshot; MADE68 Air key lines limited to bound keys (no typing in the log).

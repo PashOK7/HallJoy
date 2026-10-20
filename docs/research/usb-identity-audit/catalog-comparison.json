@@ -245,6 +245,34 @@
           "record": "case\"ry5088_akko_fun60pro_1m_8k\":return new i8(a); class i8 extends k (matrix sha256 5b19444ce95fc4e8654a5a5e7c26f684197376cbbd88fe5c7fc4875523de8ab4)"
         }
       ]
+    },
+    {
+      "board": 2307,
+      "vid": 12625,
+      "pid": 20528,
+      "decision": "approved: FUN60 Ultra TMR revision; official class matrix identical to board 2352, same stream parent, stock firmware v306 RY1B chain; canonical board 2352",
+      "evidence": [
+        {
+          "source": ".local/research/monsgeek-20260922/index.13c08899.js",
+          "sha256": "e88543d0138780139c5c8dbadeac4f3f860d728a5b3d1c39dbb430d494ccb96a",
+          "record": "{id:2307,vid:12625,pid:20528,keyLayout:h.Common61_gk06,name:\"ry5088_fun60max2_8k\",displayName:\"FUN60 Ultra\",type:\"keyboard\",company:\"MonsGeek\",layer:4,fnSysLayer:{win:2,mac:2},lightLayout:ml,magnetism:!0,other:{isSwitchReplaceable:!0,supportedSwitchTypes:[\"高特\",\"磁玉\",\"磁玉pro\",\"磁玉gaming\",\"天王\",\"万磁王\",\"机械轴\"],specialSwitchDisplayName:{高特:\"炫光\"},sleep24:{sleep:{min:0,max:18*60*60},deep:{min:10,max:18*60*60}},sleepBT:{sleep:{min:0,max:18*60*60},deep:{min:10,max:18*60*60}}}}"
+        },
+        {
+          "source": ".local/research/monsgeek-20260922/a0c3a7d8.js",
+          "sha256": "c721ddc06480359ef8bc31908b7a80e724b0883d51e646274ccf47628c1774e6",
+          "record": "case\"ry5088_fun60max2_8k\":return new v5(a); class v5 extends k (matrix sha256 70380b20136d0588a52bafde29e55f477b0a99eeb03752dd5a6bdf77860294c7)"
+        },
+        {
+          "source": ".local/research/monsgeek-firmware-20261010/extract/2307_v306/decompressed.bin",
+          "sha256": "9b5e50c59b6453c634ed7d2db69b2a3dec129f41f604ad5e760d9c5a0c3ddff8",
+          "record": "0x1B flag +0x8F9, producer 0xE170, report-5 sender 0x1187C"
+        },
+        {
+          "source": "tester log HallJoy (7).log 2026-10-20 (not in the repository)",
+          "sha256": "4fa57286faf372bd185ae7347e228a7a5b22b0d636c54eca2fd36347d882b007",
+          "record": "rongyuan.identity_pair_rejected value=2307 detail=0x31515030"
+        }
+      ]
     }
   ]
 }

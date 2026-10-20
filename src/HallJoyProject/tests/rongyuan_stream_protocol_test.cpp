@@ -43,6 +43,8 @@ int main() {
  assert(Decode(fun60->matrix.data()+65*4)==230 && Decode(fun60->matrix.data()+83*4)==228);
  unsigned ultraKeys=0;for(unsigned slot=0;slot<128;++slot)ultraKeys+=Decode(ultra->matrix.data()+slot*4)!=0;
  assert(ultraKeys==61);
+ // FUN60 Ultra TMR board 2307 on 3151:5030 (official class matrix identical to 2352).
+ assert(Find(2307,0x3151,0x5030)==ultra && !Find(2307,0x3151,0x5029) && !Find(2352,0x3151,0x5030));
  assert(!Find(2609,12625,20513)); // Historical board-number collision: YC3123.
  assert(!Find(2368,12625,20528)); // Different old factory map, not an alias.
  unsigned revisions=0;

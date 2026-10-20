@@ -342,11 +342,11 @@ public:
   unsigned VendorId() const {return candidate.attributes.VendorID;}
   unsigned ProductId() const {return candidate.attributes.ProductID;}
   bool Match(const mg::Report& r) {
-    const auto board=mg::Board(r);
-    const bool match=mg::Find(board,candidate.attributes.VendorID,candidate.attributes.ProductID)!=nullptr;
-    if(board && !match) identityRejected=true;
-    if(board && !match && board!=lastRejectedBoard){lastRejectedBoard=board;
-      SupportLog_Event("rongyuan.identity_pair_rejected",board,SupportLog_Data((unsigned(candidate.attributes.VendorID)<<16)|candidate.attributes.ProductID));
+    const auto answered=mg::Board(r);
+    const bool match=mg::Find(answered,candidate.attributes.VendorID,candidate.attributes.ProductID)!=nullptr;
+    if(answered && !match) identityRejected=true;
+    if(answered && !match && answered!=lastRejectedBoard){lastRejectedBoard=answered;
+      SupportLog_Event("rongyuan.identity_pair_rejected",answered,SupportLog_Data((unsigned(candidate.attributes.VendorID)<<16)|candidate.attributes.ProductID));
     }
     return match;
   }

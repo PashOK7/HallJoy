@@ -196,7 +196,7 @@ struct Session {
     }
     // Sends one 0x68 query and logs the raw reply; stream reports read meanwhile
     // are processed normally. Read-only command of the official configurator.
-    void ProbeStatus(const char* phase,const std::uint8_t* positions,unsigned count){
+    void ProbeStatus(const char* stage,const std::uint8_t* positions,unsigned count){
         std::string keys,travel;
         for(unsigned i=0;i<count;++i){keys+=(i?",":"")+std::to_string(positions[i]);travel+=(i?",":"")+std::to_string(lastTravel[positions[i]]);}
         auto r=StatusRequest(positions,count);if(r[1]!=0xaa)return;
@@ -204,7 +204,7 @@ struct Session {
         const bool sent=SendFrame(r,0x68,count*8,0);
         const auto end=GetTickCount64()+450;
         while(sent && !statusSeen && GetTickCount64()<end && !ioBroken && !Stop())Pump();
-        const std::string head="probe status phase="+std::string(phase)+" keys="+keys+" stream_travel="+travel+" sent="+std::to_string(sent);
+        const std::string head="probe status phase="+std::string(stage)+" keys="+keys+" stream_travel="+travel+" sent="+std::to_string(sent);
         if(!statusSeen){Line(head+" reply=none");return;}
         char hex[2*64+1]{};const unsigned n=std::min(64u,8+count*8);
         for(unsigned i=0;i<n;++i)sprintf_s(hex+i*2,3,"%02x",statusReply[i]);
@@ -214,7 +214,7 @@ struct Session {
         std::string slots;
         for(unsigned i=0;i<count;++i){const auto* q=statusReply.data()+8+i*8;
             slots+=(i?" ":"")+std::to_string(positions[i])+":st="+std::to_string(q[0])+":adc="+std::to_string(U16(q+1))+":stroke="+std::to_string(U16(q+3));}
-        Line("probe status_slots phase="+std::string(phase)+" "+slots);
+        Line("probe status_slots phase="+std::string(stage)+" "+slots);
     }
     bool Cleanup(){
         if(!modeAttempted)return true;

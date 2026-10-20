@@ -105,3 +105,45 @@ Enter variants; count assertions now follow the actual filtered catalog.
 Owner check: select Brand **DrunkDeer** in Global settings or Input Overlay;
 test the seven models, including ISO/JIS Enter. This completes this brand's
 implementation batch. Wait for owner feedback before starting another brand.
+
+## Tracking formats: A75 Ultra and high-precision A75 firmware (2026-10-20)
+
+Trigger: YouTube comment (A75 Ultra, no log): full press at about a third of the travel,
+constant instability warning, depth shown in only 2 of 4 onboard profiles. Owner: fix and
+release.
+
+Official Antler driver (`.local/research/layout-import-drunkdeer/index.CJWCGjvj.js`, static
+read, nothing executed):
+- Identity reply `A0 02` (payload offsets): signature bytes 4/5/6, firmware number =
+  `Number(String(payload[8]) + String(payload[7]))`. A75 Ultra = 11/4/4 (type 756), A75 Master
+  = 11/5/4 (757); both use PID 2383 like A75.
+- A75 Ultra and Master run `precision 2` without `oldOpenHighPrecision`: tracking start
+  `FD 03 01`, replies `FD 06 <chunk>` with 30/30/30/30/6 little-endian u16 values, displayed
+  as `a / (3.3 * 200)` (values below 40 zeroed). One request per frame, like `B6`.
+- A75 (11/1/1, 11/4/1) firmware >= 35, A75 Pro (11/4/3) >= 17, A75 ISO (11/4/2) >= 25 run
+  `precision 2` WITH `oldOpenHighPrecision`: same `B6/B7` frames, u8 in 0.01 mm (action point
+  written as mm * 100, sliders max 2 mm), displayed as `w / 200` (values below 2 zeroed).
+- HallJoy/Soup sent only `B6 03 01` and divided every u8 by 40, so both cases were
+  mis-scaled; the Ultra additionally got legacy requests.
+- Ultra key positions (`getA75Ultra`) equal A75 ANSI plus cell 15 (F13); Master positions
+  are shifted (not handled; it stays on the legacy path).
+
+Change (plugin, version-gated by the verified identity; unverified boards unchanged):
+- `halljoy_drunkdeer_identity.h`: `Model::A75Ultra` (appended), `Identity::firmware`,
+  `Tracking {Legacy, HighPrecision, Wide}`, `TrackingMode` (thresholds above), `FullScale`
+  40/200/660, `NoiseFloor` 1/2/40, `Travel`, `TrackingSource` (Ultra -> A75 ANSI map),
+  `WideTrackingRequest`, `WideChunk`, `WideValue`.
+- Soup `AnalogueKeyboard.cpp/.hpp`: `drunkdeer_tracking`; Wide frames read by
+  `halljoy_drunkdeer_wide` (five chunks, duplicate = invalid, at most three unrelated
+  reports skipped); verified B7 maps scale with `Travel(mode, raw)`. Legacy fallback decoder
+  for unverified boards unchanged.
+- `main.cpp`: tracking mode set with the verified model; `nominalRawLevels` 41/201/661 shows
+  the mode in HallJoy.log. Name "DrunkDeer A75 Ultra"; no automatic layout (no Ultra preset).
+- Test `drunkdeer_identity_test.cpp`: Ultra signature, firmware digits, thresholds, scales,
+  FD request and chunk parsing. Dependency lock (Soup overlay hashes), Lemokey review
+  hashes and the research reference record updated.
+
+Not verified on hardware. Risk: if a high-precision A75 / A75 Pro firmware reports B7 in
+0.1 mm after all, those keys would now reach only 20 % depth; the log shows
+`nominalRawLevels=201` for that mode. Profiles question (2 of 4) not explained without a log.
+Backup: `.local/backups/drunkdeer-ultra-20261020/`.

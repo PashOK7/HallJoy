@@ -425,7 +425,11 @@ struct Device
 					const auto& reply = kbd.hid.transactReport(request.data(), request.size(), 100);
 					const auto identity = halljoy::drunkdeer_identity::Parse(reply.data(), reply.size());
 					if (halljoy::drunkdeer_identity::MatchesProduct(identity.model, kbd.hid.product_id))
+					{
 						kbd.drunkdeer_model = static_cast<uint8_t>(identity.model);
+						kbd.drunkdeer_tracking = static_cast<uint8_t>(
+							halljoy::drunkdeer_identity::TrackingMode(identity.model, identity.firmware));
+					}
 					ReleaseMutex(mutex);
 				}
 				CloseHandle(mutex);
@@ -455,7 +459,9 @@ struct Device
 			telemetry_rows = 6;
 			telemetry_columns = 21;
 			telemetry_layout_key_slots = 6u * 21u;
-			telemetry_nominal_levels = 41;
+			// 41 legacy, 201 high-precision B7, 661 A75 Ultra FD frames (visible in HallJoy.log).
+			telemetry_nominal_levels = halljoy::drunkdeer_identity::FullScale(
+				static_cast<halljoy::drunkdeer_identity::Tracking>(kbd.drunkdeer_tracking)) + 1u;
 		}
 		else if (kbd.hid.vendor_id == 0x3434 || kbd.hid.vendor_id == 0x362D ||
 			halljoy_contains_ascii_ci(combined_name, "Keychron") || halljoy_contains_ascii_ci(combined_name, "Lemokey"))

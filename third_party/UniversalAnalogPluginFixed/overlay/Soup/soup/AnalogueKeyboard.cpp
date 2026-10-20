@@ -797,6 +797,70 @@ NAMESPACE_SOUP
 		return keys;
 	}
 
+	// HallJoy: DrunkDeer A75 Ultra tracking, as in the official Antler driver:
+	// FD 03 01 requests one frame of five FD 06 chunks (30/30/30/30/6 u16 values).
+	static void halljoy_drunkdeer_wide(hwHid& hid, bool& disconnected, uint8_t model_value, std::vector<ActiveKey>& keys)
+	{
+		namespace dd = halljoy::drunkdeer_identity;
+		const auto request = dd::WideTrackingRequest();
+		hid.discardStaleReports();
+		if (!hid.sendReport(request.data(), request.size()))
+		{
+			disconnected = true;
+			return;
+		}
+		std::array<uint16_t, 126> combined{};
+		bool seen[dd::kWideChunks]{};
+		size_t received = 0;
+		bool valid = true;
+		// Other vendor replies may interleave; at most three are skipped.
+		for (size_t reads = 0; valid && received < dd::kWideChunks && reads < dd::kWideChunks + 3; ++reads)
+		{
+			const Buffer<>& report = hid.receiveReport();
+			if (report.empty())
+			{
+				valid = false;
+				break;
+			}
+			size_t chunk = 0;
+			if (!dd::WideChunk(report.data(), report.size(), chunk))
+			{
+				continue;
+			}
+			if (seen[chunk])
+			{
+				valid = false;
+				break;
+			}
+			seen[chunk] = true;
+			++received;
+			for (size_t i = 0; i < dd::WideChunkValues(chunk); ++i)
+			{
+				combined[chunk * 30 + i] = static_cast<uint16_t>(dd::WideValue(report.data(), i));
+			}
+		}
+		SOUP_IF_UNLIKELY (!valid || received != dd::kWideChunks)
+		{
+			disconnected = true;
+			return;
+		}
+		const auto* map = dd::TrackingMap(dd::TrackingSource(static_cast<dd::Model>(model_value)));
+		if (!map)
+		{
+			return;
+		}
+		for (size_t i = 0; i < map->size(); ++i)
+		{
+			const auto code = (*map)[i];
+			const float value = dd::Travel(dd::Tracking::Wide, combined[i]);
+			if (!code || value <= 0.0f) continue;
+			const Key key = code == 0x409 ? KEY_FN : code == 0x403 ? KEY_OEM_1
+				: hid_scancode_to_soup_key(static_cast<uint8_t>(code));
+			if (key != KEY_NONE)
+				keys.emplace_back(ActiveKey{key, value});
+		}
+	}
+
 	std::vector<ActiveKey> AnalogueKeyboard::getActiveKeysDrunkdeer()
 	{
 		std::vector<ActiveKey> keys{};
@@ -805,6 +869,16 @@ NAMESPACE_SOUP
 		NamedMutex mtx("DrunkDeerMtx");
 		mtx.lock();
 #endif
+
+		const auto tracking = static_cast<halljoy::drunkdeer_identity::Tracking>(drunkdeer_tracking);
+		if (tracking == halljoy::drunkdeer_identity::Tracking::Wide)
+		{
+			halljoy_drunkdeer_wide(hid, disconnected, drunkdeer_model, keys);
+#if SOUP_WINDOWS
+			mtx.unlock();
+#endif
+			return keys;
+		}
 
 		Buffer buf;
 		buf.append(
@@ -861,16 +935,18 @@ if (combined[i]) \
 }
 
 			const auto model = static_cast<halljoy::drunkdeer_identity::Model>(drunkdeer_model);
-			if (const auto* map = halljoy::drunkdeer_identity::TrackingMap(model))
+			if (const auto* map = halljoy::drunkdeer_identity::TrackingMap(halljoy::drunkdeer_identity::TrackingSource(model)))
 			{
 				for (size_t i = 0; i < map->size(); ++i)
 				{
 					const auto code = (*map)[i];
-					if (!code || !combined[i]) continue;
+					// Scale per firmware tracking mode (legacy 40, high precision 200).
+					const float value = halljoy::drunkdeer_identity::Travel(tracking, static_cast<uint8_t>(combined[i]));
+					if (!code || value <= 0.0f) continue;
 					const Key key = code == 0x409 ? KEY_FN : code == 0x403 ? KEY_OEM_1
 						: hid_scancode_to_soup_key(static_cast<uint8_t>(code));
 					if (key != KEY_NONE)
-						keys.emplace_back(ActiveKey{key, static_cast<float>(combined[i]) / 40.0f});
+						keys.emplace_back(ActiveKey{key, value});
 				}
 			}
 			else

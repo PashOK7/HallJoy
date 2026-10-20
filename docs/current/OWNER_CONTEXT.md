@@ -1,3 +1,4 @@
+> 2026-10-20 PUBLISHED stable/latest 1.6.11: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.11 (commit 28b573b, EXE 793e0949). See RELEASE_1.6.11_PUBLICATION_2026-10-20.md.
 > 2026-10-20 FUN60 Ultra TMR tester log (HallJoy (7).log, 1.6.10): board 2307 on 3151:5030 (not 2352/5029) -> identity_pair_rejected,
 > FamilyCandidate "shared USB identity" notice, no analog. 2307 official class v5 = data-only on stream parent k, defaultMatrix equal
 > to 2352, same geometry object, stock fw 2307 v306 has the RY1B chain. OWNER: build a tester EXE. Done as reviewed USB alias

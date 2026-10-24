@@ -1,0 +1,9 @@
+# Excerpt of a user HallJoy.log (EPOMAKER HE75 V2 TMR), received 2026-10-24 in
+# HallJoy-HE75-TMR-for-developer.zip. Built from 1.6.11.0 with the user's local 3613/5030 profile.
+# Windows enumerates 3151:5030 "HE75 V2 TMR"; the keyboard answers the 0x8F board query with 3613.
+HallJoy 1.6.11.0 support report schema=2 utc=2026-10-24T02:42:08Z bounded_history=512 bounded_state=512 no_keyboard_text=1 raw_hid_payload=0 bound_key_trace=1
+uptime_ms=253155562 hid.candidate vid=3151 pid=5030 interface=00 name="HE75 V2 TMR" metadata_only=1
+uptime_ms=253155562 hid.candidate vid=3151 pid=5030 interface=01 name="HE75 V2 TMR" metadata_only=1
+uptime_ms=253155562 hid.candidate vid=3151 pid=5030 interface=01 name="HE75 V2 TMR" metadata_only=1
+uptime_ms=253157406 rongyuan.connected value=3613 error=0 detail=100 detail_kind=data
+uptime_ms=253515890 native seq=16 index=14 id=rongyuan-stream protocol=22 observation=connected vid=3151 pid=5030 usage_page=FFFF usage=0002 present=1 connected=1 flags=4 transport=unspecified mapped_keys=81 input_bytes=32 output_bytes=0 updates=11461 failures=1 age_ms=15 age_valid=1 lifecycle=running generation=1 lifecycle_error=0 lifecycle_operation=0 native_error=0 access_busy=0

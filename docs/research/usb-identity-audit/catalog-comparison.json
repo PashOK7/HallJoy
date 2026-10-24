@@ -273,6 +273,24 @@
           "record": "rongyuan.identity_pair_rejected value=2307 detail=0x31515030"
         }
       ]
+    },
+    {
+      "board": 3613,
+      "vid": 12625,
+      "pid": 20528,
+      "decision": "approved: EPOMAKER HE75 V2 TMR on 3151:5030; device log shows the keyboard answers board 3613 there while official registries list 5054; canonical board 3613",
+      "evidence": [
+        {
+          "source": "docs/research/usb-identity-audit/he75v2tmr-3613-device-log.txt",
+          "sha256": "df9f2b0193f4214fdab140f860ed8d1d78b07e492d887aa1f94de2c0869cc824",
+          "record": "rongyuan.connected value=3613 on hid.candidate vid=3151 pid=5030 name=\"HE75 V2 TMR\""
+        },
+        {
+          "source": ".local/research/he75v2tmr-official-20261024/gearhub-index.js",
+          "sha256": "cf7abeea31df90574cff4b9b28033ab682608c9b0bb9a39abd7947c4a7933e95",
+          "record": "{id:3613,vid:12625,pid:20564,keyLayout:u.Common82_GK8642_v2,name:\"ry5088_jc_8642_tmr_3m_8k_8k\",displayName:\"HE75 V2 TMR\",type:\"keyboard\",company:\"EPOMAKER\",layer:2,fnSysLayer:{win:1,mac:1},magnetism:!0,lightLayout:v,sideLightLayout:Jt,other:{knobKeyCodes:[\"AudioVolumeDown\",\"AudioVolumeMute\",\"AudioVolumeUp\"],isSwitchReplaceable:!0,supportedSwitchTypes:[\"云玉磁轴\",\"泰山轴\",\"磁玉pro\",\"万磁王\"],sleep24:{sleep:{min:1*60,max:1*60*60}},sleepBT:{sleep:{min:1*60,max:1*60*60},deep:{min:10*60,max:1*60*60}},travelSetting:{travel:{min:.1,max:3.3,step:.01,default:2}}}}"
+        }
+      ]
     }
   ]
 }

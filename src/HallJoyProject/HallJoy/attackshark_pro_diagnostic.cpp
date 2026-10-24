@@ -376,7 +376,11 @@ int Capture(){
   // Only identity rejections (no open failure) count toward the wait for a device change.
   if(identityRejected && !otherFailure && (streamOwned || ++identityPasses>=kIdentityPassesPerTopology)){
    Line("identity_waiting_for_change passes="+std::to_string(identityPasses)+" pid="+std::to_string(devices.front().pid));
-   while(!Stop() && Load(shared->topology)==topology)Sleep(100);
+   // Heartbeat: the parent cancels a silent play child after 8 s, which restarted
+   // the probe (exclusive open + identity exchanges) every ~11 s on a keyboard
+   // the RongYuan stream backend was already reading.
+   auto heartbeat=GetTickCount64();
+   while(!Stop() && Load(shared->topology)==topology){Sleep(100);if(GetTickCount64()-heartbeat>=1000){Line("waiting_for_device");heartbeat=GetTickCount64();}}
    if(Stop())return 4;
    continue;
   }
@@ -384,8 +388,17 @@ int Capture(){
   for(unsigned i=0;i<30 && !Stop();++i)Sleep(100);if(Stop())return 4;
  }
 }
+// An exclusive-open sharing violation counts as a communication anomaly only once
+// the pass shows the keyboard is not HallJoy's own RongYuan stream device: that
+// backend holds the handle, so the violation is HallJoy itself, not another app.
+DWORD g_pendingAccessError=0;
 void ReceiveLine(const std::string& line){
  if(line=="waiting_for_device")return;
+ if(g_pendingAccessError){
+  if(line.rfind("identity_stream_owned ",0)==0)g_pendingAccessError=0;
+  else if(line.rfind("identity_pair_rejected ",0)!=0 && line.rfind("identity_attempt ",0)!=0){
+   halljoy::keyboard_support::ReportCommunicationAccessFailure(17,g_pendingAccessError);g_pendingAccessError=0;}
+ }
  // Keep ordinary reports useful when discovery fails before any analog samples.
  // Only named structural fields are copied; never arbitrary child text/keys.
  auto number=[&](const char* key){auto pos=line.find(key);return pos==std::string::npos?0ull:std::strtoull(line.c_str()+pos+strlen(key),nullptr,10);};
@@ -416,8 +429,8 @@ void ReceiveLine(const std::string& line){
   const auto category=std::string("shark.")+name;
   const auto error=number("error=");
   SupportLog_Event(category.c_str(),1,SupportLog_Win32(error));
-   if(std::strcmp(name,"exclusive_open_failed")==0 && error<=MAXDWORD)
-    halljoy::keyboard_support::ReportCommunicationAccessFailure(17,static_cast<unsigned>(error));
+   if(std::strcmp(name,"exclusive_open_failed")==0 && (error==ERROR_SHARING_VIOLATION || error==ERROR_LOCK_VIOLATION))
+    g_pendingAccessError=static_cast<DWORD>(error);
   break;
  }
  if(line.rfind("status state=",0)==0)SupportLog_Event("shark.state",number("state="));
@@ -505,6 +518,7 @@ static DWORD RunChild(const std::wstring& mode,DWORD budget,bool allowCancelled=
         if(!Delay(parentTimer.h,nullptr,nativeReady?1:20)){SetEvent(cancel.h);parentStop=true;}
     }
     if(!pending.empty())ReceiveLine(pending);
+    if(g_pendingAccessError){halljoy::keyboard_support::ReportCommunicationAccessFailure(17,g_pendingAccessError);g_pendingAccessError=0;}
     DWORD code=100;GetExitCodeProcess(process.h,&code);
     Trace(L"[shark] worker mode=%s exit=%lu forced=%d",mode.c_str(),code,forced?1:0);
     return code;
@@ -548,9 +562,18 @@ void TestOrdinaryFailureLog(){
  Require(SupportLog_Start(directory,directory));
  ReceiveLine("inventory eligible=0 vendor_collections=7 metadata_errors=2 rejected=5 paths_logged=0");
  const auto anomaly=halljoy::keyboard_support::CommunicationAnomalySequence(17);
+ // HallJoy's own RongYuan stream backend holds the keyboard: not an anomaly.
  ReceiveLine("exclusive_open_failed error=32");
+ ReceiveLine("identity_pair_rejected board=2949 pid=20528");
+ ReceiveLine("identity_stream_owned board=2949 pid=20528");
+ Require(halljoy::keyboard_support::CommunicationAnomalySequence(17)==anomaly);
+ // Another program holds it: counted once the pass shows it is not the stream device.
+ ReceiveLine("exclusive_open_failed error=32");
+ Require(halljoy::keyboard_support::CommunicationAnomalySequence(17)==anomaly);
+ ReceiveLine("identity_rejected no_depth_commands=1");
  Require(halljoy::keyboard_support::CommunicationAnomalySequence(17)==anomaly+1);
  ReceiveLine("exclusive_open_failed error=5");
+ ReceiveLine("status state=5");
  Require(halljoy::keyboard_support::CommunicationAnomalySequence(17)==anomaly+1);
  ReceiveLine("identity_attempt delay_ms=10 id=3123 repeated_id=9999 reply_command=143 repeated_command=0 report_id=0");
  ReceiveLine("get_feature_failed error=5");

@@ -66,3 +66,40 @@ The tester plays as usual with this EXE and sends the log after a lag. The press
 lines name the late side: keyboard stream (`down_wait_ms`/`os=1 stream=0`),
 HallJoy reader (`backlog`), Windows/UI (`ui_ms`), or none of them (then the
 lag is after HallJoy's gamepad output). No support status change.
+
+## Log `HallJoy (13).log` (evidence build, wired 3151:5030 board 2949), 2026-10-22
+
+Tester: "even in wired mode it's buggy with 200ms latency sometimes".
+
+- 30 presses: `backlog=0`, `ui_ms=0` (one 15), `down_wait_ms=0`; the gamepad follows the stream in the same tick.
+  `up_wait_ms` 30-121 ms on the early presses is the keyboard's Rapid Trigger (Windows key-up on the first lift
+  while the key is still deep); this is normal RT behaviour, not a delay. The press lines cannot show a 200 ms event.
+- Found: the Attack Shark backend (protocol 17, also VID 3151) re-probed this keyboard every ~11 s. Its child found
+  the board owned by the RongYuan stream (`identity_stream_owned`) and waited for a device change, but it printed
+  nothing while waiting, so the parent's 8 s no-output watchdog cancelled it (`shark.worker_exit value=4`) and the
+  supervisor restarted it 3 s later: 9 probes in 90 s, each an exclusive open (sharing violation 32, held by HallJoy's
+  own RongYuan reader), a shared open and 0x8F identity feature exchanges sent to the keyboard while it streamed.
+  The sharing violation counted as a communication anomaly, so "Keyboard communication is unstable" toggled 6 times.
+  The RongYuan backend itself had `failures=0` and no session end.
+- Effect on the stream: only one probe (1036.906 s) overlapped a press; stream samples continued at the normal
+  15-30 ms spacing through it. One overlap cannot rule out a stall on other probes; the probe is a plausible cause
+  of an occasional lag (feature commands interleaved with the stream) and is removed regardless.
+
+Fix (local): the waiting child sends a 1 s heartbeat (`waiting_for_device`, ignored by the parent log), so one probe
+per device change; an exclusive-open sharing/lock violation is reported as an anomaly only if the pass does not end
+with `identity_stream_owned`. Shark self-test covers both cases. Native checks EXIT=0, build_release EXIT=0,
+EXE SHA256 `958fad4dff4bee203d07dc7048882170c8bfcb498f9b96b2ffa53ef5db1e988a` (local, not released; also contains
+the red unsupported-keyboard banner). Backup `.local/backups/shark-stream-owned-wait-20261022/`.
+
+## Supported (owner, 2026-10-22)
+
+Owner: remove the yellow notice. Board 2949 (3151:5030) moved to `confirmed_devices` of the RongYuanStream
+notice group (token 0xb51adb7f896f227f = layout "MonsGeek M1 V5 TMR ANSI", pid 20528); `supported_layouts.json`
+entry with `shownAs` "M1 V5 HE / TMR" (the picker name of the shared preset); README Supported list and
+SUPPORTED_HARDWARE updated. research_reference_checks --record PASS, native checks EXIT=0, build_release EXIT=0
+(SUPPORT_NOTICE_CATALOG=PASS 286, SUPPORTED_LAYOUTS=PASS 75). Intended Sheet state checked with
+check_supported_layouts / support_notice_catalog / unsupported_keyboard_catalog --sheet: PASS.
+Sheet: Main!C579 MonsGeek / M1 V5 TMR "Implemented; awaiting hardware testing" -> "Supported" (value write), B579:C579
+green pair as Womier SK75 TMR (format write), one revision-guarded batch. Readback A578:C580: value, ONE_OF_LIST and
+colors as intended, neighbours unchanged. EXE SHA256 `f4ff31fc41e8964e939d1c8587130e628c93bf9f59387bcca48646da84a0a5e6`
+(local, not released). Backup `.local/backups/m1v5tmr-supported-20261022/`.

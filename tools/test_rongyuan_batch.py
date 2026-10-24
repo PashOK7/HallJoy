@@ -68,7 +68,9 @@ class CorpusTests(unittest.TestCase):
                  evidence='Regression only; no support claim',range_basis='Synthetic fixture')
         return [m]
     def test_existing_pinned_sources_parse(self):
-        for p in self.c.profiles:
+        # Profiles taken from the RongYuan CN/IOT clients (extract_*.py) carry their
+        # evidence in rongyuan-client-models.json, not a pinned WOMIER chunk.
+        for p in (p for p in self.c.profiles if 'source' in p):
             parent,matrix=b.parse_source((b.ROOT/b.DATA/p['source']).read_bytes())
             self.assertEqual(matrix,p['matrix'])
             self.assertEqual(parent == '60ee4367.js',p['precision_enum'])
@@ -117,7 +119,7 @@ class CorpusTests(unittest.TestCase):
     def test_prepare_apply_in_isolated_directory(self):
         package=self.c.prepare(self.manifest())
         self.assertEqual(len(package['sheet_intent']),1)
-        self.assertIn('ZZ TEST Synthetic fixture',package['edits']['README.md']['after'])
+        self.assertIn('**ZZ TEST:** Synthetic fixture  ',package['edits']['README.md']['after'])
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
             for name,edit in package['edits'].items():

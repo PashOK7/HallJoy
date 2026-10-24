@@ -1,3 +1,50 @@
+> 2026-10-24 EPOMAKER HE75 V2 TMR Supported (user zip with own patches + log; patches NOT applied, our pipeline used): board 3613 from
+> the catalog (3151:5054) + reviewed USB alias 5030 backed by the device log (new alias kind device-log), layout from gearhub (merged
+> preset "HE75 V2 / HE75 V2 TMR"), Sheet C259 green. Gates PASS, EXE 90c89f4a (local). See EPOMAKER_HE75V2TMR_2026-10-24.md.
+> 2026-10-24 Supported: GamaKay TK75 HE V2 board 3167 (tester log 14) and MonsGeek M2 V5 HE board 2845 (user report). M2 V5 HE got a
+> layout from the official MonsGeek web driver (98 keys = factory matrix); the user's .ini lacked Fn and had hand-drawn widths. M2 V5 HE
+> "unstable connection" = the Attack Shark probe already fixed on 2026-10-22. Missing publication denials added for 5 vendor sources.
+> Sheet C331/C581 green (readback OK), gates PASS, EXE 019f349e (local). See MONSGEEK_M2V5HE_2026-10-24.md.
+> 2026-10-23 OWNER: GamaKay TK75 HE V2 added yellow on the RongYuan stream: boards 3138 (UK/ISO, manual layout) and 3167 (US,
+> automatic layout shared with TK75 HE). rongyuan_batch.py fixed for the current README/release-notes format. Layout reports
+> re-pinned, catalog/integrate PASS, gates PASS, EXE 796e0a09 (local). Sheet Main!C331 yellow (readback OK). See GAMAKAY_2026-10-23.md.
+> 2026-10-23 GamaKay: official downloads fetched. TK75 HE V2 = RongYuan boards 3138 (UK/ISO) + 3167 (US) per vendor readmes; both on
+> the known stream parent with matrix in the pinned catalog -> can be added to the RongYuan stream (not done yet). Already yellow: NS68,
+> NS75, TK75 HE, TK75 TMR. TK68 HE: nothing found. TK75 V2/Pro, LK75 mechanical. See GAMAKAY_2026-10-23.md.
+> 2026-10-23 Alumix 104 Yotei FW V1.11 downloaded (red-square reachable again; firmware comes from cp.driveall.cn firmware API,
+> supplier rsq, PID 32940). Static review: no 0x60/0x68 (only 0x64-0x67), reads 0x10-0x1C are flash only (new 0x1C = flash 0xBC00),
+> 55FB stream unchanged and still selected-key only. Nothing new for analog; stays gray. Also found RSQ-20058 (Alumix 68) V1.37.
+> See ALUMIX104_YOTEI_LOG37_2026-09-27.md last section.
+> 2026-10-22 Alumix 104 Yotei: user reports firmware 1.11. Not reviewed: all red-square.org hosts time out through Sota VPN (app.red-square.org
+> resolves to 92.53.96.17). OWNER: Red Square paused for now; VPN exception job was queued and cancelled, Sota list unchanged.
+> 2026-10-22 OWNER: MonsGeek M1 V5 TMR (board 2949) Supported: yellow notice removed (confirmed_devices), supported_layouts
+> (shownAs "M1 V5 HE / TMR"), README/SUPPORTED_HARDWARE, Sheet Main!C579 green (readback OK). Gates PASS, EXE f4ff31fc (local).
+> 2026-10-22 OWNER: Gamepad Tester showed 0.0 Hz for rongyuan-stream (g_avgUs never written). Now every native protocol line shows
+> HallJoy-measured "updates now X Hz, max Y Hz" (0.5 s windows from successfulUpdates; max = p99 of active windows). Change-only
+> streams honestly read 0 Hz "now" while keys are still. Gates PASS, EXE 28914c88 (local; includes Shark fix). See UPDATE_RATE_DISPLAY_2026-10-22.md.
+> 2026-10-22 M1 V5 TMR log (13) (wired, "200ms sometimes"): HallJoy path 0 delay; up_wait = keyboard Rapid Trigger (normal). Found:
+> Attack Shark backend re-probed the RongYuan keyboard every ~11 s (silent wait killed by 8 s watchdog) with opens + 0x8F feature
+> exchanges during streaming; its sharing violation raised the false "communication unstable" warning (6 toggles). Fixed: heartbeat
+> while waiting, no anomaly for HallJoy's own stream device. EXE 958fad4d (local). See MONSGEEK_M1V5_TMR_LAG_2026-10-16.md.
+> 2026-10-22 OWNER: the 4 undetectable red models (ATOM HE68, IO Type 84, Zenblade 65 V2, RT75) stay on the generic banner until
+> a log shows their USB identity; then add them to unsupported_keyboards.json. No guessing by shared PID.
+> 2026-10-22 OWNER: red Sheet rows must say plainly "will not be supported" (not the generic Discord banner). Done (local, not released):
+> catalog docs/development/unsupported_keyboards.json = all 10 red rows (live Sheet read), generated unsupported_keyboard_catalog.h,
+> metadata-only USB detection, red banner "<model>: not supported" + Open log only, no auto log incident. Detected: AK680 V2, AK820 80B1,
+> K70 MAX, TITAN 68 Turbo, RT80. Not detectable (identity shared/unknown): ATOM HE68, IO Type 84, Zenblade 65 V2, RT75; MAD 68 V2 Dual keeps
+> its limited notice. Gates PASS, EXE d5293c1b. See UNSUPPORTED_KEYBOARD_NOTICE_2026-10-22.md.
+> 2026-10-22 User log "message (11).txt" (1.6.11, "Ajazz AK820 Max"): 0C45:80B1 "AK820MAX" = the red Sonix revision; not admitted
+> (Ak820Admitted=false), no analog, banner shown as designed. No new firmware evidence; no change. See AJAZZ_AK820MAX_SONIX_80B1_2026-10-08.md.
+> 2026-10-21 RongYuan stream batch (local, not released): (1) FUN60 Ultra TMR 2307 keys stuck slightly pressed after multi-key release:
+> firmware 2307 v306 sends the below-20-units zero report once; a lost report is never repeated but the RAM table (read by E5 FE) holds 0.
+> Fix: reconciler reads E5 FE pages of non-zero unconfirmed keys, reader applies only if no newer stream sample (no timers, no OS keys).
+> (2) IROK Mars68 Pro = board 2438 on 3151:5029 (CN client class ZEa data-only on stream parent Epa, like 2352): admitted yellow, auto
+> 68-key layout. (3) Womier SK75 TMR Supported (user report via owner): layout ry_layout_2518 from client geometry; 3804 (Europe) no layout.
+> Also 2026-10-20 A75 Ultra Travel-bit write confirmed by tester (all profiles). See RONGYUAN_MARS68_SK75_FUN60_2026-10-21.md.
+> 2026-10-20 DrunkDeer A75 Ultra tester log (1.6.11, fw v121): keyboard is 19F5:FB3E (NuPhy VID), so the 1.6.11 352D fix did not apply;
+> tester: same as before. Cause in all versions: Soup NuPhy A0 reader took bytes 4..5 (800 scale) and disconnected on values >800 ->
+> UAP host restarts 0xE0484944 (17+), instability warning. Official 19F5 driver (drunkdeer.keybord.net.cn): travel = BE bytes 6..7,
+> 0.01 mm, 400 = 4.00 mm. Fixed for FB3E/FB5E/FB5C/FB63/FB50/FB42/FB7B (clamp, no disconnect). See DRUNKDEER_LAYOUTS.md "Correction".
 > 2026-10-20 PUBLISHED stable/latest 1.6.11: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.11 (commit 28b573b, EXE 793e0949). See RELEASE_1.6.11_PUBLICATION_2026-10-20.md.
 > 2026-10-20 FUN60 Ultra TMR tester log (HallJoy (7).log, 1.6.10): board 2307 on 3151:5030 (not 2352/5029) -> identity_pair_rejected,
 > FamilyCandidate "shared USB identity" notice, no analog. 2307 official class v5 = data-only on stream parent k, defaultMatrix equal

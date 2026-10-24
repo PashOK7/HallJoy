@@ -48,6 +48,9 @@ int main() {
     assert(TrackingSource(Model::A75Ultra)==Model::A75Ansi && TrackingSource(Model::G65)==Model::G65);
     assert(TrackingMap(TrackingSource(Model::A75Ultra))==&kA75Ansi && !TrackingMap(Model::A75Ultra));
     assert(!halljoy::layout_selection::MatchDrunkDeer(0x352d,0x2383,6,21,true,Name(Model::A75Ultra)));
+    // A75 Ultra on 19F5:FB3E (K75 layout) selects the identical built-in A75 ANSI preset.
+    assert(std::wstring_view(halljoy::layout_selection::MatchDrunkDeer(0x19F5,0xFB3E,0,0,false,"A75Ultra"))==L"DrunkDeer A75 ANSI");
+    assert(!halljoy::layout_selection::MatchDrunkDeer(0x19F5,0xFB5E,0,0,false,"A75"));
     // Firmware number = digits of payload[8] then payload[7] (native r[9], r[8]).
     for(auto entry : {std::array<unsigned,3>{3,5,35},{1,7,17},{0,35,35},{1,12,112},{0,0,0},{2,0,20}}) {
         report[9]=entry[0];report[8]=entry[1];
@@ -79,6 +82,21 @@ int main() {
     frame[3]=0;frame[2]=8;assert(!WideChunk(frame.data(),64,out));
     frame[2]=6;frame[1]=0xB7;assert(!WideChunk(frame.data(),64,out));
     frame[4]=0x94;frame[5]=0x02;assert(WideValue(frame.data(),0)==660);
+    // DrunkDeer boards on the NuPhy VID: travel in A0 bytes 6..7 (0.01 mm, 400 = 4.00 mm).
+    for(unsigned pid : {0xFB3Eu,0xFB5Eu,0xFB5Cu,0xFB63u,0xFB50u,0xFB42u,0xFB7Bu})
+        assert(IsNuphyPlatformBoard(0x19F5,static_cast<std::uint16_t>(pid)) && !IsNuphyPlatformBoard(0x352D,static_cast<std::uint16_t>(pid)));
+    assert(!IsNuphyPlatformBoard(0x19F5,0x6120) && !IsNuphyPlatformBoard(0x19F5,0xFEE0) && !IsNuphyPlatformBoard(0x19F5,0xAF12));
+    std::array<std::uint8_t,8> a0{0xA0,16,0,0x1A,0x09,0x60,0x00,0xC8};
+    assert(NuphyPlatformTravel(a0.data())==200);
+    a0[6]=0x01;a0[7]=0x90;assert(NuphyPlatformTravel(a0.data())==400);
+    a0[6]=0x09;a0[7]=0x60;assert(NuphyPlatformTravel(a0.data())==kNuphyPlatformFullScale);
+    // A0 key records (driver K types) versus replies to the vendor's 0xA0 command.
+    assert(IsNuphyPlatformKeyType(16) && IsNuphyPlatformKeyType(240) && IsNuphyPlatformKeyType(224));
+    assert(!IsNuphyPlatformKeyType(0) && !IsNuphyPlatformKeyType(148) && !IsNuphyPlatformKeyType(0x55));
+    // Physical key as the official driver's K(): HID, modifier mask, Fn1, Fn2 (both forms).
+    assert(NuphyPlatformKey(16,0,0x1A)==0x1A && NuphyPlatformKey(16,1,0)==224 && NuphyPlatformKey(16,64,0)==230);
+    assert(NuphyPlatformKey(240,255,1)==0x409 && NuphyPlatformKey(240,255,2)==0x403);
+    assert(NuphyPlatformKey(224,0,0x2C)==0x403 && NuphyPlatformKey(224,1,0x2C)==0 && NuphyPlatformKey(148,0,4)==0);
     assert(kG60[21]==41 && kG60[0]==0);
     assert(kG65[35]==76 && kG65[36]==0 && kG65[119]==79);
     assert(kA75Iso[75]==50 && kA75Iso[85]==100 && kA75Iso[55]==0);

@@ -234,31 +234,35 @@ class Corpus:
         put(path, encoded(catalog))
         from support_notice_catalog import render
         put(APP / 'support_notice_catalog.h', render(catalog).encode())
+        # README lists models per brand as "**Brand:** A, B  " lines under
+        # "### Experimental support"; the block ends at the first blank line.
         path = Path('README.md');text = content(path)
-        start = text.index('|---|\n', text.index('### Experimental support')) + len('|---|\n')
-        end = text.index('\n\n', start);lines = text[start:end].splitlines()
+        start = text.index('\n**', text.index('### Experimental support')) + 1
+        end = text.index('\n\n', start);lines = text[start:end].split('\n')
         for brand in sorted({b for b,_ in new}, key=str.casefold):
-            labels = [brand + ' ' + m for b,m in new if b == brand]
-            matches = [i for i,line in enumerate(lines) if line.startswith('| ' + brand + ' ')]
+            labels = [m for b,m in new if b == brand]
+            prefix = '**' + brand + ':** '
+            matches = [i for i,line in enumerate(lines) if line.startswith(prefix)]
             if len(matches) > 1:
                 raise ValueError('ambiguous README brand')
             if matches:
                 i = matches[0]
-                combined = lines[i][2:-2].split(', ') + labels
-                lines[i] = '| ' + ', '.join(sorted(set(combined), key=str.casefold)) + ' |'
+                combined = lines[i][len(prefix):].rstrip().split(', ') + labels
+                lines[i] = prefix + ', '.join(sorted(set(combined), key=str.casefold)) + '  '
             else:
-                lines.append('| ' + ', '.join(labels) + ' |')
-        lines.sort(key=str.casefold)
+                lines.append(prefix + ', '.join(sorted(labels, key=str.casefold)) + '  ')
+        lines.sort(key=lambda line: line[2:line.index(':**')].casefold())
         put(path, (text[:start] + '\n'.join(lines) + text[end:]).encode())
         path = Path('docs/SUPPORTED_HARDWARE.md')
         table = '\n'.join('| '+p['brand']+' | '+p['model']+' | '+str(p['board'])+' | '+p['note']+' |' for p,_,_ in selected)
         put(path, (content(path) + '\n\n## Local reviewed RongYuan batch\n\nWired USB; experimental, no hardware-test claim.\n\n| Brand | Model | Board | Evidence and normalization |\n|---|---|---|---|\n' + table + '\n').encode())
+        # tools/release.py resets this file to its heading after every release.
         path = Path('docs/releases/RELEASE_NOTES_NEXT.md');text = content(path)
-        marker = 'These changes are local and are not part of the published 1.6.2 release.'
-        if text.count(marker) != 1:
-            raise ValueError('release-note anchor changed')
-        bullet = '- Added experimental USB analog support for ' + ', '.join(b+' '+m for b,m in models) + '.\n\n'
-        put(path, text.replace(marker, bullet + marker).encode())
+        if not text.startswith('# Next release'):
+            raise ValueError('release-note heading changed')
+        bullet = '- Added experimental USB analog support for ' + ', '.join(b+' '+m for b,m in models) + '.\n'
+        body = text.rstrip('\n') + '\n'
+        put(path, (body + ('\n' if body.count('\n') == 1 else '') + bullet).encode())
         for path, before in snapshots.items():
             current = (self.root / path).read_bytes() if (self.root / path).exists() else None
             if current != before:

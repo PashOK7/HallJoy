@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'docs/research/epomaker-layouts'
 MAIN = 'index.ad43be22.js'
 BOARDS = {3664: 'ISO', 2520: 'ANSI', 3691: 'ANSI', 3692: 'ANSI',
-          3518: 'ANSI', 3365: 'ANSI', 3703: 'JIS'}
+          3518: 'ANSI', 3613: 'ANSI', 3365: 'ANSI', 3703: 'JIS'}
 # OEM IntlRo is the non-US key beside Enter, NOT the Japanese Ro key.
 # Its source legend/position and factory HID50 agree on both ISO and JIS.
 REGIONAL = {'IntlBackslash': ('\\', 100), 'IntlRo': ('#', 50),

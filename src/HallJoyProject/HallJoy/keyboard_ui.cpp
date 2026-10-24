@@ -363,18 +363,24 @@ void KeyboardUI_OnTimerTick(HWND)
     if(analogSourceConnected || (frozenModels & ~halljoy::keyboard_support::FamilyCandidate))
         frozenModels &= ~halljoy::keyboard_support::FamilyCandidate;
     if(!searchCompleted) frozenModels=0;
+    // A red-row keyboard (HallJoy will not support it) explains a missing analog
+    // source; with a working source it is not mentioned.
+    const unsigned unsupportedModel = searchCompleted && !analogSourceConnected ? NativeLayoutDevices_QueryUnsupported() : 0;
     const auto previousObservation = halljoy::keyboard_support::GetStatusSnapshot();
     if (searchCompleted != previousObservation.searchCompleted ||
         publishedAnalogSourceConnected != previousObservation.analogSourceConnected ||
         frozenModels != previousObservation.frozenModels ||
-        communicationWarning != previousObservation.communicationWarning)
+        communicationWarning != previousObservation.communicationWarning ||
+        unsupportedModel != previousObservation.unsupportedModel)
     {
         if ((frozenModels & halljoy::keyboard_support::Alumix104Research) !=
             (previousObservation.frozenModels & halljoy::keyboard_support::Alumix104Research))
             SupportLog_Event("support.alumix104_research", (frozenModels & halljoy::keyboard_support::Alumix104Research) ? 1 : 0);
         if(communicationWarning!=previousObservation.communicationWarning)
             SupportLog_Event("keyboard.communication_warning",communicationWarning?1:0);
-        halljoy::keyboard_support::SetSearchObservation(searchCompleted, analogSourceConnected, frozenModels, communicationWarning);
+        if(unsupportedModel!=previousObservation.unsupportedModel)
+            SupportLog_Event("support.unsupported_keyboard",unsupportedModel);
+        halljoy::keyboard_support::SetSearchObservation(searchCompleted, analogSourceConnected, frozenModels, communicationWarning, unsupportedModel);
         if (g_hSubTab)
         {
             HWND hMainPage = GetParent(g_hSubTab);

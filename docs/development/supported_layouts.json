@@ -126,6 +126,13 @@
    ]
   },
   {
+   "brand": "EPOMAKER",
+   "model": "HE75 V2 TMR",
+   "presets": [
+    "EPOMAKER HE75 V2 TMR ANSI"
+   ]
+  },
+  {
    "brand": "Everglide",
    "model": "SU75 Pro",
    "presets": [
@@ -383,6 +390,28 @@
    ]
   },
   {
+   "brand": "GamaKay",
+   "model": "TK75 HE V2",
+   "presets": [
+    "GamaKay TK75 HE + TK75 HE V2 ANSI"
+   ]
+  },
+  {
+   "brand": "MonsGeek",
+   "model": "M1 V5 TMR",
+   "shownAs": "M1 V5 HE / TMR",
+   "presets": [
+    "MonsGeek M1 V5 TMR ANSI"
+   ]
+  },
+  {
+   "brand": "MonsGeek",
+   "model": "M2 V5 HE",
+   "presets": [
+    "MonsGeek M2 V5 HE ANSI"
+   ]
+  },
+  {
    "brand": "NuPhy",
    "model": "Air60 HE",
    "presets": [
@@ -480,6 +509,13 @@
    "model": "Ying75",
    "presets": [
     "WLMOUSE Ying75 ANSI"
+   ]
+  },
+  {
+   "brand": "Womier",
+   "model": "SK75 TMR",
+   "presets": [
+    "Womier SK75 TMR ANSI"
    ]
   },
   {

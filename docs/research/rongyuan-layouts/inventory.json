@@ -77,6 +77,20 @@
       "reason": "plain key-mapping SVG absent or ambiguous"
     },
     {
+      "board": 2352,
+      "brand": "MonsGeek",
+      "model": "FUN60 Ultra TMR",
+      "product": "RY1B-2352",
+      "reason": "exact USB/board registry entry absent"
+    },
+    {
+      "board": 2438,
+      "brand": "IROK",
+      "model": "Mars68 Pro",
+      "product": "RY1B-2438",
+      "reason": "exact USB/board registry entry absent"
+    },
+    {
       "board": 2785,
       "brand": "MonsGeek",
       "model": "FUN60 Pro",
@@ -165,7 +179,7 @@
       "brand": "MonsGeek",
       "model": "M2 V5 HE",
       "product": "RY1B-2845",
-      "reason": "plain key-mapping SVG absent or ambiguous"
+      "reason": "existing exact automatic preset"
     },
     {
       "board": 2874,
@@ -186,14 +200,14 @@
       "brand": "EPOMAKER",
       "model": "HE68 Lite",
       "product": "RY1B-3664",
-      "reason": "plain key-mapping SVG absent or ambiguous"
+      "reason": "existing exact automatic preset"
     },
     {
       "board": 2520,
       "brand": "EPOMAKER",
       "model": "HE75 Mag",
       "product": "RY1B-2520",
-      "reason": "plain key-mapping SVG absent or ambiguous"
+      "reason": "existing exact automatic preset"
     },
     {
       "board": 2808,
@@ -235,21 +249,21 @@
       "brand": "EPOMAKER",
       "model": "HE60 Wired",
       "product": "RY1B-3691",
-      "reason": "plain key-mapping SVG absent or ambiguous"
+      "reason": "existing exact automatic preset"
     },
     {
       "board": 3692,
       "brand": "EPOMAKER",
       "model": "HE60 Wireless",
       "product": "RY1B-3692",
-      "reason": "plain key-mapping SVG absent or ambiguous"
+      "reason": "existing exact automatic preset"
     },
     {
       "board": 3518,
       "brand": "EPOMAKER",
       "model": "HE75 V2",
       "product": "RY1B-3518",
-      "reason": "plain key-mapping SVG absent or ambiguous"
+      "reason": "existing exact automatic preset"
     },
     {
       "board": 2515,
@@ -312,7 +326,7 @@
       "brand": "EPOMAKER",
       "model": "HE108",
       "product": "RY1B-3365",
-      "reason": "plain key-mapping SVG absent or ambiguous"
+      "reason": "existing exact automatic preset"
     },
     {
       "board": 2669,
@@ -1145,7 +1159,7 @@
       "brand": "EPOMAKER",
       "model": "G84 HE JIS",
       "product": "RY1B-3703",
-      "reason": "plain key-mapping SVG absent or ambiguous"
+      "reason": "existing exact automatic preset"
     },
     {
       "board": 2601,
@@ -1411,6 +1425,20 @@
       "brand": "Game Arena",
       "model": "GKX68 MAGNUM",
       "product": "RY1B-2790",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3138,
+      "brand": "GamaKay",
+      "model": "TK75 HE V2",
+      "product": "RY1B-3138",
+      "reason": "plain key-mapping SVG absent or ambiguous"
+    },
+    {
+      "board": 3613,
+      "brand": "EPOMAKER",
+      "model": "HE75 V2 TMR",
+      "product": "RY1B-3613",
       "reason": "plain key-mapping SVG absent or ambiguous"
     }
   ]

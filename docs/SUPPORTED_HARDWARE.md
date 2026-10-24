@@ -13,6 +13,11 @@
 
 > 2026-09-27 limited implementation retained: **MADLIONS MAD 68 V2 Dual — Analog available; low quality** (red). Tester confirms usable analog and loss of ordinary typing. Stock firmware also suppresses shallow input and delays small changes. Included in the ordinary local build, outside supported/experimental lists; warning alone does not force logging. [Details](current/MAD68_V2_DUAL_REVIEW_2026-09-27.md).
 
+> 2026-10-24: EPOMAKER HE75 V2 TMR (board 3613, USB) is Supported: a user's keyboard (3151:5030, firmware ID3613_V409) works in game (log and report). Official registries list the board on 3151:5054; 5030 is admitted as a reviewed USB alias backed by the device log. Automatic layout "EPOMAKER HE75 V2 TMR ANSI" (81 keys, gearhub geometry shared with HE75 V2). [Details](current/EPOMAKER_HE75V2TMR_2026-10-24.md)
+> 2026-10-24: GamaKay TK75 HE V2 board 3167 (US, 3151:5030, USB) is Supported: the tester's log shows board 3167 connected and the tester reports it works. Automatic layout "GamaKay TK75 HE + TK75 HE V2 ANSI". Board 3138 (UK/ISO) stays experimental (no tester, manual layout). [Details](current/GAMAKAY_2026-10-23.md)
+> 2026-10-24: MonsGeek M2 V5 HE (board 2845, 3151:5030, USB) is Supported: a user reports it works. New automatic layout "MonsGeek M2 V5 HE ANSI" (98 keys) from the official MonsGeek web driver geometry; key set equals the factory matrix. [Details](current/MONSGEEK_M2V5HE_2026-10-24.md)
+> 2026-10-22: MonsGeek M1 V5 TMR (board 2949, 3151:5030, USB) is Supported: owner decision after the tester's logs (2026-10-16 and 2026-10-22: stream, bindings and gamepad output working; an extra Attack Shark probe of this keyboard was removed). Built-in automatic layout "MonsGeek M1 V5 TMR ANSI". [Details](current/MONSGEEK_M1V5_TMR_LAG_2026-10-16.md)
+> 2026-10-21: Womier SK75 TMR (board 2518, 3151:5030, USB) is Supported: a user reports it works perfectly (relayed by the owner). Built-in automatic layout "Womier SK75 TMR ANSI" (81 keys, RongYuan client geometry). Board 3804 (Europe revision, RAlt instead of RCtrl) has no source geometry: it streams the same way but keeps the testing notice and manual layout. IROK Mars68 Pro (board 2438, 3151:5029) is newly implemented on the RongYuan stream (client class on the same stream parent as FUN60 Ultra TMR), automatic 68-key layout, testing notice; awaiting a tester log. [Details](current/RONGYUAN_MARS68_SK75_FUN60_2026-10-21.md)
 > 2026-10-11: MonsGeek FUN60 Ultra TMR (board 2352, 3151:5029, USB) is Supported: the tester's keyboard streams analog through the RongYuan stream path (61 keys, automatic layout). Full-travel scale stays 4 mm for hot-swapped 4 mm switches; with 3.5 mm switches the user sets the end deadzone. [Details](current/FUN60_ULTRA_2352_2026-10-10.md).
 > 2026-09-26 (1.6.4): EPOMAKER HE108 (USB) is Supported following tester confirmation relayed by the owner. This supersedes its historical experimental entries below. Seven additional EPOMAKER layout presets; HE68 Mag geometry remains unresolved. [Details](current/EPOMAKER_HE108_2026-09-26.md).
 
@@ -85,7 +90,7 @@ are implemented. No physical testing of these models is claimed.
 | Akko | TAC75 HE | 2782 |
 | GamaKay | TK75 TMR | 3590 ANSI, 3591 ISO |
 | Keydous | NJ80-CP V3 HE, NJ81-CP V3 HE, NJ98-CP V4 HE | 3466, 3459, 3496 respectively |
-| MonsGeek | FUN60 Pro, M1 V5 TMR | 2600/2785/2304; 2949 respectively |
+| MonsGeek | FUN60 Pro | 2600/2785/2304 |
 | Womier | SK75 TMR | 2518, 3804 |
 | YUNZII | RT75 Pro | 2865, 3100, 2445, 3755 |
 
@@ -95,7 +100,7 @@ Second local batch (same enabled stream, distinct factory maps):
 |---|---|---|
 | Akko | MOD 007 V5 HE; Ray68 HE | 2453; 2743/2924 |
 | GamaKay | NS68; TK75 HE | 2572/2638; 2334/2501 |
-| MonsGeek | FUN68 HE; M2 V5 HE; M3 V5 HE | 2811; 2845; 2874 |
+| MonsGeek | FUN68 HE; M3 V5 HE | 2811; 2874 |
 | Womier | M68 HE Pro | 3719 |
 
 These eight additions use manual layouts/factory-position bindings. They retain
@@ -689,3 +694,24 @@ notices for remaining physical range/noise validation. Original1610 remains
 Supported with no yellow notice. No automatic visual layout added.
 Mini, TKL2023, TKL Gen3 and Wireless are not aliases and remain unadmitted.
 See current/STEELSERIES_FAMILY_REVIEW_2026-09-25.md for firmware evidence.
+
+
+## Local reviewed RongYuan batch
+
+Wired USB; experimental, no hardware-test claim.
+
+| Brand | Model | Board | Evidence and normalization |
+|---|---|---|---|
+| GamaKay | TK75 HE V2 | 3138 | GamaKay official TK75HEV2 US 1.29 package is ID3167 RY5088_JK_TK75V5 split from ID3138 (UK) per vendor readme; ISO package history matches 3138 (gamakay.com/pages/downloads 2026-10-23); 4mm provisional full travel as the other GamaKay TK75 boards; no hardware test. Wired USB only |
+| GamaKay | TK75 HE V2 | 3167 | GamaKay official TK75HEV2 US 1.29 package is ID3167 RY5088_JK_TK75V5 split from ID3138 (UK) per vendor readme; ISO package history matches 3138 (gamakay.com/pages/downloads 2026-10-23); 4mm provisional full travel as the other GamaKay TK75 boards; no hardware test. Wired USB only |
+
+TK75 HE V2: board 3167 (US) uses the automatic layout shared with TK75 HE ("GamaKay TK75 HE + TK75 HE V2 ANSI", same client geometry); board 3138 (UK/ISO) has no plain ANSI geometry in the client and uses a manual layout. [Details](current/GAMAKAY_2026-10-23.md)
+
+
+## Local reviewed RongYuan batch
+
+Wired USB; experimental, no hardware-test claim.
+
+| Brand | Model | Board | Evidence and normalization |
+|---|---|---|---|
+| EPOMAKER | HE75 V2 TMR | 3613 | EPOMAKER gearhub registry (gearhub.top/v4/js/index.91333ef6.js, 2026-10-24) lists id 3613 ry5088_jc_8642_tmr_3m_8k_8k displayName HE75 V2 TMR, keyLayout Common82_GK8642_v2 (same as HE75 V2 3518); 3.5mm provisional full travel like HE75 V2 (same board family); user log shows units 100/mm; no range measurement. Wired USB only |

@@ -6,6 +6,7 @@
 #include "settings.h"
 #include "backend.h"
 #include "keyboard_support_status.h"
+#include "unsupported_keyboard_catalog.h"
 #include "engine_runtime_owner.h"
 #include "version.h"
 #include "app_paths.h"
@@ -156,10 +157,11 @@ void Snapshot() {
     const auto support = halljoy::keyboard_support::GetStatusSnapshot();
     // Fresh evidence and cached UI observation are deliberately separate.
     const char* source=t.deviceCount>0?"connected":t.nativeTelemetryComplete?"none_reported":"unknown";
-    sprintf_s(line, "snapshot.begin seq=%llu schema=2 engine=%u engine_error=%u search_complete_cached=%d source=%s ui_connected_cached=%d sdk_initialised=%d sources=%d sdk_sources=%u native_sources=%u analog_error=%d full_buffer_result=%d ui_notices=%08X ui_communication_warning=%d",
+    sprintf_s(line, "snapshot.begin seq=%llu schema=2 engine=%u engine_error=%u search_complete_cached=%d source=%s ui_connected_cached=%d sdk_initialised=%d sources=%d sdk_sources=%u native_sources=%u analog_error=%d full_buffer_result=%d ui_notices=%08X ui_communication_warning=%d ui_unsupported=%u ui_unsupported_model=\"%ls\"",
         seq,unsigned(engine.state),engine.lastNativeError,support.searchCompleted,source,support.analogSourceConnected,
         t.sdkInitialised,t.deviceCount,t.sdkDeviceCount,t.nativeConnectedCount,t.lastAnalogError,t.fullBufferRet,
-        support.frozenModels,support.communicationWarning);
+        support.frozenModels,support.communicationWarning,support.unsupportedModel,
+        support.unsupportedModel ? halljoy::keyboard_support::UnsupportedName(support.unsupportedModel) : L"");
     Enqueue(line);
     sprintf_s(line,"diagnostics.coverage seq=%llu catalog=%u visited=%u rows=%d unavailable=%u complete=%d sampling=per_provider_not_atomic",
         seq,t.nativeCatalogCount,t.nativeVisitedCount,t.nativeProtocolCount,t.nativeTelemetryFailures,t.nativeTelemetryComplete);

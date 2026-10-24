@@ -69,8 +69,9 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 **ATTACK SHARK:** R85 HE (USB), X65 Pro  
 **AULA:** WIN 60 HE MAX, WIN 60 HE, WIN 68 HE, KP-TE153, MINI 60 HE (USB), MINI 60 HE Pro, MINI 60 HE MAX (USB)  
 **DrunkDeer:** A75, A75 Pro, G60, G65, G75  
-**EPOMAKER:** HE108 (USB)  
+**EPOMAKER:** HE108 (USB), HE75 V2 TMR (USB)  
 **Everglide:** SU75 Pro  
+**GamaKay:** TK75 HE V2 (USB)  
 **GravaStar:** Mercury V75  
 **IPI:** QBZ75, Aurora 75  
 **IROK:** MG75 Max, NA87  
@@ -78,7 +79,7 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 **Lemokey:** P1 HE  
 **MADLIONS:** MAD 68 Pro R, MAD60HE, MAD68 HE V2 Flagship, MAD68HE, MAD68R  
 **MCHOSE:** Ace 68 Air III, Jet 75 II, Mix 87 III  
-**MonsGeek:** FUN60 Ultra TMR (USB)  
+**MonsGeek:** FUN60 Ultra TMR (USB), M1 V5 TMR (USB), M2 V5 HE (USB)  
 **NuPhy:** Air60 HE, Air75 HE, Field75 HE  
 **Razer:** Huntsman V2 Analog, Huntsman Mini Analog, Huntsman V3 Pro, Huntsman V3 Pro Mini, Huntsman V3 Pro Tenkeyless  
 **Redragon:** K673RGB-M  
@@ -86,6 +87,7 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 **SayoDevice:** O3C  
 **SteelSeries:** Apex Pro  
 **WLMOUSE:** Ying75  
+**Womier:** SK75 TMR (USB)  
 **Wooting:** 60HE, 60HE+, 60HE v2 (including Split), 80HE, 80HE+ (including Split), One, Two, Two HE, UwU, UwU RGB
 
 ### Experimental support
@@ -124,7 +126,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **Fury:** Kanabo K6  
 **FuryCube:** M35HE (generic BY/IPI support)  
 **G TUNE:** GMK82  
-**GamaKay:** NS68, NS75, TK75 HE, TK75 TMR  
+**GamaKay:** NS68, NS75, TK75 HE, TK75 HE V2 (UK/ISO board 3138), TK75 TMR  
 **Game Arena:** GKX68 MAGNUM  
 **GAMEBOOSTER:** RAPID HE  
 **GAMEPOWER:** Nexa HE60 1K, Tirus HE80  
@@ -136,7 +138,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **IDEEZ:** SWIFT X85  
 **IDJ:** H60HE  
 **IPI:** AURORA65, AURORA65W, Aurora75 PRO, flash68, QBZ65, RAIN65  
-**IROK:** Mars75, Mars75 Pro, Mercury68, Mercury68 Max, Mercury68 Pro, Mercury68 SE (JingTai V2), MG68 Plus, MG75 Pro, NA87 Pro, ND63, ND63 Ultra, ND68 Pro, RA68  
+**IROK:** Mars68 Pro, Mars75, Mars75 Pro, Mercury68, Mercury68 Max, Mercury68 Pro, Mercury68 SE (JingTai V2), MG68 Plus, MG75 Pro, NA87 Pro, ND63, ND63 Ultra, ND68 Pro, RA68  
 **IYX:** MU68 Pro  
 **JEDEL:** KL166  
 **JINGSU:** KA67, KB98, KCC04A, KE87  
@@ -155,7 +157,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **MEETION:** Magic A68, Magic A75  
 **MelGeek:** MADE68 Air  
 **MICROPACK:** K-68M  
-**MonsGeek:** FUN60 Pro, FUN68 HE, FUN75, M1 V5 HE, M1 V5 TMR, M2 V5 HE, M3 V5 HE  
+**MonsGeek:** FUN60 Pro, FUN68 HE, FUN75, M1 V5 HE, M3 V5 HE  
 **MSI:** STRIKE 700 HE  
 **Neo:** Neo65 Sonic HE+ (ANSI / ISO)  
 **Ninjadog:** Varna Atlas  
@@ -183,7 +185,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **URX:** Core68 HE  
 **Valkyrie:** VK 99 Gaming (Naruto), VK Mag68, VK Mag68 Max, VK Mag75, VK Mag75 Lite, VK Mag75 Max, VK Mag75 Pro, VK NB68, VK NB68 Max  
 **Veekos:** Shine60 HE  
-**Womier:** M68 HE Pro, SK61 HE, SK75 TMR  
+**Womier:** M68 HE Pro, SK61 HE  
 **XINMENG:** Beat65, Beat68, Beat75, X87 TMR, X98 V3 (magnetic version), Zero 68  
 **YUNZII:** RT75 Pro
 

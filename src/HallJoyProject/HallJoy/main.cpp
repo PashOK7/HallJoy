@@ -6,6 +6,7 @@
 #include "support_log.h"
 #include "irok_na87_diagnostic.h"
 #include "aula_mini60_diagnostic.h"
+#include "drunkdeer_nuphy_probe.h"
 #include "redsquare_code_probe.h"
 #include "aula_hero84he_backend.h"
 #include "attackshark_pro_diagnostic.h"
@@ -429,6 +430,7 @@ int WINAPI wWinMain(
     }
     SharkDiagnostic_Stop();
     Mini60Diagnostic_Stop();
+    DrunkDeerNuphyProbe_Stop();
     Na87Diagnostic_Stop();
     StabilityTrace_Write(L"INFO", L"main", L"final_shutdown.begin");
     {

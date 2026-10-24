@@ -44,11 +44,36 @@ def check_app_evidence(m, key):
             fragment = bytes.fromhex(entry[field+'_hex'])
             assert raw[entry[field+'_offset']:entry[field+'_offset']+len(fragment)] == fragment, (key, field)
     assert header_row(m, matrix) in header, key
+def check_client_evidence(m, key):
+    """Profiles admitted from the RongYuan CN desktop client class chain
+    (tools/extract_rongyuan_irok_mars68pro_2438.py): a data-only Babel class on the stream
+    parent Epa, the parent of the tester-confirmed FUN60 Ultra TMR 2352 client class. The
+    client source is re-checked whenever the local copy is present."""
+    evidence = json.loads((DATA/m['evidence']).read_bytes())
+    entry = next(e for e in evidence['models'] if (e['board'], e['vid'], e['pid']) == key)
+    assert (entry['brand'], entry['model'], entry['product']) == (m['brand'], m['model'], m['product'])
+    assert m['product'] == f"RY1B-{m['board']}" and not m['precision_enum'] and 'parent' not in m
+    for record in (entry['source_record']['record'], entry['iot_record']['record']):
+        assert record.startswith(f"{{id:{m['board']},vid:{m['vid']},pid:{m['pid']},") and 'magnetism:!0' in record, key
+    assert entry['model_source']['parent'] == 'Epa' and entry['model_source']['reference'].endswith('-> Epa')
+    model = entry['model_class']
+    assert model.startswith('var ') and model.endswith('}(Epa)') and 'var t,r,a,n=' in model, key
+    assert set(re.findall(r'"(default\w*Matrix)"', model)) == {'defaultMatrix', 'defaultFnMatrix'}, key
+    assert len(m['matrix']) == 512 and entry['matrix'] == m['matrix'], key
+    assert hashlib.sha256(bytes(m['matrix'])).hexdigest() == entry['matrix_sha256']
+    source = ROOT/entry['model_source']['source']
+    if source.exists():
+        raw = source.read_bytes()
+        assert hashlib.sha256(raw).hexdigest() == entry['model_source']['sha256'] and model.encode() in raw, key
+    assert header_row(m, m['matrix']) in header, key
 seen = set()
 for m in profiles:
     key = (m['board'], m['vid'], m['pid'])
     assert key not in seen
     seen.add(key)
+    if m.get('evidence') == 'rongyuan-client-models.json':
+        check_client_evidence(m, key)
+        continue
     if 'evidence' in m:
         check_app_evidence(m, key)
         continue
@@ -92,8 +117,13 @@ for m in profiles:
 catalog = json.loads((ROOT/'docs/development/keyboard_support_notices.json').read_bytes())
 group = next(g for g in catalog['groups'] if g['id']=='RongYuanStream')
 confirmed=group.get('confirmed_devices',[])
+# A confirmed device may name an approved alias tuple: the yellow notice compares the
+# USB PID the keyboard actually reports, which is the alias PID for such a revision.
+aliases={(a['board'],a['vid'],a['pid']):(a.get('canonical_board',a['board']),a['canonical_pid'])
+         for a in json.loads((ROOT/'docs/research/usb-identity-audit/approved-aliases.json').read_bytes())['aliases']}
 for device in confirmed:
-    matches=[m for m in profiles if m['board']==device['board'] and m['pid']==device['pid']]
+    board,pid=aliases.get((device['board'],12625,device['pid']),(device['board'],device['pid']))
+    matches=[m for m in profiles if m['board']==board and m['pid']==pid]
     assert len(matches)==1 and (matches[0]['brand'],matches[0]['model'])==(device['brand'],device['model'])
     spec=json.loads((ROOT/'tools/layout_catalog.json').read_bytes())['brands'][device['brand']]
     layout=next(m for m in spec['models'] if matches[0]['product'] in m['products'])

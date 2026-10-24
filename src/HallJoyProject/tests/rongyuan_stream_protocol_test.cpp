@@ -1,5 +1,6 @@
 #include "rongyuan_stream_protocol.h"
 #include "rongyuan_press_timing.h"
+#include "rongyuan_stream_reconcile.h"
 #include "physical_analog_state.h"
 #include "keyboard_support_status.h"
 #include "support_notice_catalog.h"
@@ -45,6 +46,16 @@ int main() {
  assert(ultraKeys==61);
  // FUN60 Ultra TMR board 2307 on 3151:5030 (official class matrix identical to 2352).
  assert(Find(2307,0x3151,0x5030)==ultra && !Find(2307,0x3151,0x5029) && !Find(2352,0x3151,0x5030));
+ // EPOMAKER HE75 V2 TMR board 3613: registries list 3151:5054, the user's keyboard
+ // enumerates as 3151:5030 (device log); both reach the same catalog profile.
+ const Model* he75tmr=Find(3613,0x3151,0x5054);
+ assert(he75tmr && he75tmr->board==3613 && Find(3613,0x3151,0x5030)==he75tmr && !Find(3613,0x3151,0x5029));
+ assert(he75tmr!=Find(3518,0x3151,0x5054));
+ // IROK Mars68 Pro board 2438 on 3151:5029: own 68-key matrix (RongYuan client class on parent Epa).
+ const Model* mars=Find(2438,0x3151,0x5029);
+ assert(mars && mars->board==2438 && mars!=ultra && !Find(2438,0x3151,0x5030));
+ unsigned marsKeys=0;for(unsigned slot=0;slot<128;++slot)marsKeys+=Decode(mars->matrix.data()+slot*4)!=0;
+ assert(marsKeys==68);
  assert(!Find(2609,12625,20513)); // Historical board-number collision: YC3123.
  assert(!Find(2368,12625,20528)); // Different old factory map, not an alias.
  unsigned revisions=0;
@@ -94,7 +105,7 @@ int main() {
   publication.Clear();assert(!publication.Read(4,60103,~std::uint64_t{0}).fresh);
   ++revisions;
  }
- assert(revisions==254);
+ assert(revisions==258);
  physical_analog::Publication aliases;assert(aliases.Bind(1,26)&&aliases.Bind(2,26));
  aliases.Publish(1,500,100);aliases.Publish(2,700,101);aliases.Publish(2,0,102);
  assert(aliases.Read(26,60000,~std::uint64_t{0}).milli==500);
@@ -138,9 +149,38 @@ int main() {
   assert(!timing.Sample(0x16,45,3000*ms,0,rec) && timing.Sample(0x16,0,3020*ms,0,rec));
   assert(!rec.os && rec.stream && rec.durationUs==20*ms && rec.afterReleaseUs==-1);
  }
+ // Stream/table reconciliation (tester log 2026-10-21: a key stayed at ~75 after a multi-key release).
+ {
+  Reconcile r;r.Reset();std::vector<Reconcile::Correction> out;
+  std::array<std::uint16_t,32> table{};
+  assert(r.NextPage()==-1);                       // idle keyboard: no table reads
+  r.Stream(33,400);r.Stream(33,150);              // slot 33 = page 1; the zero report was lost
+  assert(r.NextPage()==1);
+  auto seqs=r.Before(1);table[1]=0;
+  r.Table(1,seqs,table.data(),out);
+  assert(out.size()==1 && out[0].slot==33 && out[0].raw==0 && out[0].stream==150 && r.Accept(out[0]));
+  r.Stream(out[0].slot,out[0].raw);              // reader applied it
+  assert(r.NextPage()==-1);
+  // Held key: the table confirms the stream value, then nothing is read until it changes.
+  out.clear();r.Stream(5,870);assert(r.NextPage()==0);
+  seqs=r.Before(0);table={};table[5]=870;r.Table(0,seqs,table.data(),out);
+  assert(out.empty() && r.NextPage()==-1);
+  // A newer stream sample after the read started wins over the table value.
+  r.Stream(5,600);seqs=r.Before(0);table[5]=870;r.Table(0,seqs,table.data(),out);
+  assert(out.size()==1 && r.Accept(out[0]));r.Stream(5,300);assert(!r.Accept(out[0]));
+  // Mid-release read: the table value is applied and read again until it matches.
+  out.clear();r.Stream(5,300);seqs=r.Before(0);table[5]=120;r.Table(0,seqs,table.data(),out);
+  assert(out.size()==1 && r.Accept(out[0]));r.Stream(5,120);assert(r.NextPage()==0);
+  out.clear();seqs=r.Before(0);table[5]=0;r.Table(0,seqs,table.data(),out);
+  assert(out.size()==1 && out[0].raw==0 && r.Accept(out[0]));r.Stream(5,0);assert(r.NextPage()==-1);
+  // A missed press is also corrected when its page is read for another key.
+  out.clear();r.Stream(7,500);seqs=r.Before(0);table={};table[7]=500;table[9]=640;r.Table(0,seqs,table.data(),out);
+  assert(out.size()==1 && out[0].slot==9 && out[0].raw==640 && r.Accept(out[0]));
+  assert(r.Before(9).size()==32 && r.NextPage()!=2);  // out-of-range page reads nothing
+ }
  std::cout<<"SYNTHETIC_WIRE_CASES="<<syntheticFrames<<"\n";
  using namespace keyboard_support;
  assert(NativeNotice(22,0,true)==RongYuanStream && NativeNotice(22,0,false)==0);
  SetSearchObservation(true,true,RongYuanStream);assert(GetStatusSnapshot().frozenModels==RongYuanStream);
- std::cout<<"RONGYUAN_STREAM=PASS revisions="<<revisions<<" captured_frames="<<frames<<" stationary_hold release aliases disconnect malformed precision identity notices press_timing\n";
+ std::cout<<"RONGYUAN_STREAM=PASS revisions="<<revisions<<" captured_frames="<<frames<<" stationary_hold release aliases disconnect malformed precision identity notices press_timing reconcile\n";
 }

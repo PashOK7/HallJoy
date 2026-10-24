@@ -15,6 +15,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Keyboard identity evidence audit failed.' }
 $noticeCheck = Join-Path $root 'tools\support_notice_catalog.py'
 & python $noticeCheck
 if ($LASTEXITCODE -ne 0) { throw 'Support notice catalog is stale.' }
+& python (Join-Path $root 'tools\unsupported_keyboard_catalog.py')
+if ($LASTEXITCODE -ne 0) { throw 'Unsupported keyboard catalog is stale.' }
 & python (Join-Path $root 'tools/check_support_diagnostics.py')
 if ($LASTEXITCODE -ne 0) { throw 'Support diagnostics contract gate failed; running HallJoy was not touched.' }
 $project = Join-Path $root 'src\HallJoyProject\HallJoy\HallJoy.vcxproj'

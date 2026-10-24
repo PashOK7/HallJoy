@@ -124,6 +124,10 @@ struct BackendNativeProtocolTelemetry
     std::uint32_t averageIntervalUs = 0;
     std::uint32_t maximumIntervalUs = 0;
     std::uint32_t lastUpdateAgeMs = 0;
+    // Measured by HallJoy from successfulUpdates (update_rate_meter.h):
+    // last 0.5 s window, and the 99th percentile of windows with updates.
+    std::uint32_t measuredHz10 = 0;
+    std::uint32_t measuredPeakHz10 = 0;
     std::uint64_t successfulUpdates = 0;
     std::uint64_t failedUpdates = 0;
     char id[32]{};

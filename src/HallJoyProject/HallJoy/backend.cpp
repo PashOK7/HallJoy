@@ -3943,6 +3943,28 @@ BackendStatus Backend_GetStatus()
 }
 
 #include "native_analog_telemetry_collect.h"
+#include "update_rate_meter.h"
+
+// One meter per native catalog entry; reset while the entry is not connected so a
+// new session starts its own peak.
+static void MeasureNativeUpdateRates(BackendAnalogTelemetry& t)
+{
+    static std::mutex mutex;
+    static std::array<halljoy::UpdateRateMeter, kBackendMaxNativeProtocols> meters;
+    const auto nowUs = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count());
+    std::lock_guard<std::mutex> lock(mutex);
+    for (int i = 0; i < t.nativeProtocolCount && i < kBackendMaxNativeProtocols; ++i)
+    {
+        auto& native = t.nativeProtocols[i];
+        if (native.catalogIndex >= meters.size()) continue;
+        auto& meter = meters[native.catalogIndex];
+        if (!native.connected) { meter.Reset(); continue; }
+        meter.Observe(native.successfulUpdates, nowUs);
+        native.measuredHz10 = meter.CurrentHz10();
+        native.measuredPeakHz10 = meter.PeakHz10();
+    }
+}
 
 static void CollectAnalogTelemetry(BackendAnalogTelemetry* out, bool diagnostic)
 {
@@ -3951,6 +3973,7 @@ static void CollectAnalogTelemetry(BackendAnalogTelemetry* out, bool diagnostic)
     CollectNativeAnalogTelemetry(t, diagnostic, NativeAnalogBackends_Count(),
         NativeAnalogBackends_Descriptor, NativeAnalogBackends_GetTelemetry,
         NativeAnalogBackends_GetLifecycle);
+    MeasureNativeUpdateRates(t);
     const int nativeConnectedCount=static_cast<int>(t.nativeConnectedCount);
     const ULONGLONG nowMs = GetTickCount64();
     const bool sparkConnected = g_sparkConnected.load(std::memory_order_acquire);

@@ -11,6 +11,9 @@ namespace halljoy::layout_selection
 inline const wchar_t* MatchDrunkDeer(std::uint16_t vid,std::uint16_t pid,
     unsigned rows,unsigned columns,bool verifiedModel,std::string_view name)
 {
+    // A75 Ultra on the NuPhy VID: exact USB identity 19F5:FB3E (official driver device table,
+    // layout K75 = the same 82 keys and factory codes as the built-in A75 ANSI preset).
+    if (vid==0x19F5) return pid==0xFB3E ? L"DrunkDeer A75 ANSI" : nullptr;
     if (vid!=0x352d || rows!=6 || columns!=21 || !verifiedModel) return nullptr;
     using namespace halljoy::drunkdeer_identity;
     constexpr const wchar_t* names[]={L"DrunkDeer A75 ANSI",L"DrunkDeer A75 Pro",

@@ -2,9 +2,9 @@
   "schema": 1,
   "id": "ry_layout_2334",
   "brand": "GamaKay",
-  "model": "TK75 HE",
+  "model": "TK75 HE + TK75 HE V2",
   "variant": "ANSI",
-  "name": "GamaKay TK75 HE ANSI",
+  "name": "GamaKay TK75 HE + TK75 HE V2 ANSI",
   "status": "ready",
   "unresolved": [],
   "keys": [
@@ -661,7 +661,8 @@
     "protocol": "rongyuan-stream",
     "products": [
       "RY1B-2334",
-      "RY1B-2501"
+      "RY1B-2501",
+      "RY1B-3167"
     ]
   },
   "sources": [
@@ -683,19 +684,21 @@
     },
     {
       "path": "docs/research/rongyuan-stream/profiles.json",
-      "sha256": "9ccec7e129b1761c5b17ad85e55f6c532a432bdd7398fa6ef1a4c84c4ff8e8a4"
+      "sha256": "78a2e735d6f7607dbf0d235993b03284868fd14afa4a507ad4947681f9db880e"
     },
     {
       "path": "docs/research/rongyuan-stream/admission_sources.json",
-      "sha256": "68b23baa956985d4e4f25830aed94900ff542f2b63c9b993aa92248bf2deb946"
+      "sha256": "78c7740f94cb7dd931f2417b172df23cf8a071b0f238835f34844c6d8a92cf4c"
     }
   ],
   "models": [
-    "TK75 HE"
+    "TK75 HE",
+    "TK75 HE V2"
   ],
   "boards": [
     2334,
-    2501
+    2501,
+    3167
   ],
   "notes": [
     "Exact board/USB registry and keyLayout agree across official OEM clients. Full keyboard HID set agrees with the enabled factory map.",

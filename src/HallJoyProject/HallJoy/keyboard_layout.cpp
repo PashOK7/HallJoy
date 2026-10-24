@@ -422,6 +422,8 @@ namespace
     static constexpr LayoutMerge g_layoutMerges[] = {
         {L"EPOMAKER HE60 Wired ANSI", L"EPOMAKER HE60 Wireless ANSI", L"EPOMAKER HE60 Wired + Wireless ANSI",
             nullptr, L"EPOMAKER HE60 Wired / Wireless ANSI"},
+        {L"EPOMAKER HE75 V2 ANSI", L"EPOMAKER HE75 V2 TMR ANSI", L"EPOMAKER HE75 V2 + HE75 V2 TMR ANSI",
+            nullptr, L"EPOMAKER HE75 V2 / HE75 V2 TMR ANSI"},
         {L"IROK Mercury68 ANSI", L"IROK Mercury68 Pro ANSI", L"IROK Mercury68 + Mercury68 Pro ANSI", nullptr, L"IROK Mercury68 / Mercury68 Pro ANSI"},
         {L"MonsGeek M1 V5 HE ANSI", L"MonsGeek M1 V5 TMR ANSI", L"MonsGeek M1 V5 HE + TMR ANSI", nullptr, L"MonsGeek M1 V5 HE / TMR ANSI"},
         {L"Aula WIN 60 HE MAX ANSI", L"Aula WIN 60 HE PRO ANSI", L"Aula WIN 60 HE MAX + PRO ANSI", nullptr, L"Aula WIN 60 HE MAX / PRO ANSI"},

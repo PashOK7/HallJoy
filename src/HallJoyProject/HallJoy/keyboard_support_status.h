@@ -63,6 +63,9 @@ struct StatusSnapshot final
     bool analogSourceConnected = false;
     unsigned frozenModels = 0;
     bool communicationWarning = false;
+    // 1-based index into kUnsupportedKeyboards (red Sheet rows), 0 when none is
+    // connected. Set only while no analog source is connected.
+    unsigned unsupportedModel = 0;
 };
 
 // Known low-quality firmware is a permanent limitation, not an automatic log incident.
@@ -72,11 +75,14 @@ inline bool ShouldAutoSaveSupportLog(const StatusSnapshot& s) noexcept {
     const auto advisoryOnly = LimitedModels | Alumix104Research | KeyboardBusy;
     const auto other = s.frozenModels & ~advisoryOnly;
     if ((s.frozenModels & advisoryOnly) && !other) return false;
+    // A keyboard HallJoy will not support is a known answer, not a log incident.
+    if (s.unsupportedModel && !s.frozenModels) return false;
     return !s.analogSourceConnected || s.frozenModels != 0;
 }
 
 // A negative result is meaningful only after the engine owns an active
 // generation. Until then the UI must remain silent while discovery starts.
-void SetSearchObservation(bool searchCompleted, bool connected, unsigned frozenModels = 0, bool communicationWarning = false) noexcept;
+void SetSearchObservation(bool searchCompleted, bool connected, unsigned frozenModels = 0, bool communicationWarning = false,
+                          unsigned unsupportedModel = 0) noexcept;
 [[nodiscard]] StatusSnapshot GetStatusSnapshot() noexcept;
 }

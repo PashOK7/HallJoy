@@ -6,6 +6,7 @@
 #include <devpropdef.h>
 #include "native_layout_devices.h"
 #include "keyboard_support_status.h"
+#include "unsupported_keyboard_catalog.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -95,13 +96,14 @@ int NativeLayoutDevices_Query(const std::uint32_t* identities,std::size_t count)
 }
 
 namespace {
-unsigned EnumerateFrozen() {
+struct FrozenScan { unsigned mask=0, unsupported=0; };
+FrozenScan EnumerateFrozen() {
     // Read Windows USB metadata only; no device handles or protocol requests.
     constexpr DEVPROPKEY busDescription{{0x540b947e,0x8b40,0x45bc,{0xa8,0xa2,0x6a,0x0b,0x89,0x4c,0xbd,0xa2}},4};
     const auto handle=SetupDiGetClassDevsW(nullptr,L"USB",nullptr,DIGCF_PRESENT|DIGCF_ALLCLASSES);
-    if(handle==INVALID_HANDLE_VALUE) return 0;
+    if(handle==INVALID_HANDLE_VALUE) return {};
     struct Guard {HDEVINFO h;~Guard(){SetupDiDestroyDeviceInfoList(h);}} guard{handle};
-    unsigned mask=0;
+    FrozenScan scan;
     for(DWORD i=0;i<512;++i) {
         SP_DEVINFO_DATA device{};device.cbSize=sizeof(device);
         if(!SetupDiEnumDeviceInfo(handle,i,&device)) break;
@@ -116,15 +118,16 @@ unsigned EnumerateFrozen() {
             reinterpret_cast<BYTE*>(name),sizeof(name)-sizeof(wchar_t),nullptr,0);
         if(propertyType!=DEVPROP_TYPE_STRING) name[0]=0;
         _wcsupr_s(name);
-        mask |= halljoy::keyboard_support::ClassifyFrozen(
-            wcstoul(vid+4,nullptr,16)&0xffff,wcstoul(pid+4,nullptr,16)&0xffff,name);
+        const unsigned vendor=wcstoul(vid+4,nullptr,16)&0xffff,product=wcstoul(pid+4,nullptr,16)&0xffff;
+        scan.mask |= halljoy::keyboard_support::ClassifyFrozen(vendor,product,name);
+        if(!scan.unsupported) scan.unsupported=halljoy::keyboard_support::FindUnsupported(vendor,product,name);
     }
-    return mask;
+    return scan;
 }
 struct FrozenInventory {
     std::mutex mutex;
     std::uint64_t epoch=UINT64_MAX;
-    unsigned mask=0;
+    FrozenScan scan;
     bool running=false;
     PTP_WORK work=CreateThreadpoolWork(&Run,this,nullptr);
     ~FrozenInventory(){if(work){WaitForThreadpoolWorkCallbacks(work,FALSE);CloseThreadpoolWork(work);}}
@@ -135,16 +138,18 @@ struct FrozenInventory {
             const auto result=EnumerateFrozen();
             std::lock_guard<std::mutex> lock(state.mutex);
             if(version!=topology.load(std::memory_order_acquire)) continue;
-            state.mask=result;state.epoch=version;state.running=false;return;
+            state.scan=result;state.epoch=version;state.running=false;return;
         }
     }
 };
 }
-unsigned NativeLayoutDevices_QueryFrozen() {
+static FrozenScan QueryFrozenScan() {
     static FrozenInventory state;
     std::lock_guard<std::mutex> lock(state.mutex);
     if(state.epoch!=topology.load(std::memory_order_acquire) && !state.running && state.work) {
         state.running=true;SubmitThreadpoolWork(state.work);
     }
-    return state.mask;
+    return state.scan;
 }
+unsigned NativeLayoutDevices_QueryFrozen() { return QueryFrozenScan().mask; }
+unsigned NativeLayoutDevices_QueryUnsupported() { return QueryFrozenScan().unsupported; }

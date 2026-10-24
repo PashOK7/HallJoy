@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "meaning": "Red Sheet rows: HallJoy will not support these keyboards. Every red row is listed. A row is detected only from an exact USB identity (VID:PID plus the USB product string when the PID is shared or the product string is known); otherwise 'undetected' says why. The generated runtime catalog shows a red 'not supported' banner for detected rows when no analog source is connected.",
+  "models": [
+    {
+      "brand": "AJAZZ",
+      "model": "AK680 V2",
+      "status": "No usable analog found",
+      "shown": "AJAZZ AK680 V2",
+      "evidence": "AJAZZ_AK680V2_FIRMWARE_2026-10-17.md; Driveall configurator names the three PIDs 'AJAZZ AK680 V2' (80C1 is shared with an 'AJAZZ KEYBOARD' TFT config, 80C2 with supplier 1stplayer)",
+      "usb": [
+        {"vid": "0C45", "pid": "80BC", "product": "AJAZZ AK680 V2"},
+        {"vid": "0C45", "pid": "80C1", "product": "AJAZZ AK680 V2"},
+        {"vid": "0C45", "pid": "80C2", "product": "AJAZZ AK680 V2"}
+      ]
+    },
+    {
+      "brand": "AJAZZ",
+      "model": "AK820 MAX HE (wired, RGB, Sonix 0C45:80B1)",
+      "status": "No usable analog found",
+      "shown": "AJAZZ AK820 MAX HE (Sonix 0C45:80B1)",
+      "evidence": "AJAZZ_AK820MAX_SONIX_80B1_2026-10-08.md; tester logs show product string 'AK820MAX' (PID 80B1 is shared with an 'AJAZZ KEYBOARD' TFT config)",
+      "usb": [
+        {"vid": "0C45", "pid": "80B1", "product": "AK820MAX"}
+      ]
+    },
+    {
+      "brand": "Corsair",
+      "model": "K70 MAX",
+      "status": "No usable analog found",
+      "shown": "Corsair K70 MAX",
+      "evidence": "IPI_FLASH75_AULA_AG75_CORSAIR_K70MAX_2026-10-12.md; Corsair firmware catalog: K70 MAX = 1B1C:1BC0, firmware 1.17.96 has no analog path",
+      "usb": [
+        {"vid": "1B1C", "pid": "1BC0"}
+      ]
+    },
+    {
+      "brand": "Fantech",
+      "model": "ATOM HE68 (MK811)",
+      "status": "No usable analog found",
+      "evidence": "FIRMWARE_TRIAGE_2026-09-30.md",
+      "undetected": "USB identity not established: the updater image keeps the runtime VID/PID compressed, and the devices in log 48 (2E3C:C365, 30FA:1440) are unidentified."
+    },
+    {
+      "brand": "IO",
+      "model": "Type 84 Magnetic",
+      "status": "No usable analog found (FW 1.17)",
+      "evidence": "IO_CATALOG_FIRMWARE_2026-09-30.md",
+      "undetected": "0C45:80D6 is shared with Type 84 Magnetic Pro (not red), the product string is unknown, and the red status applies to firmware 1.17 only."
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "MAD 68 V2 Dual",
+      "status": "Analog available; low quality",
+      "evidence": "MAD68_V2_DUAL_REVIEW_2026-09-27.md",
+      "undetected": "Not a 'no support' keyboard: it runs the limited trial path and has its own notice (Mad68DualLimited, 28E9:3265)."
+    },
+    {
+      "brand": "MADLIONS",
+      "model": "TITAN 68 Turbo",
+      "status": "No usable analog found",
+      "shown": "MADLIONS TITAN 68 Turbo",
+      "evidence": "KEYBOARD_SHEET_MAGNETIC_AUDIT_2026-09-20.md (failed tester attempts); titan68_turbo_diagnostic_backend.cpp targets 28E9:31FD",
+      "usb": [
+        {"vid": "28E9", "pid": "31FD"}
+      ]
+    },
+    {
+      "brand": "Pwnage",
+      "model": "Zenblade 65 V2",
+      "status": "Research blocked: V2 firmware unavailable",
+      "evidence": "IO_PWNAGE_RECHECK_2026-10-02.md",
+      "undetected": "3662:1001/1002 are the Pwnage keyboard IDs shared with Zenblade 65 (not red); no product string is known."
+    },
+    {
+      "brand": "YUNZII",
+      "model": "RT75",
+      "status": "No usable analog found",
+      "evidence": "YUNZII_RT80_2026-10-15.md",
+      "undetected": "3151:4015 is shared with other RongYuan boards (including the AK820 MAX HE tri-mode screen model); the RT75 product string is unknown."
+    },
+    {
+      "brand": "YUNZII",
+      "model": "RT80",
+      "status": "No usable analog found",
+      "shown": "YUNZII RT80",
+      "evidence": "YUNZII_RT80_2026-10-15.md; tester log: 3151:4035 product 'RT80' (the PID is shared by four RongYuan boards, only board 2068 is named RT80)",
+      "usb": [
+        {"vid": "3151", "pid": "4035", "product": "RT80"}
+      ]
+    }
+  ]
+}

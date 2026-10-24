@@ -417,6 +417,7 @@ def main() -> int:
                 tests / "keyboard_support_status_test.cpp",
                 hall / "keyboard_support_status.cpp",
             ]),
+            ("update_rate_meter", [tests / "update_rate_meter_test.cpp"]),
             ("runtime_arithmetic", [tests / "runtime_arithmetic_test.cpp"]),
             ("runtime_command_state", [tests / "runtime_command_state_test.cpp"]),
             ("curve_math", [tests / "curve_math_test.cpp", hall / "curve_math.cpp"]),

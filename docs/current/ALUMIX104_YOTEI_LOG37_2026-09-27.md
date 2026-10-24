@@ -1480,3 +1480,34 @@ image, per the owner's clarification. Vendor artifacts and raw HID logs remain
 private local research material; the archive is not a release or authorization
 to redistribute firmware. The adjacent RSQ-20058 HEX remains Alumix68 only,
 not an Alumix104 firmware image. Support stays Research incomplete.
+
+## Official firmware V1.11 (user report "updated to 1.11"), 2026-10-23
+
+Source: the Red Square web configurator (`app.red-square.org`, bundle `layout-classic-nWRG903k.js`) no longer uses
+`update.json` for firmware; it queries `https://cp.driveall.cn/api/device/firmware/index` with
+`supplier_name=rsq, connect_type=USB, vid=3141, pid=<pid>, product_name=<name>`. For PID 32940 ("Alumix 104 Yotei
+Magnetic"; the same PID is also used by Alumix TKL Horizon / TKL SE configs) it returns V1.11, uploaded 2026-09-24,
+file `CZ26032_黑岩HK1081G_单模ARGB磁轴_上灯位不开槽_HFD8KCZ700_20260907_1.11_0x3F01(1)(1).hex`. The same API also lists
+RSQ-20058 (Alumix 68) V1.37 / V1.31 / V1.07 (HallJoy's Alumix 68 path was built on V1.30). `update.json` itself now
+lists only RSQ-20058 V1.30 and "Alumix 104 Arita WL" (PID 32972) V1.24, a different model.
+
+First exact Alumix 104 image ever obtained. Local only (vendor firmware, no redistribution):
+`.local/research/alumix104-fw111-20261022/Alumix104_Yotei_V1.11.hex` SHA256
+`0affd04829f752f14d560ff062148c0ce432e7efcb17f55e49034ab35ab4ae9e` (0x7E000 bytes from 0), and
+`RSQ-20058_V1.37.hex` SHA256 `87da92aea8e7dd90cb7b0ae4282fd13a43b2d2e16768164cdb1887fd4075bf58`.
+
+Static review (Capstone, Thumb), compared with RSQ-20058 V1.30 and V1.37:
+- AA command dispatcher at 0xE2DC (V1.30: 0xE40C, same structure). Groups: 0x10-0x18 and new 0x1C, 0x21-0x28,
+  0x32/0x33, 0x40, 0x64-0x67. **No 0x60, 0x68, 0x69, 0x6A**: `GET_MAGNETIC_AXIS_STATUS` (0x68) is still not
+  implemented, which matches the echo-only replies in logs 44-47.
+- Read commands copy `len` bytes from `base + (b4<<8 | b3)`: 0x10 0x9000, 0x11 0x9200, 0x12 0x9600, 0x14 0x9A00,
+  0x15 0x9C00, 0x16 0xB000, 0x17 0xB600, 0x18 0xB200, new 0x1C 0xBC00. All bases are flash and a 16-bit offset
+  cannot reach SRAM (0x2000xxxx), so there is still no RAM depth-table read like the one found on Alumix 68 V1.30.
+  0x1C is one more flash configuration page.
+- 55FB report builder at 0x08E8 is byte-for-byte the V1.30 builder (one key per packet: index, calibration status,
+  max, min, ADC, travel, max travel). Its four callers (0x4594/0x45C2/0x460E/0x4648) keep the V1.30 rule: a packet
+  is produced only when the scanned index equals the selected index and simulation (0x66) is on. The stream is still
+  selected-key only; held keys that are not the selected key are not reported.
+
+Conclusion: V1.11 adds no usable multi-key analog source. The blockers documented above (selected-key 55FB stream,
+0x68 not implemented, no RAM read) are unchanged; status stays gray "Research incomplete", no runtime change.

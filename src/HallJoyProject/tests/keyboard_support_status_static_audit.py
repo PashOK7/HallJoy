@@ -67,10 +67,13 @@ def main() -> int:
     require("keyboard_support_status_test.cpp" in runner,
             "portable pure-policy regression is executed")
     inventory = (HALL / "native_layout_devices.cpp").read_text(encoding="utf-8-sig")
-    frozen_inventory = inventory[inventory.index("unsigned EnumerateFrozen()"):]
+    frozen_inventory = inventory[inventory.index("FrozenScan EnumerateFrozen()"):]
     require("CreateFile" not in frozen_inventory and "HidD_" not in frozen_inventory and
             "GetTickCount" not in frozen_inventory and "topology.load" in frozen_inventory,
             "frozen inventory uses cached topology metadata, without polling or device opens")
+    require("FindUnsupported(vendor,product,name)" in frozen_inventory and
+            "NativeLayoutDevices_QueryUnsupported()" in timer_ui and "UnsupportedTitle()" in page,
+            "red-row keyboards come from the same metadata-only scan and get their own banner")
     require("frozenModels |= halljoy::keyboard_support::NA87" not in timer_ui and
             "FamilyCandidate" in timer_ui and "FrozenSupportBody" in page and "DT_WORDBREAK" in page,
             "promoted NA87 is not frozen; remaining ambiguous families retain warnings")

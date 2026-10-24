@@ -1220,10 +1220,24 @@ if (combined[i]) \
 		}
 		else
 		{
-			const auto full_scale = (hid.product_id == 0x6120 || hid.product_id == 0xFEE0)
+			// HallJoy: DrunkDeer boards on the NuPhy VID report travel in bytes 6..7.
+			const bool drunkdeer = halljoy::drunkdeer_identity::IsNuphyPlatformBoard(hid.vendor_id, hid.product_id);
+			const auto full_scale = drunkdeer ? halljoy::drunkdeer_identity::kNuphyPlatformFullScale
+				: (hid.product_id == 0x6120 || hid.product_id == 0xFEE0)
 				? 1600u : 800u;
 			bool valid_report = true;
-			if (report[0] == 0xA0)
+			if (drunkdeer && report[0] == 0xA1)
+			{
+				// Profile switch report: keys held across it (the Fn combo) never get a
+				// release record, and some profiles stop the stream, so start from zero.
+				memset(nuphy.buffer, 0, sizeof(nuphy.buffer));
+			}
+			else if (drunkdeer && report[0] == 0xA0 && report.size() >= 2
+				&& !halljoy::drunkdeer_identity::IsNuphyPlatformKeyType(report[1]))
+			{
+				// Replies to the vendor's 0xA0 command (key trigger table) also start with A0.
+			}
+			else if (report[0] == 0xA0)
 			{
 				// A0 is an eight-byte record: type, unknown byte, BE16 scancode,
 				// BE16 travel, then a separate untrusted BE16 vendor field.
@@ -1258,7 +1272,20 @@ if (combined[i]) \
 						sk = hid_scancode_to_soup_key(static_cast<uint8_t>(scancode));
 					}
 
-					if (value > full_scale)
+					if (drunkdeer)
+					{
+						// Key identity as the official driver decodes it: type byte 1 plus bytes 2..3
+						// (Fn1 240/255/1, Fn2 240/255/2 or 224/0/x); bytes 2..3 alone misread Fn2.
+						const auto code = halljoy::drunkdeer_identity::NuphyPlatformKey(report[1], report[2], report[3]);
+						sk = code == 0x409 ? KEY_FN : code == 0x403 ? KEY_OEM_1
+							: code && code < 256 ? hid_scancode_to_soup_key(static_cast<uint8_t>(code)) : KEY_NONE;
+						// Clamped, never a disconnect: an over-range key must not restart the host.
+						if (sk != KEY_NONE)
+						{
+							nuphy.buffer[sk] = static_cast<uint16_t>(halljoy::drunkdeer_identity::NuphyPlatformTravel(report.data()));
+						}
+					}
+					else if (value > full_scale)
 					{
 						valid_report = false;
 					}

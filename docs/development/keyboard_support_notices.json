@@ -442,27 +442,12 @@
         },
         {
           "brand": "MonsGeek",
-          "model": "M1 V5 TMR",
-          "status": "Implemented; awaiting hardware testing"
-        },
-        {
-          "brand": "MonsGeek",
-          "model": "M2 V5 HE",
-          "status": "Implemented; awaiting hardware testing"
-        },
-        {
-          "brand": "MonsGeek",
           "model": "M3 V5 HE",
           "status": "Implemented; awaiting hardware testing"
         },
         {
           "brand": "Womier",
           "model": "M68 HE Pro",
-          "status": "Implemented; awaiting hardware testing"
-        },
-        {
-          "brand": "Womier",
-          "model": "SK75 TMR",
           "status": "Implemented; awaiting hardware testing"
         },
         {
@@ -1224,6 +1209,11 @@
           "brand": "Game Arena",
           "model": "GKX68 MAGNUM",
           "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IROK",
+          "model": "Mars68 Pro",
+          "status": "Implemented; awaiting hardware testing"
         }
       ],
       "confirmed_devices": [
@@ -1240,6 +1230,48 @@
           "brand": "MonsGeek",
           "model": "FUN60 Ultra TMR",
           "board": 2352
+        },
+        {
+          "token": "0xfa1cc577fe4d36fe",
+          "pid": 20528,
+          "brand": "Womier",
+          "model": "SK75 TMR",
+          "board": 2518
+        },
+        {
+          "token": "0xb51adb7f896f227f",
+          "pid": 20528,
+          "brand": "MonsGeek",
+          "model": "M1 V5 TMR",
+          "board": 2949
+        },
+        {
+          "token": "0x425369d390861354",
+          "pid": 20528,
+          "brand": "GamaKay",
+          "model": "TK75 HE V2",
+          "board": 3167
+        },
+        {
+          "token": "0x844a661ff1f203a0",
+          "pid": 20528,
+          "brand": "MonsGeek",
+          "model": "M2 V5 HE",
+          "board": 2845
+        },
+        {
+          "token": "0x6925daef3fae6969",
+          "pid": 20564,
+          "brand": "EPOMAKER",
+          "model": "HE75 V2 TMR",
+          "board": 3613
+        },
+        {
+          "token": "0x6925daef3fae6969",
+          "pid": 20528,
+          "brand": "EPOMAKER",
+          "model": "HE75 V2 TMR",
+          "board": 3613
         }
       ]
     },

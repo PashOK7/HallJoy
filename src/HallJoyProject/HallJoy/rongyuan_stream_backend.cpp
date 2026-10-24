@@ -23,6 +23,7 @@
 #include "native_layout_state.h"
 #include "physical_analog_state.h"
 #include "rongyuan_press_timing.h"
+#include "rongyuan_stream_reconcile.h"
 #include "rongyuan_stream_protocol.h"
 #include <algorithm>
 #include <array>
@@ -103,6 +104,23 @@ void WritePress(const halljoy::ry_stream::PressRecord &r) {
       s.presses, s.slow, s.windowsOnly, Ms(s.maxDownWaitUs), Ms(s.maxUpWaitUs), s.maxBacklog, s.maxUiMs);
   SupportLog_Evidence(line, true);
 }
+// Stream/table reconciliation (rongyuan_stream_reconcile.h). The reconciler thread reads the
+// keyboard's travel table (E5 FE) through the control collection; the reader thread applies
+// the corrections, so publication and press timing stay on one thread.
+halljoy::ry_stream::Reconcile g_reconcile;
+std::mutex g_correctionLock;
+std::vector<halljoy::ry_stream::Reconcile::Correction> g_corrections;
+HANDLE ReconcileEvent() {  // reader -> reconciler: a key got a non-zero sample
+  static const HANDLE event = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+  return event;
+}
+HANDLE CorrectionEvent() {  // reconciler -> reader: corrections are queued
+  static const HANDLE event = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+  return event;
+}
+constexpr unsigned kReconcileKeptLines = 64;
+unsigned g_reconcileLines = 0;  // reader thread only, whole run
+
 void DrainOsKeys() {
   unsigned tail = g_osTail.load(std::memory_order_acquire);
   const unsigned head = g_osHead.load(std::memory_order_acquire);
@@ -352,6 +370,8 @@ public:
   }
   // The keyboard answered with a board this table does not admit on its VID/PID.
   bool IdentityRejected() const {return identityRejected;}
+  // A control transfer failed; every later query of this session fails too.
+  bool Poisoned() const {return poisoned;}
   // Command of the last feature request sent (support log on admission failure).
   unsigned LastCommand() const {return lastCommand;}
   const mg::Model* Model(const mg::Report& r) {return mg::Find(mg::Board(r),candidate.attributes.VendorID,candidate.attributes.ProductID);}
@@ -454,9 +474,95 @@ bool Publish(const mg::Sample& sample, const mg::Model& model, std::uint64_t now
   const auto id=static_cast<std::uint8_t>(sample.slot+1);
   const auto value=mg::Normalize(sample.raw,g_units.load(),model.rangeUm);
   g_factory.Publish(id,value,now);g_assigned.Publish(id,value,now);
+  g_reconcile.Stream(sample.slot,static_cast<std::uint16_t>(sample.raw));
+  if(sample.raw && ReconcileEvent())SetEvent(ReconcileEvent());
   hid=(Remapped()?g_slotAssigned:g_slotFactory)[sample.slot];
   milli=std::min<unsigned>(value,1000);
   g_last.store(now);++g_ok;return true;
+}
+struct ReconcilerContext { Session* session; unsigned units; unsigned board; HANDLE stop; };
+// Reads the table pages that hold a non-zero, unconfirmed key (E5 FE, one page = 32 slots),
+// paced only by the vendor's command exchange; sleeps while every key is idle or confirmed.
+// A board that does not answer E5 FE keeps the plain stream for the rest of the session.
+unsigned __stdcall Reconciler(void* arg) {
+  auto& ctx=*static_cast<ReconcilerContext*>(arg);
+  const HANDLE waits[]={ctx.stop,ReconcileEvent()};
+  constexpr unsigned kNeverAnswered=3;
+  unsigned reads=0,failures=0,failuresInRow=0,failureLines=0;
+  while(!g_stop.load() && WaitForSingleObject(ctx.stop,0)!=WAIT_OBJECT_0) {
+    const int page=g_reconcile.NextPage();
+    if(page<0) {
+      if(!waits[1] || WaitForMultipleObjects(2,waits,FALSE,INFINITE)==WAIT_OBJECT_0)break;
+      continue;
+    }
+    const auto seqs=g_reconcile.Before(static_cast<unsigned>(page));
+    mg::Report reply{};halljoy::rongyuan::Values table{};
+    if(!ctx.session->Query(mg::Request(0xe5,0xfe,1,static_cast<std::uint8_t>(page)),reply,
+        [&](const auto& x){return halljoy::rongyuan::ParseTravel(x,ctx.units,table);},true)) {
+      // Tester log 2026-10-21: after 29 s of good reads one reply was not ready within the
+      // exchange window (error 13). That is the firmware being busy, not a missing command:
+      // the keys stay unconfirmed and the next pass reads the page again. Only a board that
+      // never answered gives up (three failures before any good read).
+      const DWORD error=GetLastError();
+      ++failures;++failuresInRow;
+      char line[192]{};
+      if(failureLines<16 || (!reads && failures>=kNeverAnswered)) {
+        ++failureLines;
+        _snprintf_s(line,_TRUNCATE,"evidence.rongyuan reconcile_failed board=%u page=%d error=%lu reads=%u failures=%u",
+                    ctx.board,page,error,reads,failures);
+        SupportLog_Evidence(line,true);
+      }
+      if(!reads && failures>=kNeverAnswered) {
+        _snprintf_s(line,_TRUNCATE,"evidence.rongyuan reconcile_unavailable board=%u page=%d error=%lu",ctx.board,page,error);
+        SupportLog_Evidence(line,true);
+        break;
+      }
+      if(ctx.session->Poisoned())break;  // the control pipe failed: the session is ending anyway
+      continue;
+    }
+    ++reads;
+    if(failuresInRow) {
+      char line[160]{};
+      _snprintf_s(line,_TRUNCATE,"evidence.rongyuan reconcile_resumed board=%u page=%d after_failures=%u reads=%u",
+                  ctx.board,page,failuresInRow,reads);
+      if(failureLines<16)SupportLog_Evidence(line,true);
+      failuresInRow=0;
+    }
+    std::vector<halljoy::ry_stream::Reconcile::Correction> found;
+    g_reconcile.Table(static_cast<unsigned>(page),seqs,table.data(),found);
+    if(found.empty())continue;
+    {
+      std::lock_guard<std::mutex> lock(g_correctionLock);
+      g_corrections.insert(g_corrections.end(),found.begin(),found.end());
+    }
+    if(CorrectionEvent())SetEvent(CorrectionEvent());
+  }
+  return 0;
+}
+// Reader thread: applies queued table values whose key got no newer stream sample.
+void ApplyCorrections(const mg::Model& model) {
+  std::vector<halljoy::ry_stream::Reconcile::Correction> pending;
+  {
+    std::lock_guard<std::mutex> lock(g_correctionLock);
+    pending.swap(g_corrections);
+  }
+  for(const auto& c:pending) {
+    if(!g_reconcile.Accept(c))continue;
+    const LONGLONG sampleUs=NowUs();
+    mg::Sample sample{};sample.slot=c.slot;sample.raw=c.raw;
+    std::uint16_t hid=0;unsigned milli=0;
+    if(!Publish(sample,model,GetTickCount64(),hid,milli))continue;
+    if(hid) {
+      DrainOsKeys();
+      halljoy::ry_stream::PressRecord record{};
+      if((!milli || InputTrace_IsBound(hid)) && g_timing.Sample(hid,milli,sampleUs,0,record))WritePress(record);
+    }
+    // Every applied correction is evidence of a report the keyboard did not deliver.
+    char line[160]{};
+    _snprintf_s(line,_TRUNCATE,"evidence.rongyuan reconcile slot=%u hid=%02x stream=%u table=%u",
+                c.slot,hid,c.stream,c.raw);
+    SupportLog_Evidence(line,g_reconcileLines++<kReconcileKeptLines);
+  }
 }
 bool Run(const Candidate &c, bool &identityRejected) {
   Clear();
@@ -506,6 +612,11 @@ bool Run(const Candidate &c, bool &identityRejected) {
   // Press timing starts clean: no record or Windows key event of an earlier session.
   g_timing.Reset();
   g_osTail.store(g_osHead.load(std::memory_order_acquire),std::memory_order_release);
+  g_reconcile.Reset();
+  {std::lock_guard<std::mutex> lock(g_correctionLock);g_corrections.clear();}
+  ReconcilerContext reconcilerContext{&s,s.units,s.board,CreateEventW(nullptr,TRUE,FALSE,nullptr)};
+  HANDLE reconciler=reconcilerContext.stop && ReconcileEvent() && CorrectionEvent()
+      ? reinterpret_cast<HANDLE>(_beginthreadex(nullptr,0,Reconciler,&reconcilerContext,0,nullptr)) : nullptr;
   std::array<unsigned char,32> report{};
   HidIoOperation read(s.Input());
   DWORD endError=ERROR_SUCCESS;
@@ -518,11 +629,15 @@ bool Run(const Candidate &c, bool &identityRejected) {
     bool failed=false;
     if(start==HidIoOperation::StartResult::Pending) {
       backlog=0;
-      HANDLE events[]={read.Event(),g_wake,OsKeyEvent()};
+      HANDLE events[4]={read.Event(),g_wake};
+      DWORD count=2,osAt=MAXDWORD,correctionAt=MAXDWORD;
+      if(OsKeyEvent()) {osAt=count;events[count++]=OsKeyEvent();}
+      if(reconciler) {correctionAt=count;events[count++]=CorrectionEvent();}
       while(!g_stop.load()) {
-        const auto wait=WaitForMultipleObjects(events[2]?3:2,events,FALSE,1000);
+        const auto wait=WaitForMultipleObjects(count,events,FALSE,1000);
         if(wait==WAIT_OBJECT_0)break;
-        if(wait==WAIT_OBJECT_0+2) {DrainOsKeys();continue;}
+        if(wait==WAIT_OBJECT_0+osAt) {DrainOsKeys();continue;}
+        if(wait==WAIT_OBJECT_0+correctionAt) {ApplyCorrections(*s.model);continue;}
         if(wait==WAIT_FAILED) {endReason=2;endError=GetLastError();failed=true;break;}
       }
     } else ++backlog;
@@ -544,6 +659,12 @@ bool Run(const Candidate &c, bool &identityRejected) {
       ++g_bad;DebugLog_Write(L"[rongyuan.stream] invalid input bytes=%lu; session stopped",done);break;
     }
   }
+  if(reconciler) {
+    SetEvent(reconcilerContext.stop);
+    WaitForSingleObject(reconciler,INFINITE);
+    CloseHandle(reconciler);
+  }
+  if(reconcilerContext.stop)CloseHandle(reconcilerContext.stop);
   if(!g_stop.load() && endReason==4)halljoy::keyboard_support::ReportCommunicationAnomaly(
       static_cast<unsigned>(NativeAnalogProtocol::RongYuanStream));
   if(!g_stop.load())halljoy::keyboard_support::ReportCommunicationAccessFailure(

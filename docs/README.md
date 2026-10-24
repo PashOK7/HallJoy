@@ -1,3 +1,8 @@
+> EPOMAKER: [HE75 V2 TMR (board 3613, USB alias 5030 from a device log) Supported (2026-10-24)](current/EPOMAKER_HE75V2TMR_2026-10-24.md).
+> MonsGeek: [M2 V5 HE layout from the official web driver, Supported; GamaKay TK75 HE V2 (3167) Supported (2026-10-24)](current/MONSGEEK_M2V5HE_2026-10-24.md).
+> GamaKay: [official downloads; TK75 HE V2 = RongYuan boards 3138/3167 on the existing stream (2026-10-23)](current/GAMAKAY_2026-10-23.md).
+> UI: [Gamepad Tester native update rate: measured now / max (p99) instead of the per-backend 0.0 Hz (2026-10-22)](current/UPDATE_RATE_DISPLAY_2026-10-22.md).
+> Notices: [red "not supported" banner for keyboards on red Sheet rows (catalog + live Sheet gate, 2026-10-22)](current/UNSUPPORTED_KEYBOARD_NOTICE_2026-10-22.md).
 > AULA: [6x21 keyboards held by the web driver: "found, but another app is using it" notice and stage-by-stage HallJoy.log evidence (2026-10-19)](current/AULA_6X21_BUSY_INTERFACE_2026-10-19.md).
 > MonsGeek: [M1 V5 TMR wired lag report: log review, reader priority, per-press timing evidence (2026-10-16)](current/MONSGEEK_M1V5_TMR_LAG_2026-10-16.md).
 > YUNZII: [RT80 (3151:4035) tester log, shared RongYuan PID, legacy YC3121 platform without per-key live analog (2026-10-15)](current/YUNZII_RT80_2026-10-15.md).
@@ -7,6 +12,7 @@
 
 > Published: [HallJoy 1.6.9 publication record](current/RELEASE_1.6.9_PUBLICATION_2026-10-11.md).
 
+> RongYuan: [FUN60 Ultra TMR release sticking fix (E5 FE reconcile), IROK Mars68 Pro admission, Womier SK75 TMR Supported (2026-10-21)](current/RONGYUAN_MARS68_SK75_FUN60_2026-10-21.md).
 > MonsGeek: [FUN60 Ultra TMR board 2352, Supported (tester-confirmed); board 2307 on 3151:5030 admitted as alias 2026-10-20, testing](current/FUN60_ULTRA_2352_2026-10-10.md).
 
 > K4 HE: [found while a game holds the keyboard (shared vendor open)](current/K4_SHARED_VENDOR_OPEN_2026-10-10.md).

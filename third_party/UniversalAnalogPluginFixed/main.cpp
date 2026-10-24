@@ -504,6 +504,9 @@ struct Device
 			// Soup stores the NuPhy stream in an 8-bit per-key cache before
 			// publishing it to the plugin ABI.
 			telemetry_nominal_levels = 256;
+			// DrunkDeer boards on this VID: 0.01 mm, 4.00 mm full scale (visible in HallJoy.log).
+			if (halljoy::drunkdeer_identity::IsNuphyPlatformBoard(kbd.hid.vendor_id, kbd.hid.product_id))
+				telemetry_nominal_levels = halljoy::drunkdeer_identity::kNuphyPlatformFullScale + 1u;
 		}
 		info = new_device_info(kbd.hid.vendor_id, kbd.hid.product_id, manufacturer_name.c_str(), kbd.name.c_str(), this->id, DeviceType::Keyboard);
 	}

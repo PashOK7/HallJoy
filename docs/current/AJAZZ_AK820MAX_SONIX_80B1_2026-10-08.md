@@ -278,3 +278,17 @@ unpredictable in games; plain digital keys are easier to play than partly guesse
 family usable, so it stays unsupported. Owner-approved reply posted
 (https://github.com/PashOK7/HallJoy/issues/9#issuecomment-6195864455): revisions of "AK820 MAX HE", 80B1 not supported,
 the reason for the rule, revisit if AJAZZ ships a working multi-key read. Issue left open for the reporter's answer.
+
+## User log "message (11).txt" (1.6.11.0), 2026-10-22
+
+Owner forwarded a log labelled "Ajazz AK820 Max". The keyboard is `0C45:80B1` "AK820MAX" (interfaces 00..03), the
+same Sonix revision as above; the other devices are a `1D57:FA60` "2.4G Wireless Device" receiver, an
+audio DAC and a "Q9-1" device (not keyboards in scope). As expected with `Ak820Admitted=false`, no backend claims it:
+`aula-mini60-he-pro` stays `observation=not_present`, `sources=0`, UAP has no devices, and the "no supported keyboard"
+banner is shown. No bound keys (`unique_keys=0`). The log has no stream data, so it adds no new evidence about the
+firmware (0x68 echo, change-only stream). No code, Sheet or status change: the row stays "No usable analog found" (red)
+per the 2026-10-08 owner decision.
+
+Follow-up the same day: the user saw the generic "No supported analogue keyboard detected" banner with a Discord
+invite. Owner: red keyboards must get a clear "will not be supported" banner. Done for all red Sheet rows, see
+UNSUPPORTED_KEYBOARD_NOTICE_2026-10-22.md (this unit: "AJAZZ AK820 MAX HE (Sonix 0C45:80B1): not supported").

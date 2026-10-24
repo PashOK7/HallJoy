@@ -4302,6 +4302,57 @@
           "loader": "df09d59e.js"
         }
       ]
+    },
+    {
+      "id": 3138,
+      "vid": 12625,
+      "pid": 20528,
+      "name": "ry5088_chiehko_tk75v5_3m_8k_8k",
+      "displayName": "TK75",
+      "company": "gamakay2",
+      "record_literal": "{id:3138,vid:12625,pid:20528,keyLayout:c.Common82_TK75,name:\"ry5088_chiehko_tk75v5_3m_8k_8k\",displayName:\"TK75\",company:\"gamakay2\",type:\"keyboard\",layer:3,fnSysLayer:{win:1,mac:1},lightLayout:T,sideLightLayout:he,magnetism:!0,other:{isSwitchReplaceable:!0,supportedSwitchTypes:[\"天马磁轴\",\"凤凰静音磁轴\"],knobKeyCodes:[\"AudioVolumeDown\",\"MediaPlayPause\",\"AudioVolumeUp\"],screen:{size:{w:128,h:128},mode:\"16\",layer:[\"1\",\"2\",\"3\",\"4\",\"5\"],canSwitchLanguage:!0,canSyncSystemInfo:!0,date:!0},sleep24:{sleep:{min:0,max:18*60*60,default:2*60*60}},sleepBT:{sleep:{min:0,max:18*60*60,default:2*60*60},deep:{min:10,max:18*60*60,default:30*60}}}}",
+      "source_offset_chars": 678350,
+      "source_end_chars": 678975,
+      "loader_matches": [
+        {
+          "chunk": "33368eb1.js",
+          "loader": "df09d59e.js"
+        }
+      ]
+    },
+    {
+      "id": 3167,
+      "vid": 12625,
+      "pid": 20528,
+      "name": "ry5088_jk_tk75v5_8k",
+      "displayName": "TK75",
+      "company": "gamakay2",
+      "record_literal": "{id:3167,vid:12625,pid:20528,keyLayout:c.Common81_DK82US,name:\"ry5088_jk_tk75v5_8k\",displayName:\"TK75\",company:\"gamakay2\",type:\"keyboard\",layer:4,fnSysLayer:{win:1,mac:1},magnetism:!0,lightLayout:T,sideLightLayout:he,other:{isSwitchReplaceable:!0,supportedSwitchTypes:[\"凤凰静音磁轴\",\"天马磁轴\"],knobKeyCodes:[\"AudioVolumeDown\",\"MediaPlayPause\",\"AudioVolumeUp\"],screen:{size:{w:128,h:128},mode:\"16\",layer:[\"1\",\"2\",\"3\",\"4\",\"5\"],canSwitchLanguage:!0,canSyncSystemInfo:!0,date:!0},sleep24:{sleep:{min:0,max:18*60*60,default:2*60*60}},sleepBT:{sleep:{min:0,max:18*60*60,default:2*60*60},deep:{min:10,max:18*60*60,default:30*60}}}}",
+      "source_offset_chars": 683391,
+      "source_end_chars": 684007,
+      "loader_matches": [
+        {
+          "chunk": "f3f563b2.js",
+          "loader": "df09d59e.js"
+        }
+      ]
+    },
+    {
+      "id": 3613,
+      "vid": 12625,
+      "pid": 20564,
+      "name": "ry5088_jc_8642_tmr_3m_8k_8k",
+      "displayName": "8642",
+      "company": "rongyuan",
+      "record_literal": "{id:3613,vid:12625,pid:20564,keyLayout:c.Common82_GK8642_v2,name:\"ry5088_jc_8642_tmr_3m_8k_8k\",displayName:\"8642\",type:\"keyboard\",company:\"rongyuan\",layer:2,fnSysLayer:{win:1,mac:1},magnetism:!0,lightLayout:T,sideLightLayout:tr,other:{isSwitchReplaceable:!0,supportedSwitchTypes:[\"灭霸轴\",\"天霸轴\",\"精灵王轴\",\"芭比轴\",\"泰山轴\"],specialSwitchDisplayName:{灭霸轴:\"紫星轴\"},sleep24:{sleep:{min:1*60,max:1*60*60}},sleepBT:{sleep:{min:1*60,max:1*60*60},deep:{min:10*60,max:1*60*60}}}}",
+      "source_offset_chars": 564025,
+      "source_end_chars": 564482,
+      "loader_matches": [
+        {
+          "chunk": "1666eace.js",
+          "loader": "df09d59e.js"
+        }
+      ]
     }
   ]
 }

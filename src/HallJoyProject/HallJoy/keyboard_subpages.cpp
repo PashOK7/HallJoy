@@ -11356,12 +11356,12 @@ static std::vector<std::wstring> BuildAnalogDiagnosticsLines(
         if (knownDetailed || (!native.present && !native.connected))
             continue;
         _snwprintf_s(line, _countof(line), _TRUNCATE,
-            L"Native protocol %S: %ls | VID/PID %04X:%04X | %ls | mapped %u | active %u | %.1f Hz",
+            L"Native protocol %S: %ls | VID/PID %04X:%04X | %ls | mapped %u | active %u | updates now %.0f Hz, max %.0f Hz",
             native.id, native.name,
             (unsigned)native.vendorId, (unsigned)native.productId,
             native.connected ? L"connected" : L"detected",
             (unsigned)native.mappedKeys, (unsigned)native.activeKeys,
-            (double)native.updateHz10 / 10.0);
+            (double)native.measuredHz10 / 10.0, (double)native.measuredPeakHz10 / 10.0);
         lines.emplace_back(line);
         _snwprintf_s(line, _countof(line), _TRUNCATE,
             L"  %ls | usage %04X:%04X | HID in/out %u/%u | update age %u ms",

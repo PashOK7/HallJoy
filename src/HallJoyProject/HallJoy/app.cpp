@@ -16,6 +16,7 @@
 #include "rongyuan_stream_backend.h"
 #include "irok_na87_diagnostic.h"
 #include "aula_mini60_diagnostic.h"
+#include "drunkdeer_nuphy_probe.h"
 #include "attackshark_pro_diagnostic.h"
 #include "irok_na87_backend.h"
 #include "native_layout_devices.h"
@@ -2404,6 +2405,7 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
 #if !defined(HALLJOY_AULA_MINI60_NATIVE)
     Mini60Diagnostic_Start();
 #endif
+    DrunkDeerNuphyProbe_Start();
     DebugLog_Write(L"[app] main window created hwnd=%p pos=(%d,%d) size=(%d,%d)", hwnd, x, y, w, h);
 
     if (wc.hIcon)

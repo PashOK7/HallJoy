@@ -22,6 +22,22 @@ def check():
         assert key not in expected;expected.add(key)
         canonical=next(p for p in profiles if (p['board'],p['vid'],p['pid'])==(canonical_board,a['canonical_vid'],a['canonical_pid']))
         record=a['source_record']['record']
+        if a.get('kind')=='device-log':
+            # No registry lists the observed tuple: the official record carries the catalog
+            # tuple, and a pinned device log shows the keyboard answering this board on the
+            # observed tuple. The alias then reuses the canonical profile's matrix unchanged.
+            assert canonical_board==a['board'] and (a['canonical_vid'],a['canonical_pid'])!=(a['vid'],a['pid'])
+            assert f"id:{a['board']},vid:{a['canonical_vid']},pid:{a['canonical_pid']}," in record
+            log=(ROOT/a['device_log']['path']).read_bytes()
+            assert hashlib.sha256(log).hexdigest()==a['device_log']['sha256']
+            text=log.decode('utf-8')
+            assert f'hid.candidate vid={a["vid"]:04X} pid={a["pid"]:04X} ' in text
+            assert f'rongyuan.connected value={a["board"]} ' in text
+            source=ROOT/a['source_record']['source']
+            if source.exists():
+                raw=source.read_bytes();assert hashlib.sha256(raw).hexdigest()==a['source_record']['sha256'] and record.encode() in raw
+            assert hashlib.sha256(bytes(canonical['matrix'])).hexdigest()==a['matrix_sha256']
+            continue
         assert f"id:{a['board']},vid:{a['vid']},pid:{a['pid']}," in record
         model=a['model_class'];matrix=json.loads(a['matrix_literal']) if a.get('kind')=='firmware-stream' else json.loads(re.search(r'defaultMatrix=(\[[0-9,]+\])',model)[1])
         assert matrix==canonical['matrix']

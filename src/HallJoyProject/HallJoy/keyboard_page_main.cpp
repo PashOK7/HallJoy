@@ -38,6 +38,7 @@
 #include "remap_panel.h"
 #include "keyboard_keysettings_panel.h"
 #include "keyboard_support_status.h"
+#include "unsupported_keyboard_catalog.h"
 #include "custom_page_controls.h"
 
 #include "win_util.h"
@@ -78,7 +79,21 @@ static bool Alumix68Unverified() {
 }
 static bool FrozenSupportVisible() { return AppConflictVisible() || halljoy::keyboard_support::GetStatusSnapshot().frozenModels != 0; }
 static bool ImplementedSupportVisible() { return AppConflictVisible() || (halljoy::keyboard_support::GetStatusSnapshot().frozenModels & halljoy::keyboard_support::ImplementedModels) != 0; }
-static int SupportBannerHeight() { return FrozenSupportVisible() ? 154 : kSupportBannerHeightPx; }
+// A keyboard from the red Sheet rows is connected and nothing else explains the
+// missing analog source: say plainly that it will not be supported.
+static bool UnsupportedVisible() {
+    const auto s = halljoy::keyboard_support::GetStatusSnapshot();
+    return s.unsupportedModel && !s.frozenModels && !s.communicationWarning && !s.analogSourceConnected &&
+           halljoy::keyboard_support::UnsupportedName(s.unsupportedModel);
+}
+static const wchar_t* UnsupportedTitle() {
+    static wchar_t title[160]{};
+    swprintf_s(title, L"%ls: not supported",
+        halljoy::keyboard_support::UnsupportedName(halljoy::keyboard_support::GetStatusSnapshot().unsupportedModel));
+    return title;
+}
+static constexpr wchar_t kUnsupportedBody[] = L"HallJoy has checked this keyboard: its firmware does not provide analog key travel that HallJoy can use, so this keyboard will not be supported. It keeps working as a normal keyboard.";
+static int SupportBannerHeight() { return FrozenSupportVisible() || UnsupportedVisible() ? 154 : kSupportBannerHeightPx; }
 static const wchar_t* FrozenSupportTitle() {
     if(Mix87LimitedVisible()) return L"MCHOSE Mix87 III: limited analog";
     if(Mad68LimitedVisible()) return L"MAD 68 V2 Dual: low-quality firmware analog";
@@ -272,7 +287,7 @@ static SupportBannerLayout SupportBanner_GetLayout(HWND hWnd, const RECT& rc)
         result.copy = {result.join.right + gap, result.join.top, result.join.right + gap + copyW, result.join.bottom};
     }
     result.log = {result.copy.right + gap, result.copy.top, result.copy.right + gap + S(hWnd,96), result.copy.bottom};
-    if (AppConflictVisible()) {
+    if (AppConflictVisible() || UnsupportedVisible()) {
         result.title.right=rc.right-pad;
         result.body={pad,result.title.bottom+S(hWnd,8),rc.right-pad,S(hWnd,108)};
         result.log={pad,S(hWnd,114),pad+S(hWnd,96),S(hWnd,146)};
@@ -412,12 +427,12 @@ static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LP
             (float)S(hWnd, 8));
         RECT accent{S(hWnd, 1), S(hWnd, 13), S(hWnd, 4), rc.bottom - S(hWnd, 13)};
         CustomPage_DrawRoundRect(g, accent, (FrozenSupportVisible() && !KnownLimitedVisible()) ? (ImplementedSupportVisible() ? RGB(239, 179, 70) : RGB(155, 166, 185)) : RGB(214, 103, 122), (FrozenSupportVisible() && !KnownLimitedVisible()) ? (ImplementedSupportVisible() ? RGB(239, 179, 70) : RGB(155, 166, 185)) : RGB(214, 103, 122), 1.0f);
-        CustomPage_DrawText(hdc, FrozenSupportVisible() ? FrozenSupportTitle() : L"No supported analogue keyboard detected", layout.title,
+        CustomPage_DrawText(hdc, FrozenSupportVisible() ? FrozenSupportTitle() : UnsupportedVisible() ? UnsupportedTitle() : L"No supported analogue keyboard detected", layout.title,
             (FrozenSupportVisible() && !KnownLimitedVisible()) ? (ImplementedSupportVisible() ? RGB(255, 205, 112) : RGB(210, 218, 230)) : RGB(245, 164, 182), DT_LEFT | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
 
         SelectObject(hdc, bodyFont ? bodyFont : GetStockObject(SYSTEM_FONT));
-        CustomPage_DrawText(hdc, FrozenSupportVisible() ? FrozenSupportBody() : kSupportPrompt, layout.body, UiTheme::Color_Text(),
-            FrozenSupportVisible() ? DT_LEFT | DT_TOP | DT_WORDBREAK : DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        CustomPage_DrawText(hdc, FrozenSupportVisible() ? FrozenSupportBody() : UnsupportedVisible() ? kUnsupportedBody : kSupportPrompt, layout.body, UiTheme::Color_Text(),
+            FrozenSupportVisible() || UnsupportedVisible() ? DT_LEFT | DT_TOP | DT_WORDBREAK : DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
         if(Mix87LimitedVisible()) {
             const auto mode=MchoseMix87_GetMode();
             const bool ready=mode.state==Mix87ModeState::Enabled || mode.state==Mix87ModeState::Disabled;
@@ -425,7 +440,7 @@ static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LP
         }
         CustomPage_DrawButton(g, hdc, layout.log, L"Open log",
             g_supportBannerHot == SupportBannerAction::Log, g_supportBannerPressed == SupportBannerAction::Log, true);
-        if (!AppConflictVisible() && !Mix87LimitedVisible()) {
+        if (!AppConflictVisible() && !Mix87LimitedVisible() && !UnsupportedVisible()) {
         CustomPage_DrawButton(g, hdc, layout.join, L"Join Discord",
             g_supportBannerHot == SupportBannerAction::Join, g_supportBannerPressed == SupportBannerAction::Join, true);
         CustomPage_DrawButton(g, hdc, layout.copy, L"Copy link",

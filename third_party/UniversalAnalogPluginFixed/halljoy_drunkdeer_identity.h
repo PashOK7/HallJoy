@@ -114,4 +114,45 @@ inline bool WideChunk(const std::uint8_t* r,std::size_t size,std::size_t& chunk)
 inline constexpr unsigned WideValue(const std::uint8_t* r,std::size_t index) noexcept {
     return unsigned(r[4+2*index])|(unsigned(r[5+2*index])<<8);
 }
+// DrunkDeer boards on the NuPhy USB VID (official driver drunkdeer.keybord.net.cn,
+// wired usage 1:0): A75 Ultra FB3E, A75 Master FB5E, A75 Pro FB5C/FB63, X60 FB50,
+// X60 HE FB42, A75 Air FB7B. Their A0 records carry travel as big-endian u16 in
+// bytes 6..7 in 0.01 mm (driver: F([e[7],e[6]]), switch travel 400 = 4.00 mm);
+// bytes 4..5 are not travel. NuPhy's own boards keep their bytes 4..5 decoder.
+inline constexpr bool IsNuphyPlatformBoard(std::uint16_t vid,std::uint16_t pid) noexcept {
+    if (vid!=0x19F5) return false;
+    switch(pid) {
+    case 0xFB3E:case 0xFB5E:case 0xFB5C:case 0xFB63:case 0xFB50:case 0xFB42:case 0xFB7B:return true;
+    default:return false;
+    }
+}
+inline constexpr unsigned kNuphyPlatformFullScale=400;
+inline constexpr unsigned NuphyPlatformTravel(const std::uint8_t* r) noexcept {
+    const unsigned raw=(unsigned(r[6])<<8)|r[7];
+    return raw>kNuphyPlatformFullScale?kNuphyPlatformFullScale:raw;
+}
+// A0 key records carry the key's type (official driver K(): 16 key with modifier mask,
+// 240 Fn layer keys, 224 other layer key). Anything else starting with A0 is a reply
+// to the vendor command 0xA0 (key trigger table), not travel.
+inline constexpr bool IsNuphyPlatformKeyType(std::uint8_t type) noexcept {
+    return type==16 || type==240 || type==224;
+}
+// Physical key of an A0 record, as the official driver's K(type, b2, b3) (it matches the
+// result against the layout's factory codes, so remaps do not change it): type 16 = HID
+// usage in b3, or a modifier from the single-bit mask in b2; Fn1 = 240/255/1 -> HallJoy Fn
+// 0x409; Fn2 = 240/255/2 or 224/0/x -> HallJoy Fn2 0x403. 0 = not a key.
+inline constexpr std::uint16_t NuphyPlatformKey(std::uint8_t type,std::uint8_t b2,std::uint8_t b3) noexcept {
+    if (type==16) {
+        switch(b2) {
+        case 0:return b3;
+        case 1:return 224; case 2:return 225; case 4:return 226; case 8:return 227;
+        case 16:return 228; case 32:return 229; case 64:return 230; case 128:return 231;
+        default:return b3;
+        }
+    }
+    if (type==240 && b2==255 && b3==1) return 0x409;
+    if (type==240 && b2==255 && b3==2) return 0x403;
+    if (type==224 && b2==0) return 0x403;
+    return 0;
+}
 }

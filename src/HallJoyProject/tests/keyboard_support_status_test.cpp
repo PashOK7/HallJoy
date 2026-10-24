@@ -1,5 +1,8 @@
 #include "keyboard_support_status.h"
 #include "support_notice_catalog.h"
+#include "unsupported_keyboard_catalog.h"
+
+#include <cwchar>
 
 #include <cassert>
 
@@ -114,6 +117,34 @@ int main()
         SetSearchObservation(true,true,mask);assert(GetStatusSnapshot().frozenModels==mask);
         SetSearchObservation(false,true,mask);assert(GetStatusSnapshot().frozenModels==0);
     }
+    // Red Sheet rows: exact identities only; shared PIDs need the product string.
+    const unsigned ak820=FindUnsupported(0x0c45,0x80b1,L"AK820MAX");
+    assert(ak820 && std::wcscmp(UnsupportedName(ak820),L"AJAZZ AK820 MAX HE (Sonix 0C45:80B1)")==0);
+    assert(FindUnsupported(0x0c45,0x80b1,L"AK820MAX  ")==ak820); // padded USB string
+    assert(FindUnsupported(0x0c45,0x80b1,L"AJAZZ KEYBOARD")==0); // TFT config on the same PID
+    assert(FindUnsupported(0x0c45,0x80b0,L"AK820MAX")==0);
+    assert(FindUnsupported(0x0c45,0x80a2,L"")==0 && FindUnsupported(0x0416,0x7372,L"GK8260HERGB")==0); // supported neighbours
+    assert(FindUnsupported(0x0c45,0x80c1,L"AJAZZ AK680 V2") && FindUnsupported(0x0c45,0x80c1,L"AJAZZ KEYBOARD")==0);
+    assert(FindUnsupported(0x0c45,0x80bc,L"AJAZZ AK680 V2") && FindUnsupported(0x0c45,0x80c2,L"AJAZZ AK680 V2"));
+    assert(std::wcscmp(UnsupportedName(FindUnsupported(0x1b1c,0x1bc0,L"")),L"Corsair K70 MAX")==0);
+    assert(std::wcscmp(UnsupportedName(FindUnsupported(0x28e9,0x31fd,L"")),L"MADLIONS TITAN 68 Turbo")==0);
+    assert(FindUnsupported(0x28e9,0x3265,L"")==0); // MAD 68 V2 Dual keeps its limited-analog notice
+    assert(FindUnsupported(0x3151,0x4035,L"RT80") && FindUnsupported(0x3151,0x4035,L"AGK75")==0);
+    assert(FindUnsupported(0x3151,0x4015,L"")==0 && UnsupportedName(0)==nullptr && UnsupportedName(255)==nullptr);
+    // The index survives the snapshot next to every model flag, and a known
+    // unsupported keyboard alone is not an auto-saved log incident.
+    SetSearchObservation(true,false,0,false,ak820);
+    assert(GetStatusSnapshot().unsupportedModel==ak820 && GetStatusSnapshot().frozenModels==0);
+    assert(!ShouldAutoSaveSupportLog(GetStatusSnapshot()));
+    SetSearchObservation(true,false,KeyboardBusy|MelGeekMade68Air,true,255);
+    assert(GetStatusSnapshot().unsupportedModel==255 && GetStatusSnapshot().frozenModels==(KeyboardBusy|MelGeekMade68Air) &&
+           GetStatusSnapshot().communicationWarning);
+    SetSearchObservation(true,false,AulaRm,false,ak820);
+    assert(ShouldAutoSaveSupportLog(GetStatusSnapshot()));
+    SetSearchObservation(false,false,0,false,ak820);
+    assert(GetStatusSnapshot().unsupportedModel==0);
+    SetSearchObservation(true,false);
+    assert(GetStatusSnapshot().unsupportedModel==0 && ShouldAutoSaveSupportLog(GetStatusSnapshot()));
     // MCHOSE Ace 68 Air III (41E4:2132) is Supported; other ARM Ace 68 boards keep the notice.
     assert(NativeNotice(27,0xC19BC9D40FAC0AA4ull,true,0x2132)==0);
     assert(NativeNotice(27,0xC19BC9D40FAC0AA4ull,true,0x300a)==MchoseFamily);

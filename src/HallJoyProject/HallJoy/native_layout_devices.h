@@ -30,3 +30,6 @@ void NativeLayoutDevices_Invalidate() noexcept;
 
 // Cached USB product metadata, refreshed only after device-topology changes.
 unsigned NativeLayoutDevices_QueryFrozen();
+// Same cached scan: 1-based unsupported keyboard catalog index of the first
+// connected red-row keyboard, 0 when none.
+unsigned NativeLayoutDevices_QueryUnsupported();

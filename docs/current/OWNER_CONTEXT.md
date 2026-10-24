@@ -1,3 +1,4 @@
+> 2026-10-24 PUBLISHED stable/latest 1.6.12: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.12 (commit 17bb4a2, EXE 934af634). See RELEASE_1.6.12_PUBLICATION_2026-10-24.md.
 > 2026-10-24 EPOMAKER HE75 V2 TMR Supported (user zip with own patches + log; patches NOT applied, our pipeline used): board 3613 from
 > the catalog (3151:5054) + reviewed USB alias 5030 backed by the device log (new alias kind device-log), layout from gearhub (merged
 > preset "HE75 V2 / HE75 V2 TMR"), Sheet C259 green. Gates PASS, EXE 90c89f4a (local). See EPOMAKER_HE75V2TMR_2026-10-24.md.

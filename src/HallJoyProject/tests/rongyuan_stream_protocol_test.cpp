@@ -1,4 +1,5 @@
 #include "rongyuan_stream_protocol.h"
+#include "rongyuan_identity_budget.h"
 #include "rongyuan_press_timing.h"
 #include "rongyuan_stream_reconcile.h"
 #include "physical_analog_state.h"
@@ -105,7 +106,7 @@ int main() {
   publication.Clear();assert(!publication.Read(4,60103,~std::uint64_t{0}).fresh);
   ++revisions;
  }
- assert(revisions==258);
+ assert(revisions==259);
  physical_analog::Publication aliases;assert(aliases.Bind(1,26)&&aliases.Bind(2,26));
  aliases.Publish(1,500,100);aliases.Publish(2,700,101);aliases.Publish(2,0,102);
  assert(aliases.Read(26,60000,~std::uint64_t{0}).milli==500);
@@ -178,9 +179,19 @@ int main() {
   assert(out.size()==1 && out[0].slot==9 && out[0].raw==640 && r.Accept(out[0]));
   assert(r.Before(9).size()==32 && r.NextPage()!=2);  // out-of-range page reads nothing
  }
+ {
+  // Identity budget (ATTACK SHARK X82HE log 2026-10-24): two answered rejections, then
+  // replies lost in another backend's traffic. Those failures count once the path was
+  // rejected, so probing stops at the limit instead of every second forever.
+  IdentityBudget budget;const std::wstring shark=L"x82he",other=L"m1v5";
+  assert(!budget.Failed(other,false) && !budget.Exhausted(other));  // no rejection yet: not counted
+  assert(budget.Failed(shark,true)==1 && budget.Failed(shark,true)==2 && !budget.Exhausted(shark));
+  assert(budget.Failed(shark,false)==3 && budget.Exhausted(shark) && !budget.Exhausted(other));
+  budget.Reset();assert(!budget.Exhausted(shark) && !budget.Failed(shark,false));  // device change
+ }
  std::cout<<"SYNTHETIC_WIRE_CASES="<<syntheticFrames<<"\n";
  using namespace keyboard_support;
  assert(NativeNotice(22,0,true)==RongYuanStream && NativeNotice(22,0,false)==0);
  SetSearchObservation(true,true,RongYuanStream);assert(GetStatusSnapshot().frozenModels==RongYuanStream);
- std::cout<<"RONGYUAN_STREAM=PASS revisions="<<revisions<<" captured_frames="<<frames<<" stationary_hold release aliases disconnect malformed precision identity notices press_timing reconcile\n";
+ std::cout<<"RONGYUAN_STREAM=PASS revisions="<<revisions<<" captured_frames="<<frames<<" stationary_hold release aliases disconnect malformed precision identity notices press_timing reconcile identity_budget\n";
 }

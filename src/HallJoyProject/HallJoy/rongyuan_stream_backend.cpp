@@ -22,6 +22,7 @@
 #include "native_analog_routing.h"
 #include "native_layout_state.h"
 #include "physical_analog_state.h"
+#include "rongyuan_identity_budget.h"
 #include "rongyuan_press_timing.h"
 #include "rongyuan_stream_reconcile.h"
 #include "rongyuan_stream_protocol.h"
@@ -680,9 +681,8 @@ bool Run(const Candidate &c, bool &identityRejected) {
 unsigned __stdcall Worker(void *) {
   // A board this table does not admit is stable for the same device: retry it a few
   // times (a reply can be late after plug-in), then wait for a device change instead
-  // of querying the unknown keyboard every second.
-  constexpr unsigned kIdentityAttempts = 3;
-  std::vector<std::pair<std::wstring, unsigned>> rejected;
+  // of querying the unknown keyboard every second (rongyuan_identity_budget.h).
+  halljoy::ry_stream::IdentityBudget rejected;
   unsigned topology = g_topology.load();
   // The reader must not wait behind a busy foreground game (tester report 2026-10-16: wired
   // M1 V5 TMR sometimes lags): the scheduling of the realtime loop that consumes its values,
@@ -693,7 +693,7 @@ unsigned __stdcall Worker(void *) {
   SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
   try {
     while (!g_stop.load()) {
-      if (g_topology.load() != topology) {topology = g_topology.load(); rejected.clear();}
+      if (g_topology.load() != topology) {topology = g_topology.load(); rejected.Reset();}
       unsigned visible = 0;
       const auto candidates = Enumerate(false, &visible);
       g_present.store(!candidates.empty());
@@ -707,16 +707,14 @@ unsigned __stdcall Worker(void *) {
           retry = true; // owned by another protocol now; routing can change later
           continue;
         }
-        auto entry = std::find_if(rejected.begin(), rejected.end(), [&](const auto &r) {return r.first == c.path;});
-        if (entry != rejected.end() && entry->second >= kIdentityAttempts)
+        if (rejected.Exhausted(c.path))
           continue;
         bool identityRejected = false;
         Run(c, identityRejected);
-        if (!identityRejected) {retry = true; continue;}
-        const unsigned attempts = entry == rejected.end() ? 1u : ++entry->second;
-        if (entry == rejected.end()) rejected.emplace_back(c.path, attempts);
-        if (attempts < kIdentityAttempts) retry = true;
-        else SupportLog_Event("rongyuan.identity_waiting", kIdentityAttempts, SupportLog_Data(c.attributes.ProductID));
+        const unsigned attempts = rejected.Failed(c.path, identityRejected);
+        if (!attempts) {retry = true; continue;}
+        if (attempts < halljoy::ry_stream::IdentityBudget::kAttempts) retry = true;
+        else SupportLog_Event("rongyuan.identity_waiting", attempts, SupportLog_Data(c.attributes.ProductID));
         if (g_stop.load())
           break;
       }

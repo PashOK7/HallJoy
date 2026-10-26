@@ -16,6 +16,9 @@ APP = Path('src/HallJoyProject/HallJoy')
 PARENTS = {'7a5b12c9.js', '3dd2d1f8.js', '60ee4367.js', '4796d290.js',
            '631ebd97.js', '3f643f35.js', '9b8d4f8a.js'}
 STATUS = 'Implemented; awaiting hardware testing'
+# Holds a manifest entry may clear with a written review (hold_review); all other
+# holds stay absolute.
+REVIEWABLE_HOLDS = {'mechanical_switch_option_review'}
 
 def digest(raw):
     return hashlib.sha256(raw).hexdigest()
@@ -156,8 +159,14 @@ class Corpus:
                 raise ValueError('duplicate manifest identity')
             seen.add(key)
             entry = lookup[key]
-            if entry['reasons']:
-                raise ValueError(f'{key}: {entry["reasons"]}')
+            cleared = m.get('reviewed_holds', [])
+            if not isinstance(cleared, list) or any(h not in REVIEWABLE_HOLDS or h not in entry['reasons'] for h in cleared):
+                raise ValueError(f'{key}: invalid reviewed_holds {cleared}')
+            if cleared and (not isinstance(m.get('hold_review'), str) or not m['hold_review'].strip()):
+                raise ValueError('missing review field: hold_review')
+            remaining = [r for r in entry['reasons'] if r not in cleared]
+            if remaining:
+                raise ValueError(f'{key}: {remaining}')
             if m['source_sha256'] != entry['source_sha256']:
                 raise ValueError('reviewed source changed')
             for field in ('brand', 'model', 'evidence', 'range_basis'):

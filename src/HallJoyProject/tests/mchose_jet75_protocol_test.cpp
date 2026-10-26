@@ -81,7 +81,33 @@ int main(){
         auto result=ChangeFlag(base,true,[&](Base& b){b=base;return true;},[&](Settings& s){s=settings;return true;},
             [&](const Report& q,Report& r){++writes;assert(q[5]==3*64+7);settings[q[5]]=q[8];r=q;r[0]=0xaa;return true;});
         assert(result==ChangeResult::Verified && writes==1 && (settings[199]&8));
-        for(const Base bad:{Base{0,0,0,0,0,0},Base{2,2,0,1,0,0},Base{0,5,0,0,0,0},Base{0,1,4,0,0,0}})assert(!Profile(bad,profile));
+        // Firmware boot rules (2026-10-24): the base the keyboard itself accepts resolves to its profile.
+        const auto resolve=[](Base b,BaseRule rule){unsigned p=9;return Profile(b,p,rule)?p:99u;};
+        // Counted (Jet 75 II, Zero75X): current<count ? current : 0; entry>3 -> 0; current>=4 unknowable.
+        assert(resolve({0,0,2,0,0,0},BaseRule::Counted)==2 && resolve({2,2,1,3,0,0},BaseRule::Counted)==1);
+        assert(resolve({0,5,0,0,0,0},BaseRule::Counted)==0 && resolve({0,1,4,0,0,0},BaseRule::Counted)==0);
+        assert(resolve({1,3,0,3,1,0},BaseRule::Counted)==3 && resolve({5,6,0,0,0,0},BaseRule::Counted)==99);
+        assert(resolve({0xff,0xff,0xff,0xff,0xff,0xff},BaseRule::Counted)==0);
+        // Bounded (Ace 60 Pro family): count ignored; current>3 -> 0; entry>3 -> 0.
+        assert(resolve({2,0,0,1,3,2},BaseRule::Bounded)==3 && resolve({2,2,0,1,3,2},BaseRule::Bounded)==3);
+        assert(resolve({7,0,1,2,3,0},BaseRule::Bounded)==1 && resolve({0,1,9,0,0,0},BaseRule::Bounded)==0);
+        assert(resolve({0xff,0xff,0xff,0xff,0xff,0xff},BaseRule::Bounded)==0);
+        // BoundedUnchecked (older writers): entry>3 would load outside the settings area.
+        assert(resolve({1,0,0,2,0,0},BaseRule::BoundedUnchecked)==2 && resolve({9,0,3,0,0,0},BaseRule::BoundedUnchecked)==3);
+        assert(resolve({0,1,4,0,0,0},BaseRule::BoundedUnchecked)==99 && resolve({0xff,0xff,0xff,0xff,0xff,0xff},BaseRule::BoundedUnchecked)==99);
+        // Every valid base of the old strict check resolves identically under all three rules.
+        for(unsigned count=1;count<=4;++count)for(unsigned current=0;current<count;++current)for(unsigned entry=0;entry<4;++entry){
+            Base b{static_cast<std::uint8_t>(current),static_cast<std::uint8_t>(count),0,0,0,0};b[2+current]=static_cast<std::uint8_t>(entry);
+            for(auto rule:{BaseRule::Counted,BaseRule::Bounded,BaseRule::BoundedUnchecked})assert(resolve(b,rule)==entry);
+        }
+        assert(Pack(Base{1,2,3,4,5,6})==0x060504030201ull);
+        // Ace 60 Pro: flag transaction on a base with count 0 goes to the firmware's profile.
+        auto ace=Stored(2,0);Base odd{1,0,0,2,0,0};unsigned aceWrites=0;
+        auto aceResult=ChangeFlag(odd,true,[&](Base& b){b=odd;return true;},[&](Settings& s){s=ace;return true;},
+            [&](const Report& q,Report& r){++aceWrites;assert(q[5]==2*64+7);ace[q[5]]=q[8];r=q;r[0]=0xaa;return true;},false,BaseRule::Bounded);
+        assert(aceResult==ChangeResult::Verified && aceWrites==1 && (ace[2*64+7]&8));
+        assert(FindModel(0x41e4,0x2103)->baseRule==BaseRule::Bounded && Models[0].baseRule==BaseRule::Counted);
+        assert(FindModel(0x41e4,0x2118)->baseRule==BaseRule::BoundedUnchecked && FindModel(0x41e4,0x211c)->baseRule==BaseRule::Counted);
     }
     {   // Reboot-on-write firmware state: exactly one write, no readback, Rebooting.
         auto settings=Stored(0,0);settings[0]|=1;Base base{0,1,0,0,0,0};unsigned writes=0,reads=0;
@@ -106,5 +132,5 @@ int main(){
                         scenario==5?ChangeResult::ReservedData:ChangeResult::Uncertain));
         assert(writes==(scenario<2 || scenario==5?0u:1u));
     }
-    printf("Jet75 protocol PASS: %u preserving flag transactions, base index, reboot-on-write, no-op, stale profile, lost ACK, ignored write, failed readback, foreign format, framing/version/depth range/modifiers, 11-model table, per-model reboot rule\n",cases);
+    printf("Jet75 protocol PASS: %u preserving flag transactions, base index, reboot-on-write, no-op, stale profile, lost ACK, ignored write, failed readback, foreign format, framing/version/depth range/modifiers, 11-model table, per-model reboot rule, firmware base rules\n",cases);
 }

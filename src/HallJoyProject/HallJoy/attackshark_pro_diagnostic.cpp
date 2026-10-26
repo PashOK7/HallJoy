@@ -672,6 +672,7 @@ void SelfTest(){
  Require(Known(2308,0x502f) && Known(2938,0x5030) && !Known(2308,0x5030));
  Require(Known(3650,0x502d) && Known(3650,0x5029));
  Require(!Known(3650,0x5030) && !Known(3650,0x502f) && !Known(9999,0x5029));
+ Require(Known(3086,0x5030) && Known(3086,0x5029) && !Known(3086,0x502d) && !Known(3086,0x502f));
  Metrics m;Report r{};auto put=[&](unsigned slot,unsigned value){r[1+2*slot]=static_cast<std::uint8_t>(value);r[2+2*slot]=static_cast<std::uint8_t>(value>>8);};
  put(14,300);put(9,100);Require(m.Add(0,r,3));put(14,320);Require(m.Add(0,r,3));put(14,0);Require(m.Add(0,r,2));
  Require(m.keys[14].released==1 && m.keys[9].last==100 && m.independentChanges==1 && !m.Enough(4,4));

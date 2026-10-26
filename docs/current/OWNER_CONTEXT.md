@@ -1,3 +1,46 @@
+> 2026-10-26 Weikav EG75 HE log "HallJoy (22).log" (1.6.12): 1CA6:5A01 connected via generic SparkLink V2, 126 keys, ~77k updates,
+> 0 failures, A/W full travel. Made exact model (ExactModel 0x5a01, no notice), 80-key layout "Weikav EG75 HE ANSI" from the official
+> driver key map + retail top view (same method as SU75 Pro), supported_layouts, README, SUPPORTED_HARDWARE. Native checks EXIT=0.
+> Build PASS (owner allowed -ExecutionPolicy Bypass), EXE 2d03b553 (local). Sheet: new block Main!778 Weikav / EG75 HE = Supported,
+> readback structure/layouts/notices PASS. See WEIKAV_EG75HE_2026-10-26.md.
+> 2026-10-24 Tester logs (1.6.12): X82HE "HallJoy (20).log" board 3086 on 5029 connected (83 keys, ~27k updates, 0 failures,
+> W on RT 0..255); Ace 60 Pro "HallJoy (21).log" 41E4:2103 fw 1.18 mode enabled, 60 keys, 0 failures, WASD on left stick.
+> Both -> Supported (owner: Ace 60 Pro yes): confirmed_devices (X82 HE pid 5029+5030, Ace 60 Pro pid 2103 only), supported_layouts,
+> README, SUPPORTED_HARDWARE, notes; Sheet C120 + C532 green (readback OK). X82HE log also showed the RongYuan backend probing
+> the Shark-owned keyboard every ~1 s (107 x error 13) -> false communication warning; fixed: IdentityBudget counts failures after a
+> rejection (test identity_budget). Native checks: all PASS except flaky process_generation_supervisor (unchanged binary, 2/3 alone).
+> Build PASS (2nd run; 1st hit the 30 s profile-test limit, tight timing), EXE 4cad3e1a (local). OWNER: always close HallJoy
+> before replacing the EXE yourself; if it runs elevated, close it via UAC taskkill (AGENTS.md).
+> 2026-10-24 HE65 V2 TMR logs (1.6.12, user): wired 3151:5030 board 3417 connected, 66 keys, ~6500 updates, 0 failures;
+> 2.4G receiver 5038 gives no analog (as all RongYuan). HE65 V2 -> Supported (USB): confirmed_devices, supported_layouts,
+> README, SUPPORTED_HARDWARE, Sheet C255 green (readback OK). Ace 60 Pro log (18) = log (17) byte for byte; fixes done, native
+> checks EXIT=0, build PASS, tester EXE 53dcabd8 (local). Next: tester runs this EXE. See TESTER_LOGS_HE65V2_X82HE / ACE60PRO docs.
+> 2026-10-24 OWNER asked: can the K4 HE give the gamepad wirelessly? Source review: NO with current r9 firmware/host. Every
+> HJO1 path is USB-only (OPEN/START refuse non-USB transport, session stops on mode switch, pad/replies written to USB
+> endpoints); wireless raw RX compiled out (WILRESS_RAW_ENABLE undefined); host matches only 3434:0E40 REV_121x HJO1.
+> Wireless slider + cable plugged in also fails (OPEN status 1). Use cable mode. Possible future route (LKBT51 XInput 0x19/0x26
+> + raw tunnel) needs a no-flash receiver identity check first; nothing flashed or changed. See K4_WIRELESS_GAMEPAD_2026-10-24.md.
+> 2026-10-24 OWNER: look at how it CAN be done, not how it works now. Receiver read (2.4 GHz, metadata only): 3434:D030 "Keychron
+> Link" rev D300 has FF60:0061 33/33 (raw tunnel, same as K4 USB vendor channel) and a DirectInput joystick (6 axes 8-bit, 16
+> buttons), no XInput. Design: HJO1 over the tunnel; Route A analog push -> HallJoy ViGEm (recommended first), B receiver
+> joystick, C module XInput 0x26 (unknown). Next: one probe firmware to measure tunnel rate and test 0x26; awaits owner go-ahead.
+> 2026-10-24 OWNER: "flash" (owner uses wired only; a user asked; rollback to working wired firmware is mandatory). Radio probe
+> (r9stray + A9/7F HJR1 frames) flashed from backup bed7ea15 (= r9stray app), measured, ROLLED BACK (readback = backup,
+> HJO1 OK, probe silent). Tunnel works both ways: ping median 8 ms (p95 11, max 70); stream 187 fps 0.5% loss, cap ~345 fps
+> 3-5% loss. Route B receiver joystick works (DirectInput 8-bit). Route C: no XInput after 0x26. Route A feasible, not started.
+> 2026-10-24 Tester logs (1.6.11): MCHOSE Ace 60 Pro 41E4:2103 fw 1.18 (= reviewed) answers the info query, then the Jet75
+> session exits silently every 5 s (claim refused or profile base rejected; log cannot tell) -> no analog; diagnostics gap.
+> FuryCube TS61 = 0603:0361 "RFG61", unknown platform, no TS61 driver published; needs the tester's configurator.
+> OWNER: fix all failure points + tester EXE. Done (local): Jet75 base resolved per firmware boot rule (Ace 60 Pro ignores
+> count; old check rejected silently), every exit logged with data, base re-read, unknown key no longer kills the session,
+> multiple collections tried. See TESTER_LOGS_ACE60PRO_TS61_2026-10-24.md.
+> 2026-10-24 Tester logs (1.6.11): EPOMAKER HE65 V2 TMR = board 3417 on 3151:5030 (exact catalog tuple, held_technical
+> since batch 5, never in the stream table) -> not admitted, no analog. ATTACK SHARK X82HE = board 3086 on 3151:5029, profile
+> has only 5030 -> shark identity pair rejected (same case as R68 HE 3650/5029). OWNER: fix both. Done (local, not released):
+> Known() admits 3086 on 5029; 3417 added on the RongYuan stream (reviewed mechanical-switch hold clearance, new manifest
+> fields reviewed_holds/hold_review), layout merged "EPOMAKER HE65 Mag + HE65 V2 ANSI", Sheet row A255 HE65 V2 yellow
+> (readback OK). Build PASS, EXE 22ba2545 (local); native checks were misreported as PASS: the X82HE Known() test
+> still expected the old rule (fixed with the Ace 60 Pro work). Both stay yellow until a log with analog. See TESTER_LOGS_HE65V2_X82HE_2026-10-24.md.
 > 2026-10-24 PUBLISHED stable/latest 1.6.12: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.12 (commit 17bb4a2, EXE 934af634). See RELEASE_1.6.12_PUBLICATION_2026-10-24.md.
 > 2026-10-24 EPOMAKER HE75 V2 TMR Supported (user zip with own patches + log; patches NOT applied, our pipeline used): board 3613 from
 > the catalog (3151:5054) + reviewed USB alias 5030 backed by the device log (new alias kind device-log), layout from gearhub (merged

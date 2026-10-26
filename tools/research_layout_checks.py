@@ -9,7 +9,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 BRANDS = ('Keychron', 'Lemokey', 'DrunkDeer', 'Aula', 'Redragon', 'Razer',
           'NuPhy', 'Wooting', 'IROK', 'MADLIONS', 'ATK', 'IPI', 'SayoDevice',
-          'MonsGeek', 'EPOMAKER', 'Chilkey', 'Everglide', 'WLMOUSE', 'Logitech G')
+          'MonsGeek', 'EPOMAKER', 'Chilkey', 'Everglide', 'WLMOUSE', 'Logitech G',
+          'Weikav')
 
 
 def main():

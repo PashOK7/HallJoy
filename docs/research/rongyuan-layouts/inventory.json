@@ -1439,7 +1439,7 @@
       "brand": "EPOMAKER",
       "model": "HE75 V2 TMR",
       "product": "RY1B-3613",
-      "reason": "plain key-mapping SVG absent or ambiguous"
+      "reason": "existing exact automatic preset"
     }
   ]
 }

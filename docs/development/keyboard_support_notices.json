@@ -105,11 +105,6 @@
         },
         {
           "brand": "ATTACK SHARK",
-          "model": "X82 HE",
-          "status": "Implemented; awaiting hardware testing"
-        },
-        {
-          "brand": "ATTACK SHARK",
           "model": "X82 Pro HE",
           "status": "Implemented; awaiting hardware testing"
         },
@@ -143,6 +138,20 @@
         {
           "token": "683D58FC5C0C5E90",
           "pid": 20521
+        },
+        {
+          "token": "007116390F63150E",
+          "pid": 20521,
+          "brand": "ATTACK SHARK",
+          "model": "X82 HE",
+          "board": 3086
+        },
+        {
+          "token": "007116390F63150E",
+          "pid": 20528,
+          "brand": "ATTACK SHARK",
+          "model": "X82 HE",
+          "board": 3086
         }
       ]
     },
@@ -1272,6 +1281,13 @@
           "brand": "EPOMAKER",
           "model": "HE75 V2 TMR",
           "board": 3613
+        },
+        {
+          "token": "0x0c659d0f66768267",
+          "pid": 20528,
+          "brand": "EPOMAKER",
+          "model": "HE65 V2",
+          "board": 3417
         }
       ]
     },
@@ -1617,11 +1633,6 @@
       "models": [
         {
           "brand": "MCHOSE",
-          "model": "Ace 60 Pro",
-          "status": "Implemented; awaiting hardware testing"
-        },
-        {
-          "brand": "MCHOSE",
           "model": "Ace 60X",
           "status": "Implemented; awaiting hardware testing"
         },
@@ -1655,6 +1666,12 @@
         {
           "token": "0AC93D48E90B5C30",
           "pid": 8474
+        },
+        {
+          "token": "9B4588C88D53AF15",
+          "pid": 8451,
+          "brand": "MCHOSE",
+          "model": "Ace 60 Pro"
         }
       ]
     },

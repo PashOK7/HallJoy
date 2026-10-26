@@ -1,3 +1,5 @@
+> Weikav: [EG75 HE (1CA6:5A01, SparkLink V2) tester log, 80-key layout from the official driver, Supported (2026-10-26)](current/WEIKAV_EG75HE_2026-10-26.md).
+> K4 HE: [gamepad over 2.4 GHz / Bluetooth: receiver identity, design routes, probe firmware measurements (rolled back) (2026-10-24)](current/K4_WIRELESS_GAMEPAD_2026-10-24.md).
 > EPOMAKER: [HE75 V2 TMR (board 3613, USB alias 5030 from a device log) Supported (2026-10-24)](current/EPOMAKER_HE75V2TMR_2026-10-24.md).
 > MonsGeek: [M2 V5 HE layout from the official web driver, Supported; GamaKay TK75 HE V2 (3167) Supported (2026-10-24)](current/MONSGEEK_M2V5HE_2026-10-24.md).
 > GamaKay: [official downloads; TK75 HE V2 = RongYuan boards 3138/3167 on the existing stream (2026-10-23)](current/GAMAKAY_2026-10-23.md).

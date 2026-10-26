@@ -41,9 +41,30 @@ inline Report Info() noexcept {
 inline std::uint16_t Version(const Report& reply) noexcept {
     return static_cast<std::uint16_t>(reply[8]|(reply[9]<<8));
 }
-inline bool Profile(const Base& b,unsigned& profile) noexcept {
-    if(!b[1] || b[1]>4 || b[0]>=b[1] || b[2+b[0]]>=4)return false;
-    profile=b[2+b[0]];return true;
+// How each firmware picks the active profile from the base {current, count,
+// table[4]} at boot (2026-10-24 review of every image's boot code). The flag
+// must go to that profile, so HallJoy resolves the base exactly the same way
+// instead of rejecting bases the keyboard itself accepts:
+// - Counted (Jet 75 II, Zero75X; 6-byte base): current<count ? current : 0;
+//   table entry >3 -> profile 0. A current >=4 below count indexes RAM past
+//   the base, which HallJoy cannot know: rejected.
+// - Bounded (Ace 60 Pro, Ace 60 Pro Nordic, Ace 60X II, Ace 68 Air II; 8-byte
+//   base): count is ignored at boot; current >3 -> 0; table entry >3 -> 0.
+// - BoundedUnchecked (Ace68-I/II, Jet 75 I, Ace 60X I, Mix 87 I): current >3
+//   -> 0; the table entry is used unchecked, so an entry >3 (a profile outside
+//   the settings area) is rejected.
+enum class BaseRule : std::uint8_t { Counted, Bounded, BoundedUnchecked };
+inline bool Profile(const Base& b,unsigned& profile,BaseRule rule=BaseRule::Counted) noexcept {
+    unsigned current=0;
+    if(rule==BaseRule::Counted){current=b[0]<b[1]?b[0]:0;if(current>3)return false;}
+    else current=b[0]>3?0:b[0];
+    const unsigned entry=b[2+current];
+    if(entry>3){if(rule==BaseRule::BoundedUnchecked)return false;profile=0;return true;}
+    profile=entry;return true;
+}
+// Six base bytes, little-endian, for the support log.
+inline std::uint64_t Pack(const Base& b) noexcept {
+    std::uint64_t v=0;for(std::size_t i=b.size();i-->0;)v=(v<<8)|b[i];return v;
 }
 // Valid stored profile: firmware magic AA BB at bytes 2..3.
 inline bool ProfileValid(const Settings& s,unsigned profile) noexcept {
@@ -89,20 +110,21 @@ struct Model {
     std::uint16_t vid,pid,reviewed;const wchar_t* name;const wchar_t* shortName;const char* layoutProtocol;const char* layoutProduct;
     const std::uint8_t* keys;std::size_t keyCount;
     bool freshFlashReboot; // writer resets the MCU while settings byte 0 bit 0 is set
+    BaseRule baseRule;     // boot-time active profile selection (see Profile)
 };
 // USB product strings in quotes where the M HUB catalog name differs.
 inline constexpr Model Models[]={
-    {Vid,Pid,ReviewedVersion,L"MCHOSE Jet 75 II",L"Jet 75 II","mchose-jet75","JET75II-41E4-211A",Keys,std::size(Keys),true},
-    {0x41e4,0x2116,0x0121,L"MCHOSE Ace 68 (Ace68-II)",L"Ace 68","mchose-ace68","ACE68II-41E4-2116",Ace68Keys,std::size(Ace68Keys),true},
-    {0x41e4,0x211c,0x0114,L"MCHOSE Zero75X",L"Zero75X","mchose-jet75","ZERO75X-41E4-211C",Keys,std::size(Keys),true},
-    {0x41e4,0x2118,0x0109,L"MCHOSE Jet 75 I",L"Jet 75 I","mchose-jet75","JET75I-41E4-2118",Keys,std::size(Keys),false},
-    {0x41e4,0x2114,0x0109,L"MCHOSE Ace 68 (Ace68-I)",L"Ace 68","mchose-ace68","ACE68I-41E4-2114",Ace68Keys,std::size(Ace68Keys),false},
-    {0x41e4,0x2120,0x0117,L"MCHOSE Ace 68 Air II",L"Ace 68 Air II","mchose-ace68","ACE68AIRII-41E4-2120",Ace68Keys,std::size(Ace68Keys),false},
-    {0x41e4,0x2103,0x0118,L"MCHOSE Ace 60 Pro",L"Ace 60 Pro","mchose-ace60","ACE60PRO-41E4-2103",Ace60Keys,std::size(Ace60Keys),false},
-    {0x41e4,0x2126,0x0105,L"MCHOSE Ace 60X I",L"Ace 60X I","mchose-ace60","ACE60XI-41E4-2126",Ace60Keys,std::size(Ace60Keys),false},
-    {0x41e4,0x2112,0x0104,L"MCHOSE Ace 60X II",L"Ace 60X II","mchose-ace60","ACE60XII-41E4-2112",Ace60Keys,std::size(Ace60Keys),false},
-    {0x3837,0x3002,0x0107,L"MCHOSE Ace 60 Pro Nordic",L"Ace 60 Pro Nordic","mchose-ace60","ACE60PRONORDIC-3837-3002",Ace60NordicKeys,std::size(Ace60NordicKeys),false},
-    {0x41e4,0x2122,0x0112,L"MCHOSE Mix 87 I",L"Mix 87 I","mchose-mix87","MIX87I-41E4-2122",Mix87Keys,std::size(Mix87Keys),false},
+    {Vid,Pid,ReviewedVersion,L"MCHOSE Jet 75 II",L"Jet 75 II","mchose-jet75","JET75II-41E4-211A",Keys,std::size(Keys),true,BaseRule::Counted},
+    {0x41e4,0x2116,0x0121,L"MCHOSE Ace 68 (Ace68-II)",L"Ace 68","mchose-ace68","ACE68II-41E4-2116",Ace68Keys,std::size(Ace68Keys),true,BaseRule::BoundedUnchecked},
+    {0x41e4,0x211c,0x0114,L"MCHOSE Zero75X",L"Zero75X","mchose-jet75","ZERO75X-41E4-211C",Keys,std::size(Keys),true,BaseRule::Counted},
+    {0x41e4,0x2118,0x0109,L"MCHOSE Jet 75 I",L"Jet 75 I","mchose-jet75","JET75I-41E4-2118",Keys,std::size(Keys),false,BaseRule::BoundedUnchecked},
+    {0x41e4,0x2114,0x0109,L"MCHOSE Ace 68 (Ace68-I)",L"Ace 68","mchose-ace68","ACE68I-41E4-2114",Ace68Keys,std::size(Ace68Keys),false,BaseRule::BoundedUnchecked},
+    {0x41e4,0x2120,0x0117,L"MCHOSE Ace 68 Air II",L"Ace 68 Air II","mchose-ace68","ACE68AIRII-41E4-2120",Ace68Keys,std::size(Ace68Keys),false,BaseRule::Bounded},
+    {0x41e4,0x2103,0x0118,L"MCHOSE Ace 60 Pro",L"Ace 60 Pro","mchose-ace60","ACE60PRO-41E4-2103",Ace60Keys,std::size(Ace60Keys),false,BaseRule::Bounded},
+    {0x41e4,0x2126,0x0105,L"MCHOSE Ace 60X I",L"Ace 60X I","mchose-ace60","ACE60XI-41E4-2126",Ace60Keys,std::size(Ace60Keys),false,BaseRule::BoundedUnchecked},
+    {0x41e4,0x2112,0x0104,L"MCHOSE Ace 60X II",L"Ace 60X II","mchose-ace60","ACE60XII-41E4-2112",Ace60Keys,std::size(Ace60Keys),false,BaseRule::Bounded},
+    {0x3837,0x3002,0x0107,L"MCHOSE Ace 60 Pro Nordic",L"Ace 60 Pro Nordic","mchose-ace60","ACE60PRONORDIC-3837-3002",Ace60NordicKeys,std::size(Ace60NordicKeys),false,BaseRule::Bounded},
+    {0x41e4,0x2122,0x0112,L"MCHOSE Mix 87 I",L"Mix 87 I","mchose-mix87","MIX87I-41E4-2122",Mix87Keys,std::size(Mix87Keys),false,BaseRule::BoundedUnchecked},
 };
 inline const Model* FindModel(std::uint16_t vid,std::uint16_t pid) noexcept {
     for(const auto& m:Models)if(m.vid==vid && m.pid==pid)return &m;
@@ -130,10 +152,10 @@ enum class ChangeResult { Verified, Unchanged, StaleProfile, ReadFailed, Reserve
 // the SAME open handle. No retry or calibration inside this transaction.
 template<class ReadBase,class ReadSettings,class Exchange>
 ChangeResult ChangeFlag(const Base& consentBase,bool enabled,ReadBase readBase,ReadSettings readSettings,Exchange exchange,
-                        bool freshFlashReboot=true) {
+                        bool freshFlashReboot=true,BaseRule rule=BaseRule::Counted) {
     Base base{},check{};Settings before{},after{};unsigned profile=0;
     if(!readBase(base) || !readSettings(before))return ChangeResult::ReadFailed;
-    if(base!=consentBase || !Profile(base,profile))return ChangeResult::StaleProfile;
+    if(base!=consentBase || !Profile(base,profile,rule))return ChangeResult::StaleProfile;
     if(!ProfileValid(before,profile))return ChangeResult::ReservedData;
     const auto offset=profile*64+7;
     if(bool(before[offset]&8)==enabled)return ChangeResult::Unchanged;

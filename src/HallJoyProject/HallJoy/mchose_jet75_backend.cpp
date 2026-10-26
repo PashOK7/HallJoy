@@ -5,6 +5,7 @@
 #include <hidsdi.h>
 #include <hidpi.h>
 #include <process.h>
+#include <algorithm>
 #include <atomic>
 #include <mutex>
 #include <vector>
@@ -50,7 +51,9 @@ std::vector<Candidate> Enumerate(){
     HDEVINFO set=SetupDiGetClassDevsW(&guid,nullptr,nullptr,DIGCF_PRESENT|DIGCF_DEVICEINTERFACE);
     if(set==INVALID_HANDLE_VALUE)return {};
     struct FreeSet{HDEVINFO s;~FreeSet(){SetupDiDestroyDeviceInfoList(s);}} freeSet{set};
-    std::vector<Candidate> out;
+    std::vector<Candidate> out;std::vector<std::uint64_t> seen;
+    // Collections of admitted models, logged when the set changes (not every pass).
+    static std::vector<std::uint64_t> loggedCaps;
     for(DWORD i=0;;++i){
         SP_DEVICE_INTERFACE_DATA d{};d.cbSize=sizeof(d);
         if(!SetupDiEnumDeviceInterfaces(set,nullptr,&guid,i,&d))break;
@@ -68,9 +71,16 @@ std::vector<Candidate> Enumerate(){
         HIDP_CAPS caps{};const auto status=HidP_GetCaps(data,&caps);HidD_FreePreparsedData(data);
         if(status!=HIDP_STATUS_SUCCESS)continue;
         // Stock descriptor: unnumbered 64-byte IN/OUT => Windows includes ID0.
-        SupportLog_Event("jet75.hid_caps",(static_cast<std::uint64_t>(caps.UsagePage)<<48)|(static_cast<std::uint64_t>(caps.Usage)<<32)|(caps.InputReportByteLength<<16)|caps.OutputReportByteLength);
+        seen.push_back((static_cast<std::uint64_t>(a.ProductID)<<56)|(static_cast<std::uint64_t>(caps.UsagePage)<<40)|(static_cast<std::uint64_t>(caps.Usage)<<24)|(caps.InputReportByteLength<<12)|caps.OutputReportByteLength);
         if(caps.UsagePage==1 && caps.Usage==0 && caps.InputReportByteLength==65 && caps.OutputReportByteLength==65)
             out.push_back({detail->DevicePath,model});
+    }
+    std::sort(seen.begin(),seen.end());
+    if(seen!=loggedCaps){
+        // value: pid low byte<<56 | usage page<<40 | usage<<24 | input bytes<<12 | output bytes
+        for(const auto v:seen)SupportLog_Event("jet75.hid_caps",v);
+        SupportLog_Event("jet75.control_collections",out.size(),SupportLog_Data(seen.size()));
+        loggedCaps=seen;
     }
     return out;
 }
@@ -142,9 +152,28 @@ bool Verify(Session& session,const tp::Model& model){
 }
 bool LoadMode(Session& session,const tp::Model& model,tp::Base& base,bool& enabled,unsigned& profile){
     tp::Settings settings{};tp::Base check{};
-    if(!session.ReadBase(base) || !tp::Profile(base,profile) || !session.ReadSettings(settings) ||
-       !session.ReadBase(check) || check!=base)return false;
-    if(!tp::ProfileValid(settings,profile)){SupportLog_Event("jet75.profile_format",profile);return false;}
+    // The keyboard may rewrite the base while it is read (a profile switch saved
+    // late): read until two reads around the settings read agree.
+    bool stable=false;
+    for(unsigned attempt=0;attempt<3 && !stable;++attempt){
+        if(!session.ReadBase(base) || !session.ReadSettings(settings) || !session.ReadBase(check)){
+            if(!g_stop.load())SupportLog_Event("jet75.load_failed",attempt,SupportLog_Win32(GetLastError()));
+            return false;
+        }
+        stable=check==base;
+        if(!stable)SupportLog_Event("jet75.profile_base_changed",tp::Pack(base),SupportLog_Data(tp::Pack(check)));
+    }
+    if(!stable)return false;
+    // value: the six base bytes {current, count, table[4]}, little-endian;
+    // detail: resolved profile, or 0xff when the firmware rule leaves it unknown.
+    const bool resolved=tp::Profile(base,profile,model.baseRule);
+    SupportLog_Event("jet75.profile_base",tp::Pack(base),SupportLog_Data(resolved?profile:0xffu));
+    if(!resolved){SupportLog_Event("jet75.profile_base_unusable",tp::Pack(base),SupportLog_Data(static_cast<unsigned>(model.baseRule)));return false;}
+    if(!tp::ProfileValid(settings,profile)){
+        // detail: the profile's first eight settings bytes (magic AA BB at 2..3).
+        std::uint64_t head=0;for(unsigned i=8;i-->0;)head=(head<<8)|settings[profile*64+i];
+        SupportLog_Event("jet75.profile_format",profile,SupportLog_Data(head));return false;
+    }
     if(model.freshFlashReboot && tp::WriteReboots(settings))SupportLog_Event("jet75.write_reboots",1);
     enabled=(settings[profile*64+7]&8)!=0;return true;
 }
@@ -154,7 +183,7 @@ tp::ChangeResult ChangeMode(Session& session,const tp::Model& model,const tp::Ba
         [&](tp::Base& b){return GetTickCount64()<deadline && session.ReadBase(b,true,deadline);},
         [&](tp::Settings& s){return GetTickCount64()<deadline && session.ReadSettings(s,true,deadline);},
         [&](const Report& q,Report& r){if(!cleanup && g_stop.load())return false;return session.Exchange(q,r);},
-        model.freshFlashReboot);
+        model.freshFlashReboot,model.baseRule);
 }
 bool Settled(tp::ChangeResult r){
     return r==tp::ChangeResult::Verified || r==tp::ChangeResult::Unchanged || r==tp::ChangeResult::Rebooting;
@@ -176,7 +205,8 @@ void Run(const Candidate& c){
     Session session(c);if(!session.Valid()){Failure("jet75.open_failed",SupportLog_Win32(GetLastError()));return;}
     if(!Verify(session,model)){SupportLog_Event("jet75.admission_failed",1);return;}
     if(!NativeAnalogRouting_Claim(model.vid,model.pid,c.path.c_str(),NativeAnalogProtocol::MchoseJet75) &&
-       !NativeAnalogRouting_IsClaimedBy(c.path.c_str(),NativeAnalogProtocol::MchoseJet75))return;
+       !NativeAnalogRouting_IsClaimedBy(c.path.c_str(),NativeAnalogProtocol::MchoseJet75)){
+        SupportLog_Event("jet75.claim_refused",model.pid,SupportLog_Data(NativeAnalogRouting_IsClaimed(c.path.c_str())));return;}
     bool enabled=false;unsigned profile=0;tp::Base base{};
     if(!LoadMode(session,model,base,enabled,profile))return;
     ModeLease lease{session,model,base,enabled};
@@ -203,6 +233,7 @@ void Run(const Candidate& c){
     // The stream is event-only: an untouched keyboard sends nothing. An
     // admitted session with the mode on is a live source with all keys at 0.
     g_connected.store(true);
+    std::array<bool,256> unknownLogged{};
     // Device-change notifications are system-wide (another USB device, our own
     // virtual gamepad appearing) and do not end a healthy session: removal of
     // this keyboard fails the next read (stream_failed) instead.
@@ -221,16 +252,28 @@ void Run(const Candidate& c){
         tp::Sample sample{};
         if(tp::Decode(report,allowed,sample)){
             g_values[sample.hid].store(sample.milli);g_last.store(GetTickCount64());++g_good;g_connected.store(true);
-        }else if(report[0]==0xa0 && report[1]==0x10){Failure("jet75.invalid_analog",SupportLog_Protocol(1));return;}
+        }else if(report[0]==0xa0 && report[1]==0x10){
+            const auto hid=tp::Hid(report[1],report[2],report[3]);
+            const unsigned depth=(report[6]<<8)|report[7],maximum=(report[14]<<8)|report[15];
+            const std::uint64_t data=(static_cast<std::uint64_t>(hid)<<32)|(maximum<<16)|depth;
+            if(hid && hid<256 && !allowed[hid] && tp::KnownMaximum(maximum) && depth<=maximum){
+                // A key outside this model's reviewed set: ignore it, keep the session.
+                if(!unknownLogged[hid]){unknownLogged[hid]=true;SupportLog_Event("jet75.unknown_key",hid,SupportLog_Data(data));}
+                continue;
+            }
+            Failure("jet75.invalid_analog",SupportLog_Data(data));return;
+        }
     }
 }
 unsigned __stdcall Worker(void*) noexcept{
     try{
         while(!g_stop.load()){
             const auto candidates=Enumerate();g_present.store(!candidates.empty());
-            if(candidates.size()==1)Run(candidates[0]);
-            else if(!candidates.empty())g_model.store(candidates[0].model);
-            else if(candidates.size()>1)SupportLog_Event("jet75.multiple_devices",candidates.size());
+            static std::size_t loggedCount=1;
+            if(candidates.size()!=loggedCount && (candidates.size()>1 || loggedCount>1))SupportLog_Event("jet75.multiple_devices",candidates.size());
+            loggedCount=candidates.empty()?1:candidates.size();
+            // Each collection is tried in turn; one that fails admission returns at once.
+            for(const auto& c:candidates){if(g_stop.load())break;Run(c);}
             if(!g_stop.load())WaitForSingleObject(g_wake,candidates.empty()?INFINITE:5000);
         }
     }catch(...){Failure("jet75.worker_exception",SupportLog_Protocol(1));}

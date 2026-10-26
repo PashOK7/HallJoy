@@ -21,9 +21,9 @@ static BOOL FakeWrite(HANDLE,LPCVOID buf,DWORD n,LPDWORD,LPOVERLAPPED o){
     std::memcpy(req.data(),p+1,64);o->InternalHigh=n;pending=true;
     assert(req[1]==3 || req[1]==4 || req[1]==5 || req[1]==6);
     if(req[1]==6){
-        ++writes;assert(req[4]==1 && req[5]==7 && req[6]==0);
+        ++writes;assert(req[4]==1 && req[5]==(scenario==15?2*64+7:7) && req[6]==0);
         if(scenario==8 && !(req[8]&8)){pending=false;SetLastError(ERROR_DEVICE_NOT_CONNECTED);return FALSE;}
-        settings[7]=req[8];
+        settings[req[5]]=req[8];
         if((settings[0]&1) && scenario!=14){pending=false;rebooting=true;} // the keyboard reboots: no reply, no reports
         if(scenario==7 && (req[8]&8))StopTest();
     }
@@ -56,6 +56,13 @@ static BOOL FakeRead(HANDLE,LPVOID buf,DWORD n,LPDWORD,LPOVERLAPPED o){
 void StreamStep(unsigned char* p){
     ++stream;
     assert(Connected()); // live before the first key report (idle keyboard)
+    if(scenario==16){
+        // A key outside the reviewed set is ignored; the session and later keys continue.
+        p[0]=0xa0;p[1]=16;p[14]=1;p[15]=0x55;
+        if(stream==1){p[3]=0x48;p[7]=10;return;}
+        if(stream==2){p[3]=26;p[6]=1;p[7]=0x55;return;}
+        assert(Get(26)==1000 && !Owns(0x48));StopTest();return;
+    }
     if(stream==1 && scenario==5){StopTest();return;}
     if(stream==1 && scenario==6){p[0]=0xa0;p[1]=16;p[3]=26;p[6]=0xff;return;}
     if(stream==1 && scenario==9){p[0]=0xa1;return;} // profile switched on the keyboard
@@ -81,6 +88,7 @@ void SupportLog_Event(const char*,std::uint64_t,SupportLogDetail) noexcept{}
 namespace halljoy::keyboard_support {void ReportCommunicationAnomaly(unsigned) noexcept{}}
 bool NativeAnalogRouting_Claim(std::uint16_t,std::uint16_t,const wchar_t*,NativeAnalogProtocol){return true;}
 bool NativeAnalogRouting_IsClaimedBy(const wchar_t*,NativeAnalogProtocol){return false;}
+bool NativeAnalogRouting_IsClaimed(const wchar_t*){return false;}
 static void Reset(){
     pending=rebooting=false;writes=stream=0;base={0,1,0,0,0,0};
     for(unsigned i=0;i<256;++i)settings[i]=static_cast<unsigned char>(i*29+3);
@@ -134,8 +142,24 @@ int main(){
         assert(writes==2 && !(settings[7]&8) && stream==3);
         g_model.store(&halljoy::jet75::Models[0]);
     }
+    {   // Ace 60 Pro with a base the firmware accepts but the old strict check did not
+        // (count 0, current 1 -> table[1] = profile 2): enabled on profile 2 and streams.
+        scenario=15;Reset();base={1,0,0,2,0,0};g_autoAttempted=false;g_stop.store(false);
+        for(unsigned p=0;p<4;++p)settings[p*64+7]=0;
+        Candidate candidate{L"synthetic",halljoy::jet75::FindModel(0x41e4,0x2103)};Run(candidate);
+        assert(writes==2 && !(settings[2*64+7]&8) && stream==3);
+        // A base no firmware rule can resolve is never written to.
+        scenario=15;Reset();base={0,1,7,0,0,0};g_autoAttempted=false;g_stop.store(false);
+        Candidate older{L"synthetic",halljoy::jet75::FindModel(0x41e4,0x2118)};Run(older);
+        assert(writes==0 && stream==0);
+        g_model.store(&halljoy::jet75::Models[0]);
+    }
+    {   scenario=16;Reset();g_autoAttempted=false;g_stop.store(false);
+        Candidate candidate{L"synthetic"};Run(candidate);
+        assert(writes==2 && !(settings[7]&8) && stream==3);
+    }
     {   Session session(Candidate{L"synthetic"});halljoy::jet75::Base value{};
         pending=false;assert(!session.ReadBase(value,true,GetTickCount64()));
         assert(GetLastError()==WAIT_TIMEOUT && !pending); }
-    puts("Jet75 lifecycle PASS: auto-enable, pre-enabled no redundant enable, normal/early stop cleanup, ambiguous enable cleanup, protocol not answered, newer firmware admitted, foreign layout not written, stream rejection, stop during write, disconnect, profile switch, reboot-on-write reconnect, no flash retry loop, Ace68-II model, older writer without reboot");
+    puts("Jet75 lifecycle PASS: auto-enable, pre-enabled no redundant enable, normal/early stop cleanup, ambiguous enable cleanup, protocol not answered, newer firmware admitted, foreign layout not written, stream rejection, stop during write, disconnect, profile switch, reboot-on-write reconnect, no flash retry loop, Ace68-II model, older writer without reboot, Ace 60 Pro firmware base rule, unresolvable base not written, unknown key ignored");
 }

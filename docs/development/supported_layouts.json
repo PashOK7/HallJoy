@@ -32,6 +32,13 @@
    ]
   },
   {
+   "brand": "ATTACK SHARK",
+   "model": "X82 HE",
+   "presets": [
+    "ATTACK SHARK X82 HE ANSI"
+   ]
+  },
+  {
    "brand": "AULA",
    "model": "KP-TE153",
    "presets": [
@@ -123,6 +130,13 @@
    "model": "HE108",
    "presets": [
     "EPOMAKER HE108 ANSI"
+   ]
+  },
+  {
+   "brand": "EPOMAKER",
+   "model": "HE65 V2",
+   "presets": [
+    "EPOMAKER HE65 Mag + HE65 V2 ANSI"
    ]
   },
   {
@@ -360,6 +374,14 @@
   },
   {
    "brand": "MCHOSE",
+   "model": "Ace 60 Pro",
+   "presets": [
+    "MCHOSE Ace 60 ANSI"
+   ],
+   "shownAs": "Ace 60"
+  },
+  {
+   "brand": "MCHOSE",
    "model": "Ace 68 Air (III revision)",
    "presets": [
     "MCHOSE Ace 68 ANSI"
@@ -502,6 +524,13 @@
    "model": "Apex Pro",
    "presets": [
     "SteelSeries Apex Pro ANSI"
+   ]
+  },
+  {
+   "brand": "Weikav",
+   "model": "EG75 HE",
+   "presets": [
+    "Weikav EG75 HE ANSI"
    ]
   },
   {

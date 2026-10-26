@@ -698,11 +698,11 @@
     },
     {
       "path": "docs/research/rongyuan-stream/profiles.json",
-      "sha256": "78a2e735d6f7607dbf0d235993b03284868fd14afa4a507ad4947681f9db880e"
+      "sha256": "d22379e839bcbbb919b440589cfa42e167ab14ca8d4ebd3dc6a72c613d3c240b"
     },
     {
       "path": "docs/research/rongyuan-stream/admission_sources.json",
-      "sha256": "78c7740f94cb7dd931f2417b172df23cf8a071b0f238835f34844c6d8a92cf4c"
+      "sha256": "3187a0e7de115d7d148a798f1ac55bf23d2ba35850e3954c60c46d3da3af766d"
     }
   ],
   "models": [

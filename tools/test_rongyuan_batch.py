@@ -116,6 +116,23 @@ class CorpusTests(unittest.TestCase):
             self.c.rows=[row]
             self.assertIn('mechanical_switch_option_review',self.c.inspect()['rows'][0]['reasons'])
         finally:self.c.rows=original
+    def test_mechanical_hold_cleared_only_by_written_review(self):
+        original=self.c.rows
+        m=self.manifest()
+        row=copy.deepcopy(next(r for r in original if r['id']==m[0]['id']))
+        row['record_literal'] += ' supportedSwitchTypes:["机械轴"]'
+        try:
+            self.c.rows=[r if r['id']!=row['id'] else row for r in original]
+            with self.assertRaisesRegex(ValueError,'mechanical_switch_option_review'):self.c.prepare(m)
+            m[0]['reviewed_holds']=['mechanical_switch_option_review']
+            with self.assertRaisesRegex(ValueError,'hold_review'):self.c.prepare(m)
+            m[0]['hold_review']='Device log: magnetic switches'
+            self.assertEqual(len(self.c.prepare(m)['sheet_intent']),1)
+            m[0]['reviewed_holds']=['not_magnetic']
+            with self.assertRaisesRegex(ValueError,'invalid reviewed_holds'):self.c.prepare(m)
+        finally:self.c.rows=original
+        m=self.manifest();m[0].update(reviewed_holds=['mechanical_switch_option_review'],hold_review='stale')
+        with self.assertRaisesRegex(ValueError,'invalid reviewed_holds'):self.c.prepare(m)
     def test_prepare_apply_in_isolated_directory(self):
         package=self.c.prepare(self.manifest())
         self.assertEqual(len(package['sheet_intent']),1)

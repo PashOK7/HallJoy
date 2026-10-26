@@ -4353,6 +4353,23 @@
           "loader": "df09d59e.js"
         }
       ]
+    },
+    {
+      "id": 3417,
+      "vid": 12625,
+      "pid": 20528,
+      "name": "ry5088_MLCY_EPOMAKERHE65Pro",
+      "displayName": "HE65 V2",
+      "company": "EPOMAKER",
+      "record_literal": "{id:3417,vid:12625,pid:20528,keyLayout:c.Common67_beat65,name:\"ry5088_MLCY_EPOMAKERHE65Pro\",displayName:\"HE65 V2\",type:\"keyboard\",company:\"EPOMAKER\",layer:4,fnSysLayer:{win:1,mac:1},magnetism:!0,lightLayout:T,other:{isSwitchReplaceable:!0,supportedSwitchTypes:[\"云玉磁轴\",\"磁玉\",\"磁玉pro\",\"磁玉gaming\",\"天王\",\"万磁王\",\"机械轴\"],knobKeyCodes:[\"AudioVolumeDown\",\"AudioVolumeMute\",\"AudioVolumeUp\"],sleep24:{sleep:{min:0,max:18*60*60}},sleepBT:{sleep:{min:0,max:18*60*60}}}}",
+      "source_offset_chars": 718946,
+      "source_end_chars": 719398,
+      "loader_matches": [
+        {
+          "chunk": "ca88c7a8.js",
+          "loader": "df09d59e.js"
+        }
+      ]
     }
   ]
 }

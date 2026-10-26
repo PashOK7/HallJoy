@@ -1334,13 +1334,14 @@
         {
           "id": "ry_layout_2376",
           "brand": "EPOMAKER",
-          "model": "HE65 Mag",
+          "model": "HE65 Mag + HE65 V2",
           "variant": "ANSI",
           "count": 66,
           "source": "docs/research/rongyuan-layouts/ry_layout_2376.json",
-          "sha256": "b179c6252cd35e89cc3eb33aae7c77e7db2600784426c426b3445788621b29ae",
+          "sha256": "f18593f523b5cda876fb584620297ec95714df43be125f204eee4ff258268b57",
           "products": [
-            "RY1B-2376"
+            "RY1B-2376",
+            "RY1B-3417"
           ],
           "url": ""
         },
@@ -1351,7 +1352,7 @@
           "variant": "ANSI",
           "count": 68,
           "source": "docs/research/rongyuan-layouts/ry_layout_2761.json",
-          "sha256": "4959d494aa2718c11647ddf3aeedc0d25bcbf785c7bcb2e43ac8a6473f9f46e5",
+          "sha256": "16ea5f9724df2d67cc7e4bf04399c2b9708a165f1bb57f4cb9c8fd4343d35a67",
           "products": [
             "RY1B-2761",
             "RY1B-2762",
@@ -1366,7 +1367,7 @@
           "variant": "ANSI",
           "count": 61,
           "source": "docs/research/rongyuan-layouts/ry_layout_3727.json",
-          "sha256": "a32a91ac803caa7c288ef6c405b50cc1f49763f14eaf8a9954ab53e8548868e5",
+          "sha256": "cd0e24b61999d0c7327dbcbdd3f1b4a1ebbb8c33998a3abc0936cc207524fb0d",
           "products": [
             "RY1B-3727",
             "RY1B-3746",
@@ -1381,7 +1382,7 @@
           "variant": "ANSI",
           "count": 83,
           "source": "docs/research/epomaker-layouts/epomaker_layout_2520.json",
-          "sha256": "caf93603835dc50ca5218d5bc7081a7c29be294ac85031415f3df1ea0fc09e22",
+          "sha256": "2d8c54400f9acb3bb8d44c6f9a06875808aed6c7e15931435270581bbb12c93e",
           "products": [
             "RY1B-2520"
           ],
@@ -1394,7 +1395,7 @@
           "variant": "ANSI",
           "count": 104,
           "source": "docs/research/epomaker-layouts/epomaker_layout_3365.json",
-          "sha256": "b00b99c5b55e2ea61ee112732d838474ca763b95a7beb7d93982d2bde02343ed",
+          "sha256": "0681bdc7c8f54f18f5122122491f2a07c00cf4ccffd2df53335fa0e71fe0960f",
           "products": [
             "RY1B-3365"
           ],
@@ -1407,7 +1408,7 @@
           "variant": "ANSI",
           "count": 81,
           "source": "docs/research/epomaker-layouts/epomaker_layout_3518.json",
-          "sha256": "f226536ce9249473de24ed26b94052597c05af956b95e5a9cd16f3cfc51d88b0",
+          "sha256": "54a2ea6bf4c8693463c4f9c20778e5c16be7ae8cae623525d4931d4dbc0902d1",
           "products": [
             "RY1B-3518"
           ],
@@ -1420,7 +1421,7 @@
           "variant": "ANSI",
           "count": 81,
           "source": "docs/research/epomaker-layouts/epomaker_layout_3613.json",
-          "sha256": "0144d2952bb793da3257cac997b77fc7918254566f0df263d3b8772c965f24b4",
+          "sha256": "497f4dd52a4cd04b370261668c9c2f7d76612878f0ab78d06f9e9a616c251c53",
           "products": [
             "RY1B-3613"
           ],
@@ -1433,7 +1434,7 @@
           "variant": "ISO",
           "count": 69,
           "source": "docs/research/epomaker-layouts/epomaker_layout_3664.json",
-          "sha256": "59a8e67d5497817eb38bfe60b7f70f37a13c533cf6871e9b19b3480790c8d295",
+          "sha256": "7857ade30a29b744a2fca5ee418bf6009fbaa5489ec4c4f0768bbfdf7e3d7b25",
           "products": [
             "RY1B-3664"
           ],
@@ -1446,7 +1447,7 @@
           "variant": "ANSI",
           "count": 61,
           "source": "docs/research/epomaker-layouts/epomaker_layout_3691.json",
-          "sha256": "337438321a2b9e632398387945bd18825e6ae75779e12476e37bd2c6229a1f64",
+          "sha256": "a4d0e47e77f48726c5d4c3a0c6093e408718b89f07a3fe7168647381c6a5bd71",
           "products": [
             "RY1B-3691"
           ],
@@ -1459,7 +1460,7 @@
           "variant": "ANSI",
           "count": 61,
           "source": "docs/research/epomaker-layouts/epomaker_layout_3692.json",
-          "sha256": "507af2279296323ca36fe53f9adaef63cf4bf83fa5163b4aef66b1b5eb21a9ff",
+          "sha256": "5ea00f1f6c6b8f25e57de57a31b9455ee38937ee13d2bb852fc9ea12b4ab38b4",
           "products": [
             "RY1B-3692"
           ],
@@ -1472,7 +1473,7 @@
           "variant": "JIS",
           "count": 88,
           "source": "docs/research/epomaker-layouts/epomaker_layout_3703.json",
-          "sha256": "36b601a8ea4e2eae317ff52b108f35f50f1e16e91344dbc3b87bae06138b3d9d",
+          "sha256": "0c880f54ed913a3006f1e83111f4e112872f14f6efd583ba66b301550f4a1af5",
           "products": [
             "RY1B-3703"
           ],
@@ -1531,7 +1532,7 @@
           "variant": "ANSI",
           "count": 68,
           "source": "docs/research/rongyuan-layouts/ry_layout_2811.json",
-          "sha256": "d31b8fff7a1d75038ee79ddb8f8e92e025f44d9ddf02e066a0f7a16449e3c2b2",
+          "sha256": "07bbdf2d39f7e3a0152f4a195434f34adda9573f8f36979c9a0e9d6f3ab69306",
           "products": [
             "RY1B-2811"
           ],
@@ -1590,7 +1591,7 @@
           "variant": "ANSI",
           "count": 81,
           "source": "docs/research/rongyuan-layouts/ry_layout_2334.json",
-          "sha256": "fd56a41105fedbec28087b37cb635f0660251df091616c646c67ef181eadb818",
+          "sha256": "665c21af17d9c17921d2d2987f800a91fcb4471f3b9a91aa3b83208734654a3c",
           "products": [
             "RY1B-2334",
             "RY1B-2501",
@@ -1633,7 +1634,7 @@
           "variant": "ANSI",
           "count": 68,
           "source": "docs/research/rongyuan-layouts/ry_layout_2255.json",
-          "sha256": "da1edd2d3363d207a62bee7aaa57dd9e83dd9a80098ea83628b0269031019202",
+          "sha256": "4d845aac7110c7a761cb0445c1defad12b870aca775a714e1986742d7f665a2b",
           "products": [
             "RY1B-2255",
             "RY1B-2336",
@@ -1653,7 +1654,7 @@
           "variant": "ANSI",
           "count": 61,
           "source": "docs/research/rongyuan-layouts/ry_layout_2621.json",
-          "sha256": "b6037e61ebead771a516285ed4b7842552731319d93631f4ee6b3a89f1223e32",
+          "sha256": "c34ad19f81f8267a29a19d1c741e254ce20a93a5665e6cfcd05fe6dcccd14d23",
           "products": [
             "RY1B-2621",
             "RY1B-2622",
@@ -1668,7 +1669,7 @@
           "variant": "ANSI",
           "count": 67,
           "source": "docs/research/rongyuan-layouts/ry_layout_2746.json",
-          "sha256": "671d724e524c4cf55cc8f2770af24825f426ef03c07b620a2d4d64787a8cec1a",
+          "sha256": "3d92ef224d785e879d4749327b3918ef07120115538a5f8204b07d636c1f6d5a",
           "products": [
             "RY1B-2746",
             "RY1B-2810"
@@ -1703,7 +1704,7 @@
           "variant": "ANSI",
           "count": 82,
           "source": "docs/research/rongyuan-layouts/ry_layout_2310.json",
-          "sha256": "53bdb971bc5e399cf74a38ced5850dfe5552b5580d90f8ded5f8f859919fe5dd",
+          "sha256": "9612220e0cf48957d3cbd0e970c71e879186eae11e87ed89e853b1308ff09037",
           "products": [
             "RY1B-2310"
           ],
@@ -1723,7 +1724,7 @@
           "variant": "ANSI",
           "count": 83,
           "source": "docs/research/rongyuan-layouts/ry_layout_2335.json",
-          "sha256": "d6389878ec1be3a1af1f08aa0b78582ea44033a17eaa3d0209d0150db8d02231",
+          "sha256": "1ef0a69efaca012e8295de10c83e43ebd6bedda1eed32586ce74edc81604dcc5",
           "products": [
             "RY1B-2335"
           ],
@@ -1743,7 +1744,7 @@
           "variant": "ANSI",
           "count": 68,
           "source": "docs/research/rongyuan-layouts/ry_layout_2546.json",
-          "sha256": "720410df728aef5476db668e5f3431b52f874137d70d7cc2da6f6cc7578c0776",
+          "sha256": "7826fe0ca127b61ddcdfb9a83d91a7acd017070eaa918e12569e6b388412ada5",
           "products": [
             "RY1B-2546"
           ],
@@ -1763,7 +1764,7 @@
           "variant": "ANSI",
           "count": 61,
           "source": "docs/research/rongyuan-layouts/ry_layout_2674.json",
-          "sha256": "d300293048de7c2d984bafe1abb6574c05fae796d77f99fe17f7b0d7c306df06",
+          "sha256": "c10e65ad6dbf1f0fc5d20a29696ee28a2d0accec63c301015badb13d812e05ae",
           "products": [
             "RY1B-2674"
           ],
@@ -1783,7 +1784,7 @@
           "variant": "ANSI",
           "count": 82,
           "source": "docs/research/rongyuan-layouts/ry_layout_2683.json",
-          "sha256": "db64e06cd823409a74ddec2d95201bf6cb59ffefc81e50143c6776b921c0f808",
+          "sha256": "f7f207812fa96a01e861bc3d8ee74f2f6d1a4cd741899ec44c0954d27fcce0af",
           "products": [
             "RY1B-2683",
             "RY1B-2871"
@@ -1797,7 +1798,7 @@
           "variant": "ANSI",
           "count": 68,
           "source": "docs/research/rongyuan-layouts/ry_layout_2743.json",
-          "sha256": "5295ca7072f3fdcbe14e8a7276707b7e9d9795e77905e7002ad4d5d980ef8712",
+          "sha256": "17eb43612f5bb92709fe129b42e94e7400c3638b042c08e395c3c081b292b331",
           "products": [
             "RY1B-2743",
             "RY1B-2924"
@@ -1818,7 +1819,7 @@
           "variant": "ANSI",
           "count": 87,
           "source": "docs/research/rongyuan-layouts/ry_layout_2703.json",
-          "sha256": "dbbb0fd355719fb1e2867d128fc92b419ff01de8a26fd23e0f7a9b240e35e9d7",
+          "sha256": "5d0da890a0b351f7b760788b7befba83689115dda641bcbb154f4f38202bb595",
           "products": [
             "RY1B-2703",
             "RY1B-2988",
@@ -1840,7 +1841,7 @@
           "variant": "ANSI",
           "count": 87,
           "source": "docs/research/rongyuan-layouts/ry_layout_2763.json",
-          "sha256": "d2b5a925f4133f9826781b03a6c84005164f57758229dc04efdc55a36dcba21f",
+          "sha256": "428175288906ca66ba216c7fb89197c0fc15e23bb99e3f1b9e7058ccf4bd9624",
           "products": [
             "RY1B-2763"
           ],
@@ -1860,7 +1861,7 @@
           "variant": "ANSI",
           "count": 81,
           "source": "docs/research/rongyuan-layouts/ry_layout_2770.json",
-          "sha256": "bcad6f98619bddf6dfc297c553946d7936f4ba512ea9146a0c8dcd901a8bcd2c",
+          "sha256": "1bcb38513701800c7711b63f2cad560be6c4fc04e2b6405cdbe238050d9e2b18",
           "products": [
             "RY1B-2770",
             "RY1B-2797"
@@ -1874,7 +1875,7 @@
           "variant": "ANSI",
           "count": 87,
           "source": "docs/research/rongyuan-layouts/ry_layout_3486.json",
-          "sha256": "4f4ae06c4e587701a708214d25427fce3c7f197c0d894cf0f025fcf462b86aa9",
+          "sha256": "9332b0bc088273ae0fd28b0b0e1f2b7decf10c6947c9af338350e5dfe3184fdc",
           "products": [
             "RY1B-3486"
           ],
@@ -1894,7 +1895,7 @@
           "variant": "ANSI",
           "count": 82,
           "source": "docs/research/rongyuan-layouts/ry_layout_2780.json",
-          "sha256": "2c7a59b09ad142589dda89f8976174f17bcac96eccf0901a54f16efe1fa1d2b8",
+          "sha256": "038586e21b4c36e9e1f335bbc267337111795af6d1317b07a4c0733fb3152f17",
           "products": [
             "RY1B-2780",
             "RY1B-3294"
@@ -1921,6 +1922,24 @@
         }
       ]
     },
+    "Weikav": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/WEIKAV_EG75HE_2026-10-26.md",
+      "models": [
+        {
+          "id": "weikav_eg75_he_ansi",
+          "brand": "Weikav",
+          "model": "EG75 HE",
+          "variant": "ANSI",
+          "count": 80,
+          "source": "docs/research/weikav-layout-reports/weikav_eg75_he_ansi.json",
+          "sha256": "33b2d70c503026fdb99fa514304e8af261f5843153821e7ebe170072371d48cf",
+          "products": [],
+          "url": ""
+        }
+      ]
+    },
     "EWEADN": {
       "adapter": "reviewed-report",
       "runtime": true,
@@ -1933,7 +1952,7 @@
           "variant": "ANSI",
           "count": 81,
           "source": "docs/research/rongyuan-layouts/ry_layout_2799.json",
-          "sha256": "3a3f1c9386c77b0de55f551e65906f2071eb4d6fc0ab3c4ba57f1d8b71964920",
+          "sha256": "9388d2a1e3eae2497694754251d3f0ef9f43d9f87c9355feb9d7292b9fbdf840",
           "products": [
             "RY1B-2799"
           ],
@@ -1946,7 +1965,7 @@
           "variant": "ANSI",
           "count": 87,
           "source": "docs/research/rongyuan-layouts/ry_layout_3011.json",
-          "sha256": "f1bc8533a0f2f04370c880be729af45f8ac65ab24d682012b63f752b6b35c4f0",
+          "sha256": "53a5103a5ae2cdc853737b4f2d2aba86e848c195800d33370b00b59438cf8f3f",
           "products": [
             "RY1B-3011"
           ],
@@ -1959,7 +1978,7 @@
           "variant": "ANSI",
           "count": 67,
           "source": "docs/research/rongyuan-layouts/ry_layout_3225.json",
-          "sha256": "74ca2ddefdba608b6e256f4da6d899777b8e0efc52c18f3c1750f6780e257faa",
+          "sha256": "7eceb034a1a29cb92d7c139238513904ab90fc9b9b6d9118b110c28c0f118b5f",
           "products": [
             "RY1B-3225"
           ],
@@ -1979,7 +1998,7 @@
           "variant": "ANSI",
           "count": 82,
           "source": "docs/research/rongyuan-layouts/ry_layout_2930.json",
-          "sha256": "17951c457e18ff550b40416b70d836bed5adcb80667dbc0d8233b56e9838a27a",
+          "sha256": "a24bb35ae82d7df67d6a1677e87b5b6a3a27965a1e4f6346755d58eed49ef73d",
           "products": [
             "RY1B-2930"
           ],
@@ -1999,7 +2018,7 @@
           "variant": "ANSI",
           "count": 82,
           "source": "docs/research/rongyuan-layouts/ry_layout_3151.json",
-          "sha256": "39d828ce2b5c7f6ff8112e5986855f416c31e4f2848165a726e9f42d2aad6846",
+          "sha256": "6f9c40e117b72f53bcffc5eeed59180dcf3432cee827f78eb96bb2dc3f35bc31",
           "products": [
             "RY1B-3151"
           ],
@@ -2019,7 +2038,7 @@
           "variant": "ANSI",
           "count": 68,
           "source": "docs/research/rongyuan-layouts/ry_layout_3244.json",
-          "sha256": "27a22c434633f0b06a7105f082e3ab9b36d4fde8a623ce6a279fe3116d994422",
+          "sha256": "0c9100f9a60b85cdb4ae0e7a3a7232ae76dd441f388f935feb651aef27c45cb9",
           "products": [
             "RY1B-3244"
           ],
@@ -2039,7 +2058,7 @@
           "variant": "ANSI",
           "count": 68,
           "source": "docs/research/rongyuan-layouts/ry_layout_3291.json",
-          "sha256": "a0bb07040d94c0b6affa184a814c291e6c4ebae3561befe813688bc6712d8512",
+          "sha256": "81055afbca27ef816405031145c24bfd1f1d4f51beeca0b4002bdc992e59f8c2",
           "products": [
             "RY1B-3291",
             "RY1B-3292"
@@ -2060,7 +2079,7 @@
           "variant": "ANSI",
           "count": 82,
           "source": "docs/research/rongyuan-layouts/ry_layout_3340.json",
-          "sha256": "e3a6b8c8899d8c420ea7082a639e0298c773082b070b0ef89cd8a6d82a8fb205",
+          "sha256": "7997462f77cb01af51c4c4ddd2c591ce846e095faa7eb2f45dd29de5f658b02b",
           "products": [
             "RY1B-3340"
           ],
@@ -2080,7 +2099,7 @@
           "variant": "ANSI",
           "count": 82,
           "source": "docs/research/rongyuan-layouts/ry_layout_3367.json",
-          "sha256": "e000450c515d5d4ca95600aa584823fe82fdded87ddee1656d9b1198478f8425",
+          "sha256": "6f90221382ee1c3174a08f09966b5b6e601f088591a863cae358be879216233a",
           "products": [
             "RY1B-3367"
           ],
@@ -2100,7 +2119,7 @@
           "variant": "ANSI",
           "count": 80,
           "source": "docs/research/rongyuan-layouts/ry_layout_3389.json",
-          "sha256": "040c1272c012ba61dce75bd9a393243d3e5e1e050bfb018e70d0acb7286dd111",
+          "sha256": "34d8558d9be13d4ccddcfeef940ff353cede70fbd6691b4afa47a612a5957378",
           "products": [
             "RY1B-3389",
             "RY1B-3536"
@@ -2121,7 +2140,7 @@
           "variant": "ANSI",
           "count": 81,
           "source": "docs/research/rongyuan-layouts/ry_layout_3403.json",
-          "sha256": "e6f96f68437f93fc25d4eeedc87240e9f256b77b82e9ea557bfe18082ad0f8f8",
+          "sha256": "f9189fc486d2ea8d5c7fbbe05d802803d1fcf698f6816fde1f977bd1070b25c5",
           "products": [
             "RY1B-3403",
             "RY1B-3437"
@@ -2142,7 +2161,7 @@
           "variant": "ANSI",
           "count": 87,
           "source": "docs/research/rongyuan-layouts/ry_layout_3475.json",
-          "sha256": "50059a092b7023c54a921f9cc7cd8e758d734c8dfdb4c934c900324983a48fd7",
+          "sha256": "4fa50b015a11d6a9be36ea76a07079c9ce64f9da4c95bc8cff7e07be187ea79c",
           "products": [
             "RY1B-3475"
           ],
@@ -2235,7 +2254,7 @@
           "variant": "ANSI",
           "count": 61,
           "source": "docs/research/rongyuan-layouts/ry_layout_3708.json",
-          "sha256": "605e48d56e5e89d34b077129beae5cfd6e4dd2edbe5dbcfaf830fe28e098d93e",
+          "sha256": "55be7b4e74ac1204b714b57e0072118321eea4d6013af14facba1099547429c1",
           "products": [
             "RY1B-3708"
           ],

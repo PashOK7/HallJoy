@@ -32,6 +32,7 @@ int main(){
  assert(sparklink::OfficialListed(0x1ca6,0x1a0f) && sparklink::GenericOnly(0x1ca6,0x1a0f)==sparklink::kGenericAdmission && !sparklink::ExactModel(0x1ca6,0x1a0f)); // IPI Flash75 Pro candidate
  assert(sparklink::OfficialListed(0x38a6,0x28de) && sparklink::GenericOnly(0x38a6,0x28de)==sparklink::kGenericAdmission); // AULA AG75 HE
  assert(sparklink::ExactModel(0x1ca6,0x3002) && !sparklink::GenericOnly(0x1ca6,0x3002)); // Supported SU75 Pro
+ assert(sparklink::OfficialListed(0x1ca6,0x5a01) && sparklink::ExactModel(0x1ca6,0x5a01) && !sparklink::GenericOnly(0x1ca6,0x5a01) && !sparklink::ExperimentalToken(0x1ca6,0x5a01,0xffb0)); // Supported Weikav EG75 HE
  assert(sparklink::ExactModel(0x1ca6,0x529) && !sparklink::GenericOnly(0x1ca6,0x529));
  assert(sparklink::ExactModel(0x1ca6,0x528) && !sparklink::OfficialListed(0x1ca6,0x528) && sparklink::ProbeIdentity(0x1ca6,0x528));
  assert(!sparklink::GenericOnly(0x1ca6,0xffff) && !sparklink::GenericOnly(0x1038,0x1614) && !sparklink::ProbeIdentity(0x1038,0x1614));

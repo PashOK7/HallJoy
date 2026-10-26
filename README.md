@@ -66,10 +66,10 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 
 **AJAZZ:** AK820 MAX HE (wired, RGB)  
 **ATK:** Hex80  
-**ATTACK SHARK:** R85 HE (USB), X65 Pro  
+**ATTACK SHARK:** R85 HE (USB), X65 Pro, X82 HE (USB)  
 **AULA:** WIN 60 HE MAX, WIN 60 HE, WIN 68 HE, KP-TE153, MINI 60 HE (USB), MINI 60 HE Pro, MINI 60 HE MAX (USB)  
 **DrunkDeer:** A75, A75 Pro, G60, G65, G75  
-**EPOMAKER:** HE108 (USB), HE75 V2 TMR (USB)  
+**EPOMAKER:** HE108 (USB), HE65 V2 (USB), HE75 V2 TMR (USB)  
 **Everglide:** SU75 Pro  
 **GamaKay:** TK75 HE V2 (USB)  
 **GravaStar:** Mercury V75  
@@ -78,7 +78,7 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 **Keychron:** Q1 HE, Q2 HE (ANSI), Q3 HE, Q4 HE (ANSI), Q5 HE, Q6 HE, Q12 HE, Q1 HE 8K, Q3 HE 8K, Q5 HE 8K, Q6 HE 8K, K2 HE, K3 HE, K4 HE, K6 HE (ANSI), K8 HE, K10 HE — requires compatible [custom firmware](https://analogsense.org/firmware/).  
 **Lemokey:** P1 HE  
 **MADLIONS:** MAD 68 Pro R, MAD60HE, MAD68 HE V2 Flagship, MAD68HE, MAD68R  
-**MCHOSE:** Ace 68 Air III, Jet 75 II, Mix 87 III  
+**MCHOSE:** Ace 60 Pro, Ace 68 Air III, Jet 75 II, Mix 87 III  
 **MonsGeek:** FUN60 Ultra TMR (USB), M1 V5 TMR (USB), M2 V5 HE (USB)  
 **NuPhy:** Air60 HE, Air75 HE, Field75 HE  
 **Razer:** Huntsman V2 Analog, Huntsman Mini Analog, Huntsman V3 Pro, Huntsman V3 Pro Mini, Huntsman V3 Pro Tenkeyless  
@@ -86,6 +86,7 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 **Royal Kludge:** RK68 HE  
 **SayoDevice:** O3C  
 **SteelSeries:** Apex Pro  
+**Weikav:** EG75 HE  
 **WLMOUSE:** Ying75  
 **Womier:** SK75 TMR (USB)  
 **Wooting:** 60HE, 60HE+, 60HE v2 (including Split), 80HE, 80HE+ (including Split), One, Two, Two HE, UwU, UwU RGB
@@ -104,7 +105,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **ARDOR GAMING:** Radiant  
 **ASTROMEDA:** AMGK80-001  
 **ATK:** 60 RX, 68 RX, 68 V2 Pro, 68 V3, EDGE 60 HE, EDGE 63 HE, EDGE 75 HE, RS6, RS6 Air, RS6 Cube, RS6 Ultra, RS6 Ultra+, RS6+, RS63 Air, RS7, RS7 Air, RS7 Turbo, RS7 V2, RS7 V2 Ultra  
-**ATTACK SHARK:** Beat75, K85, K85 Pro HE, R68 HE, R82 HE, R82 Pro HE, R85 Ultra, R86 Pro HE, R98 GT, R98 HE, R98 Pro, R98 Ultra, X60 HE, X65, X65 HE, X68 HE, X68 MAX, X68 Pro HE, X68 Ultra, X82 HE, X82 Pro HE, X820 Pro, X85 Ultra, X87 Ultra, X96 HE, X98 HE  
+**ATTACK SHARK:** Beat75, K85, K85 Pro HE, R68 HE, R82 HE, R82 Pro HE, R85 Ultra, R86 Pro HE, R98 GT, R98 HE, R98 Pro, R98 Ultra, X60 HE, X65, X65 HE, X68 HE, X68 MAX, X68 Pro HE, X68 Ultra, X82 Pro HE, X820 Pro, X85 Ultra, X87 Ultra, X96 HE, X98 HE  
 **ATWO:** GK7 MX  
 **AULA:** HERO 68 Air, HERO 68 HE, HERO 68 HE PRO, HERO 68 MINI, HERO 99 HE, HERO84 HE, WIN 60 HE PRO, WIN 68 HE MAX, WIN 68 HE PRO, WIN 68 HE Ultra  
 **Blackstorm:** Renegade HE  
@@ -152,7 +153,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **M4G:** MAG 68 HE  
 **MageGee:** AIR68, Captain87 JIS, MK-BOX (magnetic version)  
 **MAMBASNAKE:** M82 HE, X60 HE  
-**MCHOSE:** Ace 60 Pro, Ace 60 Pro Nordic, Ace 60X I, Ace 60X II, Ace 68 (I, II, III), Ace 68 Air (II, 2), Ace 68 Turbo 8K, Ace 68 V2 III, Ace 75 8K, Jet 75 I, Mix 87 I, Zero75X  
+**MCHOSE:** Ace 60 Pro Nordic, Ace 60X I, Ace 60X II, Ace 68 (I, II, III), Ace 68 Air (II, 2), Ace 68 Turbo 8K, Ace 68 V2 III, Ace 75 8K, Jet 75 I, Mix 87 I, Zero75X  
 **MechLands:** M75  
 **MEETION:** Magic A68, Magic A75  
 **MelGeek:** MADE68 Air  

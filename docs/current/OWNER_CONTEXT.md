@@ -1,3 +1,4 @@
+> 2026-10-26 PUBLISHED stable/latest 1.6.13: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.13 (commit 22444c0, EXE 338545f0). See RELEASE_1.6.13_PUBLICATION_2026-10-26.md.
 > 2026-10-26 Weikav EG75 HE log "HallJoy (22).log" (1.6.12): 1CA6:5A01 connected via generic SparkLink V2, 126 keys, ~77k updates,
 > 0 failures, A/W full travel. Made exact model (ExactModel 0x5a01, no notice), 80-key layout "Weikav EG75 HE ANSI" from the official
 > driver key map + retail top view (same method as SU75 Pro), supported_layouts, README, SUPPORTED_HARDWARE. Native checks EXIT=0.

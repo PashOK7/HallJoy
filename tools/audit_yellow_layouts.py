@@ -25,7 +25,8 @@ def audit(catalog):
     aliases={('ATTACK SHARK','X65'):'ATTACK SHARK X65 Pro HE ANSI',
              ('AULA','WIN 68 HE MAX'):'Aula WIN 68 HE PRO / MAX ANSI',
              # One Sheet row, three official firmware products (iLLumiPC names).
-             ('Redragon','K686 HE'):('Redragon K686BG-RGB-M ANSI','Redragon K686BG-RGB-M ISO','Redragon K686RGB-M ISO')}
+             ('Redragon','K686 HE'):('Redragon K686BG-RGB-M ANSI','Redragon K686BG-RGB-M ISO','Redragon K686RGB-M ISO'),
+             ('Redragon','Kumara RT Magnetic K552-M'):('Redragon K552-M ANSI','Redragon K552-M ISO','Redragon K552-M ABNT2')}
     rows=[]
     for group in notices['groups']:
         for model in group['models']:

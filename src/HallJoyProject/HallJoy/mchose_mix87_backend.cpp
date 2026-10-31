@@ -152,19 +152,22 @@ bool MatchesHash(std::vector<std::uint8_t>& bytes,const char* expected){
     for(unsigned i=0;i<32;++i)if(expected[i*2]!=hex[digest[i]>>4] || expected[i*2+1]!=hex[digest[i]&15])return false;
     return true;
 }
-bool Verify(Session& session,const tp::Model& model,std::array<bool,256>& map){
+bool Verify(Session& session,const tp::Model& model,std::array<bool,256>& map,bool& exact){
+    exact=false;
     Report info{},reply{};info[0]=0x55;info[1]=3;info[4]=31;info[3]=tp::Checksum(info);
-    if(!model.fingerprinted){
-        // Not version-bound (owner decision for the M HUB family, 2026-10-02):
-        // the protocol answer is required, the version is logged, and safety
-        // comes from the settings/base checks, readback and A0 validation.
-        if(!session.Exchange(info,reply))return false;
-        SupportLog_Event("mix87.model",model.pid);
-        SupportLog_Event("mix87.firmware_version",static_cast<unsigned>(reply[8]|(reply[9]<<8)));
+    // Not version-bound (owner decision for the M HUB family, 2026-10-02):
+    // the protocol answer is required, the version is logged, and safety
+    // comes from the settings/base checks, readback and A0 validation.
+    // Mix87 III 1.22 keeps its exact fingerprint path; other versions use the
+    // factory key list (a tester's Mix87 III was refused on 2026-10-29).
+    if(!session.Exchange(info,reply))return false;
+    const unsigned version=reply[8]|(reply[9]<<8);
+    SupportLog_Event("mix87.model",model.pid);
+    SupportLog_Event("mix87.firmware_version",version);
+    if(!model.fingerprinted || version!=0x0122){
         for(std::size_t i=0;i<model.keyCount;++i)map[model.keys[i]]=true;
         return true;
     }
-    if(!session.Exchange(info,reply) || reply[8]!=0x22 || reply[9]!=1){SupportLog_Event("mix87.version_unreviewed",1);return false;}
     for(const auto& f:fingerprints){
         std::vector<std::uint8_t> bytes(f.size);
         if(!session.ReadBytes(f.offset,bytes.data(),bytes.size()))return false;
@@ -176,6 +179,7 @@ bool Verify(Session& session,const tp::Model& model,std::array<bool,256>& map){
             }
         }
     }
+    exact=true;
     return std::count(map.begin(),map.end(),true)==86;
 }
 bool LoadMode(Session& session,tp::Base& base,bool& enabled,unsigned& profile){
@@ -209,8 +213,8 @@ void Run(const Candidate& c){
     struct End{~End(){Clear();std::lock_guard<std::mutex> l(g_control);g_request=-1;++g_mode.session;g_mode.state=Mix87ModeState::Failed;}} end;
     const auto& model=*c.model;g_model.store(c.model);g_keyCount.store(0);
     Session session(c);if(!session.Valid()){Failure("mix87.open_failed",SupportLog_Win32(GetLastError()));return;}
-    std::array<bool,256> map{};
-    if(!Verify(session,model,map)){SupportLog_Event("mix87.admission_failed",1);return;}
+    std::array<bool,256> map{};bool exact341=false;
+    if(!Verify(session,model,map,exact341)){SupportLog_Event("mix87.admission_failed",1);return;}
     g_keyCount.store(static_cast<unsigned>(std::count(map.begin(),map.end(),true)));
     if(!NativeAnalogRouting_Claim(model.vid,model.pid,c.path.c_str(),NativeAnalogProtocol::MchoseMix87) &&
        !NativeAnalogRouting_IsClaimedBy(c.path.c_str(),NativeAnalogProtocol::MchoseMix87))return;
@@ -265,7 +269,7 @@ void Run(const Candidate& c){
         }
         if(!enabled)continue;
         tp::Sample sample{};
-        if(tp::Decode(report,map,sample,model.fingerprinted)){
+        if(tp::Decode(report,map,sample,exact341)){
             g_values[sample.hid].store(sample.milli);g_last.store(GetTickCount64());++g_good;g_connected.store(true);
         }else if(report[0]==0xa0 && report[1]==0x10){Failure("mix87.invalid_analog",SupportLog_Protocol(1));return;}
     }

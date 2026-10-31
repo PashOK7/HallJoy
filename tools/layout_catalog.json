@@ -89,6 +89,18 @@
             "SI2851UKKZHEARGB"
           ],
           "brand": "Aula"
+        },
+        {
+          "id": "aula_ag75_ansi",
+          "model": "AG75",
+          "variant": "ANSI",
+          "count": 81,
+          "adapter": "reviewed-report",
+          "source": "docs/research/aula-ag75-layout-reports/aula_ag75_ansi.json",
+          "sha256": "e6e5fac5b4cedd8aba8b3178dd8f0aa9fa92ac9f550bf5acd961a2c0592880a5",
+          "products": [],
+          "brand": "Aula",
+          "url": ""
         }
       ],
       "pending": [],
@@ -203,11 +215,60 @@
           "variant": "ANSI",
           "count": 61,
           "source": "docs/research/neo-k617-layouts/redragon_k617_he_ansi.json",
-          "sha256": "846bf0809a3a33f6cbe9a9e21b43f2fac625d064a113b9058b638dfc5db382aa",
+          "sha256": "4db563c6f129ccc71d48ec356aa35c292a2a9ead8b9e1a328f6ca4df307884a0",
           "products": [
             "7153USHEXYXCPARGB"
           ],
           "url": ""
+        },
+        {
+          "id": "redragon_k552m_us_ansi",
+          "model": "K552-M",
+          "variant": "ANSI",
+          "count": 87,
+          "source": "docs/research/redragon-layout-sources/7295USHEXYXJCARGB.json",
+          "url": "https://www.illumipc.com/config/keys/7295USHEXYXJCARGB.json",
+          "sha256": "e648f3925adc46af9df4ec1cbf6906ede73c524b49710036cd274819369cb0cf",
+          "css": "docs/research/redragon-layout-sources/mainIndex8.min.css",
+          "cssUrl": "https://www.illumipc.com/css/mainIndex8.min.css",
+          "cssSha256": "e90906657ed201b9cfbde5de88d082920e9184c8a0d4a807f630065752f62c43",
+          "factory": "K552UsFactoryMap",
+          "products": [
+            "7295USHEXYXJCARGB"
+          ]
+        },
+        {
+          "id": "redragon_k552m_uk_iso",
+          "model": "K552-M",
+          "variant": "ISO",
+          "count": 88,
+          "source": "docs/research/redragon-layout-sources/7295UKHEXYXK552JCARGB.json",
+          "url": "https://www.illumipc.com/config/keys/7295UKHEXYXK552JCARGB.json",
+          "sha256": "cb9e7c6cae836d130d04fa0c7e4961e4fc79650fdaf4fff99cc397222001d0c6",
+          "css": "docs/research/redragon-layout-sources/mainIndex8.min.css",
+          "cssUrl": "https://www.illumipc.com/css/mainIndex8.min.css",
+          "cssSha256": "e90906657ed201b9cfbde5de88d082920e9184c8a0d4a807f630065752f62c43",
+          "factory": "K552UkFactoryMap",
+          "products": [
+            "7295UKHEXYXK552JCARGB",
+            "7295UKHEXYXXK552JCARGB"
+          ]
+        },
+        {
+          "id": "redragon_k552m_br_abnt2",
+          "model": "K552-M",
+          "variant": "ABNT2",
+          "count": 89,
+          "source": "docs/research/redragon-layout-sources/7295BRHEXYXK552JCARGB.json",
+          "url": "https://www.illumipc.com/config/keys/7295BRHEXYXK552JCARGB.json",
+          "sha256": "09b65789c9018a1c67839837570f2166a18deb37957b7487fe46cadcec0fab58",
+          "css": "docs/research/redragon-layout-sources/mainIndex8.min.css",
+          "cssUrl": "https://www.illumipc.com/css/mainIndex8.min.css",
+          "cssSha256": "e90906657ed201b9cfbde5de88d082920e9184c8a0d4a807f630065752f62c43",
+          "factory": "K552BrFactoryMap",
+          "products": [
+            "7295BRHEXYXK552JCARGB"
+          ]
         }
       ],
       "pending": []
@@ -2021,6 +2082,27 @@
           "sha256": "6f9c40e117b72f53bcffc5eeed59180dcf3432cee827f78eb96bb2dc3f35bc31",
           "products": [
             "RY1B-3151"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "YUNZII": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ALL_YELLOW_LAYOUTS_2026-09-24.md",
+      "models": [
+        {
+          "id": "ry_layout_2865",
+          "brand": "YUNZII",
+          "model": "RT75 Pro",
+          "variant": "ANSI",
+          "count": 81,
+          "source": "docs/research/rongyuan-layouts/ry_layout_2865.json",
+          "sha256": "4c44c742acd3e76c6b77393a453038d44619acf1ca9c1faf1ce36a222b419245",
+          "products": [
+            "RY1B-2865",
+            "RY1B-3755"
           ],
           "url": ""
         }

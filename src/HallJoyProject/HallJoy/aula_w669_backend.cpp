@@ -298,6 +298,9 @@ const wchar_t* ProfileName(aula_w669::FactoryLayoutProfile profile)
     case aula_w669::FactoryLayoutProfile::K686Us: return L"redragon_k686_us_98";
     case aula_w669::FactoryLayoutProfile::K686Br: return L"redragon_k686_br_99";
     case aula_w669::FactoryLayoutProfile::K686Uk: return L"redragon_k686_uk_99";
+    case aula_w669::FactoryLayoutProfile::K552Us: return L"redragon_k552m_us_87";
+    case aula_w669::FactoryLayoutProfile::K552Uk: return L"redragon_k552m_uk_88";
+    case aula_w669::FactoryLayoutProfile::K552Br: return L"redragon_k552m_br_89";
     default: return L"unknown_explicit_only";
     }
 }

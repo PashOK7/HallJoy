@@ -89,6 +89,13 @@ void StreamStep(unsigned char* p){
         assert(!wcscmp(t.deviceName,L"MCHOSE Ace 75 8K"));
         assert(t.verifiedLayoutToken && t.verifiedLayoutToken==halljoy::layout_identity::Token("mchose-ace75","ACE758K-3837-303C"));
     }
+    if(stream==2 && scenario==2){
+        // Mix87 III on another firmware version: factory key list, no hashing.
+        assert(Owns(0x65) && Owns(0x48) && !Owns(0x32) && hashIndex==0);
+        NativeAnalogBackendTelemetry t{};Telemetry(&t);
+        assert(t.connected && t.productId==0x300d && t.mappedKeys==86);
+        assert(t.verifiedLayoutToken==halljoy::layout_identity::Token("mchose-mix87","MIX87III-3837-300D"));
+    }
     if(stream==2 && scenario==0){
         NativeAnalogBackendTelemetry t{};Telemetry(&t);
         assert(t.productId==0x300d && t.mappedKeys==86 && !wcscmp(t.deviceName,L"MCHOSE Mix87 III"));
@@ -107,8 +114,8 @@ int main(){
         settings[7]=scenario==0?8:0;settings[8]=0x55;
         g_stop.store(false);Candidate candidate{L"synthetic"};Run(candidate);
         assert(!Connected() && Get(26)==0 && settings[8]==0x55);
-        if(scenario==0 || scenario==1 || scenario==8)assert(stream==3); // survived the device change
-        if(scenario==2 || scenario==3){assert(writes==0);}
+        if(scenario==0 || scenario==1 || scenario==2 || scenario==8)assert(stream==3); // survived the device change
+        if(scenario==3){assert(writes==0);}
         else if(scenario==0){assert(writes==1 && !(settings[7]&8));}
         else if(scenario==9){assert(writes==1 && (settings[7]&8));}
         else {assert(writes==2);assert(bool(settings[7]&8)==(scenario==8));}
@@ -131,5 +138,5 @@ int main(){
     { Session session(Candidate{L"synthetic"});std::uint8_t value=0;
       pending=false;assert(!session.ReadBytes(0x2a000,&value,1,true,GetTickCount64()));
       assert(GetLastError()==WAIT_TIMEOUT && !pending); }
-    puts("Mix87 lifecycle PASS: auto-enable, pre-enabled no redundant enable, normal/early stop cleanup, ambiguous enable cleanup, bad version/hash, stream rejection, stop during write, disconnect, profile race, no flash retry loop, Ace 75 8K model");
+    puts("Mix87 lifecycle PASS: auto-enable, pre-enabled no redundant enable, normal/early stop cleanup, ambiguous enable cleanup, other version admitted, bad hash, stream rejection, stop during write, disconnect, profile race, no flash retry loop, Ace 75 8K model");
 }

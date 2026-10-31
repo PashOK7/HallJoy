@@ -20,9 +20,9 @@ int main(){
     a[14]=1;a[15]=0x5f;a[6]=0;a[7]=0;assert(!Decode(a,allowed,sample) && Decode(a,allowed,sample,false));
     a[14]=0;a[15]=150;assert(!Decode(a,allowed,sample,false));a[14]=3;a[15]=0xe8;assert(!Decode(a,allowed,sample,false));
     a[14]=1;a[15]=0x55;
-    assert(FindModel(Vid,Pid)==&Models[0] && Models[0].fingerprinted && !Models[0].keys && std::size(Models)==7);
-    for(std::size_t i=1;i<std::size(Models);++i){
-        assert(!Models[i].fingerprinted && FindModel(Models[i].vid,Models[i].pid)==&Models[i]);
+    assert(FindModel(Vid,Pid)==&Models[0] && Models[0].fingerprinted && Models[0].keyCount==86 && std::size(Models)==7);
+    for(std::size_t i=0;i<std::size(Models);++i){
+        assert(Models[i].fingerprinted==(i==0) && FindModel(Models[i].vid,Models[i].pid)==&Models[i]);
         std::array<bool,256> m{};for(std::size_t k=0;k<Models[i].keyCount;++k){assert(!m[Models[i].keys[k]]);m[Models[i].keys[k]]=true;}
         for(std::size_t j=0;j<i;++j)assert(Models[i].vid!=Models[j].vid || Models[i].pid!=Models[j].pid);
     }

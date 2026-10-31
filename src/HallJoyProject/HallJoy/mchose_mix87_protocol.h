@@ -48,9 +48,9 @@ inline unsigned Hid(std::uint8_t type,std::uint8_t modifier,std::uint8_t code) n
     return 0xe0+bit;
 }
 struct Sample {unsigned hid=0;std::uint16_t milli=0;};
-// Mix87 III 1.22 (fingerprinted) has only 341; the other ARM boards are not
-// version-bound and some keep the switch table in RAM, so they accept the
-// plausible range used for the RISC-V family.
+// Mix87 III 1.22 (fingerprinted) has only 341; other Mix87 III versions and
+// the other ARM boards are not version-bound and some keep the switch table in
+// RAM, so they accept the plausible range used for the RISC-V family.
 inline bool Decode(const Report& p,const std::array<bool,256>& allowed,Sample& s,bool exact341=true) noexcept {
     if(p[0]!=0xa0)return false;
     const auto hid=Hid(p[1],p[2],p[3]);
@@ -70,13 +70,19 @@ inline constexpr std::uint8_t Ace75Keys[]={
     4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,
     40,41,42,43,44,45,46,47,48,49,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,74,75,76,77,78,
     79,80,81,82,0xe0,0xe1,0xe2,0xe3,0xe4,0xe5};
+// Mix87 III factory A0 descriptor keys (1.22 table at 0x15da6, + Fn, not reported).
+// Used for every other Mix87 III firmware version, which is not fingerprinted.
+inline constexpr std::uint8_t Mix87IIIKeys[]={
+    4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,
+    40,41,42,43,44,45,46,47,48,49,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,
+    75,76,77,78,79,80,81,82,101,0xe0,0xe1,0xe2,0xe3,0xe4,0xe5,0xe6};
 struct Model {
     std::uint16_t vid,pid;const wchar_t* name;const wchar_t* shortName;const char* layoutProtocol;const char* layoutProduct;
-    const std::uint8_t* keys;std::size_t keyCount; // null: read from the fingerprinted descriptor table
-    bool fingerprinted; // exact Mix87 III 1.22 admission
+    const std::uint8_t* keys;std::size_t keyCount; // firmware 1.22 reads them from the fingerprinted table
+    bool fingerprinted; // firmware 1.22 takes the exact Mix87 III fingerprint path
 };
 inline constexpr Model Models[]={
-    {Vid,Pid,L"MCHOSE Mix87 III",L"Mix87 III","mchose-mix87","MIX87III-3837-300D",nullptr,0,true},
+    {Vid,Pid,L"MCHOSE Mix87 III",L"Mix87 III","mchose-mix87","MIX87III-3837-300D",Mix87IIIKeys,std::size(Mix87IIIKeys),true},
     {0x3837,0x3003,L"MCHOSE Ace 68 III",L"Ace 68 III","mchose-ace68","ACE68III-3837-3003",Ace68Keys,std::size(Ace68Keys),false},
     {0x41e4,0x2132,L"MCHOSE Ace 68 Air III",L"Ace 68 Air III","mchose-ace68","ACE68AIRIII-41E4-2132",Ace68Keys,std::size(Ace68Keys),false},
     {0x3837,0x300a,L"MCHOSE Ace 68 Air 2",L"Ace 68 Air 2","mchose-ace68","ACE68AIR2-3837-300A",Ace68Keys,std::size(Ace68Keys),false},

@@ -19,7 +19,7 @@
       },
       {
         "path": "docs/development/keyboard_support_notices.json",
-        "sha256": "6ea014705ffdded5a319eeabd414d1870a1451fdbe749dc176274832129ec765",
+        "sha256": "f49740f87550bab87cfdb09d1193a94d79b513608ec7f7763639dd7b6670d48d",
         "private": false
       },
       {
@@ -1304,7 +1304,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "75ed1e11039eed8970369093c93f4cf87903412580f7890df752411986762fdc",
+        "sha256": "195c10b4a5907292b44059189feb723a74a5b403ddbf9279fb9cc0e0a6c45c5f",
         "private": false
       }
     ],
@@ -1859,7 +1859,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "75ed1e11039eed8970369093c93f4cf87903412580f7890df752411986762fdc",
+        "sha256": "195c10b4a5907292b44059189feb723a74a5b403ddbf9279fb9cc0e0a6c45c5f",
         "private": false
       },
       {
@@ -2013,12 +2013,12 @@
       },
       {
         "path": "docs/research/neo-k617-layouts/redragon_k617_he_ansi.json",
-        "sha256": "846bf0809a3a33f6cbe9a9e21b43f2fac625d064a113b9058b638dfc5db382aa",
+        "sha256": "4db563c6f129ccc71d48ec356aa35c292a2a9ead8b9e1a328f6ca4df307884a0",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/aula_w669_protocol.cpp",
-        "sha256": "734bacdcf0213373e63beb7156f2c0b065182dbb66fa4e4ea1c838817247bc8c",
+        "sha256": "a2f13e11f98568178d35612c6385963aa5e7d1f7c6e5bfad4654ad42421ff539",
         "private": false
       },
       {
@@ -2542,6 +2542,23 @@
       {
         "path": "tools/build_weikav_layouts.py",
         "sha256": "ddde970b1fca66179265c3eb05f15658569d827473727cf274d7e55ac08881e2",
+        "private": false
+      }
+    ],
+    "build_aula_ag75_layouts.py": [
+      {
+        "path": "docs/research/aula-ag75-layout-reports/aula_ag75_ansi.json",
+        "sha256": "e6e5fac5b4cedd8aba8b3178dd8f0aa9fa92ac9f550bf5acd961a2c0592880a5",
+        "private": false
+      },
+      {
+        "path": "docs/research/aula-ag75-layout-sources/ag75-geometry.json",
+        "sha256": "8984243e43b35fb4ccda81f1cbb32e52798b056214c28ec4d16589e1f7b1dac4",
+        "private": false
+      },
+      {
+        "path": "tools/build_aula_ag75_layouts.py",
+        "sha256": "663d923fa783e3e2cf51947f533c17314e2e5f986efd4b3b2aec180d6d2db198",
         "private": false
       }
     ],
@@ -3292,6 +3309,11 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/Aula AG75 ANSI.ini",
+        "sha256": "e4b83da2c4de98d15222e7a5f0fa16dff2afe4f054eb5ce61fa4b4eaa951a441",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/Aula HERO84 HE ANSI.ini",
         "sha256": "307ccd020978f48bac72de82ffefd6886b72ed7c0af1e6bc8ae6d630f3fe79d4",
         "private": false
@@ -3317,6 +3339,11 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/aula_ag75_ansi-review.json",
+        "sha256": "8422202b7acb9d4c1a360b44c72ee7494c88f93f4a6472ce8dad65f371e0ca8a",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/aula_hero84_he_ansi-review.json",
         "sha256": "9623592c7d92aee1137fa1d6ab87de3c57f2d42bbdece4cb3809fafd5bac4806",
         "private": false
@@ -3333,12 +3360,12 @@
       },
       {
         "path": "docs/exports/layout-pipeline/aula_win60_standard_ansi-review.json",
-        "sha256": "f0c6ab34642ca924fc502ac3eef0e2ef3bd884beff9d618c76e89f59273dd90d",
+        "sha256": "93018cc38f2c475620212be9bbb1d0e11e2fe1050e3f45e13350ef3f12a7e0ed",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/aula_win68_standard_ansi-review.json",
-        "sha256": "11371d9cf65dc8ceabf981b3ae07db924b1df751b94edff2fa5a3428689a4e1a",
+        "sha256": "e69cf5a0f91390b82931cc41ebb9c7640886f6fad767e84b27058d89f8a47c8c",
         "private": false
       },
       {
@@ -4022,6 +4049,21 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/Redragon K552-M ABNT2.ini",
+        "sha256": "1d6342ecad88784ead4c0c31ef03449113bff7a4a98e69b1964551e7a13d7ba9",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/Redragon K552-M ANSI.ini",
+        "sha256": "9289f93421c34859135895c1cf86d4fd5444af705135e18460fa2a50a740052b",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/Redragon K552-M ISO.ini",
+        "sha256": "bb670dfd2b4fdc251b1c0989349f959eeb145a2d0e8c935245756d0a1cae8328",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/Redragon K617 HE ANSI.ini",
         "sha256": "88977955b5179325e011b659bbf0deae6aae9ab091e701f0a097ca1f85a1cdc4",
         "private": false
@@ -4057,38 +4099,53 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/redragon_k552m_br_abnt2-review.json",
+        "sha256": "2faecf8108a9fab8b25faedf1d985f6b8c215a79dc0ae6621354166e35bf984f",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/redragon_k552m_uk_iso-review.json",
+        "sha256": "b0375716c515dc7e621a06848606252a264ff3d7a305d2580655338961d03491",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/redragon_k552m_us_ansi-review.json",
+        "sha256": "ab9bec94331dc3e266df369f7c1ddbc1d9017a84d6582b35a44148c36f5516a6",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/redragon_k617_he_ansi-review.json",
-        "sha256": "846bf0809a3a33f6cbe9a9e21b43f2fac625d064a113b9058b638dfc5db382aa",
+        "sha256": "4db563c6f129ccc71d48ec356aa35c292a2a9ead8b9e1a328f6ca4df307884a0",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/redragon_k673_br_abnt2-review.json",
-        "sha256": "13a3f4a834bebe59a0ab9065ba40c431624f9682f2cbcdda7b996f7851453722",
+        "sha256": "64cd0651427b7c29b6a870c1a26e4559631006c8b24c39339b6d47005912d728",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/redragon_k673_uk_iso-review.json",
-        "sha256": "6cc6698dbfa203351d08e02de729e7cbac8d47228abf642bb40cff705dd181d8",
+        "sha256": "bf490dddc1892830f6e708ef30d5905de6dfcc22a36c5d1e81a6b73c0063aaa4",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/redragon_k673_us_ansi-review.json",
-        "sha256": "1380383094a5d8435df81d5e66d7e0fb3b5baa0b1d987b6b090b83095484717d",
+        "sha256": "069f095a6a5d3f3645a42882e4531e09b312033ae49ed2b62bccf46cd3344f41",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/redragon_k686_uk_iso-review.json",
-        "sha256": "37afd4f0809faa4cce002db60f2acd9cd49a82639a89fbeabc999cc34b1267dd",
+        "sha256": "7373e03846613e348894d301bcd9b972e743a4b750edee020ea8158471fc9883",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/redragon_k686bg_br_iso-review.json",
-        "sha256": "c162ae38d456980b29ab5503528fe54a82134922b3462bca68d4b19974c36c88",
+        "sha256": "286f9d431e629ed47dabd066a3a26aa62053a45f45251bf91068907fb7a18ce0",
         "private": false
       },
       {
         "path": "docs/exports/layout-pipeline/redragon_k686bg_us_ansi-review.json",
-        "sha256": "b0cba1a9116e3ef373c51b627f4e936801ac63d0e06277db93941ad2d15b6d2c",
+        "sha256": "0e1b8bb663196eb9dbef378bd2c5614dc851cca7b5dede8149c171ba5f742016",
         "private": false
       },
       {
@@ -4214,6 +4271,11 @@
       {
         "path": "docs/exports/layout-pipeline/ry_layout_2811-review.json",
         "sha256": "07bbdf2d39f7e3a0152f4a195434f34adda9573f8f36979c9a0e9d6f3ab69306",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/ry_layout_2865-review.json",
+        "sha256": "4c44c742acd3e76c6b77393a453038d44619acf1ca9c1faf1ce36a222b419245",
         "private": false
       },
       {
@@ -4584,6 +4646,11 @@
       {
         "path": "docs/exports/layout-pipeline/XINMENG X87 TMR ANSI.ini",
         "sha256": "b36c8169d63f3e33100a4b386f8ea7ffd91bdda0bf8dd59aa492669a8c3c8d83",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/YUNZII RT75 Pro ANSI.ini",
+        "sha256": "4bdc4d9609fa5be6983dacf816c0054a31ec93f18a16186a9545fcda5510d4ce",
         "private": false
       },
       {
@@ -5059,6 +5126,16 @@
       {
         "path": "docs/research/aula-additional-layout-sources/SI2851UKKZHEARGB.json",
         "sha256": "f72a7678becae5480851706ed265f60ee8c7a27530146fe4154634a65b45492b",
+        "private": false
+      },
+      {
+        "path": "docs/research/aula-ag75-layout-reports/aula_ag75_ansi.json",
+        "sha256": "e6e5fac5b4cedd8aba8b3178dd8f0aa9fa92ac9f550bf5acd961a2c0592880a5",
+        "private": false
+      },
+      {
+        "path": "docs/research/aula-ag75-layout-sources/ag75-geometry.json",
+        "sha256": "8984243e43b35fb4ccda81f1cbb32e52798b056214c28ec4d16589e1f7b1dac4",
         "private": false
       },
       {
@@ -6033,7 +6110,7 @@
       },
       {
         "path": "docs/research/neo-k617-layouts/redragon_k617_he_ansi.json",
-        "sha256": "846bf0809a3a33f6cbe9a9e21b43f2fac625d064a113b9058b638dfc5db382aa",
+        "sha256": "4db563c6f129ccc71d48ec356aa35c292a2a9ead8b9e1a328f6ca4df307884a0",
         "private": false
       },
       {
@@ -6144,6 +6221,21 @@
       {
         "path": "docs/research/redragon-layout-sources/7272USHEXYXK673JCARGB.json",
         "sha256": "d2afff5d026cde62bd7f24d274b21aa0f654f4e282c37bd4ade5e05cf24f5abd",
+        "private": false
+      },
+      {
+        "path": "docs/research/redragon-layout-sources/7295BRHEXYXK552JCARGB.json",
+        "sha256": "521759a86e825c6dd56e5ebb63c85fa584688cd124154f167a59cbb824c77e83",
+        "private": false
+      },
+      {
+        "path": "docs/research/redragon-layout-sources/7295UKHEXYXK552JCARGB.json",
+        "sha256": "d6740f4fc55835238f1bddb076df16e641dd1acb78ed2d4edcc91ae4646b5884",
+        "private": false
+      },
+      {
+        "path": "docs/research/redragon-layout-sources/7295USHEXYXJCARGB.json",
+        "sha256": "64871ac96b53d4650ba0bf9af5a8f15fe5349531ef3ce2d5404bbe8c47192a8d",
         "private": false
       },
       {
@@ -6364,6 +6456,11 @@
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2811.json",
         "sha256": "07bbdf2d39f7e3a0152f4a195434f34adda9573f8f36979c9a0e9d6f3ab69306",
+        "private": false
+      },
+      {
+        "path": "docs/research/rongyuan-layouts/ry_layout_2865.json",
+        "sha256": "4c44c742acd3e76c6b77393a453038d44619acf1ca9c1faf1ce36a222b419245",
         "private": false
       },
       {
@@ -6858,7 +6955,7 @@
       },
       {
         "path": "src/HallJoyProject/HallJoy/aula_w669_protocol.cpp",
-        "sha256": "734bacdcf0213373e63beb7156f2c0b065182dbb66fa4e4ea1c838817247bc8c",
+        "sha256": "a2f13e11f98568178d35612c6385963aa5e7d1f7c6e5bfad4654ad42421ff539",
         "private": false
       },
       {
@@ -6873,22 +6970,22 @@
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.h",
-        "sha256": "9fcaa3c19d874c3d1f448ec50d3ba825e4d401fb6c37890ca1f05cddf4019689",
+        "sha256": "18433fd3289c30b54f03d5b296ea0f05516c453c2365b07ebf35969990f5b6ba",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.inc",
-        "sha256": "b6691f525c6b21464afe44664ad6f24cba05a5778fc00b50d4de0091e261313e",
+        "sha256": "3de1fee6f0d00754f00b4dd7ac18924aae389a3c19c041cfee680bd39de30f35",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/layouts.h",
-        "sha256": "d90c8ff53c2627d7b827c3dd07172c0933f1fb7b9dbfb3183e91c9a40b050bee",
+        "sha256": "6513f2c8544dbb50694a291871bc99d0cd0c0589cd42ce5959cf6e680b497508",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/presets.inc",
-        "sha256": "49a859832bc6fe2979f9780bfaaa97635e9ac39e5f0fd261958fd9ef23782f3e",
+        "sha256": "c4e2e2dd50fff2930ea21b93988c7b2ea2d25d0dd6f45afeb0fd9d87f923ff94",
         "private": false
       },
       {
@@ -6963,12 +7060,12 @@
       },
       {
         "path": "tools/layout_aula_w669.py",
-        "sha256": "0df5df92ef5c13edf3b4e6af78619cbb1325e8fc7629e3aa0775d68a6534cbd5",
+        "sha256": "d822db10083a13e3ae8660bdae346f2ab9883f74b771ff50b1535c39e6c58600",
         "private": false
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "75ed1e11039eed8970369093c93f4cf87903412580f7890df752411986762fdc",
+        "sha256": "195c10b4a5907292b44059189feb723a74a5b403ddbf9279fb9cc0e0a6c45c5f",
         "private": false
       },
       {
@@ -6983,7 +7080,7 @@
       },
       {
         "path": "tools/layout_redragon_w669.py",
-        "sha256": "a40eb5ee6ed856e0998064a537f0c99dd63421beaac00e2577f1f1e57fe71bc4",
+        "sha256": "87934e40ba6a2e51196fc95a136eadd3a156f350687af1fab93c63add64cad5a",
         "private": false
       },
       {
@@ -7008,7 +7105,7 @@
       },
       {
         "path": "tools/tests/test_layout_pipeline.py",
-        "sha256": "db26d4f60ae3cd93fcbecec2c99303f113dbe6da58863fd97c3df45faa6becc5",
+        "sha256": "5bf2df3a74a0d0e26e0d8c7cb1ea9112f4e85b44a0633bed24ca9b4caaff3845",
         "private": false
       }
     ]

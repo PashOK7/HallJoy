@@ -36,6 +36,23 @@ int main()
     assert(FactoryProfileForProduct("7431UKHEXYXBJCARGB")==FactoryLayoutProfile::K686Uk);
     assert(FactoryMap(FactoryLayoutProfile::K686Br)[79]==0x32 && FactoryMap(FactoryLayoutProfile::K686Uk)[79]==0x31);
     assert(FactoryMap(FactoryLayoutProfile::K686Us)[58]==0x31 && FactoryMap(FactoryLayoutProfile::K686Us)[89]==0);
+    // Redragon K552-M (TKL): four official firmware products, three matrices; Fn sits at 121.
+    for(auto profile:{FactoryLayoutProfile::K552Us,FactoryLayoutProfile::K552Uk,FactoryLayoutProfile::K552Br}) {
+        const auto map=FactoryMap(profile);
+        const unsigned expected=profile==FactoryLayoutProfile::K552Us?87u:profile==FactoryLayoutProfile::K552Uk?88u:89u;
+        assert(MappedKeyCount(map)==expected);
+        assert(map[46]==26 && map[68]==4 && map[69]==22 && map[70]==7 && map[121]==0xfa && map[120]==0xe6);
+        assert(map[37]==0x49 && map[17]==0x48 && map[104]==0x52 && map[127]==0x4f && map[122]==0x65 && map[83]==0);
+    }
+    assert(FactoryProfileForProduct("7295USHEXYXJCARGB")==FactoryLayoutProfile::K552Us);
+    assert(FactoryProfileForProduct("7295UKHEXYXK552JCARGB")==FactoryLayoutProfile::K552Uk);
+    assert(FactoryProfileForProduct("7295UKHEXYXXK552JCARGB")==FactoryLayoutProfile::K552Uk);
+    assert(FactoryProfileForProduct("7295BRHEXYXK552JCARGB")==FactoryLayoutProfile::K552Br);
+    assert(FactoryProfileForProduct("7295UNKNOWN")==FactoryLayoutProfile::Unknown);
+    assert(FactoryMap(FactoryLayoutProfile::K552Us)[58]==0x31 && FactoryMap(FactoryLayoutProfile::K552Us)[79]==0);
+    assert(FactoryMap(FactoryLayoutProfile::K552Uk)[58]==0 && FactoryMap(FactoryLayoutProfile::K552Uk)[79]==0x32 &&
+           FactoryMap(FactoryLayoutProfile::K552Uk)[89]==0x64 && FactoryMap(FactoryLayoutProfile::K552Uk)[100]==0);
+    assert(FactoryMap(FactoryLayoutProfile::K552Br)[100]==0x87 && FactoryMap(FactoryLayoutProfile::K552Br)[102]==0xe5);
     // Release floor = the keyboard's own minimum actuation (21/04 byte), if plausible.
     {
         TravelInfo travel{}; travel.maximum=340; travel.formatCode=10;

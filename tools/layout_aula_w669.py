@@ -14,8 +14,9 @@ LABELS[0xfa]='Fn'  # W669's existing physical identity; not UAP's 0x409.
 
 
 def factory_map(source, factory):
-    if factory in ('K686UsFactoryMap','K686BrFactoryMap','K686UkFactoryMap'):
-        # One literal 132-entry decimal matrix per official K686 product.
+    if factory in ('K686UsFactoryMap','K686BrFactoryMap','K686UkFactoryMap',
+                   'K552UsFactoryMap','K552UkFactoryMap','K552BrFactoryMap'):
+        # One literal 132-entry decimal matrix per official K686/K552-M product.
         match=re.search(r'PositionToHid '+factory+r'\(\) noexcept\s*\{(.*?)\n\}',source,re.S)
         common.require(match is not None,'K686 factory missing')
         body=re.sub(r'//[^\n]*','',match[1]).strip()

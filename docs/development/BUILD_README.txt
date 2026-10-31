@@ -1,60 +1,74 @@
 HALLJOY - WINDOWS X64 BUILD
 ==========================
-Current contract: 2026-09-24, version 1.6.2.
+Current workflow: 2026-10-31. Source version: src/HallJoyProject/HallJoy/version.h.
+Run from HallJoy-main, not from the outer session folder.
+Windows x64 is the supported target.
 
 Requirements
 ------------
-Visual Studio 2022 Build Tools with Desktop development with C++ and x64 Clang,
-Python 3.12, Git, and PowerShell 5.1 or later. Windows x64 is the supported target.
+Visual Studio 2022 C++ x64 tools / MSBuild, LLVM clang++ for portable checks,
+Git, PowerShell 5.1 or later and Python. Local Python 3.10.9 is the verified
+existing environment; hosted Windows CI selects Python 3.12. Firmware research
+has separate environment locks. Do not replace a working runtime or install
+global packages merely to match an old guide.
 
-Full build from repository root:
+Read-only entry: python tools/project_context.py --check
+
+Ordinary source change - each once, with the test cache enabled:
+  python tools/run_native_backend_checks.py --require-compiler
+  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build_release.ps1
+Never HALLJOY_NO_TEST_CACHE=1; do not repeat PASS without a relevant change.
+research_reference_checks.py --record only follows a changed pinned source.
+
+Full dependency rebuild, when needed:
   BUILD.cmd
 Equivalent:
   powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
-
-After dependencies have been prepared, incremental ordinary delivery:
-  powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build_release.ps1
+The full entry already runs unified checks. Do not run both workflows just
+to repeat validation.
 
 Output and replacement
 ----------------------
   build\bin\Release\x64\HallJoy.exe
 
-Both entry points stage the candidate in build\obj\ReleaseCandidate\x64.
-The running delivered application remains open during compilation and candidate
-checks. Only successful changed candidates reach the shared replacement script:
-it closes the exact target, replaces it and reopens it if previously running.
-Failed or unchanged candidates do not close HallJoy. Do not use another delivery
-folder to work around a locked EXE. See docs/current/BUILD_REPLACEMENT_LIFECYCLE_2026-09-19.md.
-
-The full build also writes dependency/license/checksum files beside the delivered
-EXE. Local runtime settings and unknown files are preserved. Incremental delivery
-replaces the EXE; do not assume old sidecar checksums were refreshed by that path.
+Candidates stage in build\obj\ReleaseCandidate\x64. The installed app stays open
+through compilation and checks. The shared publisher closes only the exact target,
+atomically replaces it and restores it if previously running. Failed/unchanged
+candidates do not close it. Closing HallJoy is authorized; elevated handling is
+in AGENTS.md. Do not create other delivery folders to avoid a locked EXE.
+Preserve profiles and unknown files. See the build/replacement lifecycle in
+  docs/current/BUILD_REPLACEMENT_LIFECYCLE_2026-09-19.md
+  docs/current/BUILD_LIFECYCLE_2026-09-27.md
 
 Validation
 ----------
-The full build verifies locked dependencies, static audits and portable checks.
-Both entry points run six linked-image checks: K4 onboard availability, support
-notices, ATTACK SHARK, MINI60, NA87/AJAZZ and the embedded ViGEm installer. These tests
-are not physical-device tests and do not install a driver.
-
+Current scripts are authoritative. build_release.ps1 checks dependencies,
+identities, notices and diagnostics; builds the complete ordinary native catalog;
+runs linked-image self-tests, embedded-license checks and production-linked
+profile/layout/startup recovery tests before replacement. Independent full-catalog
+and Supported-layout gates are mandatory. These checks are not hardware tests,
+driver installation or visual acceptance.
 ViGEmBus 1.22.0 is embedded and verified; installation requires user action.
-The private analogue plugin runtime is bundled; no global SDK install is needed.
-Debug|x64 retains symbols/checks with the compatible static release CRT required
-by ViGEmClient. See docs/development/TESTING.md for individual test commands.
+Private analog runtime is embedded; no global SDK install is needed.
+Debug|x64 retains debugging with the compatible static release CRT.
+The full build also updates package/license/checksum sidecars. Incremental EXE
+replacement alone does not prove old sidecar hashes were refreshed.
 
 Logging
 -------
-Ordinary builds support optional continuous logging (off by default) and mandatory
-crash/missing-keyboard/recognized-failure reports even when that option is off.
-Dedicated diagnostic builds may force additional telemetry; do not distribute one
-as an ordinary release. Raw stack/register memory is excluded from ordinary crash
-reports. Detailed diagnostic crash dumps have a different privacy scope.
+Ordinary builds support optional continuous logging (off by default), plus required
+crash/missing-source/recognized-failure reports even when it is off. Limited or
+unstable warnings do not themselves authorize forced logging. Tester delivery:
+one ordinary EXE, one normal HallJoy.log through Open log.
 
-Current gates and evidence
---------------------------
-docs/current/RELEASE_1.6.2_PREPARATION_2026-09-24.md records local release evidence.
-GitHub Windows CI runs only through manual workflow_dispatch. Releases rely on
-local Windows validation; portable GitHub CI remains automatic.
-SUPPORTED_HARDWARE.md is the current compatibility list. Older v1.4 documents are
-historical, not additional hardware or long-duration gates for this release.
-The owner checks the UI and approves the candidate before GitHub publication.
+Release and CI
+--------------
+Publication needs owner authorization. Write docs/releases/RELEASE_NOTES_v<version>.md:
+  python tools/release.py <version> "v<version>: title" --publish
+The command uses a fresh cleaned-main clone, publication/private-data checks,
+one native suite/build, packaging and server-side asset hashes. Without --publish
+it still prepares/builds local files, but does not push. Do not initialize Git
+in this extracted workspace or push a stale mirror.
+GitHub checks run on Windows for push/PR; the separate production build job is
+manual workflow_dispatch. CI is the clean-checkout run; do not duplicate it locally.
+See docs/development/TESTING.md and current OWNER_CONTEXT before delivery.

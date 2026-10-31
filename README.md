@@ -67,7 +67,7 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 **AJAZZ:** AK820 MAX HE (wired, RGB)  
 **ATK:** Hex80  
 **ATTACK SHARK:** R85 HE (USB), X65 Pro, X82 HE (USB)  
-**AULA:** WIN 60 HE MAX, WIN 60 HE, WIN 68 HE, KP-TE153, MINI 60 HE (USB), MINI 60 HE Pro, MINI 60 HE MAX (USB)  
+**AULA:** AG75, WIN 60 HE MAX, WIN 60 HE, WIN 68 HE, KP-TE153, MINI 60 HE (USB), MINI 60 HE Pro, MINI 60 HE MAX (USB)  
 **DrunkDeer:** A75, A75 Pro, G60, G65, G75  
 **EPOMAKER:** HE108 (USB), HE65 V2 (USB), HE75 V2 TMR (USB)  
 **Everglide:** SU75 Pro  
@@ -82,14 +82,15 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 **MonsGeek:** FUN60 Ultra TMR (USB), M1 V5 TMR (USB), M2 V5 HE (USB)  
 **NuPhy:** Air60 HE, Air75 HE, Field75 HE  
 **Razer:** Huntsman V2 Analog, Huntsman Mini Analog, Huntsman V3 Pro, Huntsman V3 Pro Mini, Huntsman V3 Pro Tenkeyless  
-**Redragon:** K673RGB-M  
+**Redragon:** K673RGB-M, K686 HE, Kumara RT Magnetic K552-M  
 **Royal Kludge:** RK68 HE  
 **SayoDevice:** O3C  
 **SteelSeries:** Apex Pro  
 **Weikav:** EG75 HE  
 **WLMOUSE:** Ying75  
 **Womier:** SK75 TMR (USB)  
-**Wooting:** 60HE, 60HE+, 60HE v2 (including Split), 80HE, 80HE+ (including Split), One, Two, Two HE, UwU, UwU RGB
+**Wooting:** 60HE, 60HE+, 60HE v2 (including Split), 80HE, 80HE+ (including Split), One, Two, Two HE, UwU, UwU RGB  
+**YUNZII:** RT75 Pro (USB)
 
 ### Experimental support
 
@@ -171,7 +172,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **PSYCommu:** PSY P1  
 **Rampage:** KAISEL, ZENITH PRO  
 **Razer:** Tartarus Pro (requires Razer Synapse)  
-**Redragon:** K617 HE, K673WB-RGB-M, K686 HE  
+**Redragon:** K617 HE, K673WB-RGB-M  
 **Royal Kludge:** A72HE  
 **ROYALAXE:** X68  
 **SALPIDO:** SHOT209  
@@ -187,8 +188,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **Valkyrie:** VK 99 Gaming (Naruto), VK Mag68, VK Mag68 Max, VK Mag75, VK Mag75 Lite, VK Mag75 Max, VK Mag75 Pro, VK NB68, VK NB68 Max  
 **Veekos:** Shine60 HE  
 **Womier:** M68 HE Pro, SK61 HE  
-**XINMENG:** Beat65, Beat68, Beat75, X87 TMR, X98 V3 (magnetic version), Zero 68  
-**YUNZII:** RT75 Pro
+**XINMENG:** Beat65, Beat68, Beat75, X87 TMR, X98 V3 (magnetic version), Zero 68
 
 ## Support
 

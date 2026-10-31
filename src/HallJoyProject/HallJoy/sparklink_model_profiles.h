@@ -36,15 +36,22 @@ constexpr std::uint64_t ExperimentalToken(unsigned vid,unsigned pid,unsigned pag
  case 0x270a: // EWEADN: DK75 HE
  case 0x5e01: // EWEADN: DK63 HE
   return (static_cast<std::uint64_t>(vid)<<16)|pid;
- default:return 0; // MG75 Max, Everglide SU75 Pro (0x3002) and Weikav EG75 HE (0x5a01) are Supported (see ExactModel).
+ default:return 0; // MG75 Max, Everglide SU75 Pro (0x3002), Weikav EG75 HE (0x5a01) and AULA AG75 are Supported (see ExactModel).
  }
 }
 // Exact models HallJoy lists by name: the confirmed MG75 Max (0x0529), the Supported
 // Everglide SU75 Pro (0x3002, xsyd.top; catalog public v2, FFB0/1; tester-confirmed
 // 2026-10-02), the Supported Weikav EG75 HE (0x5a01, official list; tester log 2026-10-26)
 // and the experimental identities above.
+// AULA AG75 (Supported; user report 2026-10-29): the PIDs of the official AULA web driver's
+// isAG75 list (heu.aulacn.com), all on the official SparkLink list (FFB0/1).
+constexpr bool AulaAg75(unsigned vid,unsigned pid) noexcept {
+ return vid==0x38a6 && (pid==0x28de || pid==0x28df || pid==0x28e0 || pid==0x28e1 ||
+                        pid==0x28f0 || pid==0x28f1 || pid==0x28f2);
+}
 constexpr bool ExactModel(unsigned vid,unsigned pid) noexcept {
- return vid==0x1ca6 && (pid==0x0529 || pid==0x3002 || pid==0x5a01 || ExperimentalToken(vid,pid,0xffb0)!=0);
+ return (vid==0x1ca6 && (pid==0x0529 || pid==0x3002 || pid==0x5a01 || ExperimentalToken(vid,pid,0xffb0)!=0)) ||
+        AulaAg75(vid,pid);
 }
 // The vendor's own driver lists this VID:PID as a SparkLink V2 keyboard (usage page 0xFFB0,
 // usage 1). Identifiers only; the table is generated and sorted.

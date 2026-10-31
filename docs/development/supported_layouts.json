@@ -40,6 +40,13 @@
   },
   {
    "brand": "AULA",
+   "model": "AG75",
+   "presets": [
+    "Aula AG75 ANSI"
+   ]
+  },
+  {
+   "brand": "AULA",
    "model": "KP-TE153",
    "presets": [
     "Aula KP-TE153 ISO"
@@ -505,6 +512,26 @@
    ]
   },
   {
+   "brand": "Redragon",
+   "model": "K686 HE",
+   "presets": [
+    "Redragon K686BG-RGB-M ANSI",
+    "Redragon K686BG-RGB-M ISO",
+    "Redragon K686RGB-M ISO"
+   ],
+   "shownAs": "K686"
+  },
+  {
+   "brand": "Redragon",
+   "model": "Kumara RT Magnetic K552-M",
+   "presets": [
+    "Redragon K552-M ANSI",
+    "Redragon K552-M ISO",
+    "Redragon K552-M ABNT2"
+   ],
+   "shownAs": "K552-M"
+  },
+  {
    "brand": "Royal Kludge",
    "model": "RK68 HE",
    "presets": [
@@ -628,6 +655,13 @@
    "model": "UwU RGB",
    "presets": [
     "Wooting UwU + UwU RGB ANSI"
+   ]
+  },
+  {
+   "brand": "YUNZII",
+   "model": "RT75 Pro",
+   "presets": [
+    "YUNZII RT75 Pro ANSI"
    ]
   }
  ]

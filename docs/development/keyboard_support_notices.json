@@ -337,20 +337,12 @@
       "tokens": [
         "F3B7ECFB2D628746",
         "4B36313700000001",
-        "4B36313700000002",
-        "BB4DA08AE1DC0AE0",
-        "500507220128AACF",
-        "76353BB82B7776D5"
+        "4B36313700000002"
       ],
       "models": [
         {
           "brand": "Redragon",
           "model": "K673WB-RGB-M",
-          "status": "Implemented; awaiting hardware testing"
-        },
-        {
-          "brand": "Redragon",
-          "model": "K686 HE",
           "status": "Implemented; awaiting hardware testing"
         },
         {
@@ -457,11 +449,6 @@
         {
           "brand": "Womier",
           "model": "M68 HE Pro",
-          "status": "Implemented; awaiting hardware testing"
-        },
-        {
-          "brand": "YUNZII",
-          "model": "RT75 Pro",
           "status": "Implemented; awaiting hardware testing"
         },
         {
@@ -1288,6 +1275,13 @@
           "brand": "EPOMAKER",
           "model": "HE65 V2",
           "board": 3417
+        },
+        {
+          "token": "0xaf43fe4cdbe91ebf",
+          "pid": 20528,
+          "brand": "YUNZII",
+          "model": "RT75 PRO",
+          "board": 2865
         }
       ]
     },

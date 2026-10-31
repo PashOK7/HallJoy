@@ -250,6 +250,9 @@ def main() -> int:
     ET.parse(hall / "HallJoy.vcxproj")
     ET.parse(hall / "HallJoy.vcxproj.filters")
 
+    run([sys.executable, str(root / "tools" / "project_context.py"), "--check"])
+    run([sys.executable, "-m", "unittest", "discover", "-s", str(root / "tools/tests"),
+         "-p", "test_project_context.py"], cwd=root)
     run([sys.executable, str(root / "tools" / "test_block_keys_group.py")])
     run([sys.executable, str(root / "tools" / "research_reference_checks.py")])
     run([sys.executable, str(project_root / "tools" / "validate_addressed_protocol_backend.py")])
@@ -461,6 +464,8 @@ def main() -> int:
             ]),
         ]
         if os.name == "nt":
+            from prepare_attackshark_discovery_test import prepare
+            fixed_tests.append(("attackshark_discovery_windows", [prepare(out, hall, tests / "attackshark_discovery_windows_test.cpp")]))
             fixed_tests.append(("native_analog_telemetry_collect", [tests / "native_analog_telemetry_collect_test.cpp"]))
             fixed_tests.append(("pause_hotkeys_windows", [tests / "pause_hotkeys_windows_test.cpp"]))
             fixed_tests.append(("hid_io_control", [tests / "hid_io_control_test.cpp"]))

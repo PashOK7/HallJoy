@@ -65,6 +65,9 @@ enum class FactoryLayoutProfile : std::uint8_t
     K686Us,
     K686Br,
     K686Uk,
+    K552Us,
+    K552Uk,
+    K552Br,
 };
 
 Report BuildDeviceInfoRequest() noexcept;
@@ -85,6 +88,9 @@ PositionToHid K617BrFactoryMap() noexcept;
 PositionToHid K686UsFactoryMap() noexcept;
 PositionToHid K686BrFactoryMap() noexcept;
 PositionToHid K686UkFactoryMap() noexcept;
+PositionToHid K552UsFactoryMap() noexcept;
+PositionToHid K552UkFactoryMap() noexcept;
+PositionToHid K552BrFactoryMap() noexcept;
 PositionToHid FactoryMap(FactoryLayoutProfile profile) noexcept;
 FactoryLayoutProfile FactoryProfileForProduct(const char* product) noexcept;
 

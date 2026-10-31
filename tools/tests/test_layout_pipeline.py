@@ -73,7 +73,7 @@ class LayoutPipelineTests(unittest.TestCase):
         a=p.normalized_products('Aula',self.reports)
         self.assertEqual(a,p.normalized_products('Aula',self.reports))
         self.assertIn(b'SI2828KZHEARGB',a['generated/identities.inc'])
-        self.assertEqual(len([k for k in a if k.endswith('.ini')]),5)
+        self.assertEqual(len([k for k in a if k.endswith('.ini')]),6)
 
     def test_max_independent_geometry(self):
         report=self.reports[2]

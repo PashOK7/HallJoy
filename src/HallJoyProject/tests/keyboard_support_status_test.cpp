@@ -159,6 +159,8 @@ int main()
     // Alumix 68 is switched off (owner decision 2026-10-12): no catalog notice group is generated for it.
     assert(NativeNotice(31,0,true,0x80a2)==0 && NativeNotice(31,0,false,0x80a2)==0);
     assert(NativeNotice(22,0x5F95BAB8BCAB36D1ull,true,0x5030)==0);
+    // YUNZII RT75 Pro (Supported) on its confirmed USB PID: no yellow notice.
+    assert(NativeNotice(22,0xAF43FE4CDBE91EBFull,true,0x5030)==0);
     assert(NativeNotice(22,0x5F95BAB8BCAB36D1ull,true,0x5029)!=0);
     assert(NativeNotice(22,0,true,0x5030)!=0);
     assert(NativeNotice(17,0x5348583635414E53ull,true)==0);
@@ -171,8 +173,10 @@ int main()
     assert(NativeNotice(3,0x0FEFA7117D763FE5ull,true)==0);
     assert(NativeNotice(3,0xBEE2B020B2BFBA27ull,true)==Ipi);
     assert(NativeNotice(7,0xF3B7ECFB2D628746ull,true)==Redragon);
-    // Redragon K686 HE (US, BR, UK firmware products) is experimental.
-    for(auto token:{0xBB4DA08AE1DC0AE0ull,0x500507220128AACFull,0x76353BB82B7776D5ull})assert(NativeNotice(7,token,true)==Redragon);
+    // User-confirmed K686 HE and K552-M retain their exact profiles without a testing notice.
+    for(auto token:{0xBB4DA08AE1DC0AE0ull,0x500507220128AACFull,0x76353BB82B7776D5ull})assert(NativeNotice(7,token,true)==0);
+    for(auto token:{0xD988B92AA4840F4Full,0x6E32689D201FB707ull,0x95F1F656F9C94774ull})assert(NativeNotice(7,token,true)==0);
+    for(auto token:{0x4B36313700000001ull,0x4B36313700000002ull})assert(NativeNotice(7,token,true)==Redragon);
     assert(NativeNotice(7,0x2479523793C06E66ull,true)==0);
     assert(NativeNotice(6,0x57494E363850524Full,false)==0);
     assert(NativeNotice(6,0x57494E363850524Full,true)==AulaRm);

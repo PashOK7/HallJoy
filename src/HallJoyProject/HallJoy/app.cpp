@@ -1237,7 +1237,9 @@ static bool EngineRuntimeReleaseBackendLeases(void*, std::uint32_t& nativeError)
 // 5 start generation, 6 restore UI input.
 static void LogResumeStepFailure(unsigned step, std::uint32_t error) noexcept
 {
-    SupportLog_Event("engine.resume_step_failed", step, SupportLog_Win32(error));
+    // Backend init returns BackendInitIssue flags; other steps return Win32 codes.
+    SupportLog_Event("engine.resume_step_failed", step,
+        step == 3u ? SupportLog_Data(error) : SupportLog_Win32(error));
     DebugLog_Write(L"[engine-runtime] resume step %u failed err=%lu", step, static_cast<unsigned long>(error));
 }
 

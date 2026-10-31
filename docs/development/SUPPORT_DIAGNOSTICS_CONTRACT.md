@@ -1,5 +1,43 @@
 # Support diagnostics contract (schema 2)
 
+## ATTACK SHARK discovery revision 2 — 2026-10-31
+
+Ordinary `evidence.shark.*` records reconstruct allowlisted numeric fields from
+the worker; paths, serials and arbitrary worker text are excluded. Records use
+the bounded evidence store (`keep=false`), without enabling continuous logging
+or forcing a report for busy/limited support. Open log includes this evidence.
+Unchanged inventories are suppressed. Metadata errors retry once per second,
+with a filtered pipe heartbeat so the parent's 8-second watchdog does not restart
+a healthy waiting worker. A successful scan is retained without a logging rescan.
+
+- `discovery_revision revision=2` distinguishes this local build from older
+  artifacts with the same application version.
+- `collection`: ordinal (within this scan), decimal PID, numeric USB interface
+  and HID collection (65535 if unavailable), stage, error, caps and rejection.
+  Stages: 1 metadata open, 2 attributes, 3 preparsed data, 4 caps, 5 filtered,
+  6 eligible. Error at stage 4 is HIDP/NTSTATUS; stages 1–3 use Win32.
+  Rejections: 0 none, 1 receiver, 2 PID, 3 usage page, 4 usage, 5 feature length.
+  No holder of a conflicting handle is inferred from these fields.
+- `discovery`: phase 0 no eligible collection/wait for topology, 1 metadata retry,
+  2 retry episode ended (inspect eligible count), 3 cancellation. Reason 1 busy
+  (sharing/access denied), 2 other metadata error, 3 no eligible interface.
+  Includes pass count, elapsed milliseconds, busy/error/collection/eligible counts;
+  retries report at powers of two and at least every 30 seconds.
+- `session_open`: final open result, first/final Win32 errors, access/share masks,
+  PID/ordinal. A successful shared fallback still requires the full identity proof.
+- `identity_attempt`, `identity_result`, `identity`: attempts, exact board/PID,
+  USB/RF versions, accepted flag and units. Accepted here means identity policy;
+  connection still requires a live valid travel read.
+- `travel_started`: first valid decoded page. Zero is a valid page, not a fault.
+  `travel`: per-page sample counts, number of slots ever positive, aggregate
+  release transitions, varying-slot count, malformed/IO errors; at summaries/end.
+  No per-key values are added by these records.
+
+`engine.resume_step_failed` step 3 carries BackendInitIssue **data flags**, not
+a Win32 error (8 = ViGEmBus missing). Other steps retain Win32 details.
+Regression coverage executes extracted production discovery with mocked Windows
+APIs and tests actual ordinary parser/file output in the candidate self-test.
+
 ## Source of truth
 
 The compiled `native_analog_backends.def` manifest determines both lifecycle and

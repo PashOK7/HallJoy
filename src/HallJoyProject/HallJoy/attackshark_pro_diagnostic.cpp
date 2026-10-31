@@ -16,6 +16,7 @@
 #include <cstring>
 #include <cstdarg>
 #include <cwctype>
+#include <initializer_list>
 #include <map>
 #include <mutex>
 #include <string>
@@ -174,25 +175,48 @@ bool DiagnosticPid(unsigned pid){
 #endif
 }
 struct Device {std::wstring path;unsigned pid=0,usage=0,ordinal=0;};
-std::vector<Device> Find(){
- std::vector<Device> result;unsigned vendorCollections=0,metadataErrors=0,rejected=0;GUID guid{};HidD_GetHidGuid(&guid);
+struct InventoryStats {unsigned vendorCollections=0,metadataErrors=0,busy=0,rejected=0;};
+unsigned PathHex(const std::wstring& path,const wchar_t* key,unsigned digits){
+ const auto pos=path.find(key);if(pos==std::wstring::npos)return 65535;
+ const auto begin=pos+wcslen(key);if(begin+digits>path.size())return 65535;
+ unsigned value=0;for(unsigned i=0;i<digits;++i){const auto c=path[begin+i];
+  if(c>=L'0' && c<=L'9')value=value*16+unsigned(c-L'0');
+  else if(c>=L'a' && c<=L'f')value=value*16+unsigned(c-L'a'+10);else return 65535;
+ }return value;
+}
+// Retain the successful pass and its numeric metadata together. Logging must never
+// re-enumerate a collection that was just found: its availability can change.
+std::vector<Device> Find(InventoryStats* statsOut=nullptr,std::vector<std::string>* recordsOut=nullptr){
+ std::vector<Device> result;unsigned vendorCollections=0,metadataErrors=0,rejected=0,busy=0;GUID guid{};HidD_GetHidGuid(&guid);
+ auto say=[&](const std::string& text){if(recordsOut){if(recordsOut->size()<4096)recordsOut->push_back(text);}else Line(text);};
+ auto event=[&](const char* name,unsigned code){say(std::string(name)+" error="+std::to_string(code));};
+ if(statsOut)*statsOut={};
  auto list=SetupDiGetClassDevsW(&guid,nullptr,nullptr,DIGCF_PRESENT|DIGCF_DEVICEINTERFACE);
- if(list==INVALID_HANDLE_VALUE){Event("inventory_failed",GetLastError());return result;}
+ if(list==INVALID_HANDLE_VALUE){const auto error=GetLastError();event("inventory_failed",error);if(statsOut)statsOut->metadataErrors=1;return result;}
  struct Guard{HDEVINFO h;~Guard(){SetupDiDestroyDeviceInfoList(h);}} guard{list};
  for(DWORD i=0;i<512 && !Stop();++i){
   SP_DEVICE_INTERFACE_DATA item{};item.cbSize=sizeof(item);
-  if(!SetupDiEnumDeviceInterfaces(list,nullptr,&guid,i,&item))break;
+  if(!SetupDiEnumDeviceInterfaces(list,nullptr,&guid,i,&item)){const auto error=GetLastError();if(error!=ERROR_NO_MORE_ITEMS){++metadataErrors;event("inventory_failed",error);}break;}
   DWORD size=0;SetupDiGetDeviceInterfaceDetailW(list,&item,nullptr,0,&size,nullptr);
-  if(size<sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W) || size>65536)continue;
+  if(size<sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W) || size>65536){++metadataErrors;event("inventory_detail_failed",ERROR_INVALID_DATA);continue;}
   std::vector<unsigned char> memory(size);auto detail=reinterpret_cast<SP_DEVICE_INTERFACE_DETAIL_DATA_W*>(memory.data());detail->cbSize=sizeof(*detail);
-  if(!SetupDiGetDeviceInterfaceDetailW(list,&item,detail,size,nullptr,nullptr))continue;
+  if(!SetupDiGetDeviceInterfaceDetailW(list,&item,detail,size,nullptr,nullptr)){++metadataErrors;event("inventory_detail_failed",GetLastError());continue;}
   std::wstring path=detail->DevicePath,lower=path;std::transform(lower.begin(),lower.end(),lower.begin(),towlower);
   if(lower.find(L"vid_3151&pid_")==std::wstring::npos)continue;
   ++vendorCollections;
+  unsigned pid=PathHex(lower,L"pid_",4);const auto iface=PathHex(lower,L"mi_",2),collection=PathHex(lower,L"col",2);
+  auto collectionResult=[&](unsigned stage,unsigned error,unsigned page=0,unsigned usage=0,unsigned feature=0,unsigned reason=0){
+   say("collection_result ordinal="+std::to_string(i)+" pid="+std::to_string(pid)+" interface="+std::to_string(iface)+" collection="+std::to_string(collection)+" stage="+std::to_string(stage)+" error="+std::to_string(error)+" usage_page="+std::to_string(page)+" usage="+std::to_string(usage)+" feature="+std::to_string(feature)+" rejection="+std::to_string(reason));
+  };
   Handle meta(CreateFileW(path.c_str(),0,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_EXISTING,0,nullptr));
-  if(!meta){++metadataErrors;Event("metadata_open_failed",GetLastError());continue;}
-  HIDD_ATTRIBUTES a{};a.Size=sizeof(a);if(!HidD_GetAttributes(meta.h,&a)){++metadataErrors;Event("attributes_failed",GetLastError());continue;}if(a.VendorID!=0x3151)continue;
-  PHIDP_PREPARSED_DATA prep=nullptr;HIDP_CAPS caps{};if(!HidD_GetPreparsedData(meta.h,&prep)){++metadataErrors;Event("preparsed_data_failed",GetLastError());continue;}
+  if(!meta){
+   const DWORD error=GetLastError();++metadataErrors;
+   // This identifies the blocked collection, not which process or driver owns it.
+   if(error==ERROR_SHARING_VIOLATION || error==ERROR_ACCESS_DENIED)++busy;
+   collectionResult(1,error);event("metadata_open_failed",error);continue;}
+  HIDD_ATTRIBUTES a{};a.Size=sizeof(a);if(!HidD_GetAttributes(meta.h,&a)){const auto error=GetLastError();++metadataErrors;collectionResult(2,error);event("attributes_failed",error);continue;}if(a.VendorID!=0x3151)continue;
+  pid=a.ProductID;
+  PHIDP_PREPARSED_DATA prep=nullptr;HIDP_CAPS caps{};if(!HidD_GetPreparsedData(meta.h,&prep)){const auto error=GetLastError();++metadataErrors;collectionResult(3,error);event("preparsed_data_failed",error);continue;}
   auto status=HidP_GetCaps(prep,&caps);
 #if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
   if(status==HIDP_STATUS_SUCCESS && a.ProductID==0x5029){
@@ -202,15 +226,22 @@ std::vector<Device> Find(){
     for(unsigned k=0;k<count;++k)Line("r85_feature ordinal="+std::to_string(i)+" report_id="+std::to_string(values[k].ReportID)+" bit_size="+std::to_string(values[k].BitSize)+" report_count="+std::to_string(values[k].ReportCount));
   }
 #endif
-  HidD_FreePreparsedData(prep);if(status!=HIDP_STATUS_SUCCESS){++metadataErrors;Event("caps_failed",static_cast<unsigned>(status));continue;}
+  HidD_FreePreparsedData(prep);if(status!=HIDP_STATUS_SUCCESS){++metadataErrors;collectionResult(4,static_cast<unsigned>(status));event("caps_failed",static_cast<unsigned>(status));continue;}
   wchar_t product[256]{};bool receiver=false;
   if(HidD_GetProductString(meta.h,product,sizeof(product))){std::wstring name=product;std::transform(name.begin(),name.end(),name.begin(),towlower);receiver=name.find(L"receiver")!=std::wstring::npos || name.find(L"dongle")!=std::wstring::npos;}
-  char line[256];sprintf_s(line,"descriptor vid=3151 pid=%04x bcd=%04x usage=%04x:%04x in=%u out=%u feature=%u receiver=%u",a.ProductID,a.VersionNumber,caps.UsagePage,caps.Usage,caps.InputReportByteLength,caps.OutputReportByteLength,caps.FeatureReportByteLength,receiver?1:0);Line(line);
+  char line[256];sprintf_s(line,"descriptor vid=3151 pid=%04x bcd=%04x usage=%04x:%04x in=%u out=%u feature=%u receiver=%u",a.ProductID,a.VersionNumber,caps.UsagePage,caps.Usage,caps.InputReportByteLength,caps.OutputReportByteLength,caps.FeatureReportByteLength,receiver?1:0);say(line);
   const char* reason=receiver?"receiver":!DiagnosticPid(a.ProductID)?"non_target_pid":caps.UsagePage!=0xffff?"usage_page":caps.Usage!=2?"usage":caps.FeatureReportByteLength!=65?"feature_length":nullptr;
-  if(reason){++rejected;Line(std::string("collection_rejected reason=")+reason);}else result.push_back({path,a.ProductID,caps.Usage,i});
+  const unsigned rejectCode=receiver?1:!DiagnosticPid(a.ProductID)?2:caps.UsagePage!=0xffff?3:caps.Usage!=2?4:caps.FeatureReportByteLength!=65?5:0;
+  collectionResult(reason?5:6,0,caps.UsagePage,caps.Usage,caps.FeatureReportByteLength,rejectCode);
+  if(reason){++rejected;say(std::string("collection_rejected reason=")+reason);}else result.push_back({path,a.ProductID,caps.Usage,i});
  }
  std::stable_sort(result.begin(),result.end(),[](const auto& a,const auto& b){return a.usage>b.usage;});
- Line("inventory eligible="+std::to_string(result.size())+" vendor_collections="+std::to_string(vendorCollections)+" metadata_errors="+std::to_string(metadataErrors)+" rejected="+std::to_string(rejected)+" paths_logged=0");return result;
+ if(statsOut)*statsOut={vendorCollections,metadataErrors,busy,rejected};
+ say("inventory eligible="+std::to_string(result.size())+" vendor_collections="+std::to_string(vendorCollections)+" metadata_errors="+std::to_string(metadataErrors)+" busy="+std::to_string(busy)+" rejected="+std::to_string(rejected)+" paths_logged=0");return result;
+}
+std::uint64_t InventorySignature(const std::vector<std::string>& records){
+ std::uint64_t hash=14695981039346656037ull;
+ for(const auto& record:records){for(unsigned char c:record){hash^=c;hash*=1099511628211ull;}hash^=10;hash*=1099511628211ull;}return hash;
 }
 struct Session {
  unsigned wireCount[4]{},wireDelay[4]{};ULONGLONG wireNext[4]{};
@@ -236,6 +267,7 @@ struct Session {
    open(GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE);
    if(!device && (lastOpenError==ERROR_SHARING_VIOLATION || lastOpenError==ERROR_ACCESS_DENIED))open(0,FILE_SHARE_READ|FILE_SHARE_WRITE);
   }
+  Line("session_open ordinal="+std::to_string(d.ordinal)+" pid="+std::to_string(d.pid)+" opened="+std::to_string(bool(device))+" first_error="+std::to_string(firstOpenError)+" final_error="+std::to_string(lastOpenError)+" access="+std::to_string(accessMode)+" share="+std::to_string(shareMode));
  }
  bool Exchange(unsigned command,unsigned page,Report& reply){
   const auto request=Request(command,page);if(!request[1])return false;
@@ -282,11 +314,14 @@ struct Session {
    // Another backend owns this keyboard: stop at once, its admission must not race
    // further exclusive probe handles and feature exchanges.
    if(Identity(a) && Identity(a)==Identity(b) && halljoy::ry_stream::Find(Identity(a),0x3151,d.pid)){streamOwned=true;streamBoard=Identity(a);return false;}
-   Line("identity_attempt delay_ms="+std::to_string(delay)+" id="+std::to_string(Identity(a))+" repeated_id="+std::to_string(Identity(b))+" reply_command="+std::to_string(a[1])+" repeated_command="+std::to_string(b[1])+" report_id="+std::to_string(b[0]));
+   Line("identity_attempt delay_ms="+std::to_string(delay)+" id="+std::to_string(Identity(a))+" repeated_id="+std::to_string(Identity(b))+" reply_command="+std::to_string(a[1])+" repeated_command="+std::to_string(b[1])+" report_id="+std::to_string(b[0])+" ordinal="+std::to_string(d.ordinal)+" pid="+std::to_string(d.pid)+" attempt="+std::to_string(attempt+1));
   }return false;
  }
 };
 void Summary(const Metrics& m,const Session& s,bool detail){
+ if(detail){unsigned positive=0;std::uint64_t releases=0;for(const auto& key:m.keys){if(key.positive)++positive;releases+=key.released;}
+  Line("travel_summary dev_id="+std::to_string(s.identity)+" page0="+std::to_string(m.pages[0])+" page1="+std::to_string(m.pages[1])+" page2="+std::to_string(m.pages[2])+" page3="+std::to_string(m.pages[3])+" positive_slots="+std::to_string(positive)+" releases="+std::to_string(releases)+" varying="+std::to_string(m.Varying())+" malformed="+std::to_string(m.invalid)+" io_errors="+std::to_string(s.errors));
+ }
 #if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
  unsigned peak=0,mappedPositive=0,unmappedPositive=0;std::uint64_t valid=0;
  const auto* profile=halljoy::sharkplay::Find(3123);
@@ -305,6 +340,7 @@ void Summary(const Metrics& m,const Session& s,bool detail){
  }
 }
 int Capture(){
+ Line("discovery_revision revision=2");
 #if defined(HALLJOY_ATTACKSHARK_R85_DIAGNOSTIC)
  Line("r85_diagnostic revision=3 expected_vid=3151 expected_pid=5029 expected_id=3123 usage=ffff:0002 feature_bytes=65 physical_keys=79 fn_slot=65 vendor_class=Ry5088_sg9047_1m_8k exact_firmware_unavailable=1 writes_to_settings=0");
  const auto* expected=halljoy::sharkplay::Find(3123);
@@ -315,12 +351,37 @@ int Capture(){
  // instead of re-probing the unknown keyboard every few seconds.
  constexpr unsigned kIdentityPassesPerTopology=3;
  LONG identityTopology=-1;unsigned identityPasses=0;
+ LONG busyTopology=-1;unsigned busyPasses=0,retryReason=0;ULONGLONG busyStarted=0,lastBusyReport=0;
+ bool haveInventory=false;std::uint64_t inventorySignature=0;
  for(;;){
-  const auto topology=Load(shared->topology);auto devices=Find();
+  const auto topology=Load(shared->topology);InventoryStats scan{};std::vector<std::string> inventory;
+  auto devices=Find(&scan,&inventory);const auto signature=InventorySignature(inventory);
+  if(!haveInventory || signature!=inventorySignature){for(const auto& record:inventory)Line(record);inventorySignature=signature;haveInventory=true;}
+  auto waitRecord=[&](unsigned phase,unsigned reason){Line("discovery_wait phase="+std::to_string(phase)+" reason="+std::to_string(reason)+" passes="+std::to_string(busyPasses)+" elapsed_ms="+std::to_string(GetTickCount64()-busyStarted)+" busy="+std::to_string(scan.busy)+" errors="+std::to_string(scan.metadataErrors)+" vendor_collections="+std::to_string(scan.vendorCollections)+" eligible="+std::to_string(devices.size()));};
+  if(devices.empty() && scan.metadataErrors){
+   // Metadata-only retries do not require another device arrival. Keep the parent
+   // watchdog alive even when unchanged inventory details are suppressed.
+   if(busyTopology!=topology || !busyPasses){busyTopology=topology;busyPasses=0;busyStarted=GetTickCount64();lastBusyReport=busyStarted;}
+   ++busyPasses;
+   retryReason=scan.busy?1:2;
+   if(busyPasses==1)Line("inventory_busy collections="+std::to_string(scan.busy)+" retry_ms=1000");
+   const auto now=GetTickCount64();
+   if((busyPasses&(busyPasses-1))==0 || now-lastBusyReport>=30000){waitRecord(1,scan.busy?1:2);lastBusyReport=now;}
+   Line("waiting_for_device");
+   for(unsigned i=0;i<10 && !Stop() && Load(shared->topology)==topology;++i)Sleep(100);
+   if(Stop()){waitRecord(3,scan.busy?1:2);return 4;}
+   continue;
+  }
+  if(busyPasses){
+   Line("inventory_busy_cleared passes="+std::to_string(busyPasses));
+   waitRecord(2,retryReason);
+   busyPasses=0;busyTopology=-1;
+  }
   if(devices.empty()){
+   busyStarted=GetTickCount64();waitRecord(0,3);
    Line("status state=1");auto heartbeat=GetTickCount64();
    while(!Stop() && Load(shared->topology)==topology){Sleep(100);if(GetTickCount64()-heartbeat>=1000){Line("waiting_for_device");heartbeat=GetTickCount64();}}
-   if(Stop()){Line("session_end outcome=no_eligible_device analog_samples=0 settings_unchanged=1");return 4;}continue;
+   if(Stop()){waitRecord(3,3);Line("session_end outcome=no_eligible_device analog_samples=0 settings_unchanged=1");return 4;}continue;
   }
   if(topology!=identityTopology){identityTopology=topology;identityPasses=0;}
   bool identityRejected=false,otherFailure=false,streamOwned=false;
@@ -328,6 +389,7 @@ int Capture(){
    if(Stop())return 4;Session s(d);if(!s.device){otherFailure=true;Line("status state=5");continue;}
    unsigned usb=0;if(!s.Identify(d,usb)){identityRejected=true;streamOwned=streamOwned||s.streamOwned;Line(s.streamOwned?"identity_stream_owned board="+std::to_string(s.streamBoard)+" pid="+std::to_string(d.pid):"identity_rejected no_depth_commands=1");continue;}
    const bool playable=halljoy::sharkplay::Supported(s.identity,usb);
+   Line("identity_result ordinal="+std::to_string(d.ordinal)+" pid="+std::to_string(d.pid)+" board="+std::to_string(s.identity)+" usb="+std::to_string(usb)+" accepted="+std::to_string(playable));
 #if !defined(HALLJOY_ATTACKSHARK_PRO_DIAGNOSTIC)
    if(!playable){Line("unsupported_revision no_depth_commands=1");continue;}
 #endif
@@ -337,7 +399,7 @@ int Capture(){
    unsigned selected=rf?rf:usb;unsigned units=halljoy::sharkplay::Units(selected);InterlockedExchange(&shared->units,units);
    Line("identity dev_id="+std::to_string(s.identity)+" pid="+std::to_string(d.pid)+" usb_version="+std::to_string(usb)+" rf_version="+std::to_string(rf)+" driver_units_per_mm="+std::to_string(units)+" exclusive="+std::to_string(s.shareMode==0)+" access="+std::to_string(s.accessMode)+" discard_first_page_reply=1 digital_scope=vidpid stream_command_sent=0 calibration_sent=0 writes_to_settings=0");
    s.delay=1;InterlockedExchange(&shared->freshMs,halljoy::sharkplay::FreshBudget(s.delay));Line("status state=2");Metrics m;unsigned cycle=0,invalidStreak=0,lastEscalation=0;bool sufficient=false;
-   auto checkpoint=GetTickCount64(),detail=checkpoint+15000;unsigned previousPage=4;
+   auto checkpoint=GetTickCount64(),detail=checkpoint+15000;unsigned previousPage=4;bool travelStarted=false;
    while(!Stop()){
     // Prioritize WASD bursts. Never treat independently sampled pages as an atomic snapshot.
     const unsigned pages[]={0,1,0,2,0,3};unsigned page=playable?halljoy::sharkplay::Page(cycle,halljoy::sharkplay::Find(s.identity)->fnSlot/32,halljoy::sharkplay::UsesFourthPage(*halljoy::sharkplay::Find(s.identity))):pages[cycle%6];Report response{};
@@ -348,7 +410,9 @@ int Capture(){
     previousPage=page;
     if(Identity(response) && Known(Identity(response),d.pid)){
      ++m.invalid;++invalidStreak;Line("stale_identity_reply page="+std::to_string(page));
-    }else if(m.Add(page,response,static_cast<unsigned>(Load(shared->wasd)))){invalidStreak=0;if(playable)PublishPage(page,response);}else {
+    }else if(m.Add(page,response,static_cast<unsigned>(Load(shared->wasd)))){invalidStreak=0;if(playable)PublishPage(page,response);
+     if(!travelStarted){travelStarted=true;Line("travel_started dev_id="+std::to_string(s.identity)+" pid="+std::to_string(d.pid)+" page="+std::to_string(page));}
+    }else {
      ++invalidStreak;
      if(invalidStreak<=3){unsigned maxRaw=0,bad=0;for(unsigned i=0;i<32;++i){unsigned v=unsigned(response[1+2*i])|(unsigned(response[2+2*i])<<8);maxRaw=std::max(maxRaw,v);if(v>4096)++bad;}
       Line("page_rejected page="+std::to_string(page)+" report_id="+std::to_string(response[0])+" max_raw="+std::to_string(maxRaw)+" implausible_slots="+std::to_string(bad));}
@@ -394,6 +458,18 @@ int Capture(){
 DWORD g_pendingAccessError=0;
 void ReceiveLine(const std::string& line){
  if(line=="waiting_for_device")return;
+ // Reconstruct numeric allowlisted fields; never persist arbitrary worker text.
+ auto number=[&](const char* key){const std::string token=std::string(" ")+key;auto pos=line.find(token);return pos==std::string::npos?0ull:std::strtoull(line.c_str()+pos+token.size(),nullptr,10);};
+ auto evidence=[&](const char* category,std::initializer_list<const char*> fields){
+  std::string record=std::string("evidence.shark.")+category;
+  for(const auto* field:fields)record+=" "+std::string(field)+std::to_string(number(field));
+  SupportLog_Evidence(record.c_str(),false);
+ };
+ if(line.rfind("discovery_revision ",0)==0){evidence("discovery_revision",{"revision="});return;}
+ if(line.rfind("collection_result ",0)==0){evidence("collection",{"ordinal=","pid=","interface=","collection=","stage=","error=","usage_page=","usage=","feature=","rejection="});return;}
+ if(line.rfind("discovery_wait ",0)==0){evidence("discovery",{"phase=","reason=","passes=","elapsed_ms=","busy=","errors=","vendor_collections=","eligible="});return;}
+ // Preserve deferred ownership classification until the identity reply arrives.
+ if(line.rfind("session_open ",0)==0){evidence("session_open",{"ordinal=","pid=","opened=","first_error=","final_error=","access=","share="});return;}
  if(g_pendingAccessError){
   if(line.rfind("identity_stream_owned ",0)==0)g_pendingAccessError=0;
   else if(line.rfind("identity_pair_rejected ",0)!=0 && line.rfind("identity_attempt ",0)!=0){
@@ -401,11 +477,12 @@ void ReceiveLine(const std::string& line){
  }
  // Keep ordinary reports useful when discovery fails before any analog samples.
  // Only named structural fields are copied; never arbitrary child text/keys.
- auto number=[&](const char* key){auto pos=line.find(key);return pos==std::string::npos?0ull:std::strtoull(line.c_str()+pos+strlen(key),nullptr,10);};
  if(line.rfind("inventory eligible=",0)==0) {
   SupportLog_Event("shark.eligible",number("eligible="));
   SupportLog_Event("shark.vendor_collections",number("vendor_collections="),SupportLog_Data(number("metadata_errors=")));
  }
+ if(line.rfind("inventory_busy collections=",0)==0)SupportLog_Event("shark.inventory_busy",number("collections="));
+ if(line.rfind("inventory_busy_cleared ",0)==0)SupportLog_Event("shark.inventory_busy_cleared",number("passes="));
  if(line.rfind("descriptor ",0)==0) {
   unsigned pid=0,bcd=0,page=0,usage=0,in=0,out=0,feature=0,receiver=0;
   if(sscanf_s(line.c_str(),"descriptor vid=3151 pid=%x bcd=%x usage=%x:%x in=%u out=%u feature=%u receiver=%u",
@@ -416,24 +493,29 @@ void ReceiveLine(const std::string& line){
   }
  }
  if(line.rfind("identity_attempt ",0)==0) {
-  SupportLog_Event("shark.probe_identity",number(" id="),SupportLog_Data(number("repeated_id=")));
+  evidence("identity_attempt",{"ordinal=","pid=","attempt=","id=","repeated_id=","reply_command=","repeated_command=","report_id="});
+  SupportLog_Event("shark.probe_identity",number("id="),SupportLog_Data(number("repeated_id=")));
   SupportLog_Event("shark.probe_command",number("reply_command="),SupportLog_Data(number("repeated_command=")));
  }
  if(line.rfind("identity_pair_rejected ",0)==0)SupportLog_Event("shark.identity_pair_rejected",number("board="),SupportLog_Data(number("pid=")));
  if(line.rfind("identity_rejected ",0)==0)SupportLog_Event("shark.identity_rejected",1);
  if(line.rfind("identity_stream_owned ",0)==0)SupportLog_Event("shark.identity_stream_owned",number("board="),SupportLog_Data(number("pid=")));
  if(line.rfind("identity_waiting_for_change ",0)==0)SupportLog_Event("shark.identity_waiting",number("passes="),SupportLog_Data(number("pid=")));
- const char* failures[]={"inventory_failed","metadata_open_failed","attributes_failed",
+ const char* failures[]={"inventory_failed","inventory_detail_failed","metadata_open_failed","attributes_failed",
   "preparsed_data_failed","caps_failed","exclusive_open_failed","set_feature_failed","get_feature_failed"};
  for(const auto* name:failures) if(line.rfind(std::string(name)+" error=",0)==0) {
   const auto category=std::string("shark.")+name;
   const auto error=number("error=");
-  SupportLog_Event(category.c_str(),1,SupportLog_Win32(error));
+  SupportLog_Event(category.c_str(),1,std::strcmp(name,"caps_failed")==0?SupportLog_Protocol(error):SupportLog_Win32(error));
    if(std::strcmp(name,"exclusive_open_failed")==0 && (error==ERROR_SHARING_VIOLATION || error==ERROR_LOCK_VIOLATION))
     g_pendingAccessError=static_cast<DWORD>(error);
   break;
  }
  if(line.rfind("status state=",0)==0)SupportLog_Event("shark.state",number("state="));
+ if(line.rfind("identity_result ",0)==0)evidence("identity_result",{"ordinal=","pid=","board=","usb=","accepted="});
+ if(line.rfind("identity dev_id=",0)==0)evidence("identity",{"dev_id=","pid=","usb_version=","rf_version=","driver_units_per_mm=","exclusive=","access="});
+ if(line.rfind("travel_started ",0)==0)evidence("travel_started",{"dev_id=","pid=","page="});
+ if(line.rfind("travel_summary ",0)==0)evidence("travel",{"dev_id=","page0=","page1=","page2=","page3=","positive_slots=","releases=","varying=","malformed=","io_errors="});
 
  if(line.rfind("summary ",0)==0){
   auto field=[&](const char* key){auto pos=line.find(key);return pos==std::string::npos?0ull:std::strtoull(line.c_str()+pos+strlen(key),nullptr,10);};
@@ -560,10 +642,20 @@ void TestOrdinaryFailureLog(){
  Require(DeleteFileW(directory) && CreateDirectoryW(directory,nullptr));
  const std::wstring path=std::wstring(directory)+L"\\HallJoy.log";
  Require(SupportLog_Start(directory,directory));
- ReceiveLine("inventory eligible=0 vendor_collections=7 metadata_errors=2 rejected=5 paths_logged=0");
+ ReceiveLine("inventory eligible=0 vendor_collections=7 metadata_errors=2 busy=1 rejected=5 paths_logged=0");
+ ReceiveLine("inventory_busy collections=1 retry_ms=1000");
+ ReceiveLine("inventory_busy_cleared passes=3");
+ ReceiveLine("discovery_revision revision=2 PRIVATE_PAYLOAD");
+ ReceiveLine("collection_result ordinal=7 pid=20525 interface=1 collection=7 stage=1 error=32 usage_page=0 usage=0 feature=0 rejection=0 path=PRIVATE_PATH");
+ ReceiveLine("discovery_wait phase=1 reason=1 passes=16 elapsed_ms=15000 busy=1 errors=1 vendor_collections=7 eligible=0 PRIVATE_PAYLOAD");
+ ReceiveLine("identity_result ordinal=7 pid=20525 board=2844 usb=1285 accepted=1");
+ ReceiveLine("travel_started dev_id=2844 pid=20525 page=0");
+ ReceiveLine("travel_summary dev_id=2844 page0=12 page1=3 page2=3 page3=0 positive_slots=4 releases=6 varying=4 malformed=0 io_errors=0 PRIVATE_PAYLOAD");
  const auto anomaly=halljoy::keyboard_support::CommunicationAnomalySequence(17);
  // HallJoy's own RongYuan stream backend holds the keyboard: not an anomaly.
  ReceiveLine("exclusive_open_failed error=32");
+ ReceiveLine("session_open ordinal=7 pid=20528 opened=1 first_error=32 final_error=0 access=0 share=3 PRIVATE_PAYLOAD");
+ Require(halljoy::keyboard_support::CommunicationAnomalySequence(17)==anomaly);
  ReceiveLine("identity_pair_rejected board=2949 pid=20528");
  ReceiveLine("identity_stream_owned board=2949 pid=20528");
  Require(halljoy::keyboard_support::CommunicationAnomalySequence(17)==anomaly);
@@ -594,6 +686,15 @@ void TestOrdinaryFailureLog(){
  DeleteFileW(path.c_str());RemoveDirectoryW(directory);
  Require(stopped);
  Require(text.find("shark.eligible value=0")!=std::string::npos);
+ Require(text.find("evidence.shark.discovery_revision revision=2")!=std::string::npos);
+ Require(text.find("evidence.shark.collection ordinal=7 pid=20525 interface=1 collection=7 stage=1 error=32")!=std::string::npos);
+ Require(text.find("evidence.shark.discovery phase=1 reason=1 passes=16 elapsed_ms=15000")!=std::string::npos);
+ Require(text.find("evidence.shark.session_open ordinal=7 pid=20528 opened=1 first_error=32 final_error=0")!=std::string::npos);
+ Require(text.find("evidence.shark.identity_result ordinal=7 pid=20525 board=2844 usb=1285 accepted=1")!=std::string::npos);
+ Require(text.find("evidence.shark.travel_started dev_id=2844 pid=20525 page=0")!=std::string::npos);
+ Require(text.find("positive_slots=4 releases=6 varying=4 malformed=0 io_errors=0")!=std::string::npos);
+ Require(text.find("shark.inventory_busy value=1")!=std::string::npos);
+ Require(text.find("shark.inventory_busy_cleared value=3")!=std::string::npos);
  Require(text.find("shark.exclusive_open_failed value=1 error=32")!=std::string::npos);
  Require(text.find("shark.get_feature_failed value=1 error=5")!=std::string::npos);
  Require(text.find("shark.probe_identity value=3123 error=0 detail=9999 detail_kind=data")!=std::string::npos);

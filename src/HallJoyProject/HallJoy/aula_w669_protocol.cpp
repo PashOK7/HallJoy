@@ -199,6 +199,24 @@ PositionToHid K686UkFactoryMap() noexcept
     return {41,0,58,59,60,61,62,63,64,65,66,67,68,69,76,73,75,78,0,0,0,0,53,30,31,32,33,34,35,36,37,38,39,45,46,0,42,83,84,85,86,0,0,0,43,20,26,8,21,23,28,24,12,18,19,47,48,0,0,95,96,97,87,0,0,0,57,0,4,22,7,9,10,11,13,14,15,51,52,49,40,92,93,94,0,0,0,0,225,100,29,27,6,25,5,17,16,54,55,56,229,0,82,89,90,91,88,0,0,0,224,227,226,0,0,0,44,0,0,230,250,228,0,80,81,79,98,99,0,0,0,0};
 }
 
+PositionToHid K552UsFactoryMap() noexcept
+{
+    // Official iLLumiPC 7295USHEXYXJCARGB physical matrix (Fn = 0xFA at 121).
+    return {41,0,58,59,60,61,0,62,63,64,65,66,67,68,69,70,71,72,0,0,0,0,53,30,31,32,33,34,35,36,37,38,39,45,46,0,42,73,74,75,0,0,0,0,43,20,26,8,21,23,28,24,12,18,19,47,48,0,49,76,77,78,0,0,0,0,57,0,4,22,7,9,10,11,13,14,15,51,52,0,40,0,0,0,0,0,0,0,225,0,29,27,6,25,5,17,16,54,55,56,0,0,229,0,82,0,0,0,0,0,224,227,226,0,0,0,44,0,0,0,230,250,101,228,0,80,81,79,0,0,0,0};
+}
+
+PositionToHid K552UkFactoryMap() noexcept
+{
+    // Official iLLumiPC 7295UKHEXYXK552JCARGB physical matrix (Fn = 0xFA at 121). The same matrix ships as 7295UKHEXYXXK552JCARGB.
+    return {41,0,58,59,60,61,0,62,63,64,65,66,67,68,69,70,71,72,0,0,0,0,53,30,31,32,33,34,35,36,37,38,39,45,46,0,42,73,74,75,0,0,0,0,43,20,26,8,21,23,28,24,12,18,19,47,48,0,0,76,77,78,0,0,0,0,57,0,4,22,7,9,10,11,13,14,15,51,52,50,40,0,0,0,0,0,0,0,225,100,29,27,6,25,5,17,16,54,55,56,0,0,229,0,82,0,0,0,0,0,224,227,226,0,0,0,44,0,0,0,230,250,101,228,0,80,81,79,0,0,0,0};
+}
+
+PositionToHid K552BrFactoryMap() noexcept
+{
+    // Official iLLumiPC 7295BRHEXYXK552JCARGB physical matrix (Fn = 0xFA at 121).
+    return {41,0,58,59,60,61,0,62,63,64,65,66,67,68,69,70,71,72,0,0,0,0,53,30,31,32,33,34,35,36,37,38,39,45,46,0,42,73,74,75,0,0,0,0,43,20,26,8,21,23,28,24,12,18,19,47,48,0,0,76,77,78,0,0,0,0,57,0,4,22,7,9,10,11,13,14,15,51,52,50,40,0,0,0,0,0,0,0,225,100,29,27,6,25,5,17,16,54,55,56,135,0,229,0,82,0,0,0,0,0,224,227,226,0,0,0,44,0,0,0,230,250,101,228,0,80,81,79,0,0,0,0};
+}
+
 FactoryLayoutProfile FactoryProfileForProduct(const char* product) noexcept
 {
     if (!product) return FactoryLayoutProfile::Unknown;
@@ -229,6 +247,10 @@ FactoryLayoutProfile FactoryProfileForProduct(const char* product) noexcept
     if (is("7431USHEXYXK686JCARGB")) return FactoryLayoutProfile::K686Us;
     if (is("7431BRHEXYXJCARGB")) return FactoryLayoutProfile::K686Br;
     if (is("7431UKHEXYXBJCARGB")) return FactoryLayoutProfile::K686Uk;
+    if (is("7295USHEXYXJCARGB")) return FactoryLayoutProfile::K552Us;
+    if (is("7295UKHEXYXK552JCARGB")) return FactoryLayoutProfile::K552Uk;
+    if (is("7295UKHEXYXXK552JCARGB")) return FactoryLayoutProfile::K552Uk;
+    if (is("7295BRHEXYXK552JCARGB")) return FactoryLayoutProfile::K552Br;
     if (is("7272USHEXYXK673JCARGB"))
         return FactoryLayoutProfile::K673Us;
     return FactoryLayoutProfile::Unknown;
@@ -249,6 +271,9 @@ PositionToHid FactoryMap(FactoryLayoutProfile profile) noexcept
     case FactoryLayoutProfile::K686Us: return K686UsFactoryMap();
     case FactoryLayoutProfile::K686Br: return K686BrFactoryMap();
     case FactoryLayoutProfile::K686Uk: return K686UkFactoryMap();
+    case FactoryLayoutProfile::K552Us: return K552UsFactoryMap();
+    case FactoryLayoutProfile::K552Uk: return K552UkFactoryMap();
+    case FactoryLayoutProfile::K552Br: return K552BrFactoryMap();
     default: return {};
     }
 }

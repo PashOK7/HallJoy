@@ -1,4 +1,4 @@
-"""Reviewed iLLumiPC K673/K686 profiles. No HID access or downloaded code execution."""
+"""Reviewed iLLumiPC K673/K686/K552-M profiles. No HID access or downloaded code execution."""
 import re
 from decimal import Decimal, ROUND_HALF_UP
 import layout_import as common
@@ -14,10 +14,13 @@ def prepare(model, root=ROOT, protocol=PROTOCOL):
     # factory map -> (official layout type, firmware profile, variant, controls without a keyboard usage)
     k673=((15,'RotaryKnob'),(121,'KeyFn'))
     k686=((18,'RotaryKnob'),)
+    k552=()  # every published K552-M control has a keyboard usage (Fn = 0xFA)
     profiles={'K673UsFactoryMap':('us','K673Us','ANSI',k673), 'K673UkFactoryMap':('uk','K673Uk','ISO',k673),
               'K673BrFactoryMap':('uk','K673Br','ABNT2',k673),
               'K686UsFactoryMap':('us','K686Us','ANSI',k686), 'K686BrFactoryMap':('uk','K686Br','ISO',k686),
-              'K686UkFactoryMap':('uk','K686Uk','ISO',k686)}
+              'K686UkFactoryMap':('uk','K686Uk','ISO',k686),
+              'K552UsFactoryMap':('us','K552Us','ANSI',k552), 'K552UkFactoryMap':('uk','K552Uk','ISO',k552),
+              'K552BrFactoryMap':('uk','K552Br','ABNT2',k552)}
     common.require(model.get('factory') in profiles,'Unreviewed Redragon W669 profile')
     kind,profile,variant,controls=profiles[model['factory']]
     factory=model['factory']

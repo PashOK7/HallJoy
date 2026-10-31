@@ -9,6 +9,8 @@
 > 2026-09-28 Alumix104 diagnostic update: a local exact-device trace now records source timing and repetition, explicit zeros, consumer depth, per-pad bindings and calculated/publication states. This instrumentation still needs a physical run and does not change the gray Research incomplete status in Main!C644.
 > 2026-09-28 **Red Square Alumix 104 Yotei (Magnetite Ice) — Research incomplete** (gray). Exact 0C45:80AC / `Alumix 104 Yotei Magnetic` logs 41 and 42 physically confirm the 0x66/0x67 handshake, a high-rate 0x55FB stream and some measured analog gamepad output. The tester reports 0.5–1.5 s release delay and unstable simultaneous input: the second key can appear late, and six held keys switch on and off inconsistently. Log 42 contains 99,441 valid samples but only aggregate counters, so it cannot prove independent continuous depth for each held key. The local backend can retain the last positive sample for up to 1000 ms. A proposed digital key-up mask was rejected by the owner and removed: Rapid Trigger makes digital transitions unsuitable for calculating analog depth. The local 0x66/0x55FB gamepad trial remains research code, not a supported or limited-support claim; it should not be delivered as a completed integration. We are investigating a genuine per-key analog source. Range accuracy, remaps and typing coexistence remain unresolved. See [the log and source review](current/ALUMIX104_YOTEI_LOG37_2026-09-27.md). This finding does not extend to Alumix 68 or TKL Horizon.
 
+> 2026-10-29 MCHOSE Mix 87 III: no longer bound to firmware 1.22. 1.22 keeps the exact fingerprint path; any other version is admitted with the factory key list and the M HUB data checks, and the version is logged. [Details](current/MCHOSE_MIX87III_FIRMWARE_VERSION_2026-10-29.md)
+
 > 2026-09-27 Release1.6.5: **MCHOSE Mix 87 (III revision), stock1.22 - Supported** (green), by owner decision after tester confirmation. Analog mode automatically enables on start/resume and disables on pause/exit; both are persistent flag operations with readback. Shallow cutoff and serialized reports remain; no claim of unrestricted firmware. Mix87 I excluded. [Details](current/MCHOSE_MIX87_LOG35_2026-09-27.md).
 
 > 2026-09-27 limited implementation retained: **MADLIONS MAD 68 V2 Dual — Analog available; low quality** (red). Tester confirms usable analog and loss of ordinary typing. Stock firmware also suppresses shallow input and delays small changes. Included in the ordinary local build, outside supported/experimental lists; warning alone does not force logging. [Details](current/MAD68_V2_DUAL_REVIEW_2026-09-27.md).
@@ -61,6 +63,7 @@ to synthesize analogue depth.
 | Chilkey (experimental, wired USB) | **Slice75 HE** | Native full-matrix travel,80 keys including Fn, automatic ANSI layout and live base assignments. Official1.1.7.3 firmware/protocol review; no physical test. Default3.3mm scale, alternate switches unverified. |
 | Everglide (wired USB) | **SU75 Pro** (`1CA6:3002`) | Supported after tester confirmation (2026-10-02: connected, 126 mapped keys, 26,217 updates, 0 failures). SparkLink V2 platform (official driver xsyd.top, catalog class public v2): same device-info, layout and row-travel commands as the supported IROK/EWEADN SparkLink boards; exact identity admission. Key assignments are read from the keyboard. Built-in 81-key layout "Everglide SU75 Pro ANSI" (manual selection; SparkLink publishes no layout identity). No testing notice. [Details](current/EVERGLIDE_SU75PRO_2026-10-02.md) |
 | Weikav (wired USB) | **EG75 HE** (`1CA6:5A01`) | Supported after a tester log (2026-10-26, HallJoy 1.6.12: connected through the generic SparkLink V2 path, 126 mapped keys, ~76,800 updates, 0 failures, full travel on the bound keys). SparkLink V2 platform (official driver 星闪悦动 / SparkLink PlayJoy; identity on the vendor's official keyboard list): same device-info, layout and row-travel commands as Everglide SU75 Pro; now an exact identity, no "not in the list" notice. Key assignments are read from the keyboard. Built-in 80-key layout "Weikav EG75 HE ANSI" (manual selection; SparkLink publishes no layout identity). [Details](current/WEIKAV_EG75HE_2026-10-26.md) |
+| AULA (wired USB) | **AG75** (`38A6:28DE/28DF/28E0/28E1/28F0/28F1/28F2`) | Supported after a user report (2026-10-29, latest GitHub release: connected through the generic SparkLink V2 path, gamepad output working, Ultra edition). SparkLink V2 platform (AULA web driver on the SparkLink template); the PIDs are the official driver's AG75 list, all on the vendor's official keyboard list; now an exact identity, no "not in the list" notice. Key assignments are read from the keyboard. Built-in 81-key layout "Aula AG75 ANSI" from the official top view (manual selection; SparkLink publishes no layout identity). [Details](current/AULA_AG75_2026-10-29.md) |
 | EPOMAKER (experimental, wired USB) | **G84 HE** | Two exact board revisions; native read-only depth snapshots,84 keys including Fn, automatic ANSI layout and base assignments. Default3.5mm scale; hardware/switch validation pending. |
 | MonsGeek (experimental, wired USB) | **M1 V5 HE** | Exact HE board admission; native read-only depth snapshots,82 keys including Fn, automatic ANSI layout and base assignments. Default3.6mm scale; hardware/switch validation pending. TMR and wireless receivers are not included. |
 | Irok | **MG75 Max**, **MG75 Pro (experimental)**, **NA87** | NA87 support added in 1.5.3, with tester feedback and logs. **NA87 Pro is a different model; exact JingTai V1 USB revisions now have local experimental support (see below).** MG75 Pro uses native SparkLink V1 travel reads with automatic layout and base-layer remaps; hardware testing is pending and an amber Discord testing notice is shown. |
@@ -82,6 +85,7 @@ to synthesize analogue depth.
 | NuPhy | **Air60 HE**, **Air75 HE**, **Field75 HE** | — |
 | DrunkDeer | **A75**, **A75 Pro**, **G60**, **G65**, **G75** | — |
 | Wooting | **60HE**, **60HE+**, **60HE v2**, **80HE**, **80HE+**, **One**, **Two**, **Two HE**, **UwU / UwU RGB** | Bundled analogue runtime. New v2 / Split / UwU layouts are in the 1.6.0 development build; see below. |
+| YUNZII (wired USB) | **RT75 Pro** (`3151:5030`, boards 2865 / 3755) | Supported after a user's log (2026-10-28, HallJoy 1.6.11: connected through the rongyuan-stream path, board 2865, 81 keys, analog streaming, 0 failures; user confirmed working). Built-in **approximate** layout "YUNZII RT75 Pro ANSI" (81 keys): the vendor RT75 PRO geometry module was not captured, so geometry is adapted from the identical-key-set rongyuan 75% sibling Rampage ZENITH PRO with the Home key removed, and the key set is verified equal to the boards 2865/3755 factory matrix; positions are borrowed, no visual test claimed. Boards 3100 and 2445 are also sold as RT75 PRO but are different internal layouts (84 / 86 keys) and keep the protocol-match path only. [Details](current/YUNZII_RT75PRO_2026-10-28.md) |
 
 ## Local additions after 1.6.2 (unreleased)
 
@@ -97,7 +101,6 @@ are implemented. No physical testing of these models is claimed.
 | Keydous | NJ80-CP V3 HE, NJ81-CP V3 HE, NJ98-CP V4 HE | 3466, 3459, 3496 respectively |
 | MonsGeek | FUN60 Pro | 2600/2785/2304 |
 | Womier | SK75 TMR | 2518, 3804 |
-| YUNZII | RT75 Pro | 2865, 3100, 2445, 3755 |
 
 Second local batch (same enabled stream, distinct factory maps):
 
@@ -272,11 +275,23 @@ not named above, connects after the device-info reply and one live travel read s
 Key positions come from the keyboard; manual/default layout; same yellow notice. VID `3151`
 is excluded. [Details](current/SPARKLINK_GENERIC_ADMISSION_2026-10-12.md)
 
-Experimental Redragon K686 HE (2026-10-05) uses the same W669 transport with exact
+Supported Redragon K686 HE (user confirmation, 2026-10-31) uses the same W669 transport with exact
 official identities `7431USHEXYXK686JCARGB` (K686BG-RGB-M ANSI),
 `7431BRHEXYXJCARGB` (K686BG-RGB-M ISO) and `7431UKHEXYXBJCARGB` (K686RGB-M ISO),
-98/99-position factory maps and automatic layouts; hardware validation is pending.
+98/99-position factory maps and automatic layouts. The owner relayed that the
+K686BG-RGB magnetic keyboard now works perfectly; prior controller issues are
+closed by that confirmation. Regional profiles remain exact, not PID-only.
 [Details](current/REDRAGON_K686_2026-10-05.md)
+
+Supported Redragon Kumara RT Magnetic K552-M (user confirmation, 2026-10-31) uses the same W669 transport
+(`2E3C:C365`) with exact official identities `7295USHEXYXJCARGB` (ANSI, 87 keys),
+`7295UKHEXYXK552JCARGB` / `7295UKHEXYXXK552JCARGB` (ISO, 88) and `7295BRHEXYXK552JCARGB`
+(ABNT2, 89), factory maps and automatic layouts. The tester confirmed ISO
+identification, analog mapping, Gamepad Tester and Enter the Gungeon. Their system
+used the Redragon K552 RGB M SP Installer V2 package, version 2.06; this is observed
+test context, not an established universal driver requirement. UI observations and
+Diablo IV / Need for Speed Heat input compatibility remain separate open reports.
+[Details](current/REDRAGON_KUMARA_K552M_2026-10-28.md)
 
 ### Further native protocol additions (local, unreleased)
 

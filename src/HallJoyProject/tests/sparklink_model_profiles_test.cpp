@@ -30,7 +30,12 @@ int main(){
  }
  assert(!sparklink::OfficialListed(0x3151,0x4010) && !sparklink::ProbeIdentity(0x3151,0x4010));
  assert(sparklink::OfficialListed(0x1ca6,0x1a0f) && sparklink::GenericOnly(0x1ca6,0x1a0f)==sparklink::kGenericAdmission && !sparklink::ExactModel(0x1ca6,0x1a0f)); // IPI Flash75 Pro candidate
- assert(sparklink::OfficialListed(0x38a6,0x28de) && sparklink::GenericOnly(0x38a6,0x28de)==sparklink::kGenericAdmission); // AULA AG75 HE
+ // Supported AULA AG75: every isAG75 PID is official-listed and exact (no generic notice).
+ for(unsigned pid:{0x28deu,0x28dfu,0x28e0u,0x28e1u,0x28f0u,0x28f1u,0x28f2u})
+  assert(sparklink::OfficialListed(0x38a6,pid) && sparklink::ExactModel(0x38a6,pid) && !sparklink::GenericOnly(0x38a6,pid) &&
+         !sparklink::ExperimentalToken(0x38a6,pid,0xffb0) && sparklink::ProbeInterface(0x38a6,pid,0xffb0,1));
+ assert(!sparklink::ExactModel(0x38a6,0x28dd) && sparklink::GenericOnly(0x38a6,0x28dd)==sparklink::kGenericAdmission);
+ assert(!sparklink::ExactModel(0x1ca6,0x28de));
  assert(sparklink::ExactModel(0x1ca6,0x3002) && !sparklink::GenericOnly(0x1ca6,0x3002)); // Supported SU75 Pro
  assert(sparklink::OfficialListed(0x1ca6,0x5a01) && sparklink::ExactModel(0x1ca6,0x5a01) && !sparklink::GenericOnly(0x1ca6,0x5a01) && !sparklink::ExperimentalToken(0x1ca6,0x5a01,0xffb0)); // Supported Weikav EG75 HE
  assert(sparklink::ExactModel(0x1ca6,0x529) && !sparklink::GenericOnly(0x1ca6,0x529));

@@ -1,3 +1,4 @@
+> 2026-11-07 PUBLISHED stable/latest 1.6.15: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.15 (commit 72f827d, EXE 59b3886d). See RELEASE_1.6.15_PUBLICATION_2026-11-07.md.
 # HallJoy — действующий контекст владельца
 
 Актуализировано 2026-10-31 по запросу адаптировать рабочий контур для Codex.

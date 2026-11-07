@@ -210,6 +210,29 @@ int main() {
         Check(std::filesystem::file_size(path)<=4*1024*1024);
         Check(Read(path)==Read(mirrorPath));
         DeleteFileW(mirrorPath.c_str()); RemoveDirectoryW(mirrorDir.c_str());
+#if !defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
+        // Independent session: intentionally evict history without invalidating
+        // the earlier tests' requirement to retain before.failure.
+        enabled=false;missing=false;unstable=false;experimental=false;limited=false;
+        DeleteFileW(path.c_str());Check(SupportLog_Start(directory.c_str()));
+        SupportLog_Event("corsair.old_history",42);
+        SupportLog_Evidence("evidence.corsair.start revision=2 attempt=1 value=2",false);
+        SupportLog_Evidence("evidence.corsair.failure revision=2 attempt=1 stage=calibration reason=calibration_tail command=2 property=198 subcommand=6 win32=0 protocol=0",false);
+        for(unsigned batch=0;batch<3;++batch) {
+            for(unsigned i=0;i<300;++i)SupportLog_Event("history.rollover",batch*300+i);
+            Sleep(1100);
+        }
+        Check(GetFileAttributesW(path.c_str())==INVALID_FILE_ATTRIBUTES);
+        const auto corsairRequest=SupportLog_RequestSnapshot();
+        const auto corsairDeadline=GetTickCount64()+7000;
+        while(SupportLog_CompletedSnapshot()<corsairRequest && GetTickCount64()<corsairDeadline)Sleep(50);
+        Check(SupportLog_CompletedSnapshot()>=corsairRequest);
+        const auto corsairLog=Read(path);
+        Check(corsairLog.find("corsair.old_history")==std::string::npos);
+        Check(corsairLog.find("evidence.corsair.start revision=2")!=std::string::npos);
+        Check(corsairLog.find("reason=calibration_tail command=2 property=198 subcommand=6")!=std::string::npos);
+        Check(SupportLog_Stop());
+#endif
         // Reviewed research remains in the one normal log after history eviction
         // and Open log snapshot reset; ordinary logging stays disabled.
         enabled=false;
@@ -408,7 +431,9 @@ int main() {
 #endif
         return 0;
     } catch(...) {
+        try {throw;} catch(const std::exception& e) {std::cerr<<e.what()<<std::endl;}
+        catch(...) {std::cerr<<"support log regression: non-standard exception"<<std::endl;}
         SupportLog_Stop(); DeleteFileW(path.c_str()); DeleteFileW((path+L".tmp").c_str()); RemoveDirectoryW(directory.c_str());
-        throw;
+        return 1;
     }
 }

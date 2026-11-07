@@ -65,6 +65,7 @@ static constexpr UINT WM_APP_ANALOG_SOURCE_STATUS_CHANGED = WM_APP + 361;
 static constexpr int kSupportBannerHeightPx = 100;
 static bool Mad68LimitedVisible() { return (halljoy::keyboard_support::GetStatusSnapshot().frozenModels & halljoy::keyboard_support::Mad68DualLimited) != 0; }
 static bool Mix87LimitedVisible() { return (halljoy::keyboard_support::GetStatusSnapshot().frozenModels & halljoy::keyboard_support::Mix87Limited) != 0; }
+static bool CorsairLimitedVisible() { return (halljoy::keyboard_support::GetStatusSnapshot().frozenModels & halljoy::keyboard_support::CorsairVanguard) != 0; }
 static bool KnownLimitedVisible() { return Mad68LimitedVisible() || Mix87LimitedVisible(); }
 static bool CommunicationWarningVisible() { return halljoy::keyboard_support::GetStatusSnapshot().communicationWarning; }
 // A supported keyboard was found, but another program (for example its web
@@ -104,6 +105,9 @@ static const wchar_t* FrozenSupportTitle() {
     switch(GetStatusSnapshot().frozenModels) {
     case RedSquareAlumix68: return L"Red Square Alumix 68: hardware testing incomplete";
     case Alumix104Research: return L"Alumix 104 Yotei: исследование аналога";
+    case CorsairVanguard: return L"CORSAIR VANGUARD PRO 96: experimental analog";
+    case CorsairVanguardPending: return L"CORSAIR VANGUARD PRO 96: analog not connected";
+    case CorsairK70TklPending: return L"CORSAIR K70 PRO TKL: analog not connected";
     case FamilyCandidate: return L"Keyboard support is unverified";
     case NA87: return L"IROK NA87: testing incomplete";
     case NA87Pro: return L"IROK NA87 Pro: support frozen";
@@ -135,11 +139,16 @@ static const wchar_t* FrozenSupportTitle() {
     }
 }
 static const wchar_t* FrozenSupportBody() {
+    if(CorsairLimitedVisible()) return L"Stock firmware 2.8.171; 0.1 mm depth steps. Close CORSAIR WEB HUB and other keyboard apps. Do not recalibrate or change switches/settings while HallJoy is active; pause and resume afterwards. Typing latency and USB behavior still need hardware testing.";
     if(Mix87LimitedVisible()) return L"Very shallow presses are not reported by this firmware. Analog mode is saved in the keyboard and stays enabled after closing HallJoy.";
     if(Mad68LimitedVisible()) return L"This firmware has no suitable analog protocol. This is the best available method: shallow input is lost, small changes are delayed, and normal typing is blocked. Exit HallJoy to restore typing.";
     if(KeyboardBusyVisible())return L"HallJoy found a supported keyboard but cannot open it while another program holds it, such as the keyboard's web driver in a browser tab or a configuration app. Close that tab or app; HallJoy connects automatically.";
     if(CommunicationWarningVisible())return L"Another app may be interfering. Close keyboard configuration apps and browser configurator tabs, then try again. Keep software required for analog input running. If this continues, check the USB connection.";
     const auto models=halljoy::keyboard_support::GetStatusSnapshot().frozenModels;
+    if(models & halljoy::keyboard_support::CorsairK70TklPending)
+        return L"HallJoy found the keyboard. The analog check requires stock firmware 1.12.54 and ANSI, ISO or JIS. Open log and send HallJoy.log if it fails to connect.";
+    if(models & halljoy::keyboard_support::CorsairVanguardPending)
+        return L"HallJoy found the keyboard but has not validated its firmware, layout, calibration and live sensor data. Open log and send HallJoy.log. Only reviewed firmware 2.8.171 and ANSI/ISO/JIS layouts are admitted.";
     if(Alumix68Unverified())
         return L"Red Square Alumix 68 is connected, but this firmware version is not recognized. Analog input is not enabled to avoid reading the wrong data. Report the HallJoy.log on Discord so this version can be added.";
     if(models==halljoy::keyboard_support::Alumix104Research)
@@ -152,7 +161,7 @@ static const wchar_t* FrozenSupportBody() {
         return L"The analog report mapping for this firmware is not verified. This model is not yet listed as supported. Report problems on Discord.";
     if(models==halljoy::keyboard_support::FamilyCandidate)
         return L"This USB identity is shared by several keyboard models. Exact model support is unverified. Join Discord to help identify and test it.";
-    constexpr unsigned available=halljoy::keyboard_support::ImplementedModels;
+    constexpr auto available=halljoy::keyboard_support::ImplementedModels;
     if(models && !(models & ~available))
         return L"Support is implemented; hardware testing is incomplete. Analog range or behavior may need adjustment. Report problems on Discord.";
     if(models & available)

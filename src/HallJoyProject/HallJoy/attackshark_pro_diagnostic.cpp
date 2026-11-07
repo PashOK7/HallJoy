@@ -738,7 +738,7 @@ void SelfTest(){
  halljoy::configured_xusb::InputValues input{};
  for(unsigned hid:{4u,7u,22u,26u})input.filtered[hid]=NativeAnalogBackends_ReadMilli(static_cast<std::uint16_t>(hid)).milli/1000.0f;
  halljoy::configured_xusb::BuilderState gameState{};const auto frame=halljoy::configured_xusb::BuildReport(config,input,gameState);
- Require(frame.leftStickX==-32767 && frame.leftStickY==16384);
+ Require(frame.leftStickX==-32768 && frame.leftStickY==16384);
 #if defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
  Require(Backend_TestSharkConfiguredPath());
  Line("SHARK_CONFIGURED_PATH=PASS real_native_registry=1 real_curves=1 real_bindings=1 block_off_on_identical=1 digital_events=0 hardware_access=0");

@@ -21,6 +21,9 @@ def audit(catalog):
     specs=json.loads((ROOT/'tools/layout_catalog.json').read_bytes())['brands']
     tokens={p:m for spec in specs.values() for m in spec.get('models',[]) for p in m['products']}
     profiles=json.loads((ROOT/'docs/research/rongyuan-stream/profiles.json').read_bytes())
+    # Supplemental v4 evidence does not rewrite the frozen original client batch.
+    from keydous_nj98v4s import checked_profile
+    profiles.append(checked_profile())
     held={r['product']:r['reason'] for r in json.loads((ROOT/'docs/research/rongyuan-layouts/inventory.json').read_bytes())['held']}
     aliases={('ATTACK SHARK','X65'):'ATTACK SHARK X65 Pro HE ANSI',
              ('AULA','WIN 68 HE MAX'):'Aula WIN 68 HE PRO / MAX ANSI',

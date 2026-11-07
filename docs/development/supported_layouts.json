@@ -4,6 +4,13 @@
  "models": [
   {
    "brand": "AJAZZ",
+   "model": "AK680 MAX HE",
+   "presets": [
+    "AJAZZ AK680 MAX HE + ALUX68 AIR + ALUX68 PRO ANSI"
+   ]
+  },
+  {
+   "brand": "AJAZZ",
    "model": "AK820 MAX HE (wired, RGB)",
    "presets": [
     "AJAZZ AK820 MAX HE ANSI"
@@ -93,6 +100,15 @@
    "model": "WIN 68 HE",
    "presets": [
     "Aula WIN 68 HE Standard ANSI"
+   ]
+  },
+  {
+   "brand": "Corsair",
+   "model": "K70 PRO TKL",
+   "presets": [
+    "Corsair K70 PRO TKL ANSI",
+    "Corsair K70 PRO TKL ISO",
+    "Corsair K70 PRO TKL JIS"
    ]
   },
   {

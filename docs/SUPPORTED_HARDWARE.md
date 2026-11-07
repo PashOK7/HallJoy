@@ -56,6 +56,7 @@ to synthesize analogue depth.
 
 | Brand | Models | Notes |
 |---|---|---|
+| AJAZZ | **AK680 MAX HE** (USB) | Supported by owner decision after user confirmation. Exact existing RongYuan profiles2255/2336/2343/2371; built-in automatic68-key ANSI layout. [Evidence](current/AJAZZ_AK680MAX_SUPPORTED_2026-11-05.md). |
 | AJAZZ | **AK820 MAX HE (wired, RGB)** | Wired-only 8K RGB version (firmware `SG8994HERGB`, 0416:7372; tester unit is the AJAZZ x NACODEX colourway), formerly listed as "AK820 MAX RGB" after the vendor driver name. The no-light wired (`SG8994HE`) and tri-mode screen versions are not admitted; native raw analog with automatic per-key ranges. Published in 1.6.2 after tester confirmation. |
 | Aula | **WIN 60 HE MAX**, **WIN 60 HE**, **WIN 68 HE**, **KP-TE153**, **MINI 60 HE**, **MINI 60 HE Pro**, **MINI 60 HE MAX** | MINI 60 models: wired USB. PRO support was added in 1.5.3 with tester-confirmed independent depths. Base MINI 60 HE (V1.18) and MAX (V1.52) are included in 1.6.1 using their verified common protocol. The 2.4 GHz receivers are not supported. |
 | Aula (experimental, wired USB) | **HERO84 HE**, **HERO 68 HE**, **HERO 68 Air**, **HERO 68 MINI**, **HERO 99 HE**, **WIN 68 HE Ultra**, **WIN 60 HE PRO**, **WIN 68 HE PRO**, **WIN 68 HE MAX**, **HERO 68 HE PRO** | Complete input paths enabled with yellow notices. Known protocols, exact identities and automatic layouts; remaining range/firmware behavior awaits hardware feedback. No tester is required to use them. |
@@ -354,6 +355,55 @@ unpromoted. All four entries have enabled analog/bindings/gamepad, manual
 layouts and yellow testing notices.
 
 
+## AJAZZ AK680 MAX HE — Supported (2026-11-05)
+
+Owner accepts a tester's report that AJAZZ AK680 Max works normally without
+complaints and requests Supported status. The existing wired RongYuan stream22
+implementation is retained: exact boards2255 (3151:502D) and2336/2343/2371
+(3151:502F), complete per-key maps, bindings and gamepad output. Built-in68-key
+ANSI preset "AJAZZ AK680 MAX HE + ALUX68 AIR + ALUX68 PRO ANSI" already has
+automatic selection for every admitted AK680 MAX profile. Testing notices are
+removed only for its exact token/PID pairs. ALUX68 AIR/PRO share the geometry but
+retain their own experimental status. This does not admit AK680 V2/V3 or new
+wireless transports. [Tester decision and validation](current/AJAZZ_AK680MAX_SUPPORTED_2026-11-05.md).
+
+## Keydous NJ98-CP V4S TMR (local, 2026-11-05)
+
+Exact board3793 / wired3151:5030 uses RongYuan stream and its automatic97-key
+ANSI preset. Tester reports smooth wired gamepad output; log has9,635 updates
+and zero backend failures. Feature precision takes priority with reviewed .01mm
+fallback; scale remains4mm for switch replacement. Calculator/encoder actions
+are excluded. Receiver3151:5038 proves remote3793 before model-specific commands.
+Old RF tests establish genuine varying depths, releases and virtual gamepad input,
+but 343–406ms sweeps were unsuitable for gaming. Revision2 removes320ms of fixed
+host waits per sweep, publishes pages immediately, recovers transient busy states
+without renegotiation, and attempts immediate1B streaming on an exact paired HID
+input collection. A later November6 log confirms4,277 real RF stream samples,
+no recorded stream I/O errors, varying gamepad output and releases; tester reports
+tracking alright. Startup remains unstable: an earlier run had73 sharing-error32
+opens, and reboot did not immediately restore either build. The successful run
+has no open error. Unknown holder/state; no claim that the older build caused
+recovery. Actual polling rate, long holds, typing and cleanup still need testing;
+model remains Experimental. See [stream/startup evidence](current/KEYDOUS_NJ98_V4S_STREAM_2026-11-06.md).
+No2k/8k analog rate or general gaming suitability is claimed.
+[Revision3 host correction](current/KEYDOUS_NJ98_V4S_LIVENESS_2026-11-06.md) seeds
+initial depth before enabling the stream, preserves unchanged holds/connection
+using genuine F7 online replies, and retains neutralization on lost/offline radio.
+It addresses false depth-age expiry; initial sharing-error32 contention remains
+unresolved. Revision3 logs confirm quick startup and stable captured connection,
+but the tester reports retained depths. [Revision4](current/KEYDOUS_NJ98_V4S_RECONCILE_2026-11-06.md)
+fixes a reproducible unread-inbox/send-ready stall and moves table freshness
+sequencing to actual command issue. The revision4 tester noticed no sticking.
+The log shows two genuine table-zero corrections. It also shows an intermittent
+startup with a receiver-reported offline transition, and the same94.3% output
+ceiling seen in the earlier wired log with this profile. Revision5 requires an
+actual depth packet to confirm streaming. Earlier table samples retain a bounded
+lifetime even after another key confirms the stream. See the
+[November 7 retest](current/KEYDOUS_NJ98_V4S_LOG31_2026-11-07.md).
+See [wired implementation](current/KEYDOUS_NJ98_V4S_2026-11-05.md),
+[initial receiver](current/KEYDOUS_NJ98_V4S_WIRELESS_2026-11-05.md) and
+[gaming correction/evidence](current/KEYDOUS_NJ98_V4S_GAMING_2026-11-05.md).
+
 ## Keydous / Skyloong additions (local, 2026-09-24)
 
 Keydous NJ68 Pro-CP (2515), Skyloong GK61 HE (2674), GK68 HE (2681),
@@ -437,6 +487,9 @@ See current RONGYUAN_BATCH_2026-09-24.md for evidence and deferred candidates.
 
 ## RongYuan stream expansion: second batch (2026-09-24)
 
+Later update: AK680 MAX HE is Supported following the2026-11-05 owner/tester
+confirmation; its entry below preserves the original admission/range record.
+
 Experimental wired USB support; detection, analog input, bindings and gamepad output enabled. No physical-device test is claimed. Exact factory matrices and board identities are pinned in `research/rongyuan-stream/`. Wireless transport is not admitted.
 
 | Model | Board revisions | Normalization (mm) |
@@ -484,7 +537,7 @@ Experimental wired USB support, enabled detection/analog/bindings/gamepad with y
 | GAMEBOOSTER RAPID HE | 3278 |
 | Oniverse Maegnus | 3267 |
 | Rampage KAISEL | 3114 |
-| Rampage ZENITH PRO | 2310 |
+| Rampage ZENITH PRO | 2310 (3151:502D, USB). The official US batch 112025 driver matches the existing HallJoy factory matrix and automatic ANSI preset. Live depth still needs a device test. [Revision and axis details](current/RAMPAGE_ZENITH_PRO_2026-11-05.md) |
 | Valkyrie VK Mag68 | 2320, 3390 |
 | Valkyrie VK Mag68 Max | 3194 |
 | Valkyrie VK Mag75 | 2246 |
@@ -712,8 +765,34 @@ Ordinary switches outside the analog section do not gain analog capability.
 Both models are enabled through bindings and virtual gamepad output, with yellow
 notices for remaining physical range/noise validation. Original1610 remains
 Supported with no yellow notice. No automatic visual layout added.
-Mini, TKL2023, TKL Gen3 and Wireless are not aliases and remain unadmitted.
+Mini, TKL2023 and Wireless are not aliases and remain unadmitted.
 See current/STEELSERIES_FAMILY_REVIEW_2026-09-25.md for firmware evidence.
+
+2026-11-06: **wired Apex Pro TKL Gen 3 (1038:1642), firmware1.19.7** now has a
+separate Experimental implementation. F3/50 reads current scanner values,
+F3/51 layer0 reads extrema, and B6 reads normal mappings. Command/status/count/
+HID echoes are validated. FFC0:1 requires65-byte input/output and645-byte Feature
+capability, revalidated after open. Wireless IDs and TKL2023 remain excluded.
+No firmware flash, diagnostic enable, calibration-start, profile or setting write.
+
+Exact GG SVG presets ANSI85 / ISO86 / JIS89 select automatically using factory
+layout F2 and live-session proof. Fitted magnetic channels only (61/62/65,
+including Fn) provide analog; mechanical keys stay digital. Automatic layout
+follows current single-key assignments; chords/macros retain their physical
+analog channel and explicit label. Manual layout keeps factory assignments.
+Metadata refresh follows input publication, one extra transaction per frame.
+
+Offline exact-firmware replay passes 104 scoped scenarios. The first wired
+ANSI hardware log confirmed 61 calibrated channels, four successful starts,
+and 97,533 complete matrices by the last snapshot. The bound-key trace shows
+variable depth, simultaneous left-stick axis movement, and return to center.
+The reported reverse stick response appears between raw and filtered
+values in HallJoy's curve stage. The exact curve settings at that time are
+unknown. Roblox stutter, game-side input, slow hold/release, ordinary
+typing, and GG coexistence still need a functional check. Close GG/Engine/Prism for that check because HallJoy opens
+the vendor collection exclusively.
+See [current investigation](current/STEELSERIES_APEX_PRO_TKL_GEN3_REVERSE_2026-11-06.md).
+
 
 
 ## Local reviewed RongYuan batch
@@ -744,3 +823,74 @@ Wired USB; experimental, no hardware-test claim.
 | Brand | Model | Board | Evidence and normalization |
 |---|---|---|---|
 | EPOMAKER | HE65 V2 | 3417 | Official gearhub registry id 3417 ry5088_MLCY_EPOMAKERHE65Pro displayName HE65 V2 on 3151:5030 (exact catalog tuple); user log HallJoy (16).log 2026-10-23: product string HE65 V2 answers board 3417 on 3151:5030; TESTER_LOGS_HE65V2_X82HE_2026-10-24.md; Provisional 4mm like HE65 Mag (same keyLayout Common67_beat65); no travelSetting in the registry; no physical measurement; user log HallJoy1.log 2026-10-24 (1.6.12): board 3417 connected over USB, 66 keys, 0 failures (Supported) |
+
+## CORSAIR K70 PRO TKL — Supported stock analog (2026-11-07)
+
+Wired `1B1C:2B14` on stock firmware **1.12.54**. The native Bragi reader
+uses per-key calibration and selects the built-in ANSI, ISO or JIS preset from
+the keyboard's physical region. Only the magnetic switches provide depth.
+The ISO tester report confirms proportional depth and release, three concurrent
+magnetic keys, and full left-stick output in both directions on both axes.
+The follow-up build keeps the live HID session open across unrelated Windows
+device notifications.
+[Research and tester build](current/CORSAIR_K70_PRO_TKL_2026-11-07.md).
+
+## CORSAIR VANGUARD PRO 96 — experimental stock analog (2026-11-07)
+
+Exact USB `1B1C:2B0E`, wired; firmware **2.8.171**, Bragi1.5 only. ANSI, ISO and
+JIS have independent sensor maps. BR remains excluded because the reviewed map
+aliases N/IntlBackslash. K70 MAX, GUMA and wireless products are not admitted.
+
+The ordinary build includes a native C7 whole-sensor snapshot reader, per-key
+factory/saved calibration and the reviewed firmware transfer tables. Nominal
+0.1mm steps on a4mm scale; shallow motion below the first step is not reported.
+Fn and StreamDeck use HallJoy's existing Fn/OEM1 extended identities. Bindings,
+curves, SOCD and gamepad output use the common native pipeline.
+
+Close CORSAIR WEB HUB and other keyboard configurators: control IF2 is opened
+exclusively. Do not change switches/calibration/settings while sampling; pause
+and resume afterwards. The initialization preflights files, never opens a missing
+switch file, and closes its temporary session to avoid a settings-reload callback.
+No calibration-start, firmware/configuration-write or mode-setting commands are sent.
+A valid whole snapshot is required before connection; failed I/O clears input.
+
+A 2026-11-04 tester log confirms admission on stock 2.8.171 ISO, saved calibration
+for 97 keys, 5,026 valid snapshots and zero backend failures. It records positive
+depth samples, releases and successful reinitialization after a device-change
+notification. Sustained range, simultaneous keys, pad output, typing coexistence
+and broader USB reliability still need a functional test.
+HallJoy includes dedicated ANSI, ISO and JIS presets, with compound Enter
+contours and separate arrow and numpad placement from CORSAIR WEB HUB.
+Automatic selection uses the device-reported region after a valid live
+snapshot. The status remains Experimental. The warning does not force
+logging. Admission errors appear in the ordinary HallJoy.log.
+
+Evidence, command contract and validation:
+[CORSAIR review](current/CORSAIR_VANGUARD_PRO96_2026-11-02.md),
+[native protocol](development/CORSAIR_VANGUARD_PROTOCOL.md).
+Google Sheet synchronized 2026-11-03: Corsair / VANGUARD PRO 96, Main!C183 =
+Implemented; awaiting hardware testing. Base/effective yellow and dropdown verified.
+See [Sheet readback](current/SHEETS_RECONNECT_2026-11-03.md).
+
+
+
+## IPI Flash 75 PRO / Gemini Seven-Star - tester confirmation (2026-11-03)
+
+The owner relays that everything works. HallJoy (28).log identifies the wired
+unit as FLASH75 Pro, 1CA6:1A10; native SparkLink protocol 4, FFB0:0001, connected,
+353,121 updates and 0 failures in the latest complete snapshot. Generic-protocol
+warning 0x20000000 is a classification notice, not failed analog. The log has
+empty gamepad bindings; the tester's successful-use report is separate evidence.
+No firmware revision, region, exact game or agent hardware test is claimed.
+
+The existing generic path is already enabled. Keep experimental/manual-layout
+classification because no exact Flash 75 PRO built-in preset exists yet; the
+older BY IPI presets are different models. This preserves the hardware-confirmed
+result without violating the owner's no-Supported-without-layout rule. Other
+IPI PIDs/transports and the BY Flash75/Thunder V2 are not newly confirmed.
+
+[Feedback, log interpretation and pending layout](current/IPI_FLASH75PRO_TESTER_FEEDBACK_2026-11-03.md).
+Google Sheet synchronized 2026-11-03: new IPI / QBZ / Flash 75 PRO / Gemini
+Seven-Star row, Main!A386:C386, Implemented; layout pending (yellow). Dropdown,
+32px row, outlines and base/effective colors verified. No Supported promotion.
+See [Sheet readback](current/SHEETS_RECONNECT_2026-11-03.md).

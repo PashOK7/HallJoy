@@ -350,11 +350,11 @@ void KeyboardUI_OnTimerTick(HWND)
     if (!root || !IsWindowVisible(root) || IsIconic(root)) return;
     const bool analogSourceConnected = HasSupportedAnalogSource(telemetry);
     const bool publishedAnalogSourceConnected = searchCompleted && analogSourceConnected;
-    unsigned frozenModels = NativeLayoutDevices_QueryFrozen();
+    auto frozenModels = NativeLayoutDevices_QueryFrozen();
     for (int i=0;i<std::clamp(telemetry.nativeProtocolCount,0,kBackendMaxNativeProtocols);++i) {
         const auto& device=telemetry.nativeProtocols[i];
         frozenModels |= halljoy::keyboard_support::NativeNotice(device.protocol, device.verifiedLayoutToken, device.connected, device.productId);
-        frozenModels |= halljoy::keyboard_support::ResearchNotice(device.protocol, device.vendorId, device.productId, device.present, device.connected);
+        frozenModels |= halljoy::keyboard_support::ResearchNotice(device.protocol, device.vendorId, device.productId, device.present, device.connected, device.accessBusy);
         frozenModels |= halljoy::keyboard_support::GenericNotice(device.connected, device.genericProtocol);
         frozenModels |= halljoy::keyboard_support::BusyNotice(device.present, device.connected, device.accessBusy);
     }

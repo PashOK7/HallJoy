@@ -820,7 +820,7 @@ bool AulaHero84He_TestPublication(int* failedLine) {
         for(unsigned hid:{4u,7u,22u,26u})input.filtered[hid]=Get(static_cast<std::uint16_t>(hid))/1000.0f;
         halljoy::configured_xusb::BuilderState state{};
         const auto frame=halljoy::configured_xusb::BuildReport(config,input,state);
-        if(frame.leftStickX!=-32767 || frame.leftStickY!=16384)return fail(__LINE__);
+        if(frame.leftStickX!=-32768 || frame.leftStickY!=16384)return fail(__LINE__);
         g_connected.store(false);Clear();
     }
     g_model=&halljoy::hero_family::models[0];kFactoryAt=FactoryMap();

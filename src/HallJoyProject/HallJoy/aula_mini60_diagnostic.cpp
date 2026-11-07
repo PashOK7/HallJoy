@@ -738,7 +738,7 @@ void SelfTest(unsigned product){
     for(unsigned hid:{4u,7u,22u,26u})input.filtered[hid]=NativeAnalogBackends_ReadMilli(static_cast<std::uint16_t>(hid)).milli/1000.0f;
     halljoy::configured_xusb::BuilderState gameState{};
     auto frame=halljoy::configured_xusb::BuildReport(config,input,gameState);
-    Require(frame.leftStickX==-32767 && frame.leftStickY==16384);
+    Require(frame.leftStickX==-32768 && frame.leftStickY==16384);
     InterlockedExchange64(&shared->samples[34],halljoy::mini60::Pack(170,34,tick-51));
     // MINI60 expires a silent key after 50 ms; AK820 holds it until released.
     PumpNative();Require(NativeToken()==halljoy::mini60::Token(product));Require(NativeOwns(26) && NativeGet(26)==(ak820?500:0) && NativeGet(4)==1000);

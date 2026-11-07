@@ -2499,10 +2499,52 @@
             "APEXPRO-1038-1610"
           ],
           "url": ""
+        },
+        {
+          "id": "steelseries_apex_pro_tkl_gen_3_ansi",
+          "brand": "SteelSeries",
+          "model": "Apex Pro TKL Gen 3",
+          "variant": "ANSI",
+          "adapter": "reviewed-report",
+          "count": 85,
+          "source": "docs/research/steelseries-apex-tkl-gen3-layout-reports/steelseries_apex_pro_tkl_gen_3_ansi.json",
+          "sha256": "b6c0bebcde48df96ebabbc3994f3fd79949149657863f02bc48845a44f6eb59e",
+          "products": [
+            "APEXPROTKLGEN3-1038-1642-ANSI"
+          ],
+          "url": ""
+        },
+        {
+          "id": "steelseries_apex_pro_tkl_gen_3_iso",
+          "brand": "SteelSeries",
+          "model": "Apex Pro TKL Gen 3",
+          "variant": "ISO",
+          "adapter": "reviewed-report",
+          "count": 86,
+          "source": "docs/research/steelseries-apex-tkl-gen3-layout-reports/steelseries_apex_pro_tkl_gen_3_iso.json",
+          "sha256": "b1916af9efc57973dc754806d5b56f3c208ff8792e6745678a094250ae9a28a1",
+          "products": [
+            "APEXPROTKLGEN3-1038-1642-ISO"
+          ],
+          "url": ""
+        },
+        {
+          "id": "steelseries_apex_pro_tkl_gen_3_jis",
+          "brand": "SteelSeries",
+          "model": "Apex Pro TKL Gen 3",
+          "variant": "JIS",
+          "adapter": "reviewed-report",
+          "count": 89,
+          "source": "docs/research/steelseries-apex-tkl-gen3-layout-reports/steelseries_apex_pro_tkl_gen_3_jis.json",
+          "sha256": "fa3fdc166067809004ec8a343ea9f5d9e3d398fe0828b968ff4449b6dc25cfa3",
+          "products": [
+            "APEXPROTKLGEN3-1038-1642-JIS"
+          ],
+          "url": ""
         }
       ],
       "excluded": [
-        "Other Apex Pro generations (TKL, Mini, 2022/2024): not supported and not aliased."
+        "Other Apex revisions and wireless models are not aliased to wired Gen3."
       ]
     },
     "Royal Kludge": {
@@ -2537,6 +2579,131 @@
             "11000000003C"
           ],
           "url": ""
+        }
+      ]
+    },
+    "Keydous": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/KEYDOUS_NJ98_V4S_2026-11-05.md",
+      "models": [
+        {
+          "id": "keydous_nj98_cp_v4s_ansi",
+          "brand": "Keydous",
+          "model": "NJ98-CP V4S TMR",
+          "variant": "ANSI",
+          "count": 97,
+          "source": "docs/research/keydous-layouts/nj98_cp_v4s_ansi.json",
+          "sha256": "c722c13a41e7438f2e9aef61ddfcff652f15a77076b6dc925122fe4f40685b18",
+          "products": [
+            "RY1B-3793"
+          ],
+          "url": "https://www.qmk.top/v4/"
+        }
+      ]
+    },
+    "E-YOOSO": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/EYOOSO_HZ94_REVIEW_2026-11-07.md",
+      "models": [
+        {
+          "id": "eyooso_hz94_ansi",
+          "brand": "E-YOOSO",
+          "model": "HZ-94",
+          "variant": "ANSI",
+          "count": 94,
+          "source": "docs/research/eyooso-hz94-ansi.json",
+          "sha256": "5bcd0a739c75cae572c82dce72861c89d664c26c9b1b0e08641c3fe47a5f5d41",
+          "products": [
+            "7187-AUSHERGB-ANSI"
+          ],
+          "url": ""
+        }
+      ]
+    },
+    "Corsair": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/CORSAIR_K70_PRO_TKL_2026-11-07.md",
+      "models": [
+        {
+          "id": "corsair_k70_pro_tkl_ansi",
+          "brand": "Corsair",
+          "model": "K70 PRO TKL",
+          "variant": "ANSI",
+          "count": 84,
+          "source": "docs/research/corsair-k70-tkl-layouts/corsair_k70_pro_tkl_ansi.json",
+          "sha256": "932aaa48f7d27fee8f188569f3782172a51366f3a750062aa54c6f0b3b9622bb",
+          "products": [
+            "K70PROTKL-1B1C-2B14-ANSI"
+          ],
+          "url": "https://www.corsair.com/us/en/explorer/gamer/keyboards/k70-pro-tkl/"
+        },
+        {
+          "id": "corsair_k70_pro_tkl_iso",
+          "brand": "Corsair",
+          "model": "K70 PRO TKL",
+          "variant": "ISO",
+          "count": 85,
+          "source": "docs/research/corsair-k70-tkl-layouts/corsair_k70_pro_tkl_iso.json",
+          "sha256": "93b16e05024fd4909a3aa834e79165e2718d7197611475a1950ed0064d1c3f2a",
+          "products": [
+            "K70PROTKL-1B1C-2B14-ISO"
+          ],
+          "url": "https://www.corsair.com/us/en/explorer/gamer/keyboards/k70-pro-tkl/"
+        },
+        {
+          "id": "corsair_k70_pro_tkl_jis",
+          "brand": "Corsair",
+          "model": "K70 PRO TKL",
+          "variant": "JIS",
+          "count": 88,
+          "source": "docs/research/corsair-k70-tkl-layouts/corsair_k70_pro_tkl_jis.json",
+          "sha256": "77cbc65eba7ba7d265dbfa46fce6911613f9aa7bcef56fd016ae1f3104efc438",
+          "products": [
+            "K70PROTKL-1B1C-2B14-JIS"
+          ],
+          "url": "https://www.corsair.com/us/en/explorer/gamer/keyboards/k70-pro-tkl/"
+        },
+        {
+          "id": "corsair_vanguard_pro_96_ansi",
+          "brand": "Corsair",
+          "model": "VANGUARD PRO 96",
+          "variant": "ANSI",
+          "count": 96,
+          "source": "docs/research/corsair-vanguard-layouts/corsair_vanguard_pro_96_ansi.json",
+          "sha256": "5b43f8b3c5d8c3ce58415145cd548a80402a8d84f3dc8d2a4fa631db2e69cc01",
+          "products": [
+            "VANGUARDPRO96-1B1C-2B0E-ANSI"
+          ],
+          "url": "https://www.corsair.com/ca/en/explorer/gamer/keyboards/vanguard-pro-96/"
+        },
+        {
+          "id": "corsair_vanguard_pro_96_iso",
+          "brand": "Corsair",
+          "model": "VANGUARD PRO 96",
+          "variant": "ISO",
+          "count": 97,
+          "source": "docs/research/corsair-vanguard-layouts/corsair_vanguard_pro_96_iso.json",
+          "sha256": "d56dfa6fb670cd3693cba49a021e121b33b0d15b66f5df6375b4d823270aaad6",
+          "products": [
+            "VANGUARDPRO96-1B1C-2B0E-ISO"
+          ],
+          "url": "https://www.corsair.com/ca/en/explorer/gamer/keyboards/vanguard-pro-96/"
+        },
+        {
+          "id": "corsair_vanguard_pro_96_jis",
+          "brand": "Corsair",
+          "model": "VANGUARD PRO 96",
+          "variant": "JIS",
+          "count": 98,
+          "source": "docs/research/corsair-vanguard-layouts/corsair_vanguard_pro_96_jis.json",
+          "sha256": "6028c388237a6a4078ee27fb6eedbd48007adc6ddd7126c36a24fc73152795f4",
+          "products": [
+            "VANGUARDPRO96-1B1C-2B0E-JIS"
+          ],
+          "url": "https://www.corsair.com/ca/en/explorer/gamer/keyboards/vanguard-pro-96/"
         }
       ]
     }

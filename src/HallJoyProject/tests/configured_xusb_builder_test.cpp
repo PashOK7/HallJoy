@@ -81,6 +81,60 @@ int main()
     assert(mouse.rightStickX == static_cast<std::int16_t>(std::lround(0.8f * 32767.0f)));
     assert(mouse.rightStickY == 8192); // keyboard remains stronger than mouse
 
+    // Every signed code must survive normalized mapping and the real XUSB
+    // adapter on all four axes, including exact zero and both endpoints.
+    InputValues axisInput{};
+    BuilderState axisState{};
+    for (int code = -32768; code <= 32767; ++code)
+    {
+        const float value = code / (code < 0 ? 32768.0f : 32767.0f);
+        for (const auto& axis : configuration.axes)
+        {
+            axisInput.filtered[axis.minusHids[0]] = value < 0 ? -value : 0;
+            axisInput.filtered[axis.plusHids[0]] = value > 0 ? value : 0;
+        }
+        const auto frame = BuildReport(configuration, axisInput, axisState);
+        const auto report = halljoy::xusb_output::ToReport(frame);
+        assert(frame.leftStickX == code && frame.leftStickY == code &&
+            frame.rightStickX == code && frame.rightStickY == code);
+        assert(report.thumbLX == code && report.thumbLY == code &&
+            report.thumbRX == code && report.thumbRY == code);
+    }
+    for (unsigned flags = 0; flags < 4; ++flags)
+    {
+        PadConfiguration mode = configuration;
+        mode.snappyJoystick = (flags & 1) != 0;
+        mode.lastKeyPriority = (flags & 2) != 0;
+        for (bool negative : {false, true})
+        {
+            InputValues full{};BuilderState fresh{};
+            for (const auto& axis : mode.axes)
+                full.filtered[negative ? axis.minusHids[0] : axis.plusHids[0]] = 2.0f;
+            const auto frame = BuildReport(mode, full, fresh);
+            const int expected = negative ? -32768 : 32767;
+            assert(frame.leftStickX == expected && frame.leftStickY == expected &&
+                frame.rightStickX == expected && frame.rightStickY == expected);
+        }
+    }
+    for (int target = 0; target < 2; ++target)
+    {
+        for (bool mouseNegative : {false, true})
+        {
+            InputValues mixed{};BuilderState fresh{};
+            const auto& axis = configuration.axes[target * 2];
+            mixed.filtered[mouseNegative ? axis.plusHids[0] : axis.minusHids[0]] = 1;
+            mixed.mouseEnabled = true;mixed.mouseTarget = target;
+            mixed.mouseX = mouseNegative ? -1.0f : 1.0f;
+            mixed.mouseY = mouseNegative ? -2.0f : 2.0f;
+            const auto frame = BuildReport(configuration, mixed, fresh);
+            const int expected = mouseNegative ? -32768 : 32767;
+            // Equal normalized keyboard/mouse strength keeps the existing mouse
+            // tie-break, independent of the extra negative signed code.
+            assert((target ? frame.rightStickX : frame.leftStickX) == expected);
+            assert((target ? frame.rightStickY : frame.leftStickY) == expected);
+        }
+    }
+
     PadConfiguration priority = configuration;
     priority.snappyJoystick = true;
     priority.lastKeyPriority = true;
@@ -135,6 +189,6 @@ int main()
 
     std::cout << "CONFIGURED_XUSB_BUILDER_TEST=PASS all_fields=1 "
         "explicit_state=1 paired_equivalence=1 divergence_localized=1 "
-        "neutral_frame=1 nonfinite_neutral=1 exact_xusb_adapter=1 replay_reset=1\n";
+        "neutral_frame=1 nonfinite_neutral=1 exact_xusb_adapter=1 replay_reset=1 full_signed_range=65536 mouse_endpoint_ties=1\n";
     return 0;
 }

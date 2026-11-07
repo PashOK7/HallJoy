@@ -659,6 +659,13 @@
     <ClCompile Include="alumix104_backend.cpp" />
     <ClCompile Include="tartarus_backend.cpp" />
     <ClCompile Include="neo65_backend.cpp" />
+    <ClCompile Include="corsair_vanguard_backend.cpp" />
+    <ClCompile Include="corsair_k70_tkl_backend.cpp" />
+    <ClInclude Include="corsair_k70_tkl_protocol.h" />
+    <ClInclude Include="corsair_vanguard_backend.h" />
+    <ClInclude Include="corsair_vanguard_protocol.h" />
+    <ClInclude Include="corsair_vanguard_client.h" />
+    <ClInclude Include="generated\corsair_vanguard_data.h" />
     <ClCompile Include="mchose_mix87_backend.cpp" />
     <ClInclude Include="mchose_mix87_backend.h" />
     <ClInclude Include="mchose_mix87_protocol.h" />

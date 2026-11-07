@@ -6,35 +6,40 @@
 #include "jingtai_v1_profiles.h"
 namespace halljoy::keyboard_support
 {
-enum FrozenModel : unsigned { NA87 = 1, NA87Pro = 2, ND75 = 4, Hero84 = 8, Azoth96 = 16, X68 = 32, FamilyCandidate = 64, Mg75Pro = 128, AttackShark = 256, GravaStar = 512, Ipi = 1024, Redragon = 2048, NuPhy = 4096, AulaRm = 8192, Slice75 = 16384, RongYuan = 32768, RongYuanStream = 65536, TartarusPro = 131072, Neo65 = 262144, SparkLinkV2 = 524288, SteelSeriesApex = 1048576, Mad68DualLimited = 2097152, Mix87Limited = 4194304, Alumix104Research = 8388608, AtkHex80Family = 16777216, MchoseFamily = 33554432, RoyalKludgeHe = 67108864, LogitechRapid = 134217728, RedSquareAlumix68 = 268435456, GenericProtocol = 536870912, MelGeekMade68Air = 1073741824, KeyboardBusy = 2147483648u };
-inline constexpr unsigned LimitedModels = Mad68DualLimited | Mix87Limited;
+using NoticeMask = std::uint64_t;
+enum FrozenModel : NoticeMask { NA87 = 1, NA87Pro = 2, ND75 = 4, Hero84 = 8, Azoth96 = 16, X68 = 32, FamilyCandidate = 64, Mg75Pro = 128, AttackShark = 256, GravaStar = 512, Ipi = 1024, Redragon = 2048, NuPhy = 4096, AulaRm = 8192, Slice75 = 16384, RongYuan = 32768, RongYuanStream = 65536, TartarusPro = 131072, Neo65 = 262144, SparkLinkV2 = 524288, SteelSeriesApex = 1048576, Mad68DualLimited = 2097152, Mix87Limited = 4194304, Alumix104Research = 8388608, AtkHex80Family = 16777216, MchoseFamily = 33554432, RoyalKludgeHe = 67108864, LogitechRapid = 134217728, RedSquareAlumix68 = 268435456, GenericProtocol = 536870912, MelGeekMade68Air = 1073741824, KeyboardBusy = 2147483648u, CorsairVanguard = 1ull << 32, CorsairVanguardPending = 1ull << 33, CorsairK70TklPending = 1ull << 35 };
+inline constexpr NoticeMask LimitedModels = Mad68DualLimited | Mix87Limited | CorsairVanguard;
 // Protocol 28 is the exact 0C45:80AC research backend. Present means the
 // physical device was found; connected would falsely imply usable analog.
 // Protocol 31 is the Alumix 68 analog backend: present without connected means
 // the device is on the bus but its firmware version was not recognized, so the
 // RAM depth path is withheld (the yellow notice then asks for the log).
-inline unsigned ResearchNotice(unsigned protocol, unsigned vid, unsigned pid,
-                               bool present, bool connected) noexcept {
+inline NoticeMask ResearchNotice(unsigned protocol, unsigned vid, unsigned pid,
+                               bool present, bool connected, bool accessBusy=false) noexcept {
+    if (protocol == 33 && vid == 0x1b1c && pid == 0x2b0e && present && !connected && !accessBusy)
+        return CorsairVanguardPending;
+    if (protocol == 34 && vid == 0x1b1c && pid == 0x2b14 && present && !connected && !accessBusy)
+        return CorsairK70TklPending;
     if (protocol == 28 && vid == 0x0c45 && pid == 0x80ac && present && !connected)
         return static_cast<unsigned>(Alumix104Research);
     if (protocol == 31 && vid == 0x0c45 && pid == 0x80a2 && present && !connected)
         return static_cast<unsigned>(RedSquareAlumix68);
     return 0u;
 }
-inline constexpr unsigned ImplementedModels = NA87 | Hero84 | Mg75Pro | AttackShark | GravaStar | Ipi | Redragon | AulaRm | Slice75 | RongYuan | RongYuanStream | TartarusPro | Neo65 | SparkLinkV2 | SteelSeriesApex | AtkHex80Family | MchoseFamily | RoyalKludgeHe | LogitechRapid | RedSquareAlumix68 | GenericProtocol | MelGeekMade68Air;
+inline constexpr NoticeMask ImplementedModels = NA87 | Hero84 | Mg75Pro | AttackShark | GravaStar | Ipi | Redragon | AulaRm | Slice75 | RongYuan | RongYuanStream | TartarusPro | Neo65 | SparkLinkV2 | SteelSeriesApex | AtkHex80Family | MchoseFamily | RoyalKludgeHe | LogitechRapid | RedSquareAlumix68 | GenericProtocol | MelGeekMade68Air | CorsairVanguard;
 // A native backend found its keyboard but could not open the interface it needs
 // because another program holds it (Win32 sharing/lock violation), e.g. a
 // vendor web driver tab. Not "no supported keyboard": its own notice.
-inline unsigned BusyNotice(bool present, bool connected, bool accessBusy) noexcept {
+inline NoticeMask BusyNotice(bool present, bool connected, bool accessBusy) noexcept {
     return present && !connected && accessBusy ? static_cast<unsigned>(KeyboardBusy) : 0u;
 }
 // A keyboard outside the catalog connected through a protocol-family match
 // (BY/IPI UUID platform, Logitech HID++ 0x1B08): yellow, model unverified.
-inline unsigned GenericNotice(bool connected, bool genericProtocol) noexcept {
+inline NoticeMask GenericNotice(bool connected, bool genericProtocol) noexcept {
     return connected && genericProtocol ? static_cast<unsigned>(GenericProtocol) : 0u;
 }
 // Metadata-only classification. Shared USB IDs never prove the model alone.
-inline unsigned ClassifyFrozen(unsigned vid, unsigned pid, std::wstring_view name) noexcept {
+inline NoticeMask ClassifyFrozen(unsigned vid, unsigned pid, std::wstring_view name) noexcept {
     if (vid == 0x28e9 && pid == 0x3265) return Mad68DualLimited;
     // Mix87 III and Jet 75 II are supported; admission remains enforced by their backends.
     if (vid == 0x3837 && pid == 0x300d) return 0;
@@ -61,7 +66,7 @@ struct StatusSnapshot final
 {
     bool searchCompleted = false;
     bool analogSourceConnected = false;
-    unsigned frozenModels = 0;
+    NoticeMask frozenModels = 0;
     bool communicationWarning = false;
     // 1-based index into kUnsupportedKeyboards (red Sheet rows), 0 when none is
     // connected. Set only while no analog source is connected.
@@ -82,7 +87,7 @@ inline bool ShouldAutoSaveSupportLog(const StatusSnapshot& s) noexcept {
 
 // A negative result is meaningful only after the engine owns an active
 // generation. Until then the UI must remain silent while discovery starts.
-void SetSearchObservation(bool searchCompleted, bool connected, unsigned frozenModels = 0, bool communicationWarning = false,
+void SetSearchObservation(bool searchCompleted, bool connected, NoticeMask frozenModels = 0, bool communicationWarning = false,
                           unsigned unsupportedModel = 0) noexcept;
 [[nodiscard]] StatusSnapshot GetStatusSnapshot() noexcept;
 }

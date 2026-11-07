@@ -5,9 +5,9 @@
 #include <cstring>
 namespace halljoy::apex {
 constexpr std::uint16_t kVid=0x1038,kPid=0x1610;
-inline bool SupportedIdentity(unsigned vid,unsigned pid){return vid==kVid && (pid==kPid || pid==0x1614 || pid==0x1640);}
+inline bool SupportedIdentity(unsigned vid,unsigned pid){return vid==kVid && (pid==kPid || pid==0x1614 || pid==0x1640 || pid==0x1642);}
 inline const wchar_t* ModelName(unsigned pid){
- return pid==0x1614?L"SteelSeries Apex Pro TKL":pid==0x1640?L"SteelSeries Apex Pro Gen 3":L"SteelSeries Apex Pro";
+ return pid==0x1642?L"SteelSeries Apex Pro TKL Gen 3":pid==0x1614?L"SteelSeries Apex Pro TKL":pid==0x1640?L"SteelSeries Apex Pro Gen 3":L"SteelSeries Apex Pro";
 }
 inline bool SupportedCollection(unsigned page,unsigned usage,unsigned in,unsigned out,unsigned feature){
  return page==0xffc0 && usage==1 && in==65 && out==65 && feature==643;

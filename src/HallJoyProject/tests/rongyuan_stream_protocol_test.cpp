@@ -24,6 +24,21 @@ int main() {
  assert(Units(0x300,features,false)==100 && Units(0x500,features,false)==200);
  features[1]=0xe6;features[2]=0xaa;features[3]=2;assert(Units(0x300,features,true)==1000);
  features[3]=3;assert(!Units(0x300,features,true));
+ // Exact V4S admission stays separate from V4 HE and the shared receiver.
+ const Model* v4s=Find(3793,0x3151,0x5030);
+ assert(v4s && v4s!=Find(3496,0x3151,0x5030));
+ assert(!Find(3793,0x3151,0x5038) && !Candidate(0x3151,0x5038));
+ assert(!Find(3793,0x3151,0x5029) && !Find(3794,0x3151,0x5030));
+ unsigned v4sKeys=0;for(unsigned slot=0;slot<128;++slot)v4sKeys+=Decode(v4s->matrix.data()+slot*4)!=0;
+ assert(v4sKeys==97 && Decode(v4s->matrix.data()+41*4)==44 && Decode(v4s->matrix.data()+65*4)==0x409);
+ Report noFeatures{};
+ assert(ModelUnits(*v4s,0x200,noFeatures)==10 && ModelUnits(*v4s,0x300,noFeatures)==100);
+ assert(ModelUnits(*v4s,0x500,noFeatures)==100 && !ModelUnits(*v4s,0,noFeatures));
+ assert(!ModelUnits(*v4s,65535,noFeatures));
+ Report v4sFeatures{};v4sFeatures[1]=0xe6;v4sFeatures[2]=0xaa;
+ for(unsigned precision=0;precision<3;++precision){v4sFeatures[3]=precision;assert(ModelUnits(*v4s,0x500,v4sFeatures)==(precision==0?100:precision==1?200:1000));}
+ v4sFeatures[3]=3;assert(!ModelUnits(*v4s,0x500,v4sFeatures));
+ assert(Units(0x500,noFeatures,false)==200); // neighboring models keep their scale
  for(const auto& alias:kUsbAliases){
   assert(Candidate(alias.vid,alias.pid));
   assert(Find(alias.board,alias.vid,alias.pid)==Find(alias.canonicalBoard,alias.canonicalVid,alias.canonicalPid));
@@ -106,7 +121,7 @@ int main() {
   publication.Clear();assert(!publication.Read(4,60103,~std::uint64_t{0}).fresh);
   ++revisions;
  }
- assert(revisions==259);
+ assert(revisions==260);
  physical_analog::Publication aliases;assert(aliases.Bind(1,26)&&aliases.Bind(2,26));
  aliases.Publish(1,500,100);aliases.Publish(2,700,101);aliases.Publish(2,0,102);
  assert(aliases.Read(26,60000,~std::uint64_t{0}).milli==500);

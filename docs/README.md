@@ -28,7 +28,7 @@ are under `tools/`. The focused command prints verified repository-relative path
 
 ## Current baseline and recent work
 
-- [Last locally recorded publication: 1.6.13](current/RELEASE_1.6.13_PUBLICATION_2026-10-26.md).
+- [Published release notes](releases/README.md).
   Read `version.h`, `.local/release-state.json` and the actual EXE for current local
   values. A remote/latest claim requires a live GitHub read.
 - [AG75](current/AULA_AG75_2026-10-29.md),

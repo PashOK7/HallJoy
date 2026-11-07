@@ -73,7 +73,7 @@ def compile_command(cxx: str, output: Path, sources: list[Path], include: Path) 
         # MinGW often supplies this implicitly; clang/MSVC does not. Windows
         # token/SID integration tests must link their actual system dependency.
         *(["-ladvapi32", "-luser32"] if os.name == "nt" else []),
-        *(["-lsetupapi", "-lcfgmgr32", "-lhid", "-lshell32", "-lole32", "-luuid"] if output.name in ("support_log_windows", "input_path_log_windows", "native_layout_devices_windows", "mad68_dual_trial_session", "mchose_mix87_session", "mchose_jet75_session", "alumix104_session") else []),
+        *(["-lsetupapi", "-lcfgmgr32", "-lhid", "-lshell32", "-lole32", "-luuid"] if output.name in ("support_log_windows", "input_path_log_windows", "native_layout_devices_windows", "mad68_dual_trial_session", "mchose_mix87_session", "mchose_jet75_session", "alumix104_session", "corsair_vanguard_session") else []),
         *(["-lbcrypt"] if output.name == "mchose_mix87_session" else []),
         "-o",
         str(output),
@@ -251,6 +251,7 @@ def main() -> int:
     ET.parse(hall / "HallJoy.vcxproj.filters")
 
     run([sys.executable, str(root / "tools" / "project_context.py"), "--check"])
+    run([sys.executable, str(root / "tools" / "generate_corsair_vanguard.py")])
     run([sys.executable, "-m", "unittest", "discover", "-s", str(root / "tools/tests"),
          "-p", "test_project_context.py"], cwd=root)
     run([sys.executable, str(root / "tools" / "test_block_keys_group.py")])
@@ -406,10 +407,13 @@ def main() -> int:
             ("mad68_dual_trial_protocol", [tests / "mad68_dual_trial_protocol_test.cpp"]),
             ("input_shortcuts", [tests / "input_shortcuts_test.cpp"]),
             ("neo65_protocol", [tests / "neo65_protocol_test.cpp"]),
+            ("corsair_vanguard_protocol", [tests / "corsair_vanguard_protocol_test.cpp"]),
+            ("corsair_k70_tkl_protocol", [tests / "corsair_k70_tkl_protocol_test.cpp"]),
             ("steelseries_apex_protocol", [tests / "steelseries_apex_protocol_test.cpp"]),
             ("uap_discovery_policy", [tests / "uap_discovery_policy_test.cpp"]),
             ("sparklink_model_profiles", [tests / "sparklink_model_profiles_test.cpp"]),
             ("rongyuan_stream_protocol", [tests / "rongyuan_stream_protocol_test.cpp", hall / "keyboard_support_status.cpp"]),
+            ("rongyuan_receiver", [tests / "rongyuan_receiver_test.cpp"]),
             ("three_keyboard_protocol", [tests / "three_keyboard_protocol_test.cpp", hall / "keyboard_support_status.cpp"]),
             ("sparklink_hotplug_age", [tests / "sparklink_hotplug_age_test.cpp"]),
             ("sparklink_row_freshness", [tests / "sparklink_row_freshness_test.cpp"]),
@@ -464,6 +468,7 @@ def main() -> int:
             ]),
         ]
         if os.name == "nt":
+            fixed_tests.append(("corsair_vanguard_session", [tests / "corsair_vanguard_session_test.cpp"]))
             from prepare_attackshark_discovery_test import prepare
             fixed_tests.append(("attackshark_discovery_windows", [prepare(out, hall, tests / "attackshark_discovery_windows_test.cpp")]))
             fixed_tests.append(("native_analog_telemetry_collect", [tests / "native_analog_telemetry_collect_test.cpp"]))

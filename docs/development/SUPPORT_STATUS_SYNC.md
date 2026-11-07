@@ -72,10 +72,13 @@ was installed; this is a mandatory agent workflow loaded through AGENTS.md.
 
 After a model batch, run the production-linked profile suite and inspect its
 `yellow-layout-coverage.json` (tools/audit_yellow_layouts.py). Reconcile ALL yellow
-models, not only the latest brand. The owner permits absent exact layouts when
-geometry is difficult/ambiguous; record missing and partial revisions explicitly.
-Do not infer geometry from key count or use a support color as proof of visual
-layout coverage. Layout-only edits do not change the Sheet's analog-status column.
+models, not only the latest brand. If a tester has a known target keyboard,
+include its exact built-in layout and verified automatic selection in the first
+EXE sent for that test, including Experimental builds. Follow the
+[layout pipeline](../current/LAYOUT_PIPELINE.md). For catalog entries without a
+targeted test build, record missing and partial geometry explicitly. Use exact
+geometry evidence and verify variant coverage independently of support status.
+Layout-only edits do not change the Sheet's analog-status column.
 
 ## Cross-catalog USB identities
 

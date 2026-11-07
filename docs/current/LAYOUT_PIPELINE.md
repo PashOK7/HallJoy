@@ -6,6 +6,16 @@
 re-investigate supported protocols, or dump vendor bundles to the conversation.
 Runtime/editor changes are required only for a genuinely new capability.
 
+## Builds for a tester with a known keyboard
+
+Owner decision, 2026-11-04. Include the built-in preset for the tester's exact
+model and regional variant in the first test EXE. Wire it into Automatic layout
+and verify the compiled catalog and selection using the confirmed identity and
+variant before handoff. Check that neighboring identities and variants resolve
+correctly. Gather missing geometry or identity evidence before handoff.
+Experimental models follow this rule. For VANGUARD PRO 96, the firmware
+region selects the exact preset after live depth proof. Log 23 identifies ISO.
+
 ## Final pre-release batch
 
 Owner requested Razer/NuPhy/Wooting together, then a stop to further layout work.

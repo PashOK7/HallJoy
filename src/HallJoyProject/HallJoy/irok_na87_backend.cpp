@@ -9,6 +9,7 @@
 #include "ajazz_raw_limits.h"
 #include "irok_na87_protocol.h"
 #include "irok_na87_factory.h"
+#include "irok_hz94_profile.h"
 #include "native_layout_state.h"
 #include "physical_analog_state.h"
 #include "irok_na87_identity.h"
@@ -21,6 +22,7 @@
 #include "native_analog_routing.h"
 #include "realtime_loop.h"
 #include "stability_trace.h"
+#include "support_log.h"
 #include "worker_exception_barrier.h"
 #include "worker_join_policy.h"
 
@@ -31,6 +33,8 @@
 #include <cstdio>
 #include <cstring>
 #include <cwchar>
+#include <cwctype>
+#include <string_view>
 #include <mutex>
 #include <process.h>
 #include <string>
@@ -83,6 +87,7 @@ struct Candidate
     std::wstring path;
     HIDD_ATTRIBUTES attributes{};
     HIDP_CAPS caps{};
+    unsigned interface = 0xff, collection = 0xff;
 };
 
 struct Proof
@@ -98,6 +103,59 @@ std::atomic<bool> g_prepared{ false }, g_running{ false }, g_stop{ false };
 std::atomic<bool> g_present{ false }, g_connected{ false };
 std::atomic<unsigned> g_diagnosticStatus{0};
 std::atomic<bool> g_ajazzPlaying{false};
+std::atomic<unsigned> g_hz94Pid{0};
+constexpr auto kHz94Layout = halljoy::layout_identity::Token("witmod-hz94", "7187-AUSHERGB-ANSI");
+static_assert(kHz94Layout != 0);
+
+// Prepare and the worker enumerate serially. Store one record per observed
+// outcome and leave transient opens eligible for retry.
+std::vector<std::string> g_witmodEvidence;
+std::vector<std::wstring> g_foreignIdentity;
+
+template<class... Args>
+void WitmodEvidence(const Candidate& candidate, const char* stage,
+    bool repeat, const char* format, Args... args)
+{
+    if (!irok_hz94::WitmodProduct(candidate.attributes.ProductID)) return;
+    char data[224]{}, record[304]{};
+    _snprintf_s(data, sizeof(data), _TRUNCATE, format, args...);
+    _snprintf_s(record, sizeof(record), _TRUNCATE,
+        "evidence.witmod.%s pid=%04X mi=%02X collection=%02X %s", stage,
+        unsigned(candidate.attributes.ProductID), candidate.interface, candidate.collection, data);
+    if (!repeat) {
+        if (g_witmodEvidence.size() >= 256 ||
+            std::find(g_witmodEvidence.begin(), g_witmodEvidence.end(), record) != g_witmodEvidence.end()) return;
+        g_witmodEvidence.emplace_back(record);
+    }
+    SupportLog_Evidence(record, false);
+}
+
+unsigned PathField(std::wstring_view path, std::wstring_view tag, unsigned digits, unsigned missing)
+{
+    const auto at = path.find(tag);
+    if (at == path.npos || at + tag.size() + digits > path.size()) return missing;
+    unsigned result = 0;
+    for (const auto c : path.substr(at + tag.size(), digits)) {
+        if (c >= L'0' && c <= L'9') result = result * 16 + unsigned(c - L'0');
+        else if (c >= L'a' && c <= L'f') result = result * 16 + unsigned(c - L'a') + 10;
+        else return missing;
+    }
+    return result;
+}
+
+std::string Identifier(std::string_view field)
+{
+    std::string result(field);
+    for (char& c : result)
+        if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+              (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.')) c = '_';
+    return result;
+}
+
+std::uint64_t StreamLayout() noexcept
+{
+    return g_hz94Pid.load(std::memory_order_acquire) ? kHz94Layout : irok_na87::kAnsiLayoutToken;
+}
 std::mutex g_serviceMutex, g_handleMutex;
 HANDLE g_thread = nullptr, g_wake = nullptr;
 HANDLE g_activeHandle = INVALID_HANDLE_VALUE;
@@ -189,6 +247,7 @@ std::vector<Candidate> Enumerate(bool routedOnly, bool verbose)
     if (set == INVALID_HANDLE_VALUE) return {};
 
     std::vector<Candidate> result;
+    std::vector<std::wstring> seen;
     for (DWORD index = 0;; ++index)
     {
         SP_DEVICE_INTERFACE_DATA interfaceData{};
@@ -211,28 +270,58 @@ std::vector<Candidate> Enumerate(bool routedOnly, bool verbose)
                 needed, nullptr, nullptr))
             continue;
 
-        const bool routed = NativeAnalogRouting_IsClaimedBy(
-            detail->DevicePath, NativeAnalogProtocol::IrokNa87M484);
-        if (NativeAnalogRouting_IsClaimed(detail->DevicePath) && !routed)
-            continue;
-        if (routedOnly && !routed) continue;
+        std::wstring prefix(detail->DevicePath);
+        const auto deviceSpecific = prefix.find(L'#', prefix.find(L'#') + 1);
+        if (deviceSpecific != prefix.npos) prefix.resize(deviceSpecific);
+        std::transform(prefix.begin(), prefix.end(), prefix.begin(), [](wchar_t c) {
+            return static_cast<wchar_t>(std::towlower(c));
+        });
+        const auto pid = PathField(prefix, L"&pid_", 4, 0);
+        if (PathField(prefix, L"#vid_", 4, 0) != kVendorId || !irok_hz94::WitmodProduct(pid)) continue;
 
-        Handle metadata(CreateFileW(detail->DevicePath, 0,
-            FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL, nullptr));
-        if (!metadata) continue;
         Candidate candidate{};
         candidate.path = detail->DevicePath;
-        candidate.attributes.Size = sizeof(candidate.attributes);
-        if (!HidD_GetAttributes(metadata.value, &candidate.attributes) ||
-            candidate.attributes.VendorID != kVendorId ||
-            candidate.attributes.ProductID != kProductId)
+        candidate.attributes.ProductID = static_cast<USHORT>(pid);
+        candidate.interface = PathField(prefix, L"&mi_", 2, 0xff);
+        candidate.collection = PathField(prefix, L"&col", 2, 0xff);
+        seen.push_back(candidate.path);
+        const bool routed = NativeAnalogRouting_IsClaimedBy(
+            candidate.path.c_str(), NativeAnalogProtocol::IrokNa87M484);
+        if (NativeAnalogRouting_IsClaimed(candidate.path.c_str()) && !routed) {
+            WitmodEvidence(candidate, "route", false, "other_owner=1");
             continue;
+        }
+        if (routedOnly && !routed) continue;
+
+        Handle metadata(CreateFileW(candidate.path.c_str(), 0,
+            FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL, nullptr));
+        if (!metadata) {
+            WitmodEvidence(candidate, "metadata_open", false, "win32=%lu", GetLastError());
+            continue;
+        }
+        HIDD_ATTRIBUTES attributes{};
+        attributes.Size = sizeof(attributes);
+        if (!HidD_GetAttributes(metadata.value, &attributes)) {
+            WitmodEvidence(candidate, "attributes", false, "win32=%lu", GetLastError());
+            continue;
+        }
+        if (attributes.VendorID != kVendorId || attributes.ProductID != pid) {
+            WitmodEvidence(candidate, "attributes", false, "identity_changed=1");
+            continue;
+        }
+        candidate.attributes = attributes;
         PHIDP_PREPARSED_DATA preparsed = nullptr;
-        if (!HidD_GetPreparsedData(metadata.value, &preparsed)) continue;
+        if (!HidD_GetPreparsedData(metadata.value, &preparsed)) {
+            WitmodEvidence(candidate, "preparsed", false, "win32=%lu", GetLastError());
+            continue;
+        }
         const NTSTATUS status = HidP_GetCaps(preparsed, &candidate.caps);
         HidD_FreePreparsedData(preparsed);
-        if (status != HIDP_STATUS_SUCCESS) continue;
+        if (status != HIDP_STATUS_SUCCESS) {
+            WitmodEvidence(candidate, "caps", false, "hid_status=%08lX", static_cast<unsigned long>(status));
+            continue;
+        }
         const bool protocolShape = candidate.caps.UsagePage == kUsagePage &&
             candidate.caps.Usage == kUsage &&
             candidate.caps.InputReportByteLength == irok_nd75::kReportBytes &&
@@ -245,9 +334,18 @@ std::vector<Candidate> Enumerate(bool routedOnly, bool verbose)
 #else
         (void)verbose;
 #endif
-        if (protocolShape) result.push_back(std::move(candidate));
+        WitmodEvidence(candidate, "caps", false,
+            "page=%04X usage=%04X in=%u out=%u feature=%u bcd=%04X eligible=%u",
+            unsigned(candidate.caps.UsagePage), unsigned(candidate.caps.Usage),
+            unsigned(candidate.caps.InputReportByteLength), unsigned(candidate.caps.OutputReportByteLength),
+            unsigned(candidate.caps.FeatureReportByteLength), unsigned(attributes.VersionNumber), unsigned(protocolShape));
+        if (protocolShape && std::find(g_foreignIdentity.begin(), g_foreignIdentity.end(), candidate.path)
+                == g_foreignIdentity.end()) result.push_back(std::move(candidate));
     }
     SetupDiDestroyDeviceInfoList(set);
+    std::erase_if(g_foreignIdentity, [&](const auto& path) {
+        return std::find(seen.begin(), seen.end(), path) == seen.end();
+    });
     return result;
 }
 
@@ -264,7 +362,13 @@ public:
         handle_ = Handle(CreateFileW(candidate_.path.c_str(),
             GENERIC_READ | GENERIC_WRITE, share, nullptr, OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, nullptr));
-        if (!handle_) return false;
+        if (!handle_) {
+            const DWORD error = GetLastError();
+            WitmodEvidence(candidate_, "open", false, "share=%lu win32=%lu", share, error);
+            SetLastError(error);
+            return false;
+        }
+        WitmodEvidence(candidate_, "open", false, "share=%lu win32=0", share);
         HidD_SetNumInputBuffers(handle_.value, 256);
         reader_ = std::make_unique<HidIoOperation>(handle_.value);
         if (!reader_->IsValid()) return false;
@@ -314,6 +418,7 @@ public:
     }
 
     HANDLE Native() const { return handle_.value; }
+    const Candidate& Device() const { return candidate_; }
 
 private:
     void RegisterActive()
@@ -356,62 +461,125 @@ bool IsAjazzRgb(const irok_nd75::DeviceInfo& identity)
 bool ReceiveIdentity(Session& session, irok_nd75::DeviceInfo* out)
 {
     if (g_stop.load(std::memory_order_acquire)) return false;
-    if (!session.Send(irok_nd75::BuildIdentityRequest())) return false;
+    const auto& device = session.Device();
+    if (!session.Send(irok_nd75::BuildIdentityRequest())) {
+        WitmodEvidence(device, "identity_write", false, "opcode=0D win32=%lu", GetLastError());
+        return false;
+    }
     const auto deadline = GetTickCount64() + kProofTimeoutMs;
     irok_nd75::Report report{};
-    while (!g_stop.load(std::memory_order_acquire) &&
-        GetTickCount64() < deadline)
-        if (session.Read(&report, 100) && irok_nd75::DecodeDeviceInfo(
-                report.data(), report.size(), out))
-            return irok_na87::IsExpectedDevice(*out) || IsAjazzRgb(*out)
+    unsigned reports = 0;
+    DWORD error = WAIT_TIMEOUT;
+    while (!g_stop.load(std::memory_order_acquire) && GetTickCount64() < deadline) {
+        if (!session.Read(&report, 100)) {
+            error = GetLastError();
+            if (IsDeviceLossError(error)) break;
+            continue;
+        }
+        ++reports;
+        irok_nd75::DeviceInfo parsed{};
+        if (!irok_nd75::DecodeDeviceInfo(report.data(), report.size(), &parsed)) {
+            if (reports <= 4) {
+                WitmodEvidence(device, "identity_reply", false,
+                    "id=%02X opcode=%02X decoded=0", unsigned(report[0]), unsigned(report[1]));
+                if (report[0] == 1 && report[1] == 0x0d)
+                    WitmodEvidence(device, "identity_refused", false, "status=%u size_field=%u",
+                        unsigned(report[2]), unsigned(report[5]));
+            }
+            continue;
+        }
+        *out = parsed;
+        const bool hz94 = irok_hz94::Matches(*out);
+        const bool accepted = hz94 || (device.attributes.ProductID == kProductId &&
+            (irok_na87::IsExpectedDevice(*out) || IsAjazzRgb(*out)
 #if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
-                || (std::strcmp(out->controller.data(), "M484") == 0 &&
-                    (std::strcmp(out->product.data(), "SG8994HERGB") == 0 ||
-                     std::strcmp(out->product.data(), "SG8994HE") == 0))
+            || (std::strcmp(out->controller.data(), "M484") == 0 &&
+                (std::strcmp(out->product.data(), "SG8994HERGB") == 0 ||
+                 std::strcmp(out->product.data(), "SG8994HE") == 0))
 #endif
-                ;
+            ));
+        WitmodEvidence(device, "identity", false, "controller=%s product=%s firmware=%s hz94=%u accepted=%u",
+            Identifier(out->controller.data()).c_str(), Identifier(out->product.data()).c_str(),
+            Identifier(out->firmware.data()).c_str(), unsigned(hz94), unsigned(accepted));
+        return accepted;
+    }
+    if (!g_stop.load(std::memory_order_acquire))
+        WitmodEvidence(device, "identity_timeout", false, "opcode=0D reports=%u win32=%lu", reports, error);
     return false;
 }
 
 bool ReceiveCapability(Session& session, irok_nd75::CapabilityInfo* out)
 {
     if (g_stop.load(std::memory_order_acquire)) return false;
-    if (!session.Send(irok_nd75::BuildCapabilityRequest())) return false;
+    const auto& device = session.Device();
+    if (!session.Send(irok_nd75::BuildCapabilityRequest())) {
+        WitmodEvidence(device, "capability_write", false, "opcode=21 sub=04 win32=%lu", GetLastError());
+        return false;
+    }
     const auto deadline = GetTickCount64() + kProofTimeoutMs;
     irok_nd75::Report report{};
-    while (!g_stop.load(std::memory_order_acquire) &&
-        GetTickCount64() < deadline)
-        if (session.Read(&report, 100) && irok_nd75::DecodeCapabilityInfo(
-                report.data(), report.size(), out))
+    unsigned replies = 0;
+    while (!g_stop.load(std::memory_order_acquire) && GetTickCount64() < deadline) {
+        if (!session.Read(&report, 100)) continue;
+        if (irok_nd75::DecodeCapabilityInfo(report.data(), report.size(), out)) {
+            WitmodEvidence(device, "capability", false, "value=%u decoded=1", unsigned(out->sensitivity));
             return true;
+        }
+        if (report[0] == 1 && report[1] == 0x21 && report[6] == 0x04)
+            WitmodEvidence(device, "capability", false, "value=%u decoded=0", unsigned(report[7]));
+        ++replies;
+    }
+    if (!g_stop.load(std::memory_order_acquire))
+        WitmodEvidence(device, "capability_timeout", false, "opcode=21 sub=04 replies=%u", replies);
     return false;
 }
 
-bool ReceiveMap(Session& session, irok_nd75::PositionToHid* map, bool allowDuplicateHids = false)
+bool ReceiveMap(Session& session, irok_nd75::PositionToHid* map,
+    bool allowDuplicateHids = false, bool hz94 = false)
 {
-    if (!session.Send(irok_na87::MapRequest())) return false;
-    irok_na87::MapReader reader(allowDuplicateHids);
-    const auto deadline=GetTickCount64()+kProofTimeoutMs;
-    while (!g_stop.load() && GetTickCount64()<deadline) {
-        irok_nd75::Report r{};
-        if (session.Read(&r,100)) reader.Feed(r);
-        if (reader.Complete()) { *map=reader.Map(); return true; }
+    const auto& device = session.Device();
+    if (!session.Send(irok_na87::MapRequest())) {
+        WitmodEvidence(device, "map_write", false, "opcode=10 win32=%lu", GetLastError());
+        return false;
     }
+    irok_na87::MapReader reader(allowDuplicateHids);
+    const auto deadline = GetTickCount64() + kProofTimeoutMs;
+    while (!g_stop.load() && GetTickCount64() < deadline) {
+        irok_nd75::Report report{};
+        if (session.Read(&report, 100)) reader.Feed(report);
+        if (reader.Complete()) {
+            const auto geometry = irok_hz94::InspectMap(reader.Map());
+            WitmodEvidence(device, "map", false,
+                "rows=%02X assigned=%u hz94=%u factory_match=%u outside=%u",
+                reader.RowMask(), geometry.assigned, unsigned(hz94), geometry.factory, geometry.outside);
+            if (hz94 && !geometry.Admitted()) return false;
+            *map = reader.Map();
+            return true;
+        }
+        if (reader.Conflict()) break;
+    }
+    if (!g_stop.load())
+        WitmodEvidence(device, "map_refused", false, "rows=%02X conflict=%u assignments=%zu",
+            reader.RowMask(), unsigned(reader.Conflict()), irok_nd75::MappedKeyCount(reader.Map()));
     return false;
 }
 
 bool Prove(const Candidate& candidate, Proof* out)
 {
-    Session session(candidate,false,false);
+    Session session(candidate, false, false);
     Proof proof{};
-    if (g_stop.load() || !session.Open() ||
-        !ReceiveIdentity(session,&proof.identity) ||
-        !ReceiveCapability(session,&proof.capability) ||
-        proof.capability.sensitivity!=40 || !ReceiveMap(session,&proof.map,
-            !irok_na87::IsExpectedDevice(proof.identity))) return false;
-    DebugLog_Write(L"[irok.na87.proof] pass identity_validated=1 mapped_positions=%llu scale=0..40",
+    if (g_stop.load() || !session.Open()) return false;
+    if (!ReceiveIdentity(session, &proof.identity)) {
+        if (proof.identity.product[0] && !g_stop.load())
+            g_foreignIdentity.push_back(candidate.path);
+        return false;
+    }
+    const bool hz94 = irok_hz94::Matches(proof.identity);
+    if (!ReceiveCapability(session, &proof.capability) || proof.capability.sensitivity != 40 ||
+        !ReceiveMap(session, &proof.map, !irok_na87::IsExpectedDevice(proof.identity), hz94)) return false;
+    DebugLog_Write(L"[witmod.proof] pass identity_validated=1 mapped_positions=%llu scale=0..40",
         static_cast<unsigned long long>(irok_nd75::MappedKeyCount(proof.map)));
-    if (out) *out=proof;
+    if (out) *out = proof;
     return true;
 }
 
@@ -432,7 +600,8 @@ bool EnsureClaim(const Candidate& candidate, Proof* proof)
 
 void Clear()
 {
-    halljoy::native_layout::Clear(irok_na87::kAnsiLayoutToken);
+    halljoy::native_layout::Clear(StreamLayout());
+    g_hz94Pid.store(0, std::memory_order_release);
     const bool assignedChanged=g_assignedValues.Clear();
     bool changed=g_factoryValues.Clear() || assignedChanged;
     for (auto& value:g_positionMilli) value.store(0);
@@ -443,17 +612,23 @@ void Clear()
     if (changed) RealtimeLoop_NotifyInputChanged();
 }
 
-void PublishOwnership(const irok_nd75::PositionToHid& map)
+bool PublishOwnership(const irok_nd75::PositionToHid& map)
 {
-    constexpr auto factory=irok_na87::FactoryMap();
-    std::vector<halljoy::native_layout::Key> keys;
-    for (std::size_t pos=0;pos<map.size();++pos) {
-        const auto id=static_cast<std::uint8_t>(pos+1);
-        g_factoryValues.Bind(id,factory[pos]);g_assignedValues.Bind(id,map[pos]);
-        if (map[pos]) g_owned[map[pos]].store(1,std::memory_order_relaxed);
-        if (factory[pos]) keys.push_back({factory[pos],map[pos]});
+    const bool hz94 = g_hz94Pid.load() != 0;
+    constexpr auto na87Factory = irok_na87::FactoryMap();
+    const auto& factory = hz94 ? irok_hz94::kFactoryMap : na87Factory;
+    std::array<halljoy::native_layout::Key, irok_nd75::kMatrixSlots> keys{};
+    std::size_t count = 0;
+    for (std::size_t pos = 0; pos < map.size(); ++pos) {
+        const auto id = static_cast<std::uint8_t>(pos + 1);
+        const std::uint16_t physical = hz94 ? irok_hz94::HostCode(factory[pos]) : factory[pos];
+        const std::uint16_t assigned = hz94 ? irok_hz94::HostCode(map[pos]) : map[pos];
+        g_factoryValues.Bind(id, physical);
+        g_assignedValues.Bind(id, assigned);
+        if (map[pos]) g_owned[map[pos]].store(1, std::memory_order_relaxed);
+        if (physical) keys[count++] = {physical, assigned};
     }
-    halljoy::native_layout::Publish(irok_na87::kAnsiLayoutToken,keys.data(),keys.size());
+    return halljoy::native_layout::Publish(StreamLayout(), keys.data(), count);
 }
 
 void Publish(const irok_nd75::LiveEvent& event, const Proof& proof,
@@ -486,6 +661,7 @@ void Publish(const irok_nd75::LiveEvent& event, const Proof& proof,
 
 bool Run(const Candidate& candidate, Proof proof)
 {
+    const bool hz94 = irok_hz94::Matches(proof.identity);
     Session session(candidate, proof.exclusive, proof.useControlWrite);
     if (!session.Open()) return false;
     irok_nd75::DeviceInfo sessionIdentity{};
@@ -495,7 +671,7 @@ bool Run(const Candidate& candidate, Proof proof)
             proof.identity.controller.data()) != 0 ||
         std::strcmp(sessionIdentity.product.data(), proof.identity.product.data()) != 0 ||
         !ReceiveCapability(session, &sessionCapability) ||
-        sessionCapability.sensitivity != 40 || !ReceiveMap(session, &proof.map))
+        sessionCapability.sensitivity != 40 || !ReceiveMap(session, &proof.map, hz94, hz94))
     {
         DebugLog_Write(L"[irok.na87.session] capability_changed_after_claim=1");
         return false;
@@ -505,20 +681,31 @@ bool Run(const Candidate& candidate, Proof proof)
     g_inputBytes.store(candidate.caps.InputReportByteLength);
     g_outputBytes.store(candidate.caps.OutputReportByteLength);
     Clear();
-    PublishOwnership(proof.map);
+    if (hz94) g_hz94Pid.store(candidate.attributes.ProductID, std::memory_order_release);
+    if (!PublishOwnership(proof.map) && hz94) {
+        WitmodEvidence(candidate, "layout_refused", false, "token_publish=0");
+        Clear();
+        return false;
+    }
     g_mapped.store(static_cast<unsigned>(irok_nd75::MappedKeyCount(proof.map)));
     auto mask = irok_nd75::SubscriptionMask(proof.map);
-    const auto factoryMask=irok_nd75::SubscriptionMask(irok_na87::FactoryMap());
+    const auto factoryMask = irok_nd75::SubscriptionMask(
+        hz94 ? irok_hz94::kFactoryMap : irok_na87::FactoryMap());
     for (std::size_t col=0;col<mask.size();++col) mask[col]|=factoryMask[col];
     if (!session.Send(irok_nd75::BuildUnsubscribeRequest()) ||
         !session.Send(irok_nd75::BuildSubscriptionRequest(mask)))
     {
+        if (hz94) {
+            WitmodEvidence(candidate, "subscribe_failed", false, "opcode=21 win32=%lu", GetLastError());
+            session.Send(irok_nd75::BuildUnsubscribeRequest());
+        }
         Clear();
         return false;
     }
+    if (hz94) WitmodEvidence(candidate, "subscribe", false, "opcode=21 sub=02 channels=94 waiting_for_travel=1");
     g_diagnosticStatus.store(0);
-    g_connected.store(true, std::memory_order_release);
-    DebugLog_Write(L"[irok.na87.session] connected vid=0416 pid=7372 controller=%hs product=%hs firmware=%hs mapped_positions=dynamic nominal_max=40 sensitivity=%u mode=%ls exclusive=%d strategy=live_subscription_only",
+    g_connected.store(!hz94, std::memory_order_release);
+    DebugLog_Write(L"[witmod.session] subscribed vid=0416 pid=7372 controller=%hs product=%hs firmware=%hs mapped_positions=dynamic nominal_max=40 sensitivity=%u mode=%ls exclusive=%d strategy=live_subscription_only",
         proof.identity.controller.data(), proof.identity.product.data(),
         proof.identity.firmware.data(), proof.capability.sensitivity,
         proof.useControlWrite ? L"control" : L"write",
@@ -530,6 +717,17 @@ bool Run(const Candidate& candidate, Proof proof)
     std::uint64_t lastProofMs=GetTickCount64(), lastProbeMs=lastProofMs;
     std::uint32_t consecutiveReadErrors = 0;
     bool transportLost = false;
+    const auto streamStart = GetTickCount64();
+    auto nextEvidence = streamStart + 5000;
+    std::uint64_t samples = 0, positive = 0, releases = 0, malformed = 0;
+    unsigned depthMax = 0, peak = 0, otherReports = 0;
+    const auto streamEvidence = [&](const char* stage) {
+        WitmodEvidence(candidate, stage, true,
+            "elapsed_ms=%llu samples=%llu positive=%llu releases=%llu malformed=%llu max_depth=%u peak_active=%u",
+            GetTickCount64() - streamStart, static_cast<unsigned long long>(samples),
+            static_cast<unsigned long long>(positive), static_cast<unsigned long long>(releases),
+            static_cast<unsigned long long>(malformed), depthMax, peak);
+    };
 #if defined(HALLJOY_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG)
     std::array<std::uint64_t, 256> diagnosticEvents{};
     std::array<std::uint64_t, 256> diagnosticReleases{};
@@ -572,6 +770,7 @@ bool Run(const Candidate& candidate, Proof proof)
                 ++consecutiveReadErrors;
                 g_failures.fetch_add(1, std::memory_order_relaxed);
                 const bool deviceLost = IsDeviceLossError(readError);
+                if (hz94) WitmodEvidence(candidate, "travel_read", false, "win32=%lu", readError);
                 DebugLog_WriteBuffered(L"[irok.na87.transport] read_failed win32=%lu consecutive=%u device_lost=%d",
                     readError, consecutiveReadErrors, deviceLost ? 1 : 0);
                 if (irok_nd75::ClassifyReadFailure(
@@ -590,9 +789,25 @@ bool Run(const Candidate& candidate, Proof proof)
             consecutiveReadErrors = 0;
         }
         irok_nd75::LiveEvent event{};
-        if (received && report[2]==0 && report[3]==0 && report[4]==0 &&
-            report[5]==3 && irok_nd75::DecodeLiveEvent(report.data(),
-                report.size(), &event))
+        bool live = received && report[2] == 0 && report[3] == 0 && report[4] == 0 &&
+            report[5] == 3 && irok_nd75::DecodeLiveEvent(report.data(), report.size(), &event);
+        if (hz94 && received && report[0] == 1 && report[1] == 0x21 && report[6] == 1) {
+            const auto pos = std::size_t(event.row) * irok_nd75::kColumns + event.column;
+            const bool mapped = live && irok_hz94::kFactoryMap[pos];
+            const bool inRange = live && event.travel <= irok_nd75::kNominalTravelMaximum;
+            if (!(mapped && inRange)) {
+                if (++malformed == 1)
+                    WitmodEvidence(candidate, "travel_refused", false,
+                        "report_id=01 opcode=21 size_field=%u envelope=%u mapped=%u range_ok=%u",
+                        unsigned(report[5]), unsigned(live), unsigned(mapped), unsigned(inRange));
+                live = false;
+            }
+        } else if (hz94 && received && report[1] != 0x0d && otherReports < 4) {
+            ++otherReports;
+            WitmodEvidence(candidate, "travel_other", false, "id=%02X opcode=%02X",
+                unsigned(report[0]), unsigned(report[1]));
+        }
+        if (live)
         {
             const auto nowUs = NowUs();
             if (previousUs && nowUs > previousUs)
@@ -612,7 +827,24 @@ bool Run(const Candidate& candidate, Proof proof)
             const std::uint16_t diagnosticOld = diagnosticHid
                 ? g_milli[diagnosticHid].load(std::memory_order_relaxed) : 0;
 #endif
+            bool firstRelease = false;
+            if (hz94) {
+                const auto pos = std::size_t(event.row) * irok_nd75::kColumns + event.column;
+                ++samples;
+                positive += event.travel != 0;
+                if (event.travel == 0 && g_positionMilli[pos].load() != 0)
+                    firstRelease = ++releases == 1;
+                depthMax = std::max(depthMax, unsigned(event.travel));
+            }
             Publish(event, proof, qpc.QuadPart);
+            if (hz94) {
+                peak = std::max(peak, unsigned(g_active.load()));
+                if (event.travel && !g_connected.exchange(true, std::memory_order_acq_rel)) {
+                    streamEvidence("travel_started");
+                    RealtimeLoop_NotifyInputChanged();
+                }
+                if (firstRelease) streamEvidence("release_seen");
+            }
             g_liveEvents.fetch_add(1, std::memory_order_relaxed);
 #if defined(HALLJOY_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG)
             if (diagnosticHid)
@@ -645,13 +877,22 @@ bool Run(const Candidate& candidate, Proof proof)
 
         const auto nowMs = GetTickCount64();
         irok_nd75::DeviceInfo heartbeat{};
-        if (received && irok_nd75::DecodeDeviceInfo(report.data(),report.size(),&heartbeat) &&
-            irok_na87::IsExpectedDevice(heartbeat)) lastProofMs=nowMs;
+        if (received && irok_nd75::DecodeDeviceInfo(report.data(), report.size(), &heartbeat) &&
+            (hz94 ? irok_hz94::Matches(heartbeat) : irok_na87::IsExpectedDevice(heartbeat))) lastProofMs = nowMs;
+        if (hz94 && nowMs >= nextEvidence) {
+            streamEvidence("travel");
+            nextEvidence = nowMs + 30000;
+        }
         if (nowMs-lastProbeMs>=1000) {
-            if (!session.Send(irok_nd75::BuildIdentityRequest())) { transportLost=true; break; }
+            if (!session.Send(irok_nd75::BuildIdentityRequest())) {
+                if (hz94) WitmodEvidence(candidate, "heartbeat_write", false, "win32=%lu", GetLastError());
+                transportLost=true;
+                break;
+            }
             lastProbeMs=nowMs;
         }
         if (nowMs-lastProofMs>=3000) {
+            if (hz94) WitmodEvidence(candidate, "heartbeat_timeout", false, "elapsed_ms=%llu", nowMs-lastProofMs);
             DebugLog_Write(L"[irok.na87.transport] heartbeat_timeout neutralized=1 reconnect_pending=1");
             transportLost=true; break;
         }
@@ -719,8 +960,15 @@ bool Run(const Candidate& candidate, Proof proof)
             diagnosticStartedLive),
         static_cast<unsigned long long>(g_failures.load()));
 #endif
-    if (!transportLost)
+    if (hz94) {
+        g_connected.store(false, std::memory_order_release);
+        streamEvidence("travel_end");
+        const bool stopped = session.Send(irok_nd75::BuildUnsubscribeRequest());
+        WitmodEvidence(candidate, "unsubscribe", false, "sent=%u stop=%u transport_lost=%u win32=%lu",
+            unsigned(stopped), unsigned(g_stop.load()), unsigned(transportLost), stopped ? 0ul : GetLastError());
+    } else if (!transportLost) {
         session.Send(irok_nd75::BuildUnsubscribeRequest());
+    }
     return true;
 }
 
@@ -901,7 +1149,7 @@ std::uint32_t WorkerBody()
                 if(ran) break;
                 continue;
             }
-            if(!irok_na87::IsExpectedDevice(proof.identity)) continue;
+            if (!irok_na87::IsExpectedDevice(proof.identity) && !irok_hz94::Matches(proof.identity)) continue;
             provenPresent = true;
             g_present.store(true, std::memory_order_release);
             ran = Run(candidate, proof);
@@ -956,6 +1204,7 @@ bool Prepare()
     if (g_prepared.exchange(true, std::memory_order_acq_rel))
         return NativeAnalogRouting_ProtocolHasClaims(
             NativeAnalogProtocol::IrokNa87M484);
+    SupportLog_Evidence("evidence.witmod.discovery revision=1", false);
     bool claimed = false;
     for (const auto& candidate : Enumerate(false, true))
     {
@@ -1045,6 +1294,8 @@ bool Connected()
 bool Owns(std::uint16_t hid)
 {
     if(g_ajazzPlaying.load()) return Connected() && g_factoryValues.Owns(static_cast<std::uint16_t>(halljoy::ajazz::HostCode(hid)));
+    if (g_hz94Pid.load()) return Connected() && (halljoy::native_layout::UsesRemapping(kHz94Layout)
+        ? g_assignedValues : g_factoryValues).Owns(hid);
     return hid < g_owned.size() && Connected() &&
         (!g_ajazzPlaying.load() && halljoy::native_layout::UsesRemapping(irok_na87::kAnsiLayoutToken)
             ? g_owned[hid].load(std::memory_order_relaxed)!=0 : g_factoryValues.Owns(hid));
@@ -1053,7 +1304,7 @@ bool Owns(std::uint16_t hid)
 std::uint16_t Get(std::uint16_t hid)
 {
     if(g_ajazzPlaying.load()) return Connected()?g_factoryValues.Read(static_cast<std::uint16_t>(halljoy::ajazz::HostCode(hid)),GetTickCount64(),100).milli:0;
-    return Owns(hid) ? (!g_ajazzPlaying.load() && halljoy::native_layout::UsesRemapping(irok_na87::kAnsiLayoutToken)
+    return Owns(hid) ? (!g_ajazzPlaying.load() && halljoy::native_layout::UsesRemapping(StreamLayout())
         ? g_assignedValues : g_factoryValues).Read(hid,GetTickCount64(),~std::uint64_t{0}).milli : 0;
 }
 
@@ -1064,12 +1315,16 @@ void Telemetry(NativeAnalogBackendTelemetry* out)
     if(g_ajazzPlaying.load()) wcsncpy_s(out->deviceName,L"AJAZZ AK820 MAX HE (wired, RGB)",_TRUNCATE);
     out->present = Present();
     out->connected = Connected();
-    if (out->connected && !g_ajazzPlaying.load()) out->verifiedLayoutToken=irok_na87::kAnsiLayoutToken;
+    const auto hz94Pid = g_hz94Pid.load();
+    if (hz94Pid) wcsncpy_s(out->deviceName, L"E-YOOSO HZ-94", _TRUNCATE);
+    if (out->connected && !g_ajazzPlaying.load())
+        out->verifiedLayoutToken = hz94Pid ? kHz94Layout : irok_na87::kAnsiLayoutToken;
+    out->genericProtocol = out->connected && hz94Pid != 0;
     // AJAZZ plays only after the exact SG8994HERGB identity proof: official illumipc layout.
     if (out->connected && g_ajazzPlaying.load())
         out->verifiedLayoutToken=halljoy::layout_identity::Token("ajazz-m484","SG8994HERGB");
     out->vendorId = kVendorId;
-    out->productId = kProductId;
+    out->productId = hz94Pid ? hz94Pid : kProductId;
     out->usagePage = kUsagePage;
     out->usage = kUsage;
     out->mappedKeys = g_mapped.load();
@@ -1088,6 +1343,7 @@ void Telemetry(NativeAnalogBackendTelemetry* out)
             0xffffffffull)) : 0;
     _snwprintf_s(out->status, _countof(out->status), _TRUNCATE,
         g_ajazzPlaying.load() ? L"AJAZZ AK820 MAX HE (wired, RGB): USB analog, automatic key range, range_errors=%llu" :
+        hz94Pid ? L"E-YOOSO HZ-94: Witmod trial, device map, raw 0..40, range_errors=%llu" :
         L"IROK NA87 M484 experimental, device map, raw 0..40, range_errors=%llu",
         static_cast<unsigned long long>(g_outOfRange.load()));
 }
@@ -1242,11 +1498,39 @@ bool IrokNa87_TryRunSelfTest(int& result) noexcept
         telemetry.verifiedLayoutToken==halljoy::layout_identity::Token("ajazz-m484","SG8994HERGB") &&
         wcscmp(telemetry.deviceName,L"AJAZZ AK820 MAX HE (wired, RGB)")==0;
     EndAjazzPlay();pass=pass && Get(22)==0 && !Connected();
+
+    // HZ-94 uses the same route with its own physical matrix and Fn identity.
+    const auto mapEvidence = irok_hz94::InspectMap(irok_hz94::kFactoryMap);
+    pass = pass && mapEvidence.Admitted() && mapEvidence.factory == 94 &&
+        mapEvidence.assigned == 94 && !irok_hz94::InspectMap(irok_na87::FactoryMap()).Admitted();
+    Proof hz94Proof{};
+    hz94Proof.map = irok_hz94::kFactoryMap;
+    hz94Proof.map[3 * 22 + 3] = 4; // S remapped to A; physical channels remain independent.
+    g_hz94Pid.store(0x7473);
+    pass = PublishOwnership(hz94Proof.map) && pass;
+    Telemetry(&telemetry);
+    pass = pass && !telemetry.connected && !telemetry.verifiedLayoutToken;
+    Publish({3, 2, 20}, hz94Proof, 0);
+    Publish({3, 3, 30}, hz94Proof, 0);
+    Publish({5, 11, 10}, hz94Proof, 0);
+    g_connected.store(true);
+    Telemetry(&telemetry);
+    pass = pass && telemetry.connected && telemetry.verifiedLayoutToken == kHz94Layout &&
+        telemetry.productId == 0x7473 && wcscmp(halljoy::layout_identity::Match(kHz94Layout), L"E-YOOSO HZ-94 ANSI") == 0 &&
+        Get(4) == 500 && Get(22) == 750 && Get(halljoy::keycode::kFn) == 250;
+    halljoy::native_layout::activeToken = kHz94Layout;
+    pass = pass && Get(4) == 750;
+    Publish({3, 3, 0}, hz94Proof, 0);
+    pass = pass && Get(4) == 500;
+    g_connected.store(false);
+    Clear();
+    pass = pass && !Get(4) && !halljoy::native_layout::Read(kHz94Layout).complete;
+
     const auto pipeName=L"\\\\.\\pipe\\HallJoyNa87SelfTest-"+std::to_wstring(GetCurrentProcessId());
     {
         Handle server(CreateNamedPipeW(pipeName.c_str(),PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,
             PIPE_TYPE_BYTE|PIPE_READMODE_BYTE|PIPE_WAIT,1,4096,4096,0,nullptr));
-        Candidate candidate{};candidate.path=pipeName;
+        Candidate candidate{};candidate.path=pipeName;candidate.attributes.ProductID=0x7473;
         if (!server) pass=false;
         else {
             Session stream(candidate,false,false);
@@ -1258,6 +1542,47 @@ bool IrokNa87_TryRunSelfTest(int& result) noexcept
                 pass=TimedIo(server.value,true,sent.data(),64,200,&bytes) && bytes==64 && pass;
                 pass=stream.Read(&report,200) && report==sent && pass;
                 pass=(!stream.Read(&report,20) && GetLastError()==WAIT_TIMEOUT) && pass;
+                // Exercise the ordinary proof functions over real overlapped I/O.
+                const auto writeReply = [&](irok_nd75::Report& reply) {
+                    DWORD size = 0;
+                    return TimedIo(server.value, true, reply.data(), 64, 200, &size) && size == 64;
+                };
+                const auto requestWas = [&](irok_nd75::Report expected) {
+                    irok_nd75::Report request{};
+                    DWORD size = 0;
+                    return TimedIo(server.value, false, request.data(), 64, 200, &size) &&
+                        size == 64 && request == expected;
+                };
+                const auto identityReply = [&](const char* product) {
+                    irok_nd75::Report reply{1, 0x0d};
+                    const auto size = sprintf_s(reinterpret_cast<char*>(reply.data() + 6),
+                        reply.size() - 6, "GDXXX,01,KB,FR,%s,V1_00_09", product);
+                    reply[5] = static_cast<std::uint8_t>(size + 6);
+                    return reply;
+                };
+                irok_nd75::DeviceInfo board{};
+                auto neighbor = identityReply("7186_AUSHERGB");
+                pass = writeReply(neighbor) && !ReceiveIdentity(stream, &board) &&
+                    requestWas(irok_nd75::BuildIdentityRequest()) && pass;
+                auto boardReply = identityReply("7187_AUSXHERGB");
+                pass = writeReply(boardReply) && ReceiveIdentity(stream, &board) &&
+                    irok_hz94::Matches(board) && requestWas(irok_nd75::BuildIdentityRequest()) && pass;
+                irok_nd75::Report capReply{1, 0x21, 0, 0, 0, 2, 4, 40};
+                irok_nd75::CapabilityInfo capability{};
+                pass = writeReply(capReply) && ReceiveCapability(stream, &capability) &&
+                    capability.sensitivity == 40 && requestWas(irok_nd75::BuildCapabilityRequest()) && pass;
+                for (unsigned row = 0; row < 6; ++row) {
+                    irok_nd75::Report mapReply{1, 0x10};
+                    mapReply[3] = row == 5 ? 255 : 0;
+                    mapReply[4] = row == 5 ? 255 : static_cast<std::uint8_t>(row + 1);
+                    mapReply[5] = 22;
+                    std::copy_n(irok_hz94::kFactoryMap.begin() + row * 22, 22, mapReply.begin() + 6);
+                    pass = writeReply(mapReply) && pass;
+                }
+                irok_nd75::PositionToHid map{};
+                pass = ReceiveMap(stream, &map, true, true) && map == irok_hz94::kFactoryMap &&
+                    requestWas(irok_na87::MapRequest()) && pass;
+                pass = !stream.Read(&report, 20) && GetLastError() == WAIT_TIMEOUT && pass;
                 // Destruction must cancel and reap the still-pending read.
             }
         }

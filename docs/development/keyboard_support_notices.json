@@ -432,6 +432,11 @@
           "status": "Implemented; awaiting hardware testing"
         },
         {
+          "brand": "Keydous",
+          "model": "NJ98-CP V4S TMR",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
           "brand": "MonsGeek",
           "model": "FUN60 Pro",
           "status": "Implemented; awaiting hardware testing"
@@ -624,11 +629,6 @@
         {
           "brand": "EvoFox",
           "model": "Ronin HS65",
-          "status": "Implemented; awaiting hardware testing"
-        },
-        {
-          "brand": "AJAZZ",
-          "model": "AK680 MAX HE",
           "status": "Implemented; awaiting hardware testing"
         },
         {
@@ -1282,6 +1282,34 @@
           "brand": "YUNZII",
           "model": "RT75 PRO",
           "board": 2865
+        },
+        {
+          "token": "0xe8eb300245326b1c",
+          "pid": 20525,
+          "brand": "AJAZZ",
+          "model": "AK680 MAX HE",
+          "board": 2255
+        },
+        {
+          "token": "0xe8eb300245326b1c",
+          "pid": 20527,
+          "brand": "AJAZZ",
+          "model": "AK680 MAX HE",
+          "board": 2336
+        },
+        {
+          "token": "0xe8eb300245326b1c",
+          "pid": 20527,
+          "brand": "AJAZZ",
+          "model": "AK680 MAX HE",
+          "board": 2343
+        },
+        {
+          "token": "0xe8eb300245326b1c",
+          "pid": 20527,
+          "brand": "AJAZZ",
+          "model": "AK680 MAX HE",
+          "board": 2371
         }
       ]
     },
@@ -1490,6 +1518,11 @@
         {
           "brand": "SteelSeries",
           "model": "Apex Pro TKL",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "SteelSeries",
+          "model": "Apex Pro TKL Gen 3",
           "status": "Implemented; awaiting hardware testing"
         }
       ]
@@ -1740,11 +1773,28 @@
       "flag": 536870912,
       "protocol": 3,
       "runtime": "generic-telemetry",
-      "note": "Flag comes from backend telemetry genericProtocol (family match, no catalog token); no NativeNotice condition is generated. docs/current/GENERIC_PROTOCOL_SUPPORT_2026-10-07.md",
+      "note": "Flag comes from backend telemetry genericProtocol (family match, no catalog token); no NativeNotice condition is generated. docs/current/GENERIC_PROTOCOL_SUPPORT_2026-10-07.md IPI Flash 75 PRO / Gemini Seven-Star is hardware-confirmed on generic SparkLink protocol 4, but its exact built-in layout is pending (2026-11-03).",
       "models": [
         {
           "brand": "FuryCube",
           "model": "M35HE",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "IPI / QBZ",
+          "model": "Flash 75 PRO / Gemini Seven-Star",
+          "status": "Implemented; layout pending"
+        }
+      ]
+    },
+    {
+      "id": "CorsairVanguard",
+      "flag": 4294967296,
+      "protocol": 33,
+      "models": [
+        {
+          "brand": "Corsair",
+          "model": "VANGUARD PRO 96",
           "status": "Implemented; awaiting hardware testing"
         }
       ]

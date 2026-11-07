@@ -8,6 +8,31 @@
         "private": true
       },
       {
+        "path": ".local/research/keydous-nj98v4s-20261105/07c90958.js",
+        "sha256": "7982b093df5bfaadbb269935ce1e699cc7bbdb1345e3d4dbce96479bac2e55a8",
+        "private": true
+      },
+      {
+        "path": ".local/research/keydous-nj98v4s-20261105/22e2022d.js",
+        "sha256": "f683d9995ece998475ead905a5cc2c7dda35c9da44f448b14dc86ef0305d9266",
+        "private": true
+      },
+      {
+        "path": ".local/research/keydous-nj98v4s-20261105/827485a6.js",
+        "sha256": "3517f14aaf8763140b08b3f820d60b00727e1d659ec9caf91495d7cd6945d02d",
+        "private": true
+      },
+      {
+        "path": ".local/research/keydous-nj98v4s-20261105/aade6cc1.js",
+        "sha256": "03e5d7fc23a045647a2921a9e5d6789a8ed7485062ebbcb78ad0205bbe024f52",
+        "private": true
+      },
+      {
+        "path": ".local/research/keydous-nj98v4s-20261105/v4-index.js",
+        "sha256": "919b104944fb60e0c5c8a721b84138991087d69a45d6a7b42e7bd610d67aec0d",
+        "private": true
+      },
+      {
         "path": ".local/research/monsgeek-20260922/a0c3a7d8.js",
         "sha256": "c721ddc06480359ef8bc31908b7a80e724b0883d51e646274ccf47628c1774e6",
         "private": true
@@ -19,7 +44,12 @@
       },
       {
         "path": "docs/development/keyboard_support_notices.json",
-        "sha256": "f49740f87550bab87cfdb09d1193a94d79b513608ec7f7763639dd7b6670d48d",
+        "sha256": "067f18f228d282a7964848c2dcf4238c4d2c11ce90268c31666447ae39d355f1",
+        "private": false
+      },
+      {
+        "path": "docs/research/keydous-layouts/nj98_cp_v4s_ansi.json",
+        "sha256": "c722c13a41e7438f2e9aef61ddfcff652f15a77076b6dc925122fe4f40685b18",
         "private": false
       },
       {
@@ -1253,6 +1283,11 @@
         "private": true
       },
       {
+        "path": "docs/research/rongyuan-stream/keydous-nj98v4s.json",
+        "sha256": "0af5da06546b23e028ff97cfa78b75725e718a6cf6877ec1bf12b92399aa9c9f",
+        "private": false
+      },
+      {
         "path": "docs/research/rongyuan-stream/monsgeek-app-models.json",
         "sha256": "b6e1d9da018fec7581283eade1ff7a779947cd888f122016a49d254be0aa07fd",
         "private": false
@@ -1294,17 +1329,47 @@
       },
       {
         "path": "src/HallJoyProject/HallJoy/rongyuan_stream_protocol.h",
-        "sha256": "ee81fcad04ff8983f2c708444962f78a7d9a7b72784f75a1902fea25c9e5eef2",
+        "sha256": "9722b34700ff605c3b277640fff7e9cb3c74ee74ce51296da4f99c09a4767e58",
         "private": false
       },
       {
         "path": "tools/check_rongyuan_stream_profiles.py",
-        "sha256": "121e9eb2f4d0d952ff10b3e95167c387ae2e9e0075d0d3b86948f28967964cd0",
+        "sha256": "a1ca2a48369660fc2922a3970754f9d0929121ebb4fa1c1f698f2ecc8cd618ed",
+        "private": false
+      },
+      {
+        "path": "tools/extract_attackshark_family_layouts.py",
+        "sha256": "b3603ba59e52af35f390addc87e1e413b7fc74f5cf8cbdcf09972e0ee05d8780",
+        "private": false
+      },
+      {
+        "path": "tools/generate_attackshark_family.py",
+        "sha256": "47bd62d30a1b4b93b875fedb1415230079f1dadf021becb63b2d96c36e5b8f83",
+        "private": false
+      },
+      {
+        "path": "tools/generate_attackshark_layouts.py",
+        "sha256": "f0d7d55e297c23e037878b1adcb3d06064488d4af47df314fbf55e3c63fc0761",
+        "private": false
+      },
+      {
+        "path": "tools/keydous_nj98v4s.py",
+        "sha256": "c0b880021321878516a728c7b9dcbc9097b618f3e8589925d2e684c92c57063b",
         "private": false
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "195c10b4a5907292b44059189feb723a74a5b403ddbf9279fb9cc0e0a6c45c5f",
+        "sha256": "09df0b8f960dbe0adf3995adc33efa42f4f3eb7d85db3e59e49c6f915c580008",
+        "private": false
+      },
+      {
+        "path": "tools/layout_import.py",
+        "sha256": "5ad11ae0e7c831305a8467b145d91733aa1638588b1113b4bbc1a2ab29541b68",
+        "private": false
+      },
+      {
+        "path": "tools/layout_pipeline.py",
+        "sha256": "8d7d888e69dc5831abd340153d5c2b6fad766defd301083bdd2fd16f8196cac2",
         "private": false
       }
     ],
@@ -1859,7 +1924,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "195c10b4a5907292b44059189feb723a74a5b403ddbf9279fb9cc0e0a6c45c5f",
+        "sha256": "09df0b8f960dbe0adf3995adc33efa42f4f3eb7d85db3e59e49c6f915c580008",
         "private": false
       },
       {
@@ -3379,6 +3444,71 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/Corsair K70 PRO TKL ANSI.ini",
+        "sha256": "1588bc9281c62962d36da9182b6c2f571ea5931a805e8dd6cf41bcd3f4fd709e",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/Corsair K70 PRO TKL ISO.ini",
+        "sha256": "c0794bbd1d5549f99309e98478baf221314039b8b0daa059cf11444f8852f00c",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/Corsair K70 PRO TKL JIS.ini",
+        "sha256": "a8c3c2062f5d68d52b940d757bc44eef6cf5995dee6b2e3b4d1cfd7ad803a1d8",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/Corsair VANGUARD PRO 96 ANSI.ini",
+        "sha256": "01b3fb9da632bb58e34c977fde45894bc29aba8b78d5198f12caa3644373b908",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/Corsair VANGUARD PRO 96 ISO.ini",
+        "sha256": "af135068db3dc6febedfbad4053056357cdee4a752a5d9ae4d94f639d721c67e",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/Corsair VANGUARD PRO 96 JIS.ini",
+        "sha256": "9e55d3ab271b61dca92f024b34bb47bd21f1e9d9d0fd0ab81b39211e653aef07",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/corsair_k70_pro_tkl_ansi-review.json",
+        "sha256": "932aaa48f7d27fee8f188569f3782172a51366f3a750062aa54c6f0b3b9622bb",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/corsair_k70_pro_tkl_iso-review.json",
+        "sha256": "93b16e05024fd4909a3aa834e79165e2718d7197611475a1950ed0064d1c3f2a",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/corsair_k70_pro_tkl_jis-review.json",
+        "sha256": "77cbc65eba7ba7d265dbfa46fce6911613f9aa7bcef56fd016ae1f3104efc438",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/corsair_vanguard_pro_96_ansi-review.json",
+        "sha256": "5b43f8b3c5d8c3ce58415145cd548a80402a8d84f3dc8d2a4fa631db2e69cc01",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/corsair_vanguard_pro_96_iso-review.json",
+        "sha256": "d56dfa6fb670cd3693cba49a021e121b33b0d15b66f5df6375b4d823270aaad6",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/corsair_vanguard_pro_96_jis-review.json",
+        "sha256": "6028c388237a6a4078ee27fb6eedbd48007adc6ddd7126c36a24fc73152795f4",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/E-YOOSO HZ-94 ANSI.ini",
+        "sha256": "da7aade75f905cb074f412bfe23ee8ca445a318b18743076df18c823a49062b6",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/EPOMAKER G84 HE ANSI.ini",
         "sha256": "a85ee863a2ed89bbd83b4b69a0e6dac25025e7b96a8c939a654984b74854057e",
         "private": false
@@ -3506,6 +3636,11 @@
       {
         "path": "docs/exports/layout-pipeline/EWEADN ZAP87 HE ANSI.ini",
         "sha256": "03fbee3567d0f2a40d87023e518c411268278c724ec61efc2c6c78f7715e286a",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/eyooso_hz94_ansi-review.json",
+        "sha256": "5bcd0a739c75cae572c82dce72861c89d664c26c9b1b0e08641c3fe47a5f5d41",
         "private": false
       },
       {
@@ -3696,6 +3831,16 @@
       {
         "path": "docs/exports/layout-pipeline/iyx_mu68_pro_ansi-review.json",
         "sha256": "9df843ee1ee5a8ea34bc901c9bd27cba71a47f063f8680bba4f5e8e88358c5cd",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/Keydous NJ98-CP V4S TMR ANSI.ini",
+        "sha256": "af21f11809e8bb0dc23dcdf2d4a68d284ed3c0493b0838818d4707aafe6fb073",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/keydous_nj98_cp_v4s_ansi-review.json",
+        "sha256": "c722c13a41e7438f2e9aef61ddfcff652f15a77076b6dc925122fe4f40685b18",
         "private": false
       },
       {
@@ -4374,8 +4519,38 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/SteelSeries Apex Pro TKL Gen 3 ANSI.ini",
+        "sha256": "7b7bcfb496bfbf57eea36f96238ed56246fc75a073656631b2a109ce8f748c1b",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/SteelSeries Apex Pro TKL Gen 3 ISO.ini",
+        "sha256": "b39d938935e360380fa81095a905e50586f12687bf182d8f1c1fa5c13f819f64",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/SteelSeries Apex Pro TKL Gen 3 JIS.ini",
+        "sha256": "555689cf0f159dcb7f84bb5bffa1a43016d7ef2a6d477b93a4046eb719ffb1b6",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/steelseries_apex_pro_ansi-review.json",
         "sha256": "0ddd369d0388fb50580b12436ff1a4da4fa32a3aec17bbcd05d0a513f8869d43",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/steelseries_apex_pro_tkl_gen_3_ansi-review.json",
+        "sha256": "b6c0bebcde48df96ebabbc3994f3fd79949149657863f02bc48845a44f6eb59e",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/steelseries_apex_pro_tkl_gen_3_iso-review.json",
+        "sha256": "b1916af9efc57973dc754806d5b56f3c208ff8792e6745678a094250ae9a28a1",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/steelseries_apex_pro_tkl_gen_3_jis-review.json",
+        "sha256": "fa3fdc166067809004ec8a343ea9f5d9e3d398fe0828b968ff4449b6dc25cfa3",
         "private": false
       },
       {
@@ -5159,6 +5334,36 @@
         "private": true
       },
       {
+        "path": "docs/research/corsair-k70-tkl-layouts/corsair_k70_pro_tkl_ansi.json",
+        "sha256": "932aaa48f7d27fee8f188569f3782172a51366f3a750062aa54c6f0b3b9622bb",
+        "private": false
+      },
+      {
+        "path": "docs/research/corsair-k70-tkl-layouts/corsair_k70_pro_tkl_iso.json",
+        "sha256": "93b16e05024fd4909a3aa834e79165e2718d7197611475a1950ed0064d1c3f2a",
+        "private": false
+      },
+      {
+        "path": "docs/research/corsair-k70-tkl-layouts/corsair_k70_pro_tkl_jis.json",
+        "sha256": "77cbc65eba7ba7d265dbfa46fce6911613f9aa7bcef56fd016ae1f3104efc438",
+        "private": false
+      },
+      {
+        "path": "docs/research/corsair-vanguard-layouts/corsair_vanguard_pro_96_ansi.json",
+        "sha256": "5b43f8b3c5d8c3ce58415145cd548a80402a8d84f3dc8d2a4fa631db2e69cc01",
+        "private": false
+      },
+      {
+        "path": "docs/research/corsair-vanguard-layouts/corsair_vanguard_pro_96_iso.json",
+        "sha256": "d56dfa6fb670cd3693cba49a021e121b33b0d15b66f5df6375b4d823270aaad6",
+        "private": false
+      },
+      {
+        "path": "docs/research/corsair-vanguard-layouts/corsair_vanguard_pro_96_jis.json",
+        "sha256": "6028c388237a6a4078ee27fb6eedbd48007adc6ddd7126c36a24fc73152795f4",
+        "private": false
+      },
+      {
         "path": "docs/research/drunkdeer-layout-sources/rectangles.json",
         "sha256": "672e683ac3b43e6f1af2ef7a5773168df6249a7a3ef6fef328d59e5713935294",
         "private": false
@@ -5256,6 +5461,11 @@
       {
         "path": "docs/research/everglide-layout-sources/su75-pro-geometry.json",
         "sha256": "2b7f6a0b76488e93593a89d0bf2b9389ce0d9702d0d70276438afcd485c38a8a",
+        "private": false
+      },
+      {
+        "path": "docs/research/eyooso-hz94-ansi.json",
+        "sha256": "5bcd0a739c75cae572c82dce72861c89d664c26c9b1b0e08641c3fe47a5f5d41",
         "private": false
       },
       {
@@ -6019,6 +6229,11 @@
         "private": true
       },
       {
+        "path": "docs/research/keydous-layouts/nj98_cp_v4s_ansi.json",
+        "sha256": "c722c13a41e7438f2e9aef61ddfcff652f15a77076b6dc925122fe4f40685b18",
+        "private": false
+      },
+      {
         "path": "docs/research/lemokey-layout-sources/908920336.json",
         "sha256": "9efcbb1e621c5defce1d02a2399f99091068a8cb35d6a33367e523aaebbc248d",
         "private": false
@@ -6699,6 +6914,11 @@
         "private": false
       },
       {
+        "path": "docs/research/rongyuan-stream/keydous-nj98v4s.json",
+        "sha256": "0af5da06546b23e028ff97cfa78b75725e718a6cf6877ec1bf12b92399aa9c9f",
+        "private": false
+      },
+      {
         "path": "docs/research/rongyuan-stream/monsgeek_m1_v5_tmr_ansi.json",
         "sha256": "196db93e6eb6c66d5ed3b9cff68066397276cb96a462dba935ccbe67f8e1483b",
         "private": false
@@ -6751,6 +6971,26 @@
       {
         "path": "docs/research/sayo-config-sources/o3c-layout.json",
         "sha256": "c1e8524e45216b60a9a12621d063dbb89adbbdabf137cfe935236742bb5b7d06",
+        "private": false
+      },
+      {
+        "path": "docs/research/steelseries-apex-tkl-gen3-layout-reports/steelseries_apex_pro_tkl_gen_3_ansi.json",
+        "sha256": "b6c0bebcde48df96ebabbc3994f3fd79949149657863f02bc48845a44f6eb59e",
+        "private": false
+      },
+      {
+        "path": "docs/research/steelseries-apex-tkl-gen3-layout-reports/steelseries_apex_pro_tkl_gen_3_iso.json",
+        "sha256": "b1916af9efc57973dc754806d5b56f3c208ff8792e6745678a094250ae9a28a1",
+        "private": false
+      },
+      {
+        "path": "docs/research/steelseries-apex-tkl-gen3-layout-reports/steelseries_apex_pro_tkl_gen_3_jis.json",
+        "sha256": "fa3fdc166067809004ec8a343ea9f5d9e3d398fe0828b968ff4449b6dc25cfa3",
+        "private": false
+      },
+      {
+        "path": "docs/research/steelseries-apex-tkl-gen3-layout-source.json",
+        "sha256": "4f1101f649737d131f4f10968adb678695b761cc1ce9353a37d176b52b805b84",
         "private": false
       },
       {
@@ -6970,22 +7210,22 @@
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.h",
-        "sha256": "18433fd3289c30b54f03d5b296ea0f05516c453c2365b07ebf35969990f5b6ba",
+        "sha256": "2b4e483841266465282e31c377166bce985e024928188127a08101a42cb76437",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.inc",
-        "sha256": "3de1fee6f0d00754f00b4dd7ac18924aae389a3c19c041cfee680bd39de30f35",
+        "sha256": "9c76ec5dc4c519a7a7701aab392b9242cd469805e16be5af496e0b849aa2502e",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/layouts.h",
-        "sha256": "6513f2c8544dbb50694a291871bc99d0cd0c0589cd42ce5959cf6e680b497508",
+        "sha256": "2d747e943e6c98beb11b71904816cf7e0fe477329b7c168bc227aa8018672d5c",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/presets.inc",
-        "sha256": "c4e2e2dd50fff2930ea21b93988c7b2ea2d25d0dd6f45afeb0fd9d87f923ff94",
+        "sha256": "e7fdd6315b0df74e16045d6c4ce057497e975a989f824f4f7d5ee5bee3d51d0c",
         "private": false
       },
       {
@@ -7065,7 +7305,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "195c10b4a5907292b44059189feb723a74a5b403ddbf9279fb9cc0e0a6c45c5f",
+        "sha256": "09df0b8f960dbe0adf3995adc33efa42f4f3eb7d85db3e59e49c6f915c580008",
         "private": false
       },
       {

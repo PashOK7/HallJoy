@@ -43,6 +43,8 @@ public:
         }
         return count>=60 && count<=110;
     }
+    unsigned RowMask() const noexcept { return rows_; }
+    bool Conflict() const noexcept { return conflict_; }
     const PositionToHid& Map() const noexcept { return map_; }
 };
 

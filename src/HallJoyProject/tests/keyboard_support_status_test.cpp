@@ -159,6 +159,13 @@ int main()
     // Alumix 68 is switched off (owner decision 2026-10-12): no catalog notice group is generated for it.
     assert(NativeNotice(31,0,true,0x80a2)==0 && NativeNotice(31,0,false,0x80a2)==0);
     assert(NativeNotice(22,0x5F95BAB8BCAB36D1ull,true,0x5030)==0);
+    // AK680 MAX shares geometry/token with ALUX68. Only its own USB PIDs
+    // lose the testing notice; ALUX68 (5030) and unknown products keep it.
+    assert(NativeNotice(22,0xE8EB300245326B1Cull,true,0x502d)==0);
+    assert(NativeNotice(22,0xE8EB300245326B1Cull,true,0x502f)==0);
+    assert(NativeNotice(22,0xE8EB300245326B1Cull,true,0x5030)==RongYuanStream);
+    assert(NativeNotice(22,0xE8EB300245326B1Cull,true,0x5029)==RongYuanStream);
+    assert(NativeNotice(22,0xE8EB300245326B1Cull,false,0x502d)==0);
     // YUNZII RT75 Pro (Supported) on its confirmed USB PID: no yellow notice.
     assert(NativeNotice(22,0xAF43FE4CDBE91EBFull,true,0x5030)==0);
     assert(NativeNotice(22,0x5F95BAB8BCAB36D1ull,true,0x5029)!=0);
@@ -209,5 +216,18 @@ int main()
     SetSearchObservation(true,false,0);
     assert(ShouldAutoSaveSupportLog(GetStatusSnapshot()));
     assert((ImplementedModels & (NA87Pro|ND75|Azoth96|NuPhy|FamilyCandidate))==0);
+    // A new high notice bit must not eat the unsupported index or old flags.
+    const auto wide=CorsairVanguard | KeyboardBusy | NA87;
+    SetSearchObservation(true,true,wide,true,255);
+    auto status=GetStatusSnapshot();
+    assert(status.frozenModels==wide && status.unsupportedModel==255 && status.communicationWarning);
+    SetSearchObservation(true,true,CorsairVanguard);
+    assert(!ShouldAutoSaveSupportLog(GetStatusSnapshot()));
+    assert(NativeNotice(33,0,true)==CorsairVanguard);
+    assert(NativeNotice(33,0,false)==0);
+    assert(ResearchNotice(33,0x1b1c,0x2b0e,true,false)==CorsairVanguardPending);
+    assert(ResearchNotice(33,0x1b1c,0x2b0e,true,false,true)==0);
+    SetSearchObservation(true,false,CorsairVanguardPending);
+    assert(ShouldAutoSaveSupportLog(GetStatusSnapshot()));
     return 0;
 }

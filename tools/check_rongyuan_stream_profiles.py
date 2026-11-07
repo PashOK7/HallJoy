@@ -8,6 +8,8 @@ DATA = ROOT / 'docs/research/rongyuan-stream'
 for filename, digest in json.loads((DATA/'source-lock.json').read_bytes()).items():
     assert hashlib.sha256((DATA/filename).read_bytes()).hexdigest()==digest, filename
 profiles = json.loads((DATA / 'profiles.json').read_bytes())
+from keydous_nj98v4s import checked_profile
+profiles.append(checked_profile())
 records = json.loads((DATA / 'admission_sources.json').read_bytes())['records']
 header = (ROOT / 'src/HallJoyProject/HallJoy/rongyuan_stream_protocol.h').read_text(encoding='utf8')
 def header_row(m, matrix):
@@ -71,6 +73,9 @@ for m in profiles:
     key = (m['board'], m['vid'], m['pid'])
     assert key not in seen
     seen.add(key)
+    if m.get('evidence') == 'keydous-nj98v4s.json':
+        assert header_row(m, m['matrix']) in header, key
+        continue
     if m.get('evidence') == 'rongyuan-client-models.json':
         check_client_evidence(m, key)
         continue

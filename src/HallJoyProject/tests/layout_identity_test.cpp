@@ -17,6 +17,11 @@ int main()
     assert(Token("aula-w669","7272UKHEXYXBJCARGB")!=Token("aula-w669","7272USHEXYXK673JCARGB"));
     assert(Token("aula-w669","SI2825HEARGB")==Token("aula-w669","SI2825KZHEARGB"));
     assert(Token("aula-w669","SI2825HEARGB")!=Token("aula-w669","SI2828HEARGB"));
+    const auto v4s=Token("rongyuan-stream","RY1B-3793");
+    assert(v4s && std::wstring_view(Match(v4s))==L"Keydous NJ98-CP V4S TMR ANSI");
+    assert(v4s!=Token("rongyuan-stream","RY1B-3496"));
+    assert(!Token("rongyuan-stream","3151:5038"));
+    assert(!Token("rongyuan-snapshot","RY1B-3793"));
     for (const auto& e : entries) {
         assert(e.token!=0);
         assert(Token(e.protocol,e.product)==e.token);

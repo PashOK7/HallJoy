@@ -162,3 +162,12 @@ Owner-approved reply posted on PashOK7/HallJoy#8 (firmware 1.17.96 sends no anal
 supported; the issue can be reopened if Corsair ships firmware with analog data). Issue closed as "not planned".
 Sheet: Main!C180 Corsair / K70 MAX `Not investigated` -> `No usable analog found` (value-only write). Readback A179:C181:
 model K70 MAX, new status, dropdown preserved, red background (0.96/0.72/0.72), no note; K70 PRO TKL unchanged.
+
+
+## 2026-11-03: Flash75 Pro tester identity resolved
+
+The owner reports that IPI Flash 75 PRO / Gemini Seven-Star works. HallJoy (28).log
+identifies FLASH75 Pro on wired 1CA6:1A10, SparkLink connected, 353121 updates and
+0 failures. The generic path already works; exact visual preset/Supported and
+live Sheet reconciliation remain pending. See
+[the feedback record](IPI_FLASH75PRO_TESTER_FEEDBACK_2026-11-03.md).

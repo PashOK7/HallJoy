@@ -26,23 +26,27 @@ public:
         first_[hid].store(id, std::memory_order_release);
         return true;
     }
-    bool Publish(std::uint8_t id, std::uint16_t milli, std::uint64_t now) noexcept {
+    bool Publish(std::uint8_t id, std::uint16_t milli, std::uint64_t now,
+                 bool retainWhileOnline = false) noexcept {
         if (!id || !bound_[id].load(std::memory_order_relaxed)) return false;
         milli = std::min<std::uint16_t>(milli, 1000);
         const auto old = values_[id].exchange(milli, std::memory_order_acq_rel);
-        stamps_[id].store(now, std::memory_order_release);
+        stamps_[id].store(now | (retainWhileOnline ? kRetained : 0), std::memory_order_release);
         return old != milli;
     }
     bool Owns(std::uint16_t hid) const noexcept {
         return hid && hid<kHidCount && first_[hid].load(std::memory_order_acquire)!=0;
     }
-    Value Read(std::uint16_t hid, std::uint64_t now, std::uint64_t freshMs = 500) const noexcept {
+    Value Read(std::uint16_t hid, std::uint64_t now, std::uint64_t freshMs = 500,
+               bool onlineRetention = false) const noexcept {
         Value value{};
         if (!hid || hid >= kHidCount) return value;
         auto id = first_[hid].load(std::memory_order_acquire);
         for (unsigned visits = 0; id && visits < 255; ++visits) {
-            const auto stamp = stamps_[id].load(std::memory_order_acquire);
-            if (stamp && now >= stamp && now - stamp <= freshMs) {
+            const auto state = stamps_[id].load(std::memory_order_acquire);
+            const auto stamp = state & ~kRetained;
+            if (stamp && now >= stamp &&
+                (now - stamp <= freshMs || (onlineRetention && (state & kRetained)))) {
                 value.fresh = true;
                 value.milli = std::max(value.milli, values_[id].load(std::memory_order_acquire));
             }
@@ -53,12 +57,14 @@ public:
     unsigned Active(std::uint64_t now) const noexcept {
         unsigned count = 0;
         for (unsigned id = 1; id < 256; ++id) {
-            const auto stamp = stamps_[id].load(std::memory_order_acquire);
+            const auto stamp = stamps_[id].load(std::memory_order_acquire) & ~kRetained;
             if (stamp && now >= stamp && now - stamp <= 500 && values_[id].load(std::memory_order_relaxed)) ++count;
         }
         return count;
     }
 private:
+    // Tag the sample timestamp so confirming another key cannot extend its lifetime.
+    static constexpr std::uint64_t kRetained = std::uint64_t{1} << 63;
     std::array<std::atomic<std::uint16_t>, 256> values_{};
     std::array<std::atomic<std::uint64_t>, 256> stamps_{};
     std::array<std::atomic<std::uint8_t>, kHidCount> first_{};

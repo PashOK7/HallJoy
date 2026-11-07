@@ -8,6 +8,8 @@
 
 # Built-in keyboard layouts
 
+> 2026-11-05: Keydous NJ98-CP V4S TMR ANSI (97), exact official geometry and automatic selection for wired board3793. Calculator/encoder actions excluded. [Evidence](current/KEYDOUS_NJ98_V4S_2026-11-05.md).
+
 Catalog for the current 1.6.0 development build, audited against the actual
 compiled catalog on 2026-09-20. This is not the published 1.5.3 layout inventory.
 Layout availability describes geometry, not proof of analogue firmware support

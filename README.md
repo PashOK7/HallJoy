@@ -64,10 +64,11 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 
 ## Supported
 
-**AJAZZ:** AK820 MAX HE (wired, RGB)  
+**AJAZZ:** AK680 MAX HE (USB), AK820 MAX HE (wired, RGB)  
 **ATK:** Hex80  
 **ATTACK SHARK:** R85 HE (USB), X65 Pro, X82 HE (USB)  
 **AULA:** AG75, WIN 60 HE MAX, WIN 60 HE, WIN 68 HE, KP-TE153, MINI 60 HE (USB), MINI 60 HE Pro, MINI 60 HE MAX (USB)  
+**CORSAIR:** K70 PRO TKL (USB, stock firmware 1.12.54, ANSI / ISO / JIS)  
 **DrunkDeer:** A75, A75 Pro, G60, G65, G75  
 **EPOMAKER:** HE108 (USB), HE65 V2 (USB), HE75 V2 TMR (USB)  
 **Everglide:** SU75 Pro  
@@ -94,12 +95,12 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 
 ### Experimental support
 
-These keyboards should work, but have not yet been tested on physical devices.
+These keyboards have remaining hardware-testing, layout or firmware limitations.
 Support is enabled: keyboard detection, analog input, bindings and virtual
 gamepad output are implemented. HallJoy shows a yellow notice for these models.
 
 **AIM1:** MATATAKI (US)  
-**AJAZZ:** AK680 MAX HE, AK680MC, ALUX60, ALUX68 AIR, ALUX68 PRO, NS67, NS67 PRO, NS87  
+**AJAZZ:** AK680MC, ALUX60, ALUX68 AIR, ALUX68 PRO, NS67, NS67 PRO, NS87  
 **Akko:** MOD 007 V5 HE, MOD007B V3 HE, MOD007S V3 HE, Ray68 HE, TAC75 HE  
 **ANGRYSHARK:** Final 75  
 **ANTGAMER:** AGK75 PRO, AGK75 U2, AGK87  
@@ -114,6 +115,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **CHERRY XTRFY:** K5 Pro TMR Compact  
 **Chilkey:** Slice75 HE  
 **COLORFUL:** QY98 Ultra  
+**CORSAIR:** VANGUARD PRO 96 (USB, stock firmware 2.8.171, automatic ANSI / ISO / JIS)  
 **DARKFORCE:** Fib(68)  
 **DSPIXEL:** DS KEY, Magic 80  
 **E7:** 68 PRO V2  
@@ -139,12 +141,12 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **HAWK Gaming:** HK550, HK610S  
 **IDEEZ:** SWIFT X85  
 **IDJ:** H60HE  
-**IPI:** AURORA65, AURORA65W, Aurora75 PRO, flash68, QBZ65, RAIN65  
+**IPI:** AURORA65, AURORA65W, Aurora75 PRO, flash68, Flash 75 PRO (Gemini Seven-Star), QBZ65, RAIN65  
 **IROK:** Mars68 Pro, Mars75, Mars75 Pro, Mercury68, Mercury68 Max, Mercury68 Pro, Mercury68 SE (JingTai V2), MG68 Plus, MG75 Pro, NA87 Pro, ND63, ND63 Ultra, ND68 Pro, RA68  
 **IYX:** MU68 Pro  
 **JEDEL:** KL166  
 **JINGSU:** KA67, KB98, KCC04A, KE87  
-**Keydous:** NJ68 Pro-CP, NJ80-CP V3 HE, NJ81-CP, NJ81-CP V3 HE, NJ98-CP, NJ98-CP V4 HE  
+**Keydous:** NJ68 Pro-CP, NJ80-CP V3 HE, NJ81-CP, NJ81-CP V3 HE, NJ98-CP, NJ98-CP V4 HE, NJ98-CP V4S TMR (USB confirmed; experimental 2.4 GHz)  
 **KiiBOOM:** Cybrix29  
 **Koda:** A68  
 **KYSONA:** KM82 HE  
@@ -179,7 +181,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **SARU:** KX69HE, KX78HE  
 **SAVIO:** ASTRAL  
 **Skyloong:** GK61 HE, GK68 HE, GK75 HE  
-**SteelSeries:** Apex Pro Gen 3, Apex Pro TKL  
+**SteelSeries:** Apex Pro Gen 3 (full-size), Apex Pro TKL (original), Apex Pro TKL Gen 3 (wired)  
 **Sunsonny:** N-J100  
 **Syntech:** Chronos 68  
 **Titan Nation:** Storm68, TITAN60 PCB, TITAN68HE  

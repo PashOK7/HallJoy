@@ -44,7 +44,8 @@ std::int16_t Stick(float value) noexcept
 {
     if (!std::isfinite(value)) value = 0.0f;
     value = std::clamp(value, -1.0f, 1.0f);
-    return static_cast<std::int16_t>(std::lround(value * 32767.0f));
+    // Signed sticks have one extra negative code: both endpoints must be reachable.
+    return static_cast<std::int16_t>(std::lround(value * (value < 0.0f ? 32768.0f : 32767.0f)));
 }
 
 std::uint8_t Trigger(float value) noexcept
@@ -148,8 +149,13 @@ std::int16_t MergeMouse(std::int16_t keyboard, float mouse) noexcept
     const std::int16_t mouseAxis = Stick(mouse);
     if (mouseAxis == 0)
         return keyboard;
-    return std::abs(static_cast<int>(mouseAxis)) >=
-        std::abs(static_cast<int>(keyboard)) ? mouseAxis : keyboard;
+    // Compare normalized magnitudes so opposite full endpoints tie even though
+    // their raw signed codes differ. Products fit in a signed 32-bit integer.
+    const int mouseMagnitude = std::abs(static_cast<int>(mouseAxis)) *
+        (mouseAxis < 0 ? 32767 : 32768);
+    const int keyboardMagnitude = std::abs(static_cast<int>(keyboard)) *
+        (keyboard < 0 ? 32767 : 32768);
+    return mouseMagnitude >= keyboardMagnitude ? mouseAxis : keyboard;
 }
 
 bool ButtonPressed(const PadConfiguration& configuration,

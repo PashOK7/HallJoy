@@ -55,7 +55,7 @@ void GamepadRender_DrawAxisBarCentered(HDC hdc, RECT rc, SHORT v)
     LineTo(hdc, mid, rc.bottom - 1);
     SelectObject(hdc, oldPen);
 
-    float x = (float)v / 32767.0f;
+    float x = (float)v / (v < 0 ? 32768.0f : 32767.0f);
     x = std::clamp(x, -1.0f, 1.0f);
 
     RECT fill = rc;

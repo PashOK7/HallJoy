@@ -19,6 +19,7 @@
 #include <thread>
 #if defined(HALLJOY_ANALOG_SIMULATOR)
 #include <fstream>
+#include <sstream>
 #include <stdexcept>
 #endif
 
@@ -1310,7 +1311,7 @@ bool KeyboardLayout_TestCatalogInventory()
     const auto fixture = (root / L"catalog-selection.ini").wstring();
     if (!KeyboardLayout_SaveToIni(original.c_str())) return false;
     bool ok = true;
-    std::wofstream inventory(root / L"layout-catalog.tsv");
+    std::wostringstream inventory;
     for (const auto& b : g_builtinPresets) {
         const int resolved = FindPresetByName(b.name);
         if (resolved < 0) return false;
@@ -1351,9 +1352,18 @@ bool KeyboardLayout_TestCatalogInventory()
                 << L'\t' << k.label << L'\n';
         }
     }
-    inventory.close();
+    const auto listing = inventory.str();
+    const auto length = static_cast<int>(listing.size());
+    const auto bytes = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, listing.data(), length,
+        nullptr, 0, nullptr, nullptr);
+    std::string utf8(bytes, '\0');
+    const bool encoded = bytes > 0 && WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
+        listing.data(), length, utf8.data(), bytes, nullptr, nullptr) == bytes;
+    std::ofstream file(root / L"layout-catalog.tsv", std::ios::binary);
+    if (encoded) file.write(utf8.data(), bytes);
+    file.close();
     ok &= KeyboardLayout_LoadFromIni(original.c_str());
-    return ok && !inventory.fail();
+    return ok && encoded && !file.fail();
 }
 
 bool KeyboardLayout_TestFirstRunSelection()

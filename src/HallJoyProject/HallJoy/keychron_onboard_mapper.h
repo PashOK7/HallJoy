@@ -168,7 +168,8 @@ static inline void hjo_map(const hjo_mapping *p, const float values[HJO_SLOTS],
         float v = hjo_resolve(a, hjo_side_value(values, p->axes[a][0]),
                               hjo_side_value(values, p->axes[a][1]), p, s);
         if (!isfinite(v)) v = 0;
-        out->axes[a] = (int16_t)lroundf(hjo_clamp(v, -1, 1) * 32767.0f);
+        v = hjo_clamp(v, -1, 1);
+        out->axes[a] = (int16_t)lroundf(v * (v < 0 ? 32768.0f : 32767.0f));
     }
     for (unsigned t = 0; t < 2; ++t) {
         float v = hjo_value(values, p->triggers[t]);

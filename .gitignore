@@ -70,6 +70,18 @@ third_party/UniversalAnalogPluginFixed/build/
 /.local/
 /.cache/
 
+# Personal portable copies stay local; keep bundled source/test presets tracked.
+/app/
+/settings.ini
+/settings.ini.*
+/bindings.ini
+/bindings.ini.*
+/HallJoy.portable
+/GlobalProfiles/
+/Layouts/
+/CurvePresets/
+/CrashReports/
+
 # Private scratch diagnostics and credentials are never publication inputs.
 /.analysis/
 .env

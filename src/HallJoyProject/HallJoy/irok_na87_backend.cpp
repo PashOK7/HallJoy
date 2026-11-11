@@ -898,8 +898,8 @@ bool Run(const Candidate& candidate, Proof proof)
         }
         if (nowMs - lastRollup >= 1000)
         {
-            const auto live = g_liveEvents.load(std::memory_order_relaxed);
-            const auto delta = live - lastRollupLive;
+            const auto liveEventCount = g_liveEvents.load(std::memory_order_relaxed);
+            const auto delta = liveEventCount - lastRollupLive;
             g_hz10.store(static_cast<std::uint32_t>(delta * 10000ull /
                 std::max<ULONGLONG>(1, nowMs - lastRollup)));
             if (intervalCount)
@@ -910,7 +910,7 @@ bool Run(const Candidate& candidate, Proof proof)
                     std::min<std::uint64_t>(maxInterval, 0xffffffffull)));
             }
             DebugLog_WriteBuffered(L"[irok.na87.telemetry] live_event_hz=%.1f live_events=%llu publications=%llu active=%u mapped_positions=dynamic avg_event_interval_us=%u max_event_interval_us=%u out_of_range=%llu failures=%llu last_age_ms=%llu",
-                g_hz10.load() / 10.0, static_cast<unsigned long long>(live),
+                g_hz10.load() / 10.0, static_cast<unsigned long long>(liveEventCount),
                 static_cast<unsigned long long>(g_updates.load()), g_active.load(),
                 g_avgUs.load(), g_maxUs.load(),
                 static_cast<unsigned long long>(g_outOfRange.load()),
@@ -934,7 +934,7 @@ bool Run(const Candidate& candidate, Proof proof)
                     diagnosticStartedOutOfRange), g_active.load());
 #endif
             lastRollup = nowMs;
-            lastRollupLive = live;
+            lastRollupLive = liveEventCount;
         }
     }
 
@@ -1324,7 +1324,8 @@ void Telemetry(NativeAnalogBackendTelemetry* out)
     if (out->connected && g_ajazzPlaying.load())
         out->verifiedLayoutToken=halljoy::layout_identity::Token("ajazz-m484","SG8994HERGB");
     out->vendorId = kVendorId;
-    out->productId = hz94Pid ? hz94Pid : kProductId;
+    // The stored PID comes from the 16-bit HIDD_ATTRIBUTES::ProductID.
+    out->productId = hz94Pid ? static_cast<std::uint16_t>(hz94Pid) : kProductId;
     out->usagePage = kUsagePage;
     out->usage = kUsage;
     out->mappedKeys = g_mapped.load();

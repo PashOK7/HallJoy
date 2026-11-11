@@ -1,5 +1,12 @@
 # HallJoy — Gamepad Mode for Analog Keyboards
 
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square)](src/HallJoyProject/HallJoy/HallJoy.vcxproj)
+[![Windows x64](https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square)](README.md#quick-start)
+[![PowerShell 5.1+](https://img.shields.io/badge/PowerShell-5.1%2B-5391FE?style=flat-square)](docs/PORTABLE.md)
+[![NSIS 3](https://img.shields.io/badge/NSIS-3-4A7C59?style=flat-square)](docs/development/WINDOWS_INSTALLER.md)
+
+**English** · [Español](docs/translations/README.es.md) · [Français](docs/translations/README.fr.md) · [Italiano](docs/translations/README.it.md) · [简体中文](docs/translations/README.zh-CN.md) · [한국어](docs/translations/README.ko.md) · [Русский](docs/translations/README.ru.md) · [Deutsch](docs/translations/README.de.md) · [日本語](docs/translations/README.ja.md) · [हिन्दी](docs/translations/README.hi.md)
+
 HallJoy is a free, open-source Windows application that turns supported analog
 and Hall Effect keyboards into a fully configurable virtual Xbox controller
 with low-latency analog input. HallJoy uses real keyboard depth measurements; ordinary digital key presses 
@@ -54,6 +61,18 @@ file was written by chatgpt and claude completely except for this paragraph 🙂
    **Configuration**, and verify the result in **Gamepad Tester**.
 
 Wooting Analog SDK and Universal Analog Plugin do not need to be installed separately.
+
+The [Windows installer build](docs/development/WINDOWS_INSTALLER.md)
+provides a setup wizard, local data/permissions notice, Start menu and optional
+desktop shortcuts, and uninstall support. Run **`BUILD.cmd`** from the
+repository root to build and package it. Open **`build/HallJoy-setup.exe`** to install,
+or **`build/HallJoy.exe`** to run the application directly. Package archives and
+SHA-256 records remain inside `build/packages/`.
+Build tools and the read-only prerequisite check are documented in the guide.
+
+For a personal copy inside a clone, see [portable launch, updates and backups](docs/PORTABLE.md).
+Also available: [driving binding example](docs/DRIVING_SETUP.md) and
+[input and privacy](docs/INPUT_AND_PRIVACY.md).
 
 ## Compatible keyboards for gamepad mode
 
@@ -274,7 +293,10 @@ and their licenses are listed in
 ## Building from source
 
 Install Visual Studio 2022 C++ Build Tools (including x64 Clang), Python 3.12,
-Git and PowerShell. Clone the repository and run `BUILD.cmd`.
-The executable is created at `build\bin\Release\x64\HallJoy.exe`.
+Git, PowerShell and NSIS 3. Clone the repository and run `BUILD.cmd`.
+The final files are `build\HallJoy-setup.exe` and `build\HallJoy.exe`.
+This one command builds the application once, puts that exact application into
+the installer, then verifies and places both EXEs directly in `build`.
+Intermediate files, package archives and checksums remain in subdirectories.
 See the [build guide](docs/development/BUILD_README.txt) for incremental builds
 and the staged replacement of a running HallJoy.

@@ -1,10 +1,16 @@
 [CmdletBinding()]
-param()
+param([string]$PythonPath, [switch]$CheckOnly)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'build_environment.ps1')
+$buildEnvironment = Initialize-HallJoyBuildEnvironment -PythonPath $PythonPath -RequireClang
+if ($CheckOnly) {
+    Write-Output 'Python and Clang are ready. No compilation was started.'
+    return
+}
 $pluginRoot = Join-Path $root 'third_party\UniversalAnalogPluginFixed'
 $hallJoyRoot = Join-Path $root 'src\HallJoyProject'
 $pluginBuild = Join-Path $pluginRoot 'tools\build_fixed_plugin.ps1'
@@ -559,23 +565,11 @@ if (-not (Test-Path -LiteralPath $abi1)) {
     throw 'Universal Analog Plugin build did not produce abiv1.dll.'
 }
 $uapAbiCheck = Join-Path $root 'tools\check_private_uap_abi.py'
-try {
-    $activeHallJoy = @(
-        Get-CimInstance Win32_Process -Filter "Name='HallJoy.exe'" -ErrorAction Stop
-    )
+. (Join-Path $PSScriptRoot 'uap_runtime_session.ps1')
+Invoke-HallJoyIsolatedUapCheck -Check {
+    & python $uapAbiCheck $abi1
+    if ($LASTEXITCODE -ne 0) { throw "Private UAP ABI runtime gate failed: $LASTEXITCODE" }
 }
-catch {
-    throw 'Cannot prove an isolated physical-UAP session because HallJoy process enumeration failed.'
-}
-if ($activeHallJoy.Count -ne 0) {
-    $owners = ($activeHallJoy | ForEach-Object {
-        $path = if ($_.ExecutablePath) { [string]$_.ExecutablePath } else { '<unknown>' }
-        "PID=$($_.ProcessId) path=$path"
-    }) -join '; '
-    throw "Official build's physical-UAP runtime gate requires every HallJoy instance to be closed: $owners"
-}
-& python $uapAbiCheck $abi1
-if ($LASTEXITCODE -ne 0) { throw "Private UAP ABI runtime gate failed: $LASTEXITCODE" }
 New-Item -ItemType Directory -Path $runtime -Force | Out-Null
 Copy-Item -LiteralPath $abi1 -Destination (Join-Path $runtime 'universal_analog_abiv1.dll') -Force
 Copy-Item -LiteralPath (Join-Path (Split-Path -Parent $pluginOut) 'abiv1-link.map') -Destination (Join-Path $runtime 'universal_analog_abiv1.map') -Force

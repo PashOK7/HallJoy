@@ -22,8 +22,12 @@ def main() -> int:
             "batch captures PowerShell exit code before any later command")
     require('exit /b %EXITCODE%' in batch,
             "batch returns the captured failing stage code")
-    require('echo Output: build\\bin\\Release\\x64\\HallJoy.exe\npause\nexit /b 0' in batch.replace('\r\n', '\n'),
-            "successful batch completion explicitly returns zero after pause")
+    require(batch.replace('\r\n', '\n').rstrip().endswith('if "%~1"=="" pause\nexit /b 0'),
+            "successful batch completion explicitly returns zero; argument-driven checks do not pause")
+    require('"%~dp0tools\\build_windows_installer.ps1" %*' in batch,
+            "default build packages the Windows installer and forwards arguments")
+    require(not (ROOT / "Build-App.cmd").exists() and not (ROOT / "Build-Windows.cmd").exists(),
+            "one public BUILD.cmd entry replaces duplicate build wrappers")
     require('$buildExitCode = $LASTEXITCODE' in build and
             'if ($buildExitCode -ne 0) { throw "HallJoy build failed: $buildExitCode" }' in build,
             "MSBuild result is captured immediately and fails closed")

@@ -1,0 +1,30 @@
+HallJoy - Windows installation
+
+This installer installs HallJoy for the current user, normally under
+%LOCALAPPDATA%\Programs\HallJoy. Open HallJoy from the Start menu. A desktop
+shortcut is optional. The existing standalone HallJoy.exe remains supported.
+
+If ViGEmBus is missing, choose Install ViGEmBus inside HallJoy and approve its
+separate Windows administrator prompt. Setup does not install or remove drivers,
+start HallJoy, add startup tasks or contact the network.
+
+HallJoy uses supported keyboard key travel to emulate an Xbox controller.
+HallJoy may write local diagnostics and crash dumps. Review these before sharing.
+See PRIVACY_AND_SECURITY.txt for input access, local storage and permissions.
+
+User settings, profiles, layouts and curves stay in %LOCALAPPDATA%\HallJoy.
+The analog runtime cache is %LOCALAPPDATA%\HallJoy\Runtime\v<version>.
+The installer does not import portable profiles or create HallJoy.portable.
+Close HallJoy before upgrading, then run the newer installer in the same folder.
+An unrelated nonempty folder, including a portable copy, is not overwritten.
+
+Uninstall through Windows Installed apps or the HallJoy Start menu folder.
+User data and the shared ViGEmBus driver are preserved. Unknown files placed
+inside the installation folder are also preserved.
+
+This installer is unsigned. A SHA-256 checksum detects changes relative to its
+published value; it is not a publisher signature.
+
+Author and source: https://github.com/PashOK7/HallJoy
+Support: https://discord.gg/X5QsZJdN5a
+LICENSE, THIRD_PARTY_NOTICES.md and dependency-lock.json accompany the program.

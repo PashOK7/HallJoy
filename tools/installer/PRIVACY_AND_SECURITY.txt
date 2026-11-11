@@ -1,0 +1,35 @@
+HallJoy - Data and permissions
+
+Installation
+Setup installs HallJoy for the current Windows user. By default, program files
+are placed in %LOCALAPPDATA%\Programs\HallJoy. Setup creates a Start menu folder,
+an optional desktop shortcut, and an entry in Windows Installed apps.
+Setup does not start HallJoy, install drivers, add services or startup tasks,
+send telemetry, or contact the network.
+
+Input and permissions
+HallJoy reads supported keyboard HID reports, including key travel, to produce
+virtual Xbox controller input. Configured bindings can block normal key output.
+ViGEmBus driver installation is a separate action inside HallJoy and requires
+its own Windows administrator approval. Setup does not grant that approval.
+
+Local data
+Settings, profiles, layouts and curves are stored in %LOCALAPPDATA%\HallJoy,
+separately from program files. A HallJoy.portable marker beside an EXE selects
+portable storage instead; this installer does not create that marker.
+The embedded analog runtime is extracted on demand to
+%LOCALAPPDATA%\HallJoy\Runtime\v<version>; it is a per-user runtime cache.
+Diagnostics and crash dumps may contain technical device/process information.
+Review reports before sharing them. This notice is not a complete audit of
+application memory or network behavior.
+
+Updates and removal
+Close HallJoy and run the newer setup to update the same installation folder.
+Uninstall through Windows Installed apps or the Start menu. Uninstall preserves
+personal data, unknown files, and the shared ViGEmBus driver. Removing the app
+does not require deleting your profiles.
+
+Authenticity
+This installer is unsigned. Its SHA-256 sidecar detects changes relative to the
+provided checksum; it is not a verified publisher signature. Setup does not
+change antivirus, SmartScreen, firewall, or Windows execution-policy settings.

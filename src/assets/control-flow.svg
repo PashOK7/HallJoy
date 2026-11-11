@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="280" viewBox="0 0 1000 280">
+  <title>Illustrative analog keyboard to Xbox controller mapping</title>
+  <rect width="1000" height="280" rx="24" fill="#153c36"/>
+  <g fill="none" stroke="#86aca0" stroke-width="2">
+    <rect x="36" y="32" width="266" height="216" rx="18"/>
+    <rect x="376" y="32" width="248" height="216" rx="18"/>
+    <rect x="698" y="32" width="266" height="216" rx="18"/>
+  </g>
+  <g fill="#faf2dc">
+    <rect x="143" y="65" width="54" height="54" rx="9"/>
+    <rect x="77" y="131" width="54" height="54" rx="9"/>
+    <rect x="143" y="131" width="54" height="54" rx="9"/>
+    <rect x="209" y="131" width="54" height="54" rx="9"/>
+  </g>
+  <g fill="#153c36" font-family="Arial, sans-serif" font-size="25" text-anchor="middle">
+    <text x="170" y="100">W</text><text x="104" y="166">A</text>
+    <text x="170" y="166">S</text><text x="236" y="166">D</text>
+  </g>
+  <rect x="77" y="205" width="186" height="9" rx="4" fill="#38645a"/>
+  <rect x="77" y="205" width="116" height="9" rx="4" fill="#edb34b"/>
+  <g fill="none" stroke="#edb34b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M319 140h39m-11-11 12 11-12 11M641 140h39m-11-11 12 11-12 11"/>
+  </g>
+  <circle cx="500" cy="114" r="45" fill="none" stroke="#faf2dc" stroke-width="10"/>
+  <path d="m459 100 41 15 41-15m-41 15v44" fill="none" stroke="#faf2dc" stroke-width="8"/>
+  <circle cx="500" cy="115" r="13" fill="#edb34b"/>
+  <text x="500" y="211" fill="#faf2dc" font-family="Arial, sans-serif" font-size="27" text-anchor="middle">HallJoy</text>
+  <path d="M777 93h108c18 0 28 15 32 34l12 52c4 18-13 26-25 13l-23-25H781l-23 25c-12 13-29 5-25-13l12-52c4-19 14-34 32-34Z" fill="#faf2dc"/>
+  <path d="M779 115v30m-15-15h30" stroke="#153c36" stroke-width="9" stroke-linecap="round"/>
+  <g fill="#153c36"><circle cx="872" cy="117" r="6"/><circle cx="889" cy="133" r="6"/><circle cx="855" cy="133" r="6"/><circle cx="872" cy="149" r="6"/></g>
+  <circle cx="804" cy="157" r="12" fill="#153c36"/><circle cx="842" cy="157" r="12" fill="#153c36"/>
+  <circle cx="799" cy="154" r="5" fill="#edb34b"/>
+  <rect x="754" y="72" width="38" height="9" rx="4" fill="#edb34b"/>
+  <rect x="870" y="72" width="38" height="9" rx="4" fill="#edb34b"/>
+  <text x="831" y="223" fill="#faf2dc" font-family="Arial, sans-serif" font-size="21" text-anchor="middle">Xbox</text>
+</svg>
+

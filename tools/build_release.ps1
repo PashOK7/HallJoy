@@ -1,8 +1,10 @@
 [CmdletBinding()]
-param()
+param([string]$PythonPath)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'build_environment.ps1')
+$buildEnvironment = Initialize-HallJoyBuildEnvironment -PythonPath $PythonPath -RequireClang
 $vigem = (Get-Content -LiteralPath (Join-Path $root 'tools/dependency-lock.json') -Raw | ConvertFrom-Json).binaryInputs.vigemClient
 $vigemPath = Join-Path $root $vigem.path
 if ((Get-Item -LiteralPath $vigemPath).Length -ne $vigem.size -or (Get-FileHash -LiteralPath $vigemPath -Algorithm SHA256).Hash -ne $vigem.sha256) {
@@ -23,7 +25,7 @@ $project = Join-Path $root 'src\HallJoyProject\HallJoy\HallJoy.vcxproj'
 $candidateDir = Join-Path $root 'build\obj\ReleaseCandidate\x64'
 $target = Join-Path $root 'build\bin\Release\x64\HallJoy.exe'
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-$msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\amd64\MSBuild.exe' | Select-Object -First 1
+$msbuild = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find 'MSBuild\**\Bin\amd64\MSBuild.exe' | Select-Object -First 1
 if (-not $msbuild) { throw 'MSBuild x64 was not found.' }
 # Compilation and linked-image checks never touch the installed EXE.
 & $msbuild $project /m /p:Configuration=Release /p:Platform=x64 /p:HallJoyMad68ProRNative=true /p:HallJoyKeychronOnboardExperimental=true /p:HallJoyAttackSharkR85Diagnostic=false /p:HallJoyAttackSharkProDiagnostic=false /p:HallJoyAjazzDiagnostic=false /p:HallJoyInputPathDiagnostic=false "/p:OutDir=$candidateDir\" /verbosity:minimal /nologo

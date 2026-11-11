@@ -37,7 +37,7 @@ function Uninstall {
     while ((Test-Path -LiteralPath "$installed\Uninstall.exe") -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 200 }
     Assert (-not (Test-Path -LiteralPath "$installed\Uninstall.exe")) 'Uninstaller finishes and removes itself'
 }
-$names = @('HallJoy.exe', 'HallJoy.ico', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'dependency-lock.json', 'INSTALLATION.txt')
+$names = @('HallJoy.exe', 'HallJoy.ico', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'dependency-lock.json', 'INSTALLATION.txt', 'PRIVACY_AND_SECURITY.txt')
 $expected = @{}
 foreach ($name in $names) { $expected[$name] = Hash (Join-Path $payload $name) }
 & $NsisPath /V2 /WX "/DPAYLOAD=$payload" "/DOUTPUT=$exe" "/DVERSION=$version" "/DTEST_ROOT=$sandbox" "/DTEST_ID=$id" /DTEST_DESKTOP (Join-Path $PSScriptRoot 'installer/windows.nsi')

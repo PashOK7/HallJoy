@@ -16,23 +16,9 @@ try {
     if ($env:OS -ne 'Windows_NT' -or -not [Environment]::Is64BitOperatingSystem) {
         throw 'Build this installer on Windows x64.'
     }
-    if (-not $PythonPath) {
-        $pythonCommand = Get-Command python.exe -ErrorAction SilentlyContinue
-        if ($pythonCommand -and $pythonCommand.Source -notlike '*\Microsoft\WindowsApps\*') {
-            $PythonPath = $pythonCommand.Source
-        }
-    }
-    if (-not $PythonPath -or -not (Test-Path -LiteralPath $PythonPath -PathType Leaf)) {
-        $problems.Add('Python is missing. Install Python 3.10+ on PATH, or pass -PythonPath <python.exe>.')
-    } else {
-        $PythonPath = (Get-Item -LiteralPath $PythonPath).FullName
-        if ([IO.Path]::GetFileName($PythonPath) -ine 'python.exe') {
-            throw '-PythonPath must point to python.exe; existing build tools invoke that name.'
-        }
-        & $PythonPath -B -c 'import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)'
-        if ($LASTEXITCODE -ne 0) { $problems.Add('A working Python 3.10+ is required.') }
-        $env:PATH = (Split-Path -Parent $PythonPath) + ';' + $env:PATH
-    }
+    . (Join-Path $PSScriptRoot 'build_environment.ps1')
+    $buildEnvironment = Initialize-HallJoyBuildEnvironment -PythonPath $PythonPath -RequireClang:(-not $PackageOnly)
+    $PythonPath = $buildEnvironment.PythonPath
 
     if (-not $NsisPath) {
         $candidates = @($env:NSIS_EXE)
@@ -64,26 +50,15 @@ try {
         if (-not $vsRoot) {
             $problems.Add('Install Visual Studio 2022 Desktop development with C++, including MSVC x64 and Windows SDK.')
         }
-        $clangCommand = Get-Command clang.exe -ErrorAction SilentlyContinue
-        $clangCandidates = @()
-        if ($clangCommand) { $clangCandidates += $clangCommand.Source }
-        if ($vsRoot) { $clangCandidates += Join-Path $vsRoot 'VC/Tools/Llvm/x64/bin/clang.exe' }
-        $clangCandidates += Join-Path $env:ProgramFiles 'LLVM/bin/clang.exe'
-        $clang = $clangCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
-        if (-not $clang) {
-            $problems.Add('Install C++ Clang tools for Windows in Visual Studio Installer (clang.exe and clang++.exe).')
-        } else {
-            $env:PATH = (Split-Path -Parent $clang) + ';' + $env:PATH
-        }
         if ($PythonPath -and (Test-Path -LiteralPath $PythonPath -PathType Leaf)) {
             Push-Location $root
             try {
-                & $PythonPath -B -c 'import shutil, subprocess, sys; from tools.run_native_backend_checks import find_cxx; c=find_cxx(); sys.exit(1 if not c or not shutil.which(c) else subprocess.run([c,"--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode)'
+                & $PythonPath -B -c 'import shutil, subprocess, sys; from tools.run_native_backend_checks import find_cxx; c=find_cxx(); sys.exit(1 if not c or not shutil.which(c) else subprocess.run([c,sys.argv[1]], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode)' --version
                 if ($LASTEXITCODE -ne 0) { $problems.Add('Portable C++ checks need working clang++ or g++. Check PATH and CXX.') }
             } finally { Pop-Location }
         }
     } elseif (-not (Test-Path -LiteralPath (Join-Path $root 'build/bin/Release/x64/HallJoy.exe') -PathType Leaf)) {
-        $problems.Add('No built HallJoy.exe found. Run Build-Windows.cmd without -PackageOnly first.')
+        $problems.Add('No built HallJoy.exe found. Run BUILD.cmd without -PackageOnly first.')
     }
     if ($problems.Count) { throw ("Build prerequisites are incomplete:`n- " + ($problems -join "`n- ")) }
     if ($CheckOnly) {
@@ -97,16 +72,18 @@ try {
     $OutputDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)
     if (Test-Path -LiteralPath $OutputDirectory) { throw 'Output already exists. Choose a new -OutputDirectory; earlier installers are preserved.' }
     if (-not $PackageOnly) {
-        Write-Host 'Step 1/2: building HallJoy and pinned dependencies with the existing full build checks.'
+        Write-Host 'Step 1/3: building HallJoy and pinned dependencies with the existing full build checks.'
         # A child process contains build.ps1's exit statement and preserves its failure status.
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'build.ps1')
         if ($LASTEXITCODE -ne 0) { throw 'HallJoy build failed. No installer was created from an older executable.' }
     }
-    Write-Host 'Step 2/2: packaging the verified application as a Windows installer.'
+    Write-Host 'Step 2/3: packaging the verified application as a Windows installer.'
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'package_windows_installer.ps1') -NsisPath $NsisPath -OutputDirectory $OutputDirectory
     if ($LASTEXITCODE -ne 0) { throw 'Installer packaging failed. See the error above.' }
-    Write-Host "Installer ready in: $OutputDirectory"
-    Write-Host 'Open the setup.exe in that folder to install HallJoy. Installation has not been started automatically.'
+    Write-Host 'Step 3/3: placing the verified final executables directly in build.'
+    & (Join-Path $PSScriptRoot 'publish_windows_outputs.ps1') -PackageDirectory $OutputDirectory
+    Write-Host "Package archive and checksums: $OutputDirectory"
+    Write-Host 'Open build\HallJoy-setup.exe to install HallJoy. Installation has not been started automatically.'
 } finally {
     $env:PATH = $originalPath
 }

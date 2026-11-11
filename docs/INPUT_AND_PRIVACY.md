@@ -11,7 +11,7 @@ crash dumps can contain technical device/process information. Review them before
 sharing with support. This page is not a complete audit of the application's
 input processing, memory contents or network behavior.
 
-The optional installer adds no telemetry, account, service, autostart or network
+The installer adds no telemetry, account, service, autostart or network
 request. It does not launch HallJoy or install ViGEmBus. Installing that driver
 remains an explicit action in HallJoy with separate administrator approval.
 

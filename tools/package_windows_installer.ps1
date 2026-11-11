@@ -6,6 +6,9 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+# A CMD started from PowerShell 7 can leave its modules in PSModulePath for a
+# Windows PowerShell child. Load Utility from the executing host, not that path.
+Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1') -Force -ErrorAction Stop
 $root = Split-Path -Parent $PSScriptRoot
 if (-not $ExecutablePath) { $ExecutablePath = Join-Path $root 'build/bin/Release/x64/HallJoy.exe' }
 $exe = (Get-Item -LiteralPath $ExecutablePath).FullName
@@ -42,6 +45,7 @@ $inputs = [ordered]@{
     'THIRD_PARTY_NOTICES.md' = (Join-Path $root 'THIRD_PARTY_NOTICES.md')
     'dependency-lock.json' = (Join-Path $root 'tools/dependency-lock.json')
     'INSTALLATION.txt' = (Join-Path $root 'tools/installer/INSTALLATION.txt')
+    'PRIVACY_AND_SECURITY.txt' = (Join-Path $root 'tools/installer/PRIVACY_AND_SECURITY.txt')
 }
 $inventory = @()
 foreach ($name in $inputs.Keys) {

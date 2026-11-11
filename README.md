@@ -62,11 +62,12 @@ file was written by chatgpt and claude completely except for this paragraph 🙂
 
 Wooting Analog SDK and Universal Analog Plugin do not need to be installed separately.
 
-An [optional Windows installer build](docs/development/WINDOWS_INSTALLER.md)
-provides Start menu and desktop shortcuts plus uninstall support for maintainers
-who want to distribute an installed version. Run **`Build-Windows.cmd`** from the
-repository root to build and package it. The finished setup EXE and its SHA-256
-are saved in a new folder under **`build/packages/`**; open the setup EXE to install.
+The [Windows installer build](docs/development/WINDOWS_INSTALLER.md)
+provides a setup wizard, local data/permissions notice, Start menu and optional
+desktop shortcuts, and uninstall support. Run **`BUILD.cmd`** from the
+repository root to build and package it. Open **`build/HallJoy-setup.exe`** to install,
+or **`build/HallJoy.exe`** to run the application directly. Package archives and
+SHA-256 records remain inside `build/packages/`.
 Build tools and the read-only prerequisite check are documented in the guide.
 
 For a personal copy inside a clone, see [portable launch, updates and backups](docs/PORTABLE.md).
@@ -292,7 +293,10 @@ and their licenses are listed in
 ## Building from source
 
 Install Visual Studio 2022 C++ Build Tools (including x64 Clang), Python 3.12,
-Git and PowerShell. Clone the repository and run `BUILD.cmd`.
-The executable is created at `build\bin\Release\x64\HallJoy.exe`.
+Git, PowerShell and NSIS 3. Clone the repository and run `BUILD.cmd`.
+The final files are `build\HallJoy-setup.exe` and `build\HallJoy.exe`.
+This one command builds the application once, puts that exact application into
+the installer, then verifies and places both EXEs directly in `build`.
+Intermediate files, package archives and checksums remain in subdirectories.
 See the [build guide](docs/development/BUILD_README.txt) for incremental builds
 and the staged replacement of a running HallJoy.

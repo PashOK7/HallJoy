@@ -1,6 +1,6 @@
 # HallJoy — актуальная структура проекта
 
-Обновлено 2026-10-31. Этот документ задаёт **текущие пути**. Датированные отчёты,
+Обновлено 2026-11-11. Этот документ задаёт **текущие пути**. Датированные отчёты,
 хеши и команды в старых worklog/handoff относятся к зафиксированным там сборкам.
 Исторический план аудита: [полный Roadmap](../v1.4/FULL_AUDIT_EXECUTION_ROADMAP_2026-09-06.md).
 История раннего аудита: [WORKLOG](../v1.4/WORKLOG.md). Начальная навигация: [docs/README](../README.md).
@@ -21,7 +21,8 @@ clone от очищенного remote main, сверяя `.local/release-state.
 - `README.md` — project overview and the two keyboard lists (one paragraph per brand).
 - `LICENSE` and `THIRD_PARTY_NOTICES.md` — root legal notices; the latter is
   consumed by build/package scripts and shipped with releases.
-- `BUILD.cmd`, `AGENTS.md` and dotfiles — build entry point and repository rules.
+- `BUILD.cmd` — single application-and-installer build entry point.
+- `AGENTS.md` and dotfiles — repository rules.
 - `docs/releases/` — all versioned release notes, indexed by `README.md`.
 - `docs/SUPPORTED_HARDWARE.md` — detailed support evidence and inventory.
 - `docs/legal/COMMERCIAL_LICENSE.md` — commercial license terms.
@@ -37,11 +38,16 @@ Backup: `.local/backups/root-structure-1790061701.zip`.
 ## Build and replacement workflow (2026-09-19)
 
 Use `tools/build_release.ps1` for an incremental ordinary build with the existing
-pinned runtime. `BUILD.cmd` / `tools/build.ps1` retain the full dependency and
-release-check workflow. Both stage the EXE under `build/obj/ReleaseCandidate/x64`
+pinned runtime. The internal `tools/build.ps1` stage retains the full dependency
+and release-check workflow. `BUILD.cmd` runs that stage once and then packages
+the same EXE, then places the verified final application and installer directly
+in `build`. Versioned packages and hash records stay under
+`build/packages/windows-<timestamp>-<id>/`. Builds stage the EXE under `build/obj/ReleaseCandidate/x64`
 and use the same final atomic replacement helper.
 
-**Ordinary delivery: `build/bin/Release/x64/HallJoy.exe`.**
+**Default BUILD results: `build/HallJoy-setup.exe` and `build/HallJoy.exe`.**
+Internal application-only result: `build/bin/Release/x64/HallJoy.exe`;
+run `BUILD.cmd -PackageOnly` to package and refresh the two final files after it.
 The historical `build/release` path is superseded. Internal candidate files and
 backups are build artifacts, not additional distribution packages.
 
@@ -60,7 +66,10 @@ Interactive/device tests still require their explicit environment contract.
 
 | Path | Purpose |
 |---|---|
-| build/bin/Release/x64/ | Ordinary delivery; full build also updates notices/hash manifest |
+| build/HallJoy-setup.exe | Final Windows installer from BUILD.cmd |
+| build/HallJoy.exe | Final standalone application; identical to the installer payload |
+| build/packages/ | Versioned package archives, SHA-256 records and inventory |
+| build/bin/Release/x64/ | Internal application output and notices/hash manifest |
 | build/obj/ReleaseCandidate/x64/ | Candidate EXE and its matching PDB/MAP before replacement |
 | build/obj/replacement-backups/ | Previous EXEs retained by atomic replacement |
 | build/bin/<variant>/<configuration>/<platform>/ | Isolated diagnostic/simulator targets |

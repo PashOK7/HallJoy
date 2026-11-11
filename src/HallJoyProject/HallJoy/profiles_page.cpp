@@ -1159,15 +1159,23 @@ bool ProfilesPage_Test() {
         RECT last{}; TabCtrl_GetItemRect(tab, 0, &last);
         auto fits = [&]() { RECT r{}; GetWindowRect(selector, &r); MapWindowPoints(nullptr, root, reinterpret_cast<POINT*>(&r), 2);
             POINT edge{ last.right, 0 }; MapWindowPoints(tab, root, &edge, 1); return r.left >= edge.x; };
-        SetWindowPos(tab, nullptr, 0, 0, last.right + 190, 200, SWP_NOZORDER);
+        // Fixture widths are logical pixels, like the production mode thresholds.
+        SetWindowPos(tab, nullptr, 0, 0, last.right + S(tab, 190), 200, SWP_NOZORDER);
         ProfileSelector_Place(selector, tab);
-        ok &= shown(selector) && sel && sel->mode == SelectorMode::Compact && fits();
-        SetWindowPos(tab, nullptr, 0, 0, last.right + 80, 200, SWP_NOZORDER);
+        const bool compactOk = shown(selector) && sel && sel->mode == SelectorMode::Compact && fits();
+        ok &= compactOk;
+        SetWindowPos(tab, nullptr, 0, 0, last.right + S(tab, 80), 200, SWP_NOZORDER);
         ProfileSelector_Place(selector, tab);
         RECT icon{}; GetClientRect(selector, &icon);
-        ok &= shown(selector) && sel && sel->mode == SelectorMode::Icon && fits() &&
+        const bool iconOk = shown(selector) && sel && sel->mode == SelectorMode::Icon && fits() &&
             sel->chip.right > sel->chip.left && sel->button.right > sel->button.left && sel->button.right <= sel->chip.left;
+        ok &= iconOk;
+        const int scaled100 = S(tab, 100);
         DestroyWindow(root);
+        if (!compactOk || !iconOk) {
+            throw std::runtime_error("profiles selector sizing failed: compact=" + std::to_string(compactOk) +
+                " icon=" + std::to_string(iconOk) + " scaled100=" + std::to_string(scaled100));
+        }
         return ok;
     });
 }

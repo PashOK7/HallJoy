@@ -103,10 +103,17 @@ def main() -> int:
     require("Windows x64" in readme and "build/bin/Release/x64/HallJoy.exe" in readme and
             "README.md" in readme,
             "project README is missing current target/output and product documentation link")
-    require("BUILD.cmd" in build_readme and "build\\bin\\Release\\x64\\HallJoy.exe" in build_readme and
-            "Windows x64 is the supported target" in build_readme and
-            "Ordinary builds support optional continuous logging" in build_readme,
-            "build guide is missing current output, architecture or logging contract")
+    require("BUILD.cmd" in build_readme, "build guide is missing the public BUILD.cmd entry")
+    # Windows documentation may use either path separator. The final pair and
+    # the internal compiler output are distinct parts of the current contract.
+    normalized_build_readme = build_readme.replace("\\", "/")
+    for output in ("build/HallJoy-setup.exe", "build/HallJoy.exe",
+                   "build/bin/Release/x64/HallJoy.exe"):
+        require(output in normalized_build_readme, f"build guide is missing output path: {output}")
+    require("Windows x64 is the supported target" in build_readme,
+            "build guide is missing the Windows x64 architecture contract")
+    require("Ordinary builds support optional continuous logging" in build_readme,
+            "build guide is missing the optional continuous logging contract")
 
     require(historical.startswith("HISTORICAL RECORD ONLY - NOT CURRENT v1.4 RELEASE EVIDENCE"),
             "v3.9 validation record lacks the historical warning")

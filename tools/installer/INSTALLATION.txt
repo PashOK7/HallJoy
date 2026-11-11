@@ -1,6 +1,6 @@
 HallJoy - Windows installation
 
-This optional installer installs HallJoy for the current user, normally under
+This installer installs HallJoy for the current user, normally under
 %LOCALAPPDATA%\Programs\HallJoy. Open HallJoy from the Start menu. A desktop
 shortcut is optional. The existing standalone HallJoy.exe remains supported.
 
@@ -10,8 +10,10 @@ start HallJoy, add startup tasks or contact the network.
 
 HallJoy uses supported keyboard key travel to emulate an Xbox controller.
 HallJoy may write local diagnostics and crash dumps. Review these before sharing.
+See PRIVACY_AND_SECURITY.txt for input access, local storage and permissions.
 
 User settings, profiles, layouts and curves stay in %LOCALAPPDATA%\HallJoy.
+The analog runtime cache is %LOCALAPPDATA%\HallJoy\Runtime\v<version>.
 The installer does not import portable profiles or create HallJoy.portable.
 Close HallJoy before upgrading, then run the newer installer in the same folder.
 An unrelated nonempty folder, including a portable copy, is not overwritten.

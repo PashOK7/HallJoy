@@ -1,4 +1,4 @@
-; Optional per-user package. Keep the original HallJoy executable unchanged.
+; Per-user Windows installer. Keep the original HallJoy executable unchanged.
 Unicode true
 ManifestDPIAware true
 ManifestSupportedOS all
@@ -40,6 +40,12 @@ Var DesktopFolder
 !define MUI_UNICON "${PAYLOAD}\HallJoy.ico"
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "${PAYLOAD}\LICENSE"
+!define MUI_PAGE_HEADER_TEXT "Data and permissions"
+!define MUI_PAGE_HEADER_SUBTEXT "Review local storage, input access and removal behavior."
+!define MUI_LICENSEPAGE_TEXT_TOP "This notice describes what setup and the application do."
+!define MUI_LICENSEPAGE_TEXT_BOTTOM "Select Next to continue with setup."
+!define MUI_LICENSEPAGE_BUTTON "Next >"
+!insertmacro MUI_PAGE_LICENSE "${PAYLOAD}\PRIVACY_AND_SECURITY.txt"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_INSTFILES
@@ -132,6 +138,7 @@ Section "HallJoy" MainSection
   File "${PAYLOAD}\THIRD_PARTY_NOTICES.md"
   File "${PAYLOAD}\dependency-lock.json"
   File "${PAYLOAD}\INSTALLATION.txt"
+  File "${PAYLOAD}\PRIVACY_AND_SECURITY.txt"
   ${If} ${Errors}
     MessageBox MB_ICONSTOP "Could not copy all files. Check disk space and folder permissions." /SD IDOK
     SetErrorLevel 4
@@ -203,6 +210,7 @@ Section "Uninstall"
   Delete "$INSTDIR\THIRD_PARTY_NOTICES.md"
   Delete "$INSTDIR\dependency-lock.json"
   Delete "$INSTDIR\INSTALLATION.txt"
+  Delete "$INSTDIR\PRIVACY_AND_SECURITY.txt"
   Delete "$MenuFolder\HallJoy.lnk"
   Delete "$MenuFolder\Installation help.lnk"
   Delete "$MenuFolder\Uninstall.lnk"

@@ -636,17 +636,11 @@ $buildExitCode = $LASTEXITCODE
 $buildOutput | Out-Host
 if ($buildExitCode -ne 0) { throw "HallJoy build failed: $buildExitCode" }
 $productionWarnings = @($buildOutput | Where-Object { [string]$_ -match ': warning (?:C|LNK)\d+:' })
-$allowedProductionWarning = 'ViGEmClient\.lib\(ViGEmClient\.obj\)\s*: warning LNK4099:'
-$unexpectedWarnings = @($productionWarnings | Where-Object { [string]$_ -notmatch $allowedProductionWarning })
-if ($unexpectedWarnings.Count -ne 0) {
-    $unexpectedWarnings | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+if ($productionWarnings.Count -ne 0) {
+    $productionWarnings | ForEach-Object { Write-Host $_ -ForegroundColor Red }
     throw 'Unexpected production compiler/linker warnings were emitted.'
 }
-$productionWarningCodes = @($productionWarnings | ForEach-Object {
-    if ([string]$_ -match 'warning ((?:C|LNK)\d+):') { $Matches[1] }
-} | Sort-Object -Unique)
-$warningSummary = if ($productionWarningCodes.Count) { $productionWarningCodes -join ', ' } else { 'none' }
-Write-Host "Production warning baseline: allowed codes=$warningSummary; 0 unexpected." -ForegroundColor DarkGray
+Write-Host 'Production warnings: 0.' -ForegroundColor DarkGray
 if (-not (Test-Path -LiteralPath $exe)) { throw "Executable not produced: $exe" }
 
 foreach ($check in @('--halljoy-require-k4-onboard', '--halljoy-support-self-test', '--halljoy-shark-self-test', '--halljoy-mini60-self-test', '--halljoy-na87-native-self-test')) {

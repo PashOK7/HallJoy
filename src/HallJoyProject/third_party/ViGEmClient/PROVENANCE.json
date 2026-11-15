@@ -1,7 +1,7 @@
 {
   "source_commit": "b66d02d57e32cc8595369c53418b843e958649b4",
   "source_repository": "https://github.com/nefarius/ViGEmClient.git",
-  "library_sha256": "2D99C44ED8F615EB7A481F8C13781B25D883F07C006CEECB9C694369C969364E",
+  "library_sha256": "01F376457D4C786C9BCBC7049E9FB5991A84E50B5E9330201BA745D95F2C6D2D",
   "public_api_symbols": [
     "vigem_alloc",
     "vigem_connect",
@@ -41,5 +41,9 @@
     "src/Internal.h": "3c0f39ed691b0919f7c44b1e0dce5c0371097d5d5c193df389550c84f3c4b801",
     "src/ViGEmClient.vcxproj": "045ccc626a8150c92db3a367049093fd50a2af7bcae3bbbd9e243719b6afbb79",
     "LICENSE": "c52f884278c7063db42993b09ac6835fa00012bb93a41c30defaf075b66dbdb5"
-  }
+  },
+  "debug_information_format": "OldStyle (/Z7)",
+  "build_override": "tools/vigem_client_embedded_debug.props",
+  "build_override_sha256": "7E9809A02372DA60E6B9621D12434A24E89DE746FB013B1DBF74C3132C08AD14",
+  "source_files_hash_newlines": "CRLF (historical checkout hashes; LF source content is identical)"
 }

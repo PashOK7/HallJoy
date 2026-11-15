@@ -16,10 +16,13 @@ if ($LASTEXITCODE -ne 0 -or $commit -cne [string]$spec.sourceCommit) { throw 'Vi
 $changes = @(& git -C $source status --porcelain --untracked-files=all)
 if ($LASTEXITCODE -ne 0 -or $changes.Count -ne 0) { throw 'ViGEmClient source is not clean.' }
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
-$builder = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find 'MSBuild/**/Bin/amd64/MSBuild.exe' | Select-Object -First 1
+$builder = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find 'MSBuild/**/Bin/amd64/MSBuild.exe' | Select-Object -First 1
 if (-not $builder) { throw 'Visual Studio MSBuild is required.' }
 $output = Join-Path $root 'build/obj/ViGEmClientVerified'
-& $builder (Join-Path $source 'src/ViGEmClient.vcxproj') /t:Rebuild /p:Configuration=Release_LIB /p:Platform=x64 /p:PlatformToolset=v143 "/p:VCToolsVersion=$($spec.vcToolsVersion)" "/p:OutDir=$output\" "/p:IntDir=$output\obj\" /verbosity:minimal /nologo
+$debugProps = Join-Path $PSScriptRoot 'vigem_client_embedded_debug.props'
+# Import after the upstream item definitions without changing the pinned source.
+# /Z7 embeds debug information in the object, avoiding a missing compiler PDB.
+& $builder (Join-Path $source 'src/ViGEmClient.vcxproj') /t:Rebuild /p:Configuration=Release_LIB /p:Platform=x64 /p:PlatformToolset=v143 "/p:VCToolsVersion=$($spec.vcToolsVersion)" "/p:ForceImportBeforeCppTargets=$debugProps" "/p:OutDir=$output\" "/p:IntDir=$output\obj\" /verbosity:minimal /nologo
 if ($LASTEXITCODE -ne 0) { throw 'Pinned ViGEmClient source build failed.' }
 # Never replace the locked distributable implicitly. Debug metadata/tool paths may
 # change its binary hash; explicit review updates provenance and the lock together.

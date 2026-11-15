@@ -56,14 +56,15 @@
   "binaryInputs": {
     "vigemClient": {
       "path": "src/HallJoyProject/third_party/ViGEmClient/lib/release/x64/ViGEmClient.lib",
-      "size": 1246058,
-      "sha256": "2D99C44ED8F615EB7A481F8C13781B25D883F07C006CEECB9C694369C969364E",
+      "size": 1606198,
+      "sha256": "01F376457D4C786C9BCBC7049E9FB5991A84E50B5E9330201BA745D95F2C6D2D",
       "sourceRepository": "https://github.com/nefarius/ViGEmClient.git",
       "sourceCommit": "b66d02d57e32cc8595369c53418b843e958649b4",
       "sourceLicense": "MIT",
       "configuration": "Release_LIB|x64",
       "platformToolset": "v143",
-      "vcToolsVersion": "14.44.35207"
+      "vcToolsVersion": "14.44.35207",
+      "debugInformationFormat": "OldStyle (/Z7)"
     }
   }
 }

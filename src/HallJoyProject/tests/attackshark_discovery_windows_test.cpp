@@ -29,8 +29,7 @@ struct Shared {volatile LONG topology=0;};Shared storage;Shared* shared=&storage
 LONG Load(volatile LONG& value){return InterlockedCompareExchange(&value,0,0);}
 bool Stop(){return cancelled;}
 void Line(const std::string& value){records.push_back(value);lastOutput=tick;}
-void Event(const char* name,unsigned error){Line(std::string(name)+" error="+std::to_string(error));}
-void TestSleep(DWORD ms){tick+=ms;if(topologyAt && tick>=topologyAt){++storage.topology;topologyAt=0;}if(tick>=limit)cancelled=true;if(watchdogEnabled && tick-lastOutput>8000){watchdogFired=true;cancelled=true;}}
+void TestSleep(DWORD ms){tick+=ms;if(topologyAt && tick>=topologyAt){InterlockedIncrement(&storage.topology);topologyAt=0;}if(tick>=limit)cancelled=true;if(watchdogEnabled && tick-lastOutput>8000){watchdogFired=true;cancelled=true;}}
 ULONGLONG TestTick(){return tick;}
 HDEVINFO FakeList(const GUID*,PCWSTR,HWND,DWORD){++passes;if(passes<=listFailures){SetLastError(ERROR_GEN_FAILURE);return INVALID_HANDLE_VALUE;}return reinterpret_cast<HDEVINFO>(1);}
 BOOL FakeEnum(HDEVINFO,PSP_DEVINFO_DATA,const GUID*,DWORD index,PSP_DEVICE_INTERFACE_DATA){active=index;if(index>=rows.size()){SetLastError(ERROR_NO_MORE_ITEMS);return FALSE;}return TRUE;}

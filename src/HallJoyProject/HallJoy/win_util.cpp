@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <bit>
 
 UINT WinUtil_GetDpiForWindowCompat(HWND hwnd)
 {
@@ -14,7 +15,7 @@ UINT WinUtil_GetDpiForWindowCompat(HWND hwnd)
     if (!u32)
         return 96;
     using Fn = UINT(WINAPI*)(HWND);
-    static const Fn p = (Fn)GetProcAddress(u32, "GetDpiForWindow");
+    static const Fn p = std::bit_cast<Fn>(GetProcAddress(u32, "GetDpiForWindow"));
     if (p) return p(hwnd);
 
     HDC dc = GetDC(hwnd);

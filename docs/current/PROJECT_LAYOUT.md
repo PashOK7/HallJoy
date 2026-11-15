@@ -22,6 +22,9 @@ clone от очищенного remote main, сверяя `.local/release-state.
 - `LICENSE` and `THIRD_PARTY_NOTICES.md` — root legal notices; the latter is
   consumed by build/package scripts and shipped with releases.
 - `BUILD.cmd`, `AGENTS.md` and dotfiles — build entry point and repository rules.
+- Optional `Start.cmd` / `Update.cmd` manage a personal `.local/portable/` copy.
+- Setup packaging is an explicit `tools/build_windows_installer.ps1` action; it
+  creates new packages under `build/packages/` and preserves the ordinary EXE.
 - `docs/releases/` — all versioned release notes, indexed by `README.md`.
 - `docs/SUPPORTED_HARDWARE.md` — detailed support evidence and inventory.
 - `docs/legal/COMMERCIAL_LICENSE.md` — commercial license terms.

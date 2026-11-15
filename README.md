@@ -271,6 +271,11 @@ Commercial licensing inquiries: Discord **`pash.ok`**. Third-party components
 and their licenses are listed in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+HallJoy remains a standalone EXE; the installer is built separately and is never
+required. See [optional installer packaging](docs/development/WINDOWS_INSTALLER.md).
+[Portable helpers and backups](docs/PORTABLE.md) · [input and privacy](docs/INPUT_AND_PRIVACY.md) · [driving example](docs/DRIVING_SETUP.md).
+Quick-start translations: [Русский](docs/translations/README.ru.md), [Español](docs/translations/README.es.md), [Français](docs/translations/README.fr.md), [Italiano](docs/translations/README.it.md), [Deutsch](docs/translations/README.de.md), [简体中文](docs/translations/README.zh-CN.md), [日本語](docs/translations/README.ja.md), [한국어](docs/translations/README.ko.md), [हिन्दी](docs/translations/README.hi.md).
+
 ## Building from source
 
 Install Visual Studio 2022 C++ Build Tools (including x64 Clang), Python 3.12,

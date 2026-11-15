@@ -1,8 +1,11 @@
 [CmdletBinding()]
-param()
+param([string]$PythonPath)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'build_environment.ps1')
+# Incremental builds can reuse the verified runtime and an existing C++ toolchain.
+$null = Initialize-HallJoyBuildEnvironment -PythonPath $PythonPath
 $vigem = (Get-Content -LiteralPath (Join-Path $root 'tools/dependency-lock.json') -Raw | ConvertFrom-Json).binaryInputs.vigemClient
 $vigemPath = Join-Path $root $vigem.path
 if ((Get-Item -LiteralPath $vigemPath).Length -ne $vigem.size -or (Get-FileHash -LiteralPath $vigemPath -Algorithm SHA256).Hash -ne $vigem.sha256) {

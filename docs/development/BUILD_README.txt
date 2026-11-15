@@ -20,6 +20,15 @@ Ordinary source change - each once, with the test cache enabled:
 Never HALLJOY_NO_TEST_CACHE=1; do not repeat PASS without a relevant change.
 research_reference_checks.py --record only follows a changed pinned source.
 
+Optional Windows setup package (separate from normal portable builds):
+  powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_windows_installer.ps1 -CheckOnly
+  powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_windows_installer.ps1
+Only optional packaging requires NSIS3. It reads the existing verified ordinary
+EXE and creates a new build/packages directory; it does not replace or launch it.
+See WINDOWS_INSTALLER.md. BUILD.cmd remains application-only.
+Incremental builds discover Python3.10+ x64 without making Clang mandatory for
+an existing MSVC + supported portable compiler / cached-runtime environment.
+
 Full dependency rebuild, when needed:
   BUILD.cmd
 Equivalent:

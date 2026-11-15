@@ -21,6 +21,7 @@ for current records and preserved decisions. No application/device is started.
 | UI / scrolling | [UI architecture](development/CUSTOM_UI_ARCHITECTURE.md), [transitions](current/TAB_TRANSITIONS_2026-10-03.md) | `custom_page_surface.h`, `custom_page_controls.h` |
 | Profiles / persistence | [Profiles v2](current/GAME_PROFILES_V2_2026-10-03.md), [recovery](current/STARTUP_PROFILE_RECOVERY_2026-09-11.md) | `global_profiles.cpp`, `profile_ini.cpp`, `settings_ini.cpp` |
 | K4 onboard / wireless | [Onboard](current/K4_ONBOARD_ONLY_2026-10-03.md), [wireless](current/K4_WIRELESS_GAMEPAD_2026-10-24.md) | `keychron_onboard_backend.cpp`, `firmware/` |
+| Optional installer / portable helpers | [Packaging](development/WINDOWS_INSTALLER.md), [portable data](PORTABLE.md) | `build_windows_installer.ps1`; default BUILD remains EXE-only |
 | Publication / legal | [Policy](legal/PUBLICATION_POLICY.json), [distribution audit](legal/DISTRIBUTION_AUDIT_2026-09-27.md), [history cleanup](legal/HISTORY_CLEANUP_2026-09-27.md) | `release.py`, `check_publication_inputs.py` |
 
 C++ filenames are under `src/HallJoyProject/HallJoy/`; Python/PowerShell tools

@@ -3,6 +3,7 @@ import hashlib
 from pathlib import Path
 import re
 import sys
+import xml.etree.ElementTree as ET
 
 repo = Path(__file__).resolve().parents[3]
 lock_path = repo / "tools" / "dependency-lock.json"
@@ -14,6 +15,11 @@ plugin_build = (repo / "third_party" / "UniversalAnalogPluginFixed" / "tools" /
 guidance_policy = (repo / "src" / "HallJoyProject" / "HallJoy" /
                    "dependency_guidance_policy.h").read_text(encoding="utf-8-sig")
 notices = (repo / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8-sig")
+vigem = lock["binaryInputs"]["vigemClient"]
+vigem_bytes = (repo / vigem["path"]).read_bytes()
+vigem_provenance = json.loads((repo / "src/HallJoyProject/third_party/ViGEmClient/PROVENANCE.json").read_text(encoding="utf-8"))
+vigem_props = repo / "tools/vigem_client_embedded_debug.props"
+vigem_props_tree = ET.fromstring(vigem_props.read_bytes())
 
 
 def full_sha(value: str) -> bool:
@@ -77,8 +83,17 @@ checks = {
         "sources.sun" in plugin_build and "sources.soup" in plugin_build,
     "official build requires portable compiler tests":
         "run_native_backend_checks.py" in build and "--require-compiler" in build,
-    "production warning allowlist is enforced":
-        "allowedProductionWarning" in build and "Unexpected production compiler/linker warnings" in build,
+    "ViGEm static library and embedded debug provenance match the lock":
+        len(vigem_bytes) == vigem["size"] and
+        hashlib.sha256(vigem_bytes).hexdigest().upper() == vigem["sha256"] == vigem_provenance["library_sha256"] and
+        vigem["sourceCommit"] == vigem_provenance["source_commit"] and
+        vigem["debugInformationFormat"] == vigem_provenance["debug_information_format"] == "OldStyle (/Z7)" and
+        hashlib.sha256(vigem_props.read_bytes()).hexdigest().upper() == vigem_provenance["build_override_sha256"] and
+        vigem_props_tree.findtext(".//{*}DebugInformationFormat") == "OldStyle",
+    "production rejects all compiler/linker warnings":
+        "if ($productionWarnings.Count -ne 0)" in build and
+        "allowedProductionWarning" not in build and
+        "Unexpected production compiler/linker warnings" in build,
 }
 
 failed = []

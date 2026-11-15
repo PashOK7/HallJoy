@@ -1,10 +1,16 @@
 [CmdletBinding()]
-param()
+param([string]$PythonPath, [switch]$CheckOnly)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'build_environment.ps1')
+$null = Initialize-HallJoyBuildEnvironment -PythonPath $PythonPath -RequireClang
+if ($CheckOnly) {
+    Write-Output 'FULL_BUILD_ENVIRONMENT=PASS Python and x64 Clang found; no compilation, downloads or packaging started.'
+    return
+}
 $pluginRoot = Join-Path $root 'third_party\UniversalAnalogPluginFixed'
 $hallJoyRoot = Join-Path $root 'src\HallJoyProject'
 $pluginBuild = Join-Path $pluginRoot 'tools\build_fixed_plugin.ps1'
@@ -34,6 +40,9 @@ $vigemInstallerExpectedSize = [long]$vigemInstallerSpec.installerSize
 $vigemInstallerExpectedSha256 = [string]$vigemInstallerSpec.installerSha256
 
 $required = @(
+    (Join-Path $PSScriptRoot 'build_uap_isolation.ps1'),
+    (Join-Path $PSScriptRoot 'close_project_halljoy.ps1'),
+    (Join-Path $PSScriptRoot 'halljoy_process_identity.ps1'),
     $dependencyLockPath,
     $thirdPartyNoticesPath,
     $pluginBuild,
@@ -559,6 +568,8 @@ if (-not (Test-Path -LiteralPath $abi1)) {
     throw 'Universal Analog Plugin build did not produce abiv1.dll.'
 }
 $uapAbiCheck = Join-Path $root 'tools\check_private_uap_abi.py'
+. (Join-Path $PSScriptRoot 'build_uap_isolation.ps1')
+Invoke-HallJoyUapIsolation {
 try {
     $activeHallJoy = @(
         Get-CimInstance Win32_Process -Filter "Name='HallJoy.exe'" -ErrorAction Stop
@@ -576,6 +587,7 @@ if ($activeHallJoy.Count -ne 0) {
 }
 & python $uapAbiCheck $abi1
 if ($LASTEXITCODE -ne 0) { throw "Private UAP ABI runtime gate failed: $LASTEXITCODE" }
+}
 New-Item -ItemType Directory -Path $runtime -Force | Out-Null
 Copy-Item -LiteralPath $abi1 -Destination (Join-Path $runtime 'universal_analog_abiv1.dll') -Force
 Copy-Item -LiteralPath (Join-Path (Split-Path -Parent $pluginOut) 'abiv1-link.map') -Destination (Join-Path $runtime 'universal_analog_abiv1.map') -Force
@@ -624,17 +636,11 @@ $buildExitCode = $LASTEXITCODE
 $buildOutput | Out-Host
 if ($buildExitCode -ne 0) { throw "HallJoy build failed: $buildExitCode" }
 $productionWarnings = @($buildOutput | Where-Object { [string]$_ -match ': warning (?:C|LNK)\d+:' })
-$allowedProductionWarning = 'ViGEmClient\.lib\(ViGEmClient\.obj\)\s*: warning LNK4099:'
-$unexpectedWarnings = @($productionWarnings | Where-Object { [string]$_ -notmatch $allowedProductionWarning })
-if ($unexpectedWarnings.Count -ne 0) {
-    $unexpectedWarnings | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+if ($productionWarnings.Count -ne 0) {
+    $productionWarnings | ForEach-Object { Write-Host $_ -ForegroundColor Red }
     throw 'Unexpected production compiler/linker warnings were emitted.'
 }
-$productionWarningCodes = @($productionWarnings | ForEach-Object {
-    if ([string]$_ -match 'warning ((?:C|LNK)\d+):') { $Matches[1] }
-} | Sort-Object -Unique)
-$warningSummary = if ($productionWarningCodes.Count) { $productionWarningCodes -join ', ' } else { 'none' }
-Write-Host "Production warning baseline: allowed codes=$warningSummary; 0 unexpected." -ForegroundColor DarkGray
+Write-Host 'Production warnings: 0.' -ForegroundColor DarkGray
 if (-not (Test-Path -LiteralPath $exe)) { throw "Executable not produced: $exe" }
 
 foreach ($check in @('--halljoy-require-k4-onboard', '--halljoy-support-self-test', '--halljoy-shark-self-test', '--halljoy-mini60-self-test', '--halljoy-na87-native-self-test')) {

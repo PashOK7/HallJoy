@@ -1,3 +1,4 @@
+#include "ui_language_win32.h"
 #include "ui_activity.h"
 // remap_panel.cpp
 #define WIN32_LEAN_AND_MEAN
@@ -1371,9 +1372,9 @@ static void Remap_UpdateAddGamepadButtonText(RemapPanelState* st)
     wchar_t text[64]{};
     int packs = std::clamp(st->gamepadPacks, 1, REMAP_MAX_GAMEPADS);
     if (packs < REMAP_MAX_GAMEPADS)
-        swprintf_s(text, L"Add Gamepad (%d/%d)", packs, REMAP_MAX_GAMEPADS);
+        swprintf_s(text, UiText(L"Add Gamepad (%d/%d)"), packs, REMAP_MAX_GAMEPADS);
     else
-        swprintf_s(text, L"Max Gamepads (%d/%d)", packs, REMAP_MAX_GAMEPADS);
+        swprintf_s(text, UiText(L"Max Gamepads (%d/%d)"), packs, REMAP_MAX_GAMEPADS);
 
     bool canAdd = (packs < REMAP_MAX_GAMEPADS);
     SetWindowTextW(st->btnAddGamepad, text);
@@ -1485,7 +1486,7 @@ static void Remap_CreateIconPackButtons(HWND hWnd, RemapPanelState* st, HINSTANC
     SendMessageW(lbl, WM_SETFONT, (WPARAM)hFont, TRUE);
 
     wchar_t packName[64]{};
-    swprintf_s(packName, L"Gamepad %d", packIdx + 1);
+    swprintf_s(packName, UiText(L"Gamepad %d"), packIdx + 1);
     SetWindowTextW(lbl, packName);
     st->packLabels.push_back(lbl);
 
@@ -1999,17 +2000,17 @@ static void Remap_RenderCacheContent(HWND hWnd, HDC hdc, const RECT& full, void*
 
     RECT help{ S(hWnd, 12), S(hWnd, 10), full.right - S(hWnd, 24), S(hWnd, 66) };
     CustomPage_DrawText(hdc,
-        L"Drag and drop a gamepad control onto a keyboard key to bind.\n"
+        UiText(L"Drag and drop a gamepad control onto a keyboard key to bind.\n"
         L"Hold Shift while dropping on a key to add another action from the same gamepad.\n"
-        L"Right click a key on the keyboard to unbind.",
+        L"Right click a key on the keyboard to unbind."),
         help, UiTheme::Color_Text(), DT_LEFT | DT_TOP | DT_WORDBREAK);
 
     RECT add{ S(hWnd, 12), S(hWnd, 70), S(hWnd, 222), S(hWnd, 98) };
     wchar_t addText[64]{};
     if (st->gamepadPacks < REMAP_MAX_GAMEPADS)
-        swprintf_s(addText, L"Add Gamepad (%d/%d)", st->gamepadPacks, REMAP_MAX_GAMEPADS);
+        swprintf_s(addText, UiText(L"Add Gamepad (%d/%d)"), st->gamepadPacks, REMAP_MAX_GAMEPADS);
     else
-        swprintf_s(addText, L"Max Gamepads (%d/%d)", st->gamepadPacks, REMAP_MAX_GAMEPADS);
+        swprintf_s(addText, UiText(L"Max Gamepads (%d/%d)"), st->gamepadPacks, REMAP_MAX_GAMEPADS);
     CustomPage_DrawButton(g, hdc, add, addText, st->hotItem == REMAP_ID_ADD_GAMEPAD,
         st->pressedItem == REMAP_ID_ADD_GAMEPAD, st->gamepadPacks < REMAP_MAX_GAMEPADS);
 
@@ -2029,7 +2030,7 @@ static void Remap_RenderCacheContent(HWND hWnd, HDC hdc, const RECT& full, void*
             LerpColor(UiTheme::Color_Border(), accent, 0.36f), (float)S(hWnd, 10), 232);
 
         wchar_t title[64]{};
-        swprintf_s(title, L"Gamepad %d", pack + 1);
+        swprintf_s(title, UiText(L"Gamepad %d"), pack + 1);
         RECT titleRc{ S(hWnd, 12), packTop, S(hWnd, 78), packTop + headerH };
         CustomPage_DrawText(hdc, title, titleRc, UiTheme::Color_Text(),
             DT_LEFT | DT_VCENTER | DT_SINGLELINE);
@@ -2562,15 +2563,15 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
 
         st->txtHelp = CreateWindowW(L"STATIC",
-            L"Drag and drop a gamepad control onto a keyboard key to bind.\n"
+            UiText(L"Drag and drop a gamepad control onto a keyboard key to bind.\n"
             L"Hold Shift while dropping on a key to add another action from the same gamepad.\n"
-            L"Right click a key on the keyboard to unbind.",
+            L"Right click a key on the keyboard to unbind."),
             WS_CHILD | WS_VISIBLE,
             S(hWnd, 12), S(hWnd, 10), S(hWnd, 860), S(hWnd, 56),
             hWnd, nullptr, cs->hInstance, nullptr);
         SendMessageW(st->txtHelp, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->btnAddGamepad = CreateWindowW(L"BUTTON", L"Add Gamepad",
+        st->btnAddGamepad = UiCreateWindow(L"BUTTON", L"Add Gamepad",
             WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
             S(hWnd, 12), S(hWnd, 70), S(hWnd, 210), S(hWnd, 28),
             hWnd, (HMENU)(INT_PTR)REMAP_ID_ADD_GAMEPAD, cs->hInstance, nullptr);

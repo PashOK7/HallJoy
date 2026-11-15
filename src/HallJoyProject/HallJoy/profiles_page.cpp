@@ -1,3 +1,4 @@
+#include "ui_language_win32.h"
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
@@ -100,7 +101,7 @@ std::vector<std::size_t> RulesOf(const std::wstring& profile) {
 
 std::wstring ModeText() {
     if (!svc::Automatic()) return L"Automatic switching is off";
-    return svc::Manual() ? L"Manual: chosen by you" : L"Automatic: follows the game in focus";
+    return svc::Manual() ? UiText(L"Manual: chosen by you") : UiText(L"Automatic: follows the game in focus");
 }
 
 HICON IconFor(Page* st, const std::wstring& exe) {
@@ -124,7 +125,7 @@ void AddHit(Page* st, int id, const RECT& rc, bool enabled = true) { st->hits.pu
 
 SIZE TextSize(HWND h, const std::wstring& text) {
     HDC dc = GetDC(h);
-    HGDIOBJ old = SelectObject(dc, GetStockObject(SYSTEM_FONT));
+    HGDIOBJ old = SelectObject(dc, UiCjkFont(static_cast<HFONT>(GetStockObject(SYSTEM_FONT)), WinUtil_GetDpiForWindowCompat(h)));
     RECT r{ 0, 0, 0, 0 };
     DrawTextW(dc, text.c_str(), -1, &r, DT_CALCRECT | DT_SINGLELINE);
     SelectObject(dc, old);
@@ -135,12 +136,17 @@ SIZE TextSize(HWND h, const std::wstring& text) {
 void Layout(HWND h, Page* st) {
     RECT client{}; GetClientRect(h, &client);
     const int m = S(h, 16), gap = S(h, 8);
-    const int width = std::max<int>(S(h, 360), client.right - S(h, 14));
+    const int width = std::max<int>(S(h, 360), CustomPageSurface_GetScrollTrackRect(h).left - S(h, 8) + m);
     const bool twoCol = width >= S(h, 640);
     const int leftW = twoCol ? std::clamp(width * 32 / 100, S(h, 200), S(h, 280)) : width - 2 * m;
     const int xL = m, xR = twoCol ? m + leftW + S(h, 28) : m;
     const int rightW = std::max(S(h, 240), (twoCol ? width - xR : width - m) - m);
     const int rightEnd = xR + rightW;
+    const int clearW = std::max(S(h,80), static_cast<int>(TextSize(h, UiText(L"Clear")).cx)+S(h,24));
+    auto shortcutButtons = [&](int left, int y, RECT& button, RECT& clear) {
+        clear = RECT{rightEnd-clearW,y,rightEnd,y+S(h,30)};
+        button = RECT{left,y,std::max(left+S(h,40), static_cast<int>(clear.left)-gap),y+S(h,30)};
+    };
     st->hits.clear(); st->cards.clear(); st->rows.clear(); st->chips.clear();
     GlobalProfiles_List(st->names);
     if (st->selected.empty() || !prof::Exists(st->selected)) st->selected = GlobalProfiles_GetActiveName();
@@ -161,7 +167,7 @@ void Layout(HWND h, Page* st) {
 
     // Left: profile cards.
     int yl = top;
-    st->leftLabel = RECT{ xL, yl, xL + leftW, yl + S(h, 18) }; yl += S(h, 26);
+    st->leftLabel = RECT{ xL, yl, xL + leftW, yl + S(h, 20) }; yl += S(h, 26);
     for (std::size_t i = 0; i < st->names.size(); ++i) {
         RECT rc{ xL, yl, xL + leftW, yl + S(h, 52) };
         st->cards.push_back(rc);
@@ -191,8 +197,8 @@ void Layout(HWND h, Page* st) {
     yr += S(h, 30) + S(h, 26);
 
     if (!st->isDefault) {
-        st->gamesLabel = RECT{ xR, yr, rightEnd, yr + S(h, 18) }; yr += S(h, 20);
-        st->gamesHint = RECT{ xR, yr, rightEnd, yr + S(h, 18) }; yr += S(h, 28);
+        st->gamesLabel = RECT{ xR, yr, rightEnd, yr + S(h, 20) }; yr += S(h, 20);
+        st->gamesHint = RECT{ xR, yr, rightEnd, yr + S(h, 20) }; yr += S(h, 28);
         const auto rules = RulesOf(st->selected);
         st->emptyGames = RECT{};
         if (rules.empty()) { st->emptyGames = RECT{ xR, yr, rightEnd, yr + S(h, 40) }; yr += S(h, 48); }
@@ -226,7 +232,7 @@ void Layout(HWND h, Page* st) {
         }
         st->recentLabel = RECT{};
         if (!suggestions.empty()) {
-            st->recentLabel = RECT{ xR, yr, rightEnd, yr + S(h, 18) }; yr += S(h, 24);
+            st->recentLabel = RECT{ xR, yr, rightEnd, yr + S(h, 20) }; yr += S(h, 24);
             int x = xR;
             for (std::size_t i = 0; i < suggestions.size(); ++i) {
                 const std::wstring exe(prof::FileName(suggestions[i].exe));
@@ -242,34 +248,31 @@ void Layout(HWND h, Page* st) {
             yr += S(h, 40);
         }
         yr += S(h, 8);
-        st->shortcutLabel = RECT{ xR, yr, rightEnd, yr + S(h, 18) }; yr += S(h, 24);
-        st->shortcutBtn = RECT{ xR, yr, xR + S(h, 190), yr + S(h, 30) };
-        st->shortcutClear = RECT{ st->shortcutBtn.right + gap, yr, st->shortcutBtn.right + gap + S(h, 80), yr + S(h, 30) };
+        st->shortcutLabel = RECT{ xR, yr, rightEnd, yr + S(h, 20) }; yr += S(h, 24);
+        shortcutButtons(xR, yr, st->shortcutBtn, st->shortcutClear);
         AddHit(st, ID_SHORTCUT, st->shortcutBtn, !svc::session.readOnly);
         AddHit(st, ID_SHORTCUT_CLEAR, st->shortcutClear, prof::ShortcutFor(svc::session.catalog, st->selected) != 0 || st->capture == Capture::Profile);
         yr += S(h, 30) + S(h, 28);
     } else {
         st->gamesLabel = st->gamesHint = st->emptyGames = st->addRunning = st->addBrowse = st->recentLabel = RECT{};
-        st->shortcutLabel = RECT{ xR, yr, rightEnd, yr + S(h, 18) }; yr += S(h, 24);
-        st->shortcutBtn = RECT{ xR, yr, xR + S(h, 190), yr + S(h, 30) };
-        st->shortcutClear = RECT{ st->shortcutBtn.right + gap, yr, st->shortcutBtn.right + gap + S(h, 80), yr + S(h, 30) };
+        st->shortcutLabel = RECT{ xR, yr, rightEnd, yr + S(h, 20) }; yr += S(h, 24);
+        shortcutButtons(xR, yr, st->shortcutBtn, st->shortcutClear);
         AddHit(st, ID_SHORTCUT, st->shortcutBtn, !svc::session.readOnly);
         AddHit(st, ID_SHORTCUT_CLEAR, st->shortcutClear, prof::ShortcutFor(svc::session.catalog, st->selected) != 0 || st->capture == Capture::Profile);
         yr += S(h, 30) + S(h, 28);
     }
 
     // Automatic switching (application-wide).
-    st->autoLabel = RECT{ xR, yr, rightEnd, yr + S(h, 18) }; yr += S(h, 26);
+    st->autoLabel = RECT{ xR, yr, rightEnd, yr + S(h, 20) }; yr += S(h, 26);
     st->automatic = RECT{ xR, yr, rightEnd, yr + S(h, 28) }; AddHit(st, ID_AUTOMATIC, st->automatic, !svc::session.readOnly); yr += S(h, 36);
-    const int labelW = std::min(S(h, 200), rightW / 2);
+    const int labelW = std::min(S(h, 200), std::max(S(h,80), rightW-clearW-gap-S(h,100)));
     st->focusLabel = RECT{ xR, yr, xR + labelW, yr + S(h, 30) };
     st->focusCombo = RECT{ xR + labelW, yr, std::min(rightEnd, xR + labelW + S(h, 280)), yr + S(h, 30) };
     AddHit(st, ID_FOCUS_COMBO, st->focusCombo, !svc::session.readOnly); yr += S(h, 40);
     st->notify = RECT{ xR, yr, rightEnd, yr + S(h, 28) }; AddHit(st, ID_NOTIFY, st->notify, !svc::session.readOnly); yr += S(h, 40);
     auto shortcutRow = [&](RECT& label, RECT& btn, RECT& clear, int id, int clearId, bool assigned, bool capturing) {
         label = RECT{ xR, yr, xR + labelW, yr + S(h, 30) };
-        btn = RECT{ xR + labelW, yr, xR + labelW + S(h, 190), yr + S(h, 30) };
-        clear = RECT{ btn.right + gap, yr, btn.right + gap + S(h, 80), yr + S(h, 30) };
+        shortcutButtons(xR + labelW, yr, btn, clear);
         AddHit(st, id, btn, !svc::session.readOnly);
         AddHit(st, clearId, clear, assigned || capturing);
         yr += S(h, 38);
@@ -301,14 +304,14 @@ std::wstring CaptureText(Page* st, Capture which, unsigned shortcut) {
 
 void Render(HWND h, HDC hdc, const RECT&, void* user) {
     auto* st = static_cast<Page*>(user);
-    HGDIOBJ oldFont = SelectObject(hdc, GetStockObject(SYSTEM_FONT));
+    HGDIOBJ oldFont = SelectObject(hdc, UiCjkFont(static_cast<HFONT>(GetStockObject(SYSTEM_FONT)), WinUtil_GetDpiForWindowCompat(h)));
     Graphics g(hdc);
     g.SetSmoothingMode(SmoothingModeAntiAlias);
     g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
     const COLORREF text = UiTheme::Color_Text(), muted = UiTheme::Color_TextMuted();
     const UINT one = DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS;
     auto button = [&](int id, const RECT& rc, const std::wstring& label) {
-        CustomPage_DrawButton(g, hdc, rc, label, st->hotId == id, st->pressedId == id, Enabled(st, id));
+        CustomPage_DrawButton(g, hdc, rc, UiText(label.c_str()), st->hotId == id, st->pressedId == id, Enabled(st, id));
     };
     const auto& catalog = svc::session.catalog;
     const auto active = GlobalProfiles_GetActiveName();
@@ -317,14 +320,14 @@ void Render(HWND h, HDC hdc, const RECT&, void* user) {
     CustomPage_DrawRoundRect(g, st->status, UiTheme::Color_ControlBg(), UiTheme::Color_Border(), (float)S(h, 6));
     RECT statusText = st->status; statusText.left += S(h, 12);
     statusText.right = (svc::Automatic() && svc::Manual() ? st->returnAuto.left : st->undo.left) - S(h, 8);
-    CustomPage_DrawText(hdc, L"Active: " + active + L"   |   " + ModeText(), statusText, text, one);
-    if (FindHit(st, ID_RETURN_AUTO)) button(ID_RETURN_AUTO, st->returnAuto, L"Return to automatic");
-    button(ID_UNDO, st->undo, L"Undo edits");
+    CustomPage_DrawText(hdc, UiText(L"Active: ") + active + L"   |   " + ModeText(), statusText, text, one);
+    if (FindHit(st, ID_RETURN_AUTO)) button(ID_RETURN_AUTO, st->returnAuto, UiText(L"Return to automatic"));
+    button(ID_UNDO, st->undo, UiText(L"Undo edits"));
     if (st->error.bottom > st->error.top)
         CustomPage_DrawText(hdc, svc::session.error, st->error, RGB(255, 185, 100), DT_LEFT | DT_WORDBREAK | DT_END_ELLIPSIS);
 
     // Profile cards.
-    CustomPage_DrawText(hdc, L"Profiles", st->leftLabel, muted, one);
+    CustomPage_DrawText(hdc, UiText(L"Profiles"), st->leftLabel, muted, one);
     for (std::size_t i = 0; i < st->cards.size(); ++i) {
         const RECT& rc = st->cards[i];
         const auto& name = st->names[i];
@@ -344,21 +347,21 @@ void Render(HWND h, HDC hdc, const RECT&, void* user) {
         if (GlobalProfiles_IsDefault(name)) detail = L"When no game is in focus";
         else {
             const auto n = RulesOf(name).size();
-            detail = n == 0 ? L"No games" : n == 1 ? L"1 game" : std::to_wstring(n) + L" games";
+            detail = n == 0 ? UiText(L"No games") : n == 1 ? UiText(L"1 game") : std::to_wstring(n) + UiText(L" games");
         }
-        if (isActive) detail = L"Active  |  " + detail;
+        if (isActive) detail = UiText(L"Active  |  ") + detail;
         if (const unsigned s = prof::ShortcutFor(catalog, name)) detail += L"  |  " + ShortcutText(s);
         CustomPage_DrawText(hdc, detail, line2, muted, one);
     }
-    button(ID_NEW, st->newBtn, L"+ New profile");
-    button(ID_IMPORT, st->importBtn, L"Import...");
+    button(ID_NEW, st->newBtn, UiText(L"+ New profile"));
+    button(ID_IMPORT, st->importBtn, UiText(L"Import..."));
 
     // Selected profile.
     if (st->editKind != Edit::Rename) CustomPage_DrawText(hdc, st->selected, st->name, text, one);
     const bool selActive = prof::Same(st->selected, active);
-    std::wstring sub = selActive ? L"Active profile. Edits in Remap and Configuration are saved automatically."
-                                 : L"Not active. Activate it to edit its bindings and curves.";
-    if (st->isDefault) sub = (selActive ? L"Active. " : L"") + std::wstring(L"Used when no assigned game is in focus.");
+    std::wstring sub = selActive ? UiText(L"Active profile. Edits in Remap and Configuration are saved automatically.")
+                                 : UiText(L"Not active. Activate it to edit its bindings and curves.");
+    if (st->isDefault) sub = (selActive ? UiText(L"Active. ") : L"") + std::wstring(UiText(L"Used when no assigned game is in focus."));
     CustomPage_DrawText(hdc, sub, st->subtitle, muted, one);
     const wchar_t* actionLabels[5] = { selActive ? L"Active" : L"Activate", L"Duplicate", L"Rename", L"Export...", L"Delete" };
     const int actionIds[5] = { ID_ACTIVATE, ID_DUPLICATE, ID_RENAME, ID_EXPORT, ID_DELETE };
@@ -372,11 +375,11 @@ void Render(HWND h, HDC hdc, const RECT&, void* user) {
     }
 
     if (!st->isDefault) {
-        CustomPage_DrawText(hdc, L"Games", st->gamesLabel, text, one);
-        CustomPage_DrawText(hdc, L"This profile is selected automatically while one of these programs is in focus.", st->gamesHint, muted, one);
+        CustomPage_DrawText(hdc, UiText(L"Games"), st->gamesLabel, text, one);
+        CustomPage_DrawText(hdc, UiText(L"This profile is selected automatically while one of these programs is in focus."), st->gamesHint, muted, one);
         if (st->emptyGames.bottom > st->emptyGames.top) {
             CustomPage_DrawRoundRect(g, st->emptyGames, UiTheme::Color_PanelBg(), UiTheme::Color_Border(), (float)S(h, 6));
-            CustomPage_DrawText(hdc, L"No games yet. Start the game, then use \"Add running app\" or a suggestion below.",
+            CustomPage_DrawText(hdc, UiText(L"No games yet. Start the game, then use \"Add running app\" or a suggestion below."),
                 st->emptyGames, muted, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
         }
         for (const auto& row : st->rows) {
@@ -393,18 +396,18 @@ void Render(HWND h, HDC hdc, const RECT&, void* user) {
             RECT l1{ row.text.left, row.text.top, row.text.right, row.text.top + S(h, 18) };
             RECT l2{ row.text.left, row.text.top + S(h, 18), row.text.right, row.text.bottom };
             CustomPage_DrawText(hdc, std::wstring(prof::FileName(rule.exe)), l1, text, one);
-            std::wstring where = rule.title.empty() ? L"Any window" : L"Window title contains \"" + rule.title + L"\"";
+            std::wstring where = rule.title.empty() ? UiText(L"Any window") : L"Window title contains \"" + rule.title + L"\"";
             if (prof::IsFullPath(rule.exe)) where += L"  |  " + rule.exe;
             CustomPage_DrawText(hdc, where, l2, muted, one);
             const int titleId = ID_RULE_TITLE + int(row.index), removeId = ID_RULE_REMOVE + int(row.index);
             if (!(st->editKind == Edit::Title && st->editRule == row.index))
-                button(titleId, row.title, rule.title.empty() ? L"Match title..." : L"Edit title...");
+                button(titleId, row.title, rule.title.empty() ? UiText(L"Match title...") : UiText(L"Edit title..."));
             button(removeId, row.remove, L"X");
         }
-        button(ID_ADD_RUNNING, st->addRunning, L"Add running app...");
-        button(ID_ADD_BROWSE, st->addBrowse, L"Browse for EXE...");
+        button(ID_ADD_RUNNING, st->addRunning, UiText(L"Add running app..."));
+        button(ID_ADD_BROWSE, st->addBrowse, UiText(L"Browse for EXE..."));
         if (st->recentLabel.bottom > st->recentLabel.top) {
-            CustomPage_DrawText(hdc, L"Recently in focus (click to add):", st->recentLabel, muted, one);
+            CustomPage_DrawText(hdc, UiText(L"Recently in focus (click to add):"), st->recentLabel, muted, one);
             for (std::size_t i = 0; i < st->chips.size(); ++i) {
                 const bool hot = st->hotId == ID_RECENT + int(i);
                 CustomPage_DrawRoundRect(g, st->chips[i].rc, hot ? RGB(46, 46, 50) : UiTheme::Color_ControlBg(),
@@ -413,21 +416,21 @@ void Render(HWND h, HDC hdc, const RECT&, void* user) {
             }
         }
     }
-    CustomPage_DrawText(hdc, L"Profile shortcut (switches to this profile, manual mode)", st->shortcutLabel, text, one);
+    CustomPage_DrawText(hdc, UiText(L"Profile shortcut (switches to this profile, manual mode)"), st->shortcutLabel, text, one);
     button(ID_SHORTCUT, st->shortcutBtn, CaptureText(st, Capture::Profile, prof::ShortcutFor(catalog, st->selected)));
-    button(ID_SHORTCUT_CLEAR, st->shortcutClear, st->capture == Capture::Profile ? L"Cancel" : L"Clear");
+    button(ID_SHORTCUT_CLEAR, st->shortcutClear, st->capture == Capture::Profile ? UiText(L"Cancel") : UiText(L"Clear"));
 
-    CustomPage_DrawText(hdc, L"Automatic switching", st->autoLabel, text, one);
-    CustomPage_DrawCheckbox(g, hdc, h, st->automatic, L"Select the profile of the game in focus", catalog.automatic, Enabled(st, ID_AUTOMATIC));
-    CustomPage_DrawText(hdc, L"When a game loses focus:", st->focusLabel, catalog.automatic ? text : muted, one);
+    CustomPage_DrawText(hdc, UiText(L"Automatic switching"), st->autoLabel, text, one);
+    CustomPage_DrawCheckbox(g, hdc, h, st->automatic, UiText(L"Select the profile of the game in focus"), catalog.automatic, Enabled(st, ID_AUTOMATIC));
+    CustomPage_DrawText(hdc, UiText(L"When a game loses focus:"), st->focusLabel, catalog.automatic ? text : muted, one);
     if (st->combo) PremiumCombo::PaintRetainedFace(st->combo, hdc, st->focusCombo, st->hotId == ID_FOCUS_COMBO);
-    CustomPage_DrawCheckbox(g, hdc, h, st->notify, L"Show a notification when the profile changes", catalog.notify, Enabled(st, ID_NOTIFY));
-    CustomPage_DrawText(hdc, L"Next profile:", st->nextLabel, text, one);
+    CustomPage_DrawCheckbox(g, hdc, h, st->notify, UiText(L"Show a notification when the profile changes"), catalog.notify, Enabled(st, ID_NOTIFY));
+    CustomPage_DrawText(hdc, UiText(L"Next profile:"), st->nextLabel, text, one);
     button(ID_NEXT_SC, st->nextBtn, CaptureText(st, Capture::Next, catalog.nextShortcut));
-    button(ID_NEXT_SC_CLEAR, st->nextClear, st->capture == Capture::Next ? L"Cancel" : L"Clear");
-    CustomPage_DrawText(hdc, L"Return to automatic:", st->autoScLabel, text, one);
+    button(ID_NEXT_SC_CLEAR, st->nextClear, st->capture == Capture::Next ? UiText(L"Cancel") : UiText(L"Clear"));
+    CustomPage_DrawText(hdc, UiText(L"Return to automatic:"), st->autoScLabel, text, one);
     button(ID_AUTO_SC, st->autoScBtn, CaptureText(st, Capture::Auto, catalog.autoShortcut));
-    button(ID_AUTO_SC_CLEAR, st->autoScClear, st->capture == Capture::Auto ? L"Cancel" : L"Clear");
+    button(ID_AUTO_SC_CLEAR, st->autoScClear, st->capture == Capture::Auto ? UiText(L"Cancel") : UiText(L"Clear"));
     SelectObject(hdc, oldFont);
 }
 
@@ -755,6 +758,7 @@ void SyncCombo(Page* st) {
 
 LRESULT CALLBACK PageProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     Page* st = State(h);
+    if (st && m == UiLanguageChangedMessage()) { Layout(h,st); return 0; }
     if (st && m == PremiumCombo::MsgDropStateChanged()) {
         if (!w) { ShowWindow(reinterpret_cast<HWND>(l), SW_HIDE); CustomPageSurface_MarkDirty(h, &st->surface); }
         return 0;
@@ -766,8 +770,8 @@ LRESULT CALLBACK PageProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         g_page = h;
         st->combo = PremiumCombo::Create(h, GetModuleHandleW(nullptr), 0, 0, 10, 10, kComboId, WS_CHILD | WS_TABSTOP);
         PremiumCombo::SetFont(st->combo, static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT)), false);
-        PremiumCombo::AddString(st->combo, L"Keep its profile while it runs");
-        PremiumCombo::AddString(st->combo, L"Switch to Default");
+        PremiumCombo::AddUiString(st->combo, L"Keep its profile while it runs");
+        PremiumCombo::AddUiString(st->combo, L"Switch to Default");
         ShowWindow(st->combo, SW_HIDE);
         SyncCombo(st);
         st->selected = GlobalProfiles_GetActiveName();
@@ -927,7 +931,7 @@ void SelectorFill(HWND h) {
         PremiumCombo::AddString(s->combo, names[i].c_str());
         if (prof::Same(names[i], GlobalProfiles_GetActiveName())) sel = static_cast<int>(i);
     }
-    PremiumCombo::AddString(s->combo, L"Manage profiles...");
+    PremiumCombo::AddUiString(s->combo, L"Manage profiles...");
     PremiumCombo::SetDropMaxVisible(s->combo, 12);
     PremiumCombo::SetCurSel(s->combo, sel, false);
     InvalidateRect(h, nullptr, FALSE);
@@ -942,9 +946,10 @@ void SelectorLayout(HWND h, Selector* s) {
         s->button = RECT{ s->chip.left - S(h, 4) - rc.bottom, rc.top, s->chip.left - S(h, 4), rc.bottom };
         ShowWindow(s->combo, SW_HIDE);
     } else {
-        const int chipW = s->mode == SelectorMode::Full ? S(h, 74) : S(h, 56);
-        s->chip = RECT{ rc.right - chipW, rc.top + inset, rc.right, rc.bottom - inset };
-        SetWindowPos(s->combo, nullptr, 0, 0, std::max<int>(10, s->chip.left - S(h, 6)), rc.bottom,
+        const int chipW = std::max(s->mode == SelectorMode::Full ? S(h,74) : S(h,56),
+            static_cast<int>(TextSize(h, UiText(ChipText(s->mode == SelectorMode::Compact).c_str())).cx)+S(h,20));
+        s->chip = RECT{ rc.right - chipW - inset, rc.top + inset, rc.right - inset, rc.bottom - inset };
+        SetWindowPos(s->combo, nullptr, inset, inset, std::max<int>(10, s->chip.left - S(h, 6) - inset), rc.bottom - 2*inset,
             SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
     }
     InvalidateRect(h, nullptr, FALSE);
@@ -989,6 +994,7 @@ void DrawDot(Graphics& g, const RECT& area, int diameter, COLORREF color) {
 
 LRESULT CALLBACK SelectorProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     auto* s = reinterpret_cast<Selector*>(GetWindowLongPtrW(h, GWLP_USERDATA));
+    if (s && m == UiLanguageChangedMessage()) { SelectorLayout(h,s); return 0; }
     switch (m) {
     case WM_CREATE:
         s = new Selector();
@@ -1022,8 +1028,8 @@ LRESULT CALLBACK SelectorProc(HWND h, UINT m, WPARAM w, LPARAM l) {
                 const std::wstring letter(1, name.empty() ? L'?' : static_cast<wchar_t>(towupper(name[0])));
                 CustomPage_DrawText(mem, letter, s->button, UiTheme::Color_Text(), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             } else {
-                CustomPage_DrawRoundRect(g, s->chip, chipFill, chipBorder, (float)S(h, 10));
-                CustomPage_DrawText(mem, ChipText(s->mode == SelectorMode::Compact), s->chip,
+                CustomPage_DrawRoundRect(g, s->chip, chipFill, chipBorder, (float)S(h, 4));
+                CustomPage_DrawText(mem, UiText(ChipText(s->mode == SelectorMode::Compact).c_str()), s->chip,
                     svc::Automatic() ? UiTheme::Color_Text() : UiTheme::Color_TextMuted(), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             }
             SelectObject(mem, oldFont);
@@ -1145,6 +1151,21 @@ bool ProfilesPage_Test() {
             ok &= st && st->name.top > st->newBtn.bottom;
             SendMessageW(view, WM_MOUSEWHEEL, MAKEWPARAM(0, static_cast<WORD>(-WHEEL_DELTA * 3)), 0);
             ok &= st && st->scrollY >= 0;
+            const auto savedLanguage = halljoy::ui_language::Get();
+            for (auto language : {halljoy::ui_language::Language::Russian, halljoy::ui_language::Language::Korean,
+                                  halljoy::ui_language::Language::Japanese, halljoy::ui_language::Language::Chinese}) {
+                halljoy::ui_language::Set(language);
+                for (int width : {420,640,760,1100}) {
+                    SetWindowPos(view,nullptr,0,0,S(view,width),S(view,300),SWP_NOZORDER);
+                    Layout(view,st);
+                    const int edge = CustomPageSurface_GetScrollTrackRect(view).left-S(view,8);
+                    for (const auto& pair : {std::make_pair(st->shortcutBtn,st->shortcutClear),
+                                            std::make_pair(st->nextBtn,st->nextClear),std::make_pair(st->autoScBtn,st->autoScClear)})
+                        ok &= pair.second.right <= edge && pair.first.right+S(view,8) <= pair.second.left &&
+                            pair.first.right > pair.first.left && pair.second.right > pair.second.left;
+                }
+            }
+            halljoy::ui_language::Set(savedLanguage);
             DestroyWindow(view);
             ok &= ProfilesPage_Window() == nullptr;
         }
@@ -1155,14 +1176,28 @@ bool ProfilesPage_Test() {
         auto shown = [](HWND w) { return (GetWindowLongW(w, GWL_STYLE) & WS_VISIBLE) != 0; }; // root stays hidden
         auto* sel = selector ? reinterpret_cast<Selector*>(GetWindowLongPtrW(selector, GWLP_USERDATA)) : nullptr;
         ok &= selector && shown(selector) && sel && sel->mode == SelectorMode::Full;
+        if (sel && sel->combo) {
+            RECT bounds{}; GetClientRect(sel->combo,&bounds);
+            HDC dc=CreateCompatibleDC(nullptr);
+            HBITMAP bitmap=CreateBitmap(bounds.right,bounds.bottom,1,32,nullptr);
+            const auto previous=SelectObject(dc,bitmap);
+            SendMessageW(sel->combo,WM_PRINTCLIENT,reinterpret_cast<WPARAM>(dc),PRF_CLIENT);
+            // Both top corners must expose the parent background, not a square
+            // control/arrow fill. The centre still contains the control face.
+            ok &= GetPixel(dc,0,0)==UiTheme::Color_PanelBg() &&
+                GetPixel(dc,bounds.right-1,0)==UiTheme::Color_PanelBg() &&
+                GetPixel(dc,bounds.right/2,2)==UiTheme::Color_ControlBg();
+            SelectObject(dc,previous); DeleteObject(bitmap); DeleteDC(dc);
+        }
         // Less room: never hidden, never over the tabs, just more compact.
         RECT last{}; TabCtrl_GetItemRect(tab, 0, &last);
         auto fits = [&]() { RECT r{}; GetWindowRect(selector, &r); MapWindowPoints(nullptr, root, reinterpret_cast<POINT*>(&r), 2);
             POINT edge{ last.right, 0 }; MapWindowPoints(tab, root, &edge, 1); return r.left >= edge.x; };
-        SetWindowPos(tab, nullptr, 0, 0, last.right + 190, 200, SWP_NOZORDER);
+        // Use the same logical-pixel scale as the production mode thresholds.
+        SetWindowPos(tab, nullptr, 0, 0, last.right + S(tab, 190), 200, SWP_NOZORDER);
         ProfileSelector_Place(selector, tab);
         ok &= shown(selector) && sel && sel->mode == SelectorMode::Compact && fits();
-        SetWindowPos(tab, nullptr, 0, 0, last.right + 80, 200, SWP_NOZORDER);
+        SetWindowPos(tab, nullptr, 0, 0, last.right + S(tab, 80), 200, SWP_NOZORDER);
         ProfileSelector_Place(selector, tab);
         RECT icon{}; GetClientRect(selector, &icon);
         ok &= shown(selector) && sel && sel->mode == SelectorMode::Icon && fits() &&

@@ -16,6 +16,13 @@ assert '[HallJoyBuild.ProcessIdentity]::ImagePath' in close and '[Parameter(Mand
 identity = (root / 'tools/halljoy_process_identity.ps1').read_text(encoding='utf-8-sig')
 assert 'OpenProcess(0x1000' in identity and 'QueryFullProcessImageName' in identity
 assert 'replacement stopped' in close and '$restored.WaitForExit' in install
+full = (root / 'tools/build.ps1').read_text(encoding='utf-8-sig')
+isolation = (root / 'tools/build_uap_isolation.ps1').read_text(encoding='utf-8-sig')
+assert full.index('if ($CheckOnly)') < full.index('Invoke-HallJoyUapIsolation {')
+assert full.index('Invoke-HallJoyUapIsolation {') < full.index("Official build's physical-UAP runtime gate") < full.index('& python $uapAbiCheck $abi1')
+assert 'finally {' in isolation and 'Restore-HallJoyUapTargets $states' in isolation
+assert '[HallJoyBuild.ProcessIdentity]::ImagePath' in isolation and '$info.SessionId -ne $session' in isolation
+assert isolation.index('$states = @(') < isolation.index('Close-HallJoyUapTarget $state.Target')
 assert '#if defined(HALLJOY_ANALOG_SIMULATOR)' in guard
 assert 'forbiddenBackend && fileOnly && !root.empty()' in guard and '.FileOnly.%016llx' in guard
 print('BUILD_REPLACEMENT_LIFECYCLE=PASS staged exact_target conditional_restart isolated_file_tests')

@@ -19,7 +19,8 @@ def body(marker, text=source):
 
 
 assert "if (!Settings_GetBlockBoundKeys()) return 0;" in body("static int Config_BlockOptionsSpace")
-draw = source[source.index('L"Block Bound Keys", Settings_GetBlockBoundKeys(), true);'):]
+# The label is now localized; anchor to the renderer instead of its spelling.
+draw = body("static void Config_DrawCustomControls")
 group = body("if (Settings_GetBlockBoundKeys())", draw)
 for control in ("Config_BlockAllowRect", "Config_BlockShortcutRect", "Config_BlockShortcutClearRect"):
     assert control in group

@@ -81,8 +81,9 @@ def main() -> int:
             "bundled x64 ViGEmClient.lib is missing")
 
     require("Unexpected production compiler/linker warnings were emitted." in build and
-            "ViGEmClient\\.lib\\(ViGEmClient\\.obj\\)\\s*: warning LNK4099:" in build,
-            "official build no longer rejects warnings outside the one linker baseline")
+            "if ($productionWarnings.Count -ne 0)" in build and
+            "allowedProductionWarning" not in build,
+            "official build must reject all production compiler/linker warnings")
     require("run_native_backend_checks.py" in build and "--require-compiler" in build,
             "official build no longer requires the unified automated gate")
     require("README_FOR_TESTER" not in build,

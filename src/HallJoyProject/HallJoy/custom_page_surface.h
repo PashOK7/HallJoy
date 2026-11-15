@@ -12,6 +12,7 @@ struct CustomPageSurface
     int cacheHeight = 0;
     HBITMAP contentCache = nullptr;
     bool cacheDirty = true;
+    unsigned languageRevision = 0;
 
     ULONGLONG scrollSampleStartMs = 0;
     ULONGLONG lastScrollInputMs = 0;

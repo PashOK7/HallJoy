@@ -141,6 +141,7 @@ namespace PremiumComboInternal
         HFONT font = nullptr;
 
         std::vector<std::wstring> items;
+        std::vector<bool> uiItems;
         int curSel = -1;
         int deleteConfirmation = -1;
 

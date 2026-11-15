@@ -1,3 +1,4 @@
+#include "ui_language_win32.h"
 // premium_combo_core.cpp
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -265,6 +266,11 @@ LRESULT CALLBACK PremiumComboInternal::PopupProc(HWND hWnd, UINT msg, WPARAM wPa
 LRESULT CALLBACK PremiumComboInternal::ComboProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     State* st = PremiumComboInternal::Get(hWnd);
+    if (msg == UiLanguageChangedMessage()) {
+        if (st) { PremiumCombo::ShowDropDown(hWnd, false); PremiumCombo::ResetVisualState(hWnd); }
+        return 0;
+    }
+
 
     if (msg == PC_MSG_QUERY_SCROLL_STATE)
     {
@@ -646,6 +652,7 @@ namespace PremiumCombo
             PremiumComboInternal::EndInlineEdit(st, false);
 
         st->items.clear();
+        st->uiItems.clear();
         st->deleteConfirmation = -1;
         st->itemBtnMask.clear();
         st->curSel = -1;
@@ -679,6 +686,7 @@ namespace PremiumCombo
         if (!st) return -1;
 
         st->items.emplace_back(text ? text : L"");
+        st->uiItems.push_back(false);
         st->itemBtnMask.push_back(PremiumComboInternal::BTN_NONE);
 
         int idx = (int)st->items.size() - 1;
@@ -690,6 +698,13 @@ namespace PremiumCombo
         InvalidateRect(hCombo, nullptr, FALSE);
         if (st->hwndPopup) InvalidateRect(st->hwndPopup, nullptr, FALSE);
         return idx;
+    }
+
+    int AddUiString(HWND hCombo, const wchar_t* english)
+    {
+        const int index = AddString(hCombo, english);
+        if (index >= 0) PremiumComboInternal::Get(hCombo)->uiItems[index] = true;
+        return index;
     }
 
     int GetCount(HWND hCombo)

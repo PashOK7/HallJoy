@@ -22,6 +22,7 @@ def main() -> int:
     ui = (HALL / "keyboard_subpages.cpp").read_text(encoding="utf-8-sig")
     timer_ui = (HALL / "keyboard_ui.cpp").read_text(encoding="utf-8-sig")
     page = (HALL / "keyboard_page_main.cpp").read_text(encoding="utf-8-sig")
+    banner_policy = (HALL / "support_banner_session.h").read_text(encoding="utf-8-sig")
     links = (HALL / "community_links.h").read_text(encoding="utf-8-sig")
     project = (HALL / "HallJoy.vcxproj").read_text(encoding="utf-8-sig")
     runner = (REPO / "tools" / "run_native_backend_checks.py").read_text(encoding="utf-8-sig")
@@ -35,7 +36,9 @@ def main() -> int:
             "pluginHostDenseDeviceCount > 0" in timer_ui,
             "UI derives connected status from HallJoy native/UAP telemetry")
     require("Backend_IsRuntimeAdmissionOpen" in timer_ui and
-            "searchCompleted && (!supportStatus.analogSourceConnected || supportStatus.frozenModels != 0 || supportStatus.communicationWarning)" in page,
+            "g_supportBannerSession.Visible(supportStatus)" in page and
+            "return status.searchCompleted &&" in banner_policy and
+            "support_banner_session_test.cpp" in runner,
             "banner stays hidden until the engine startup generation has completed")
     require("WM_APP_ANALOG_SOURCE_STATUS_CHANGED" in timer_ui and
             "WM_APP_ANALOG_SOURCE_STATUS_CHANGED" in page,

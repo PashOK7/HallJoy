@@ -19,8 +19,15 @@ Close HallJoy before upgrading, then run the newer installer in the same folder.
 An unrelated nonempty folder, including a portable copy, is not overwritten.
 
 Uninstall through Windows Installed apps or the HallJoy Start menu folder.
-User data and the shared ViGEmBus driver are preserved. Unknown files placed
-inside the installation folder are also preserved.
+User data is preserved by default. The "Delete settings, profiles, logs and
+cached data" checkbox is initially unchecked. Selecting it permanently removes
+this Windows user's shared HallJoy data folder, backups, logs, runtime cache,
+known legacy data/diagnostics beside this installed EXE, HallJoy crash dumps and
+abandoned HallJoy temporary driver extracts. Separate portable folders, unknown
+files inside the installation folder and the shared ViGEmBus driver remain.
+Silent uninstall also keeps data unless /REMOVEUSERDATA=1 is explicitly supplied.
+If cleanup cannot remove a file, close other copies/check permissions and retry;
+the app and uninstaller are retained. Completed deletions cannot be undone.
 
 This installer is unsigned. A SHA-256 checksum detects changes relative to its
 published value; it is not a publisher signature.

@@ -57,6 +57,10 @@ same settings/profile items listed above into the destination. The portable
 marker belongs beside the portable EXE; do not copy it to the installed folder.
 Restart the intended copy and verify its bindings in Gamepad Tester.
 
+Uninstalling an installed copy keeps data by default. An initially unchecked
+checkbox can explicitly remove the Windows user's shared HallJoy data, logs, dumps
+and caches. It does not search for or erase separate portable folders.
+
 There is no background synchronization: merging two independently edited profile
 sets automatically could overwrite newer settings. Choose the source explicitly.
 Updating your Git checkout leaves ignored personal data in place, but `git clean

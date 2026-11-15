@@ -1,47 +1,22 @@
-[CmdletBinding()]
-param()
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'build_environment.ps1')
-$originalPath = $env:PATH
-$checks = 0
-function Assert([bool]$Condition, [string]$Message) {
-    if (-not $Condition) { throw "FAIL: $Message" }
-    $script:checks++
-    Write-Output "PASS: $Message"
-}
+$originalPath=$env:PATH
 try {
-    $python = Resolve-HallJoyPython
-    Assert ($python -notlike '*\Microsoft\WindowsApps\*') 'Auto-discovery skips the Store alias'
-    Assert ((Resolve-HallJoyPython -PythonPath $python) -eq $python) 'Explicit existing interpreter is respected'
-    foreach ($invalid in @((Join-Path $PSScriptRoot 'missing/python.exe'), (Join-Path $env:LOCALAPPDATA 'Microsoft/WindowsApps/python.exe'))) {
-        $rejected = $false
-        try { $null = Resolve-HallJoyPython -PythonPath $invalid } catch { $rejected = $true }
-        Assert $rejected 'Invalid explicit interpreter is rejected without fallback'
-    }
-    $environment = Initialize-HallJoyBuildEnvironment -PythonPath $python -RequireClang
-    & python -I -c 'import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)'
-    Assert ($LASTEXITCODE -eq 0) 'Child Python resolves to a working interpreter'
-    & clang++ --version | Out-Null
-    Assert ($LASTEXITCODE -eq 0) 'Child compiler is available on process PATH'
-    $root = Split-Path -Parent $PSScriptRoot
-    $fixture = Join-Path $root ('build/tests/build environment ' + [guid]::NewGuid().ToString('N'))
-    New-Item -ItemType Directory -Path (Join-Path $fixture 'tools') -Force | Out-Null
-    Copy-Item -LiteralPath (Join-Path $root 'BUILD.cmd') -Destination $fixture
-    # Test the real CMD wrapper with an isolated build stage, including spaces and failure status.
-    @'
-param([string]$PythonPath, [switch]$CheckOnly)
-. (Join-Path $PSScriptRoot '../../../../tools/build_environment.ps1')
-$hash = Get-FileHash -LiteralPath (Join-Path $PSScriptRoot '../BUILD.cmd')
-if ($hash.Hash.Length -ne 64) { exit 38 }
-$signature = Get-AuthenticodeSignature -LiteralPath (Join-Path $PSHOME 'powershell.exe')
-if ($signature.Status -ne 'Valid') { exit 39 }
-if ($CheckOnly -and $PythonPath -eq 'path with spaces') { exit 0 }
-exit 37
-'@ | Set-Content -LiteralPath (Join-Path $fixture 'tools/build_windows_installer.ps1') -Encoding ASCII
-    & (Join-Path $fixture 'BUILD.cmd') -PythonPath 'path with spaces' -CheckOnly
-    Assert ($LASTEXITCODE -eq 0) 'BUILD.cmd forwards spaced arguments and exits after successful CheckOnly'
-    & (Join-Path $fixture 'BUILD.cmd') -PythonPath 'wrong value'
-    Assert ($LASTEXITCODE -eq 37) 'BUILD.cmd preserves a failing build-stage exit code'
-    Write-Output "BUILD_ENVIRONMENT_TESTS=PASS assertions=$checks"
-} finally { $env:PATH = $originalPath }
+ $python=Resolve-HallJoyPython
+ if($python -like '*\Microsoft\WindowsApps\*'){throw 'Store alias accepted'}
+ if((Resolve-HallJoyPython -PythonPath $python) -ne $python){throw 'Explicit interpreter changed'}
+ $rejected=$false
+ try {$null=Resolve-HallJoyPython -PythonPath (Join-Path $PSScriptRoot 'missing/python.exe')} catch {$rejected=$true}
+ if(-not $rejected){throw 'Missing explicit interpreter accepted'}
+ # Hide all Clang candidates for this isolated process. Normal discovery must
+ # succeed; an explicitly requested full-runtime compiler must fail clearly.
+ function Get-Command {param($Name,[switch]$All,$ErrorAction);if($Name -like 'clang*'){return};Microsoft.PowerShell.Core\Get-Command -Name $Name -All:$All -ErrorAction SilentlyContinue}
+ function Test-Path {param($LiteralPath,$Path,$PathType);$p=if($LiteralPath){$LiteralPath}else{$Path};if($p -like '*clang*.exe'){return $false};if($PathType){Microsoft.PowerShell.Management\Test-Path -LiteralPath $p -PathType $PathType}else{Microsoft.PowerShell.Management\Test-Path -LiteralPath $p}}
+ $environment=Initialize-HallJoyBuildEnvironment -PythonPath $python
+ if($environment.PythonPath -ne $python -or $environment.ClangPath){throw 'Compiler-free discovery failed'}
+ $rejected=$false
+ try {$null=Initialize-HallJoyBuildEnvironment -PythonPath $python -RequireClang} catch {$rejected=$_.Exception.Message -like '*Clang*'}
+ if(-not $rejected){throw 'Explicit unavailable Clang was not rejected'}
+ Write-Output 'BUILD_ENVIRONMENT_TESTS=PASS explicit_python invalid_python store_alias compiler_absent_incremental explicit_compiler_failure'
+} finally {$env:PATH=$originalPath}

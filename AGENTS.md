@@ -67,6 +67,17 @@ Local agent research tools/artifacts remain allowed; they are not a tester workf
 See docs/development/SUPPORT_DIAGNOSTICS_CONTRACT.md.
 
 
+## Portable application; optional installer (owner decision, 2026-11-15)
+
+HallJoy must remain runnable as a standalone EXE without installation. Ordinary
+BUILD.cmd/build_release.ps1 produce build/bin/Release/x64/HallJoy.exe and must not
+require NSIS or package setup. Installer packaging is an explicit separate command
+using an existing verified EXE; preserve the ordinary EXE and previous packages
+on failure. Do not publish a duplicate application/setup pair in the build root.
+Uninstall must offer deletion of settings, profiles, logs, dumps and cached data
+through an unchecked-by-default checkbox; silent deletion requires explicit opt-in.
+See docs/development/WINDOWS_INSTALLER.md.
+
 ## Complete ordinary builds (owner decision, 2026-09-27)
 
 Every delivered ordinary HallJoy.exe must retain all approved functionality,

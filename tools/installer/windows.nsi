@@ -9,6 +9,7 @@ SetCompressor /SOLID lzma
 !include "x64.nsh"
 !include "WinVer.nsh"
 !include "FileFunc.nsh"
+!include "nsDialogs.nsh"
 
 !define APPID "HallJoy.WindowsInstaller"
 !ifdef TEST_ROOT
@@ -35,6 +36,9 @@ ShowInstDetails show
 ShowUninstDetails show
 Var MenuFolder
 Var DesktopFolder
+Var RemoveUserData
+Var RemoveDataCheckbox
+!include "data_cleanup.nsh"
 !define MUI_ABORTWARNING
 !define MUI_ICON "${PAYLOAD}\HallJoy.ico"
 !define MUI_UNICON "${PAYLOAD}\HallJoy.ico"
@@ -50,6 +54,7 @@ Var DesktopFolder
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
+UninstPage custom un.DataPage un.DataPageLeave
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_UNPAGE_FINISH
@@ -61,9 +66,15 @@ Var DesktopFolder
   !ifdef TEST_ROOT
     StrCpy $MenuFolder "${TEST_ROOT}\Start Menu\HallJoy"
     StrCpy $DesktopFolder "${TEST_ROOT}\Desktop"
+    StrCpy $UserDataRoot "${TEST_ROOT}\UserData\HallJoy"
+    StrCpy $TempDataRoot "${TEST_ROOT}\Temp"
+    StrCpy $CrashDumpRoot "${TEST_ROOT}\CrashDumps"
   !else
     StrCpy $MenuFolder "$SMPROGRAMS\HallJoy"
     StrCpy $DesktopFolder "$DESKTOP"
+    StrCpy $UserDataRoot "$LOCALAPPDATA\HallJoy"
+    StrCpy $TempDataRoot "$TEMP"
+    StrCpy $CrashDumpRoot "$LOCALAPPDATA\CrashDumps"
   !endif
   System::Call 'kernel32::CreateMutexW(p 0, i 0, w "${MUTEX}") p .r0 ?e'
   Pop $1
@@ -88,6 +99,7 @@ Function .onInit
 FunctionEnd
 
 Function ValidateDestination
+  !insertmacro RequireSeparateDataRoot 7
   ReadRegStr $0 HKCU "${REGKEY}" "InstallLocation"
   ${If} $0 != ""
   ${AndIf} $0 != $INSTDIR
@@ -192,6 +204,27 @@ Section /o "Desktop shortcut" DesktopSection
   desktop_done:
 SectionEnd
 
+Function un.DataPage
+  !insertmacro MUI_HEADER_TEXT "Personal data" "Choose whether to keep your HallJoy data."
+  nsDialogs::Create 1018
+  Pop $0
+  ${If} $0 == error
+    Abort
+  ${EndIf}
+  ${NSD_CreateLabel} 0 0 100% 28u "Your settings, profiles and logs are kept unless you select the option below."
+  Pop $0
+  ${NSD_CreateCheckbox} 0 38u 100% 30u "Delete settings, profiles, logs and cached data"
+  Pop $RemoveDataCheckbox
+  ${NSD_SetState} $RemoveDataCheckbox $RemoveUserData
+  ${NSD_CreateLabel} 0 80u 100% 60u "This permanently removes HallJoy data for this Windows user, including data shared by other HallJoy copies. Separate portable folders and the shared ViGEmBus driver are kept."
+  Pop $0
+  nsDialogs::Show
+FunctionEnd
+
+Function un.DataPageLeave
+  ${NSD_GetState} $RemoveDataCheckbox $RemoveUserData
+FunctionEnd
+
 Function un.onInit
   !insertmacro InitFolders
   ReadINIStr $0 "$INSTDIR\installation.ini" "HallJoy" "AppId"
@@ -200,10 +233,35 @@ Function un.onInit
     Abort
   ${EndIf}
   !insertmacro CheckExecutableUnlocked uninstall_
+  StrCpy $RemoveUserData ${BST_UNCHECKED}
+  ${If} ${Silent}
+    ${GetParameters} $0
+    ClearErrors
+    ${GetOptions} $0 "/REMOVEUSERDATA=" $1
+    ${IfNot} ${Errors}
+      ${If} $1 == "1"
+        StrCpy $RemoveUserData ${BST_CHECKED}
+      ${ElseIf} $1 != "0"
+        SetErrorLevel 6
+        Abort
+      ${EndIf}
+    ${EndIf}
+    ClearErrors
+  ${EndIf}
 FunctionEnd
 
 Section "Uninstall"
-  ; Enumerate owned files; never recursively remove a user's directories.
+  ${If} $RemoveUserData == ${BST_CHECKED}
+    ; Do not enumerate an installation directory replaced with a link.
+    System::Call 'kernel32::GetFileAttributesW(w "$INSTDIR") i .r0'
+    IntOp $0 $0 & 0x400
+    ${If} $0 != 0
+      SetErrorLevel 6
+      Abort
+    ${EndIf}
+    Call un.RemoveUserData
+  ${EndIf}
+  ; Enumerate owned program files; preserve unknown installation files.
   Delete "$INSTDIR\HallJoy.exe"
   Delete "$INSTDIR\HallJoy.ico"
   Delete "$INSTDIR\LICENSE"

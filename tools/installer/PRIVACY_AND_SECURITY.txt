@@ -25,9 +25,15 @@ application memory or network behavior.
 
 Updates and removal
 Close HallJoy and run the newer setup to update the same installation folder.
-Uninstall through Windows Installed apps or the Start menu. Uninstall preserves
-personal data, unknown files, and the shared ViGEmBus driver. Removing the app
-does not require deleting your profiles.
+Uninstall through Windows Installed apps or the Start menu. The "Delete settings,
+profiles, logs and cached data" checkbox is initially unchecked. Without it,
+personal data remains. Selecting it permanently removes the current user's shared
+HallJoy data, backups and runtime cache, known installed-copy data/diagnostics,
+HallJoy crash dumps and abandoned HallJoy temporary driver extracts. Data shared
+by other HallJoy copies is included. Separate portable folders, unknown files
+beside the installed app and the shared ViGEmBus driver remain. Silent uninstall
+also requires explicit /REMOVEUSERDATA=1 for data removal. Cleanup failures retain
+the app and uninstaller for retry; completed deletions cannot be undone.
 
 Authenticity
 This installer is unsigned. Its SHA-256 sidecar detects changes relative to the

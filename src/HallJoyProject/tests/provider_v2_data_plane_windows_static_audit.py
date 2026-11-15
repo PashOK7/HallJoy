@@ -28,7 +28,6 @@ runner = read(REPO / "tools" / "run_native_backend_checks.py")
 exact_smoke = read(REPO / "tools" / "run_uap_provider_v2_dual_capture_smoke.ps1")
 production_smoke = read(REPO / "tools" / "run_production_smoke.ps1")
 abi_runtime = read(REPO / "tools" / "check_private_uap_abi.py")
-uap_session = read(REPO / "tools" / "uap_runtime_session.ps1")
 backend = read(HALL / "backend.cpp")
 capture = client.split(
     "bool AnalogHostClient_CaptureProviderV2PlaneHeader(", 1)[1].split(
@@ -71,12 +70,8 @@ require(build, "provider_v2_data_plane_windows_test.cpp",
         "official source manifest requires the Windows process regression")
 require(runner, '"provider_v2_data_plane_windows"',
         "native runner executes the real Windows process regression")
-require(build, "Invoke-HallJoyIsolatedUapCheck -Check {",
-        "official runtime gate uses the isolated application lifecycle")
-require(uap_session, "if (@(Get-HallJoyUapProcesses).Count -ne 0)",
+require(build, "Official build's physical-UAP runtime gate requires every HallJoy instance to be closed",
         "official runtime gate refuses concurrent physical-UAP owners")
-require(uap_session, "Physical-UAP isolation failed",
-        "isolation failure aborts before the physical check")
 require(exact_smoke, "Physical-UAP self-test requires every other HallJoy instance to be closed",
         "exact hardware smoke refuses concurrent physical-UAP owners")
 require(production_smoke, "Physical-UAP production smoke requires every HallJoy instance to be closed",

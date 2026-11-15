@@ -1,154 +1,78 @@
-# Windows installer
+# Optional Windows installer
 
-`BUILD.cmd` produces a Windows setup executable. This NSIS package provides
-a per-user installation, Start menu entry, optional desktop
-shortcut and Windows uninstall registration. It uses the existing HallJoy name
-and icon and does not modify the application binary or keyboard support.
+HallJoy remains a standalone portable EXE. `BUILD.cmd` and
+`tools/build_release.ps1` produce `build/bin/Release/x64/HallJoy.exe`.
+They do not require NSIS, package an installer or create a second application copy.
+No setup is required to run HallJoy. Personal-data mode remains unchanged:
+normal local data, or a `HallJoy.portable` marker for data beside the EXE.
 
-## Build
+## Optional packaging
 
-From the repository root, double-click **`BUILD.cmd`**. It checks the
-build tools, runs the existing full source/dependency build and packages its
-result. Open **`build/HallJoy-setup.exe`** to install, or **`build/HallJoy.exe`**
-to run the application directly.
-The builder does not start the installation automatically.
-
-During the physical-UAP check, the full build temporarily closes one verified
-HallJoy application from this checkout's `.local/portable`, `build` or
-`build/bin/Release/x64`, including its known worker processes. It restores the
-same application after the check, including on failure. Other paths, multiple
-applications and unknown process roles require manual closure; they are not
-terminated automatically. See [the build lifecycle details](BUILD_README.txt).
-
-After successful packaging, the builder verifies both EXEs against the package
-inventory and places only `HallJoy-setup.exe` and `HallJoy.exe` directly in `build`.
-These stable filenames are replaced on subsequent successful builds; the console
-prints both paths. Each file is replaced atomically, with backups kept internally.
-A locked existing setup is rejected before replacing the application. This is
-not a transaction across both files: an OS error between replacements can leave
-different generations, in which case the command fails and retains the archive.
-Each invocation also retains a versioned package, SHA-256 sidecar and JSON
-inventory under `build/packages/windows-<timestamp>-<id>/`. If compilation or
-packaging fails, the previous final files remain; an old EXE is never packaged
-as a new source build. Intermediate compiler and staging files stay in subfolders.
-
-Build-machine prerequisites: Visual Studio 2022 Desktop development with C++
-(MSVC x64, Windows SDK and C++ Clang tools for Windows), Git, Python 3.10+ and
-NSIS 3. See the existing [source-build requirements](BUILD_README.txt).
-The full build fetches its pinned dependency sources through the existing build
-scripts; it does not install system tools. These developer tools are **not**
-required on a computer that only installs the finished package.
-
-The builder detects existing uv-managed Python as well as PATH/py installations,
-and ignores Windows Store execution aliases. Clang and clang++ are discovered
-through Visual Studio or PATH. The selected paths are printed before checks and
-inherited by the source build; no persistent user/system PATH change is made.
-See [the shared tool-discovery guide](BUILD_README.txt) if a prerequisite is missing.
+After a normal application build, explicitly run:
 
 ```powershell
-.\BUILD.cmd -CheckOnly
-.\BUILD.cmd -PackageOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_windows_installer.ps1 -CheckOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build_windows_installer.ps1
 ```
 
-`-CheckOnly` reports missing tools before compilation without creating a package.
-It is a prerequisite check, not a source-build or embedded-resource validation.
-`-PackageOnly` explicitly packages `build/bin/Release/x64/HallJoy.exe` from an
-earlier build and still verifies the embedded resources. No compiler is needed
-for this mode. Optional `-PythonPath <python.exe>`, `-NsisPath <makensis.exe>` and
-`-OutputDirectory <new-folder>` arguments are forwarded to the PowerShell entry.
-`-OutputDirectory` selects the package archive location; the final two EXEs still
-go directly into `build`. `-PackageOnly` also refreshes these final files.
-NSIS is found via `NSIS_EXE`, standard installation folders, PATH or the existing
-local Tauri NSIS cache. PATH changes apply only to the build process.
+Only this optional command requires NSIS 3, Python3.10+ x64 and matching embedded
+runtime/license inputs. It compiles a new setup package from the existing EXE;
+it does not rebuild, launch, replace or close HallJoy. No tools are downloaded or
+installed by this command. `-CheckOnly` checks prerequisites without packaging.
+Use `-PythonPath <python.exe>`, `-NsisPath <makensis.exe>` or `NSIS_EXE` for tools
+outside PATH. `-OutputDirectory <new-directory>` selects a new package directory.
+Incremental application builds accept their existing supported C++ compiler and
+cached runtime; they do not require Clang solely for tool discovery.
 
-`BUILD.cmd` is the single public build entry. It builds the standalone EXE once,
-then packages those same bytes. `build/bin/Release/x64/HallJoy.exe` is the internal
-application output. Use the final `build/HallJoy.exe` for direct launch or
-`build/HallJoy-setup.exe` for the installation wizard. Internal application-only
-scripts do not refresh this final pair; use `BUILD.cmd -PackageOnly` afterwards.
-The PowerShell files under `tools/` implement the stages of this one workflow.
+Each successful invocation writes a unique directory under `build/packages/`:
+`HallJoy-<version>-Windows-x64-setup.exe`, its `.sha256` and JSON payload inventory.
+Existing output directories are refused. There is no stable app/setup output pair
+in build's root, so failed setup publication cannot leave two different generations
+there. Previous packages and the ordinary EXE stay unchanged on packaging failure.
+Internal staging files remain under `build/obj/windows-installer/` for inspection.
+The EXE is staged and hashed, and its embedded runtime/license bytes are verified.
 
-The wizard includes welcome, license, data/permissions notice, destination,
-components (optional desktop shortcut), installation and completion pages.
-Program files default to `%LOCALAPPDATA%\Programs\HallJoy`; normal personal
-settings/profiles/layouts are stored separately in `%LOCALAPPDATA%\HallJoy`.
-The embedded analog runtime is cached on demand under
-`%LOCALAPPDATA%\HallJoy\Runtime\v<version>`.
-Setup registers removal in Windows Installed apps and creates `Uninstall.exe`.
-The packaged `PRIVACY_AND_SECURITY.txt` explains input access, local reports,
-driver permissions and preservation of personal data on uninstall. The setup
-package is unsigned; no signing certificate or publisher identity is implied.
+## Installation and removal
 
-### Direct packaging for maintainers
+The optional wizard includes welcome, license, data/permissions, destination,
+components, installation and completion pages. It uses the existing HallJoy icon.
+It defaults to `%LOCALAPPDATA%\Programs\HallJoy`, registers per-user uninstall,
+creates Start menu shortcuts and optionally a desktop shortcut. Setup does not
+launch HallJoy, install ViGEmBus, modify keyboard firmware or create autostart.
+The installer is unsigned; a checksum is not a publisher signature.
 
-Requirements: Windows x64, PowerShell 5.1+, Python from the normal build environment,
-NSIS 3 and a completed HallJoy release build with matching `build/runtime` inputs.
-No compiler, dependency, driver or binary is downloaded by the packaging script.
+Installation is separate from portable use. Setup creates no portable marker.
+Uninstall offers an unchecked-by-default **Delete settings, profiles, logs and
+cached data** checkbox. Leaving it unchecked preserves all personal data.
+Selecting it removes the current Windows user's entire `%LOCALAPPDATA%\HallJoy`
+data folder (including backups, recovery state and runtime caches), known legacy
+settings/logs/dumps beside this installed EXE, HallJoy WER dumps and abandoned
+HallJoy-owned temporary driver extracts. Other portable folders, unknown files
+beside the installed program, unrelated dumps/temp files and the shared ViGEmBus
+driver are preserved. Data shared with other HallJoy copies is explicitly named
+in the consent page. Cleanup matches known entries beside the EXE by name and
+file or directory type. Program/data directory overlap is refused.
 
-After the normal [release build](BUILD_README.txt):
+Silent uninstall also preserves data unless explicitly passed `/REMOVEUSERDATA=1`;
+`/REMOVEUSERDATA=0` keeps it, invalid values abort. Cleanup does not follow directory
+junctions or symbolic links. If a selected data file cannot be removed, uninstall
+reports failure and retains the app, registration and uninstaller for retry;
+completed deletions are not rolled back. Close other copies before data cleanup.
+Close an installed copy before upgrading.
+In-place installed upgrades are not a multi-file transactional installer; retain
+configuration backups. This does not affect portable application publication.
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/package_windows_installer.ps1 -NsisPath 'C:\Program Files (x86)\NSIS\makensis.exe'
-```
+## Validation
 
-NSIS can also be located through `NSIS_EXE`, its standard installation directory
-or PATH. `-ExecutablePath` accepts another locally prepared HallJoy build; its
-version must match `version.h`, and its embedded license, notices and analog
-runtime must pass the existing `verify_embedded_licenses.py` gate. The packager
-does not launch HallJoy. It preserves the release's four-part version, including
-nonzero hotfix numbers, and normalizes a final `.0` in the output filename.
+`tools/test_build_environment.ps1` checks optional compiler discovery.
+`tools/test_portable_helpers.ps1` uses fake network responses and private files.
+`tools/test_build_windows_installer.ps1` packages a supplied existing EXE in a
+private checkout and verifies success/failure, hashes and preserved source/output.
+`tools/test_windows_uninstall_data.ps1` extends the installer suite with default/
+explicit-preserve, full cleanup, junction, locked-file/retry and path-overlap cases.
+`tools/test_windows_installer.ps1` exercises the real recipe with TEST_ROOT paths,
+test-only HKCU keys and shortcuts; it never launches HallJoy. Owner visual review
+is separate; no wizard visual automation is required for normal packaging.
 
-Output: `build/packages/HallJoy-<version>-Windows-x64-setup/`, containing
-`HallJoy-<version>-Windows-x64-setup.exe`, a SHA-256 sidecar and a JSON inventory.
-An existing output directory is rejected. Use `-OutputDirectory` with a fresh
-directory for another candidate. NSIS warnings fail the build. The verified
-payload stays in the `PAYLOAD=` directory printed by the command.
-
-The installer is unsigned. Signing and release upload remain separate maintainer
-actions; the existing ZIP packager and release automation are unchanged. When
-distributing a package, provide the corresponding source and dependency sources
-under their existing license terms, just as for the standalone application.
-The package is not an alternative source distribution or a source-license waiver.
-
-## Installation behavior
-
-- Installs for the current user under `%LOCALAPPDATA%\Programs\HallJoy` by default.
-- Adds Start menu shortcuts and an optional desktop shortcut using `HallJoy.ico`.
-- Ships `LICENSE`, `THIRD_PARTY_NOTICES.md`, `dependency-lock.json` and local help.
-- Shows the project's existing license in the installation wizard before the
-  directory/component choices; no additional license agreement is invented.
-- Does not install drivers, launch HallJoy, add autostart or contact the network.
-- Uses normal `%LOCALAPPDATA%\HallJoy` storage; portable settings are not bundled
-  or migrated. ViGEmBus is installed separately through the existing HallJoy UI.
-- Rejects unrelated nonempty folders, locked HallJoy executables and a second
-  installation location while another one is registered for the current user.
-- Supports reinstalling in the same folder. Uninstall removes only named package
-  files and owned shortcuts; settings, profiles and the shared driver remain.
-
-## Focused integration test
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/test_windows_installer.ps1 -PayloadPath '<PAYLOAD directory printed by the packager>' -NsisPath 'C:\Program Files (x86)\NSIS\makensis.exe'
-```
-
-The test recompiles the production recipe with a unique test registration below
-`HKCU\Software\HallJoyInstallerTests`. Files and all shortcut locations stay under
-`build/tests/windows installer <id>`. It exercises install, rejected destinations,
-locked-file rejection, reinstall, payload hashes, desktop shortcut creation and
-preservation, and uninstall with user files retained. It does not launch the
-application or driver installer, or change real Start menu/desktop shortcuts.
-Results remain in `results.json`; these tests are not hardware or visual approval.
-`tools/test_windows_installer_wizard.ps1 -InstallerPath <test setup.exe>` separately
-walks the five pre-install wizard pages through the spawned process's own controls.
-It verifies the data/permissions page and stops before clicking Install.
-
-The build entry has a separate isolated packaging test. Supply an EXE and the
-matching runtime from a local build; it verifies preflight, resource mismatch,
-exit statuses, output hashes and preservation across repeated invocations:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/test_build_windows_installer.ps1 -PythonPath '<python.exe>' -NsisPath '<makensis.exe>' -ExecutablePath '<HallJoy.exe>' -RuntimePath '<universal_analog_abiv1.dll>'
-```
-
-This focused test does not compile the C++ application, launch HallJoy or install
-the resulting package. Output is isolated under `build/tests/build entry <id>/`.
+The installer, portable helpers and translated guides build on d9911’s
+[contribution in PR #11](https://github.com/PashOK7/HallJoy/pull/11).

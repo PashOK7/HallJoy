@@ -30,8 +30,8 @@ function Run-Setup([string]$Destination) {
     $process = Start-Process -FilePath $exe -ArgumentList ('/S /D=' + $Destination) -WindowStyle Hidden -Wait -PassThru
     return $process.ExitCode
 }
-function Uninstall {
-    $process = Start-Process -FilePath "$installed\Uninstall.exe" -ArgumentList '/S' -WindowStyle Hidden -Wait -PassThru
+function Uninstall([string]$Options = '') {
+    $process = Start-Process -FilePath "$installed\Uninstall.exe" -ArgumentList ('/S ' + $Options) -WindowStyle Hidden -Wait -PassThru
     Assert ($process.ExitCode -eq 0) 'Test uninstaller starts successfully'
     $deadline = [DateTime]::UtcNow.AddSeconds(20)
     while ((Test-Path -LiteralPath "$installed\Uninstall.exe") -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 200 }

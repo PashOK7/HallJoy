@@ -23,7 +23,11 @@ not check for updates.
 Normal user data is stored under `%LOCALAPPDATA%\HallJoy`. A `HallJoy.portable`
 marker beside the EXE selects data beside that EXE. The repository's portable
 helper uses `.local/portable`, which is ignored by Git. Uninstalling the installed
-copy preserves user data and the shared ViGEmBus driver. See
+copy keeps user data by default. Its **Delete settings, profiles, logs and cached
+data** checkbox is initially unchecked. Selecting it permanently removes this
+Windows user's shared HallJoy data, known installed-copy diagnostics, crash dumps
+and owned temporary extracts. Separate portable folders and the shared ViGEmBus
+driver remain. See
 [portable data and backups](PORTABLE.md) for explicit transfers between copies.
 
 Implementation references: `src/HallJoyProject/HallJoy/app_paths.cpp`,

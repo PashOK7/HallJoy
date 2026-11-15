@@ -3,7 +3,6 @@
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square)](../../src/HallJoyProject/HallJoy/HallJoy.vcxproj)
 [![Windows x64](https://img.shields.io/badge/Windows-x64-0078D4?style=flat-square)](../../README.md#quick-start)
 [![PowerShell 5.1+](https://img.shields.io/badge/PowerShell-5.1%2B-5391FE?style=flat-square)](../PORTABLE.md)
-[![NSIS 3](https://img.shields.io/badge/NSIS-3-4A7C59?style=flat-square)](../development/WINDOWS_INSTALLER.md)
 
 [English](../../README.md) · [Español](README.es.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [简体中文](README.zh-CN.md) · [한국어](README.ko.md) · **Русский** · [Deutsch](README.de.md) · [日本語](README.ja.md) · [हिन्दी](README.hi.md)
 
@@ -36,14 +35,11 @@ Xbox-геймпадом. Обычная цифровая клавиатура н
 с иконкой, ярлыками и удалением с сохранением данных. Это возможность сборки,
 а не обещание, что установщик уже опубликован в официальном выпуске.
 
-Для сборки открой `BUILD.cmd` в корне проекта: он проверяет инструменты,
-собирает приложение и сохраняет готовые файлы прямо в `build`.
-Для установки запусти `build/HallJoy-setup.exe`, для обычного запуска — `build/HallJoy.exe`.
-Архивы сборок, контрольные суммы и промежуточные файлы остаются во вложенных папках.
-Это единая команда: она собирает HallJoy.exe один раз и упаковывает этот же файл в установщик.
-Команда `BUILD.cmd -CheckOnly` проверяет наличие инструментов без сборки.
-Требования к компьютеру разработчика перечислены в руководстве выше; получателю
-готового установщика эти инструменты не нужны.
+Обычная сборка `BUILD.cmd` создаёт портативный `build/bin/Release/x64/HallJoy.exe`.
+Установщик необязателен и собирается отдельной командой:
+`powershell -NoProfile -File tools/build_windows_installer.ps1`.
+Только эта дополнительная упаковка требует NSIS; обычный EXE запускается без установки.
+Предварительная проверка упаковки: добавь `-CheckOnly` к этой PowerShell-команде.
 
 В клоне репозитория `Update.cmd` загружает официальный EXE в `.local/portable`,
 а `Start.cmd` запускает его. Эта папка исключена из Git. Обновление сохраняет

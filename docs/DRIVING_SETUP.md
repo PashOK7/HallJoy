@@ -4,6 +4,9 @@ This is a setup guide, not a ready-made game profile or a claim of testing every
 game, keyboard layout or firmware. Start with a keyboard supported by HallJoy and
 verify the actual input in Gamepad Tester before tuning a game's settings.
 
+For GamaKay TK75 HE V2, first follow the [USB and regional-layout guide](TK75_HE_V2_SETUP.md),
+especially for the UK/ISO board 3138 manual-layout case.
+
 | Key | Virtual control | Example use |
 | --- | --- | --- |
 | A | Left stick X, negative direction | Steer left |

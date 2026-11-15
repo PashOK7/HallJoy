@@ -366,6 +366,11 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="ui_language.h" />
+    <ClInclude Include="ui_font.h" />
+    <ClInclude Include="support_banner_session.h" />
+    <ClInclude Include="ui_language_win32.h" />
+    <ClInclude Include="ui_translations.inc" />
     <ClInclude Include="app.h" />
     <ClInclude Include="bounded_ini.h" />
     <ClInclude Include="layout_ini_section.h" />
@@ -730,7 +735,7 @@
   <ClCompile Include="analog_provider_v2.cpp" /><ClCompile Include="native_analog_snapshot_adapter.cpp" /><ClCompile Include="provider_v2_data_plane_layout.cpp" /><ClCompile Include="provider_v2_data_plane_windows.cpp" /><ClCompile Include="provider_v2_snapshot_broker.cpp" /><ClCompile Include="provider_v2_controller_shadow.cpp" /><ClCompile Include="provider_v2_qualification_model.cpp" /><ClCompile Include="provider_v2_qualification_report.cpp" /><ClCompile Include="configured_xusb_builder.cpp" /><ClCompile Include="xusb_output_adapter.cpp" /><ClCompile Include="native_analog_backend_registry.cpp" /><ClCompile Include="runtime_supervisor.cpp" /><ClCompile Include="engine_runtime_owner.cpp" /><ClCompile Include="engine_runtime_ui_bridge.cpp" /><ClCompile Include="instance_guard.cpp" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="CheckSourceEncoding" BeforeTargets="ClCompile">
-    <Exec Command="py &quot;$(ProjectDir)..\tests\source_encoding_static_audit.py&quot;" />
+    <Exec Command="python &quot;$(ProjectDir)..\tests\source_encoding_static_audit.py&quot;" />
   </Target>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

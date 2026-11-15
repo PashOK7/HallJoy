@@ -43,6 +43,23 @@ def find_cxx() -> str | None:
         for candidate in fixed_candidates:
             if candidate.is_file():
                 return str(candidate)
+        # VS editions and custom installation paths are not necessarily on PATH.
+        # Use the same installed discovery tool as build_environment.ps1.
+        vswhere = (Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"))
+                   / "Microsoft Visual Studio/Installer/vswhere.exe")
+        if vswhere.is_file():
+            try:
+                result = subprocess.run(
+                    [str(vswhere), "-all", "-products", "*", "-utf8", "-find",
+                     "VC/Tools/Llvm/x64/bin/clang++.exe"],
+                    check=True, capture_output=True, encoding="utf-8", timeout=10,
+                )
+            except (OSError, subprocess.SubprocessError):
+                return None
+            for line in result.stdout.splitlines():
+                candidate = Path(line.strip())
+                if line.strip() and candidate.is_file():
+                    return str(candidate)
     return None
 
 
@@ -75,6 +92,7 @@ def compile_command(cxx: str, output: Path, sources: list[Path], include: Path) 
         *(["-ladvapi32", "-luser32"] if os.name == "nt" else []),
         *(["-lsetupapi", "-lcfgmgr32", "-lhid", "-lshell32", "-lole32", "-luuid"] if output.name in ("support_log_windows", "input_path_log_windows", "native_layout_devices_windows", "mad68_dual_trial_session", "mchose_mix87_session", "mchose_jet75_session", "alumix104_session", "corsair_vanguard_session") else []),
         *(["-lbcrypt"] if output.name == "mchose_mix87_session" else []),
+        *(["-lgdi32", "-lcomctl32"] if output.name == "ui_font_windows" else []),
         "-o",
         str(output),
     ]
@@ -279,6 +297,8 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="halljoy-native-tests-", dir=build_temp) as temp:
         out = Path(temp)
         fixed_tests: list[tuple[str, list[Path]]] = [
+            ("ui_language", [tests / "ui_language_test.cpp"]),
+            ("support_banner_session", [tests / "support_banner_session_test.cpp"]),
             ("diagnostic_rate_limit", [tests / "diagnostic_rate_limit_test.cpp"]),
             ("aula_mini60_native_model", [tests / "aula_mini60_native_model_test.cpp"]),
             ("attackshark_pro_diagnostic_model", [tests / "attackshark_pro_diagnostic_model_test.cpp"]),
@@ -473,6 +493,7 @@ def main() -> int:
             fixed_tests.append(("attackshark_discovery_windows", [prepare(out, hall, tests / "attackshark_discovery_windows_test.cpp")]))
             fixed_tests.append(("native_analog_telemetry_collect", [tests / "native_analog_telemetry_collect_test.cpp"]))
             fixed_tests.append(("pause_hotkeys_windows", [tests / "pause_hotkeys_windows_test.cpp"]))
+            fixed_tests.append(("ui_font_windows", [tests / "ui_font_windows_test.cpp", hall / "win_util.cpp"]))
             fixed_tests.append(("hid_io_control", [tests / "hid_io_control_test.cpp"]))
             fixed_tests.append(("keychron_onboard_host_profile", [tests / "keychron_onboard_host_profile_test.cpp", hall / "keychron_onboard_host_profile.cpp", hall / "bindings.cpp", hall / "key_settings.cpp", hall / "backend_curve.cpp", hall / "settings.cpp", hall / "curve_math.cpp"]))
             fixed_tests.append(("keychron_onboard_curve", [tests / "keychron_onboard_curve_test.cpp", hall / "key_settings.cpp", hall / "backend_curve.cpp", hall / "settings.cpp", hall / "curve_math.cpp"]))

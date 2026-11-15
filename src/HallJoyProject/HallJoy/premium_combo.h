@@ -93,6 +93,7 @@ namespace PremiumCombo
     void Clear(HWND hCombo);
 
     int  AddString(HWND hCombo, const wchar_t* text);
+    int  AddUiString(HWND hCombo, const wchar_t* english);
 
     int  GetCount(HWND hCombo);
 

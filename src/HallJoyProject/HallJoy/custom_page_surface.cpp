@@ -9,6 +9,7 @@
 #include <gdiplus.h>
 
 #include "custom_page_surface.h"
+#include "ui_language.h"
 #include "debug_log.h"
 #include "ui_theme.h"
 #include "win_util.h"
@@ -369,6 +370,11 @@ bool CustomPageSurface_RenderCache(
     int width = std::max(1, (int)(client.right - client.left));
     int height = std::max(1, surface->contentHeight);
 
+    const auto languageRevision = halljoy::ui_language::revision.load();
+    if (surface->languageRevision != languageRevision) {
+        surface->languageRevision = languageRevision;
+        surface->cacheDirty = true;
+    }
     if (surface->contentCache && surface->cacheWidth == width && surface->cacheHeight == height && !surface->cacheDirty)
         return true;
 

@@ -19,6 +19,7 @@ for current records and preserved decisions. No application/device is started.
 | Protocol / firmware | [Behavior review](development/FIRMWARE_BEHAVIOR_REVIEW.md), [foundation](current/FIRMWARE_FOUNDATION.md), [corpus](current/FIRMWARE_CORPUS.md) | `native_analog_backends.def`, `firmware_inspect.py` |
 | Logs / tester issue | [Diagnostics contract](development/SUPPORT_DIAGNOSTICS_CONTRACT.md) | `analyze_support_log.py`, `support_log.cpp`, `input_trace.cpp` |
 | UI / scrolling | [UI architecture](development/CUSTOM_UI_ARCHITECTURE.md), [transitions](current/TAB_TRANSITIONS_2026-10-03.md) | `custom_page_surface.h`, `custom_page_controls.h` |
+| Interface languages | [Language settings and translation guide](development/INTERFACE_LANGUAGES.md) | `ui_language.h`, `ui_translations.inc`, `keyboard_subpages.cpp` |
 | Profiles / persistence | [Profiles v2](current/GAME_PROFILES_V2_2026-10-03.md), [recovery](current/STARTUP_PROFILE_RECOVERY_2026-09-11.md) | `global_profiles.cpp`, `profile_ini.cpp`, `settings_ini.cpp` |
 | K4 onboard / wireless | [Onboard](current/K4_ONBOARD_ONLY_2026-10-03.md), [wireless](current/K4_WIRELESS_GAMEPAD_2026-10-24.md) | `keychron_onboard_backend.cpp`, `firmware/` |
 | Optional installer / portable helpers | [Packaging](development/WINDOWS_INSTALLER.md), [portable data](PORTABLE.md) | `build_windows_installer.ps1`; default BUILD remains EXE-only |

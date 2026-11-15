@@ -7,6 +7,7 @@
 
 #include "custom_page_controls.h"
 #include "ui_theme.h"
+#include "ui_font.h"
 #include "win_util.h"
 
 using namespace Gdiplus;
@@ -40,7 +41,10 @@ void CustomPage_DrawText(HDC hdc, const std::wstring& text, RECT rc, COLORREF co
 {
     SetBkMode(hdc, TRANSPARENT);
     SetTextColor(hdc, color);
+    const auto original = static_cast<HFONT>(GetCurrentObject(hdc,OBJ_FONT));
+    SelectObject(hdc, UiCjkFont(original, static_cast<unsigned>(GetDeviceCaps(hdc,LOGPIXELSY))));
     DrawTextW(hdc, text.c_str(), -1, &rc, fmt);
+    SelectObject(hdc, original);
 }
 
 void CustomPage_DrawRoundRect(Graphics& g, const RECT& rc, COLORREF fill, COLORREF border, float radius, BYTE alpha)

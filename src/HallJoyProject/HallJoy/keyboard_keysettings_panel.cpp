@@ -1,3 +1,4 @@
+#include "ui_language_win32.h"
 // keyboard_keysettings_panel.cpp
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -152,7 +153,7 @@ static void RefreshProfileCombo()
     }
 
     // Add create new row (last, starts with '+', PremiumCombo logic uses that)
-    PremiumCombo::AddString(g_kspComboProfile, L"+ Create New Preset...");
+    PremiumCombo::AddUiString(g_kspComboProfile, L"+ Create New Preset...");
 }
 
 // This is the exact behavior you requested:
@@ -487,12 +488,12 @@ void KeySettingsPanel_Create(HWND parent, HINSTANCE hInst)
     int w = S(parent, 520);
     int toggleH = S(parent, 26);
 
-    g_kspChkUnique = CreateWindowW(L"BUTTON", L"Override global settings for this key",
+    g_kspChkUnique = UiCreateWindow(L"BUTTON", L"Override global settings for this key",
         WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_OWNERDRAW,
         x, S(parent, 12), w, toggleH, parent, (HMENU)(INT_PTR)KSP_ID_UNIQUE, hInst, nullptr);
     SendMessageW(g_kspChkUnique, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-    g_kspChkInvert = CreateWindowW(L"BUTTON", L"Invert axis (press to release)",
+    g_kspChkInvert = UiCreateWindow(L"BUTTON", L"Invert axis (press to release)",
         WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_OWNERDRAW,
         x, S(parent, 40), w, toggleH, parent, (HMENU)(INT_PTR)KSP_ID_INVERT, hInst, nullptr);
     SendMessageW(g_kspChkInvert, WM_SETFONT, (WPARAM)hFont, TRUE);
@@ -520,7 +521,7 @@ void KeySettingsPanel_Create(HWND parent, HINSTANCE hInst)
     const int profileComboW = S(parent, 200);
 
     int cx = x;
-    g_kspLblMode = CreateWindowW(L"STATIC", L"Mode:", WS_CHILD | WS_VISIBLE,
+    g_kspLblMode = UiCreateWindow(L"STATIC", L"Mode:", WS_CHILD | WS_VISIBLE,
         cx, yControls + S(parent, 6), modeLabelW, S(parent, 20), parent, nullptr, hInst, nullptr);
     SendMessageW(g_kspLblMode, WM_SETFONT, (WPARAM)hFont, TRUE);
     cx += modeLabelW + labelGap - comboLeftNudge;
@@ -528,13 +529,13 @@ void KeySettingsPanel_Create(HWND parent, HINSTANCE hInst)
     g_kspComboMode = PremiumCombo::Create(parent, hInst,
         cx, yControls, modeComboW, comboH, KSP_ID_MODE, WS_CHILD | WS_VISIBLE | WS_TABSTOP);
     PremiumCombo::SetFont(g_kspComboMode, hFont, true);
-    PremiumCombo::AddString(g_kspComboMode, L"Smooth (Bezier)");
-    PremiumCombo::AddString(g_kspComboMode, L"Linear (Segments)");
+    PremiumCombo::AddUiString(g_kspComboMode, L"Smooth (Bezier)");
+    PremiumCombo::AddUiString(g_kspComboMode, L"Linear (Segments)");
     PremiumCombo::SetCurSel(g_kspComboMode, 1, false);
     PremiumCombo::SetDropMaxVisible(g_kspComboMode, 8);
     cx += modeComboW + S(parent, 20);
 
-    g_kspLblProfile = CreateWindowW(L"STATIC", L"Preset:", WS_CHILD | WS_VISIBLE,
+    g_kspLblProfile = UiCreateWindow(L"STATIC", L"Preset:", WS_CHILD | WS_VISIBLE,
         cx, yControls + S(parent, 6), profileLabelW, S(parent, 20), parent, nullptr, hInst, nullptr);
     SendMessageW(g_kspLblProfile, WM_SETFONT, (WPARAM)hFont, TRUE);
     cx += profileLabelW + labelGap - comboLeftNudge;
@@ -616,6 +617,15 @@ void KeySettingsPanel_CloseCustomPopups()
     }
 }
 
+const wchar_t* KeySettingsPanel_HelpAt(HWND parent, POINT point)
+{
+    RECT invert = Ksp_InvertToggleRect(parent);
+    if (PtInRect(&invert, point)) return L"Help.Invert";
+    RECT graph{};
+    if (KeySettingsPanel_GetGraphRect(parent, &graph) && PtInRect(&graph, point)) return L"Help.Curve";
+    return nullptr;
+}
+
 void KeySettingsPanel_DrawControls(HWND parent, HDC hdc)
 {
     if (!g_kspCustomControls || !parent || !hdc)
@@ -628,13 +638,13 @@ void KeySettingsPanel_DrawControls(HWND parent, HDC hdc)
     if (Ksp_IsKeySelected())
     {
         Ksp_DrawToggleRow(parent, hdc, g, Ksp_ToViewRect(parent, Ksp_UniqueToggleRect(parent)), g_kspChkUnique,
-            L"Override global settings for this key",
+            UiText(L"Override global settings for this key"),
             Ksp_IsOverrideOnForKey(),
             true);
     }
 
     Ksp_DrawToggleRow(parent, hdc, g, Ksp_ToViewRect(parent, Ksp_InvertToggleRect(parent)), g_kspChkInvert,
-        L"Invert axis (press to release)",
+        UiText(L"Invert axis (press to release)"),
         Ksp_GetActiveSettings().invert,
         true);
 
@@ -644,9 +654,9 @@ void KeySettingsPanel_DrawControls(HWND parent, HDC hdc)
     CustomPage_DrawText(hdc, info, Ksp_ToViewRect(parent, Ksp_InfoRect(parent)), UiTheme::Color_Text(),
         DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
 
-    CustomPage_DrawText(hdc, L"Mode:", Ksp_ToViewRect(parent, Ksp_ModeLabelRect(parent)), UiTheme::Color_Text(),
+    CustomPage_DrawText(hdc, UiText(L"Mode:"), Ksp_ToViewRect(parent, Ksp_ModeLabelRect(parent)), UiTheme::Color_Text(),
         DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-    CustomPage_DrawText(hdc, L"Preset:", Ksp_ToViewRect(parent, Ksp_ProfileLabelRect(parent)), UiTheme::Color_Text(),
+    CustomPage_DrawText(hdc, UiText(L"Preset:"), Ksp_ToViewRect(parent, Ksp_ProfileLabelRect(parent)), UiTheme::Color_Text(),
         DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
 
     auto drawCombo = [&](HWND combo, RECT rc, const wchar_t* placeholder)

@@ -1,3 +1,4 @@
+#include "ui_language.h"
 // settings_ini.cpp
 #include "perf_trace.h"
 #include "block_keys_policy.h"
@@ -567,10 +568,14 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     int winY = std::numeric_limits<int>::min();
     int winVersion = 0, winDpi = 0, winMaximized = 0;
     bool minimizeToTray = false, closeToTray = false;
+    auto language = halljoy::ui_language::Language::English;
     unsigned pauseShortcuts[3]{};
     bool pauseSeparate = false;
     if (loadWindow)
     {
+        wchar_t languageCode[32]{};
+        GetPrivateProfileStringW(L"Window", L"Language", L"en", languageCode, _countof(languageCode), path);
+        language = halljoy::ui_language::Parse(languageCode);
         winW = IniReadI32(L"Window", L"Width", Settings_GetMainWindowWidthPx(), path);
         winH = IniReadI32(L"Window", L"Height", Settings_GetMainWindowHeightPx(), path);
         winX = IniReadI32(L"Window", L"PosX", std::numeric_limits<int>::min(), path);
@@ -670,6 +675,7 @@ static bool SettingsIni_Load_Core(const wchar_t* path, bool loadWindow, bool loa
     }
     if (loadWindow)
     {
+        halljoy::ui_language::Set(language);
         Settings_SetMainWindowWidthPx(winW);
         Settings_SetMainWindowHeightPx(winH);
         Settings_SetMainWindowPosXPx(winX);
@@ -723,7 +729,8 @@ bool SettingsIni_LoadProfile(const wchar_t* path)
 // Curve presets are stored separately by KeyboardProfiles (CurvePresets folder).
 static bool SettingsIni_WriteWindow(const wchar_t* tmpPath)
 {
-    bool ok = IniWriteI32(L"Window", L"PauseShortcutToggle", static_cast<int>(Settings_GetPauseShortcut(0)), tmpPath);
+    bool ok = halljoy::ini::WriteBatch::Put(L"Window", L"Language", halljoy::ui_language::Code(), tmpPath) != FALSE;
+    ok &= IniWriteI32(L"Window", L"PauseShortcutToggle", static_cast<int>(Settings_GetPauseShortcut(0)), tmpPath);
     ok &= IniWriteI32(L"Window", L"PauseShortcutPause", static_cast<int>(Settings_GetPauseShortcut(1)), tmpPath);
     ok &= IniWriteI32(L"Window", L"PauseShortcutResume", static_cast<int>(Settings_GetPauseShortcut(2)), tmpPath);
     ok &= IniWriteI32(L"Window", L"PauseSeparate", Settings_GetPauseSeparate() ? 1 : 0, tmpPath);
@@ -904,7 +911,7 @@ namespace
                 Settings_GetMinimizeToTray() ? 1 : 0, Settings_GetCloseToTray() ? 1 : 0,
                 static_cast<int>(Settings_GetPauseShortcut(0)), static_cast<int>(Settings_GetPauseShortcut(1)),
                 static_cast<int>(Settings_GetPauseShortcut(2)), Settings_GetPauseSeparate() ? 1 : 0};
-            bool valid = true;
+            bool valid = ReadExpectedIniValue(temporaryPath, L"Window", L"Language", halljoy::ui_language::Code());
             for (size_t i = 0; i < _countof(names); ++i) {
                 wchar_t expected[32]{};
                 if (values[i] == std::numeric_limits<int>::min()) wcscpy_s(expected, L"{missing}");

@@ -28,6 +28,22 @@ EXE and creates a new build/packages directory; it does not replace or launch it
 See WINDOWS_INSTALLER.md. BUILD.cmd remains application-only.
 Incremental builds discover Python3.10+ x64 without making Clang mandatory for
 an existing MSVC + supported portable compiler / cached-runtime environment.
+The Python native/diagnostic gates also discover x64 Clang through Visual Studio's
+vswhere, including Community and custom installation paths, when CXX and PATH
+provide no compiler. Explicit CXX and PATH compilers retain priority.
+Release and profile-test MSBuild discovery selects the installed VC x86/x64 tools,
+matching build.ps1 instead of requiring a separate MSBuild component identity.
+The MSBuild source-encoding target uses the discovered python on PATH; a separate
+py.exe launcher is not required for installed uv-managed Python interpreters.
+Discovery regression: python -m unittest discover -s tools/tests -p test_compiler_discovery.py
+Full BUILD.cmd initializes that same environment before its first Python command.
+It also finds x64 Clang for the dependency build. The normal double-click build
+does not require changing Windows App execution aliases or the permanent PATH.
+Read-only Python/Clang discovery: BUILD.cmd -CheckOnly
+This command ends after FULL_BUILD_ENVIRONMENT=PASS. It does not compile the
+plugin, check running HallJoy processes, update an EXE or pause for a keypress.
+Explicit interpreter: BUILD.cmd -PythonPath "C:\path with spaces\python.exe"
+Full-entry regression: powershell -NoProfile -File tools/test_full_build_environment.ps1
 
 Full dependency rebuild, when needed:
   BUILD.cmd
@@ -35,6 +51,16 @@ Equivalent:
   powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build.ps1
 The full entry already runs unified checks. Do not run both workflows just
 to repeat validation.
+The full dependency build's physical-UAP runtime check requires HallJoy to be
+closed, including its worker processes. At that stage the builder temporarily
+closes verified copies from this checkout and the current Windows session,
+runs the isolated check and restores previously running apps even on failure.
+Apps remain open during dependency compilation and resume before later stages.
+Copies in other checkouts/sessions or unverifiable identities stop the build
+without automatic closure. Close those manually through the tray menu -> Exit.
+The existing global process guards in the builder and ABI checker remain active.
+For ordinary source changes with the pinned runtime already built, use
+tools/build_release.ps1; its candidate compilation keeps the current app open.
 
 Output and replacement
 ----------------------

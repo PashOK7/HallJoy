@@ -1,3 +1,5 @@
+#include "ui_language.h"
+#include "ui_font.h"
 // premium_combo_paint.cpp
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -37,12 +39,12 @@ static std::wstring GetDisplayTextForSel(State* st, int sel, bool& outIsPlacehol
     if (!st) return L"";
 
     if (sel >= 0 && sel < (int)st->items.size())
-        return st->items[sel];
+        return st->uiItems[sel] ? UiText(st->items[sel].c_str()) : st->items[sel];
 
     if (sel < 0 && !st->placeholderText.empty())
     {
         outIsPlaceholder = true;
-        return st->placeholderText;
+        return UiText(st->placeholderText.c_str());
     }
 
     return L"";
@@ -507,6 +509,13 @@ static void PaintCombo_Impl(HWND hwndCombo, State* st, HDC hdc, const RECT* targ
 
     const float accentT = st ? Clamp01(st->arrowT) : 0.0f;
 
+    // Paint the outside corners with the parent surface, then fill only the
+    // rounded face. The arrow's hover fill uses the same outer clipping region.
+    FillRect(hdc, &rc, UiTheme::Brush_PanelBg());
+    const int radius = std::clamp(S(hwndCombo,8),4,12);
+    HRGN face = CreateRoundRectRgn(rc.left,rc.top,rc.right+1,rc.bottom+1,radius,radius);
+    const int savedClip = SaveDC(hdc);
+    ExtSelectClipRgn(hdc,face,RGN_AND);
     FillRect(hdc, &rc, UiTheme::Brush_ControlBg());
 
     int arrowW = std::clamp(S(hwndCombo, 26), 18, 34);
@@ -558,7 +567,8 @@ static void PaintCombo_Impl(HWND hwndCombo, State* st, HDC hdc, const RECT* targ
 
     COLORREF borderC = LerpColor(baseBorder, UiTheme::Color_Accent(), accentT);
 
-    int radius = std::clamp(S(hwndCombo, 8), 4, 12);
+    RestoreDC(hdc,savedClip);
+    DeleteObject(face);
     DrawRoundBorder(hdc, rc, radius, borderC, 1);
 
     {
@@ -571,7 +581,7 @@ static void PaintCombo_Impl(HWND hwndCombo, State* st, HDC hdc, const RECT* targ
     }
 
     // ---------------- TEXT (static or animated scroll) ----------------
-    HFONT hFont = GetFont(st);
+    HFONT hFont = UiCjkFont(GetFont(st), WinUtil_GetDpiForWindowCompat(hwndCombo));
 
     // Determine current displayed text (for non-animated path)
     bool curIsPlaceholder = false;
@@ -719,7 +729,7 @@ static void PaintPopup_Impl(HWND hwndPopup, State* st, HDC hdc)
 
     ClampScroll(st);
 
-    HFONT oldFont = (HFONT)SelectObject(hdc, GetFont(st));
+    HFONT oldFont = (HFONT)SelectObject(hdc, UiCjkFont(GetFont(st), WinUtil_GetDpiForWindowCompat(hwndPopup)));
     SetBkMode(hdc, TRANSPARENT);
 
     int y = 0;
@@ -806,7 +816,7 @@ static void PaintPopup_Impl(HWND hwndPopup, State* st, HDC hdc)
         bool editingThisRow = (st->hwndEdit && st->editIndex == idx);
         if (!editingThisRow)
         {
-            DrawTextW(hdc, st->items[idx].c_str(), (int)st->items[idx].size(), &textRc,
+            DrawTextW(hdc, st->uiItems[idx] ? UiText(st->items[idx].c_str()) : st->items[idx].c_str(), -1, &textRc,
                 DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
         }
 

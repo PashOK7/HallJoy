@@ -13,6 +13,7 @@ void KeySettingsPanel_UpdateCustomControlsLayout(HWND parent);
 void KeySettingsPanel_CloseCustomPopups();
 int KeySettingsPanel_HeaderOffsetPx(HWND parent);
 void KeySettingsPanel_DrawControls(HWND parent, HDC hdc);
+const wchar_t* KeySettingsPanel_HelpAt(HWND parent, POINT contentPoint);
 bool KeySettingsPanel_HandleCustomControlsMouse(HWND parent, UINT msg, WPARAM wParam, LPARAM lParam);
 // Discards unsaved curve edits by reloading the selected preset from disk.
 bool KeySettingsPanel_RevertPresetEdits(HWND parent);

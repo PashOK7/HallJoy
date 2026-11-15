@@ -19,10 +19,14 @@ jobs:
       - name: Portable helpers and optional installer contract
         shell: powershell
         run: |
+          python -m unittest discover -s tools/tests -p test_compiler_discovery.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python src/HallJoyProject/tests/optional_installer_static_audit.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           .\tools\test_portable_helpers.ps1
           .\tools\test_build_environment.ps1
+          .\tools\test_full_build_environment.ps1
+          .\tools\test_build_uap_isolation.ps1
       - name: Static audits and native tests
         # LLVM clang uses the MSVC runtime: no MinGW libstdc++ DLL mix-up from PATH.
         env:

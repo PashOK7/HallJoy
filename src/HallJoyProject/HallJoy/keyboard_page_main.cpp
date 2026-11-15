@@ -1,3 +1,5 @@
+#include "ui_language_win32.h"
+#include "support_banner_session.h"
 #include "perf_trace.h"
 #include "ui_activity.h"
 // keyboard_page_main.cpp
@@ -235,12 +237,15 @@ static void ComputeMousePanelRect(HWND hWnd, RECT& outRc);
 static constexpr const char* kDiscordQrRows[] = {
     "11111110100001110001101111111", "10000010101011001000001000001", "10111010010110001011001011101", "10111010111100110000101011101", "10111010011000101010001011101", "10000010001001011101101000001", "11111110101010101010101111111", "00000000101010011100000000000", "10110111001001010011101001011", "01110000011011110111011110001", "10101011001001001000111010110", "01111100100110001001010000001", "10011110001100110101100001100", "11000001101100101100011000111", "10011111000101011011101110111", "01110001001000101011111010010", "10110010101100111111110011010", "00110101011000101100000101110", "10011010011001111100100110100", "00011101101011100101000110100", "01111010010111101101111111100", "00000000101110011000100011111", "11111110110100110111101011010", "10000010111011110010100011011", "10111010001010000100111110101", "10111010111111000101000111010", "10111010100100001000000100101", "10000010000011110000101011010", "11111110111010000101101000010",
 };
-enum class SupportBannerAction { None, Join, Copy, Log, Mix87Mode };
+static void ResizeSubUi(HWND hWnd);
+static halljoy::support_banner::Session g_supportBannerSession{GetTickCount64()};
+static constexpr UINT_PTR kSupportDismissTimer = 3;
+enum class SupportBannerAction { None, Join, Copy, Log, Mix87Mode, Dismiss };
 static constexpr UINT_PTR kMix87ModeTimer = 2;
 static std::uint64_t g_supportLogRequest = 0;
 static ULONGLONG g_supportLogDeadline = 0;
 static constexpr UINT_PTR kSupportLogTimer = 1;
-struct SupportBannerLayout { RECT title{}, body{}, join{}, copy{}, log{}, qr{}, mode{}; };
+struct SupportBannerLayout { RECT title{}, body{}, join{}, copy{}, log{}, qr{}, mode{}, close{}; };
 static SupportBannerAction g_supportBannerHot = SupportBannerAction::None;
 static SupportBannerAction g_supportBannerPressed = SupportBannerAction::None;
 static constexpr wchar_t kSupportPrompt[] = L"Want to help add support for your analogue keyboard?";
@@ -260,8 +265,12 @@ static SupportBannerLayout SupportBanner_GetLayout(HWND hWnd, const RECT& rc)
     const int pad = S(hWnd, 16), gap = S(hWnd, 10);
     const int qrSize = S(hWnd, 94);
     SupportBannerLayout result{};
+    const bool dismissible = halljoy::support_banner::Dismissible(halljoy::keyboard_support::GetStatusSnapshot());
+    const int closeWidth = dismissible ? S(hWnd, 34) : 0;
+    if (dismissible && g_supportBannerSession.Ready(GetTickCount64()))
+        result.close = {rc.right-S(hWnd,34), S(hWnd,10), rc.right-S(hWnd,6), S(hWnd,38)};
     const int qrTop = (rc.bottom - qrSize) / 2;
-    result.qr = { rc.right - S(hWnd, 10) - qrSize, qrTop, rc.right - S(hWnd, 10), qrTop + qrSize };
+    result.qr = { rc.right - closeWidth - S(hWnd, 10) - qrSize, qrTop, rc.right - closeWidth - S(hWnd, 10), qrTop + qrSize };
     const int textRight = result.qr.left - pad;
     result.title = { pad, S(hWnd, 9), textRight, S(hWnd, 40) };
     const int joinW = S(hWnd, 112), copyW = S(hWnd, 88);
@@ -314,6 +323,7 @@ static SupportBannerLayout SupportBanner_GetLayout(HWND hWnd, const RECT& rc)
 
 static SupportBannerAction SupportBanner_HitTest(const SupportBannerLayout& layout, POINT point)
 {
+    if (PtInRect(&layout.close, point)) return SupportBannerAction::Dismiss;
     if (PtInRect(&layout.mode, point)) return SupportBannerAction::Mix87Mode;
     if (PtInRect(&layout.log, point)) return SupportBannerAction::Log;
     if (PtInRect(&layout.join, point)) return SupportBannerAction::Join;
@@ -371,6 +381,18 @@ static void DrawSupportQr(Gdiplus::Graphics& g, HWND hWnd, const RECT& tile)
 
 static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    if (msg == WM_CREATE) {
+        const auto now = GetTickCount64();
+        const auto elapsed = now - g_supportBannerSession.startedAt;
+        if (elapsed < halljoy::support_banner::Session::delayMs)
+            SetTimer(hWnd, kSupportDismissTimer,
+                static_cast<UINT>(halljoy::support_banner::Session::delayMs - elapsed), nullptr);
+    }
+    if (msg == WM_TIMER && wParam == kSupportDismissTimer) {
+        KillTimer(hWnd, kSupportDismissTimer); // One wake-up, including while hidden.
+        InvalidateRect(hWnd, nullptr, FALSE);
+        return 0;
+    }
     if (msg == WM_TIMER && wParam == kSupportLogTimer) {
         const bool ready = SupportLog_CompletedSnapshot() >= g_supportLogRequest;
         if (!ready && GetTickCount64() < g_supportLogDeadline) return 0;
@@ -385,7 +407,7 @@ static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LP
         } else {
             wchar_t error[256]{};
             const DWORD errorCode = SupportLog_LastError();
-            if (errorCode) swprintf_s(error, L"Could not save the support log. Windows error: %lu. Please try again.", errorCode);
+            if (errorCode) swprintf_s(error, UiText(L"Could not save the support log. Windows error: %lu. Please try again."), errorCode);
             else wcscpy_s(error, L"Saving the support log timed out. Please try again.");
             MessageBoxW(hWnd, error, L"HallJoy", MB_ICONWARNING);
         }
@@ -398,7 +420,7 @@ static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LP
         if(wParam && Mix87LimitedVisible())SetTimer(hWnd,kMix87ModeTimer,500,nullptr);
         else KillTimer(hWnd,kMix87ModeTimer);
     }
-    if (msg == WM_DESTROY) { KillTimer(hWnd, kSupportLogTimer); KillTimer(hWnd,kMix87ModeTimer); }
+    if (msg == WM_DESTROY) { KillTimer(hWnd, kSupportLogTimer); KillTimer(hWnd,kMix87ModeTimer); KillTimer(hWnd,kSupportDismissTimer); }
     if (msg == WM_ERASEBKGND) return 1;
     if (msg == WM_SIZE)
     {
@@ -436,7 +458,7 @@ static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LP
             (float)S(hWnd, 8));
         RECT accent{S(hWnd, 1), S(hWnd, 13), S(hWnd, 4), rc.bottom - S(hWnd, 13)};
         CustomPage_DrawRoundRect(g, accent, (FrozenSupportVisible() && !KnownLimitedVisible()) ? (ImplementedSupportVisible() ? RGB(239, 179, 70) : RGB(155, 166, 185)) : RGB(214, 103, 122), (FrozenSupportVisible() && !KnownLimitedVisible()) ? (ImplementedSupportVisible() ? RGB(239, 179, 70) : RGB(155, 166, 185)) : RGB(214, 103, 122), 1.0f);
-        CustomPage_DrawText(hdc, FrozenSupportVisible() ? FrozenSupportTitle() : UnsupportedVisible() ? UnsupportedTitle() : L"No supported analogue keyboard detected", layout.title,
+        CustomPage_DrawText(hdc, FrozenSupportVisible() ? FrozenSupportTitle() : UnsupportedVisible() ? UnsupportedTitle() : UiText(L"No supported analogue keyboard detected"), layout.title,
             (FrozenSupportVisible() && !KnownLimitedVisible()) ? (ImplementedSupportVisible() ? RGB(255, 205, 112) : RGB(210, 218, 230)) : RGB(245, 164, 182), DT_LEFT | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
 
         SelectObject(hdc, bodyFont ? bodyFont : GetStockObject(SYSTEM_FONT));
@@ -445,17 +467,28 @@ static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LP
         if(Mix87LimitedVisible()) {
             const auto mode=MchoseMix87_GetMode();
             const bool ready=mode.state==Mix87ModeState::Enabled || mode.state==Mix87ModeState::Disabled;
-            CustomPage_DrawCheckbox(g,hdc,hWnd,layout.mode,L"Analog mode",mode.state==Mix87ModeState::Enabled,ready);
+            CustomPage_DrawCheckbox(g,hdc,hWnd,layout.mode,UiText(L"Analog mode"),mode.state==Mix87ModeState::Enabled,ready);
         }
-        CustomPage_DrawButton(g, hdc, layout.log, L"Open log",
+        CustomPage_DrawButton(g, hdc, layout.log, UiText(L"Open log"),
             g_supportBannerHot == SupportBannerAction::Log, g_supportBannerPressed == SupportBannerAction::Log, true);
         if (!AppConflictVisible() && !Mix87LimitedVisible() && !UnsupportedVisible()) {
-        CustomPage_DrawButton(g, hdc, layout.join, L"Join Discord",
+        CustomPage_DrawButton(g, hdc, layout.join, UiText(L"Join Discord"),
             g_supportBannerHot == SupportBannerAction::Join, g_supportBannerPressed == SupportBannerAction::Join, true);
-        CustomPage_DrawButton(g, hdc, layout.copy, L"Copy link",
+        CustomPage_DrawButton(g, hdc, layout.copy, UiText(L"Copy link"),
             g_supportBannerHot == SupportBannerAction::Copy, g_supportBannerPressed == SupportBannerAction::Copy, true);
         SelectObject(hdc, GetStockObject(SYSTEM_FONT));
         DrawSupportQr(g, hWnd, layout.qr);
+        }
+        if (!IsRectEmpty(&layout.close)) {
+            const bool hot = g_supportBannerHot == SupportBannerAction::Dismiss;
+            CustomPage_DrawRoundRect(g, layout.close, hot ? RGB(68,55,38) : RGB(53,42,24),
+                hot ? UiTheme::Color_TextMuted() : RGB(140,102,40), static_cast<float>(S(hWnd,5)));
+            Gdiplus::Pen pen(Gdiplus::Color(255,235,235,235), static_cast<float>(S(hWnd,2)));
+            const int inset = S(hWnd,9);
+            const int left=static_cast<int>(layout.close.left)+inset, right=static_cast<int>(layout.close.right)-inset;
+            const int top=static_cast<int>(layout.close.top)+inset, bottom=static_cast<int>(layout.close.bottom)-inset;
+            g.DrawLine(&pen,left,top,right,bottom);
+            g.DrawLine(&pen,right,top,left,bottom);
         }
         RestoreDC(hdc, saved);
         if (headingFont) DeleteObject(headingFont);
@@ -521,7 +554,15 @@ static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LP
         InvalidateRect(hWnd, nullptr, FALSE);
         if (pressed == hit && hit != SupportBannerAction::None)
         {
-            if(hit==SupportBannerAction::Mix87Mode) {
+            if (hit == SupportBannerAction::Dismiss) {
+                if (g_supportBannerSession.Dismiss(GetTickCount64(), halljoy::keyboard_support::GetStatusSnapshot())) {
+                    ShowWindow(hWnd, SW_HIDE);
+                    halljoy::tab_transition::InvalidateCache();
+                    ResizeSubUi(GetParent(hWnd));
+                    InvalidateRect(GetParent(hWnd), nullptr, FALSE);
+                }
+            }
+            else if(hit==SupportBannerAction::Mix87Mode) {
                 const auto mode=MchoseMix87_GetMode();
                 (void)MchoseMix87_RequestMode(mode,mode.state!=Mix87ModeState::Enabled);
                 SetTimer(hWnd,kMix87ModeTimer,500,nullptr);
@@ -920,16 +961,16 @@ static LRESULT CALLBACK PausePreviewProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
             SelectObject(dc, state->heading ? state->heading : GetStockObject(SYSTEM_FONT));
             // A failed start is not a pause the user asked for: say so.
             const int startFailure = fault ? 0 : App_EngineStartFailure();
-            CustomPage_DrawText(dc, fault ? L"Restart required" : !PausePreview_CanResume(*state) ? L"Resuming…" :
+            CustomPage_DrawText(dc, fault ? UiText(L"Restart required") : !PausePreview_CanResume(*state) ? UiText(L"Resuming…") :
                 startFailure ? L"Input could not start" : L"HallJoy is paused",
                 title, RGB(250, 219, 166), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
             RECT detail{ title.left, title.bottom, title.right, rc.bottom - S(hwnd, 14) };
             SelectObject(dc, state->body ? state->body : GetStockObject(SYSTEM_FONT));
-            CustomPage_DrawText(dc, fault ? L"Devices could not be restored" :
+            CustomPage_DrawText(dc, fault ? UiText(L"Devices could not be restored") :
                 startFailure == 1 ? L"Retrying automatically" : startFailure == 2 ? L"Click Resume to try again" :
                 L"Input processing is stopped", detail,
                 UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-            CustomPage_DrawButton(g, dc, button, L"Resume", state->hot, state->pressed, PausePreview_CanResume(*state));
+            CustomPage_DrawButton(g, dc, button, UiText(L"Resume"), state->hot, state->pressed, PausePreview_CanResume(*state));
         }
         BitBlt(screen, 0, 0, rc.right, rc.bottom, dc, 0, 0, SRCCOPY);
         SelectObject(dc, old); DeleteObject(bitmap); DeleteDC(dc); EndPaint(hwnd, &ps); return 0;
@@ -1187,7 +1228,7 @@ static void ResizeSubUi(HWND hWnd)
     int kbBottom = KeyboardBottomPx(hWnd);
     int x = S(hWnd, 12);
     const auto supportStatus = halljoy::keyboard_support::GetStatusSnapshot();
-    const bool showBanner = supportStatus.searchCompleted && (!supportStatus.analogSourceConnected || supportStatus.frozenModels != 0 || supportStatus.communicationWarning);
+    const bool showBanner = g_supportBannerSession.Visible(supportStatus);
     static bool previousBanner = false;
     if (showBanner && !previousBanner && halljoy::keyboard_support::ShouldAutoSaveSupportLog(supportStatus)) SupportLog_ReportMissingSource();
     previousBanner = showBanner;
@@ -2653,6 +2694,41 @@ static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, L
 }
 
 #if defined(HALLJOY_ANALOG_SIMULATOR)
+bool KeyboardUI_TestSupportDismissal()
+{
+    using namespace halljoy::keyboard_support;
+    const auto savedStatus = GetStatusSnapshot();
+    const auto savedSession = g_supportBannerSession;
+    SetSearchObservation(true, true, GenericProtocol);
+    WNDCLASSW wc{}; wc.hInstance = GetModuleHandleW(nullptr);
+    wc.lpfnWndProc = SupportBannerProc; wc.lpszClassName = L"HallJoySupportDismissTest";
+    RegisterClassW(&wc);
+    HWND host = CreateWindowW(L"STATIC", L"", WS_POPUP, 0,0,900,300,nullptr,nullptr,wc.hInstance,nullptr);
+    HWND card = CreateWindowW(wc.lpszClassName,L"",WS_CHILD|WS_VISIBLE,0,0,850,154,host,nullptr,wc.hInstance,nullptr);
+    bool ok = host && card;
+    RECT rc{}; GetClientRect(card,&rc);
+    g_supportBannerSession = {GetTickCount64()};
+    auto layout = SupportBanner_GetLayout(card,rc);
+    ok &= IsRectEmpty(&layout.close) != FALSE;
+    g_supportBannerSession.startedAt = GetTickCount64()-60000;
+    layout = SupportBanner_GetLayout(card,rc);
+    ok &= !IsRectEmpty(&layout.close) && layout.close.left > layout.qr.right && layout.close.right <= rc.right;
+    const auto center = MAKELPARAM((layout.close.left+layout.close.right)/2,(layout.close.top+layout.close.bottom)/2);
+    SendMessageW(card,WM_LBUTTONDOWN,MK_LBUTTON,center);
+    SendMessageW(card,WM_CANCELMODE,0,0);
+    SendMessageW(card,WM_LBUTTONUP,0,center);
+    ok &= !g_supportBannerSession.dismissed;
+    SendMessageW(card,WM_LBUTTONDOWN,MK_LBUTTON,center);
+    SendMessageW(card,WM_LBUTTONUP,0,center);
+    ok &= g_supportBannerSession.dismissed && !(GetWindowLongW(card,GWL_STYLE)&WS_VISIBLE);
+    DestroyWindow(host);
+    g_supportBannerSession = savedSession;
+    g_supportBannerHot = g_supportBannerPressed = SupportBannerAction::None;
+    SetSearchObservation(savedStatus.searchCompleted,savedStatus.analogSourceConnected,savedStatus.frozenModels,
+        savedStatus.communicationWarning,savedStatus.unsupportedModel);
+    return ok;
+}
+
 bool KeyboardUI_TestPausePreview()
 {
     // Called from the existing private-desktop suite, never the user's desktop.
@@ -2928,6 +3004,17 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         return 0;
     }
 
+    if (msg == UiLanguageChangedMessage()) {
+        const wchar_t* captions[] = {L"Remap", L"Configuration", L"Gamepad Tester", L"Global settings", L"Input Overlay", L"Profiles"};
+        for (int i = 0; g_hSubTab && i < TabCtrl_GetItemCount(g_hSubTab) && i < 6; ++i) {
+            TCITEMW item{}; item.mask = TCIF_TEXT;
+            item.pszText = const_cast<wchar_t*>(UiText(captions[i]));
+            TabCtrl_SetItem(g_hSubTab, i, &item);
+        }
+        halljoy::tab_transition::InvalidateCache();
+        ResizeSubUi(hWnd);
+        return 0;
+    }
     switch (msg)
     {
     case WM_ERASEBKGND: return 1;
@@ -3007,24 +3094,24 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         TCITEMW tie{};
         tie.mask = TCIF_TEXT;
 
-        tie.pszText = (LPWSTR)L"Remap";
+        tie.pszText = const_cast<LPWSTR>(UiText(L"Remap"));
         TabCtrl_InsertItem(g_hSubTab, 0, &tie);
 
-        tie.pszText = (LPWSTR)L"Configuration";
+        tie.pszText = const_cast<LPWSTR>(UiText(L"Configuration"));
         TabCtrl_InsertItem(g_hSubTab, 1, &tie);
 
-        tie.pszText = (LPWSTR)L"Gamepad Tester";
+        tie.pszText = const_cast<LPWSTR>(UiText(L"Gamepad Tester"));
         TabCtrl_InsertItem(g_hSubTab, 2, &tie);
 
-        tie.pszText = (LPWSTR)L"Global settings";
+        tie.pszText = const_cast<LPWSTR>(UiText(L"Global settings"));
         TabCtrl_InsertItem(g_hSubTab, 3, &tie);
 
-        tie.pszText = (LPWSTR)L"Input Overlay";
+        tie.pszText = const_cast<LPWSTR>(UiText(L"Input Overlay"));
         TabCtrl_InsertItem(g_hSubTab, 4, &tie);
 
         if (kProfilesPageEnabled)
         {
-            tie.pszText = (LPWSTR)L"Profiles";
+            tie.pszText = const_cast<LPWSTR>(UiText(L"Profiles"));
             TabCtrl_InsertItem(g_hSubTab, 5, &tie);
             ProfilesPage_Create(g_hSubTab, hInst);
             g_hProfileSelector = ProfileSelector_Create(hWnd, hInst);
@@ -3040,7 +3127,7 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 
         if (kMouseSettingsPageEnabled)
         {
-            tie.pszText = (LPWSTR)L"Mouse settings";
+            tie.pszText = const_cast<LPWSTR>(UiText(L"Mouse settings"));
             TabCtrl_InsertItem(g_hSubTab, kProfilesPageEnabled ? 6 : 5, &tie);
         }
 

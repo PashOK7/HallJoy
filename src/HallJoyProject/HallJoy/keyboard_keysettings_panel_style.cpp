@@ -1,3 +1,5 @@
+#include "ui_font.h"
+#include "ui_language.h"
 // keyboard_keysettings_panel_style.cpp
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -81,7 +83,7 @@ static void DrawTextGp(Graphics& g, const RectF& r, const wchar_t* txt, const Co
 {
     if (!txt) txt = L"";
 
-    FontFamily ff(L"Segoe UI");
+    FontFamily ff(UiFontFamily());
     StringFormat fmt;
     fmt.SetFormatFlags(StringFormatFlagsNoWrap);
     fmt.SetTrimming(StringTrimmingEllipsisCharacter);
@@ -94,7 +96,7 @@ static void DrawTextGp(Graphics& g, const RectF& r, const wchar_t* txt, const Co
     SolidBrush br(c);
     RectF rr = r;
     if (!center) rr.X += 2.0f;
-    g.DrawString(txt, -1, &font, rr, &fmt, &br);
+    g.DrawString(UiText(txt), -1, &font, rr, &fmt, &br);
 }
 
 // ---------------- Double-buffer helpers ----------------

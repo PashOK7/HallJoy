@@ -1,3 +1,5 @@
+#include "ui_font.h"
+#include "ui_language_win32.h"
 #include "ui_activity.h"
 #include "pause_hotkeys.h"
 // keyboard_subpages.cpp
@@ -443,7 +445,7 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
             int halfW = std::max(16, (contentW - barGapX) / 2);
 
             wchar_t buf[256]{};
-            swprintf_s(buf, L"Gamepad %d", pad + 1);
+            swprintf_s(buf, UiText(L"Gamepad %d"), pad + 1);
             textLine(x0, y, buf, lineH + S(hWnd, 2));
 
             swprintf_s(buf, L"LX:%6d  LY:%6d", (int)r.sThumbLX, (int)r.sThumbLY);
@@ -1205,7 +1207,7 @@ static void OverlayPage_Update(InputOverlayPageState* st)
         SetWindowTextW(st->lblStatus, status.c_str());
     }
     if (st->btnToggle)
-        SetWindowTextW(st->btnToggle, running ? L"Stop server" : L"Start server");
+        SetWindowTextW(st->btnToggle, running ? UiText(L"Stop server") : UiText(L"Start server"));
     if (st->btnOpen)
         EnableWindow(st->btnOpen, running ? TRUE : FALSE);
     if (st->btnCopy)
@@ -1216,12 +1218,12 @@ static void OverlayPage_Update(InputOverlayPageState* st)
     {
         OverlayFillDirection direction = OverlayServer_GetFillDirection();
         SetWindowTextW(st->btnDirection,
-            direction == OverlayFillDirection::TopDown ? L"Top to bottom" : L"Bottom to top");
+            direction == OverlayFillDirection::TopDown ? UiText(L"Top to bottom") : UiText(L"Bottom to top"));
     }
     if (st->btnDepthSource)
     {
         SetWindowTextW(st->btnDepthSource,
-            OverlayServer_GetUseRawDepth() ? L"Raw press depth" : L"After curves");
+            OverlayServer_GetUseRawDepth() ? UiText(L"Raw press depth") : UiText(L"After curves"));
     }
 
     struct EffectCheck { HWND hwnd; uint32_t flag; };
@@ -2307,8 +2309,8 @@ static void OverlayCustom_DrawItem(HWND hWnd, HDC hdc, Graphics& g, OverlayCusto
         RECT action = url;
         action.left = (std::max)(url.left, url.right - S(hWnd, 118));
         url.right = action.left - S(hWnd, 10);
-        OverlayCustom_DrawText(hdc, it.text, url, text, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-        OverlayCustom_DrawText(hdc, st->copyFeedback.empty() ? L"Click to copy" : st->copyFeedback,
+        OverlayCustom_DrawText(hdc, UiText(it.text.c_str()), url, text, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        OverlayCustom_DrawText(hdc, st->copyFeedback.empty() ? UiText(L"Click to copy") : UiText(st->copyFeedback.c_str()),
             action, UiTheme::Color_Accent(), DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
         break;
     }
@@ -2319,17 +2321,17 @@ static void OverlayCustom_DrawItem(HWND hWnd, HDC hdc, Graphics& g, OverlayCusto
         const int diameter = S(hWnd, 7);
         g.FillEllipse(&dot, (INT)rc.left, (INT)(rc.top + (rc.bottom - rc.top - diameter) / 2), diameter, diameter);
         rc.left += S(hWnd, 17);
-        OverlayCustom_DrawText(hdc, it.text, rc, accent, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        OverlayCustom_DrawText(hdc, UiText(it.text.c_str()), rc, accent, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
         break;
     }
     case OverlayCustomKind::Label:
-        OverlayCustom_DrawText(hdc, it.text, rc, text, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        OverlayCustom_DrawText(hdc, UiText(it.text.c_str()), rc, text, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
         break;
     case OverlayCustomKind::Hint:
-        OverlayCustom_DrawText(hdc, it.text, rc, UiTheme::Color_TextMuted(), DT_LEFT | DT_TOP | DT_WORDBREAK | DT_END_ELLIPSIS);
+        OverlayCustom_DrawText(hdc, UiText(it.text.c_str()), rc, UiTheme::Color_TextMuted(), DT_LEFT | DT_TOP | DT_WORDBREAK | DT_END_ELLIPSIS);
         break;
     case OverlayCustomKind::Button:
-        CustomPage_DrawButton(g, hdc, rc, it.text, hot, pressed, it.enabled);
+        CustomPage_DrawButton(g, hdc, rc, UiText(it.text.c_str()), hot, pressed, it.enabled);
         break;
     case OverlayCustomKind::Combo:
     {
@@ -2350,7 +2352,7 @@ static void OverlayCustom_DrawItem(HWND hWnd, HDC hdc, Graphics& g, OverlayCusto
     case OverlayCustomKind::Checkbox:
     {
         bool checked = OverlayServer_GetEffectEnabled(it.flag);
-        CustomPage_DrawCheckbox(g, hdc, hWnd, rc, it.text, checked, it.enabled);
+        CustomPage_DrawCheckbox(g, hdc, hWnd, rc, UiText(it.text.c_str()), checked, it.enabled);
         break;
     }
     case OverlayCustomKind::Slider:
@@ -2618,12 +2620,12 @@ static void OverlayCustom_InitCombos(HWND hWnd, OverlayCustomState* st)
     };
 
     st->comboDirection = create(OVERLAY_ID_DIRECTION);
-    PremiumCombo::AddString(st->comboDirection, L"Top to bottom");
-    PremiumCombo::AddString(st->comboDirection, L"Bottom to top");
+    PremiumCombo::AddUiString(st->comboDirection, L"Top to bottom");
+    PremiumCombo::AddUiString(st->comboDirection, L"Bottom to top");
 
     st->comboDepthSource = create(OVERLAY_ID_DEPTH_SOURCE);
-    PremiumCombo::AddString(st->comboDepthSource, L"After curves");
-    PremiumCombo::AddString(st->comboDepthSource, L"Raw press depth");
+    PremiumCombo::AddUiString(st->comboDepthSource, L"After curves");
+    PremiumCombo::AddUiString(st->comboDepthSource, L"Raw press depth");
 
     st->comboLabelFont = create(OVERLAY_ID_LABEL_FONT);
     st->comboLayout = create(OVERLAY_ID_LAYOUT);
@@ -3446,46 +3448,46 @@ LRESULT CALLBACK KeyboardSubpages_InputOverlayPageProc(HWND hWnd, UINT msg, WPAR
         st = new InputOverlayPageState();
         SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)st);
 
-        st->lblTitle = CreateWindowW(L"STATIC", L"Input overlay",
+        st->lblTitle = UiCreateWindow(L"STATIC", L"Input overlay",
             WS_CHILD | WS_VISIBLE, 0, 0, 100, 20, hWnd, nullptr, hInst, nullptr);
-        st->lblPort = CreateWindowW(L"STATIC", L"Port",
+        st->lblPort = UiCreateWindow(L"STATIC", L"Port",
             WS_CHILD | WS_VISIBLE, 0, 0, 100, 20, hWnd, nullptr, hInst, nullptr);
         wchar_t portText[16]{};
         swprintf_s(portText, L"%u", (unsigned)OverlayServer_GetConfiguredPort());
         st->edtPort = CreateWindowW(L"EDIT", portText,
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_NUMBER | ES_AUTOHSCROLL | WS_BORDER,
             0, 0, 100, 24, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_PORT, hInst, nullptr);
-        st->lblDirection = CreateWindowW(L"STATIC", L"Fill direction",
+        st->lblDirection = UiCreateWindow(L"STATIC", L"Fill direction",
             WS_CHILD | WS_VISIBLE, 0, 0, 100, 20, hWnd, nullptr, hInst, nullptr);
         st->btnDirection = CreateWindowW(L"BUTTON", L"",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
             0, 0, 100, 28, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_DIRECTION, hInst, nullptr);
-        st->lblDepthSource = CreateWindowW(L"STATIC", L"Depth display",
+        st->lblDepthSource = UiCreateWindow(L"STATIC", L"Depth display",
             WS_CHILD | WS_VISIBLE, 0, 0, 100, 20, hWnd, nullptr, hInst, nullptr);
         st->btnDepthSource = CreateWindowW(L"BUTTON", L"",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
             0, 0, 100, 28, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_DEPTH_SOURCE, hInst, nullptr);
-        st->lblEffects = CreateWindowW(L"STATIC", L"Visual effects",
+        st->lblEffects = UiCreateWindow(L"STATIC", L"Visual effects",
             WS_CHILD | WS_VISIBLE, 0, 0, 100, 20, hWnd, nullptr, hInst, nullptr);
-        st->chkSmoothing = CreateWindowW(L"BUTTON", L"Smooth response",
+        st->chkSmoothing = UiCreateWindow(L"BUTTON", L"Smooth response",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_CHECKBOX | BS_OWNERDRAW,
             0, 0, 100, 28, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_EFFECT_SMOOTHING, hInst, nullptr);
-        st->chkGlass = CreateWindowW(L"BUTTON", L"Glass keys",
+        st->chkGlass = UiCreateWindow(L"BUTTON", L"Glass keys",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_CHECKBOX | BS_OWNERDRAW,
             0, 0, 100, 28, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_EFFECT_GLASS, hInst, nullptr);
-        st->chkBloom = CreateWindowW(L"BUTTON", L"Bloom",
+        st->chkBloom = UiCreateWindow(L"BUTTON", L"Bloom",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_CHECKBOX | BS_OWNERDRAW,
             0, 0, 100, 28, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_EFFECT_BLOOM, hInst, nullptr);
-        st->chkEdge = CreateWindowW(L"BUTTON", L"Edge sweep",
+        st->chkEdge = UiCreateWindow(L"BUTTON", L"Edge sweep",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_CHECKBOX | BS_OWNERDRAW,
             0, 0, 100, 28, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_EFFECT_EDGE, hInst, nullptr);
-        st->chkScale = CreateWindowW(L"BUTTON", L"Micro-scale",
+        st->chkScale = UiCreateWindow(L"BUTTON", L"Micro-scale",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_CHECKBOX | BS_OWNERDRAW,
             0, 0, 100, 28, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_EFFECT_SCALE, hInst, nullptr);
-        st->chkLabel = CreateWindowW(L"BUTTON", L"Label contrast",
+        st->chkLabel = UiCreateWindow(L"BUTTON", L"Label contrast",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_CHECKBOX | BS_OWNERDRAW,
             0, 0, 100, 28, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_EFFECT_LABEL, hInst, nullptr);
-        st->chkRimLight = CreateWindowW(L"BUTTON", L"Rim lighting",
+        st->chkRimLight = UiCreateWindow(L"BUTTON", L"Rim lighting",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_CHECKBOX | BS_OWNERDRAW,
             0, 0, 100, 28, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_EFFECT_RIM_LIGHT, hInst, nullptr);
         st->sldSmoothingStrength = PremiumSlider_Create(hWnd, hInst, 0, 0, 10, 10, OVERLAY_ID_STRENGTH_SMOOTHING);
@@ -3510,13 +3512,13 @@ LRESULT CALLBACK KeyboardSubpages_InputOverlayPageProc(HWND hWnd, UINT msg, WPAR
         SendMessageW(st->sldRimLightStrength, TBM_SETRANGE, TRUE, MAKELONG(0, 100));
         st->chipRimLightStrength = PremiumChip_Create(hWnd, hInst, 0, 0, 10, 10, OVERLAY_ID_STRENGTH_RIM_LIGHT + 100);
 
-        st->lblRefreshMs = CreateWindowW(L"STATIC", L"Overlay refresh interval",
+        st->lblRefreshMs = UiCreateWindow(L"STATIC", L"Overlay refresh interval",
             WS_CHILD | WS_VISIBLE, 0, 0, 100, 20, hWnd, nullptr, hInst, nullptr);
         st->sldRefreshMs = PremiumSlider_Create(hWnd, hInst, 0, 0, 10, 10, OVERLAY_ID_REFRESH_MS);
         SendMessageW(st->sldRefreshMs, TBM_SETRANGE, TRUE, MAKELONG(1, 100));
         st->chipRefreshMs = PremiumChip_Create(hWnd, hInst, 0, 0, 10, 10, OVERLAY_ID_REFRESH_MS + 100);
 
-        st->lblColor = CreateWindowW(L"STATIC", L"Indicator color",
+        st->lblColor = UiCreateWindow(L"STATIC", L"Indicator color",
             WS_CHILD | WS_VISIBLE, 0, 0, 100, 20, hWnd, nullptr, hInst, nullptr);
         st->colorPreview = CreateWindowW(L"STATIC", L"",
             WS_CHILD | WS_VISIBLE | SS_OWNERDRAW,
@@ -3529,11 +3531,11 @@ LRESULT CALLBACK KeyboardSubpages_InputOverlayPageProc(HWND hWnd, UINT msg, WPAR
         st->edtHex = CreateWindowW(L"EDIT", L"",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL | ES_UPPERCASE,
             0, 0, 110, 24, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_COLOR_HEX, hInst, nullptr);
-        st->lblUrlCaption = CreateWindowW(L"STATIC", L"OBS browser source URL",
+        st->lblUrlCaption = UiCreateWindow(L"STATIC", L"OBS browser source URL",
             WS_CHILD | WS_VISIBLE, 0, 0, 100, 20, hWnd, nullptr, hInst, nullptr);
         st->lblUrl = CreateWindowW(L"STATIC", L"",
             WS_CHILD | WS_VISIBLE | SS_ENDELLIPSIS, 0, 0, 100, 20, hWnd, nullptr, hInst, nullptr);
-        st->lblStatusCaption = CreateWindowW(L"STATIC", L"Server status",
+        st->lblStatusCaption = UiCreateWindow(L"STATIC", L"Server status",
             WS_CHILD | WS_VISIBLE, 0, 0, 100, 20, hWnd, nullptr, hInst, nullptr);
         st->lblStatus = CreateWindowW(L"STATIC", L"",
             WS_CHILD | WS_VISIBLE | SS_ENDELLIPSIS, 0, 0, 100, 20, hWnd, nullptr, hInst, nullptr);
@@ -3542,9 +3544,9 @@ LRESULT CALLBACK KeyboardSubpages_InputOverlayPageProc(HWND hWnd, UINT msg, WPAR
             WS_CHILD | WS_VISIBLE, 0, 0, 100, 20, hWnd, nullptr, hInst, nullptr);
         st->btnToggle = CreateWindowW(L"BUTTON", L"",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW, 0, 0, 100, 28, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_TOGGLE, hInst, nullptr);
-        st->btnOpen = CreateWindowW(L"BUTTON", L"Open",
+        st->btnOpen = UiCreateWindow(L"BUTTON", L"Open",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW, 0, 0, 100, 28, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_OPEN, hInst, nullptr);
-        st->btnCopy = CreateWindowW(L"BUTTON", L"Copy URL",
+        st->btnCopy = UiCreateWindow(L"BUTTON", L"Copy URL",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW, 0, 0, 100, 28, hWnd, (HMENU)(INT_PTR)OVERLAY_ID_COPY, hInst, nullptr);
 
         HWND ctrls[] = {
@@ -4320,7 +4322,7 @@ static void Layout_UpdateMetaControls(LayoutPageState* st)
         if (st->lblBindState)
         {
             wchar_t s[96]{};
-            swprintf_s(s, k.hid ? L"Key assigned  |  Press depth: %u%%" : L"No physical key assigned", (unsigned)BackendUI_GetRawMilli(k.hid) / 10);
+            swprintf_s(s, k.hid ? UiText(L"Key assigned  |  Press depth: %u%%") : UiText(L"No physical key assigned"), (unsigned)BackendUI_GetRawMilli(k.hid) / 10);
             Layout_SetWindowTextIfChanged(st->lblBindState, s);
         }
     }
@@ -4343,7 +4345,7 @@ static void Layout_UpdateBindStateOnly(LayoutPageState* st)
     }
 
     wchar_t s[96]{};
-    swprintf_s(s, k.hid ? L"Key assigned  |  Press depth: %u%%" : L"No physical key assigned", (unsigned)BackendUI_GetRawMilli(k.hid) / 10);
+    swprintf_s(s, k.hid ? UiText(L"Key assigned  |  Press depth: %u%%") : UiText(L"No physical key assigned"), (unsigned)BackendUI_GetRawMilli(k.hid) / 10);
     Layout_SetWindowTextIfChanged(st->lblBindState, s);
 }
 
@@ -5376,7 +5378,7 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
         st = new LayoutPageState();
         SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)st);
 
-        st->lblPreset = CreateWindowW(L"STATIC", L"Layout", WS_CHILD | WS_VISIBLE,
+        st->lblPreset = UiCreateWindow(L"STATIC", L"Layout", WS_CHILD | WS_VISIBLE,
             0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblPreset, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -5391,12 +5393,12 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
         st->layoutPicker.variant = PremiumCombo::Create(hWnd, hInst, 0, 0, 10, 10, ID_LAYOUT_VARIANT,
             WS_CHILD | WS_TABSTOP);
         PremiumCombo::SetFont(st->layoutPicker.variant, hFont, false);
-        st->lblVariant = CreateWindowW(L"STATIC", L"Variant", WS_CHILD,
+        st->lblVariant = UiCreateWindow(L"STATIC", L"Variant", WS_CHILD,
             0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblVariant, WM_SETFONT, (WPARAM)hFont, FALSE);
-        st->lblBrand = CreateWindowW(L"STATIC", L"Brand", WS_CHILD | WS_VISIBLE,
+        st->lblBrand = UiCreateWindow(L"STATIC", L"Brand", WS_CHILD | WS_VISIBLE,
             0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
-        st->lblModel = CreateWindowW(L"STATIC", L"Model", WS_CHILD | WS_VISIBLE,
+        st->lblModel = UiCreateWindow(L"STATIC", L"Model", WS_CHILD | WS_VISIBLE,
             0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblBrand, WM_SETFONT, (WPARAM)hFont, FALSE);
         SendMessageW(st->lblModel, WM_SETFONT, (WPARAM)hFont, FALSE);
@@ -6009,7 +6011,7 @@ LRESULT CALLBACK KeyboardSubpages_LayoutPageProc(HWND hWnd, UINT msg, WPARAM wPa
                         Layout_SetUnsaved(st, true);
                     }
                     wchar_t s[128]{};
-                    swprintf_s(s, L"Key assigned. Press it to test.");
+                    swprintf_s(s, UiText(L"Key assigned. Press it to test."));
                     Layout_StopBindCapture(hWnd, st, s);
                     InvalidateRect(hWnd, nullptr, FALSE);
                 }
@@ -6442,6 +6444,8 @@ bool KeyboardSubpages_TestLayoutEditor()
             HWND shapeWindow = CreateWindowW(L"BUTTON", L"", WS_CHILD,0,0,66,86,page,nullptr,GetModuleHandleW(nullptr),nullptr);
             extern bool KeyboardUI_TestCompoundButtonPaint();
             extern bool KeyboardUI_TestPausePreview();
+            extern bool KeyboardUI_TestSupportDismissal();
+            if (!KeyboardUI_TestSupportDismissal()) throw std::runtime_error("support banner dismissal events failed");
             if (!KeyboardUI_TestPausePreview()) throw std::runtime_error("pause preview production events failed");
             if (!KeyboardUI_TestCompoundButtonPaint()) throw std::runtime_error("native compound button paint overwrote notch");
             SetWindowLongPtrW(shapeWindow,GWLP_USERDATA,40); // Real Enter: exercise impact/selection animations too.
@@ -7193,7 +7197,7 @@ static void PremiumChip_Paint(HWND hWnd, HDC hdc)
     g.DrawPath(&border, &p);
 
     const wchar_t* txt = (st && st->text[0]) ? st->text : L"";
-    FontFamily ff(L"Segoe UI");
+    FontFamily ff(UiFontFamily());
     StringFormat fmt;
     fmt.SetAlignment(StringAlignmentCenter);
     fmt.SetLineAlignment(StringAlignmentCenter);
@@ -7279,6 +7283,9 @@ static HWND PremiumChip_Create(HWND parent, HINSTANCE hInst, int x, int y, int w
 // ============================================================================
 struct GlobalSettingsPageState
 {
+    HWND cmbLanguage = nullptr;
+    RECT rcLanguage{};
+    UiHoverHelp help;
     HWND lblGlobalProfile = nullptr;
     HWND cmbGlobalProfile = nullptr;
 
@@ -7336,6 +7343,7 @@ static constexpr int GLOB_ID_PAUSE_SEPARATE=7620, GLOB_ID_PAUSE_KEY=7621, GLOB_I
 static constexpr int GLOB_ID_DIAGNOSTIC_LOGGING = 7612;
 static constexpr int GLOB_ID_HALLJOY_FOLDER = 7613;
 static constexpr int GLOB_ID_LICENSES = 7617;
+static constexpr int GLOB_ID_LANGUAGE = 7618;
 static constexpr int GLOB_ID_DISCORD = 7614;
 static constexpr int GLOB_ID_MINIMIZE_TRAY = 7615;
 static constexpr int GLOB_ID_CLOSE_TRAY = 7616;
@@ -7522,7 +7530,7 @@ static void GlobalToast_EnsureWindow(HWND hPage, GlobalSettingsPageState* st)
                     std::wstring text = (stLocal ? stLocal->toastText : L"");
                     if (!text.empty())
                     {
-                        FontFamily ff(L"Segoe UI");
+                        FontFamily ff(UiFontFamily());
                         float em = std::clamp(r.Height * 0.36f, 11.0f, 14.0f);
                         Font font(&ff, em, FontStyleRegular, UnitPixel);
                         StringFormat fmt;
@@ -7882,6 +7890,9 @@ static void Global_Layout(HWND hWnd, GlobalSettingsPageState* st)
     if (st->loggingError != ERROR_SUCCESS) y += S(hWnd, 52);
     y += S(hWnd, 10);
     y += labelH + S(hWnd, 7);
+    st->rcLanguage = RECT{ x, y, x + std::min(S(hWnd, 320), sliderW + gap + chipW), y + comboVisibleH };
+    y += comboVisibleH + S(hWnd, 28);
+    y += labelH + S(hWnd, 7);
     st->rcFactoryReset = RECT{ x, y, x + S(hWnd, 210), y + S(hWnd, 30) };
     y += S(hWnd, 30) + S(hWnd, 7);
     y += S(hWnd, 34) + margin;
@@ -7963,7 +7974,7 @@ static void Global_RenderContent(HWND hWnd, HDC hdc, const RECT&, void* user)
     auto labelAbove = [&](const RECT& control, const wchar_t* text)
     {
         RECT r{ control.left, control.top - S(hWnd, 24), control.right, control.top - S(hWnd, 6) };
-        CustomPage_DrawText(hdc, text, r, UiTheme::Color_Text(),
+        CustomPage_DrawText(hdc, UiText(text), r, UiTheme::Color_Text(),
             DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     };
     auto button = [&](int id, const RECT& r, const wchar_t* text)
@@ -7973,22 +7984,22 @@ static void Global_RenderContent(HWND hWnd, HDC hdc, const RECT&, void* user)
     };
 
     // Profile management lives in the Profiles tab.
-    labelAbove(st->rcLayoutTitle, L"Layout");
-    CustomPage_DrawCheckbox(g,hdc,hWnd,st->rcAutomaticLayout,L"Automatic layout",KeyboardLayout_GetAutomatic(),true);
+    labelAbove(st->rcLayoutTitle, UiText(L"Layout"));
+    CustomPage_DrawCheckbox(g,hdc,hWnd,st->rcAutomaticLayout,UiText(L"Automatic layout"),KeyboardLayout_GetAutomatic(),true);
     CustomPage_DrawText(hdc,KeyboardLayout_GetAutomaticStatus(),st->rcAutomaticLayoutStatus,
         UiTheme::Color_TextMuted(),DT_LEFT | DT_WORDBREAK);
-    labelAbove(st->rcLayoutBrand, L"Brand");
-    labelAbove(st->rcLayout, L"Model");
+    labelAbove(st->rcLayoutBrand, UiText(L"Brand"));
+    labelAbove(st->rcLayout, UiText(L"Model"));
     PremiumCombo::PaintRetainedFace(st->layoutPicker.brand, hdc, st->rcLayoutBrand,
         st->hotId == GLOB_ID_LAYOUT_BRAND);
     PremiumCombo::PaintRetainedFace(st->cmbLayout, hdc, st->rcLayout,
         st->hotId == GLOB_ID_LAYOUT_COMBO);
     if (st->layoutPicker.HasVariants()) {
-        labelAbove(st->rcLayoutVariant, L"Variant");
+        labelAbove(st->rcLayoutVariant, UiText(L"Variant"));
         PremiumCombo::PaintRetainedFace(st->layoutPicker.variant, hdc, st->rcLayoutVariant,
             st->hotId == GLOB_ID_LAYOUT_VARIANT);
     }
-    button(GLOB_ID_LAYOUT_EDITOR, st->rcLayoutEditor, L"Layout editor");
+    button(GLOB_ID_LAYOUT_EDITOR, st->rcLayoutEditor, UiText(L"Layout editor"));
 
     // One snapshot for text, colour and enablement. The complete image lives
     // in the retained page cache; the glow has no animation or timer.
@@ -8013,52 +8024,52 @@ static void Global_RenderContent(HWND hWnd, HDC hdc, const RECT&, void* user)
         const COLORREF fill = faulted ? RGB(67, 35, 39) :
             (pressed ? RGB(68, 49, 28) : hot ? RGB(88, 65, 35) : RGB(74, 55, 32));
         CustomPage_DrawRoundRect(g, st->rcEngineRuntime, fill, accent, (float)S(hWnd, 4));
-        CustomPage_DrawText(hdc, Global_EngineRuntimeButtonText(engineState), st->rcEngineRuntime,
+        CustomPage_DrawText(hdc, UiText(Global_EngineRuntimeButtonText(engineState)), st->rcEngineRuntime,
             faulted ? RGB(245, 180, 186) : RGB(250, 219, 166),
             DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         RECT status = st->rcEngineRuntime;
         status.left = status.right + S(hWnd, 14);
         status.right = status.left + S(hWnd, 100);
-        CustomPage_DrawText(hdc, paused ? L"Paused" : L"Needs restart", status, accent,
+        CustomPage_DrawText(hdc, paused ? UiText(L"Paused") : UiText(L"Needs restart"), status, accent,
             DT_LEFT | DT_VCENTER | DT_SINGLELINE);
     }
     else
-        CustomPage_DrawButton(g, hdc, st->rcEngineRuntime, Global_EngineRuntimeButtonText(engineState),
+        CustomPage_DrawButton(g, hdc, st->rcEngineRuntime, UiText(Global_EngineRuntimeButtonText(engineState)),
             hot, pressed, enabled);
 
     RECT pauseHint{ st->rcEngineRuntime.left, st->rcEngineRuntime.bottom + S(hWnd, 8),
         st->rcGlobalProfile.right, st->rcEngineRuntime.bottom + S(hWnd, 48) };
-    CustomPage_DrawText(hdc, L"Pause releases your keyboard so you can use its web configurator without a device-access conflict.",
+    CustomPage_DrawText(hdc, UiText(L"Pause releases your keyboard so you can use its web configurator without a device-access conflict."),
         pauseHint, UiTheme::Color_TextMuted(), DT_LEFT | DT_TOP | DT_WORDBREAK | DT_NOPREFIX);
 
-    CustomPage_DrawCheckbox(g,hdc,hWnd,st->rcPauseSeparate,L"Use separate Pause and Resume keys",
+    CustomPage_DrawCheckbox(g,hdc,hWnd,st->rcPauseSeparate,UiText(L"Use separate Pause and Resume keys"),
         Settings_GetPauseSeparate(),true);
     for(int i=0;i<3;++i) {
         if(IsRectEmpty(&st->rcPauseKeys[i])) continue;
         const bool capture=st->pauseCaptureSlot==static_cast<int>(i);
         const wchar_t* title=i==0?L"Pause / Resume: ":i==1?L"Pause: ":L"Resume: ";
-        const auto text=std::wstring(title)+(capture?L"Press shortcut...":Global_PauseKeyText(Settings_GetPauseShortcut(static_cast<unsigned>(i))));
+        const auto text=std::wstring(UiText(title))+(capture?UiText(L"Press shortcut..."):Global_PauseKeyText(Settings_GetPauseShortcut(static_cast<unsigned>(i))));
         CustomPage_DrawButton(g,hdc,st->rcPauseKeys[i],text.c_str(),st->hotId==GLOB_ID_PAUSE_KEY+i,st->pressedId==GLOB_ID_PAUSE_KEY+i,true);
-        CustomPage_DrawButton(g,hdc,st->rcPauseClear[i],capture?L"Cancel":L"Clear",st->hotId==GLOB_ID_PAUSE_CLEAR+i,st->pressedId==GLOB_ID_PAUSE_CLEAR+i,true);
+        CustomPage_DrawButton(g,hdc,st->rcPauseClear[i],capture?UiText(L"Cancel"):UiText(L"Clear"),st->hotId==GLOB_ID_PAUSE_CLEAR+i,st->pressedId==GLOB_ID_PAUSE_CLEAR+i,true);
     }
-    CustomPage_DrawCheckbox(g, hdc, hWnd, st->rcMinimizeToTray, L"Minimize button: hide to system tray",
+    CustomPage_DrawCheckbox(g, hdc, hWnd, st->rcMinimizeToTray, UiText(L"Minimize button: hide to system tray"),
         Settings_GetMinimizeToTray(), true);
-    CustomPage_DrawCheckbox(g, hdc, hWnd, st->rcCloseToTray, L"Close button: hide to system tray",
+    CustomPage_DrawCheckbox(g, hdc, hWnd, st->rcCloseToTray, UiText(L"Close button: hide to system tray"),
         Settings_GetCloseToTray(), true);
 
 #if defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
-    CustomPage_DrawCheckbox(g, hdc, hWnd, st->rcDiagnosticLogging, L"Automatic diagnostic logging",
+    CustomPage_DrawCheckbox(g, hdc, hWnd, st->rcDiagnosticLogging, UiText(L"Automatic diagnostic logging"),
         true, false);
 #else
-    CustomPage_DrawCheckbox(g, hdc, hWnd, st->rcDiagnosticLogging, L"Enable logging",
+    CustomPage_DrawCheckbox(g, hdc, hWnd, st->rcDiagnosticLogging, UiText(L"Enable logging"),
         Settings_GetDiagnosticLogging(), true);
 #endif
-    CustomPage_DrawButton(g, hdc, st->rcHallJoyFolder, L"Open HallJoy folder",
+    CustomPage_DrawButton(g, hdc, st->rcHallJoyFolder, UiText(L"Open HallJoy folder"),
         st->hotId == GLOB_ID_HALLJOY_FOLDER, st->pressedId == GLOB_ID_HALLJOY_FOLDER, true);
-    CustomPage_DrawButton(g, hdc, st->rcLicenses, L"Licenses", st->hotId == GLOB_ID_LICENSES, st->pressedId == GLOB_ID_LICENSES, true);
+    CustomPage_DrawButton(g, hdc, st->rcLicenses, UiText(L"Licenses"), st->hotId == GLOB_ID_LICENSES, st->pressedId == GLOB_ID_LICENSES, true);
     if (st->loggingError != ERROR_SUCCESS) {
         wchar_t errorText[128]{};
-        swprintf_s(errorText, L"Could not write the support log. Windows error: %lu", st->loggingError);
+        swprintf_s(errorText, UiText(L"Could not write the support log. Windows error: %lu"), st->loggingError);
         CustomPage_DrawText(hdc, errorText, st->rcLoggingError, RGB(222,104,114), DT_LEFT | DT_WORDBREAK);
     }
 
@@ -8072,9 +8083,9 @@ static void Global_RenderContent(HWND hWnd, HDC hdc, const RECT&, void* user)
     // Centre the pair as one block, not two independently padded rectangles.
     RECT communityTitle{ st->rcCommunity.left + S(hWnd, 14), 0, communityTextRight, 0 };
     RECT communityBody = communityTitle;
-    DrawTextW(hdc, L"HallJoy on Discord", -1, &communityTitle,
+    DrawTextW(hdc, UiText(L"HallJoy on Discord"), -1, &communityTitle,
         DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
-    DrawTextW(hdc, L"Get help, share feedback and follow updates.", -1, &communityBody,
+    DrawTextW(hdc, UiText(L"Get help, share feedback and follow updates."), -1, &communityBody,
         DT_LEFT | DT_WORDBREAK | DT_CALCRECT);
     const int communityTextTop = st->rcCommunity.top + S(hWnd, 12);
     const int communityTextBottom = stackedCommunity ? st->rcDiscord.top - S(hWnd, 10)
@@ -8090,30 +8101,32 @@ static void Global_RenderContent(HWND hWnd, HDC hdc, const RECT&, void* user)
     communityTitle.right = communityTextRight;
     communityBody = RECT{ communityTitle.left, communityTitle.bottom + communityGap,
         communityTextRight, communityTitle.bottom + communityGap + communityBodyHeight };
-    CustomPage_DrawText(hdc, L"HallJoy on Discord", communityTitle, UiTheme::Color_Text(),
+    CustomPage_DrawText(hdc, UiText(L"HallJoy on Discord"), communityTitle, UiTheme::Color_Text(),
         DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-    CustomPage_DrawText(hdc, L"Get help, share feedback and follow updates.", communityBody,
+    CustomPage_DrawText(hdc, UiText(L"Get help, share feedback and follow updates."), communityBody,
         UiTheme::Color_TextMuted(), DT_LEFT | DT_WORDBREAK | DT_END_ELLIPSIS);
     const bool discordPressed = st->pressedId == GLOB_ID_DISCORD;
     const bool discordHot = st->hotId == GLOB_ID_DISCORD;
     CustomPage_DrawRoundRect(g, st->rcDiscord,
         discordPressed ? RGB(60, 67, 132) : discordHot ? RGB(85, 94, 181) : RGB(70, 78, 154),
         RGB(111, 122, 214), (float)S(hWnd, 4));
-    CustomPage_DrawText(hdc, L"Join Discord", st->rcDiscord, RGB(245, 246, 255),
+    CustomPage_DrawText(hdc, UiText(L"Join Discord"), st->rcDiscord, RGB(245, 246, 255),
         DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
     RECT factoryLabel{ st->rcFactoryReset.left, st->rcFactoryReset.top - S(hWnd, 25),
         st->rcFactoryReset.right, st->rcFactoryReset.top - S(hWnd, 7) };
-    CustomPage_DrawText(hdc, L"Factory reset", factoryLabel, UiTheme::Color_Text(),
+    CustomPage_DrawText(hdc, UiText(L"Factory reset"), factoryLabel, UiTheme::Color_Text(),
         DT_LEFT | DT_VCENTER | DT_SINGLELINE);
     CustomPage_DrawRoundRect(g, st->rcFactoryReset, RGB(108, 35, 43), RGB(222, 78, 91),
         (float)S(hWnd, 7));
-    CustomPage_DrawText(hdc, L"Reset All Settings", st->rcFactoryReset, RGB(255, 238, 240),
+    CustomPage_DrawText(hdc, UiText(L"Reset All Settings"), st->rcFactoryReset, RGB(255, 238, 240),
         DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    labelAbove(st->rcLanguage, UiText(L"Language"));
+    PremiumCombo::PaintRetainedFace(st->cmbLanguage, hdc, st->rcLanguage, st->hotId == GLOB_ID_LANGUAGE);
     RECT factoryHint{ st->rcFactoryReset.left, st->rcFactoryReset.bottom + S(hWnd, 7),
         st->rcGlobalProfile.right, st->rcFactoryReset.bottom + S(hWnd, 41) };
     CustomPage_DrawText(hdc,
-        L"Backs up and resets settings, bindings, profiles, layouts and curve presets.",
+        UiText(L"Backs up and resets settings, bindings, profiles, layouts and curve presets."),
         factoryHint, UiTheme::Color_TextMuted(), DT_LEFT | DT_TOP | DT_WORDBREAK | DT_END_ELLIPSIS);
     (void)labelH;
 }
@@ -8138,6 +8151,7 @@ static int Global_HitTest(GlobalSettingsPageState* st, POINT clientPoint)
         { GLOB_ID_HALLJOY_FOLDER, &st->rcHallJoyFolder },
         { GLOB_ID_LICENSES, &st->rcLicenses },
         { GLOB_ID_DISCORD, &st->rcDiscord },
+        { GLOB_ID_LANGUAGE, &st->rcLanguage },
         { GLOB_ID_FACTORY_RESET, &st->rcFactoryReset }
     };
     for (const auto& hit : hits) {
@@ -8151,7 +8165,7 @@ static int Global_HitTest(GlobalSettingsPageState* st, POINT clientPoint)
 static void Global_CloseComboAnchors(GlobalSettingsPageState* st)
 {
     if (!st) return;
-    HWND combos[] = { st->cmbGlobalProfile, st->cmbLayout, st->layoutPicker.brand, st->layoutPicker.variant };
+    HWND combos[] = { st->cmbLanguage, st->cmbGlobalProfile, st->cmbLayout, st->layoutPicker.brand, st->layoutPicker.variant };
     for (HWND combo : combos)
     {
         if (!combo) continue;
@@ -8163,7 +8177,7 @@ static void Global_CloseComboAnchors(GlobalSettingsPageState* st)
 static void Global_OpenComboAnchor(HWND hWnd, GlobalSettingsPageState* st, HWND combo, const RECT& contentRect)
 {
     if (!st || !combo || !IsWindowEnabled(combo)) return;
-    if (KeyboardLayout_IsAutomaticLocked() && combo!=st->cmbGlobalProfile) return;
+    if (KeyboardLayout_IsAutomaticLocked() && combo!=st->cmbGlobalProfile && combo!=st->cmbLanguage) return;
     Global_CloseComboAnchors(st);
     RECT view = CustomPageSurface_ContentToClient(&st->surface, contentRect);
     SetWindowPos(combo, HWND_TOP, view.left, view.top,
@@ -8171,6 +8185,15 @@ static void Global_OpenComboAnchor(HWND hWnd, GlobalSettingsPageState* st, HWND 
         SWP_NOACTIVATE | SWP_SHOWWINDOW);
     SetFocus(combo);
     PremiumCombo::ShowDropDown(combo, true);
+}
+
+static bool Global_ChangeLanguage(halljoy::ui_language::Language selected)
+{
+    const auto previous = halljoy::ui_language::Get();
+    if (!halljoy::ui_language::Set(selected)) return false;
+    if (SettingsIni_SaveWindow(AppPaths_SettingsIni().c_str())) return true;
+    halljoy::ui_language::Set(previous);
+    return false;
 }
 
 LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -8185,6 +8208,28 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
     }
     auto* st = (GlobalSettingsPageState*)GetWindowLongPtrW(hWnd, GWLP_USERDATA);
 
+    if (st) {
+        const wchar_t* help = nullptr;
+        if (msg == WM_MOUSEMOVE) {
+            POINT point{static_cast<short>(LOWORD(lParam)), static_cast<short>(HIWORD(lParam))};
+            const int hit = Global_HitTest(st, point);
+            if (hit == GLOB_ID_LANGUAGE) help = L"Help.Language";
+            else if (hit == GLOB_ID_AUTOMATIC_LAYOUT) help = L"Help.Layout";
+            else if (hit == GLOB_ID_ENGINE_RUNTIME) help = L"Help.Pause";
+            else if (hit == GLOB_ID_DIAGNOSTIC_LOGGING) help = L"Help.Logging";
+            else if (hit == GLOB_ID_MINIMIZE_TRAY || hit == GLOB_ID_CLOSE_TRAY) help = L"Help.Tray";
+            else if (hit == GLOB_ID_FACTORY_RESET) help = L"Help.Reset";
+            // Labels immediately above their retained control are hover targets too.
+            RECT label = st->rcLanguage; label.top -= S(hWnd, 24);
+            point = CustomPageSurface_ClientToContent(&st->surface, point);
+            if (PtInRect(&label, point)) help = L"Help.Language";
+        }
+        st->help.Handle(hWnd, msg, wParam, lParam, help);
+    }
+    if (msg == UiLanguageChangedMessage()) {
+        if (st) { Global_CloseComboAnchors(st); Global_Layout(hWnd, st); }
+        return 0;
+    }
     if (msg == PremiumCombo::MsgDropStateChanged())
     {
         if (st && !wParam)
@@ -8419,9 +8464,17 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         st = new GlobalSettingsPageState();
         SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)st);
 
+        st->cmbLanguage = PremiumCombo::Create(hWnd, hInst, 0, 0, 10, 10,
+            GLOB_ID_LANGUAGE, WS_CHILD | WS_TABSTOP);
+        PremiumCombo::SetFont(st->cmbLanguage, hFont, false);
+        PremiumCombo::SetDropMaxVisible(st->cmbLanguage, halljoy::ui_language::count);
+        for (const auto& language : halljoy::ui_language::languages)
+            PremiumCombo::AddString(st->cmbLanguage, language.name);
+        PremiumCombo::SetCurSel(st->cmbLanguage, static_cast<int>(halljoy::ui_language::Get()), false);
+
         // Profile controls have moved to the dedicated Profiles page.
 
-        st->lblLayout = CreateWindowW(L"STATIC", L"Keyboard layout",
+        st->lblLayout = UiCreateWindow(L"STATIC", L"Keyboard layout",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblLayout, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -8439,21 +8492,21 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         PremiumCombo::SetFont(st->layoutPicker.variant, hFont, false);
         Global_RefreshLayoutCombo(st);
 
-        st->btnLayoutEditor = CreateWindowW(L"BUTTON", L"Layout editor",
+        st->btnLayoutEditor = UiCreateWindow(L"BUTTON", L"Layout editor",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
             0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)GLOB_ID_LAYOUT_EDITOR, hInst, nullptr);
         SendMessageW(st->btnLayoutEditor, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblFactoryReset = CreateWindowW(L"STATIC", L"Factory reset",
+        st->lblFactoryReset = UiCreateWindow(L"STATIC", L"Factory reset",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblFactoryReset, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->btnFactoryReset = CreateWindowW(L"BUTTON", L"Reset All Settings",
+        st->btnFactoryReset = UiCreateWindow(L"BUTTON", L"Reset All Settings",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
             0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)GLOB_ID_FACTORY_RESET, hInst, nullptr);
         SendMessageW(st->btnFactoryReset, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblFactoryResetHint = CreateWindowW(L"STATIC",
+        st->lblFactoryResetHint = UiCreateWindow(L"STATIC",
             L"Backs up and resets settings, bindings, profiles, layouts and curve presets.",
             WS_CHILD | WS_VISIBLE | SS_LEFT, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblFactoryResetHint, WM_SETFONT, (WPARAM)hFont, TRUE);
@@ -8463,7 +8516,7 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
         // rendered by the page surface.
         HWND compatibilityChildren[] = {
             st->lblGlobalProfile, st->cmbGlobalProfile, st->lblLayout, st->cmbLayout,
-            st->btnLayoutEditor,
+            st->btnLayoutEditor, st->cmbLanguage,
             st->lblFactoryReset, st->btnFactoryReset, st->lblFactoryResetHint
         };
         for (HWND child : compatibilityChildren)
@@ -8538,7 +8591,9 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
                 ReleaseCapture();
             if (!wasScroll && !wasSlider && pressed && Global_HitTest(st, pt) == pressed)
             {
-                if (pressed == GLOB_ID_GLOBAL_PROFILE_COMBO)
+                if (pressed == GLOB_ID_LANGUAGE)
+                    Global_OpenComboAnchor(hWnd, st, st->cmbLanguage, st->rcLanguage);
+                else if (pressed == GLOB_ID_GLOBAL_PROFILE_COMBO)
                     Global_OpenComboAnchor(hWnd, st, st->cmbGlobalProfile, st->rcGlobalProfile);
                 else if (pressed == GLOB_ID_GLOBAL_PROFILE_SAVE)
                 {
@@ -8658,6 +8713,20 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
     case WM_COMMAND:
         if (!st) return 0;
         if(Global_PauseCommand(hWnd,st,wParam)) return 0;
+        if (LOWORD(wParam) == GLOB_ID_LANGUAGE && HIWORD(wParam) == CBN_SELCHANGE) {
+            const auto previous = halljoy::ui_language::Get();
+            const int selected = PremiumCombo::GetCurSel(st->cmbLanguage);
+            if (selected < 0 || selected >= static_cast<int>(halljoy::ui_language::count) ||
+                selected == static_cast<int>(previous)) return 0;
+            if (!Global_ChangeLanguage(static_cast<halljoy::ui_language::Language>(selected))) {
+                PremiumCombo::SetCurSel(st->cmbLanguage, static_cast<int>(previous), false);
+                MessageBoxW(hWnd, UiText(L"Could not save the language. Your previous language is still selected."),
+                    L"HallJoy", MB_OK | MB_ICONWARNING);
+                return 0;
+            }
+            UiLanguageApply(GetAncestor(hWnd, GA_ROOT));
+            return 0;
+        }
 
         if (LOWORD(wParam) == (UINT)GLOB_ID_GLOBAL_PROFILE_COMBO && HIWORD(wParam) == CBN_SELCHANGE)
         {
@@ -8794,14 +8863,14 @@ LRESULT CALLBACK KeyboardSubpages_GlobalSettingsPageProc(HWND hWnd, UINT msg, WP
             const halljoy::main_input::ModalKeyboardBlock keyboardBlock;
             const int answer = MessageBoxW(
                 hWnd,
-                L"Reset all HallJoy settings to defaults?\n\n"
+                UiText(L"Reset all HallJoy settings to defaults?\n\n"
                 L"HallJoy will safely back up and reset:\n"
                 L"  - application and Input Overlay settings\n"
                 L"  - all keyboard and gamepad bindings\n"
                 L"  - global profiles and custom layouts\n"
                 L"  - curve presets\n\n"
-                L"HallJoy will then restart automatically. Your backup will be kept in the HallJoy data folder.",
-                L"Reset all HallJoy settings",
+                L"HallJoy will then restart automatically. Your backup will be kept in the HallJoy data folder."),
+                UiText(L"Reset all HallJoy settings"),
                 MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2);
             if (answer != IDYES)
                 return 0;
@@ -8878,6 +8947,64 @@ bool KeyboardSubpages_TestLayoutPicker()
     ShowWindow(owner,SW_HIDE);
     ok &= !HallJoyUiVisible(probe);
     DestroyWindow(probe);
+    if (st) {
+        using namespace halljoy::ui_language;
+        const auto savedLanguage = Get();
+        ok &= PremiumCombo::GetCount(st->cmbLanguage) == 9;
+        Global_Layout(page, st);
+        ok &= st->rcLanguage.bottom < st->rcFactoryReset.top && !IsWindowVisible(st->cmbLanguage);
+        const RECT languageView = CustomPageSurface_ContentToClient(&st->surface, st->rcLanguage);
+        ok &= Global_HitTest(st, POINT{languageView.left+2, languageView.top+2}) == GLOB_ID_LANGUAGE;
+        const auto settingsPath = AppPaths_SettingsIni();
+        const std::wstring profilePath = settingsPath + L".language-profile-test.ini";
+        for (unsigned i=0; i<count; ++i) {
+            PremiumCombo::SetCurSel(st->cmbLanguage, static_cast<int>(i), false);
+            SendMessageW(page, WM_COMMAND, MAKEWPARAM(GLOB_ID_LANGUAGE, CBN_SELCHANGE), reinterpret_cast<LPARAM>(st->cmbLanguage));
+            ok &= Get() == static_cast<Language>(i);
+            wchar_t persisted[32]{};
+            GetPrivateProfileStringW(L"Window", L"Language", L"en", persisted, _countof(persisted), settingsPath.c_str());
+            ok &= std::wstring_view(persisted) == languages[i].code;
+        }
+        ok &= SettingsIni_SaveProfile(profilePath.c_str());
+        Set(Language::Russian);
+        ok &= SettingsIni_LoadProfile(profilePath.c_str()) && Get() == Language::Russian;
+        // A profile file cannot import a language, even if somebody adds the key.
+        WritePrivateProfileStringW(L"Window", L"Language", L"ja", profilePath.c_str());
+        ok &= SettingsIni_LoadProfile(profilePath.c_str()) && Get() == Language::Russian;
+        ok &= Global_ChangeLanguage(Language::German);
+        IniUtil_TestSetFailureStage(HallJoyPersistence::SaveStage::Replace);
+        ok &= !Global_ChangeLanguage(Language::Japanese) && Get() == Language::German;
+        IniUtil_TestSetFailureStage(HallJoyPersistence::SaveStage::None);
+        Set(Language::English);
+        ok &= SettingsIni_Load(settingsPath.c_str()) && Get() == Language::German;
+        WritePrivateProfileStringW(L"Window", L"Language", L"unknown-future-language", settingsPath.c_str());
+        ok &= SettingsIni_Load(settingsPath.c_str()) && Get() == Language::English;
+        WritePrivateProfileStringW(L"Window", L"Language", nullptr, settingsPath.c_str());
+        Set(Language::Japanese);
+        ok &= SettingsIni_Load(settingsPath.c_str()) && Get() == Language::English;
+        // Real tooltip popup; no screenshot or interactive desktop is used.
+        Set(Language::Russian);
+        ShowWindow(owner, SW_SHOWNOACTIVATE); ShowWindow(page, SW_SHOWNOACTIVATE);
+        Global_SetScrollY(page, st, st->rcLanguage.top - S(page, 40));
+        RECT hover = CustomPageSurface_ContentToClient(&st->surface, st->rcLanguage);
+        const LPARAM hoverPoint = MAKELPARAM(hover.left+4, hover.top+4);
+        SendMessageW(page, WM_MOUSEMOVE, 0, hoverPoint);
+        ok &= !st->help.TestVisible();
+        SendMessageW(page, WM_MOUSEHOVER, 0, hoverPoint);
+        ok &= st->help.TestVisible() && st->help.TestText() == UiText(L"Help.Language");
+        SendMessageW(page, WM_MOUSELEAVE, 0, 0);
+        ok &= !st->help.TestVisible();
+        Set(Language::English);
+        SendMessageW(page, WM_MOUSEMOVE, 0, hoverPoint);
+        SendMessageW(page, WM_MOUSEHOVER, 0, hoverPoint);
+        ok &= !st->help.TestVisible();
+        ShowWindow(owner, SW_HIDE);
+        Global_SetScrollY(page, st, 0);
+        Set(savedLanguage); SettingsIni_SaveWindow(settingsPath.c_str());
+        PremiumCombo::SetCurSel(st->cmbLanguage, static_cast<int>(savedLanguage), false);
+        DeleteFileW(profilePath.c_str());
+        if (!ok) throw std::runtime_error("language dropdown, persistence, profile isolation or rollback failed");
+    }
     if (st) {
         const unsigned savedShortcuts[3]{Settings_GetPauseShortcut(0),Settings_GetPauseShortcut(1),Settings_GetPauseShortcut(2)};
         const bool savedSeparate=Settings_GetPauseSeparate();
@@ -9193,13 +9320,13 @@ static void Mouse_UpdateUi(MouseSettingsPageState* st)
     {
         SetWindowTextW(
             st->btnEnable,
-            Settings_GetMouseToStickEnabled() ? L"Mouse to Stick: ON" : L"Mouse to Stick: OFF");
+            Settings_GetMouseToStickEnabled() ? UiText(L"Mouse to Stick: ON") : UiText(L"Mouse to Stick: OFF"));
     }
     if (st->btnBlockMouse)
     {
         SetWindowTextW(
             st->btnBlockMouse,
-            Settings_GetBlockMouseInput() ? L"Block Mouse Input: ON" : L"Block Mouse Input: OFF");
+            Settings_GetBlockMouseInput() ? UiText(L"Block Mouse Input: ON") : UiText(L"Block Mouse Input: OFF"));
     }
     if (st->chipSensitivity)
     {
@@ -9367,7 +9494,7 @@ static void Mouse_DrawVisualization(HWND hWnd, HDC hdc, MouseSettingsPageState* 
 
     RectF titleR(panel.X + pad, panel.Y + pad * 0.4f, panel.Width - pad * 2.0f, titleH);
     {
-        FontFamily ff(L"Segoe UI");
+        FontFamily ff(UiFontFamily());
         Font font(&ff, std::clamp((float)S(hWnd, 11), 9.0f, 14.0f), FontStyleRegular, UnitPixel);
         StringFormat fmt;
         fmt.SetAlignment(StringAlignmentNear);
@@ -9675,7 +9802,7 @@ static void MouseCustom_DrawItem(HWND hWnd, HDC hdc, Graphics& g, MouseCustomSta
         MouseCustom_DrawText(hdc, it.text, rc, UiTheme::Color_TextMuted(), DT_LEFT | DT_TOP | DT_WORDBREAK | DT_END_ELLIPSIS);
         break;
     case MouseCustomKind::Button:
-        CustomPage_DrawButton(g, hdc, rc, it.text, hot, pressed, it.enabled);
+        CustomPage_DrawButton(g, hdc, rc, UiText(it.text.c_str()), hot, pressed, it.enabled);
         break;
     case MouseCustomKind::Slider:
         MouseCustom_DrawSlider(hWnd, g, it, rc);
@@ -10085,11 +10212,11 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
         st = new MouseSettingsPageState();
         SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)st);
 
-        st->lblEnable = CreateWindowW(L"STATIC", L"Mouse to stick",
+        st->lblEnable = UiCreateWindow(L"STATIC", L"Mouse to stick",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblEnable, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblBetaNote = CreateWindowW(
+        st->lblBetaNote = UiCreateWindow(
             L"STATIC",
             L"BETA: this feature is experimental, and I am not happy with how it works yet.",
             WS_CHILD | WS_VISIBLE,
@@ -10106,7 +10233,7 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
             0, 0, 10, 10, hWnd, (HMENU)(INT_PTR)MOUSE_ID_BLOCK_MOUSE_INPUT, hInst, nullptr);
         SendMessageW(st->btnBlockMouse, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblTarget = CreateWindowW(L"STATIC", L"Target stick",
+        st->lblTarget = UiCreateWindow(L"STATIC", L"Target stick",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblTarget, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -10114,11 +10241,11 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
             0, 0, 10, 10, MOUSE_ID_TARGET_COMBO,
             WS_CHILD | WS_VISIBLE | WS_TABSTOP);
         PremiumCombo::SetFont(st->cmbTarget, hFont, true);
-        PremiumCombo::AddString(st->cmbTarget, L"Left Stick");
-        PremiumCombo::AddString(st->cmbTarget, L"Right Stick");
+        PremiumCombo::AddUiString(st->cmbTarget, L"Left Stick");
+        PremiumCombo::AddUiString(st->cmbTarget, L"Right Stick");
         PremiumCombo::SetCurSel(st->cmbTarget, std::clamp(Settings_GetMouseToStickTarget(), 0, 1), false);
 
-        st->lblSensitivity = CreateWindowW(L"STATIC", L"Sensitivity",
+        st->lblSensitivity = UiCreateWindow(L"STATIC", L"Sensitivity",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblSensitivity, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -10133,7 +10260,7 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
         st->chipSensitivity = PremiumChip_Create(hWnd, hInst, 0, 0, 10, 10, MOUSE_ID_SENS_SLIDER + 100);
         SendMessageW(st->chipSensitivity, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblAggressiveness = CreateWindowW(L"STATIC", L"Aggressiveness",
+        st->lblAggressiveness = UiCreateWindow(L"STATIC", L"Aggressiveness",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblAggressiveness, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -10148,7 +10275,7 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
         st->chipAggressiveness = PremiumChip_Create(hWnd, hInst, 0, 0, 10, 10, MOUSE_ID_AGGR_SLIDER + 100);
         SendMessageW(st->chipAggressiveness, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblMaxOffset = CreateWindowW(L"STATIC", L"Max offset from center",
+        st->lblMaxOffset = UiCreateWindow(L"STATIC", L"Max offset from center",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblMaxOffset, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -10163,7 +10290,7 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
         st->chipMaxOffset = PremiumChip_Create(hWnd, hInst, 0, 0, 10, 10, MOUSE_ID_MAX_OFFSET_SLIDER + 100);
         SendMessageW(st->chipMaxOffset, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblFollowSpeed = CreateWindowW(L"STATIC", L"Follower speed",
+        st->lblFollowSpeed = UiCreateWindow(L"STATIC", L"Follower speed",
             WS_CHILD | WS_VISIBLE, 0, 0, 10, 10, hWnd, nullptr, hInst, nullptr);
         SendMessageW(st->lblFollowSpeed, WM_SETFONT, (WPARAM)hFont, TRUE);
 
@@ -10178,7 +10305,7 @@ LRESULT CALLBACK KeyboardSubpages_MouseSettingsPageProc(HWND hWnd, UINT msg, WPA
         st->chipFollowSpeed = PremiumChip_Create(hWnd, hInst, 0, 0, 10, 10, MOUSE_ID_FOLLOW_SPEED_SLIDER + 100);
         SendMessageW(st->chipFollowSpeed, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblHint = CreateWindowW(
+        st->lblHint = UiCreateWindow(
             L"STATIC",
             L"Maps raw mouse movement to one gamepad stick. Useful for games that block mouse + gamepad together.",
             WS_CHILD | WS_VISIBLE,
@@ -10672,7 +10799,7 @@ static void DrawSnappyToggleOwnerDraw_Impl(const DRAWITEMSTRUCT* dis)
         Gdiplus::RectF textR(track.GetRight() + 10.0f, bounds.Y,
             bounds.GetRight() - (track.GetRight() + 10.0f), bounds.Height);
 
-        FontFamily ff(L"Segoe UI");
+        FontFamily ff(UiFontFamily());
         Gdiplus::StringFormat fmt;
         fmt.SetFormatFlags(Gdiplus::StringFormatFlagsNoWrap);
         fmt.SetTrimming(Gdiplus::StringTrimmingEllipsisCharacter);
@@ -10733,6 +10860,7 @@ static void DrawSnappyToggleOwnerDraw(const DRAWITEMSTRUCT* dis)
 // ============================================================================
 struct ConfigPageState
 {
+    UiHoverHelp help;
     HWND cmbSparkPollMode = nullptr;
     HWND cmbSparkRows = nullptr;
     HWND chkSnappy = nullptr;
@@ -11101,14 +11229,14 @@ static RECT Config_CustomToggleRect(HWND hWnd, int ordinal)
     int gap = S(hWnd, 10);
     ordinal = std::max(0, ordinal);
     int rowY = y + (h + gap) * ordinal;
-    int rowW = (ordinal == 1) ? S(hWnd, 180) : S(hWnd, 416);
+    int rowW = (ordinal == 1) ? S(hWnd, halljoy::ui_language::Get() == halljoy::ui_language::Language::English ? 180 : 280) : S(hWnd, 416);
     return Config_Rect(x, rowY, rowW, h);
 }
 
 static RECT Config_CustomLkpLabelRect(HWND hWnd)
 {
     RECT row = Config_CustomToggleRect(hWnd, 1);
-    return Config_Rect(row.right + S(hWnd, 14), row.top, S(hWnd, 72), row.bottom - row.top);
+    return Config_Rect(row.right + S(hWnd, 14), row.top, S(hWnd, halljoy::ui_language::Get() == halljoy::ui_language::Language::English ? 72 : 132), row.bottom - row.top);
 }
 
 static RECT Config_CustomLkpSliderRect(HWND hWnd)
@@ -11152,7 +11280,7 @@ static int Config_BlockOptionsSpace(HWND hWnd)
 static std::wstring Config_BlockShortcutText()
 {
     const UINT shortcut = Settings_GetBlockKeysHotkey();
-    return shortcut ? ShortcutText(shortcut) : std::wstring(L"Set shortcut");
+    return shortcut ? ShortcutText(shortcut) : std::wstring(UiText(L"Set shortcut"));
 }
 
 static RECT Config_PrivilegeWarningRect(HWND hWnd)
@@ -11595,7 +11723,7 @@ static RECT Config_CustomStatusRect(HWND hWnd, ConfigPageState* st)
 
 static void Config_DrawCustomToggle(HWND hWnd, HDC hdc, Gdiplus::Graphics& g, const RECT& rc, const std::wstring& text, bool checked, bool enabled)
 {
-    CustomPage_DrawCheckbox(g, hdc, hWnd, rc, text, checked, enabled);
+    CustomPage_DrawCheckbox(g, hdc, hWnd, rc, UiText(text.c_str()), checked, enabled);
 }
 
 static void Config_DrawCustomCombo(HWND hWnd, HDC hdc, Gdiplus::Graphics& g,
@@ -11628,18 +11756,18 @@ static void Config_DrawCustomControls(HWND hWnd, HDC hdc, ConfigPageState* st)
     g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
     g.SetPixelOffsetMode(Gdiplus::PixelOffsetModeHighQuality);
 
-    Config_DrawCustomToggle(hWnd, hdc, g, Config_ToViewRect(Config_CustomToggleRect(hWnd, 0), st), L"Snap Stick", Settings_GetSnappyJoystick(), true);
-    Config_DrawCustomToggle(hWnd, hdc, g, Config_ToViewRect(Config_CustomToggleRect(hWnd, 1), st), L"Last Key Priority", Settings_GetLastKeyPriority(), true);
+    Config_DrawCustomToggle(hWnd, hdc, g, Config_ToViewRect(Config_CustomToggleRect(hWnd, 0), st), UiText(L"Snap Stick"), Settings_GetSnappyJoystick(), true);
+    Config_DrawCustomToggle(hWnd, hdc, g, Config_ToViewRect(Config_CustomToggleRect(hWnd, 1), st), UiText(L"Last Key Priority"), Settings_GetLastKeyPriority(), true);
 
     RECT lr = Config_ToViewRect(Config_CustomLkpLabelRect(hWnd), st);
-    CustomPage_DrawText(hdc, L"Sensivity", lr, Settings_GetLastKeyPriority() ? UiTheme::Color_Text() : UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    CustomPage_DrawText(hdc, UiText(L"Sensivity"), lr, Settings_GetLastKeyPriority() ? UiTheme::Color_Text() : UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     int lkp = Config_LkpSensitivityToSlider(Settings_GetLastKeyPrioritySensitivity());
     CustomPage_DrawSlider(g, hWnd, Config_ToViewRect(Config_CustomLkpSliderRect(hWnd), st), 1, 100, lkp);
     wchar_t chip[32]{};
     swprintf_s(chip, L"%d%%", lkp);
     CustomPage_DrawChip(g, hdc, Config_ToViewRect(Config_CustomLkpChipRect(hWnd), st), chip, Settings_GetLastKeyPriority());
 
-    Config_DrawCustomToggle(hWnd, hdc, g, Config_ToViewRect(Config_CustomToggleRect(hWnd, 2), st), L"Block Bound Keys", Settings_GetBlockBoundKeys(), true);
+    Config_DrawCustomToggle(hWnd, hdc, g, Config_ToViewRect(Config_CustomToggleRect(hWnd, 2), st), UiText(L"Block Bound Keys"), Settings_GetBlockBoundKeys(), true);
     if (Settings_GetBlockBoundKeys()) {
     // Inset children and a quiet connecting rail express ownership without
     // introducing another heading/font or a permanently empty container.
@@ -11651,20 +11779,20 @@ static void Config_DrawCustomControls(HWND hWnd, HDC hdc, ConfigPageState* st)
     g.DrawLine(&rail, static_cast<INT>(group.left), static_cast<INT>(group.top),
         static_cast<INT>(group.left), static_cast<INT>(group.bottom));
     Config_DrawCustomToggle(hWnd, hdc, g, Config_ToViewRect(Config_BlockAllowRect(hWnd), st),
-        L"Keep Alt and Tab unblocked", Settings_GetBlockKeysAllowAltTab(), true);
+        UiText(L"Keep Alt and Tab unblocked"), Settings_GetBlockKeysAllowAltTab(), true);
     RECT shortcut = Config_BlockShortcutRect(hWnd);
     RECT label = shortcut; label.left = S(hWnd, 36); label.right = shortcut.left - S(hWnd, 8);
-    CustomPage_DrawText(hdc, L"Toggle shortcut", Config_ToViewRect(label, st), UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    CustomPage_DrawText(hdc, UiText(L"Toggle shortcut"), Config_ToViewRect(label, st), UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE);
     CustomPage_DrawButton(g, hdc, Config_ToViewRect(shortcut, st),
-        st->blockShortcutCapturing ? L"Press shortcut..." : Config_BlockShortcutText(),
+        st->blockShortcutCapturing ? UiText(L"Press shortcut...") : Config_BlockShortcutText(),
         st->blockShortcutCapturing || st->hotCustomId == ID_BLOCK_KEYS_SHORTCUT,
         st->pressedCustomId == ID_BLOCK_KEYS_SHORTCUT, true);
-    CustomPage_DrawButton(g, hdc, Config_ToViewRect(Config_BlockShortcutClearRect(hWnd), st), L"Clear",
+    CustomPage_DrawButton(g, hdc, Config_ToViewRect(Config_BlockShortcutClearRect(hWnd), st), UiText(L"Clear"),
         st->hotCustomId == ID_BLOCK_KEYS_CLEAR_SHORTCUT, st->pressedCustomId == ID_BLOCK_KEYS_CLEAR_SHORTCUT,
         Settings_GetBlockKeysHotkey() != 0);
     if (!st->blockShortcutError.empty() || App_BlockKeysHotkeyError()) {
         RECT error{S(hWnd, 36), shortcut.bottom + S(hWnd, 6), S(hWnd, 720), shortcut.bottom + S(hWnd, 34)};
-        CustomPage_DrawText(hdc, st->blockShortcutError.empty() ? L"Shortcut unavailable. Click to reassign it." : st->blockShortcutError,
+        CustomPage_DrawText(hdc, st->blockShortcutError.empty() ? UiText(L"Shortcut unavailable. Click to reassign it.") : st->blockShortcutError,
             Config_ToViewRect(error, st), RGB(235, 185, 100), DT_LEFT | DT_WORDBREAK);
     }
     }
@@ -11677,8 +11805,8 @@ static void Config_DrawCustomControls(HWND hWnd, HDC hdc, ConfigPageState* st)
     Backend_GetAnalogTelemetry(&t);
     if (t.sparkConnected)
     {
-        CustomPage_DrawText(hdc, L"HE poll mode", Config_ToViewRect(Config_CustomSparkModeLabelRect(hWnd), st), UiTheme::Color_Text(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-        CustomPage_DrawText(hdc, L"Rows", Config_ToViewRect(Config_CustomSparkRowsLabelRect(hWnd), st), UiTheme::Color_Text(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        CustomPage_DrawText(hdc, UiText(L"HE poll mode"), Config_ToViewRect(Config_CustomSparkModeLabelRect(hWnd), st), UiTheme::Color_Text(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        CustomPage_DrawText(hdc, UiText(L"Rows"), Config_ToViewRect(Config_CustomSparkRowsLabelRect(hWnd), st), UiTheme::Color_Text(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
         const wchar_t* mode = L"Safe";
         if (Settings_GetSparkPollMode() == SettingsSparkPollMode_FastYield) mode = L"Fast yield";
         else if (Settings_GetSparkPollMode() == SettingsSparkPollMode_MaxBurst) mode = L"Max burst";
@@ -12201,7 +12329,7 @@ static void Toast_EnsureWindow(HWND hPage, ConfigPageState* st)
                     std::wstring text = (stLocal ? stLocal->toastText : L"");
                     if (!text.empty())
                     {
-                        FontFamily ff(L"Segoe UI");
+                        FontFamily ff(UiFontFamily());
                         float em = std::clamp(r.Height * 0.36f, 11.0f, 14.0f);
                         Font font(&ff, em, FontStyleRegular, UnitPixel);
 
@@ -12366,7 +12494,7 @@ static void DrawCpWeightHintIfNeeded(HWND hWnd, HDC hdc)
     }
 
     {
-        FontFamily ff(L"Segoe UI");
+        FontFamily ff(UiFontFamily());
         float em = std::clamp(iconD * 0.78f, 10.0f, 14.0f);
         Font font(&ff, em, FontStyleBold, UnitPixel);
 
@@ -12382,10 +12510,10 @@ static void DrawCpWeightHintIfNeeded(HWND hWnd, HDC hdc)
     int pct = (int)std::lround(std::clamp(w01, 0.0f, 1.0f) * 100.0f);
 
     wchar_t msg2[256]{};
-    swprintf_s(msg2, L"Use mouse wheel to change weight (%d%%).", pct);
+    swprintf_s(msg2, UiText(L"Use mouse wheel to change weight (%d%%)."), pct);
 
     {
-        FontFamily ff(L"Segoe UI");
+        FontFamily ff(UiFontFamily());
         float em = (float)S(hWnd, 13);
         em = std::clamp(em, 11.0f, 14.0f);
         Font font(&ff, em, FontStyleRegular, UnitPixel);
@@ -12576,6 +12704,25 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
             ShowWindow((HWND)lParam, SW_HIDE);
             Config_MarkSurfaceDirty(hWnd, st);
         }
+        return 0;
+    }
+    if (st) {
+        const wchar_t* help = nullptr;
+        if (msg == WM_MOUSEMOVE) {
+            POINT point{static_cast<short>(LOWORD(lParam)), static_cast<short>(HIWORD(lParam))};
+            point.y += st->scrollY;
+            RECT snap = Config_CustomToggleRect(hWnd, 0);
+            RECT priority = Config_CustomToggleRect(hWnd, 1);
+            RECT block = Config_CustomToggleRect(hWnd, 2);
+            if (PtInRect(&snap, point)) help = L"Help.Snap";
+            else if (PtInRect(&priority, point)) help = L"Help.Priority";
+            else if (PtInRect(&block, point)) help = L"Help.Block";
+            if (!help) help = KeySettingsPanel_HelpAt(hWnd, point);
+        }
+        st->help.Handle(hWnd, msg, wParam, lParam, help);
+    }
+    if (msg == UiLanguageChangedMessage()) {
+        if (st) { Config_ClosePopupAnchors(st); Config_RecalcContentHeight(hWnd, st); Config_MarkSurfaceDirty(hWnd, st); }
         return 0;
     }
     static UiPaintAuditCounter paintAudit(L"configuration");
@@ -13029,15 +13176,15 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         st->cmbSparkPollMode = PremiumCombo::Create(hWnd, hInst, 0, 0, 10, 10,
             ID_SPARK_POLL_MODE, WS_CHILD | WS_TABSTOP);
         PremiumCombo::SetFont(st->cmbSparkPollMode, hFont, true);
-        PremiumCombo::AddString(st->cmbSparkPollMode, L"Safe");
-        PremiumCombo::AddString(st->cmbSparkPollMode, L"Fast yield");
-        PremiumCombo::AddString(st->cmbSparkPollMode, L"Max burst");
+        PremiumCombo::AddUiString(st->cmbSparkPollMode, L"Safe");
+        PremiumCombo::AddUiString(st->cmbSparkPollMode, L"Fast yield");
+        PremiumCombo::AddUiString(st->cmbSparkPollMode, L"Max burst");
         PremiumCombo::SetDropMaxVisible(st->cmbSparkPollMode, 3);
 
         st->cmbSparkRows = PremiumCombo::Create(hWnd, hInst, 0, 0, 10, 10,
             ID_SPARK_ROW_LIMIT, WS_CHILD | WS_TABSTOP);
         PremiumCombo::SetFont(st->cmbSparkRows, hFont, true);
-        PremiumCombo::AddString(st->cmbSparkRows, L"Auto");
+        PremiumCombo::AddUiString(st->cmbSparkRows, L"Auto");
         for (int rows = 1; rows <= 8; ++rows)
         {
             wchar_t text[24]{};
@@ -13046,25 +13193,25 @@ LRESULT CALLBACK KeyboardSubpages_ConfigPageProc(HWND hWnd, UINT msg, WPARAM wPa
         }
         PremiumCombo::SetDropMaxVisible(st->cmbSparkRows, 9);
 
-        st->chkSnappy = CreateWindowW(L"BUTTON", L"Snap Stick",
+        st->chkSnappy = UiCreateWindow(L"BUTTON", L"Snap Stick",
             WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_OWNERDRAW,
             0, 0, 10, 10,
             hWnd, (HMENU)(INT_PTR)ID_SNAPPY, hInst, nullptr);
         SendMessageW(st->chkSnappy, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->chkBlockBoundKeys = CreateWindowW(L"BUTTON", L"Block Bound Keys",
+        st->chkBlockBoundKeys = UiCreateWindow(L"BUTTON", L"Block Bound Keys",
             WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_OWNERDRAW,
             0, 0, 10, 10,
             hWnd, (HMENU)(INT_PTR)ID_BLOCK_BOUND_KEYS, hInst, nullptr);
         SendMessageW(st->chkBlockBoundKeys, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->chkLastKeyPriority = CreateWindowW(L"BUTTON", L"Last Key Priority",
+        st->chkLastKeyPriority = UiCreateWindow(L"BUTTON", L"Last Key Priority",
             WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_OWNERDRAW,
             0, 0, 10, 10,
             hWnd, (HMENU)(INT_PTR)ID_LAST_KEY_PRIORITY, hInst, nullptr);
         SendMessageW(st->chkLastKeyPriority, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        st->lblLastKeyPrioritySensitivity = CreateWindowW(L"STATIC", L"Sensivity",
+        st->lblLastKeyPrioritySensitivity = UiCreateWindow(L"STATIC", L"Sensivity",
             WS_CHILD | WS_VISIBLE | SS_LEFT | SS_CENTERIMAGE,
             0, 0, 10, 10,
             hWnd, nullptr, hInst, nullptr);

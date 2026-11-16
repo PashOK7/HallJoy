@@ -121,7 +121,7 @@
 
 ## Текущий baseline и отложенные направления
 
-Публикация по локальной записи: [1.6.15](RELEASE_1.6.15_PUBLICATION_2026-11-07.md); latest проверять live. EXE/хеш: `project_context.py --hash-exe`; версия: `version.h`.
+Публикация по локальной записи: [1.6.16](RELEASE_1.6.16_PUBLICATION_2026-11-16.md); latest проверять live. EXE/хеш: `project_context.py --hash-exe`; версия: `version.h`.
 [MIDI M2](MIDI_M2_TOUCH_2026-11-15.md), [настройки](MIDI_SETTINGS_UI_2026-11-15.md): отдельная вкладка с живым графиком при MIDI on. Default: 1 pad, MIDI off. Musical gate open.
 2026-11-15: владелец запросил обычный тестовый EXE и следующий релиз без MIDI.
 Код MIDI доступен для разработки с /p:HallJoyMidi=true. Обычная сборка оставляет
@@ -198,4 +198,4 @@ cutoff<=9/bottomsnap5, physical typing/loss/range pending; LIMITED_ONLY review.
 EXE605d4556:27 GT75 session cases +3 isolated Win32 I/O cases;8-family/full
 catalog/profile/recovery PASS. Main!C548 yellow. Tester confirmed operation 11-14,
 log pending.
-2026-11-16 [1.6.16 prep](RELEASE_1.6.16_PREPARATION_2026-11-16.md): 3 support updates, CPU90%; no publish.
+2026-11-16 [1.6.16](RELEASE_1.6.16_PUBLICATION_2026-11-16.md): published; EXE a81447d7; CPU90%.

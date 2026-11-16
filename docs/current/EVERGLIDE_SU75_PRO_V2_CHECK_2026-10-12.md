@@ -1,5 +1,10 @@
 # Everglide SU75 Pro V2: support check (2026-10-12)
 
+> Revision evidence updated: [2026-11-14 exact firmware review](EVERGLIDE_SU75_REVISIONS_2026-11-14.md).
+> V1/XS117 = 1CA6:3002; the seller's pictured V2/SU75 Ultra/XS125 = 1CA6:3007,
+> already admitted by the enabled generic SparkLink v2 path. Earlier unknown-PID
+> conclusions below are historical; neither model currently has automatic layout selection.
+
 Owner request: check whether an "SU75 v2" keyboard can be added. Research only; no code
 change. The SU75 Pro (`1CA6:3002`) is already Supported, see
 [EVERGLIDE_SU75PRO_2026-10-02.md](EVERGLIDE_SU75PRO_2026-10-02.md).
@@ -49,3 +54,18 @@ Device Manager product string and hardware ID (`VID_1CA6&PID_xxxx`) of the V2.
 
 Local files: `.local/research/everglide-20261002/` (old catalog) and the scratchpad copy of the
 2026-10-12 catalog diff (not kept in the repository).
+
+## Revision scope rechecked 2026-11-14
+
+The October 2 hardware confirmation establishes the SU75 Pro USB identity
+1CA6:3002 and working analog. The report does not identify the tester's PCB
+revision. Keep the claim scoped to this verified identity rather than assigning
+the original report to V1 or V2.
+
+The [seller comparison](https://keebforce.com/su75-pro-v1-vs-v2-pcb/) shows
+distinct V1 and V2 PCBs. The [shared V1/V2 product listing](https://keebforce.com/su75-pro/)
+now links to the hub.xsyd.top web app. A shared web app does not establish the
+V2 VID/PID or matching analog replies. No additional hardware confirmation or
+revision-specific USB identity was established in this review. Ask an owner
+of a known V2 for one ordinary HallJoy Open log to verify the USB identity
+and analog in the same session.

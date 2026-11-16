@@ -38,6 +38,8 @@ enum class NativeAnalogProtocol : std::uint8_t
     MelGeekMade68Air = 32,
     CorsairVanguard = 33,
     CorsairK70Tkl = 34,
+    AulaF75 = 35,
+    MchoseGt75 = 36,
     Simulator = 250,
 };
 

@@ -9,9 +9,21 @@
       "shown": "AJAZZ AK680 V2",
       "evidence": "AJAZZ_AK680V2_FIRMWARE_2026-10-17.md; Driveall configurator names the three PIDs 'AJAZZ AK680 V2' (80C1 is shared with an 'AJAZZ KEYBOARD' TFT config, 80C2 with supplier 1stplayer)",
       "usb": [
-        {"vid": "0C45", "pid": "80BC", "product": "AJAZZ AK680 V2"},
-        {"vid": "0C45", "pid": "80C1", "product": "AJAZZ AK680 V2"},
-        {"vid": "0C45", "pid": "80C2", "product": "AJAZZ AK680 V2"}
+        {
+          "vid": "0C45",
+          "pid": "80BC",
+          "product": "AJAZZ AK680 V2"
+        },
+        {
+          "vid": "0C45",
+          "pid": "80C1",
+          "product": "AJAZZ AK680 V2"
+        },
+        {
+          "vid": "0C45",
+          "pid": "80C2",
+          "product": "AJAZZ AK680 V2"
+        }
       ]
     },
     {
@@ -21,7 +33,35 @@
       "shown": "AJAZZ AK820 MAX HE (Sonix 0C45:80B1)",
       "evidence": "AJAZZ_AK820MAX_SONIX_80B1_2026-10-08.md; tester logs show product string 'AK820MAX' (PID 80B1 is shared with an 'AJAZZ KEYBOARD' TFT config)",
       "usb": [
-        {"vid": "0C45", "pid": "80B1", "product": "AK820MAX"}
+        {
+          "vid": "0C45",
+          "pid": "80B1",
+          "product": "AK820MAX"
+        }
+      ]
+    },
+    {
+      "brand": "AULA",
+      "model": "F75 HE",
+      "status": "No usable analog found",
+      "shown": "AULA F75 HE",
+      "evidence": "AULA_F75_HE_2026-11-13.md; AULA_F75_DEEP_PATHS_2026-11-16.md; owner ended stock trials on 2026-11-16. In-memory firmware experiment is not installed support.",
+      "usb": [
+        {
+          "vid": "38A6",
+          "pid": "2729",
+          "product": "AULA F75 HE"
+        },
+        {
+          "vid": "38A6",
+          "pid": "2742",
+          "product": "AULA F75 HE"
+        },
+        {
+          "vid": "0C45",
+          "pid": "FEFE",
+          "product": "AULA F75 HE Dongle"
+        }
       ]
     },
     {
@@ -31,7 +71,10 @@
       "shown": "Corsair K70 MAX",
       "evidence": "IPI_FLASH75_AULA_AG75_CORSAIR_K70MAX_2026-10-12.md; Corsair firmware catalog: K70 MAX = 1B1C:1BC0, firmware 1.17.96 has no analog path",
       "usb": [
-        {"vid": "1B1C", "pid": "1BC0"}
+        {
+          "vid": "1B1C",
+          "pid": "1BC0"
+        }
       ]
     },
     {
@@ -49,6 +92,20 @@
       "undetected": "0C45:80D6 is shared with Type 84 Magnetic Pro (not red), the product string is unknown, and the red status applies to firmware 1.17 only."
     },
     {
+      "brand": "Logitech G",
+      "model": "PRO X TKL RAPID",
+      "status": "No usable analog found",
+      "shown": "Logitech G PRO X TKL RAPID",
+      "evidence": "LOGITECH_RAPID_2026-10-05.md; log 35 confirms missing per-key release on stock 170.4.20",
+      "usb": [
+        {
+          "vid": "046D",
+          "pid": "C35B",
+          "product": "PRO X RAPID"
+        }
+      ]
+    },
+    {
       "brand": "MADLIONS",
       "model": "MAD 68 V2 Dual",
       "status": "Analog available; low quality",
@@ -62,7 +119,10 @@
       "shown": "MADLIONS TITAN 68 Turbo",
       "evidence": "KEYBOARD_SHEET_MAGNETIC_AUDIT_2026-09-20.md (failed tester attempts); titan68_turbo_diagnostic_backend.cpp targets 28E9:31FD",
       "usb": [
-        {"vid": "28E9", "pid": "31FD"}
+        {
+          "vid": "28E9",
+          "pid": "31FD"
+        }
       ]
     },
     {
@@ -86,7 +146,11 @@
       "shown": "YUNZII RT80",
       "evidence": "YUNZII_RT80_2026-10-15.md; tester log: 3151:4035 product 'RT80' (the PID is shared by four RongYuan boards, only board 2068 is named RT80)",
       "usb": [
-        {"vid": "3151", "pid": "4035", "product": "RT80"}
+        {
+          "vid": "3151",
+          "pid": "4035",
+          "product": "RT80"
+        }
       ]
     }
   ]

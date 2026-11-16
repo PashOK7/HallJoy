@@ -145,3 +145,77 @@ Backup and readback artifacts:
 - .local/rongyuan-batch2-sheet-native.packed.json (Main!A1:C1130)
 - .local/rongyuan-batch2-sheet-yellow.json
 - .local/rongyuan-batch2-test.exe
+
+
+## 2026-11-09 — HATOR Skyfall 80 MAG Ultima 8K Wireless
+
+Tester log HallJoy (42).log at 11:27:02Z shows receiver 379A:1804 on
+interfaces 00, 01 and 02, without wired 379A:1803. All 15 snapshots
+have zero sources. No receiver probe ran in that build.
+
+Official SyncHUB Web matches 1804 on FFFF:0002 MI_02 and defines
+F7 status, F6 0A route selection, FC notice and checksummed 8F board
+identity. The model data selects ANSI for boards 2800/2857/3627/3628
+and ISO for 2858/3629. The new boards reuse the same respective matrix
+and geometry. Existing HallJoy profiles cover only the older wired
+boards. No HATOR layout is currently shipped.
+
+The firmware API returned v502_oledv102 for 3627–3629. The local
+replay executes each pinned E5 FE branch up to the 64-byte copy call
+and models that copy from the observed source and destination. All
+four pages track independent changes and a release to zero, with no
+observed writes to the analog table before the copy. On board 3628,
+1B sets a RAM mode and the report builder emits 05 1B lo hi slot.
+These findings cover the keyboard code. RF delivery, stream cadence
+and held/released channels through receiver 1804 remain unverified.
+The package contains no separate receiver firmware. No test EXE was
+issued. Artifacts and replay are in
+.local/research/hator80-mchosegt-20261109/.
+
+## 2026-11-09 — HTK3880 receiver tester integration
+
+The ordinary backend tries 379A:1804 on SyncHUB's exact MI_02,
+FFFF:0002, ID0/64-byte feature collection. F7/F6/FC are raw transport
+controls. Keyboard commands use the SyncHUB Bit7 checksum (payload
+index 7 is Windows report index 8). The receiver request is zero-padded,
+including E5, and a reflected request is rejected. Keydous framing and
+transport selection are preserved. 8F must prove an exact HTK3880 board
+before analog reads or 1B. Other HATOR retail models are excluded.
+
+Wired 379A:1803 profiles add 3627/3628 (2857 matrix) and 3629 (2858
+matrix), byte-equal in SyncHUB. Both compiled presets follow the driver
+coordinates. ISO factory slot 80/HID 49 has no corresponding physical
+key in the official ISO geometry. The non-analog volume encoder does
+not appear as an analog key. RF uses the immutable factory mapping to
+avoid making optional profile reads a prerequisite for depth. USB keeps
+the established assignment path. No configuration writes or calibration
+are used.
+
+The RF route seeds four genuine E5 FE pages, then attempts 1B on an
+exactly paired input collection. E5 continues without an added rate
+cap and reconciles releases. RX deltas supersede earlier in-flight
+table requests for the same channel. 1B is disabled on normal teardown
+when the receiver responds. Startup and transfer diagnostics include
+the exact collection caps, remote board, F7 readiness, command, page,
+first valid frame, report count, timing, motion and release aggregates.
+RTT, RF packet delivery, depth/typing behavior and RF detach cleanup
+need hardware validation. An input collection missing from the dongle
+leaves the depth table path available. No receiver image was found in
+the examined stock packages; USB receiver behavior is pinned to the
+official host driver and simulated receiver tests.
+The SyncHUB standalone dongle updater table also omits PID 1804.
+The web HID filter separately identifies 1804 as its 8K receiver;
+that field describes the receiver capability, not analog delivery rate.
+
+Live Main!A362:C362 readback: HATOR Skyfall 80 MAG Ultima 8K Wireless,
+Implemented; awaiting hardware testing, strict validation and existing
+yellow base/effective B:C colors. No Sheet change for HATOR.
+
+Installed ordinary HallJoy.exe 1.6.15.0, 11,593,728 bytes, SHA-256
+4ec25f22e53df6db65a755c48693feab58001e5cfe08cf06bd98cc491da88a96.
+The exact candidate passed six HATOR positive and seven negative cases.
+Compiled ANSI/ISO catalogs contain 82/83 keys. Dedicated RongYuan
+stream/receiver tests, ordinary Release diagnostics, profile/layout,
+startup recovery and exact image gates passed. The wider native suite
+stopped at window_placement and process_generation_supervisor Win32
+assertions. No device was attached for these tests.

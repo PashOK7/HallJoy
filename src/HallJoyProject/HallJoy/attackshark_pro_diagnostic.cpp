@@ -27,6 +27,7 @@
 #include "attackshark_pro_native_model.h"
 #include "attackshark_pro_layout_identity.h"
 #include "rongyuan_stream_protocol.h"
+#include "rongyuan_snapshot_protocol.h"
 #include "native_analog_backend.h"
 #include "native_analog_backend_registry.h"
 #include "configured_xusb_builder.h"
@@ -246,7 +247,7 @@ std::uint64_t InventorySignature(const std::vector<std::string>& records){
 struct Session {
  unsigned wireCount[4]{},wireDelay[4]{};ULONGLONG wireNext[4]{};
  // The board answered belongs to the RongYuan stream backend on this VID/PID.
- bool streamOwned=false;unsigned streamBoard=0;
+ bool streamOwned=false,snapshotOwned=false;unsigned streamBoard=0;
  Handle device;Handle timer=PreciseTimer();unsigned delay=1,errors=0,identity=0;std::uint64_t calls=0,totalUs=0,maxUs=0,maxWaitUs=0,maxSetUs=0,maxGetUs=0;ULONGLONG began=GetTickCount64();
  DWORD firstOpenError=0,lastOpenError=0,accessMode=GENERIC_READ|GENERIC_WRITE,shareMode=0;
  explicit Session(const Device& d){
@@ -314,6 +315,10 @@ struct Session {
    // Another backend owns this keyboard: stop at once, its admission must not race
    // further exclusive probe handles and feature exchanges.
    if(Identity(a) && Identity(a)==Identity(b) && halljoy::ry_stream::Find(Identity(a),0x3151,d.pid)){streamOwned=true;streamBoard=Identity(a);return false;}
+   const auto* snapshot=halljoy::rongyuan::Find(Identity(a));
+   if(snapshot && snapshot->pid==d.pid && Identity(a)==Identity(b)) {
+    streamOwned=true;snapshotOwned=true;streamBoard=Identity(a);return false;
+   }
    Line("identity_attempt delay_ms="+std::to_string(delay)+" id="+std::to_string(Identity(a))+" repeated_id="+std::to_string(Identity(b))+" reply_command="+std::to_string(a[1])+" repeated_command="+std::to_string(b[1])+" report_id="+std::to_string(b[0])+" ordinal="+std::to_string(d.ordinal)+" pid="+std::to_string(d.pid)+" attempt="+std::to_string(attempt+1));
   }return false;
  }
@@ -387,7 +392,7 @@ int Capture(){
   bool identityRejected=false,otherFailure=false,streamOwned=false;
   for(const auto& d:devices){
    if(Stop())return 4;Session s(d);if(!s.device){otherFailure=true;Line("status state=5");continue;}
-   unsigned usb=0;if(!s.Identify(d,usb)){identityRejected=true;streamOwned=streamOwned||s.streamOwned;Line(s.streamOwned?"identity_stream_owned board="+std::to_string(s.streamBoard)+" pid="+std::to_string(d.pid):"identity_rejected no_depth_commands=1");continue;}
+   unsigned usb=0;if(!s.Identify(d,usb)){identityRejected=true;streamOwned=streamOwned||s.streamOwned;Line(s.streamOwned?std::string(s.snapshotOwned?"identity_snapshot_owned board=":"identity_stream_owned board=")+std::to_string(s.streamBoard)+" pid="+std::to_string(d.pid):"identity_rejected no_depth_commands=1");continue;}
    const bool playable=halljoy::sharkplay::Supported(s.identity,usb);
    Line("identity_result ordinal="+std::to_string(d.ordinal)+" pid="+std::to_string(d.pid)+" board="+std::to_string(s.identity)+" usb="+std::to_string(usb)+" accepted="+std::to_string(playable));
 #if !defined(HALLJOY_ATTACKSHARK_PRO_DIAGNOSTIC)
@@ -471,7 +476,7 @@ void ReceiveLine(const std::string& line){
  // Preserve deferred ownership classification until the identity reply arrives.
  if(line.rfind("session_open ",0)==0){evidence("session_open",{"ordinal=","pid=","opened=","first_error=","final_error=","access=","share="});return;}
  if(g_pendingAccessError){
-  if(line.rfind("identity_stream_owned ",0)==0)g_pendingAccessError=0;
+  if(line.rfind("identity_stream_owned ",0)==0 || line.rfind("identity_snapshot_owned ",0)==0)g_pendingAccessError=0;
   else if(line.rfind("identity_pair_rejected ",0)!=0 && line.rfind("identity_attempt ",0)!=0){
    halljoy::keyboard_support::ReportCommunicationAccessFailure(17,g_pendingAccessError);g_pendingAccessError=0;}
  }
@@ -500,6 +505,7 @@ void ReceiveLine(const std::string& line){
  if(line.rfind("identity_pair_rejected ",0)==0)SupportLog_Event("shark.identity_pair_rejected",number("board="),SupportLog_Data(number("pid=")));
  if(line.rfind("identity_rejected ",0)==0)SupportLog_Event("shark.identity_rejected",1);
  if(line.rfind("identity_stream_owned ",0)==0)SupportLog_Event("shark.identity_stream_owned",number("board="),SupportLog_Data(number("pid=")));
+ if(line.rfind("identity_snapshot_owned ",0)==0)SupportLog_Event("shark.identity_snapshot_owned",number("board="),SupportLog_Data(number("pid=")));
  if(line.rfind("identity_waiting_for_change ",0)==0)SupportLog_Event("shark.identity_waiting",number("passes="),SupportLog_Data(number("pid=")));
  const char* failures[]={"inventory_failed","inventory_detail_failed","metadata_open_failed","attributes_failed",
   "preparsed_data_failed","caps_failed","exclusive_open_failed","set_feature_failed","get_feature_failed"};
@@ -942,7 +948,7 @@ const NativeAnalogBackendDescriptor& Shark_GetNativeBackendDescriptor(){
  kNativeAnalogBackendAbiVersion,sizeof(NativeAnalogBackendDescriptor),"attackshark-pro",L"ATTACK SHARK RY5088 magnetic keyboards",
  NativeAnalogProtocol::AttackSharkX65Pro,NativeAnalogStartPhase::AfterRawInput,
  NativeAnalogBackendFlag_PolledTransport|NativeAnalogBackendFlag_ReadOnlyProbe|NativeAnalogBackendFlag_RequiresRawInput,
- nullptr,&SharkStart,&SharkStop,nullptr,&SharkConnected,&SharkConnected,&SharkOwns,&SharkGet,&SharkTelemetry};
+ nullptr,&SharkStart,&SharkStop,nullptr,&SharkConnected,&SharkConnected,&SharkOwns,&SharkGet,&SharkTelemetry, nullptr, +[](halljoy::observation::Sink sink) { nativeValues.Observations(sink); fnValues.Observations(sink); }};
  return descriptor;
 }
 #endif

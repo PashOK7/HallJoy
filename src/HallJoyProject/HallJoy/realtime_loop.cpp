@@ -1,4 +1,5 @@
 ﻿#include "keychron_onboard_backend.h"
+#include "midi_profile.h"
 // realtime_loop.cpp
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0602
@@ -197,7 +198,7 @@ static DWORD RealtimeThreadBody()
     uint64_t consumedInputSequence = g_inputWakeSequence.Consumed();
     LONGLONG nextHeartbeatQpc = RealtimeQpcAddUs(
         RealtimeQpcNow(),
-        static_cast<uint64_t>((KeychronOnboard_OwnsOutput() ? 50u : std::clamp(g_intervalMs.load(std::memory_order_relaxed), 1u, 20u))) * 1000ull);
+        static_cast<uint64_t>((KeychronOnboard_OwnsOutput() && !halljoy::midi::NeedsAnalog() ? 50u : std::clamp(g_intervalMs.load(std::memory_order_relaxed), 1u, 20u))) * 1000ull);
 
     LONGLONG traceWindowStart = RealtimeQpcNow();
     uint64_t traceInputWakes = 0;
@@ -224,7 +225,7 @@ static DWORD RealtimeThreadBody()
                 break;
             }
 
-            const UINT interval = (KeychronOnboard_OwnsOutput() ? 50u : std::clamp(g_intervalMs.load(std::memory_order_relaxed), 1u, 20u));
+            const UINT interval = (KeychronOnboard_OwnsOutput() && !halljoy::midi::NeedsAnalog() ? 50u : std::clamp(g_intervalMs.load(std::memory_order_relaxed), 1u, 20u));
             const LONGLONG nowQpc = RealtimeQpcNow();
             const LONGLONG outputDeadlineQpc = Backend_GetNextOutputDeadlineQpc();
             const bool outputDeadlineExists = outputDeadlineQpc > 0;
@@ -335,7 +336,7 @@ static DWORD RealtimeThreadBody()
             g_inputWakeSequence.MarkConsumed(consumedInputSequence);
         }
 
-        const UINT nextInterval = (KeychronOnboard_OwnsOutput() ? 50u : std::clamp(g_intervalMs.load(std::memory_order_relaxed), 1u, 20u));
+        const UINT nextInterval = (KeychronOnboard_OwnsOutput() && !halljoy::midi::NeedsAnalog() ? 50u : std::clamp(g_intervalMs.load(std::memory_order_relaxed), 1u, 20u));
         nextHeartbeatQpc = RealtimeQpcAddUs(
             tickEndQpc, static_cast<uint64_t>(nextInterval) * 1000ull);
 

@@ -25,6 +25,13 @@ static void ApplyAxisKey(int padIndex, Axis axis, bool minusSide, uint16_t hid, 
 static void BindingActions_ApplyForPadInternal(int padIndex, BindAction a, uint16_t hid, bool clearExistingForHid)
 {
     if (!hid) return;
+    if (BindingAction_IsMidi(a)) {
+#ifndef HALLJOY_DISABLE_MIDI
+        halljoy::midi::Bind(hid, BindingAction_MidiAddress(a) + 1);
+#endif
+        RealtimeLoop_NotifyInputChanged();
+        return;
+    }
 
     if (clearExistingForHid)
     {
@@ -123,6 +130,14 @@ static bool BindingActionToGameButton(BindAction a, GameButton& out)
 void BindingActions_RemoveFromPad(int padIndex, BindAction a, uint16_t hid)
 {
     if (!hid) return;
+    if (BindingAction_IsMidi(a)) {
+#ifndef HALLJOY_DISABLE_MIDI
+        if (halljoy::midi::Binding(hid) == BindingAction_MidiAddress(a) + 1)
+            halljoy::midi::Bind(hid, 0);
+#endif
+        RealtimeLoop_NotifyInputChanged();
+        return;
+    }
 
     switch (a)
     {

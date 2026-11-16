@@ -378,6 +378,11 @@
           "brand": "EPOMAKER",
           "model": "G84 HE",
           "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "Akko",
+          "model": "5087 V3 HE",
+          "status": "Implemented; awaiting hardware testing"
         }
       ]
     },
@@ -434,11 +439,6 @@
         {
           "brand": "Keydous",
           "model": "NJ98-CP V4S TMR",
-          "status": "Implemented; awaiting hardware testing"
-        },
-        {
-          "brand": "MonsGeek",
-          "model": "FUN60 Pro",
           "status": "Implemented; awaiting hardware testing"
         },
         {
@@ -769,11 +769,6 @@
         {
           "brand": "EWEADN",
           "model": "ZAP87 HE",
-          "status": "Implemented; awaiting hardware testing"
-        },
-        {
-          "brand": "FREEWOLF",
-          "model": "F68",
           "status": "Implemented; awaiting hardware testing"
         },
         {
@@ -1310,6 +1305,49 @@
           "brand": "AJAZZ",
           "model": "AK680 MAX HE",
           "board": 2371
+        },
+        {
+          "token": "0xae13549fbc0d40d0",
+          "pid": 20521,
+          "brand": "FREEWOLF",
+          "model": "F68",
+          "board": 2634
+        },
+        {
+          "token": "0xae13549fbc0d40d0",
+          "pid": 20528,
+          "brand": "FREEWOLF",
+          "model": "F68",
+          "board": 2634
+        },
+        {
+          "token": "0x5f95bab8bcab36d1",
+          "pid": 20536,
+          "brand": "EPOMAKER",
+          "model": "HE108",
+          "board": 3365,
+          "transport": "receiver"
+        },
+        {
+          "token": "0x8c54fbb83457e44b",
+          "pid": 20525,
+          "brand": "MonsGeek",
+          "model": "FUN60 Pro",
+          "board": 2304
+        },
+        {
+          "token": "0x8c54fbb83457e44b",
+          "pid": 20521,
+          "brand": "MonsGeek",
+          "model": "FUN60 Pro",
+          "board": 2600
+        },
+        {
+          "token": "0x8c54fbb83457e44b",
+          "pid": 20528,
+          "brand": "MonsGeek",
+          "model": "FUN60 Pro",
+          "board": 2785
         }
       ]
     },
@@ -1660,17 +1698,17 @@
       "models": [
         {
           "brand": "MCHOSE",
+          "model": "Ace 60",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MCHOSE",
           "model": "Ace 60X",
           "status": "Implemented; awaiting hardware testing"
         },
         {
           "brand": "MCHOSE",
           "model": "Ace 68",
-          "status": "Implemented; awaiting hardware testing"
-        },
-        {
-          "brand": "MCHOSE",
-          "model": "Ace 68 Air (II revision)",
           "status": "Implemented; awaiting hardware testing"
         },
         {
@@ -1699,6 +1737,12 @@
           "pid": 8451,
           "brand": "MCHOSE",
           "model": "Ace 60 Pro"
+        },
+        {
+          "token": "C19BC9D40FAC0AA4",
+          "pid": 8480,
+          "brand": "MCHOSE",
+          "model": "Ace 68 Air (II revision)"
         }
       ]
     },
@@ -1746,11 +1790,6 @@
       "models": [
         {
           "brand": "Logitech G",
-          "model": "PRO X TKL RAPID",
-          "status": "Implemented; awaiting hardware testing"
-        },
-        {
-          "brand": "Logitech G",
           "model": "PRO X2 RAPID",
           "status": "Implemented; awaiting hardware testing"
         }
@@ -1784,6 +1823,16 @@
           "brand": "IPI / QBZ",
           "model": "Flash 75 PRO / Gemini Seven-Star",
           "status": "Implemented; layout pending"
+        },
+        {
+          "brand": "ARDOR GAMING",
+          "model": "Viper",
+          "status": "Implemented; awaiting hardware testing"
+        },
+        {
+          "brand": "MCHOSE",
+          "model": "GT75",
+          "status": "Implemented; awaiting hardware testing"
         }
       ]
     },

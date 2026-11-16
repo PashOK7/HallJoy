@@ -906,7 +906,7 @@ const NativeAnalogBackendDescriptor& Mini60_GetNativeBackendDescriptor(){
         "aula-mini60-he-pro",L"AULA MINI60 HE / Pro / MAX, AJAZZ AK820 MAX HE 80B1",NativeAnalogProtocol::AulaMini60HePro,
         NativeAnalogStartPhase::AfterRawInput,
         NativeAnalogBackendFlag_StreamTransport|NativeAnalogBackendFlag_ReversibleControlProbe|NativeAnalogBackendFlag_RequiresRawInput,
-        nullptr,&NativeStart,&NativeStop,nullptr,&NativeConnected,&NativeConnected,&NativeOwns,&NativeGet,&NativeTelemetry};
+        nullptr,&NativeStart,&NativeStop,nullptr,&NativeConnected,&NativeConnected,&NativeOwns,&NativeGet,&NativeTelemetry, nullptr, +[](halljoy::observation::Sink sink) { (halljoy::native_layout::UsesRemapping(NativeToken()) ? assignedValues : factoryValues).Observations(sink); }};
     return descriptor;
 }
 #endif

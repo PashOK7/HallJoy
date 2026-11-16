@@ -1,4 +1,28 @@
-# Logitech G RAPID (PRO X TKL RAPID, PRO X2 RAPID): experimental support (2026-10-05)
+# Logitech G RAPID (PRO X TKL RAPID, PRO X2 RAPID)
+
+**Current decision (2026-11-07).** PRO X TKL RAPID (`046D:C35B`) is unsupported
+on the reviewed stock path. The owner requires independent analog for the full
+keyboard and simultaneous presses/releases. The runtime excludes this PID from
+both exact and generic Logitech admission. The archived diagnostic build and
+layout remain available for research. PRO X2 RAPID (`046D:C364`) is Experimental.
+The earlier implementation and test builds below are historical evidence.
+
+The exact C35B USB identity is in the red runtime catalog. Its experimental
+read-order and trace changes are archived, including the test EXE, under
+`.local/backups/logitech-c35b-unsupported-20261107/`. The existing layout is
+retained. The next admission requires evidence of independent simultaneous
+depth and release across the keyboard from a verified stock or alternative
+firmware path.
+
+Live Sheet readback on 2026-11-07: Logitech G / PRO X TKL RAPID,
+Main!C492, Implemented; awaiting hardware testing -> No usable analog found.
+B492:C492 have red base and effective backgrounds, validation and neighbors
+are preserved. Main!C491 (PRO X2 RAPID) retains its yellow status.
+Live audit PASS: 283 yellow, 11 red (6 detected), 88 Supported layouts.
+The standard release build and native backend checks passed. The installed
+local EXE SHA-256 is
+`4f73026a23ce0110f5ab6f518615a5024f9b5026fcfbfe3b1d99a0a4fe7fc4ab`.
+No GitHub release was made for this change.
 
 Owner request: support the Logitech PRO X2 RAPID while the Redragon build is in
 testing. Tester log `HallJoy Logitech g pro x2.log` (1.6.7): USB product
@@ -289,3 +313,417 @@ The tester started the build and pressed every key once. Result:
   (all gates), `run_native_backend_checks.py --require-compiler` PASS. Same
   build carries the FUN60 Pro 2304 alias and the layout save fix. No physical
   test. EXE SHA-256 `a47370a0c3f76c6b681ca37578436f254b415cf11826ce5e6615617838a62aa7`.
+
+## PRO X TKL RAPID two-key release report (2026-11-07)
+
+- Discord report from giaun: hold A+W, release W while A stays down; W keeps
+  its value until pressed again. Also reported with A+S. At intake only the
+  screenshot was available; the HallJoy and firmware versions are unknown.
+- C35B v0 updates one key id per report. A/W/S map to separate ids
+  (0x23/0x1d/0x22). An accepted W report with zero immediately clears the W
+  provider value without touching A. Losing the final W update can preserve
+  its last depth indefinitely while A continues reporting. Static holds
+  do not require repeated samples. The checked implementation has no
+  confirmed readback of a complete keyboard state.
+- [RigDeck hardware notes](https://github.com/gabriellaines/rigdeck/blob/main/docs/protocols/logitech-pro-x-tkl-rapid.md)
+  report similar stale values under fast typing on U1 70.04 build 0020.
+  [Sainan's 2024 capture](https://gist.github.com/Sainan/0f21e6937ee72b7979ec44ee9fde6016)
+  shows long packets for feature index 0x0f, function 0, with single-key
+  release packets and additional bytes on press. It does not include a
+  raw two-key trace or establish the semantics of the extra bytes.
+  [Logitech's G HUB notes](https://support.logi.com/hc/en-150/articles/360048967733-G-HUB-Update-Release-Notes)
+  say firmware 170.3.18 addressed certain improper key releases, and
+  170.4.20 changed travel processing. Neither identifies this tester's failure.
+- Test build adds bounded, bound-key-only C35B source traces beside Windows
+  key events and native/filtered/output stick values. It also reads main
+  firmware metadata via 0x0003 and reports actual HID input queue capacities
+  and setup errors. Report and gamepad processing are otherwise unchanged.
+  Digital key-up is not used as a sensor value because Rapid Trigger can
+  report it while the switch is still physically down.
+- Repro: with default WASD bindings, hold A+W, release W fully while A
+  remains held for a moment, then release A. Click Open log immediately
+  after the failure, before pressing W again. A traced W zero alongside a
+  stuck native/filtered/output value localizes the problem downstream of
+  receipt. Windows key-up without a traced W zero points upstream of the
+  accepted-depth trace (transport, parser, or device); it does not prove
+  firmware fault. Check that surrounding source and output lines are
+  present before interpreting a missing event.
+- Validation: native backend suite and standard release build PASS. Offline
+  replay confirmed a valid W zero clears W while keeping A, and withholding
+  that update preserves W. The replay used the production decoder with a
+  synthetic two-key sequence. The compiled catalog contains 87 keys for the
+  ANSI preset; the C35B model identity resolves to that preset. No hardware
+  repro yet. The local diagnostic EXE (1.6.15.0) SHA-256 is
+  `c370d535c5a35cbe02664bd550177b032c6a139e504f8ef7a01d002459453d0e`.
+
+### Firmware and receive-path investigation (2026-11-07)
+
+- The installed G HUB 2025.9.814156 build 634218 device database, decoded
+  and verified against its embedded SHA-256, identifies model
+  `pro_x_tkl_rapid`, runtime `046D:C35B`, update mode `046D:ABDB`, and DFU
+  depot `0467c4b2-2e4e-4854-b4b2-c8473bf15297`. The official CDN depot
+  SHA-256 matches the local vendor manifest
+  (`2d7dd0574ae4f676ad1520dab977409b1a833e375d404a7656aa9485a434699c`).
+  Its decoded and hash-verified DFU manifest independently names both
+  identities and version 170.4.20. The 307,808-byte
+  `pro_x_tkl_rapid_v170_4_20.dfu` hash matches both vendor manifests
+  (`62dc1fbeb92c7be015e3cb63efe4e145ca2024f51a1589ecf3dc63f1c2126565`).
+  Vendor artifacts are local under `.local/research/logitech-20261005/`.
+- The DFU wrapper exposes a `U170_D0` header, followed by a body at offset
+  0x20 with entropy near 8 bits/byte and no repeated aligned 16-byte
+  blocks. Probes of common gzip/DEFLATE/LZMA entry points found no decoded
+  image. G HUB agent's DFU packet builder copies ranges from the supplied
+  binary to the outgoing buffer (RVA 0x10DA177–0x10DA253). The DFU transfer
+  payload has not yielded executable MCU code; the update package by
+  itself does not establish which scanner/report branch can drop a release.
+- Static comparison against G HUB agent 2025.9.814156, SHA-256
+  `4dd78336d58683f64632e34662bf123f95f879766b405b4d8b641c9b2be61cfe`:
+  the function-0 report callback (RVA 0x1A969B0) calls the versioned decoder
+  (0x1A9DFC0). Version 0 reads exactly payload offsets 0 and 1 as key ID
+  and unsigned depth (0x1A9E004–0x1A9E0AD). G HUB batches those events by
+  key for UI delivery and clears the batch after publication (0x1A9E2E0).
+  The callback's later-version branch (0x1A9E103 onward) reads triples and
+  accumulates a frame. No v0 snapshot readback appears in this reviewed
+  report path. HallJoy v0 agrees on offsets and applies updates per key.
+  G HUB does not interpret the extra v0 bytes as another key or a release map.
+- Sainan's pinned capture revision
+  [8d7939c](https://gist.github.com/Sainan/0f21e6937ee72b7979ec44ee9fde6016/8d7939cff101aea9f0b665491ea5ed3c8ef0f06e):
+  all 78 A packets are long 0x11 with ID 0x23, one explicit final zero,
+  and 77 with extra nonzero bytes. The additional single release sample
+  is also 0x11. The capture provides no evidence of one key switching
+  between short and long reports. Offline replay through the production
+  decoder and stick builder, with synthetic W/S press/release events,
+  passed both A+W and A+S with all four combinations of Snap Stick and
+  Last Key Priority. Delivering zero clears only its axis; withholding
+  it leaves the held value. The replay bypasses real USB, bindings/curve
+  acquisition, SDK arbitration and the virtual-controller driver.
+- A conditional HallJoy receive issue is reproducible with synthetic
+  cross-collection events. `Session::Pump` puts the long completion event
+  first. Win32 wait-any returns the lowest index if both are signaled.
+  A newer long zero can be served before an older short positive for the
+  same key; an offline test with real Win32 events and the HallJoy decoder
+  ended at 500 permille in that sequence. On the observed long-only stream
+  this ordering case does not arise. The worker also waits for its re-arm
+  write every 2 s, during which driver queues and already-armed reads
+  receive reports but the worker does not drain them. Actual overruns,
+  mixed short/long traffic, and any firmware effects of re-arming are
+  unverified on the tester's unit.
+- The missing-final-update mechanism remains the best match. Available
+  evidence separates it from a wrong byte offset or a demonstrated stick
+  builder issue, but cannot assign the missing update to firmware or USB/
+  host delivery on the reported unit. No runtime or support-status change
+  was made in this investigation.
+
+### C35B ordered reads test build (2026-11-07)
+
+- For C35B sessions with both HID++ collections, both overlapped reads use
+  one Windows I/O completion queue and one consumer. This replaces the
+  lowest-handle-index preference with the order in which Windows queues
+  read completions. The just-consumed collection is re-armed immediately
+  after the callback. Writes still use their own event, excluded from the
+  read queue. HID buffer setup happens before associating either handle.
+- On setup failure the original event reader remains available, including
+  if one handle was already associated. The support log records
+  `logitech.read_mode` and, on fallback, `logitech.iocp_fallback`.
+  Session teardown cancels and drains pending reads before freeing storage.
+- Windows regression uses two named pipes and the production Session.
+  An older short press followed by a newer long release now ends at zero;
+  the reverse collection assignment also ends at zero. Tested command
+  writes on the long handle, fallback after partial association, single
+  collection, disconnect, and cleanup with an outstanding read.
+- This corrects the handle-index ordering case. I/O completion order
+  does not guarantee ordering of reports that were already independently
+  buffered on the two collections before reads were posted. A device that
+  never emits the final depth cannot be recovered by reordering, and the
+  observed C35B failure is still awaiting an on-device confirmation.
+  The change adds no polling delay or fabricated release value.
+- Final validation: Win32 reader regression, native suite, standard release
+  build, profile/recovery and compiled catalog checks passed. The 87-key
+  ANSI preset is present and resolves from the C35B session identity.
+  Local test EXE SHA-256 `12b85743665870328de413e7e6879fe9d89e97cfbd41259fe0fd25f3f5b3ede9`.
+
+### Log 35: release missing from the analog stream with ordered reads (2026-11-07)
+
+- Report from the C35B tester, `HallJoy (35).log`, SHA-256
+  `61c599f0ba162177d2dd3d1c749d24eaed67b9b656ed13698a3192f29f0dcefd`.
+  The report timestamp is 14:48:39 UTC. `logitech.read_mode=2` confirms
+  the ordered-read build is in use and both Windows HID queues report
+  512 slots. Firmware metadata `70 04 00 20` matches the 170.4.20 release.
+  Feature 0x1B08 is v0 at index 0x0f, with total travel 4.0 mm.
+- Separate W/A/S/D presses all produced explicit depth zero and neutral
+  gamepad output. In the combined test A reached 4.0 mm first. W then had
+  just one depth update at 95188546 ms (4.0 mm). Windows delivered both
+  key-ups at 95189656 ms, on the same keyboard handle hash. A reached
+  zero 15 ms later. No W depth update followed until the session stopped.
+  The final affected pad trace shows A `0/0/n0`, W `1000/929/n1000`,
+  X=0, Y=30441, so the output reflects the stale native W measurement.
+- All 340 bound depth changes were on long report 0x11. Session totals
+  show 341 accepted depth events, with only the key ID and depth bytes
+  ever nonzero. The source plus Windows key-event trace peaks at 78
+  lines/s overall and 51 lines/s during release, below the 300 lines/s
+  budget. No re-arm or stream failure occurred. The sole failure was an
+  optional feature-list timeout before analog startup. This reproduction
+  does not fit a short/long ordering tie or a dropped release trace.
+- The pattern is consistent with [Sainan's independent observation](https://github.com/AnalogSense/universal-analog-plugin/issues/1)
+  of a single selected key in this model's stream. The log establishes
+  absent independent W depth through this release, not the precise
+  selection rule or whether every firmware/profile behaves the same.
+  The reviewed v0 source has no confirmed per-key depth readback.
+  A Windows key-up cannot substitute for physical depth, as even the
+  standalone W press had a 125 ms interval from key-up to its real
+  analog zero. The owner requires simultaneous depth and release for
+  the full keyboard. See the current disposition at the top.
+
+### Alternative sources for full-key analog (2026-11-07)
+
+- **G HUB and HID++ 0x1B08.** The installed G HUB agent's feature vtable
+  at RVA 0x327AD98 and the corresponding request builders expose function
+  0 for capability info (0x1A95B90), 1/2 for Rapid Trigger read/write
+  (0x1A95DC0/0x1A95FF0), 3 for the key-travel event switch (0x1A96740),
+  and 4/5 for Key Priority read/write (0x1A96260/0x1A964B0). Both Key
+  Priority operations reject feature versions below 1 in this agent.
+  Function 3 constructs a one-byte payload with only bit 0 set or
+  cleared. The G HUB UI subscription receives the same function-0
+  events, via the versioned decoder above. There is no separate
+  live-depth poll in the reviewed implementation of this feature.
+- **Other advertised HID++ features.** The [31-entry enumeration on
+  stock 170.4.20](https://raw.githubusercontent.com/gabriellaines/rigdeck/main/docs/protocols/logitech-pro-x-tkl-rapid.md)
+  lacks 0x1F20 and 0x1B0C. The documented 0x8101 reads return stored
+  profiles and thresholds. 0x1B05 is key customization and 0x1B10
+  is the control list. The G HUB agent exposes 0x0011 Property Access
+  as get info for a specific property ID, select property and read
+  chunks (RVAs 0x19AA9C0, 0x19AAB90, 0x19AAD00). No C35B depth
+  property ID or live usage was established. The hidden 0x1801 is
+  Manufacturing Mode. Its generic wrapper forwards a caller-supplied
+  operation and payload (0x19CBDB0) and handles test responses. It does
+  not identify which tests C35B implements. No matrix or depth opcode
+  is known for this board, and no manufacturing operations were sent.
+- **USB and firmware.** The tester's report identifies USB interfaces
+  00, 01 and 02; the independent hardware investigation identifies 02
+  as the HID++ transport and also describes loss of depth updates.
+  A full bus trace is still needed to separate keyboard transmit
+  behavior from the host path and check for a second live report on
+  any other interface. No C35B is connected locally. The official
+  170.4.20 inner update image remains opaque after extraction. For a
+  format control, the verified PRO X 60 v22.1.15 depot is plain but
+  its inner DFU also has a short clear product header followed by a
+  7.999-bit/byte body. C35B measures 7.9994 bits/byte, with no repeated
+  aligned blocks in the analyzed body. This supports treating depot
+  decryption and DFU decoding as separate steps. No executable C35B
+  payload or confirmed read-back method was obtained. C364's v2
+  frames belong to a different PID and provide no basis for flashing
+  its firmware to C35B.
+
+The remaining evidence to pursue is a passive capture of all C35B USB
+interfaces during the G HUB depth display, an identified read-only sensor
+command, or the executable C35B firmware. Any candidate requires independent
+simultaneous depth and release, including sustained overlapping key presses,
+before it can qualify for support.
+
+### C35B DFU structure and silicon identification (2026-11-07)
+
+The public Windows [GHUB10](https://updates.ghub.logitechg.com/pipeline/v2/update/ghub10/win/public/details.json),
+[GHUB12](https://updates.ghub.logitechg.com/pipeline/v2/update/ghub12/win/public/details.json),
+[GHUB13](https://updates.ghub.logitechg.com/pipeline/v2/update/ghub13/win/public/details.json)
+and [GHUB14](https://updates.ghub.logitechg.com/pipeline/v2/update/ghub14/win/public/details.json)
+manifests returned different CDN paths for the same C35B depot, size 314418
+and SHA-256 `2d7dd0574ae4f676ad1520dab977409b1a833e375d404a7656aa9485a434699c`.
+GHUB13 reported 2026.7.1011216 and GHUB14 reported 2026.8.1008724.
+The local online installers 2025.4.719084 and 2025.5.730277 did not provide a
+second C35B image. The archive lookup returned no pre-170.4.20 snapshot of
+the public GHUB10 details endpoint. Earlier release notes name 170.3.18
+and 170.2.16, but no corresponding executable image was recovered.
+
+| DFU file offset | Observed field |
+| --- | --- |
+| 0x00–0x08 | `01 03 U170_D0` record and model tag |
+| 0x11–0x14 | Big-endian load-address field `0x00010000` |
+| 0x15–0x18 | Big-endian image size `0x0004B108` (307464 bytes) |
+| 0x20–0x4B13F | 307488 bytes. Body length equals the declared size rounded up to 16 bytes, plus one 16-byte block. |
+| 0x4B140–0x4B24F | 16-byte record starting with `02` followed by a 256-byte opaque field, consistent with a signature record |
+| 0x4B250–0x4B25F | Terminal record `03` and fifteen zero bytes |
+
+- The structure is shared by the [official MPK01/03/04 samples](https://github.com/Logitech/fw_updates/tree/1ddde61310573ecea54c4204b401393a90f4bbae)
+  and multiple hash-verified G HUB depots. Control payloads with second
+  byte `01` (MPK01/03/04, G915, G915 TKL, G502 HERO and PRO X Wireless)
+  contain ARM vectors at file offset 0x20 and only alignment padding
+  after the declared data. The `03` samples (C35B, G515 TKL, G515
+  LIGHTSPEED TKL and PRO X 60) have the extra 16-byte block and opaque
+  bodies. The C35B body has entropy 7.999361 bits/byte, 19218 distinct
+  aligned 16-byte blocks and zero aligned initial SP/Thumb reset-PC
+  pairs for nRF52833 SRAM and the declared application range. The
+  evidence is consistent with a separately encrypted device image.
+  The cipher, extra block position/role and signature coverage remain
+  unverified. A bounded test of CBC/CTR/CFB/OFB with known local depot
+  keys and five candidate IVs yielded zero plausible vector pairs in
+  2960 probes. Those keys belong to the outer package and the negative
+  test does not establish the inner cipher or exhaust possible keys.
+- Ran the installed G HUB agent x64 packet-copy branch, RVAs
+  0x10DA177–0x10DA25B, in Unicorn with the exact DFU. The local script
+  `.local/research/logitech-20261005/check_c35b_dfu.py` pins both file
+  hashes, models the binary map, packet offset and allocator, and
+  stops before the caller and transport. All 19238 modeled 16-byte
+  packet payloads reconstruct the input byte-for-byte. No loader, HID
+  transport, target CPU or sensor behavior is modeled in this check.
+- The [published teardown](https://www.weistang.com/article-25219-4.html)
+  and its [republished close-up](https://q9.itc.cn/images01/20241206/9e3cec328f8741dfa3aabad4b97d6dbe.jpeg)
+  identify an nRF52833. The pictured chip reads `N52833 QIAAB0`, a
+  Rev. 2 aQFN73 Cortex-M4F with 512 KiB flash and 128 KiB SRAM.
+  The board also has a GTRY52 at U5 and GTRY12 under each switch. The
+  close-ups show pads labeled GND, SWDIO and CLK near U5 and signal
+  pads labeled SCLK, MOSI and NCS nearby. These markings provide
+  hardware leads, but the SWD pad target, inter-chip link topology,
+  voltage and packet semantics need continuity/scope verification on
+  the physical PCB. The photographed board revision is separate
+  evidence from the tester's USB PID.
+- On an available C35B board, verify SWD connectivity to the nRF52833
+  (aQFN73 SWDCLK AA24 and SWDIO AC24) and check CTRL-AP.APPROTECTSTATUS.
+  If AHB-AP is open, read and hash the 0x80000-byte flash twice without
+  writes. Verify the Thumb vectors at the declared application
+  address 0x10000 and identify the active firmware version before
+  tracing the bridge receive and HID++ 0x1B08 report-selection paths.
+  [Nordic Rev. 2 documentation](https://docs.nordicsemi.com/r/bundle/errata_nrf52833_rev2/page/err/nrf52833/rev2/latest/config_833_249.html)
+  says APPROTECT defaults to enabled. A locked target stops the
+  standard read-only SWD route. ERASEALL/recover destroys the stock
+  image. A passive bridge-bus capture on a lab unit remains a
+  separate way to determine what per-key measurements the MCU gets.
+  No C35B or debug adapter was present locally. No plaintext
+  C35B image or scanner/report handler was recovered in this pass.
+
+### Offline DFU follow-up and newer G HUB agent (2026-11-07)
+
+- Enumerated public G HUB Windows channels 7–10 and 12–14 and the macOS
+  channel 10. The older Windows builds exposed by channels 7–9 date
+  to 2021–2023. The Windows and macOS manifests inspected for channels
+  10 and 12–14 identify the same exact C35B depot. Scoped the content
+  sweep to named DFU depots and UUID-named depots between 2000 and
+  1500000 bytes, deduplicated by published SHA-256. The sweep verified
+  all 424 downloaded hashes, decoded 308 packages and identified
+  firmware records in 153. Of those readable packages, only the known
+  170.4.20 depot named C35B/ABDB or contained its image. 116 packages
+  could not be decoded with the local public-channel key set. The
+  historical G HUB 10 manifest and exact depot archive queries did
+  not yield a dated old copy. The private inventory is
+  `.local/research/logitech-20261005/dfu-cdn-inventory-20261107.json`,
+  SHA-256 `4bed2b7d8f809b0c31d2122c7bbb00758f485b4959ef368a73f5fcb0f8b020b9`.
+- The [public G305 SWD dump](https://github.com/you-wouldnt-reverse-engineer-a-rat/g305-re/tree/dac3bba486f7b113343641bf4524c949ee96fd7c/flash_dump)
+  is a genuine plaintext control with boot vectors at 0x00000 and
+  separate application vectors at 0x11000. The verified B0011 dump
+  SHA-256 is `223df03547ca37ecac50bc8478c23f6833ae17d57ca9903a6655aa52098d05ac`.
+  Its bootloader header handler at 0x30FC tests the byte at offset 1
+  before checking the ten-byte model tag. Executed the handler with
+  a mocked FICR page-size register and RAM. Mode 0x01 with its own tag
+  returns 0x03. Mode 0x03 with either tag returns 0x93. Mode 0x01 with
+  the C35B tag returns 0x94. The [fwupd HID++ DFU implementation](https://github.com/fwupd/fwupd/blob/main/plugins/logitech-hidpp/fu-logitech-hidpp-device.c)
+  masks bit 7 and names 0x13 unsupported encryption mode. This fixes
+  the role of the header field. The comparison bootloader has no
+  implementation of mode 0x03. Its RSA-2048 public key at 0x63A0 was
+  confirmed by the exponent 65537 and modular-exponentiation call at
+  0x304. It did not validate the expected PKCS#1 padding for the
+  C35B, MPK01 or G502 X Plus trailer in either byte order.
+- The [public G502 X Plus support rollback mirror](https://github.com/BrightNDark/G502-x-Plus-Firmware-Revert/tree/dbc757bb98de14570c32999b929a94847902cb40)
+  embeds an opaque mode-0x03 `MPM27_D1` record, SHA-256
+  `8971137a73de96e018c3463541e917385567745605c29b63eb08f2af31762f29`.
+  This is an application update for another PID. In the decoded
+  CDN corpus, no tag appeared in both mode 0x01 and mode 0x03. A
+  bounded comparison of 19 distinct mode-0x03 bodies found zero
+  shared aligned 16-byte blocks between C35B and the other bodies
+  or between different versions with the same tag. This does not
+  identify the cipher, mode, IV or per-product key policy.
+- Extracted the exact G HUB 2026.8.1008724 agent from the official
+  GHUB14 core depot without installing or running it. Windows
+  verified its Logitech Authenticode signature. Agent SHA-256
+  `ea6007a69b6f22b2b7d790f34ced39152c3624b7ca9a340deb3f55dbbf2f7d27`.
+  Its DFU copy branch (RVAs 0x22A1DC0–0x22A1E9B) also reproduces
+  the entire C35B image across 19238 modeled payloads. The updated
+  `check_c35b_dfu.py` replays both agents and the four G305 header
+  cases. Script SHA-256
+  `d744ef0a26bdc0b310bf11822097340826b4a497f811f9c02687cabd00528eb1`.
+- The 2026.8 agent still exposes 0x1B08 outgoing functions 0–5 in its
+  interface vtable at 0x4199878. Function 3 at RVA 0x20202F0
+  enables/disables depth events with one bit. Incoming event 0 uses
+  the depth decoder at 0x2028390, while events 1 and 2 are Rapid
+  Trigger and Key Priority state changes. The v0 decoder now clears
+  the depth map (call at 0x20283E8, clear at 0x178E880) before
+  inserting the one key and depth at 0x20283F1/0x20283F4. The
+  v0 callback therefore cannot supply a live map of simultaneous
+  depths. This is host-side evidence and does not prove how the
+  keyboard chooses the key reported in a packet.
+- Verified the GHUB14 core device registry record from the official
+  depot at offset 0x14DAC676. The decoded record is byte-identical to
+  the installed 2025.9 registry record (SHA-256
+  `9c3a91c4bcbb42771ab8abdfd9aa732963b875d8492d79bca45934c569803065`).
+  It points to the single known C35B DFU depot and contains no
+  separate recovery/engineering firmware reference. The
+  analog onboarding reference is in `assetsPackages`.
+
+No public C35B flash dump, bootloader image, old exact DFU or mode-0x03
+decryption routine was recovered in this offline pass. A pre-170.4.20
+G HUB cache or exact Logitech recovery/depot archive remains a useful
+lead. If it contains another mode-0x03 image, comparison can narrow the
+format but still needs the matching loader or a plaintext image to
+expose the scanner and its HID++ dispatcher. The existing 0x8101
+readback is evidenced for profile storage. No verified read-only
+command returning C35B application flash or live full-key depth was
+found in the reviewed interfaces.
+
+### Historical G HUB manifests and alternate host implementations (2026-11-07)
+
+- Logitech lists the PRO X TKL RAPID updates `170.2.16` with G HUB
+  2025.2 in March and `170.3.18` with 2025.5 in July. The latter
+  describes a switch-processing release fix, with no claim about
+  changes to HID++ depth event coverage.
+  [Logitech release notes](https://marketplace.logi.com/releasenotes/ghub/en)
+- The [April 6 Triage report](https://tria.ge/250406-s9qenavmy2/behavioral1)
+  lists installed depot build `489832`, four snapshots of
+  `C:\ProgramData\LGHUB\current.json` and two of `next.json`.
+  The first current snapshot has SHA-256
+  `3525f2398c5c7acb37f022617c1779dd1ceb7dfb8d702dbc830d1956cc6c7245`.
+  The public report and hashes are visible in the web index. Direct
+  downloads of the first and last current snapshots and both next
+  snapshots returned HTTP 403. The documented API download returned
+  HTTP 403 as well. This establishes that an April catalog was
+  captured. Its contents and C35B depot URL are still unverified.
+  The public [June 19 installer report](https://any.run/report/832a29c9444dd0407f5cb311fa889e77b553e214489ab4b961c662baabc04658/a62b4a38-8b04-4380-8a7c-7a2656cf17d8)
+  did not expose an old catalog or a C35B depot URL in the visible
+  report.
+- The local `C:\Program Files\LGHUB.old` updater reports
+  `2025.8.789376` (October 2025). That backup has no matching DFU
+  filename or exact image marker in the scanned binaries and
+  resources. The available local depot manifest is the later
+  `2025.9.814156` build `634218`. Of 34 local cache objects, 33
+  match entries in that manifest. The remaining December object
+  `a4d5d573916247c116d2ce7f9bc467582103682927c2a2dfc86cd7c1403e049d`
+  matches its filename hash. Its decrypted, SHA-256-verified file
+  table lists PRO X2 wireless headset assets, with no DFU.
+- The official [versioned macOS installer](https://download01.logi.com/web/ftp/pub/techsupport/gaming/lghub_installer_2025.8.789376.zip)
+  was examined in memory. Its archive SHA-256 is
+  `371d935c3af6d8a91554e57494d23cb7fd330aa15cd9f8c597d9855b175014ec`.
+  The Info.plist confirms `2025.8.789376`. Its 67 regular application
+  members contain no depot, DFU or dated update catalog. The native
+  installer names `ghub10`, the official update host and
+  `details.json`. The live macOS public `ghub10` endpoint returned
+  build `625362` (2025.9.807501) with a byte-identical copy of the
+  known 170.4.20 depot under a different CDN path.
+- [OpenMouse keyboard-protocol](https://github.com/OpenMouse-Project/keyboard-protocol/blob/3f9158fe83d7d04ae0b86e4ff26442359ec177c7/docs/logitech-support.md)
+  also inspected the G HUB 2026.10 agent and lists the same six
+  `0x1B08` functions. Its C35B catalog entry is unverified. Its
+  [driver](https://github.com/OpenMouse-Project/keyboard-protocol/blob/3f9158fe83d7d04ae0b86e4ff26442359ec177c7/src/drivers/logitech/hid.ts#L642-L685)
+  uses function 3 to toggle the existing key-travel stream. The
+  `0x8102` rows documented there are profile tags with stored
+  actuation and Rapid Trigger settings. Neither path supplies a
+  second live depth source for C35B in that implementation.
+  [Logitech's web beta](https://www.logitechg.com/zh-cn/software/ghubweb)
+  links to an application that returned HTTP 403 from this
+  environment. Its device behavior was not inspected.
+
+The archive search has two concrete targets. An April `489832`
+catalog can identify an earlier depot if it contains the C35B
+record. A G HUB catalog from July 11 through December 2, 2025 is
+the target for `170.3.18`. An exact C35B plaintext flash dump
+or mode-0x03 bootloader would expose a different part of the
+problem. No earlier C35B DFU, plaintext dump or alternative
+full-key depth transport was recovered in this pass.
+
+
+

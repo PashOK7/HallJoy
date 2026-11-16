@@ -421,6 +421,10 @@ namespace
         const wchar_t* fourth = nullptr;
     };
     static constexpr LayoutMerge g_layoutMerges[] = {
+        {L"MonsGeek FUN60 Pro ANSI", L"MonsGeek FUN60 Ultra TMR ANSI",
+            L"MonsGeek FUN60 Pro + FUN60 Ultra TMR ANSI", nullptr, L"MonsGeek FUN60 Pro / FUN60 Ultra TMR ANSI"},
+        {L"Everglide SU75 Pro ANSI",L"Everglide SU75 Pro V2 (SU75 Ultra) ANSI",
+            L"Everglide SU75 Pro + SU75 Pro V2 (SU75 Ultra) ANSI",nullptr,L"Everglide SU75 Pro / SU75 Pro V2 (SU75 Ultra) ANSI"},
         {L"EPOMAKER HE60 Wired ANSI", L"EPOMAKER HE60 Wireless ANSI", L"EPOMAKER HE60 Wired + Wireless ANSI",
             nullptr, L"EPOMAKER HE60 Wired / Wireless ANSI"},
         {L"EPOMAKER HE75 V2 ANSI", L"EPOMAKER HE75 V2 TMR ANSI", L"EPOMAKER HE75 V2 + HE75 V2 TMR ANSI",
@@ -505,7 +509,7 @@ namespace
     static std::wstring g_lastAutomaticPreset;
     static std::wstring g_manualPreset;
     static std::uint64_t g_automaticToken = 0, g_automaticRevision = 0;
-    enum class AutomaticStatus { Disabled, Searching, Missing, Multiple, Matched, Remapped, MapFailed };
+    enum class AutomaticStatus { Disabled, Searching, Missing, Multiple, Matched, Remapped, MapFailed, WaitingAnalog };
     static AutomaticStatus g_automaticStatus = AutomaticStatus::Searching;
     static halljoy::layout_selection::FirstRun g_firstRunLayout;
 
@@ -1937,6 +1941,7 @@ const wchar_t* KeyboardLayout_GetAutomaticStatus()
     case AutomaticStatus::Disabled: return L"Manual layout; device remapping is ignored.";
     case AutomaticStatus::Searching: return L"Searching for a supported keyboard...";
     case AutomaticStatus::Multiple: return L"Multiple HallJoy-supported devices connected. Choose a layout manually.";
+    case AutomaticStatus::WaitingAnalog: return L"Keyboard identified; waiting for analog data.";
     case AutomaticStatus::Matched: return L"Automatic layout selected. Device remapping is unavailable.";
     case AutomaticStatus::Remapped: return L"Automatic layout selected; device key assignments applied.";
     case AutomaticStatus::MapFailed: return L"Device assignments could not be matched. Choose a layout manually.";
@@ -1965,6 +1970,7 @@ bool KeyboardLayout_UpdateAutomatic(bool searchCompleted, const BackendAnalogTel
     const auto oldRevision=g_automaticRevision, oldToken=g_automaticToken;
     const wchar_t* name=nullptr;
     std::uint64_t token=0;
+    bool identityPreview=false;
     int nativeCount=0;
     for (int i=0;i<t.nativeProtocolCount && i<kBackendMaxNativeProtocols;++i)
         if (t.nativeProtocols[i].connected) ++nativeCount;
@@ -2008,12 +2014,25 @@ bool KeyboardLayout_UpdateAutomatic(bool searchCompleted, const BackendAnalogTel
 #endif
             }
     }
+    if(KeyboardLayout_GetAutomatic() && searchCompleted && count==0 && t.pluginDeviceCount==0) {
+        unsigned pending=0;
+        for(int i=0;i<t.nativeProtocolCount && i<kBackendMaxNativeProtocols;++i) {
+            const auto& n=t.nativeProtocols[i];
+            if(n.present && !n.connected && n.verifiedLayoutToken && (strcmp(n.id,"aula-f75")==0 || strcmp(n.id,"mchose-gt75")==0)) {
+                ++pending;token=n.verifiedLayoutToken;name=halljoy::layout_identity::Match(token);
+            }
+        }
+        if(pending==1 && name)identityPreview=true;
+        else if(pending>1){name=nullptr;token=0;g_automaticStatus=AutomaticStatus::Multiple;}
+    }
     int target=name ? FindPresetByName(name) : -1;
-    const auto remaps=target>=0 && token ? halljoy::native_layout::Read(token) : halljoy::native_layout::Snapshot{};
+    const auto remaps=target>=0 && token && !identityPreview ? halljoy::native_layout::Read(token) : halljoy::native_layout::Snapshot{};
     if (target>=0 && remaps.complete && (!g_automaticLocked || target!=g_currentPresetIdx ||
         token!=g_automaticToken || remaps.revision!=g_automaticRevision)) {
         // Validate the complete geometry association before changing any key.
         for (const auto& key:g_presets[target].keys) {
+            // Display-only controls have no analog/HID association to validate.
+            if (!key.hid) continue;
             bool found=false;
             for (std::size_t i=0;i<remaps.count;++i) if (remaps.keys[i].factory==key.hid) {found=true;break;}
             if (!found) {target=-1;g_automaticStatus=AutomaticStatus::MapFailed;break;}
@@ -2034,6 +2053,12 @@ bool KeyboardLayout_UpdateAutomatic(bool searchCompleted, const BackendAnalogTel
             g_automaticPreview=false;
         }
         g_automaticLocked=false;g_automaticToken=g_automaticRevision=0;
+    } else if(identityPreview) {
+        if(!g_automaticLocked && !g_automaticPreview)g_manualPreset=g_presets[g_currentPresetIdx].name;
+        if(target!=g_currentPresetIdx || (!g_automaticPreview && !g_automaticLocked) || g_automaticRevision)ActivatePreset(target);
+        g_lastAutomaticPreset=g_presets[target].name;g_automaticPreview=true;
+        g_automaticLocked=false;g_automaticToken=token;g_automaticRevision=0;
+        halljoy::native_layout::activeToken.store(0);g_automaticStatus=AutomaticStatus::WaitingAnalog;
     } else {
         const bool matchingPreview=g_automaticPreview && target==g_currentPresetIdx;
         if (!g_automaticLocked && !g_automaticPreview) g_manualPreset=g_presets[g_currentPresetIdx].name;
@@ -2301,6 +2326,89 @@ bool KeyboardLayout_TestAutomatic()
         }
         KeyboardLayout_SetAutomatic(false);
         ok &= g_currentPresetIdx==2;
+    }
+    // Exact F75 identity selects geometry before analog exists. Preview neither
+    // fabricates a connected source nor enables remaps, and stays render-stable.
+    for(const auto* product:{"F75HE-38A6-2729-ANSI","F75HE-38A6-2742-ANSI","F75HE-0C45-FEFE-ANSI","BOOM68-0C45-80B5-ANSI"}) {
+        KeyboardLayout_SetAutomatic(false);KeyboardLayout_SetPresetIndex(2);KeyboardLayout_SetAutomatic(true);
+        const bool boom=strncmp(product,"BOOM68",6)==0;
+        const auto f75Token=halljoy::layout_identity::Token(boom?"langtu-sonix":"aula-f75",product);
+        const auto* preset=halljoy::layout_identity::Match(f75Token);
+        ok &= preset && FindPresetByName(preset)>=0;
+        BackendAnalogTelemetry f75{};f75.nativeProtocolCount=1;
+        f75.nativeProtocols[0].present=true;f75.nativeProtocols[0].verifiedLayoutToken=f75Token;
+        strcpy_s(f75.nativeProtocols[0].id,"aula-f75");
+        KeyboardLayout_UpdateAutomatic(true,f75);
+        ok &= g_automaticPreview && !g_automaticLocked && g_automaticStatus==AutomaticStatus::WaitingAnalog &&
+            g_activeKeys.size()==(boom?67u:80u) && halljoy::native_layout::activeToken.load()==0;
+        const auto snapshot=KeyboardLayout_GetSnapshot();
+        ok &= !KeyboardLayout_UpdateAutomatic(true,f75) && KeyboardLayout_GetSnapshot()==snapshot;
+        f75.deviceCount=1;f75.nativeIdentityDeviceCount=1;f75.nativeProtocols[0].connected=true;
+        KeyboardLayout_UpdateAutomatic(true,f75);
+        ok &= g_automaticLocked && !g_automaticPreview && KeyboardLayout_GetSnapshot()==snapshot;
+        f75.deviceCount=0;f75.nativeProtocols[0].connected=false;
+        KeyboardLayout_UpdateAutomatic(true,f75);
+        ok &= g_automaticPreview && !g_automaticLocked && KeyboardLayout_GetSnapshot()==snapshot;
+        f75.nativeProtocolCount=2;f75.nativeProtocols[1]=f75.nativeProtocols[0];
+        KeyboardLayout_UpdateAutomatic(true,f75);
+        ok &= !g_automaticLocked && !g_automaticPreview && g_automaticStatus==AutomaticStatus::Multiple && g_currentPresetIdx==2;
+        KeyboardLayout_SetAutomatic(false);
+    }
+    // Revision-specific SU75 selectors appear only after a live sample. Reconnect
+    // and Manual restore use the same common automatic-layout consumer.
+    for(const auto* product:{"SU75PRO-3002-00300002-ANSI","SU75ULTRA-3007-00300007-ANSI"}) {
+        KeyboardLayout_SetAutomatic(false);KeyboardLayout_SetPresetIndex(2);KeyboardLayout_SetAutomatic(true);
+        const auto token=halljoy::layout_identity::Token("sparklink",product);
+        BackendAnalogTelemetry t{};t.deviceCount=1;t.nativeIdentityDeviceCount=1;t.nativeProtocolCount=1;
+        auto& n=t.nativeProtocols[0];n.present=true;n.connected=true;n.verifiedLayoutToken=token;strcpy_s(n.id,"sparklink");
+        KeyboardLayout_UpdateAutomatic(true,t);
+        ok &= token && g_automaticLocked && !g_automaticPreview && g_activeKeys.size()==81 &&
+            FindPresetByName(halljoy::layout_identity::Match(token))==g_currentPresetIdx;
+        n.connected=false;n.verifiedLayoutToken=0;t.deviceCount=0;
+        KeyboardLayout_UpdateAutomatic(true,t);ok &= !g_automaticLocked;
+        n.connected=true;n.verifiedLayoutToken=token;t.deviceCount=1;
+        KeyboardLayout_UpdateAutomatic(true,t);ok &= g_automaticLocked && g_activeKeys.size()==81;
+        KeyboardLayout_SetAutomatic(false);ok &= g_currentPresetIdx==2;
+    }
+    // GT75 preview has81 magnetic keys plus two display-only RT controls.
+    {
+        KeyboardLayout_SetAutomatic(false);KeyboardLayout_SetPresetIndex(2);KeyboardLayout_SetAutomatic(true);
+        BackendAnalogTelemetry gt{};gt.nativeProtocolCount=1;
+        auto& n=gt.nativeProtocols[0];n.present=true;
+        n.verifiedLayoutToken=halljoy::layout_identity::Token("mchose-gt75","GT75-3837-302D-ANSI");
+        strcpy_s(n.id,"mchose-gt75");KeyboardLayout_UpdateAutomatic(true,gt);
+        ok &= g_automaticPreview && !g_automaticLocked && g_activeKeys.size()==83 && halljoy::native_layout::activeToken.load()==0;
+        const auto before=KeyboardLayout_GetSnapshot();
+        gt.deviceCount=1;gt.nativeIdentityDeviceCount=1;n.connected=true;KeyboardLayout_UpdateAutomatic(true,gt);
+        ok &= g_automaticLocked && !g_automaticPreview && KeyboardLayout_GetSnapshot()==before;
+        KeyboardLayout_SetAutomatic(false);
+    }
+    // Akko3131 has87 mapped keyboard positions and a display-only calculator.
+    // Both complete remaps and an unavailable cache must retain automatic geometry.
+    {
+        const auto akkoToken=halljoy::layout_identity::Token("rongyuan-snapshot","AKKO5087V3HE-3131");
+        const int akkoIndex=FindPresetByName(L"Akko 5087 V3 HE ANSI");
+        ok &= akkoToken && akkoIndex>=0;
+        if(akkoToken && akkoIndex>=0) {
+            KeyboardLayout_SetAutomatic(false);KeyboardLayout_SetPresetIndex(2);
+            KeyboardLayout_SetAutomatic(true);
+            t={};t.deviceCount=1;t.nativeIdentityDeviceCount=1;t.nativeProtocolCount=1;
+            t.nativeProtocols[0].connected=true;t.nativeProtocols[0].verifiedLayoutToken=akkoToken;
+            std::vector<halljoy::native_layout::Key> map;
+            unsigned display=0;
+            for(const auto& key:g_presets[akkoIndex].keys) {
+                if(key.hid) map.push_back({key.hid,key.hid});else ++display;
+            }
+            ok &= map.size()==87 && display==1 && g_presets[akkoIndex].keys.size()==88;
+            ok &= halljoy::native_layout::Publish(akkoToken,map.data(),map.size());
+            KeyboardLayout_UpdateAutomatic(true,t);
+            ok &= g_automaticLocked && g_currentPresetIdx==akkoIndex &&
+                g_automaticStatus==AutomaticStatus::Remapped && g_activeKeys.size()==88;
+            halljoy::native_layout::Clear(akkoToken);
+            KeyboardLayout_UpdateAutomatic(true,t);
+            ok &= g_automaticLocked && g_currentPresetIdx==akkoIndex && g_activeKeys.size()==88;
+            KeyboardLayout_SetAutomatic(false);
+        }
     }
     // HERO84 complete remaps preserve physical geometry, including modifiers and Fn.
     {

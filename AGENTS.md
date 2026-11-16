@@ -1,5 +1,28 @@
 # HallJoy task completion rules
 
+## MIDI product scope (owner decision, 2026-11-08)
+
+HallJoy remains gamepad-first: fresh defaults enable one gamepad and disable MIDI.
+The user may explicitly enable MIDI and disable the last pad; restore saved choices.
+MIDI is niche: disabled MIDI must add no MIDI worker/port polling/history/full-table
+work to normal gameplay. Read docs/development/MIDI_ROADMAP.md before MIDI work.
+It plans through the complete controller, including advanced optional features;
+v1 alone is not final completion. Keep advanced costs and dependencies opt-in.
+
+## Mandatory tester delivery contract (owner decision, 2026-11-08)
+
+Before changing keyboard admission or delivering a tester EXE, read
+[TESTER_BUILD_CONTRACT](docs/development/TESTER_BUILD_CONTRACT.md). List every
+pre-analog refusal and prove its necessity. Metadata differences, remaps, extra
+slots, unbound/duplicate assignments and arbitrary counts cannot block a safe
+analog attempt merely because an ideal fixture differs. Preserve identity and
+transport safety. Add realistic positive and justified negative cases through the
+production subscription/sample/release/cleanup path, register the investigated
+family in tester_delivery_cases.json, and pass check_tester_delivery.py on the
+exact ordinary EXE. Every refusal must record its stage and concrete reason in
+HallJoy.log. A parser PASS on a perfect synthetic map is insufficient.
+
+
 Read `docs/current/OWNER_CONTEXT.md`, then `docs/README.md` and relevant current
 documents before work. Parent AGENTS.md instructions continue to apply.
 
@@ -119,3 +142,13 @@ protocol (for example RongYuan 3151 stays out of generic SparkLink). If any cond
 cannot be met, admission stays an exact list of Supported or implemented-untested
 models. A device that fails the proof is remembered and not probed again until it
 leaves the bus. Details: docs/current/SPARKLINK_GENERIC_ADMISSION_2026-10-12.md.
+
+
+## Windows compiler CPU budget (owner decision, 2026-11-16)
+
+Compilation must share at most90% CPU with BelowNormal priority. Standard build
+entries enforce tools/build_cpu_budget.py and its shared Windows job. Run any
+manual compiler/research probe through `python tools/build_cpu_budget.py --run
+<compiler> <arguments>` too. Do not bypass a failed budget or substitute a90%
+limit on each independent compiler. Keep the installed application and build
+publisher outside this compiler job. See docs/development/BUILD_README.txt.

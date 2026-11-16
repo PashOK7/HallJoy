@@ -21,6 +21,11 @@
 #pragma comment(lib, "Comctl32.lib")
 
 #include "remap_panel.h"
+#ifndef HALLJOY_DISABLE_MIDI
+#include "midi_output.h"
+#include "midi_settings_page.h"
+#endif
+#include "premium_combo.h"
 #include "remap_hint_motion.h"
 #include "analog_key_codes.h"
 #include "key_shape_win.h"
@@ -44,6 +49,9 @@
 using namespace Gdiplus;
 
 static constexpr UINT WM_APP_REMAP_APPLY_SETTINGS = WM_APP + 42;
+#ifndef HALLJOY_DISABLE_MIDI
+static std::atomic<HWND> g_remapNotifyWindow{nullptr};
+#endif
 static constexpr UINT WM_APP_REQUEST_SAVE = WM_APP + 1;
 
 static constexpr int ICON_GAP_X = 6;
@@ -54,6 +62,28 @@ static constexpr int ICON_COLS = 13;
 // on (display_pacer), not SetTimer, which ticks at ~64-100 Hz.
 static constexpr UINT WM_APP_REMAP_ANIM_FRAME = WM_APP + 0x3A2;
 static constexpr int REMAP_ID_ADD_GAMEPAD = 1901;
+constexpr wchar_t kRemapHelp[] =
+#ifdef HALLJOY_DISABLE_MIDI
+    L"Drag a gamepad control onto a keyboard key to bind.\n"
+#else
+    L"Drag a gamepad control or MIDI note onto a keyboard key to bind.\n"
+#endif
+    L"Hold Shift while dropping on a key to add another action from the same gamepad.\n"
+    L"Right click a key on the keyboard to unbind.";
+#ifndef HALLJOY_DISABLE_MIDI
+static constexpr int REMAP_ID_ADD_MIDI = 1902;
+static constexpr int REMAP_ID_REMOVE_MIDI = 1903;
+static constexpr int REMAP_ID_MIDI_PRESET = 1904;
+static constexpr int REMAP_ID_MIDI_OCTAVE = 1911;
+static constexpr int REMAP_ID_MIDI_CHANNEL = 1912;
+static constexpr int REMAP_ID_MIDI_PORT = 1913;
+static constexpr int REMAP_ID_MIDI_REFRESH = 1917;
+static constexpr int REMAP_ID_MIDI_PANIC = 1918;
+static constexpr int REMAP_ID_MIDI_SETTINGS = 1926;
+static constexpr int kMidiPaletteTop = 128;
+static constexpr int REMAP_MIDI_ICON_BASE = 4000;
+static constexpr int REMAP_MIDI_ICONS = 25;
+#endif
 static constexpr int REMAP_ID_REMOVE_GAMEPAD_BASE = 3000;
 static constexpr int REMAP_ICON_ID_BASE = 2100;
 static constexpr int REMAP_ICON_ID_PACK_STRIDE = 128;
@@ -311,6 +341,13 @@ struct RemapPanelState
     HWND btnAddGamepad = nullptr;
     int gamepadPacks = 1;
     int iconsPerPack = 0;
+#ifndef HALLJOY_DISABLE_MIDI
+    std::vector<HWND> midiIcons;
+    HWND midiOctave = nullptr, midiChannel = nullptr;
+    HWND midiPort = nullptr;
+    std::vector<MidiPort> midiPorts;
+    std::shared_ptr<const halljoy::midi::Profile> displayedMidi;
+#endif
     int scrollY = 0;
     int scrollMax = 0;
     int contentHeight = 0;
@@ -1369,7 +1406,7 @@ static void Remap_UpdateAddGamepadButtonText(RemapPanelState* st)
     if (!st || !st->btnAddGamepad) return;
 
     wchar_t text[64]{};
-    int packs = std::clamp(st->gamepadPacks, 1, REMAP_MAX_GAMEPADS);
+    int packs = std::clamp(st->gamepadPacks, 0, REMAP_MAX_GAMEPADS);
     if (packs < REMAP_MAX_GAMEPADS)
         swprintf_s(text, L"Add Gamepad (%d/%d)", packs, REMAP_MAX_GAMEPADS);
     else
@@ -1490,7 +1527,7 @@ static void Remap_CreateIconPackButtons(HWND hWnd, RemapPanelState* st, HINSTANC
     st->packLabels.push_back(lbl);
 
     HWND removeBtn = nullptr;
-    if (packIdx > 0)
+    if (packIdx >= 0)
     {
         int removeX = startX + S(hWnd, 98);
         removeBtn = CreateWindowW(L"BUTTON", L"",
@@ -1543,7 +1580,7 @@ static void Remap_DestroyPackControls(RemapPanelState* st)
 static void Remap_RebuildGamepadPacks(HWND hWnd, RemapPanelState* st, HINSTANCE hInst, HFONT hFont, int newCount)
 {
     if (!st) return;
-    newCount = std::clamp(newCount, 1, REMAP_MAX_GAMEPADS);
+    newCount = std::clamp(newCount, 0, REMAP_MAX_GAMEPADS);
 
     Remap_DestroyPackControls(st);
     st->iconsPerPack = RemapIcons_Count();
@@ -1601,11 +1638,16 @@ static int Remap_RecalcContentHeight(HWND hWnd, RemapPanelState* st)
     const int btnH = btnW;
     const int gapY = S(hWnd, ICON_GAP_Y);
     const int rowsPerPack = 2;
-    const int packs = std::max(1, st->gamepadPacks);
+    const int packs = std::max(0, st->gamepadPacks);
 
     const int iconsHeight = headerH + rowsPerPack * btnH + (rowsPerPack - 1) * gapY;
     const int packStrideY = iconsHeight + packGapY;
-    const int contentBottom = startY + (packs - 1) * packStrideY + iconsHeight + S(hWnd, 16);
+    int contentBottom = startY + packs * packStrideY;
+#ifndef HALLJOY_DISABLE_MIDI
+    if (halljoy::midi::Get()->enabled)
+        contentBottom += S(hWnd, kMidiPaletteTop) + rowsPerPack * btnH + gapY + S(hWnd, 38);
+#endif
+    contentBottom = std::max(contentBottom, S(hWnd, 124));
 
     st->contentHeight = std::max(contentBottom, clientH);
     return st->contentHeight;
@@ -1774,9 +1816,11 @@ static bool Remap_AddGamepadPack(HWND hWnd, RemapPanelState* st, HINSTANCE hInst
     int newCount = std::clamp(st->gamepadPacks + 1, 1, REMAP_MAX_GAMEPADS);
     int newPadIndex = newCount - 1;
     int styleForNewPad = Remap_PickUnusedStyleVariant(st->gamepadPacks);
-    Bindings_SetPadStyleVariant(newPadIndex, styleForNewPad);
+    if (st->gamepadPacks > 0) Bindings_SetPadStyleVariant(newPadIndex, styleForNewPad);
     Settings_SetVirtualGamepadCount(newCount);
     Backend_SetVirtualGamepadCount(newCount);
+    Settings_SetVirtualGamepadsEnabled(true);
+    Backend_SetVirtualGamepadsEnabled(true);
 
     Remap_RebuildGamepadPacksBatched(hWnd, st, hInst, hFont, newCount);
 
@@ -1787,6 +1831,188 @@ static bool Remap_AddGamepadPack(HWND hWnd, RemapPanelState* st, HINSTANCE hInst
     return true;
 }
 
+#ifndef HALLJOY_DISABLE_MIDI
+static int Remap_MidiTop(HWND hWnd, RemapPanelState* st)
+{
+    const int size = S(hWnd, (int)Settings_GetRemapButtonSizePx());
+    const int stride = S(hWnd, 22) + 2 * size + S(hWnd, ICON_GAP_Y) + S(hWnd, 16);
+    return S(hWnd, 124) + st->gamepadPacks * stride;
+}
+
+static RECT Remap_MidiRect(HWND hWnd, RemapPanelState* st, int id)
+{
+    const int top = Remap_MidiTop(hWnd, st);
+    if (id == REMAP_ID_REMOVE_MIDI) return RECT{S(hWnd, 122), top, S(hWnd, 144), top + S(hWnd, 22)};
+    if (id == REMAP_ID_MIDI_PRESET) return RECT{S(hWnd, 154), top, S(hWnd, 292), top + S(hWnd, 24)};
+    if (id == REMAP_ID_MIDI_PANIC) return RECT{S(hWnd, 302), top, S(hWnd, 382), top + S(hWnd, 24)};
+    if (id == REMAP_ID_MIDI_PORT) return RECT{S(hWnd, 74), top + S(hWnd, 52), S(hWnd, 430), top + S(hWnd, 80)};
+    if (id == REMAP_ID_MIDI_REFRESH) return RECT{S(hWnd, 440), top + S(hWnd, 52), S(hWnd, 550), top + S(hWnd, 80)};
+    if (id == REMAP_ID_MIDI_CHANNEL) return RECT{S(hWnd, 74), top + S(hWnd, 86), S(hWnd, 204), top + S(hWnd, 114)};
+    if (id == REMAP_ID_MIDI_OCTAVE) return RECT{S(hWnd, 266), top + S(hWnd, 86), S(hWnd, 430), top + S(hWnd, 114)};
+    if (id == REMAP_ID_MIDI_SETTINGS) return RECT{S(hWnd, 392), top, S(hWnd, 550), top + S(hWnd, 24)};
+    return {};
+}
+
+static RECT Remap_MidiIconRect(HWND hWnd, RemapPanelState* st, int local)
+{
+    const int size = S(hWnd, (int)Settings_GetRemapButtonSizePx());
+    const int x = S(hWnd, 12) + (local % ICON_COLS) * (size + S(hWnd, ICON_GAP_X));
+    const int y = Remap_MidiTop(hWnd, st) + S(hWnd, kMidiPaletteTop) + (local / ICON_COLS) * (size + S(hWnd, ICON_GAP_Y));
+    return RECT{x, y, x + size, y + size};
+}
+
+static HWND Remap_MidiCombo(RemapPanelState* st, int id)
+{
+    if (id == REMAP_ID_MIDI_CHANNEL) return st->midiChannel;
+    if (id == REMAP_ID_MIDI_OCTAVE) return st->midiOctave;
+    if (id == REMAP_ID_MIDI_PORT) return st->midiPort;
+    return nullptr;
+}
+
+static void Remap_CloseMidiCombos(RemapPanelState* st)
+{
+    if (!st) return;
+    for (HWND combo : {st->midiChannel, st->midiOctave, st->midiPort}) {
+        if (!combo) continue;
+        PremiumCombo::ShowDropDown(combo, false);
+        ShowWindow(combo, SW_HIDE);
+    }
+}
+
+static void Remap_RefreshMidiPorts(RemapPanelState* st)
+{
+    st->midiPorts = MidiOutput_Ports();
+    PremiumCombo::Clear(st->midiPort);
+    PremiumCombo::AddString(st->midiPort, L"Monitor only - no output port");
+    const auto config = halljoy::midi::Get();
+    int selection = 0;
+    for (std::size_t i = 0; i < st->midiPorts.size(); ++i) {
+        const auto label = st->midiPorts[i].name + (st->midiPorts[i].ambiguous ? L" (ambiguous)" : L"");
+        PremiumCombo::AddString(st->midiPort, label.c_str());
+        if (config->port == st->midiPorts[i].name) selection = static_cast<int>(i + 1);
+    }
+    if (!config->port.empty() && !selection) {
+        st->midiPorts.push_back({config->port, false});
+        PremiumCombo::AddString(st->midiPort, (config->port + L" (unavailable)").c_str());
+        selection = static_cast<int>(st->midiPorts.size());
+    }
+    PremiumCombo::SetCurSel(st->midiPort, selection, false);
+}
+
+static void Remap_SyncMidi(HWND hWnd, RemapPanelState* st)
+{
+    const auto config = halljoy::midi::Get();
+    const bool rebuild = !st->displayedMidi || config->enabled != st->displayedMidi->enabled ||
+        config->paletteOctave != st->displayedMidi->paletteOctave ||
+        config->paletteChannel != st->displayedMidi->paletteChannel;
+    if (rebuild) {
+        for (HWND icon : st->midiIcons) if (icon) DestroyWindow(icon);
+        st->midiIcons.clear();
+        if (config->enabled) for (int local = 0; local < REMAP_MIDI_ICONS; ++local) {
+            const unsigned note = (config->paletteOctave + 1) * 12 + local;
+            if (note >= 128) break;
+            const unsigned address = config->paletteChannel * 128 + note;
+            HWND button = CreateWindowW(L"BUTTON", L"", WS_CHILD | BS_OWNERDRAW, 0, 0, 1, 1,
+                hWnd, (HMENU)(INT_PTR)(REMAP_MIDI_ICON_BASE + local),
+                (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE), nullptr);
+            SetWindowLongPtrW(button, GWLP_USERDATA, RemapIcons_Count() + address);
+            SetWindowSubclass(button, IconSubclassProc, 1, (DWORD_PTR)BindingAction_Midi(address));
+            st->midiIcons.push_back(button);
+        }
+    }
+    if (config->enabled && (!st->displayedMidi || !st->displayedMidi->enabled ||
+        st->displayedMidi->port != config->port)) Remap_RefreshMidiPorts(st);
+    PremiumCombo::SetCurSel(st->midiChannel, config->paletteChannel, false);
+    PremiumCombo::SetCurSel(st->midiOctave, config->paletteOctave + 1, false);
+    st->displayedMidi = config;
+}
+
+static void Remap_InitMidiCombos(HWND hWnd, RemapPanelState* st)
+{
+    const auto create = [&](int id) {
+        HWND combo = PremiumCombo::Create(hWnd, (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE),
+            0, 0, 10, 10, id, WS_CHILD | WS_TABSTOP);
+        PremiumCombo::SetFont(combo, (HFONT)GetStockObject(SYSTEM_FONT), false);
+        PremiumCombo::SetDropMaxVisible(combo, 10);
+        ShowWindow(combo, SW_HIDE);
+        return combo;
+    };
+    st->midiChannel = create(REMAP_ID_MIDI_CHANNEL);
+    st->midiOctave = create(REMAP_ID_MIDI_OCTAVE);
+    st->midiPort = create(REMAP_ID_MIDI_PORT);
+    for (int i = 0; i < 16; ++i) {
+        const auto text = L"Channel " + std::to_wstring(i + 1);
+        PremiumCombo::AddString(st->midiChannel, text.c_str());
+    }
+    for (int i = -1; i <= 9; ++i) {
+        const auto text = halljoy::midi::NoteName((i + 1) * 12) + L" and above";
+        PremiumCombo::AddString(st->midiOctave, text.c_str());
+    }
+    Remap_SyncMidi(hWnd, st);
+}
+
+static void Remap_RenderMidi(HWND hWnd, HDC hdc, const RECT& full, RemapPanelState* st)
+{
+    if (!halljoy::midi::Get()->enabled) return;
+    Graphics g(hdc);
+    g.SetSmoothingMode(SmoothingModeHighQuality);
+    const int size = S(hWnd, (int)Settings_GetRemapButtonSizePx());
+    const int top = Remap_MidiTop(hWnd, st);
+    RECT card{S(hWnd, 8), top - S(hWnd, 2), full.right - S(hWnd, 22),
+        top + S(hWnd, kMidiPaletteTop) + 2 * size + S(hWnd, ICON_GAP_Y) + S(hWnd, 30)};
+    CustomPage_DrawRoundRect(g, card, LerpColor(UiTheme::Color_PanelBg(), RGB(178, 150, 240), 0.10f),
+        LerpColor(UiTheme::Color_Border(), RGB(178, 150, 240), 0.36f), (float)S(hWnd, 10), 232);
+    RECT title{S(hWnd, 12), top, S(hWnd, 118), top + S(hWnd, 22)};
+    CustomPage_DrawText(hdc, L"MIDI device", title, UiTheme::Color_Text(), DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    RECT power = Remap_MidiRect(hWnd, st, REMAP_ID_REMOVE_MIDI);
+    CustomPage_DrawRoundRect(g, power, RGB(52, 44, 62), UiTheme::Color_Border(), (float)S(hWnd, 5));
+    DrawDisableGamepadPowerGlyph(hWnd, hdc, power, UiTheme::Color_Text());
+    RECT preset = Remap_MidiRect(hWnd, st, REMAP_ID_MIDI_PRESET);
+    CustomPage_DrawButton(g, hdc, preset, L"Piano preset...",
+        st->hotItem == REMAP_ID_MIDI_PRESET, st->pressedItem == REMAP_ID_MIDI_PRESET, true);
+    RECT info{S(hWnd, 12), top + S(hWnd, 27), full.right - S(hWnd, 30), top + S(hWnd, 48)};
+    const auto midiStatus = MidiOutput_Status();
+    CustomPage_DrawText(hdc, midiStatus.c_str(), info, UiTheme::Color_TextMuted(),
+        DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    RECT portLabel{S(hWnd, 12), top + S(hWnd, 52), S(hWnd, 72), top + S(hWnd, 80)};
+    CustomPage_DrawText(hdc, L"Output", portLabel, UiTheme::Color_Text(), DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    for (int id : {REMAP_ID_MIDI_REFRESH, REMAP_ID_MIDI_PANIC}) {
+        const RECT rect = Remap_MidiRect(hWnd, st, id);
+        CustomPage_DrawButton(g, hdc, rect, id == REMAP_ID_MIDI_REFRESH ? L"Refresh ports" : L"Panic",
+            st->hotItem == id, st->pressedItem == id, true);
+    }
+    const RECT settings = Remap_MidiRect(hWnd, st, REMAP_ID_MIDI_SETTINGS);
+    CustomPage_DrawButton(g, hdc, settings, L"Touch settings...",
+        st->hotItem == REMAP_ID_MIDI_SETTINGS, st->pressedItem == REMAP_ID_MIDI_SETTINGS, true);
+    RECT channelLabel{S(hWnd, 12), top + S(hWnd, 86), S(hWnd, 72), top + S(hWnd, 114)};
+    CustomPage_DrawText(hdc, L"Notes", channelLabel, UiTheme::Color_Text(), DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    RECT octaveLabel{S(hWnd, 214), top + S(hWnd, 86), S(hWnd, 264), top + S(hWnd, 114)};
+    CustomPage_DrawText(hdc, L"Range", octaveLabel, UiTheme::Color_Text(), DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    for (int id : {REMAP_ID_MIDI_CHANNEL, REMAP_ID_MIDI_OCTAVE, REMAP_ID_MIDI_PORT}) {
+        RECT rect = Remap_MidiRect(hWnd, st, id);
+        PremiumCombo::PaintRetainedFace(Remap_MidiCombo(st, id), hdc, rect, st->hotItem == id);
+    }
+    for (int local = 0; local < (int)st->midiIcons.size(); ++local) {
+        RECT rect = Remap_MidiIconRect(hWnd, st, local);
+        const bool source = st->dragSrcIconBtn == st->midiIcons[local];
+        const float scale = source && (st->dragging || st->postMode == RemapPostAnimMode::FlyBack)
+            ? std::clamp(st->srcIconScale, 0.0f, 1.0f) : 1.0f;
+        const int drawSize = std::clamp((int)std::lround(size * scale), 0, size);
+        if (drawSize <= 1) continue;
+        const int index = (int)GetWindowLongPtrW(st->midiIcons[local], GWLP_USERDATA);
+        CachedGlyph* glyph = Icon_GetOrCreate(index, size, false, 0.135f, 0);
+        if (glyph && glyph->dc) {
+            BLENDFUNCTION blend{ AC_SRC_OVER, 0, 255, AC_SRC_ALPHA };
+            AlphaBlend(hdc, rect.left + (size - drawSize) / 2, rect.top + (size - drawSize) / 2,
+                drawSize, drawSize, glyph->dc, 0, 0, size, size, blend);
+        }
+    }
+    RECT footer{S(hWnd, 12), card.bottom - S(hWnd, 25), full.right - S(hWnd, 30), card.bottom - S(hWnd, 3)};
+    CustomPage_DrawText(hdc, L"Drag notes onto keyboard keys. Open Touch settings for the live response graph.",
+        footer, UiTheme::Color_TextMuted(), DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+}
+
+#endif
 static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st)
 {
     if (!st) return;
@@ -1799,6 +2025,16 @@ static void ApplyRemapSizing(HWND hWnd, RemapPanelState* st)
     if (st->hGhost)
         Ghost_EnsureSurfaceAndResetCache(st);
 
+    const int savedPacks = Settings_GetVirtualGamepadsEnabled() ?
+        std::clamp(Settings_GetVirtualGamepadCount(), 1, REMAP_MAX_GAMEPADS) : 0;
+    if (st->gamepadPacks != savedPacks)
+        Remap_RebuildGamepadPacks(hWnd, st, (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE),
+            (HFONT)GetStockObject(DEFAULT_GUI_FONT), savedPacks);
+#ifndef HALLJOY_DISABLE_MIDI
+    Remap_CloseMidiCombos(st);
+    Remap_SyncMidi(hWnd, st);
+#endif
+    Remap_UpdateAddGamepadButtonText(st);
     HWND retainedOnly[] = { st->txtHelp, st->btnAddGamepad };
     for (HWND child : retainedOnly)
         if (child) ShowWindow(child, SW_HIDE);
@@ -1999,9 +2235,7 @@ static void Remap_RenderCacheContent(HWND hWnd, HDC hdc, const RECT& full, void*
 
     RECT help{ S(hWnd, 12), S(hWnd, 10), full.right - S(hWnd, 24), S(hWnd, 66) };
     CustomPage_DrawText(hdc,
-        L"Drag and drop a gamepad control onto a keyboard key to bind.\n"
-        L"Hold Shift while dropping on a key to add another action from the same gamepad.\n"
-        L"Right click a key on the keyboard to unbind.",
+        kRemapHelp,
         help, UiTheme::Color_Text(), DT_LEFT | DT_TOP | DT_WORDBREAK);
 
     RECT add{ S(hWnd, 12), S(hWnd, 70), S(hWnd, 222), S(hWnd, 98) };
@@ -2012,6 +2246,14 @@ static void Remap_RenderCacheContent(HWND hWnd, HDC hdc, const RECT& full, void*
         swprintf_s(addText, L"Max Gamepads (%d/%d)", st->gamepadPacks, REMAP_MAX_GAMEPADS);
     CustomPage_DrawButton(g, hdc, add, addText, st->hotItem == REMAP_ID_ADD_GAMEPAD,
         st->pressedItem == REMAP_ID_ADD_GAMEPAD, st->gamepadPacks < REMAP_MAX_GAMEPADS);
+
+#ifndef HALLJOY_DISABLE_MIDI
+    RECT addMidi{ S(hWnd, 232), S(hWnd, 70), S(hWnd, 442), S(hWnd, 98) };
+    const bool hasMidi = halljoy::midi::Get()->enabled;
+    CustomPage_DrawButton(g, hdc, addMidi, hasMidi ? L"MIDI Device (1/1)" : L"Add MIDI Device",
+        st->hotItem == REMAP_ID_ADD_MIDI, st->pressedItem == REMAP_ID_ADD_MIDI, !hasMidi);
+    Remap_RenderMidi(hWnd, hdc, full, st);
+#endif
 
     const int perPack = std::max(1, st->iconsPerPack);
     const int size = S(hWnd, (int)Settings_GetRemapButtonSizePx());
@@ -2033,7 +2275,7 @@ static void Remap_RenderCacheContent(HWND hWnd, HDC hdc, const RECT& full, void*
         RECT titleRc{ S(hWnd, 12), packTop, S(hWnd, 78), packTop + headerH };
         CustomPage_DrawText(hdc, title, titleRc, UiTheme::Color_Text(),
             DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-        if (pack > 0)
+        if (pack >= 0)
         {
             RECT remove = Remap_RemoveRectContent(hWnd, st, pack);
             CustomPage_DrawRoundRect(g, remove, Remap_GetPackTileColor(st, pack, false),
@@ -2076,7 +2318,21 @@ static int Remap_HitTestContent(HWND hWnd, RemapPanelState* st, POINT clientPoin
     RECT add{ S(hWnd, 12), S(hWnd, 70), S(hWnd, 222), S(hWnd, 98) };
     if (PtInRect(&add, pt) && st->gamepadPacks < REMAP_MAX_GAMEPADS)
         return REMAP_ID_ADD_GAMEPAD;
-    for (int pack = 1; pack < st->gamepadPacks; ++pack)
+#ifndef HALLJOY_DISABLE_MIDI
+    RECT addMidi{ S(hWnd, 232), S(hWnd, 70), S(hWnd, 442), S(hWnd, 98) };
+    if (PtInRect(&addMidi, pt) && !halljoy::midi::Get()->enabled) return REMAP_ID_ADD_MIDI;
+    if (halljoy::midi::Get()->enabled) {
+        for (int id : {REMAP_ID_REMOVE_MIDI, REMAP_ID_MIDI_PRESET, REMAP_ID_MIDI_SETTINGS, REMAP_ID_MIDI_CHANNEL, REMAP_ID_MIDI_OCTAVE, REMAP_ID_MIDI_PORT, REMAP_ID_MIDI_REFRESH, REMAP_ID_MIDI_PANIC}) {
+            RECT rect = Remap_MidiRect(hWnd, st, id);
+            if (PtInRect(&rect, pt)) return id;
+        }
+        for (int local = 0; local < (int)st->midiIcons.size(); ++local) {
+            RECT rect = Remap_MidiIconRect(hWnd, st, local);
+            if (PtInRect(&rect, pt)) return REMAP_MIDI_ICON_BASE + local;
+        }
+    }
+#endif
+    for (int pack = 0; pack < st->gamepadPacks; ++pack)
     {
         RECT remove = Remap_RemoveRectContent(hWnd, st, pack);
         if (PtInRect(&remove, pt)) return REMAP_ID_REMOVE_GAMEPAD_BASE + pack;
@@ -2111,6 +2367,33 @@ static bool Remap_BeginRetainedIconDrag(HWND hWnd, RemapPanelState* st, int flat
     return true;
 }
 
+#ifndef HALLJOY_DISABLE_MIDI
+static bool Remap_BeginMidiDrag(HWND hWnd, RemapPanelState* st, int local)
+{
+    if (!st || local < 0 || local >= (int)st->midiIcons.size()) return false;
+    HWND controller = st->midiIcons[local];
+    RECT view = CustomPageSurface_ContentToClient(&st->surface, Remap_MidiIconRect(hWnd, st, local));
+    SetWindowPos(controller, nullptr, view.left, view.top,
+        std::max(1L, view.right - view.left), std::max(1L, view.bottom - view.top),
+        SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW);
+    SendMessageW(controller, WM_LBUTTONDOWN, MK_LBUTTON, 0);
+    CustomPageSurface_MarkDirty(hWnd, &st->surface);
+    return true;
+}
+
+static void Remap_OpenMidiCombo(HWND hWnd, RemapPanelState* st, int id)
+{
+    HWND combo = Remap_MidiCombo(st, id);
+    if (!combo) return;
+    Remap_CloseMidiCombos(st);
+    RECT view = CustomPageSurface_ContentToClient(&st->surface, Remap_MidiRect(hWnd, st, id));
+    SetWindowPos(combo, HWND_TOP, view.left, view.top, view.right - view.left, view.bottom - view.top,
+        SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    SetFocus(combo);
+    PremiumCombo::ShowDropDown(combo, true);
+}
+
+#endif
 static void PaintPanelBg(HWND hWnd, UINT msg, WPARAM wParam, RemapPanelState* st)
 {
     if (st)
@@ -2199,6 +2482,10 @@ static void ApplyBindingNow(HWND hWnd, RemapPanelState* st, uint16_t newHid, boo
 // ---------------- Icon subclass (start drag) ----------------
 static bool Remap_HasAnyBindings()
 {
+#ifndef HALLJOY_DISABLE_MIDI
+    const auto midi = halljoy::midi::Get();
+    if (midi->enabled) for (const auto key : midi->keys) if (key) return true;
+#endif
     // Query storage, not the visible layout: hidden keys and inactive pads count.
     for (int pad = 0; pad < BINDINGS_MAX_GAMEPADS; ++pad)
     {
@@ -2324,7 +2611,7 @@ static LRESULT CALLBACK IconSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, LPA
             {
                 int ctrlId = GetDlgCtrlID(hBtn);
                 int packIdx = (ctrlId - REMAP_ICON_ID_BASE) / REMAP_ICON_ID_PACK_STRIDE;
-                st->dragPadIndex = std::clamp(packIdx, 0, REMAP_MAX_GAMEPADS - 1);
+                st->dragPadIndex = BindingAction_IsMidi(st->dragAction) ? 0 : std::clamp(packIdx, 0, REMAP_MAX_GAMEPADS - 1);
             }
 
             st->hoverHid = 0;
@@ -2384,6 +2671,39 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
     if (msg == WM_MOUSEWHEEL || msg == WM_VSCROLL || msg == WM_CANCELMODE)
         Remap_StopBindingHint(hWnd, st);
 
+#ifndef HALLJOY_DISABLE_MIDI
+    if (msg == WM_MOUSEWHEEL || msg == WM_VSCROLL || msg == WM_CANCELMODE ||
+        msg == WM_SIZE || (msg == WM_SHOWWINDOW && !wParam)) Remap_CloseMidiCombos(st);
+    if (msg == PremiumCombo::MsgDropStateChanged()) {
+        if (st && !wParam) {
+            ShowWindow((HWND)lParam, SW_HIDE);
+            CustomPageSurface_MarkDirty(hWnd, &st->surface);
+        }
+        return 0;
+    }
+    if (msg == WM_COMMAND && st && HIWORD(wParam) == CBN_SELCHANGE) {
+        const int id = LOWORD(wParam);
+        HWND combo = Remap_MidiCombo(st, id);
+        if (combo && combo == (HWND)lParam) {
+            const int selection = PremiumCombo::GetCurSel(combo);
+            if (selection < 0) return 0;
+            StopAllPanelAnim_Immediate(hWnd, st);
+            halljoy::midi::Edit([&](halljoy::midi::Profile& value) {
+                if (id == REMAP_ID_MIDI_CHANNEL) value.paletteChannel = std::clamp(selection, 0, 15);
+                else if (id == REMAP_ID_MIDI_OCTAVE) value.paletteOctave = std::clamp(selection - 1, -1, 9);
+                else if (id == REMAP_ID_MIDI_PORT) {
+                    if (selection == 0) value.port.clear();
+                    else if (selection <= (int)st->midiPorts.size() && !st->midiPorts[selection - 1].ambiguous)
+                        value.port = st->midiPorts[selection - 1].name;
+                }
+            });
+            KeyboardUI_SaveBindingsAfterUserChange(hWnd);
+            ApplyRemapSizing(hWnd, st);
+            return 0;
+        }
+    }
+
+#endif
     switch (msg)
     {
     case WM_ERASEBKGND: return 1;
@@ -2416,9 +2736,21 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         return (LRESULT)UiTheme::Brush_PanelBg();
     }
 
+#ifndef HALLJOY_DISABLE_MIDI
+    case WM_APP + 43:
+        if (st) CustomPageSurface_MarkDirty(hWnd, &st->surface);
+        return 0;
+#endif
+
     case WM_APP_REMAP_APPLY_SETTINGS:
+        if (st) StopAllPanelAnim_Immediate(hWnd, st);
         Remap_StopBindingHint(hWnd, st);
-        if (st) ApplyRemapSizing(hWnd, st);
+        if (st) {
+            ApplyRemapSizing(hWnd, st);
+#ifndef HALLJOY_DISABLE_MIDI
+            if (st->hKeyboardHost) PostMessageW(st->hKeyboardHost, WM_APP_MIDI_SETTINGS_CHANGED, 0, 0);
+#endif
+        }
         return 0;
 
     case WM_SIZE:
@@ -2428,6 +2760,7 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
     case WM_SHOWWINDOW:
         if (!wParam) Remap_StopBindingHint(hWnd, st);
+        if (st && wParam) ApplyRemapSizing(hWnd, st);
         break;
 
     case WM_LBUTTONDOWN:
@@ -2445,6 +2778,16 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
                 return 0;
             }
             const int hit = Remap_HitTestContent(hWnd, st, pt);
+#ifndef HALLJOY_DISABLE_MIDI
+            if (hit >= REMAP_MIDI_ICON_BASE && hit < REMAP_MIDI_ICON_BASE + (int)st->midiIcons.size()) {
+                Remap_BeginMidiDrag(hWnd, st, hit - REMAP_MIDI_ICON_BASE);
+                return 0;
+            }
+            if (Remap_MidiCombo(st, hit)) {
+                Remap_OpenMidiCombo(hWnd, st, hit);
+                return 0;
+            }
+#endif
             if (Remap_IsRetainedIconHit(st, hit))
             {
                 Remap_BeginRetainedIconDrag(hWnd, st, hit - REMAP_ICON_ID_BASE);
@@ -2562,9 +2905,7 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
 
         st->txtHelp = CreateWindowW(L"STATIC",
-            L"Drag and drop a gamepad control onto a keyboard key to bind.\n"
-            L"Hold Shift while dropping on a key to add another action from the same gamepad.\n"
-            L"Right click a key on the keyboard to unbind.",
+            kRemapHelp,
             WS_CHILD | WS_VISIBLE,
             S(hWnd, 12), S(hWnd, 10), S(hWnd, 860), S(hWnd, 56),
             hWnd, nullptr, cs->hInstance, nullptr);
@@ -2576,12 +2917,19 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
             hWnd, (HMENU)(INT_PTR)REMAP_ID_ADD_GAMEPAD, cs->hInstance, nullptr);
         SendMessageW(st->btnAddGamepad, WM_SETFONT, (WPARAM)hFont, TRUE);
 
-        int savedPacks = std::clamp(Settings_GetVirtualGamepadCount(), 1, REMAP_MAX_GAMEPADS);
+        int savedPacks = Settings_GetVirtualGamepadsEnabled() ?
+            std::clamp(Settings_GetVirtualGamepadCount(), 1, REMAP_MAX_GAMEPADS) : 0;
         Remap_RebuildGamepadPacks(hWnd, st, cs->hInstance, hFont, savedPacks);
-        Settings_SetVirtualGamepadCount(st->gamepadPacks);
-        Settings_SetVirtualGamepadsEnabled(true);
-        Backend_SetVirtualGamepadCount(st->gamepadPacks);
-        Backend_SetVirtualGamepadsEnabled(true);
+#ifndef HALLJOY_DISABLE_MIDI
+        Remap_InitMidiCombos(hWnd, st);
+        g_remapNotifyWindow.store(hWnd, std::memory_order_release);
+        halljoy::midi::onChanged.store(+[]() noexcept {
+            if (HWND window = g_remapNotifyWindow.load(std::memory_order_acquire))
+                PostMessageW(window, WM_APP_REMAP_APPLY_SETTINGS, 0, 0);
+        }, std::memory_order_release);
+#endif
+        Backend_SetVirtualGamepadCount(Settings_GetVirtualGamepadCount());
+        Backend_SetVirtualGamepadsEnabled(Settings_GetVirtualGamepadsEnabled());
         Remap_UpdateAddGamepadButtonText(st);
 
         ApplyRemapSizing(hWnd, st);
@@ -2612,25 +2960,51 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
         if (st && HIWORD(wParam) == BN_CLICKED)
         {
             int id = (int)LOWORD(wParam);
+#ifndef HALLJOY_DISABLE_MIDI
+            if (id == REMAP_ID_MIDI_SETTINGS) {
+                if (st->hKeyboardHost) PostMessageW(st->hKeyboardHost, WM_APP_OPEN_MIDI_SETTINGS, 0, 0);
+                return 0;
+            }
+            if (id == REMAP_ID_MIDI_PANIC || id == REMAP_ID_MIDI_REFRESH) {
+                if (id == REMAP_ID_MIDI_PANIC) MidiOutput_Panic();
+                else { Remap_RefreshMidiPorts(st); MidiOutput_Retry(); }
+                CustomPageSurface_MarkDirty(hWnd, &st->surface);
+                return 0;
+            }
+            if (id == REMAP_ID_ADD_MIDI || id == REMAP_ID_REMOVE_MIDI || id == REMAP_ID_MIDI_PRESET) {
+                StopAllPanelAnim_Immediate(hWnd, st);
+                if (id == REMAP_ID_MIDI_PRESET && MessageBoxW(hWnd,
+                    L"Replace this MIDI device's note bindings with the QWERTY piano preset?\n"
+                    L"The selected channel and range will be used. Gamepad bindings are kept.",
+                    L"Piano preset", MB_OKCANCEL | MB_ICONQUESTION) != IDOK) return 0;
+                halljoy::midi::Edit([&](halljoy::midi::Profile& value) {
+                    if (id == REMAP_ID_MIDI_PRESET) halljoy::midi::PianoPreset(value);
+                    else value.enabled = id == REMAP_ID_ADD_MIDI;
+                });
+                KeyboardUI_SaveBindingsAfterUserChange(hWnd);
+                ApplyRemapSizing(hWnd, st);
+                if (st->hKeyboardHost) InvalidateRect(st->hKeyboardHost, nullptr, FALSE);
+                return 0;
+            }
+#endif
             if (id >= REMAP_ID_REMOVE_GAMEPAD_BASE && id < REMAP_ID_REMOVE_GAMEPAD_BASE + REMAP_MAX_GAMEPADS)
             {
                 int packIdx = id - REMAP_ID_REMOVE_GAMEPAD_BASE;
-                if (packIdx > 0 && packIdx < st->gamepadPacks)
+                if (packIdx >= 0 && packIdx < st->gamepadPacks)
                 {
                     HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
                     HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
-                    int newCount = std::clamp(st->gamepadPacks - 1, 1, REMAP_MAX_GAMEPADS);
-
-                    // Remove selected pad and keep following pads (shift left).
-                    Bindings_RemovePadAndCompact(packIdx, st->gamepadPacks);
+                    const int newCount = std::clamp(st->gamepadPacks - 1, 0, REMAP_MAX_GAMEPADS);
+                    // Disabling the last pad preserves its assignments for re-adding.
+                    if (newCount > 0) Bindings_RemovePadAndCompact(packIdx, st->gamepadPacks);
+                    Settings_SetVirtualGamepadCount(std::max(1, newCount));
+                    Backend_SetVirtualGamepadCount(std::max(1, newCount));
+                    Settings_SetVirtualGamepadsEnabled(newCount > 0);
+                    Backend_SetVirtualGamepadsEnabled(newCount > 0);
                     KeyboardUI_SaveBindingsAfterUserChange(hWnd);
-                    Settings_SetVirtualGamepadCount(newCount);
-                    Backend_SetVirtualGamepadCount(newCount);
 
                     Remap_RebuildGamepadPacksBatched(hWnd, st, hInst, hFont, newCount);
 
-                    Settings_SetVirtualGamepadCount(st->gamepadPacks);
-                    Backend_SetVirtualGamepadCount(st->gamepadPacks);
                     Remap_UpdateAddGamepadButtonText(st);
                     Remap_RequestSettingsSave(hWnd);
                     InvalidateRect(hWnd, nullptr, FALSE);
@@ -2749,11 +3123,20 @@ static LRESULT CALLBACK RemapPanelProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
     case WM_DESTROY:
         Remap_StopBindingHint(hWnd, st);
+#ifndef HALLJOY_DISABLE_MIDI
+        halljoy::midi::onChanged.store(nullptr, std::memory_order_release);
+        g_remapNotifyWindow.store(nullptr, std::memory_order_release);
+#endif
         KeyboardUI_SetDragHoverHid(0);
         if (st)
         {
             StopAllPanelAnim_Immediate(hWnd, st);
             Remap_DestroyPackControls(st);
+#ifndef HALLJOY_DISABLE_MIDI
+            Remap_CloseMidiCombos(st);
+            for (HWND icon : st->midiIcons) if (icon) DestroyWindow(icon);
+            st->midiIcons.clear();
+#endif
 
             if (st->hGhost)
             {
@@ -2826,3 +3209,26 @@ HWND RemapPanel_Create(HWND hParent, HINSTANCE hInst, HWND hKeyboardHost)
 }
 
 void RemapPanel_SetSelectedHid(uint16_t) {}
+
+#if defined(HALLJOY_ANALOG_SIMULATOR) && defined(HALLJOY_DISABLE_MIDI)
+#include "test_thread_desktop.h"
+bool RemapPanel_TestGamepadOnly() {
+    return halljoy::test_desktop::RunOnPrivateDesktop(L"HJ-GamepadOnlyRemap", [] {
+        const auto instance = GetModuleHandleW(nullptr);
+        HWND owner = CreateWindowW(L"STATIC", L"", WS_OVERLAPPEDWINDOW,
+            0, 0, 800, 600, nullptr, nullptr, instance, nullptr);
+        if (!owner) return false;
+        HWND panel = RemapPanel_Create(owner, instance, owner);
+        bool passed = false;
+        if (panel) {
+            SetWindowPos(panel, nullptr, 0, 0, 780, 540, SWP_NOZORDER);
+            auto* state = reinterpret_cast<RemapPanelState*>(GetWindowLongPtrW(panel, GWLP_USERDATA));
+            passed = state && Remap_HitTestContent(panel, state, {S(panel, 250), S(panel, 80)}) == 0 &&
+                (state->gamepadPacks == REMAP_MAX_GAMEPADS ||
+                 Remap_HitTestContent(panel, state, {S(panel, 80), S(panel, 80)}) == REMAP_ID_ADD_GAMEPAD);
+        }
+        DestroyWindow(owner);
+        return passed;
+    });
+}
+#endif

@@ -97,9 +97,13 @@ def validate_report(report):
     common.require(0 < len(keys) <= 512, 'Invalid key count')
     seen = set()
     for key in keys:
-        hid = common.integer(key['hid'], 1, 65535, 'hid')
-        common.require(hid not in seen, 'Duplicate HID')
-        seen.add(hid)
+        display_only = key.get('displayOnly', False)
+        common.require(type(display_only) is bool, 'Invalid display-only flag')
+        hid = common.integer(key['hid'], 0 if display_only else 1, 65535, 'hid')
+        common.require(not display_only or hid == 0, 'Display-only controls have no keyboard HID')
+        common.require(not hid or hid not in seen, 'Duplicate HID')
+        if hid:
+            seen.add(hid)
         common.label_text(key['label'])
         for field, lo, hi in [('x', 0, 4000), ('y', 0, 4000), ('w', 10, 600), ('h', 10, 600)]:
             common.integer(key[field], lo, hi, field)

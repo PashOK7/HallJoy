@@ -1,6 +1,17 @@
 {
   "aliases": [
     {
+      "kind": "legacy-driver-stream",
+      "board": 2634,
+      "vid": 12625,
+      "pid": 20521,
+      "canonical_vid": 12625,
+      "canonical_pid": 20528,
+      "model": "FREEWOLF F68",
+      "matrix_sha256": "d70d16c7d252b3930aa0cfa0968f47622a6b75439d63ff6614304cf1da31421b",
+      "tester_log_sha256": "5f71fc9f701039220d70f35ec024eef1ec8cf21aba57a07bb9ccbafdbc820ce9"
+    },
+    {
       "board": 2683,
       "vid": 12625,
       "pid": 20528,

@@ -10,6 +10,8 @@
 #include "irok_na87_protocol.h"
 #include "irok_na87_factory.h"
 #include "irok_hz94_profile.h"
+#include "irok_viper_profile.h"
+#include "irok_hz94_admission_cases.h"
 #include "native_layout_state.h"
 #include "physical_analog_state.h"
 #include "irok_na87_identity.h"
@@ -23,6 +25,7 @@
 #include "realtime_loop.h"
 #include "stability_trace.h"
 #include "support_log.h"
+#include "input_trace.h"
 #include "worker_exception_barrier.h"
 #include "worker_join_policy.h"
 
@@ -39,6 +42,7 @@
 #include <process.h>
 #include <string>
 #include <vector>
+#include <thread>
 
 #pragma comment(lib, "setupapi.lib")
 #pragma comment(lib, "hid.lib")
@@ -97,13 +101,66 @@ struct Proof
     irok_nd75::PositionToHid map{};
     bool useControlWrite = false;
     bool exclusive = false;
+    bool assignmentsKnown = true;
 };
 
 std::atomic<bool> g_prepared{ false }, g_running{ false }, g_stop{ false };
 std::atomic<bool> g_present{ false }, g_connected{ false };
 std::atomic<unsigned> g_diagnosticStatus{0};
 std::atomic<bool> g_ajazzPlaying{false};
-std::atomic<unsigned> g_hz94Pid{0};
+std::atomic<unsigned> g_physicalPid{0};
+std::atomic<bool> g_viperPlaying{false};
+struct ViperCurrentEvidence {
+    std::atomic<bool> valid{false};
+    std::atomic<unsigned> frames{0}, rows{0}, changes{0}, withoutEvent{0}, rejected{0};
+    std::atomic<unsigned> zeroReferences{0}, zeroReturns{0}, peak{0};
+    std::atomic<unsigned> ready{0}, referenceRises{0}, referenceReturns{0}, invalidRaw{0};
+    std::atomic<unsigned> fullChannels{0}, minReference{0}, maxReference{0}, minObserved{0}, maxObserved{0}, active{0};
+    std::atomic<std::uint64_t> samples{0}, releases{0};
+    std::atomic<unsigned> rawMinimum{0}, rawMaximum{0};
+    std::array<std::atomic<unsigned>,132> raw{}, reference{}, milli{}, assigned{}, observed{}, converted{};
+} g_viperEvidence;
+
+void WriteViperCurrentEvidence() noexcept
+{
+    if (!g_viperEvidence.valid.load(std::memory_order_acquire)) return;
+    char record[384]{};
+    _snprintf_s(record, sizeof(record), _TRUNCATE,
+        "evidence.witmod.viper_current revision=2 output=raw_matrix frames=%u rows=%02X changes=%u rejected=%u adc_min=%u adc_max=%u samples=%llu releases=%llu peak=%u active=%u per_field_sampling=1",
+        g_viperEvidence.frames.load(), g_viperEvidence.rows.load(), g_viperEvidence.changes.load(),
+        g_viperEvidence.rejected.load(), g_viperEvidence.rawMinimum.load(), g_viperEvidence.rawMaximum.load(),
+        static_cast<unsigned long long>(g_viperEvidence.samples.load()),
+        static_cast<unsigned long long>(g_viperEvidence.releases.load()),
+        g_viperEvidence.peak.load(), g_viperEvidence.active.load());
+    SupportLog_Evidence(record, false);
+    _snprintf_s(record, sizeof(record), _TRUNCATE,
+        "evidence.witmod.viper_range source=raw_matrix calibrated=0 model=factory150_observed_max convertible=%u ref_rises=%u ref_returns=%u full_channels=%u ref_min=%u ref_max=%u observed_min=%u observed_max=%u invalid=%u active=%u",
+        g_viperEvidence.ready.load(), g_viperEvidence.referenceRises.load(), g_viperEvidence.referenceReturns.load(),
+        g_viperEvidence.fullChannels.load(), g_viperEvidence.minReference.load(), g_viperEvidence.maxReference.load(),
+        g_viperEvidence.minObserved.load(), g_viperEvidence.maxObserved.load(), g_viperEvidence.invalidRaw.load(), g_viperEvidence.active.load());
+    SupportLog_Evidence(record, false);
+    // Existing bound-input trace exception only. All other keys remain private.
+    // Cache reads are per-field, not one atomic hardware snapshot.
+    for(unsigned p=0;p<132;++p) {
+        if(!g_viperEvidence.observed[p].load(std::memory_order_acquire))continue;
+        const auto physical=irok_hz94::HostCode(irok_viper::kFactoryMap[p]);
+        const auto assigned=g_viperEvidence.assigned[p].load();
+        const auto bound=InputTrace_IsBound(physical)?physical:InputTrace_IsBound(static_cast<std::uint16_t>(assigned))?assigned:0;
+        if(!bound)continue;
+        _snprintf_s(record,sizeof(record),_TRUNCATE,
+            "trace.viper_matrix hid=%x row=%u col=%u adc=%u reference_scaled=%u lower_scaled=150 milli=%u converted=%u calibrated=0 per_field_sampling=1",
+            bound,p/22,p%22,g_viperEvidence.raw[p].load(),g_viperEvidence.reference[p].load(),g_viperEvidence.milli[p].load(),g_viperEvidence.converted[p].load());
+        SupportLog_Trace(record);
+    }
+}
+constexpr auto kViperLayout = halljoy::layout_identity::Token("witmod-viper", "GK8163HERGB-ANSI");
+
+const irok_nd75::PositionToHid* PhysicalFactory(const irok_nd75::DeviceInfo& identity) noexcept
+{
+    if (irok_viper::Matches(identity)) return &irok_viper::kFactoryMap;
+    if (irok_hz94::Matches(identity)) return &irok_hz94::kFactoryMap;
+    return nullptr;
+}
 constexpr auto kHz94Layout = halljoy::layout_identity::Token("witmod-hz94", "7187-AUSHERGB-ANSI");
 static_assert(kHz94Layout != 0);
 
@@ -154,7 +211,8 @@ std::string Identifier(std::string_view field)
 
 std::uint64_t StreamLayout() noexcept
 {
-    return g_hz94Pid.load(std::memory_order_acquire) ? kHz94Layout : irok_na87::kAnsiLayoutToken;
+    if (g_viperPlaying.load(std::memory_order_acquire)) return kViperLayout;
+    return g_physicalPid.load(std::memory_order_acquire) ? kHz94Layout : irok_na87::kAnsiLayoutToken;
 }
 std::mutex g_serviceMutex, g_handleMutex;
 HANDLE g_thread = nullptr, g_wake = nullptr;
@@ -490,7 +548,7 @@ bool ReceiveIdentity(Session& session, irok_nd75::DeviceInfo* out)
         }
         *out = parsed;
         const bool hz94 = irok_hz94::Matches(*out);
-        const bool accepted = hz94 || (device.attributes.ProductID == kProductId &&
+        const bool accepted = hz94 || irok_viper::Matches(*out) || (device.attributes.ProductID == kProductId &&
             (irok_na87::IsExpectedDevice(*out) || IsAjazzRgb(*out)
 #if defined(HALLJOY_AJAZZ_DIAGNOSTIC)
             || (std::strcmp(out->controller.data(), "M484") == 0 &&
@@ -501,6 +559,7 @@ bool ReceiveIdentity(Session& session, irok_nd75::DeviceInfo* out)
         WitmodEvidence(device, "identity", false, "controller=%s product=%s firmware=%s hz94=%u accepted=%u",
             Identifier(out->controller.data()).c_str(), Identifier(out->product.data()).c_str(),
             Identifier(out->firmware.data()).c_str(), unsigned(hz94), unsigned(accepted));
+        if (!accepted) WitmodEvidence(device, "proof_refused", false, "stage=identity reason=foreign_model");
         return accepted;
     }
     if (!g_stop.load(std::memory_order_acquire))
@@ -508,13 +567,13 @@ bool ReceiveIdentity(Session& session, irok_nd75::DeviceInfo* out)
     return false;
 }
 
-bool ReceiveCapability(Session& session, irok_nd75::CapabilityInfo* out)
+bool ReceiveCapability(Session& session, irok_nd75::CapabilityInfo* out, bool metadataOnly=false)
 {
     if (g_stop.load(std::memory_order_acquire)) return false;
     const auto& device = session.Device();
     if (!session.Send(irok_nd75::BuildCapabilityRequest())) {
         WitmodEvidence(device, "capability_write", false, "opcode=21 sub=04 win32=%lu", GetLastError());
-        return false;
+        return metadataOnly && !g_stop.load();
     }
     const auto deadline = GetTickCount64() + kProofTimeoutMs;
     irok_nd75::Report report{};
@@ -525,41 +584,84 @@ bool ReceiveCapability(Session& session, irok_nd75::CapabilityInfo* out)
             WitmodEvidence(device, "capability", false, "value=%u decoded=1", unsigned(out->sensitivity));
             return true;
         }
-        if (report[0] == 1 && report[1] == 0x21 && report[6] == 0x04)
+        if (report[0] == 1 && report[1] == 0x21 && report[6] == 0x04) {
             WitmodEvidence(device, "capability", false, "value=%u decoded=0", unsigned(report[7]));
+            if (metadataOnly) {
+                WitmodEvidence(device,"capability_metadata",false,"observed=%u action=continue source=raw_matrix",unsigned(report[7]));
+                return true;
+            }
+            if (report[5] >= 2 && report[7] > irok_nd75::kNominalTravelMaximum) {
+                WitmodEvidence(device, "proof_refused", false,
+                    "stage=capability reason=unsupported_scale observed=%u expected=40", unsigned(report[7]));
+                return false;
+            }
+        }
         ++replies;
     }
     if (!g_stop.load(std::memory_order_acquire))
         WitmodEvidence(device, "capability_timeout", false, "opcode=21 sub=04 replies=%u", replies);
-    return false;
+    return metadataOnly && !g_stop.load();
 }
 
 bool ReceiveMap(Session& session, irok_nd75::PositionToHid* map,
-    bool allowDuplicateHids = false, bool hz94 = false)
+    bool allowDuplicateHids = false, bool hz94 = false, bool* assignmentsKnown = nullptr,
+    const irok_nd75::PositionToHid* physicalFactory = nullptr)
 {
     const auto& device = session.Device();
+    const auto& factory = physicalFactory ? *physicalFactory : irok_hz94::kFactoryMap;
+    const auto channels = static_cast<unsigned>(irok_nd75::MappedKeyCount(factory));
     if (!session.Send(irok_na87::MapRequest())) {
         WitmodEvidence(device, "map_write", false, "opcode=10 win32=%lu", GetLastError());
         return false;
     }
-    irok_na87::MapReader reader(allowDuplicateHids);
+    irok_na87::MapReader reader(allowDuplicateHids, hz94);
     const auto deadline = GetTickCount64() + kProofTimeoutMs;
+    unsigned rejected = 0;
     while (!g_stop.load() && GetTickCount64() < deadline) {
         irok_nd75::Report report{};
-        if (session.Read(&report, 100)) reader.Feed(report);
+        if (session.Read(&report, 100)) {
+            if (!reader.Feed(report) && ++rejected <= 2)
+                WitmodEvidence(device, "map_reply", false,
+                    "decoded=0 id=%02X opcode=%02X status=%u size_field=%u row_hi=%u row_lo=%u",
+                    unsigned(report[0]), unsigned(report[1]), unsigned(report[2]),
+                    unsigned(report[5]), unsigned(report[3]), unsigned(report[4]));
+        } else {
+            const auto error = GetLastError();
+            if (IsDeviceLossError(error) || (error != WAIT_TIMEOUT && error != ERROR_TIMEOUT)) {
+                WitmodEvidence(device, "map_transport_failed", false, "stage=map win32=%lu", error);
+                return false;
+            }
+        }
         if (reader.Complete()) {
-            const auto geometry = irok_hz94::InspectMap(reader.Map());
+            const auto geometry = irok_hz94::InspectMap(reader.Map(), factory);
             WitmodEvidence(device, "map", false,
                 "rows=%02X assigned=%u hz94=%u factory_match=%u outside=%u",
                 reader.RowMask(), geometry.assigned, unsigned(hz94), geometry.factory, geometry.outside);
-            if (hz94 && !geometry.Admitted()) return false;
-            *map = reader.Map();
+            *map = hz94 ? irok_hz94::PhysicalAssignments(reader.Map(), factory) : reader.Map();
+            bool known = true;
+            if (hz94) for (std::size_t pos=0;pos<map->size();++pos)
+                if (factory[pos] && reader.Map()[pos] && !(*map)[pos]) known=false;
+            if (assignmentsKnown) *assignmentsKnown=known;
+            if (hz94) WitmodEvidence(device, "map_policy", false,
+                "revision=2 action=continue physical_channels=%u extras_ignored=%u unknown_assignments=%u assigned_aliases=%s",
+                channels, geometry.outside, geometry.unknown, known ? "available" : "unavailable");
             return true;
         }
         if (reader.Conflict()) break;
     }
+    if (!g_stop.load() && hz94) {
+        // Assignments are optional metadata for an independently proven physical
+        // matrix. Never guess partial aliases or veto the physical sensor stream.
+        map->fill(0);
+        if (assignmentsKnown) *assignmentsKnown=false;
+        WitmodEvidence(device, "map_unavailable", false,
+            "reason=%s rows=%02X rejected=%u action=continue physical_channels=%u assigned_aliases=unavailable",
+            reader.Conflict() ? "inconsistent_duplicate_row" : "incomplete_rows", reader.RowMask(), rejected, channels);
+        return true;
+    }
     if (!g_stop.load())
-        WitmodEvidence(device, "map_refused", false, "rows=%02X conflict=%u assignments=%zu",
+        WitmodEvidence(device, "map_refused", false, "stage=map reason=%s rows=%02X expected_rows=3F conflict=%u assignments=%zu",
+            reader.Conflict() ? "inconsistent_duplicate_row" : reader.RowMask() != 63 ? "incomplete_rows" : "invalid_assignment_contract",
             reader.RowMask(), unsigned(reader.Conflict()), irok_nd75::MappedKeyCount(reader.Map()));
     return false;
 }
@@ -574,9 +676,16 @@ bool Prove(const Candidate& candidate, Proof* out)
             g_foreignIdentity.push_back(candidate.path);
         return false;
     }
-    const bool hz94 = irok_hz94::Matches(proof.identity);
-    if (!ReceiveCapability(session, &proof.capability) || proof.capability.sensitivity != 40 ||
-        !ReceiveMap(session, &proof.map, !irok_na87::IsExpectedDevice(proof.identity), hz94)) return false;
+    const auto* factory = PhysicalFactory(proof.identity);
+    const bool viper=irok_viper::Matches(proof.identity);
+    if (!ReceiveCapability(session, &proof.capability,viper)) return false;
+    if (!viper && proof.capability.sensitivity != 40) {
+        WitmodEvidence(candidate, "proof_refused", false, "stage=capability reason=unsupported_scale observed=%u expected=40",
+            unsigned(proof.capability.sensitivity));
+        return false;
+    }
+    if (!ReceiveMap(session, &proof.map, !irok_na87::IsExpectedDevice(proof.identity), factory != nullptr, &proof.assignmentsKnown, factory)) return false;
+    WitmodEvidence(candidate, "proof_ready", false, "revision=2 identity=1 capability=1 map=1 next=subscribe");
     DebugLog_Write(L"[witmod.proof] pass identity_validated=1 mapped_positions=%llu scale=0..40",
         static_cast<unsigned long long>(irok_nd75::MappedKeyCount(proof.map)));
     if (out) *out = proof;
@@ -592,8 +701,10 @@ bool EnsureClaim(const Candidate& candidate, Proof* proof)
     if (!Prove(candidate, &validated)) return false;
     if (!NativeAnalogRouting_Claim(candidate.attributes.VendorID,
             candidate.attributes.ProductID, candidate.path.c_str(),
-            NativeAnalogProtocol::IrokNa87M484))
+            NativeAnalogProtocol::IrokNa87M484)) {
+        WitmodEvidence(candidate, "proof_refused", false, "stage=routing reason=interface_owned_elsewhere");
         return false;
+    }
     if (proof) *proof = validated;
     return true;
 }
@@ -601,7 +712,8 @@ bool EnsureClaim(const Candidate& candidate, Proof* proof)
 void Clear()
 {
     halljoy::native_layout::Clear(StreamLayout());
-    g_hz94Pid.store(0, std::memory_order_release);
+    g_physicalPid.store(0, std::memory_order_release);
+    g_viperPlaying.store(false, std::memory_order_release);
     const bool assignedChanged=g_assignedValues.Clear();
     bool changed=g_factoryValues.Clear() || assignedChanged;
     for (auto& value:g_positionMilli) value.store(0);
@@ -612,14 +724,16 @@ void Clear()
     if (changed) RealtimeLoop_NotifyInputChanged();
 }
 
-bool PublishOwnership(const irok_nd75::PositionToHid& map)
+bool PublishOwnership(const irok_nd75::PositionToHid& map, bool publishRemapping = true)
 {
-    const bool hz94 = g_hz94Pid.load() != 0;
+    const bool hz94 = g_physicalPid.load() != 0;
     constexpr auto na87Factory = irok_na87::FactoryMap();
-    const auto& factory = hz94 ? irok_hz94::kFactoryMap : na87Factory;
+    const auto& factory = g_viperPlaying.load() ? irok_viper::kFactoryMap :
+        hz94 ? irok_hz94::kFactoryMap : na87Factory;
     std::array<halljoy::native_layout::Key, irok_nd75::kMatrixSlots> keys{};
     std::size_t count = 0;
     for (std::size_t pos = 0; pos < map.size(); ++pos) {
+        if (hz94 && !factory[pos]) continue;
         const auto id = static_cast<std::uint8_t>(pos + 1);
         const std::uint16_t physical = hz94 ? irok_hz94::HostCode(factory[pos]) : factory[pos];
         const std::uint16_t assigned = hz94 ? irok_hz94::HostCode(map[pos]) : map[pos];
@@ -628,22 +742,15 @@ bool PublishOwnership(const irok_nd75::PositionToHid& map)
         if (map[pos]) g_owned[map[pos]].store(1, std::memory_order_relaxed);
         if (physical) keys[count++] = {physical, assigned};
     }
-    return halljoy::native_layout::Publish(StreamLayout(), keys.data(), count);
+    return publishRemapping && halljoy::native_layout::Publish(StreamLayout(), keys.data(), count);
 }
 
-void Publish(const irok_nd75::LiveEvent& event, const Proof& proof,
-    LONGLONG qpc)
+void PublishMilli(std::size_t position, std::uint16_t milli, const Proof& proof, LONGLONG qpc)
 {
-    const std::size_t position = std::size_t(event.row) *
-        irok_nd75::kColumns + event.column;
     if (position >= proof.map.size()) return;
+    const auto* factory = PhysicalFactory(proof.identity);
+    if (factory && !(*factory)[position]) return;
     const std::uint8_t hid = proof.map[position];
-    std::uint16_t milli = 0;
-    if (!irok_nd75::TryTravelToMilli(event.travel, &milli))
-    {
-        g_outOfRange.fetch_add(1, std::memory_order_relaxed);
-        return;
-    }
     const auto stamp=GetTickCount64();
     const auto id=static_cast<std::uint8_t>(position+1);
     g_factoryValues.Publish(id,milli,stamp);g_assignedValues.Publish(id,milli,stamp);
@@ -659,9 +766,28 @@ void Publish(const irok_nd75::LiveEvent& event, const Proof& proof,
     if (old != milli) RealtimeLoop_NotifyInputChangedAt(qpc);
 }
 
+void Publish(const irok_nd75::LiveEvent& event, const Proof& proof, LONGLONG qpc)
+{
+    std::uint16_t milli=0;
+    if (!irok_nd75::TryTravelToMilli(event.travel,&milli)) {
+        g_outOfRange.fetch_add(1,std::memory_order_relaxed);return;
+    }
+    PublishMilli(std::size_t(event.row)*22+event.column,milli,proof,qpc);
+}
+
 bool Run(const Candidate& candidate, Proof proof)
 {
-    const bool hz94 = irok_hz94::Matches(proof.identity);
+    const auto* physicalFactory = PhysicalFactory(proof.identity);
+    const bool physical = physicalFactory != nullptr;
+    const bool viper = irok_viper::Matches(proof.identity);
+    const auto& factory = physical ? *physicalFactory : irok_na87::FactoryMap();
+    const auto channels = static_cast<unsigned>(irok_nd75::MappedKeyCount(factory));
+    irok_viper::RawEvidence rawEvidence;
+    irok_viper::MatrixRange matrixRange;
+    if(viper) {
+        g_viperEvidence.valid.store(false,std::memory_order_release);
+        for(auto& observed:g_viperEvidence.observed)observed.store(0);
+    }
     Session session(candidate, proof.exclusive, proof.useControlWrite);
     if (!session.Open()) return false;
     irok_nd75::DeviceInfo sessionIdentity{};
@@ -670,9 +796,13 @@ bool Run(const Candidate& candidate, Proof proof)
         std::strcmp(sessionIdentity.controller.data(),
             proof.identity.controller.data()) != 0 ||
         std::strcmp(sessionIdentity.product.data(), proof.identity.product.data()) != 0 ||
-        !ReceiveCapability(session, &sessionCapability) ||
-        sessionCapability.sensitivity != 40 || !ReceiveMap(session, &proof.map, hz94, hz94))
+        !ReceiveCapability(session, &sessionCapability,viper) ||
+        (!viper && sessionCapability.sensitivity != 40) || !ReceiveMap(session, &proof.map, physical, physical, &proof.assignmentsKnown, physicalFactory))
     {
+        WitmodEvidence(candidate, "session_refused", false,
+            "stage=session_revalidation reason=identity_capability_or_map_changed identity_ok=%u scale=%u expected_scale=40",
+            unsigned(physical ? PhysicalFactory(sessionIdentity) == physicalFactory : irok_na87::IsExpectedDevice(sessionIdentity)),
+            unsigned(sessionCapability.sensitivity));
         DebugLog_Write(L"[irok.na87.session] capability_changed_after_claim=1");
         return false;
     }
@@ -681,30 +811,42 @@ bool Run(const Candidate& candidate, Proof proof)
     g_inputBytes.store(candidate.caps.InputReportByteLength);
     g_outputBytes.store(candidate.caps.OutputReportByteLength);
     Clear();
-    if (hz94) g_hz94Pid.store(candidate.attributes.ProductID, std::memory_order_release);
-    if (!PublishOwnership(proof.map) && hz94) {
-        WitmodEvidence(candidate, "layout_refused", false, "token_publish=0");
-        Clear();
-        return false;
+    if (physical) g_physicalPid.store(candidate.attributes.ProductID, std::memory_order_release);
+    g_viperPlaying.store(viper, std::memory_order_release);
+    if (!PublishOwnership(proof.map, proof.assignmentsKnown) && physical) {
+        // Layout-cache capacity is presentation metadata, never a sensor safety gate.
+        WitmodEvidence(candidate, "layout_warning", false,
+            "reason=%s action=continue physical_channels=%u",
+            proof.assignmentsKnown ? "layout_cache_unavailable" : "assignment_metadata_unavailable", channels);
     }
-    g_mapped.store(static_cast<unsigned>(irok_nd75::MappedKeyCount(proof.map)));
-    auto mask = irok_nd75::SubscriptionMask(proof.map);
+    g_mapped.store(physical ? channels : static_cast<unsigned>(irok_nd75::MappedKeyCount(proof.map)));
+    auto mask = irok_nd75::SubscriptionMask(physical ? factory : proof.map);
     const auto factoryMask = irok_nd75::SubscriptionMask(
-        hz94 ? irok_hz94::kFactoryMap : irok_na87::FactoryMap());
+        factory);
     for (std::size_t col=0;col<mask.size();++col) mask[col]|=factoryMask[col];
     if (!session.Send(irok_nd75::BuildUnsubscribeRequest()) ||
-        !session.Send(irok_nd75::BuildSubscriptionRequest(mask)))
+        (!viper && !session.Send(irok_nd75::BuildSubscriptionRequest(mask))))
     {
-        if (hz94) {
+        if (physical) {
             WitmodEvidence(candidate, "subscribe_failed", false, "opcode=21 win32=%lu", GetLastError());
             session.Send(irok_nd75::BuildUnsubscribeRequest());
         }
         Clear();
         return false;
     }
-    if (hz94) WitmodEvidence(candidate, "subscribe", false, "opcode=21 sub=02 channels=94 waiting_for_travel=1");
+    if (physical && !viper) WitmodEvidence(candidate, "subscribe", false, "revision=3 opcode=21 sub=02 channels=%u waiting_for_travel=1", channels);
+    if (viper) {
+        const bool enabled = session.Send(irok_viper::RawRequest(true));
+        if (!enabled) {
+            WitmodEvidence(candidate,"viper_raw_enable_failed",false,"stage=raw_enable win32=%lu",GetLastError());
+            session.Send(irok_viper::RawRequest(false));Clear();return false;
+        }
+        WitmodEvidence(candidate, "viper_raw_enable", false,
+            "revision=2 sent=%u win32=%lu output=raw_matrix event_subscription=0 calibrated=0 factory_lower=150 reference=observed_max held_start_unknown=1",
+            unsigned(enabled), enabled ? 0ul : GetLastError());
+    }
     g_diagnosticStatus.store(0);
-    g_connected.store(!hz94, std::memory_order_release);
+    g_connected.store(!physical, std::memory_order_release);
     DebugLog_Write(L"[witmod.session] subscribed vid=0416 pid=7372 controller=%hs product=%hs firmware=%hs mapped_positions=dynamic nominal_max=40 sensitivity=%u mode=%ls exclusive=%d strategy=live_subscription_only",
         proof.identity.controller.data(), proof.identity.product.data(),
         proof.identity.firmware.data(), proof.capability.sensitivity,
@@ -721,12 +863,41 @@ bool Run(const Candidate& candidate, Proof proof)
     auto nextEvidence = streamStart + 5000;
     std::uint64_t samples = 0, positive = 0, releases = 0, malformed = 0;
     unsigned depthMax = 0, peak = 0, otherReports = 0;
+    const auto cacheCurrentEvidence = [&] {
+        if (!viper) return;
+        g_viperEvidence.frames.store(rawEvidence.frames, std::memory_order_relaxed);
+        g_viperEvidence.rows.store(rawEvidence.rows, std::memory_order_relaxed);
+        g_viperEvidence.changes.store(rawEvidence.changes, std::memory_order_relaxed);
+        g_viperEvidence.withoutEvent.store(rawEvidence.changesWithoutEvent, std::memory_order_relaxed);
+        g_viperEvidence.rejected.store(rawEvidence.rejected, std::memory_order_relaxed);
+        g_viperEvidence.rawMinimum.store(rawEvidence.frames?rawEvidence.rawMinimum:0);
+        g_viperEvidence.rawMaximum.store(rawEvidence.rawMaximum);
+        g_viperEvidence.zeroReferences.store(rawEvidence.zeroReferences, std::memory_order_relaxed);
+        g_viperEvidence.zeroReturns.store(rawEvidence.zeroReferenceReturns, std::memory_order_relaxed);
+        g_viperEvidence.samples.store(samples, std::memory_order_relaxed);
+        g_viperEvidence.releases.store(releases, std::memory_order_relaxed);
+        g_viperEvidence.peak.store(peak, std::memory_order_relaxed);
+        matrixRange.Inspect();
+        g_viperEvidence.ready.store(matrixRange.ready);g_viperEvidence.referenceRises.store(matrixRange.referenceRises);
+        g_viperEvidence.referenceReturns.store(matrixRange.referenceReturns);g_viperEvidence.invalidRaw.store(matrixRange.invalid);
+        g_viperEvidence.fullChannels.store(matrixRange.fullChannels);g_viperEvidence.minReference.store(matrixRange.minReference);
+        g_viperEvidence.maxReference.store(matrixRange.maxReference);g_viperEvidence.minObserved.store(matrixRange.minObserved);
+        g_viperEvidence.maxObserved.store(matrixRange.maxObserved);g_viperEvidence.active.store(g_active.load());
+        g_viperEvidence.valid.store(true, std::memory_order_release);
+    };
+    cacheCurrentEvidence();
+    const auto rawSummary = [&] {
+        if (viper) WitmodEvidence(candidate, "viper_raw", true,
+            "frames=%u rows=%02X changes=%u rejected=%u source=raw_matrix event_subscription=0 values_logged=0",
+            rawEvidence.frames, rawEvidence.rows, rawEvidence.changes, rawEvidence.rejected);
+    };
     const auto streamEvidence = [&](const char* stage) {
         WitmodEvidence(candidate, stage, true,
             "elapsed_ms=%llu samples=%llu positive=%llu releases=%llu malformed=%llu max_depth=%u peak_active=%u",
             GetTickCount64() - streamStart, static_cast<unsigned long long>(samples),
             static_cast<unsigned long long>(positive), static_cast<unsigned long long>(releases),
             static_cast<unsigned long long>(malformed), depthMax, peak);
+        rawSummary();
     };
 #if defined(HALLJOY_DIAGNOSTIC) || defined(HALLJOY_DEVICE_SUPPORT_LOG)
     std::array<std::uint64_t, 256> diagnosticEvents{};
@@ -770,7 +941,7 @@ bool Run(const Candidate& candidate, Proof proof)
                 ++consecutiveReadErrors;
                 g_failures.fetch_add(1, std::memory_order_relaxed);
                 const bool deviceLost = IsDeviceLossError(readError);
-                if (hz94) WitmodEvidence(candidate, "travel_read", false, "win32=%lu", readError);
+                if (physical) WitmodEvidence(candidate, "travel_read", false, "win32=%lu", readError);
                 DebugLog_WriteBuffered(L"[irok.na87.transport] read_failed win32=%lu consecutive=%u device_lost=%d",
                     readError, consecutiveReadErrors, deviceLost ? 1 : 0);
                 if (irok_nd75::ClassifyReadFailure(
@@ -788,12 +959,58 @@ bool Run(const Candidate& candidate, Proof proof)
         {
             consecutiveReadErrors = 0;
         }
+        const bool rawReport = viper && received && report[0] == 1 && report[1] == 0x23;
+        if (rawReport) {
+            const auto rowsBefore = rawEvidence.rows;
+            const auto changesBefore = rawEvidence.changes;
+            const auto silentBefore = rawEvidence.changesWithoutEvent;
+            const bool valid = rawEvidence.Feed(report);
+            if (valid) {
+                LARGE_INTEGER qpc{};QueryPerformanceCounter(&qpc);
+                const auto row=unsigned(report[4]-1);
+                bool firstRelease=false, published=false;
+                for(unsigned col=0;col<22;++col) {
+                    const auto pos=row*22+col;
+                    const auto raw=(unsigned(report[6+col*2])<<8)|report[7+col*2];
+                    unsigned milli=0;
+                    if(!factory[pos])continue;
+                    const bool converted=matrixRange.Sample(pos,raw,milli);
+                    g_viperEvidence.raw[pos].store(raw);g_viperEvidence.reference[pos].store(matrixRange.Reference(pos));
+                    g_viperEvidence.milli[pos].store(converted?milli:g_positionMilli[pos].load());
+                    g_viperEvidence.converted[pos].store(converted?1u:0u);
+                    g_viperEvidence.assigned[pos].store(irok_hz94::HostCode(proof.map[pos]));
+                    g_viperEvidence.observed[pos].store(1,std::memory_order_release);
+                    if(!converted)continue;
+                    ++samples;positive+=milli!=0;published=true;
+                    if(!milli && g_positionMilli[pos].load()!=0) firstRelease=(++releases==1)||firstRelease;
+                    depthMax=std::max(depthMax,milli/25);
+                    PublishMilli(pos,static_cast<std::uint16_t>(milli),proof,qpc.QuadPart);
+                }
+                peak=std::max(peak,unsigned(g_active.load()));
+                if(published) {
+                    g_liveEvents.fetch_add(1,std::memory_order_relaxed);
+                    if(!g_connected.exchange(true,std::memory_order_acq_rel)) {
+                        streamEvidence("travel_started");RealtimeLoop_NotifyInputChanged();
+                    }
+                }
+                if(firstRelease)streamEvidence("release_seen");
+            }
+            cacheCurrentEvidence();
+            if (rowsBefore != 63 && rawEvidence.rows == 63)
+                WitmodEvidence(candidate, "viper_raw_ready", false, "rows=3F physical_channels=82 output=raw_matrix calibrated=0");
+            if (rawEvidence.frames == 1 || (rowsBefore != 63 && rawEvidence.rows == 63) ||
+                (!changesBefore && rawEvidence.changes) || (!silentBefore && rawEvidence.changesWithoutEvent)) rawSummary();
+            if (!valid && rawEvidence.rejected == 1) WitmodEvidence(candidate, "viper_raw_refused", false,
+                "id=%02X opcode=%02X status=%u row_hi=%u row_lo=%u size_field=%u",
+                unsigned(report[0]), unsigned(report[1]), unsigned(report[2]),
+                unsigned(report[3]), unsigned(report[4]), unsigned(report[5]));
+        }
         irok_nd75::LiveEvent event{};
         bool live = received && report[2] == 0 && report[3] == 0 && report[4] == 0 &&
             report[5] == 3 && irok_nd75::DecodeLiveEvent(report.data(), report.size(), &event);
-        if (hz94 && received && report[0] == 1 && report[1] == 0x21 && report[6] == 1) {
+        if (physical && received && report[0] == 1 && report[1] == 0x21 && report[6] == 1) {
             const auto pos = std::size_t(event.row) * irok_nd75::kColumns + event.column;
-            const bool mapped = live && irok_hz94::kFactoryMap[pos];
+            const bool mapped = live && factory[pos];
             const bool inRange = live && event.travel <= irok_nd75::kNominalTravelMaximum;
             if (!(mapped && inRange)) {
                 if (++malformed == 1)
@@ -802,12 +1019,12 @@ bool Run(const Candidate& candidate, Proof proof)
                         unsigned(report[5]), unsigned(live), unsigned(mapped), unsigned(inRange));
                 live = false;
             }
-        } else if (hz94 && received && report[1] != 0x0d && otherReports < 4) {
+        } else if (physical && received && !rawReport && report[1] != 0x0d && otherReports < 4) {
             ++otherReports;
             WitmodEvidence(candidate, "travel_other", false, "id=%02X opcode=%02X",
                 unsigned(report[0]), unsigned(report[1]));
         }
-        if (live)
+        if (live && !viper)
         {
             const auto nowUs = NowUs();
             if (previousUs && nowUs > previousUs)
@@ -828,7 +1045,7 @@ bool Run(const Candidate& candidate, Proof proof)
                 ? g_milli[diagnosticHid].load(std::memory_order_relaxed) : 0;
 #endif
             bool firstRelease = false;
-            if (hz94) {
+            if (physical) {
                 const auto pos = std::size_t(event.row) * irok_nd75::kColumns + event.column;
                 ++samples;
                 positive += event.travel != 0;
@@ -836,10 +1053,12 @@ bool Run(const Candidate& candidate, Proof proof)
                     firstRelease = ++releases == 1;
                 depthMax = std::max(depthMax, unsigned(event.travel));
             }
+            if (viper) rawEvidence.Event(std::size_t(event.row) * 22 + event.column, event.travel);
             Publish(event, proof, qpc.QuadPart);
-            if (hz94) {
+            if (physical) {
                 peak = std::max(peak, unsigned(g_active.load()));
-                if (event.travel && !g_connected.exchange(true, std::memory_order_acq_rel)) {
+                cacheCurrentEvidence();
+                if (!g_connected.exchange(true, std::memory_order_acq_rel)) {
                     streamEvidence("travel_started");
                     RealtimeLoop_NotifyInputChanged();
                 }
@@ -878,21 +1097,21 @@ bool Run(const Candidate& candidate, Proof proof)
         const auto nowMs = GetTickCount64();
         irok_nd75::DeviceInfo heartbeat{};
         if (received && irok_nd75::DecodeDeviceInfo(report.data(), report.size(), &heartbeat) &&
-            (hz94 ? irok_hz94::Matches(heartbeat) : irok_na87::IsExpectedDevice(heartbeat))) lastProofMs = nowMs;
-        if (hz94 && nowMs >= nextEvidence) {
+            (physical ? PhysicalFactory(heartbeat) == physicalFactory : irok_na87::IsExpectedDevice(heartbeat))) lastProofMs = nowMs;
+        if (physical && nowMs >= nextEvidence) {
             streamEvidence("travel");
             nextEvidence = nowMs + 30000;
         }
         if (nowMs-lastProbeMs>=1000) {
             if (!session.Send(irok_nd75::BuildIdentityRequest())) {
-                if (hz94) WitmodEvidence(candidate, "heartbeat_write", false, "win32=%lu", GetLastError());
+                if (physical) WitmodEvidence(candidate, "heartbeat_write", false, "win32=%lu", GetLastError());
                 transportLost=true;
                 break;
             }
             lastProbeMs=nowMs;
         }
         if (nowMs-lastProofMs>=3000) {
-            if (hz94) WitmodEvidence(candidate, "heartbeat_timeout", false, "elapsed_ms=%llu", nowMs-lastProofMs);
+            if (physical) WitmodEvidence(candidate, "heartbeat_timeout", false, "elapsed_ms=%llu", nowMs-lastProofMs);
             DebugLog_Write(L"[irok.na87.transport] heartbeat_timeout neutralized=1 reconnect_pending=1");
             transportLost=true; break;
         }
@@ -960,15 +1179,21 @@ bool Run(const Candidate& candidate, Proof proof)
             diagnosticStartedLive),
         static_cast<unsigned long long>(g_failures.load()));
 #endif
-    if (hz94) {
+    if (physical) {
         g_connected.store(false, std::memory_order_release);
         streamEvidence("travel_end");
         const bool stopped = session.Send(irok_nd75::BuildUnsubscribeRequest());
+        if (viper) {
+            const bool disabled = session.Send(irok_viper::RawRequest(false));
+            WitmodEvidence(candidate, "viper_raw_disable", false, "sent=%u win32=%lu",
+                unsigned(disabled), disabled ? 0ul : GetLastError());
+        }
         WitmodEvidence(candidate, "unsubscribe", false, "sent=%u stop=%u transport_lost=%u win32=%lu",
             unsigned(stopped), unsigned(g_stop.load()), unsigned(transportLost), stopped ? 0ul : GetLastError());
     } else if (!transportLost) {
         session.Send(irok_nd75::BuildUnsubscribeRequest());
     }
+    if (viper) { cacheCurrentEvidence(); WriteViperCurrentEvidence(); }
     return true;
 }
 
@@ -1149,7 +1374,7 @@ std::uint32_t WorkerBody()
                 if(ran) break;
                 continue;
             }
-            if (!irok_na87::IsExpectedDevice(proof.identity) && !irok_hz94::Matches(proof.identity)) continue;
+            if (!irok_na87::IsExpectedDevice(proof.identity) && !PhysicalFactory(proof.identity)) continue;
             provenPresent = true;
             g_present.store(true, std::memory_order_release);
             ran = Run(candidate, proof);
@@ -1204,7 +1429,7 @@ bool Prepare()
     if (g_prepared.exchange(true, std::memory_order_acq_rel))
         return NativeAnalogRouting_ProtocolHasClaims(
             NativeAnalogProtocol::IrokNa87M484);
-    SupportLog_Evidence("evidence.witmod.discovery revision=1", false);
+    SupportLog_Evidence("evidence.witmod.discovery revision=2", false);
     bool claimed = false;
     for (const auto& candidate : Enumerate(false, true))
     {
@@ -1231,6 +1456,7 @@ bool Start()
         g_running.store(false, std::memory_order_release);
         return false;
     }
+    g_viperEvidence.valid.store(false, std::memory_order_release);
     unsigned id = 0;
     g_thread = reinterpret_cast<HANDLE>(_beginthreadex(nullptr, 0, Worker,
         nullptr, 0, &id));
@@ -1241,6 +1467,7 @@ bool Start()
         g_running.store(false, std::memory_order_release);
         return false;
     }
+    SupportLog_SetDeviceEvidenceProvider(&WriteViperCurrentEvidence);
     StabilityTrace_Write(L"INFO", L"irok-na87", L"start.ok",
         L"thread_id=%u hotplug_ready=1", id);
     return true;
@@ -1265,6 +1492,7 @@ halljoy::lifecycle::StopResult Stop(
                 ? halljoy::lifecycle::JoinWaitStatus::TimedOut
                 : halljoy::lifecycle::JoinWaitStatus::Failed,
             wait == WAIT_TIMEOUT ? WAIT_TIMEOUT : GetLastError());
+    SupportLog_SetDeviceEvidenceProvider(nullptr);
     CloseHandle(g_thread);
     g_thread = nullptr;
     if (g_wake) CloseHandle(g_wake);
@@ -1294,7 +1522,7 @@ bool Connected()
 bool Owns(std::uint16_t hid)
 {
     if(g_ajazzPlaying.load()) return Connected() && g_factoryValues.Owns(static_cast<std::uint16_t>(halljoy::ajazz::HostCode(hid)));
-    if (g_hz94Pid.load()) return Connected() && (halljoy::native_layout::UsesRemapping(kHz94Layout)
+    if (g_physicalPid.load()) return Connected() && (halljoy::native_layout::UsesRemapping(StreamLayout())
         ? g_assignedValues : g_factoryValues).Owns(hid);
     return hid < g_owned.size() && Connected() &&
         (!g_ajazzPlaying.load() && halljoy::native_layout::UsesRemapping(irok_na87::kAnsiLayoutToken)
@@ -1315,11 +1543,12 @@ void Telemetry(NativeAnalogBackendTelemetry* out)
     if(g_ajazzPlaying.load()) wcsncpy_s(out->deviceName,L"AJAZZ AK820 MAX HE (wired, RGB)",_TRUNCATE);
     out->present = Present();
     out->connected = Connected();
-    const auto hz94Pid = g_hz94Pid.load();
-    if (hz94Pid) wcsncpy_s(out->deviceName, L"E-YOOSO HZ-94", _TRUNCATE);
+    const auto hz94Pid = g_physicalPid.load();
+    if (hz94Pid) wcsncpy_s(out->deviceName, g_viperPlaying.load() ? L"ARDOR GAMING Viper" : L"E-YOOSO HZ-94", _TRUNCATE);
     if (out->connected && !g_ajazzPlaying.load())
-        out->verifiedLayoutToken = hz94Pid ? kHz94Layout : irok_na87::kAnsiLayoutToken;
-    out->genericProtocol = out->connected && hz94Pid != 0;
+        out->verifiedLayoutToken = StreamLayout();
+    // HZ-94: exact identity and 94-position layout; hardware/gameplay confirmed.
+    out->genericProtocol = g_viperPlaying.load();
     // AJAZZ plays only after the exact SG8994HERGB identity proof: official illumipc layout.
     if (out->connected && g_ajazzPlaying.load())
         out->verifiedLayoutToken=halljoy::layout_identity::Token("ajazz-m484","SG8994HERGB");
@@ -1343,6 +1572,7 @@ void Telemetry(NativeAnalogBackendTelemetry* out)
             0xffffffffull)) : 0;
     _snwprintf_s(out->status, _countof(out->status), _TRUNCATE,
         g_ajazzPlaying.load() ? L"AJAZZ AK820 MAX HE (wired, RGB): USB analog, automatic key range, range_errors=%llu" :
+        g_viperPlaying.load() ? L"ARDOR GAMING Viper: full ADC matrix, provisional automatic range, range_errors=%llu" :
         hz94Pid ? L"E-YOOSO HZ-94: Witmod trial, device map, raw 0..40, range_errors=%llu" :
         L"IROK NA87 M484 experimental, device map, raw 0..40, range_errors=%llu",
         static_cast<unsigned long long>(g_outOfRange.load()));
@@ -1370,7 +1600,7 @@ const NativeAnalogBackendDescriptor& IrokNa87_GetNativeBackendDescriptor()
         &Owns,
         &Get,
         &Telemetry,
-    };
+     nullptr, +[](halljoy::observation::Sink sink) { (!g_ajazzPlaying.load() && halljoy::native_layout::UsesRemapping(StreamLayout()) ? g_assignedValues : g_factoryValues).Observations(sink); }};
     return descriptor;
 }
 
@@ -1380,10 +1610,36 @@ bool IrokNa87_TryRunSelfTest(int& result) noexcept
     (void)result; return false;
 #else
     int argc=0; auto argv=CommandLineToArgvW(GetCommandLineW(),&argc);
-    const bool selected=argv && argc==2 && wcscmp(argv[1],L"--halljoy-na87-native-self-test")==0;
+    const bool viperSelected=argv && argc==2 && wcscmp(argv[1],L"--halljoy-viper-admission-self-test")==0;
+    const bool admissionSelected=viperSelected || (argv && argc==2 && wcscmp(argv[1],L"--halljoy-hz94-admission-self-test")==0);
+    const bool selected=admissionSelected || (argv && argc==2 && wcscmp(argv[1],L"--halljoy-na87-native-self-test")==0);
     if (argv) LocalFree(argv);
     if (!selected) return false;
     result=10;
+    if (viperSelected) {
+        irok_viper::MatrixRange range;
+        unsigned milli=999;
+        if(!range.Sample(46,2400,milli) || milli) return true;
+        if(!range.Sample(46,2000,milli) || milli!=500) return true;
+        if(!range.Sample(46,2400,milli) || milli || range.referenceReturns!=1) return true;
+        if(range.Sample(46,65535,milli) || range.invalid!=1) return true;
+        if(range.Sample(1,2400,milli)) return true; // Nonphysical slot.
+        irok_viper::MatrixRange held;
+        if(!held.Sample(46,2000,milli) || milli) return true;
+        if(!held.Sample(46,2400,milli) || milli || held.referenceRises!=1) return true;
+        if(!held.Sample(46,2000,milli) || milli!=500) return true;
+        irok_viper::RawEvidence evidence;
+        irok_nd75::Report row{1,0x23,0,0,1,44};
+        row[6]=7; row[7]=208; // An independently observed ADC value of 2000.
+        evidence.Event(0,0);
+        if (!evidence.Feed(row) || evidence.zeroReferences!=1) return true;
+        evidence.Event(0,20); row[6]=7; row[7]=8;
+        if (!evidence.Feed(row)) return true;
+        row[6]=7; row[7]=208;
+        if (!evidence.Feed(row) || evidence.zeroReferenceReturns!=1) return true;
+        row[4]=7;
+        if (evidence.Feed(row) || evidence.rejected!=1) return true;
+    }
     const std::array<std::array<std::uint8_t,22>,6> rows{{
         {0x29,0x0,0x3a,0x3b,0x3c,0x3d,0x0,0x3e,0x3f,0x40,0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x0,0x0,0x0,0x0},
         {0x35,0x1e,0x1f,0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,0x2d,0x2e,0x0,0x2a,0x49,0x4a,0x4b,0x0,0x0,0x0,0x0},
@@ -1501,12 +1757,13 @@ bool IrokNa87_TryRunSelfTest(int& result) noexcept
 
     // HZ-94 uses the same route with its own physical matrix and Fn identity.
     const auto mapEvidence = irok_hz94::InspectMap(irok_hz94::kFactoryMap);
-    pass = pass && mapEvidence.Admitted() && mapEvidence.factory == 94 &&
-        mapEvidence.assigned == 94 && !irok_hz94::InspectMap(irok_na87::FactoryMap()).Admitted();
+    pass = pass && mapEvidence.factory == 94 && mapEvidence.assigned == 94 &&
+        irok_hz94::PhysicalAssignments(irok_hz94::kFactoryMap) == irok_hz94::kFactoryMap;
     Proof hz94Proof{};
     hz94Proof.map = irok_hz94::kFactoryMap;
+    strcpy_s(hz94Proof.identity.product.data(), hz94Proof.identity.product.size(), "7187_AUSXHERGB");
     hz94Proof.map[3 * 22 + 3] = 4; // S remapped to A; physical channels remain independent.
-    g_hz94Pid.store(0x7473);
+    g_physicalPid.store(0x7473);
     pass = PublishOwnership(hz94Proof.map) && pass;
     Telemetry(&telemetry);
     pass = pass && !telemetry.connected && !telemetry.verifiedLayoutToken;
@@ -1515,7 +1772,7 @@ bool IrokNa87_TryRunSelfTest(int& result) noexcept
     Publish({5, 11, 10}, hz94Proof, 0);
     g_connected.store(true);
     Telemetry(&telemetry);
-    pass = pass && telemetry.connected && telemetry.verifiedLayoutToken == kHz94Layout &&
+    pass = pass && telemetry.connected && !telemetry.genericProtocol && telemetry.verifiedLayoutToken == kHz94Layout &&
         telemetry.productId == 0x7473 && wcscmp(halljoy::layout_identity::Match(kHz94Layout), L"E-YOOSO HZ-94 ANSI") == 0 &&
         Get(4) == 500 && Get(22) == 750 && Get(halljoy::keycode::kFn) == 250;
     halljoy::native_layout::activeToken = kHz94Layout;
@@ -1586,6 +1843,218 @@ bool IrokNa87_TryRunSelfTest(int& result) noexcept
                 // Destruction must cancel and reap the still-pending read.
             }
         }
+    }
+    // End-to-end admission regression: real proof/session/read functions, private
+    // overlapped pipes only. A layout-perfect map alone is never the sole fixture.
+    const auto& admissionFactory = viperSelected ? irok_viper::kFactoryMap : irok_hz94::kFactoryMap;
+    const auto admissionToken = viperSelected ? kViperLayout : kHz94Layout;
+    const unsigned admissionCases = viperSelected ? 16u : irok_hz94::kAdmissionSessionCaseCount;
+    unsigned admissionPassed = 0;
+    for (unsigned scenario = 0; scenario < (admissionSelected ? admissionCases : 0); ++scenario) {
+        const auto fixtureCase = scenario < 12 ? scenario : 0;
+        const auto raw = irok_hz94::AdmissionCase(fixtureCase, admissionFactory);
+        Proof admitted{};
+        bool proofPassed = false, sessionPassed = false;
+        for (unsigned phase = 0; phase < 2; ++phase) {
+            const auto name = pipeName + L"-admission-" + std::to_wstring(scenario) + L"-" + std::to_wstring(phase);
+            Handle endpoint(CreateNamedPipeW(name.c_str(), PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
+                PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, 1, 4096, 4096, 0, nullptr));
+            Candidate candidate{}; candidate.path=name; candidate.attributes.VendorID=0x0416;
+            candidate.attributes.ProductID=0x7372; candidate.caps.InputReportByteLength=64;
+            candidate.caps.OutputReportByteLength=64;
+            bool serverPassed = bool(endpoint);
+            g_stop.store(false);
+            if (!endpoint) { pass=false; break; }
+            const auto before = g_updates.load();
+            std::thread device([&] {
+                const auto request = [&](const irok_nd75::Report& expected) {
+                    irok_nd75::Report observed{}; DWORD bytes=0;
+                    return TimedIo(endpoint.value,false,observed.data(),64,1500,&bytes) && bytes==64 && observed==expected;
+                };
+                const auto reply = [&](const irok_nd75::Report& packet) {
+                    auto copy=packet; DWORD bytes=0;
+                    return TimedIo(endpoint.value,true,copy.data(),64,1500,&bytes) && bytes==64;
+                };
+                irok_nd75::Report identity{1,0x0d};
+                const auto length = sprintf_s(reinterpret_cast<char*>(identity.data()+6),identity.size()-6,
+                    "M484,01,KB,FR,%s,%s", viperSelected ? "GK8163HERGB" : "7187_AUSXHERGB",
+                    viperSelected ? (scenario == 12 ? "V1_13_06" : scenario == 13 ? "V1_13_99 " : "V1_13_08") : "V1_13_05");
+                identity[5]=static_cast<std::uint8_t>(length+6);
+                serverPassed = request(irok_nd75::BuildIdentityRequest()) && reply(identity) && serverPassed;
+                const irok_nd75::Report cap{1,0x21,0,0,0,2,4,static_cast<std::uint8_t>(viperSelected && scenario==14?41:40)};
+                serverPassed = request(irok_nd75::BuildCapabilityRequest()) && serverPassed;
+                if(!viperSelected || scenario!=15)serverPassed=reply(cap) && serverPassed;
+                serverPassed = request(irok_na87::MapRequest()) && serverPassed;
+                const unsigned rowsToSend = scenario == 8 ? 5u : scenario == 9 ? 1u : scenario == 10 ? 0u : 6u;
+                for (unsigned row=0; row<rowsToSend; ++row) {
+                    irok_nd75::Report map{1,0x10}; map[3]=row==5?255:0;
+                    map[4]=row==5?255:static_cast<std::uint8_t>(row+1); map[5]=22;
+                    std::copy_n(raw.begin()+row*22,22,map.begin()+6);
+                    if (scenario == 11) map[5] = 21; // Invalid metadata envelope, never decode it.
+                    serverPassed = reply(map) && serverPassed;
+                    if (scenario == 9 && row == 0) { map[6] = 4; serverPassed = reply(map) && serverPassed; }
+                }
+                if (!phase) return;
+                serverPassed = request(irok_nd75::BuildUnsubscribeRequest()) && serverPassed;
+                if (!viperSelected) serverPassed = request(irok_nd75::BuildSubscriptionRequest(
+                    irok_nd75::SubscriptionMask(admissionFactory))) && serverPassed;
+                unsigned matrixUpdates=0;
+                const auto sendMatrix = [&](unsigned w,unsigned a,unsigned all=2400,unsigned omittedRow=99) {
+                    unsigned added=0;
+                    for(unsigned row=0;row<6;++row) {
+                        if(row==omittedRow)continue;
+                        irok_nd75::Report snapshot{1,0x23,0,0,static_cast<std::uint8_t>(row+1),44};
+                        for(unsigned col=0;col<22;++col) {
+                            const auto pos=row*22+col;
+                            const auto value=pos==46?w:pos==68?a:all;
+                            snapshot[6+col*2]=static_cast<std::uint8_t>(value>>8);
+                            snapshot[7+col*2]=static_cast<std::uint8_t>(value);
+                            added+=admissionFactory[pos]!=0;
+                        }
+                        if(!reply(snapshot))return false;
+                    }
+                    matrixUpdates+=added;
+                    const auto deadline=GetTickCount64()+1000;
+                    while((g_updates.load()<before+matrixUpdates || !g_connected.load()) && GetTickCount64()<deadline)Sleep(1);
+                    return g_updates.load()==before+matrixUpdates && g_connected.load();
+                };
+                if(viperSelected) {
+                    serverPassed=request(irok_viper::RawRequest(true)) && serverPassed;
+                    // Real row path, all82 channels; no stock depth events exist.
+                    serverPassed=sendMatrix(2400,2400) && serverPassed;
+                    serverPassed=sendMatrix(2000,1800) && serverPassed;
+                }
+                const auto sendLive = [&](unsigned row,unsigned column,unsigned depth,unsigned expectedUpdates) {
+                    irok_nd75::Report sample{1,0x21,0,0,0,3,1};
+                    sample[7]=static_cast<std::uint8_t>(row);
+                    sample[8]=static_cast<std::uint8_t>(column); sample[9]=static_cast<std::uint8_t>(depth);
+                    bool ok=reply(sample);
+                    const auto deadline=GetTickCount64()+1000;
+                    while ((g_updates.load()<before+expectedUpdates || !g_connected.load()) && GetTickCount64()<deadline) Sleep(1);
+                    return ok && g_updates.load()==before+expectedUpdates && g_connected.load();
+                };
+                if(!viperSelected) {
+                    serverPassed = sendLive(2,2,0,1) && serverPassed;
+                    serverPassed = sendLive(2,2,20,2) && serverPassed;
+                    serverPassed = sendLive(3,2,30,3) && serverPassed;
+                }
+                // Mirror automatic-layout selection: unavailable aliases must not
+                // publish an all-disabled map that would hide real physical analog.
+                const bool known = fixtureCase != 6 && fixtureCase < irok_hz94::kAdmissionCaseCount;
+                const auto layout = halljoy::native_layout::Read(admissionToken);
+                serverPassed = layout.complete == known && serverPassed;
+                halljoy::native_layout::activeToken.store(layout.complete ? admissionToken : 0);
+                if (viperSelected) {
+                    NativeAnalogBackendTelemetry telemetry{};
+                    Telemetry(&telemetry);
+                    serverPassed = telemetry.connected && telemetry.verifiedLayoutToken == kViperLayout &&
+                        telemetry.mappedKeys == 82 && wcscmp(telemetry.deviceName, L"ARDOR GAMING Viper") == 0 &&
+                        wcscmp(halljoy::layout_identity::Match(kViperLayout), L"ARDOR GAMING Viper ANSI") == 0 && serverPassed;
+                }
+                if (!known) serverPassed = Get(0x1a)==500 && Get(4)==750 && serverPassed;
+                // Physical source is useful even with all digital assignments disabled.
+                serverPassed = g_factoryValues.Read(0x1a,GetTickCount64(),1000).milli==500 &&
+                    g_factoryValues.Read(4,GetTickCount64(),1000).milli==750 && serverPassed;
+                serverPassed = (viperSelected ? sendMatrix(2400,1800) : sendLive(2,2,0,4)) && serverPassed;
+                serverPassed = g_factoryValues.Read(0x1a,GetTickCount64(),1000).milli==0 &&
+                    g_factoryValues.Read(4,GetTickCount64(),1000).milli==750 && serverPassed;
+                serverPassed = (viperSelected ? sendMatrix(2400,2400) : sendLive(3,2,0,5)) && serverPassed;
+                serverPassed = g_factoryValues.Read(0x1a,GetTickCount64(),1000).milli==0 &&
+                    g_factoryValues.Read(4,GetTickCount64(),1000).milli==0 && serverPassed;
+                if(viperSelected) {
+                    // All82 simultaneous, lost release row, then a fresh row:
+                    // no event replay, release timer or input smoothing.
+                    serverPassed=sendMatrix(1800,1800,1800) && g_active.load()==82 && serverPassed;
+                    serverPassed=sendMatrix(2400,2400,2400,2) && g_active.load()==15 && serverPassed;
+                    serverPassed=sendMatrix(2400,2400) && g_active.load()==0 && serverPassed;
+                    // Stale firmware event must never overwrite matrix output.
+                    irok_nd75::Report stale{1,0x21,0,0,0,3,1,2,2,40};
+                    serverPassed=reply(stale) && sendMatrix(2400,2400) && g_active.load()==0 && serverPassed;
+                }
+                g_stop.store(true);
+                serverPassed = request(irok_nd75::BuildUnsubscribeRequest()) && serverPassed;
+                if (viperSelected) serverPassed = request(irok_viper::RawRequest(false)) && serverPassed;
+            });
+            if (!phase) proofPassed=Prove(candidate,&admitted);
+            else sessionPassed=Run(candidate,admitted);
+            device.join();
+            if (phase==0) proofPassed = proofPassed && serverPassed &&
+                admitted.map==(fixtureCase < irok_hz94::kAdmissionCaseCount ?
+                    irok_hz94::PhysicalAssignments(raw, admissionFactory) : irok_nd75::PositionToHid{});
+            else sessionPassed = sessionPassed && serverPassed && g_active.load()==0;
+            Clear();g_stop.store(false);g_connected.store(false);
+        }
+        if (proofPassed && sessionPassed) ++admissionPassed;
+        else pass=false;
+    }
+    unsigned negativesPassed = 0;
+    if (admissionSelected) {
+        for (unsigned scenario=0; scenario<(viperSelected ? 3u : 2u); ++scenario) {
+            const auto name=pipeName+L"-negative-"+std::to_wstring(scenario);
+            Handle endpoint(CreateNamedPipeW(name.c_str(),PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,
+                PIPE_TYPE_BYTE|PIPE_READMODE_BYTE|PIPE_WAIT,1,4096,4096,0,nullptr));
+            Candidate candidate{}; candidate.path=name; candidate.attributes.ProductID=0x7372;
+            bool serverPassed=bool(endpoint);
+            if (!endpoint) {pass=false;continue;}
+            std::thread device([&] {
+                auto request=[&](const irok_nd75::Report& expected) {
+                    irok_nd75::Report packet{};DWORD bytes=0;
+                    return TimedIo(endpoint.value,false,packet.data(),64,1000,&bytes) && bytes==64 && packet==expected;
+                };
+                auto reply=[&](irok_nd75::Report packet) {
+                    DWORD bytes=0;return TimedIo(endpoint.value,true,packet.data(),64,1000,&bytes) && bytes==64;
+                };
+                irok_nd75::Report identity{1,0x0d};
+                auto length=sprintf_s(reinterpret_cast<char*>(identity.data()+6),identity.size()-6,
+                    "%s,01,KB,FR,%s,V1_13_08", scenario == 2 ? "FOREIGN" : "M484",
+                    viperSelected ? (scenario == 0 ? "GK8163WHERGB" : scenario==1 ? "GK8163HERGBX" : "GK8163HERGB") :
+                        (scenario == 0 ? "7186_AUSHERGB" : "7187_AUSXHERGB"));
+                identity[5]=static_cast<std::uint8_t>(length+6);
+                serverPassed=request(irok_nd75::BuildIdentityRequest()) && reply(identity) && serverPassed;
+                if (scenario == 1 && !viperSelected) {
+                    irok_nd75::Report cap{1,0x21,0,0,0,2,4,static_cast<std::uint8_t>(scenario==1?41:40)};
+                    serverPassed=request(irok_nd75::BuildCapabilityRequest()) && reply(cap) && serverPassed;
+                }
+                // A hard rejection must not send a subscription or any later command.
+                irok_nd75::Report unexpected{};DWORD bytes=0;
+                const bool extra=TimedIo(endpoint.value,false,unexpected.data(),64,1400,&bytes);
+                serverPassed=!extra && serverPassed;
+            });
+            Proof negativeProof{}; const bool accepted=Prove(candidate,&negativeProof);
+            device.join();
+            const auto reason = scenario != 1 || viperSelected ? "stage=identity reason=foreign_model" :
+                "stage=capability reason=unsupported_scale";
+            const bool explained = std::any_of(g_witmodEvidence.begin(), g_witmodEvidence.end(),
+                [&](const auto& record) { return record.find(reason) != record.npos; });
+            if (!accepted && serverPassed && explained) ++negativesPassed; else pass=false;
+        }
+        Candidate missing{};missing.path=pipeName+L"-does-not-exist";missing.attributes.ProductID=0x7372;
+        Proof missingProof{};
+        const bool refused = !Prove(missing,&missingProof);
+        const bool explained = std::any_of(g_witmodEvidence.begin(),g_witmodEvidence.end(),[](const auto& record) {
+            return record.find("evidence.witmod.open") != record.npos &&
+                record.find("win32=") != record.npos && record.find("win32=0") == record.npos;
+        });
+        if (refused && explained) ++negativesPassed; else pass=false;
+    }
+    if (admissionSelected) {
+        const auto explained = [](const char* needle) {
+            return std::any_of(g_witmodEvidence.begin(), g_witmodEvidence.end(),
+                [&](const auto& record) { return record.find(needle) != record.npos; });
+        };
+        pass = pass && explained("extras_ignored=10") &&
+            explained("reason=incomplete_rows") && explained("reason=inconsistent_duplicate_row") &&
+            explained("assigned_aliases=unavailable") && explained("evidence.witmod.map_reply") &&
+            explained("evidence.witmod.open");
+        // Machine-readable receipt read from the exact EXE by the delivery gate.
+        if (viperSelected) {
+            pass = pass && explained("evidence.witmod.viper_raw") &&
+                explained("evidence.witmod.viper_raw_ready") && explained("evidence.witmod.viper_raw_disable");
+        }
+        if(viperSelected) wprintf(L"VIPER_MATRIX_SELF_TEST=%ls channels=82 missing_row_recovery=1 stale_event_ignored=1 event_subscription=0 calibrated=0\n",pass?L"PASS":L"FAIL");
+        wprintf(L"%ls=%ls scenarios=%u negatives=%u physical_channels=%u proof_to_subscribe=1 first_sample=1 multikey=1 release=1 cleanup=1 hardware_opened=0\n",
+            viperSelected ? L"VIPER_ADMISSION_SELF_TEST" : L"HZ94_ADMISSION_SELF_TEST",
+            pass?L"PASS":L"FAIL",admissionPassed,negativesPassed,viperSelected?82u:94u);
     }
     // The isolated test owns its log. No real HID or virtual gamepad is opened.
     StabilityTrace_Init();DebugLog_Init();

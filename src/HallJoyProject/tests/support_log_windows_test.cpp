@@ -14,6 +14,14 @@
 #include <thread>
 
 static std::atomic<bool> enabled{false}, missing{false};
+static std::atomic<unsigned> receiverTraceMarker{0};
+static void TestReceiverTraceProvider() noexcept {
+    const auto phase=receiverTraceMarker.load();
+    if(!phase)return;
+    char line[128]{};
+    snprintf(line,sizeof line,"trace.keydous_rf.test phase=%u table_accepted=0",phase);
+    SupportLog_Trace(line);
+}
 static std::atomic<bool> experimental{false}, unstable{false}, limited{false};
 const std::wstring& AppPaths_DataRoot() { static const std::wstring empty; return empty; }
 const std::wstring& AppPaths_LegacyDataRoot() { static const std::wstring empty; return empty; }
@@ -117,12 +125,41 @@ int main() {
             char record[64]{}; sprintf_s(record, "evidence.test s=%d", i);
             SupportLog_Evidence(record,false);
         }
+        SupportLog_SetDeviceEvidenceProvider([]() noexcept {
+            SupportLog_Evidence("evidence.snapshot_provider current_state=219", true);
+        });
+        SupportLog_SetMchoseGt75EvidenceProvider([]() noexcept {
+            SupportLog_Evidence("evidence.mchose_gt75.test cached=1",true);
+        });
+        SupportLog_SetAulaF75EvidenceProvider([]() noexcept {
+            SupportLog_Evidence("evidence.aula_f75.test cached=1",true);
+        });
+        SupportLog_SetRongyuanEvidenceProvider([]() noexcept {
+            SupportLog_Evidence("evidence.rongyuan_snapshot.test cached=1",true);
+        });
+        SupportLog_SetSparkEvidenceProvider([]() noexcept {SupportLog_Evidence("evidence.spark.test cached=1 identity=1CA63007 board=00300007",true);});
+        SupportLog_SetMidiEvidenceProvider([]() noexcept {
+            SupportLog_Evidence("evidence.midi.velocity id=1 velocity=9 speed=500 quality=3",true);
+        });
         SupportLog_Event("manual.snapshot",17);
         const auto request=SupportLog_RequestSnapshot();
         const auto deadline=GetTickCount64()+7000;
         while(SupportLog_CompletedSnapshot()<request && GetTickCount64()<deadline) Sleep(50);
         Check(SupportLog_CompletedSnapshot()>=request);
         const auto manualEvidence=Read(path);
+        SupportLog_SetDeviceEvidenceProvider(nullptr);
+        SupportLog_SetRongyuanEvidenceProvider(nullptr);
+        SupportLog_SetAulaF75EvidenceProvider(nullptr);
+        SupportLog_SetMchoseGt75EvidenceProvider(nullptr);
+        SupportLog_SetSparkEvidenceProvider(nullptr);
+        SupportLog_SetMidiEvidenceProvider(nullptr);
+        Check(manualEvidence.find("evidence.midi.velocity id=1 velocity=9 speed=500 quality=3")!=std::string::npos &&
+              manualEvidence.find("midi_velocity_trace=1")!=std::string::npos);
+        Check(manualEvidence.find("evidence.spark.test cached=1 identity=1CA63007 board=00300007")!=std::string::npos);
+        Check(manualEvidence.find("evidence.mchose_gt75.test cached=1")!=std::string::npos);
+        Check(manualEvidence.find("evidence.aula_f75.test cached=1")!=std::string::npos);
+        Check(manualEvidence.find("evidence.rongyuan_snapshot.test cached=1")!=std::string::npos);
+        Check(manualEvidence.find("evidence.snapshot_provider current_state=219")!=std::string::npos);
         Check(manualEvidence.find("manual.snapshot value=17")!=std::string::npos);
         Check(manualEvidence.find("support.snapshot_requested source=api")!=std::string::npos);
         Check(manualEvidence.find(" input.config seq=")!=std::string::npos &&
@@ -417,6 +454,48 @@ int main() {
             Check(stateWindow.find("state.window.event")<stateWindow.find("hid.candidate value=799 "));
         }
         Check(SupportLog_Stop());
+#if !defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
+        // This report intentionally remains the same file as the first record
+        // arrives: copying a continuous file must include subsequent RF trace.
+        const auto rfDir=directory+L"\\receiver";
+        const auto rfLog=rfDir+L"\\HallJoy.log";
+        enabled=false;receiverTraceMarker=1;
+        SupportLog_SetReceiverTraceProvider(&TestReceiverTraceProvider);
+        Check(SupportLog_Start(rfDir.c_str(),rfDir.c_str()));
+        Sleep(1300);
+        Check(GetFileAttributesW(rfLog.c_str())==INVALID_FILE_ATTRIBUTES);
+        enabled=true;
+        Await(rfLog,"trace.keydous_rf.test phase=1");
+        receiverTraceMarker=2;
+        Await(rfLog,"trace.keydous_rf.test phase=2");
+        Check(Read(rfLog).find("trace.keydous_rf.test phase=1")!=std::string::npos);
+        const auto rfRequest=SupportLog_RequestSnapshot();
+        const auto rfDeadline=GetTickCount64()+7000;
+        while(SupportLog_CompletedSnapshot()<rfRequest && GetTickCount64()<rfDeadline) Sleep(50);
+        Check(SupportLog_CompletedSnapshot()>=rfRequest);
+        const auto rfSnapshot=Read(rfLog);
+        Check(rfSnapshot.find("trace.keydous_rf.test phase=2")!=std::string::npos);
+        Check(rfSnapshot.find("trace.keydous_rf.test phase=1")!=std::string::npos);
+        SupportLog_SetReceiverTraceProvider(nullptr);
+        Check(SupportLog_Stop());
+        DeleteFileW(rfLog.c_str());RemoveDirectoryW(rfDir.c_str());
+#endif
+        // MIDI capture must survive immediate normal exit without an Open log request.
+        const auto midiDir=directory+L"\\midi-autosave",midiLog=midiDir+L"\\HallJoy.log";
+        const bool loggingBeforeMidi=enabled.load();
+        enabled=false;
+        SupportLog_SetMidiEvidenceProvider([]() noexcept {
+            SupportLog_Evidence("evidence.midi.autosave shutdown=1",true);
+        });
+        Check(SupportLog_Start(midiDir.c_str(),midiDir.c_str()));
+        Check(SupportLog_Stop());
+        SupportLog_SetMidiEvidenceProvider(nullptr);
+        const auto savedMidi=Read(midiLog);
+        Check(savedMidi.find("evidence.midi.autosave shutdown=1")!=std::string::npos &&
+              savedMidi.find("session.end")!=std::string::npos &&
+              savedMidi.find("midi_velocity_trace=1")!=std::string::npos);
+        DeleteFileW(midiLog.c_str());RemoveDirectoryW(midiDir.c_str());
+        enabled=loggingBeforeMidi;
         // Portable paths coincide: one writer, no duplicated session records.
         Check(SupportLog_Start(directory.c_str(),directory.c_str()));
         Check(SupportLog_Stop());
@@ -427,7 +506,7 @@ int main() {
 #if defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
         std::cout<<"INPUT_PATH_LOG_WINDOWS=PASS forced_logging two_banks aggregate_counts output_ack final_flush io_failure recovery\n";
 #else
-        std::cout<<"SUPPORT_LOG_WINDOWS=PASS off_no_file auto_incident prehistory recovery opt_in io_failure capture_store evidence_store state_window\n";
+        std::cout<<"SUPPORT_LOG_WINDOWS=PASS off_no_file auto_incident prehistory recovery opt_in io_failure capture_store evidence_store state_window receiver_trace_append_snapshot\n";
 #endif
         return 0;
     } catch(...) {

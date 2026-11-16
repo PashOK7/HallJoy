@@ -25,6 +25,10 @@
 
 #include "keyboard_ui.h"
 #include "keyboard_ui_state.h"
+#ifndef HALLJOY_DISABLE_MIDI
+#include "midi_settings_page.h"
+#include "midi_profile.h"
+#endif
 #include "keyboard_ui_internal.h"
 
 #include "keyboard_layout.h"
@@ -94,6 +98,12 @@ static const wchar_t* UnsupportedTitle() {
     return title;
 }
 static constexpr wchar_t kUnsupportedBody[] = L"HallJoy has checked this keyboard: its firmware does not provide analog key travel that HallJoy can use, so this keyboard will not be supported. It keeps working as a normal keyboard.";
+static const wchar_t* UnsupportedBody() {
+    const auto* name=halljoy::keyboard_support::UnsupportedName(halljoy::keyboard_support::GetStatusSnapshot().unsupportedModel);
+    if(name && wcscmp(name,L"AULA F75 HE")==0)
+        return L"No usable analog input was found on the reviewed stock firmware. HallJoy support is unavailable; the keyboard keeps working normally. Research is preserved.";
+    return kUnsupportedBody;
+}
 static int SupportBannerHeight() { return FrozenSupportVisible() || UnsupportedVisible() ? 154 : kSupportBannerHeightPx; }
 static const wchar_t* FrozenSupportTitle() {
     if(Mix87LimitedVisible()) return L"MCHOSE Mix87 III: limited analog";
@@ -115,7 +125,7 @@ static const wchar_t* FrozenSupportTitle() {
     case Hero84: return L"AULA HERO: hardware testing incomplete";
     case Mg75Pro: return L"Keyboard: hardware testing incomplete";
     case Slice75: return L"Chilkey Slice75 HE: hardware testing incomplete";
-    case RongYuan: return L"MonsGeek / EPOMAKER: hardware testing incomplete";
+    case RongYuan: return L"Akko / MonsGeek / EPOMAKER: hardware testing incomplete";
     case TartarusPro: return L"Tartarus Pro: hardware testing incomplete";
     case SteelSeriesApex: return L"SteelSeries Apex Pro: hardware testing incomplete";
     case AtkHex80Family: return L"ATK: hardware testing incomplete";
@@ -440,7 +450,7 @@ static LRESULT CALLBACK SupportBannerProc(HWND hWnd, UINT msg, WPARAM wParam, LP
             (FrozenSupportVisible() && !KnownLimitedVisible()) ? (ImplementedSupportVisible() ? RGB(255, 205, 112) : RGB(210, 218, 230)) : RGB(245, 164, 182), DT_LEFT | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
 
         SelectObject(hdc, bodyFont ? bodyFont : GetStockObject(SYSTEM_FONT));
-        CustomPage_DrawText(hdc, FrozenSupportVisible() ? FrozenSupportBody() : UnsupportedVisible() ? kUnsupportedBody : kSupportPrompt, layout.body, UiTheme::Color_Text(),
+        CustomPage_DrawText(hdc, FrozenSupportVisible() ? FrozenSupportBody() : UnsupportedVisible() ? UnsupportedBody() : kSupportPrompt, layout.body, UiTheme::Color_Text(),
             FrozenSupportVisible() || UnsupportedVisible() ? DT_LEFT | DT_TOP | DT_WORDBREAK : DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
         if(Mix87LimitedVisible()) {
             const auto mode=MchoseMix87_GetMode();
@@ -1136,7 +1146,10 @@ static HWND SubPageWindow(int idx)
     default: break;
     }
     if (kProfilesPageEnabled && idx == 5) return ProfilesPage_Window();
-    if (idx == (kProfilesPageEnabled ? 6 : 5)) return g_hPageMouse;
+    if (kMouseSettingsPageEnabled && idx == (kProfilesPageEnabled ? 6 : 5)) return g_hPageMouse;
+#ifndef HALLJOY_DISABLE_MIDI
+    if (idx == 5 + int(kProfilesPageEnabled) + int(kMouseSettingsPageEnabled)) return g_hPageMidi;
+#endif
     return nullptr;
 }
 
@@ -1152,6 +1165,9 @@ static void ApplySubPageVisibility(int idx)
     if (HWND profiles = ProfilesPage_Window()) ShowWindow(profiles, idx == 5 ? SW_SHOW : SW_HIDE);
     if (g_hPageMouse)  ShowWindow(g_hPageMouse, idx == (kProfilesPageEnabled ? 6 : 5) ? SW_SHOW : SW_HIDE);
 
+#ifndef HALLJOY_DISABLE_MIDI
+    if (g_hPageMidi) ShowWindow(g_hPageMidi, idx == 5 + int(kProfilesPageEnabled) + int(kMouseSettingsPageEnabled) ? SW_SHOW : SW_HIDE);
+#endif
     if (g_hSubTab) InvalidateRect(g_hSubTab, nullptr, FALSE);
 }
 
@@ -1237,9 +1253,42 @@ static void ResizeSubUi(HWND hWnd)
     ProfileSelector_Place(g_hProfileSelector, g_hSubTab);
     if (g_hPageMouse)
         SetWindowPos(g_hPageMouse, nullptr, tabRc.left, tabRc.top, pw, ph, SWP_NOZORDER);
+#ifndef HALLJOY_DISABLE_MIDI
+    if (g_hPageMidi)
+        SetWindowPos(g_hPageMidi, nullptr, tabRc.left, tabRc.top, pw, ph, SWP_NOZORDER);
+#endif
     halljoy::tab_transition::OnLayout();
 }
 
+#ifndef HALLJOY_DISABLE_MIDI
+// Appended only for explicitly enabled MIDI. Existing tab indices stay stable.
+static void SyncMidiSettingsTab(HWND hWnd)
+{
+    const bool enabled = halljoy::midi::NeedsAnalog();
+    const int index = 5 + int(kProfilesPageEnabled) + int(kMouseSettingsPageEnabled);
+    if (enabled == (g_hPageMidi != nullptr)) {
+        if (g_hPageMidi) SendMessageW(g_hPageMidi, WM_APP_MIDI_SETTINGS_CHANGED, 0, 0);
+        return;
+    }
+    halljoy::tab_transition::JumpTo(g_activeSubTab);
+    halljoy::tab_transition::Shutdown();
+    if (enabled) {
+        TCITEMW item{}; item.mask = TCIF_TEXT; item.pszText = const_cast<LPWSTR>(L"MIDI settings");
+        TabCtrl_InsertItem(g_hSubTab, index, &item);
+        g_hPageMidi = MidiSettingsPage_Create(g_hSubTab, GetModuleHandleW(nullptr));
+    } else {
+        if (g_activeSubTab == index) { TabCtrl_SetCurSel(g_hSubTab, 0); ShowSubPage(0); }
+        TabCtrl_DeleteItem(g_hSubTab, index);
+        DestroyWindow(g_hPageMidi); g_hPageMidi = nullptr;
+    }
+    halljoy::tab_transition::Host host{};
+    host.parent = hWnd; host.tab = g_hSubTab; host.count = TabCtrl_GetItemCount(g_hSubTab);
+    host.page = SubPageWindow; host.commit = ApplySubPageVisibility;
+    halljoy::tab_transition::Initialize(host);
+    ResizeSubUi(hWnd); ApplySubPageVisibility(g_activeSubTab);
+}
+
+#endif
 // ----- Right-click unbind on key button + drag bound icon (subclass) -----
 
 static constexpr UINT_PTR KEYDRAG_TIMER_ID = 9101;
@@ -1318,7 +1367,7 @@ static int CollectDisplayedActionsByHid(uint16_t hid, DisplayedKeyIconEntry out[
     }
     if (!hid) return 0;
 
-    int pads = std::clamp(Backend_GetVirtualGamepadCount(), 1, 4);
+    int pads = Backend_GetVirtualGamepadsEnabled() ? std::clamp(Backend_GetVirtualGamepadCount(), 1, 4) : 0;
     int count = 0;
     for (int pad = 0; pad < pads; ++pad)
     {
@@ -1339,6 +1388,15 @@ static int CollectDisplayedActionsByHid(uint16_t hid, DisplayedKeyIconEntry out[
             ++count;
         }
     }
+#ifndef HALLJOY_DISABLE_MIDI
+    const auto midi = halljoy::midi::Get();
+    const unsigned encoded = halljoy::keycode::IsSupported(hid) ? midi->keys[hid] : 0;
+    if (midi->enabled && encoded && count < 4) {
+        if (out) out[count] = {BindingAction_Midi(encoded - 1), 0,
+            RemapIcons_Count() + static_cast<int>(encoded - 1)};
+        ++count;
+    }
+#endif
     return count;
 }
 
@@ -1588,6 +1646,7 @@ static bool SwapFly_EnsureSurface(HWND hwndForDpi)
 
 static int FindIconIdxForAction(BindAction a)
 {
+    if (BindingAction_IsMidi(a)) return RemapIcons_Count() + BindingAction_MidiAddress(a);
     int n = RemapIcons_Count();
     for (int i = 0; i < n; ++i)
         if (RemapIcons_Get(i).action == a) return i;
@@ -2597,7 +2656,7 @@ static LRESULT CALLBACK KeyBtnSubclassProc(HWND hBtn, UINT msg, WPARAM wParam, L
                 KeyDel_Start(hPage, hBtn, iconIdx, padIndex);
 
                 // Logical unbind happens immediately (visual is handled by overlay ghost)
-                if (pickedSpecific)
+                if (pickedSpecific || BindingAction_IsMidi(act))
                     BindingActions_RemoveFromPad(padIndex, act, hid);
                 else
                     Bindings_ClearHidForPad(padIndex, hid);
@@ -3151,6 +3210,9 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
                 return camera >= 0.f ? camera : (float)g_shownSubTab;
             };
         }
+#ifndef HALLJOY_DISABLE_MIDI
+        SyncMidiSettingsTab(hWnd);
+#endif
         halljoy::perf::Mark("ui.page.layout.end");
 
         for (uint16_t hid2 : g_hids)
@@ -3188,6 +3250,20 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         SyncPausePreview(hWnd, true);
         return 0;
 
+#ifndef HALLJOY_DISABLE_MIDI
+    case WM_APP_MIDI_SETTINGS_CHANGED:
+        SyncMidiSettingsTab(hWnd);
+        return 0;
+
+    case WM_APP_OPEN_MIDI_SETTINGS:
+        SyncMidiSettingsTab(hWnd);
+        if (g_hPageMidi) {
+            const int index = 5 + int(kProfilesPageEnabled) + int(kMouseSettingsPageEnabled);
+            TabCtrl_SetCurSel(g_hSubTab, index); ShowSubPage(index, true);
+        }
+        return 0;
+
+#endif
     case WM_APP_ANALOG_SOURCE_STATUS_CHANGED:
         if (g_hSupportBanner) InvalidateRect(g_hSupportBanner, nullptr, FALSE);
         ResizeSubUi(hWnd);
@@ -3256,7 +3332,15 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
             bool appendDrop = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
 
             BindAction dstAct{};
-            bool dstHasAction = (dst != 0) && BindingActions_TryGetByHidForPad(srcPadIndex, dst, dstAct);
+            bool dstHasAction = false;
+#ifndef HALLJOY_DISABLE_MIDI
+            if (BindingAction_IsMidi(srcAct)) {
+                const unsigned encoded = halljoy::midi::Binding(dst);
+                dstHasAction = encoded != 0;
+                if (encoded) dstAct = BindingAction_Midi(encoded - 1);
+            } else
+#endif
+                dstHasAction = (dst != 0) && BindingActions_TryGetByHidForPad(srcPadIndex, dst, dstAct);
 
             // Drop to empty:
             if (dst == 0)
@@ -3502,6 +3586,9 @@ static LRESULT CALLBACK PageMainProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         halljoy::profiles::service::onChanged = nullptr;
         halljoy::profiles::service::Stop();
         g_hProfileSelector = nullptr;
+#ifndef HALLJOY_DISABLE_MIDI
+        g_hPageMidi = nullptr;
+#endif
         g_keyboardCanvas = nullptr; // destroyed with the page as its child
         g_hSupportBanner = nullptr;
         g_hPausePreview = nullptr; // The child destroys its timer/fonts with the parent.

@@ -20,6 +20,10 @@
 #include "keyboard_layout.h"
 #include "analog_key_codes.h"
 #include "backend.h"
+#ifndef HALLJOY_DISABLE_MIDI
+#include "midi_output.h"
+#include "midi_settings_page.h"
+#endif
 #include "keyboard_ui_internal.h"
 #include "keyboard_ui_state.h"
 #include "keyboard_support_status.h"
@@ -66,6 +70,9 @@ HWND g_hPageTester = nullptr;
 HWND g_hPageGlobal = nullptr;
 HWND g_hPageInputOverlay = nullptr;
 HWND g_hPageMouse = nullptr;
+#ifndef HALLJOY_DISABLE_MIDI
+HWND g_hPageMidi = nullptr;
+#endif
 int  g_activeSubTab = 0;
 
 void KeyboardUI_OnEngineStateChanged()
@@ -353,8 +360,9 @@ void KeyboardUI_OnTimerTick(HWND)
     auto frozenModels = NativeLayoutDevices_QueryFrozen();
     for (int i=0;i<std::clamp(telemetry.nativeProtocolCount,0,kBackendMaxNativeProtocols);++i) {
         const auto& device=telemetry.nativeProtocols[i];
+        const auto research=halljoy::keyboard_support::ResearchNotice(device.protocol, device.vendorId, device.productId, device.present, device.connected, device.accessBusy,device.name);
         frozenModels |= halljoy::keyboard_support::NativeNotice(device.protocol, device.verifiedLayoutToken, device.connected, device.productId);
-        frozenModels |= halljoy::keyboard_support::ResearchNotice(device.protocol, device.vendorId, device.productId, device.present, device.connected, device.accessBusy);
+        frozenModels |= research;
         frozenModels |= halljoy::keyboard_support::GenericNotice(device.connected, device.genericProtocol);
         frozenModels |= halljoy::keyboard_support::BusyNotice(device.present, device.connected, device.accessBusy);
     }
@@ -403,6 +411,9 @@ void KeyboardUI_OnTimerTick(HWND)
     }
 
     KeyboardUI_OnAnalogPreview();
+#ifndef HALLJOY_DISABLE_MIDI
+    if (g_hPageMidi) MidiSettingsPage_Tick(g_hPageMidi);
+#endif
 
     // NEW: gear anim redraw for keys with override toggle animation
     TickOverrideGearAnim();
@@ -410,6 +421,9 @@ void KeyboardUI_OnTimerTick(HWND)
     static ULONGLONG s_nextLiveSampleAt = 0;
     static uint64_t s_lastAnalogHash = 0;
     static uint32_t s_lastTesterHash = 0;
+#ifndef HALLJOY_DISABLE_MIDI
+    static std::uint64_t s_lastMidiGeneration = 0, s_lastMidiStatus = ~std::uint64_t{0};
+#endif
     const ULONGLONG now = GetTickCount64();
     if ((g_activeSubTab == 1 || g_activeSubTab == 2) && now >= s_nextLiveSampleAt)
     {
@@ -427,15 +441,30 @@ void KeyboardUI_OnTimerTick(HWND)
 
     }
 
+#ifndef HALLJOY_DISABLE_MIDI
+    const auto midiStatus = MidiOutput_StatusToken();
+    if (midiStatus != s_lastMidiStatus) {
+        s_lastMidiStatus = midiStatus;
+        if (g_hPageRemap) PostMessageW(g_hPageRemap, WM_APP + 43, 0, 0);
+    }
+#endif
     // Gamepad bars are animation-rate UI, not slow diagnostic telemetry.
     // Sample their compact report hash on every UI tick so the tester follows
     // the configured refresh cadence instead of being capped at 10 FPS.
     if (g_activeSubTab == 2 && g_hPageTester)
     {
         const uint32_t testerHash = HashGamepadReports();
+#ifndef HALLJOY_DISABLE_MIDI
+        const auto midiGeneration = MidiOutput_Generation();
+        if (testerHash != s_lastTesterHash || midiGeneration != s_lastMidiGeneration)
+#else
         if (testerHash != s_lastTesterHash)
+#endif
         {
             s_lastTesterHash = testerHash;
+#ifndef HALLJOY_DISABLE_MIDI
+            s_lastMidiGeneration = midiGeneration;
+#endif
             PostMessageW(g_hPageTester, WM_APP_TESTER_LIVE_REFRESH, 0, 0);
         }
     }

@@ -137,6 +137,7 @@ HANDLE g_activeHandle = INVALID_HANDLE_VALUE;
 drunkdeer::Payload g_payloadSnapshot{};
 std::uint64_t g_payloadSnapshotGeneration = 0;
 std::uint64_t g_payloadSnapshotMs = 0;
+halljoy::observation::Source g_observation;
 std::array<std::atomic<std::uint16_t>, halljoy::keycode::kCount> g_milli{};
 std::array<std::atomic<std::uint8_t>, halljoy::keycode::kCount> g_owned{};
 std::atomic<std::uint16_t> g_productId{ 0 };
@@ -624,6 +625,7 @@ bool EnsureClaim(const Candidate& candidate, Proof* proof)
 
 bool NeutralizeValues()
 {
+    g_observation.Clear();
     bool changed = false;
     for (auto& value : g_milli)
         if (value.exchange(0, std::memory_order_relaxed)) changed = true;
@@ -736,6 +738,7 @@ void ProcessMatrix(const drunkdeer::Matrix& matrix,
             const auto milli = drunkdeer::ToMilli(raw);
             const auto oldMilli = g_milli[code].exchange(milli,
                 std::memory_order_relaxed);
+            g_observation.Publish(code,code,milli,oldMilli);
             if (oldMilli != milli) changedForRealtime = true;
         }
         previous[position] = raw;
@@ -1374,7 +1377,7 @@ const NativeAnalogBackendDescriptor& DrunkDeer_GetNativeBackendDescriptor()
         &Owns,
         &Get,
         &Telemetry,
-    };
+     nullptr, +[](halljoy::observation::Sink sink) { g_observation.Visit(sink,&Owns,&Get); }};
     return descriptor;
 }
 

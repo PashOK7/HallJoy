@@ -101,6 +101,33 @@
           "products": [],
           "brand": "Aula",
           "url": ""
+        },
+        {
+          "id": "aula_f75_he_legacy_ansi",
+          "adapter": "reviewed-report",
+          "brand": "Aula",
+          "model": "F75 HE (2729)",
+          "variant": "ANSI",
+          "count": 80,
+          "source": "docs/research/aula-f75-he-legacy-ansi.json",
+          "sha256": "ac43feab75ff768395a1dcac89ce7b150d4500c6d67fafaddd5f2c880cc173c3",
+          "products": [
+            "F75HE-38A6-2729-ANSI"
+          ]
+        },
+        {
+          "id": "aula_f75_he_current_ansi",
+          "adapter": "reviewed-report",
+          "brand": "Aula",
+          "model": "F75 HE (2742 and 2.4G)",
+          "variant": "ANSI",
+          "count": 80,
+          "source": "docs/research/aula-f75-he-current-ansi.json",
+          "sha256": "0b2a9a7ec68adadc83a220fd016b3694055fc3632fa2271e8fcd74f6f948eaeb",
+          "products": [
+            "F75HE-38A6-2742-ANSI",
+            "F75HE-0C45-FEFE-ANSI"
+          ]
         }
       ],
       "pending": [],
@@ -1611,6 +1638,20 @@
             "RY1B-2352"
           ],
           "url": ""
+        },
+        {
+          "id": "monsgeek_fun60_pro_ansi",
+          "brand": "MonsGeek",
+          "model": "FUN60 Pro",
+          "variant": "ANSI",
+          "count": 61,
+          "source": "docs/research/rongyuan-layouts/monsgeek_fun60_pro_ansi.json",
+          "sha256": "04c7c2fd3e64b452f6ac41ce1605d564fcda282010e2f4bcc28636108cc4e0d0",
+          "products": [
+            "RY1B-2600",
+            "RY1B-2785"
+          ],
+          "url": ""
         }
       ]
     },
@@ -1865,6 +1906,32 @@
             "RY1B-2924"
           ],
           "url": ""
+        },
+        {
+          "id": "akko_5087_v3_he_ansi",
+          "brand": "Akko",
+          "model": "5087 V3 HE",
+          "variant": "ANSI",
+          "count": 88,
+          "source": "docs/research/akko-5087-v3-he-ansi.json",
+          "sha256": "36cfcafe5b9a89f1f987ff60f3c0a491c0ff9119c0476c0122d3820786c350a3",
+          "products": [
+            "AKKO5087V3HE-3131"
+          ],
+          "adapter": "reviewed-report"
+        },
+        {
+          "id": "akko_mod007_v5_he_ansi",
+          "brand": "Akko",
+          "model": "MOD007 V5 HE",
+          "variant": "ANSI",
+          "count": 80,
+          "source": "docs/research/akko-mod007-v5-he-ansi.json",
+          "sha256": "c79d8f3a677123b273bef3458de308f6f3e7fd05b352bbc830697aea3262aca9",
+          "products": [
+            "AKKOMOD007V5HE-3113"
+          ],
+          "adapter": "reviewed-report"
         }
       ]
     },
@@ -1977,8 +2044,23 @@
           "variant": "ANSI",
           "count": 81,
           "source": "docs/research/everglide-layout-reports/everglide_su75_pro_ansi.json",
-          "sha256": "a266b840b407ed631e7bdca4853650979eaa748aa2b67b3d5cf69a7480f2547b",
-          "products": [],
+          "sha256": "c33a80647e139f3292835db841786e781dc6cbb73bcbbb16378bde68b3d91e4a",
+          "products": [
+            "SU75PRO-3002-00300002-ANSI"
+          ],
+          "url": ""
+        },
+        {
+          "id": "everglide_su75_pro_v2_ansi",
+          "brand": "Everglide",
+          "model": "SU75 Pro V2 / SU75 Ultra",
+          "variant": "ANSI",
+          "count": 81,
+          "source": "docs/research/everglide-layout-reports/everglide_su75_pro_v2_ansi.json",
+          "sha256": "50f1bc16080a19d285c7dc079723f094a01b17ee5aa40c0a39a9cc19e2bf54e8",
+          "products": [
+            "SU75ULTRA-3007-00300007-ANSI"
+          ],
           "url": ""
         }
       ]
@@ -2443,8 +2525,9 @@
           "variant": "ANSI",
           "count": 61,
           "source": "docs/research/supported-gap-layout-reports/mchose_ace_60_ansi.json",
-          "sha256": "ebe681d869ca3215a744ffc394bb67df3cf637d5c91563e80bc4d4ca293c6608",
+          "sha256": "40e585a3d77ac2f45f326c79bc07b8f652f8a80c49bb3337cbddd94d906fd658",
           "products": [
+            "ACE60-41E4-2101",
             "ACE60PRO-41E4-2103",
             "ACE60XI-41E4-2126",
             "ACE60XII-41E4-2112"
@@ -2476,6 +2559,69 @@
           "sha256": "a5dd46d0383fdea35ef1091618c84541cbacd2c0b5013c06b023ba28fa3aa09e",
           "products": [
             "ACE758K-3837-303C"
+          ],
+          "url": ""
+        },
+        {
+          "adapter": "reviewed-report",
+          "id": "mchose_ace_68_gt_ansi",
+          "brand": "MCHOSE",
+          "model": "Ace 68 GT",
+          "variant": "ANSI",
+          "count": 68,
+          "source": "docs/research/supported-gap-layout-reports/mchose_ace_68_gt_ansi.json",
+          "sha256": "78836293a691632df1f0bcd638e05e596f200839fe8a494fe5a061a9f9fa2097",
+          "products": [
+            "ACE68GT-3837-3007"
+          ],
+          "url": ""
+        },
+        {
+          "adapter": "reviewed-report",
+          "id": "mchose_gt75_ansi",
+          "brand": "MCHOSE",
+          "model": "GT75",
+          "variant": "ANSI",
+          "count": 83,
+          "source": "docs/research/mchose-gt75-ansi.json",
+          "sha256": "ce752e1f0c760b8dfe0cfce01e02486afaf7709430ed1db36e7f89b552a1725e",
+          "products": [
+            "GT75-3837-302D-ANSI"
+          ]
+        }
+      ]
+    },
+    "HATOR": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/RONGYUAN_BATCH_2_2026-09-24.md",
+      "models": [
+        {
+          "adapter": "reviewed-report",
+          "id": "hator_skyfall_80_mag_ultima_ansi",
+          "brand": "HATOR",
+          "model": "Skyfall 80 MAG Ultima 8K Wireless",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/supported-gap-layout-reports/hator_skyfall_80_mag_ultima_ansi.json",
+          "sha256": "16ed3f735b061cc41591d8b5478aa24e347e6b8da220b57ace9d190c66a45a86",
+          "products": [
+            "RY1B-2800",
+            "RY1B-2857"
+          ],
+          "url": ""
+        },
+        {
+          "adapter": "reviewed-report",
+          "id": "hator_skyfall_80_mag_ultima_iso",
+          "brand": "HATOR",
+          "model": "Skyfall 80 MAG Ultima 8K Wireless",
+          "variant": "ISO",
+          "count": 83,
+          "source": "docs/research/supported-gap-layout-reports/hator_skyfall_80_mag_ultima_iso.json",
+          "sha256": "29c4d12dcaa5c86b9e46d7976061cfa162d0cd0dbf3b8993ca90de03dcd27a5e",
+          "products": [
+            "RY1B-2858"
           ],
           "url": ""
         }
@@ -2704,6 +2850,65 @@
             "VANGUARDPRO96-1B1C-2B0E-JIS"
           ],
           "url": "https://www.corsair.com/ca/en/explorer/gamer/keyboards/vanguard-pro-96/"
+        }
+      ]
+    },
+    "FREEWOLF": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "models": [
+        {
+          "id": "freewolf_f68_ansi",
+          "brand": "FREEWOLF",
+          "model": "F68",
+          "variant": "ANSI",
+          "count": 67,
+          "source": "docs/research/rongyuan-layouts/freewolf_f68_ansi.json",
+          "sha256": "1f032e533a1c12869dd9aa95daeeb6130b925857d890419c71993b1ecacaefd7",
+          "products": [
+            "RY1B-2634"
+          ],
+          "url": "https://www.freewolf.cn/system.aspx?ClassID=18"
+        }
+      ]
+    },
+    "ARDOR GAMING": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/ARDOR_VIPER_2026-11-13.md",
+      "models": [
+        {
+          "id": "ardor_viper_ansi",
+          "brand": "ARDOR GAMING",
+          "model": "Viper",
+          "variant": "ANSI",
+          "count": 82,
+          "source": "docs/research/ardor-viper-ansi.json",
+          "sha256": "90c2b7d95a8b957d100b29da8226e8c99377310bdf60ed4ce023a0b18b38bcd4",
+          "products": [
+            "GK8163HERGB-ANSI"
+          ],
+          "url": "https://www.dns-shop.ru/product/driver/26e5d7a95567c777/klaviatura-provodnaa-ardor-gaming-viper-cvet-cernyj/"
+        }
+      ]
+    },
+    "LANGTU": {
+      "adapter": "reviewed-report",
+      "runtime": true,
+      "guide": "docs/current/BOOM68_USB_2026-11-14.md",
+      "models": [
+        {
+          "id": "langtu_boom68_usb_ansi",
+          "brand": "LANGTU",
+          "model": "BOOM68-USB",
+          "variant": "ANSI",
+          "count": 67,
+          "source": "docs/research/langtu-boom68-usb-ansi.json",
+          "sha256": "9a47cdbaa0dcf66aeb38f281d8fe3cf1c17b5f629ace905564f1a754efc8aaf4",
+          "products": [
+            "BOOM68-0C45-80B5-ANSI"
+          ],
+          "url": "https://langtu.driveall.cn/"
         }
       ]
     }

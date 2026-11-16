@@ -467,6 +467,7 @@ float KeyboardRender_ReadAnalog01(uint16_t hid)
 
 static int FindIconIndexByAction(BindAction a)
 {
+    if (BindingAction_IsMidi(a)) return RemapIcons_Count() + BindingAction_MidiAddress(a);
     int n = RemapIcons_Count();
     for (int i = 0; i < n; ++i)
         if (RemapIcons_Get(i).action == a) return i;
@@ -518,7 +519,7 @@ static int CollectDisplayedIconsByHid(uint16_t hid, BoundIconEntry out[4])
     }
     if (!hid) return 0;
 
-    int pads = std::clamp(Backend_GetVirtualGamepadCount(), 1, 4);
+    int pads = Backend_GetVirtualGamepadsEnabled() ? std::clamp(Backend_GetVirtualGamepadCount(), 1, 4) : 0;
     int count = 0;
     for (int pad = 0; pad < pads; ++pad)
     {
@@ -547,6 +548,16 @@ static int CollectDisplayedIconsByHid(uint16_t hid, BoundIconEntry out[4])
             ++count;
         }
     }
+#ifndef HALLJOY_DISABLE_MIDI
+    const auto midi = halljoy::midi::Get();
+    const unsigned encoded = halljoy::keycode::IsSupported(hid) ? midi->keys[hid] : 0;
+    if (midi->enabled && encoded && count < 4 &&
+        !(g_suppressedBinding.enabled && g_suppressedBinding.hid == hid &&
+          g_suppressedBinding.action == BindingAction_Midi(encoded - 1))) {
+        if (out) out[count] = {RemapIcons_Count() + static_cast<int>(encoded - 1), 0};
+        ++count;
+    }
+#endif
     return count;
 }
 

@@ -58,6 +58,7 @@ Silent uninstall also preserves data unless explicitly passed `/REMOVEUSERDATA=1
 junctions or symbolic links. If a selected data file cannot be removed, uninstall
 reports failure and retains the app, registration and uninstaller for retry;
 completed deletions are not rolled back. Close other copies before data cleanup.
+See [scope and test evidence](../current/WINDOWS_UNINSTALL_DATA_2026-11-15.md).
 Close an installed copy before upgrading.
 In-place installed upgrades are not a multi-file transactional installer; retain
 configuration backups. This does not affect portable application publication.
@@ -74,5 +75,6 @@ explicit-preserve, full cleanup, junction, locked-file/retry and path-overlap ca
 test-only HKCU keys and shortcuts; it never launches HallJoy. Owner visual review
 is separate; no wizard visual automation is required for normal packaging.
 
-The installer, portable helpers and translated guides build on d9911’s
-[contribution in PR #11](https://github.com/PashOK7/HallJoy/pull/11).
+Contribution adapted from PR#11 (`d9911`, head2bc4e5a). Source/runtime changes,
+mandatory installer BUILD behavior, duplicate EXE publisher and unused alternate
+branding assets are outside this adaptation. See the [current integration report](../current/PR11_OPTIONAL_INSTALLER_2026-11-15.md).

@@ -22,6 +22,17 @@ enum class BindAction : uint32_t
     Btn_DU, Btn_DD, Btn_DL, Btn_DR,
 };
 
+// MIDI actions occupy a separate domain and coexist with gamepad bindings.
+constexpr bool BindingAction_IsMidi(BindAction action) noexcept {
+    return static_cast<uint32_t>(action) >= 0x1000 && static_cast<uint32_t>(action) < 0x1800;
+}
+constexpr BindAction BindingAction_Midi(unsigned address) noexcept {
+    return static_cast<BindAction>(0x1000 + address);
+}
+constexpr unsigned BindingAction_MidiAddress(BindAction action) noexcept {
+    return static_cast<unsigned>(action) - 0x1000;
+}
+
 // Clears existing usage of this HID, then applies the binding.
 void BindingActions_Apply(BindAction a, uint16_t hid);
 void BindingActions_ApplyForPad(int padIndex, BindAction a, uint16_t hid);

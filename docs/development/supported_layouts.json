@@ -149,6 +149,13 @@
    ]
   },
   {
+   "brand": "E-YOOSO",
+   "model": "HZ-94",
+   "presets": [
+    "E-YOOSO HZ-94 ANSI"
+   ]
+  },
+  {
    "brand": "EPOMAKER",
    "model": "HE108",
    "presets": [
@@ -174,6 +181,20 @@
    "model": "SU75 Pro",
    "presets": [
     "Everglide SU75 Pro ANSI"
+   ]
+  },
+  {
+   "brand": "FREEWOLF",
+   "model": "F68",
+   "presets": [
+    "FREEWOLF F68 ANSI"
+   ]
+  },
+  {
+   "brand": "GamaKay",
+   "model": "TK75 HE V2",
+   "presets": [
+    "GamaKay TK75 HE + TK75 HE V2 ANSI"
    ]
   },
   {
@@ -353,6 +374,13 @@
    ]
   },
   {
+   "brand": "LANGTU",
+   "model": "BOOM68-USB",
+   "presets": [
+    "LANGTU BOOM68-USB ANSI"
+   ]
+  },
+  {
    "brand": "Lemokey",
    "model": "P1 HE",
    "presets": [
@@ -405,11 +433,26 @@
   },
   {
    "brand": "MCHOSE",
+   "model": "Ace 68 Air (II revision)",
+   "presets": [
+    "MCHOSE Ace 68 ANSI"
+   ],
+   "shownAs": "Ace 68"
+  },
+  {
+   "brand": "MCHOSE",
    "model": "Ace 68 Air (III revision)",
    "presets": [
     "MCHOSE Ace 68 ANSI"
    ],
    "shownAs": "Ace 68"
+  },
+  {
+   "brand": "MCHOSE",
+   "model": "Ace 68 GT",
+   "presets": [
+    "MCHOSE Ace 68 GT ANSI"
+   ]
   },
   {
    "brand": "MCHOSE",
@@ -429,16 +472,16 @@
   },
   {
    "brand": "MonsGeek",
-   "model": "FUN60 Ultra TMR",
+   "model": "FUN60 Pro",
    "presets": [
-    "MonsGeek FUN60 Ultra TMR ANSI"
+    "MonsGeek FUN60 Pro ANSI"
    ]
   },
   {
-   "brand": "GamaKay",
-   "model": "TK75 HE V2",
+   "brand": "MonsGeek",
+   "model": "FUN60 Ultra TMR",
    "presets": [
-    "GamaKay TK75 HE + TK75 HE V2 ANSI"
+    "MonsGeek FUN60 Ultra TMR ANSI"
    ]
   },
   {

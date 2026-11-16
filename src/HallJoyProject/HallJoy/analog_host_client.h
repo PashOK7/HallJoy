@@ -13,6 +13,8 @@
 // runs in a child process; these functions never load the SDK into HallJoy.
 int AnalogHostClient_Initialise();
 bool AnalogHostClient_IsInitialised();
+// Control/lifecycle notification only; creates no thread, mapping or input work.
+void AnalogHostClient_SetObservationCapture(bool enabled) noexcept;
 // Coalesces a real Windows device-change event into a controlled restart of
 // the isolated UAP child. This never performs enumeration or waits on the
 // caller's thread; the supervisor owns termination, reap and replacement.

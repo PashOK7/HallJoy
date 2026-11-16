@@ -371,7 +371,6 @@ void Bindings_RemovePadAndCompact(int removePadIndex, int activePadCount)
 {
     activePadCount = std::clamp(activePadCount, 1, BINDINGS_MAX_GAMEPADS);
     if (!IsValidPadIndex(removePadIndex)) return;
-    if (removePadIndex <= 0) return; // pad #1 is always present
     if (removePadIndex >= activePadCount) return;
 
     for (int p = removePadIndex; p < activePadCount - 1; ++p)
@@ -399,12 +398,18 @@ void Bindings_RemovePadAndCompact(int removePadIndex, int activePadCount)
 
 void Bindings_ClearHid(uint16_t hid)
 {
+#ifndef HALLJOY_DISABLE_MIDI
+    if (halljoy::midi::Binding(hid)) halljoy::midi::Bind(hid, 0);
+#endif
     for (int pad = 0; pad < BINDINGS_MAX_GAMEPADS; ++pad)
         Bindings_ClearHidForPad(pad, hid);
 }
 
 bool Bindings_IsHidBound(uint16_t hid)
 {
+#ifndef HALLJOY_DISABLE_MIDI
+    if (halljoy::midi::IsBound(hid)) return true;
+#endif
     for (int pad = 0; pad < BINDINGS_MAX_GAMEPADS; ++pad)
     {
         if (Bindings_IsHidBoundForPad(pad, hid))
@@ -414,6 +419,7 @@ bool Bindings_IsHidBound(uint16_t hid)
 }
 
 void Bindings_Capture(BindingsSnapshot& out) noexcept {
+    out.midi = halljoy::midi::Get();
     for (int p=0; p<BINDINGS_MAX_GAMEPADS; ++p) {
         for (int a=0; a<4; ++a) out.axes[p][a] = Bindings_GetAxisForPad(p, static_cast<Axis>(a));
         for (int t=0; t<2; ++t) out.triggers[p][t] = Bindings_GetTriggerForPad(p, static_cast<Trigger>(t));
@@ -423,6 +429,7 @@ void Bindings_Capture(BindingsSnapshot& out) noexcept {
     }
 }
 void Bindings_Apply(const BindingsSnapshot& snapshot) noexcept {
+    halljoy::midi::Publish(snapshot.midi);
     for (int p=0; p<BINDINGS_MAX_GAMEPADS; ++p) {
         for (int a=0; a<4; ++a) {
             StoreSide(g_axisKeys[p][a][0], snapshot.axes[p][a].minusHids);

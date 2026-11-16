@@ -32,6 +32,20 @@ void SupportLog_SetInputConfigProvider(SupportLogInputConfigProvider provider) n
 // bound to the gamepad and the resulting gamepad state. Kept in its own bounded
 // window of the newest 4000 lines; the header says bound_key_trace=1.
 void SupportLog_Trace(const char* record) noexcept;
+// Optional bounded provider on the log worker, before draining its queue.
+using SupportLogReceiverTraceProvider = void (*)() noexcept;
+void SupportLog_SetReceiverTraceProvider(SupportLogReceiverTraceProvider provider) noexcept;
+// A bounded aggregate collector, called on the log worker before every snapshot.
+// It must read cached data only and may append evidence without opening hardware.
+using SupportLogDeviceEvidenceProvider = void (*)() noexcept;
+void SupportLog_SetDeviceEvidenceProvider(SupportLogDeviceEvidenceProvider provider) noexcept;
+// Independent cached matrix collector; does not replace the Viper collector.
+void SupportLog_SetRongyuanEvidenceProvider(SupportLogDeviceEvidenceProvider provider) noexcept;
+void SupportLog_SetAulaF75EvidenceProvider(SupportLogDeviceEvidenceProvider provider) noexcept;
+void SupportLog_SetMchoseGt75EvidenceProvider(SupportLogDeviceEvidenceProvider provider) noexcept;
+void SupportLog_SetSparkEvidenceProvider(SupportLogDeviceEvidenceProvider provider) noexcept;
+// Scoped MIDI velocity diagnostics. Cached bound-note measurements only.
+void SupportLog_SetMidiEvidenceProvider(SupportLogDeviceEvidenceProvider provider) noexcept;
 // Format capture for decoding an unknown device protocol (owner rule
 // 2026-10-06: the log must carry the data). A record starts with "capture."
 // and is stored at once, without the timed queue, in its own store of the

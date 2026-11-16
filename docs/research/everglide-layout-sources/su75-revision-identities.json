@@ -1,0 +1,208 @@
+{
+ "schema": 1,
+ "source": "Read-only producer firmware catalog and exact binaries; vendor assets local-only.",
+ "pcb_source": "https://keebforce.com/su75-pro-v1-vs-v2-pcb/",
+ "identities": [
+  {
+   "vid": "1CA6",
+   "pid": "3002",
+   "board": "00300002",
+   "model": "SU75 Pro",
+   "platform": "XS117"
+  },
+  {
+   "vid": "1CA6",
+   "pid": "3007",
+   "board": "00300007",
+   "model": "SU75 Pro V2 / SU75 Ultra",
+   "platform": "XS125"
+  }
+ ],
+ "matrix": [
+  [
+   41,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65,
+   66,
+   67,
+   68,
+   69,
+   76,
+   74,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   53,
+   30,
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39,
+   45,
+   46,
+   42,
+   77,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   43,
+   20,
+   26,
+   8,
+   21,
+   23,
+   28,
+   24,
+   12,
+   18,
+   19,
+   47,
+   48,
+   49,
+   75,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   57,
+   4,
+   22,
+   7,
+   9,
+   10,
+   11,
+   13,
+   14,
+   15,
+   51,
+   52,
+   0,
+   40,
+   78,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   225,
+   0,
+   29,
+   27,
+   6,
+   25,
+   5,
+   17,
+   16,
+   54,
+   55,
+   56,
+   229,
+   82,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   224,
+   227,
+   226,
+   0,
+   0,
+   0,
+   44,
+   0,
+   0,
+   0,
+   61697,
+   228,
+   80,
+   81,
+   79,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ ],
+ "versions": [
+  {
+   "firmware": "XS117_C048P002_Su75PRO_App_v0.0.7.0_20250819a.bin",
+   "sha256": "be7e1241cbabe4b144dc1b307cfd6d3e169abdfb85d02483b0173263175353c6",
+   "factory_offset": 112364
+  },
+  {
+   "firmware": "XS117_C048P002_Su75PRO_App_v0.1.0.0_20251011a.bin",
+   "sha256": "ac78b02d801ee07d900b3116cba185588e5978b767bc60af568eb40f4254245f",
+   "factory_offset": 106824
+  },
+  {
+   "firmware": "XS117_C048P002_Su75Pro_App_v0.1.4.0_20260305a.bin",
+   "sha256": "4eb6ce318c2deb86a4862397e39765ee12ee3715f4eb4b44893c277b8a570326",
+   "factory_offset": 112096
+  },
+  {
+   "firmware": "XS117_C048P002_Su75Pro_App_v0.1.7.0_20260625a.bin",
+   "sha256": "140841967e6f9c354d365ad7062ac23c88447547e13d6e0ba4486183ce1b8563",
+   "factory_offset": 112636
+  },
+  {
+   "firmware": "XS117_C048P002_Su75Pro_App_v0.1.8.0_20260901a.bin",
+   "sha256": "b99e4244fd4ec44b9343027adec88cac717f82102a9d03a69162e34a2714f86a",
+   "factory_offset": 113952
+  },
+  {
+   "firmware": "XS117_C048P002_Su75Pro_App_v0.2.0.0_20260930a.bin",
+   "sha256": "b4e4dc21f3e879e69e349d4c1f5a8f7d6160f1b07b6fd9373ba0436821a0538e",
+   "factory_offset": 114480
+  },
+  {
+   "firmware": "XS125_C048P007_SU75Ultra_App_v0.0.4.0_20260523c.bin",
+   "sha256": "5de04feaf544e43d4b8d1a98a9f9c309ff41683fef8f1b5a474be9d8cc0ec55d",
+   "factory_offset": 155020
+  },
+  {
+   "firmware": "XS125_C048P007_SU75Ultra_App_v0.0.5.0_20260831b.bin",
+   "sha256": "e0fc699c4dbd5b737ee2f97277a1bbb6043ffd465a15927c66af20d0548694ea",
+   "factory_offset": 157436
+  },
+  {
+   "firmware": "XS125_C048P007_SU75Ultra_App_v0.0.6.0_20261015a.bin",
+   "sha256": "aac64f14be4ad68128a17db728fdabc4b006660042759a04263f046479cee2df",
+   "factory_offset": 160792
+  }
+ ]
+}

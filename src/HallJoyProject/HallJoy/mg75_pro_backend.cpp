@@ -681,7 +681,7 @@ const NativeAnalogBackendDescriptor &Mg75Pro_GetNativeBackendDescriptor() {
       &Connected,
       &Owns,
       &Get,
-      &Telemetry};
+      &Telemetry, nullptr, +[](halljoy::observation::Sink sink) { (Remapped() ? g_assigned : g_factory).Observations(sink); }};
   return d;
 }
 #if defined(HALLJOY_ANALOG_SIMULATOR)

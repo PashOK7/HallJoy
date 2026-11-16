@@ -42,6 +42,7 @@ static std::atomic<uint16_t>      g_sayoConnectedPid{ 0 };
 static std::atomic<ULONGLONG>     g_sayoLastPacketMs{ 0 };
 static ULONGLONG                  g_sayoLastReconnectTryMs = 0;
 namespace so3c = halljoy::sayo::o3c;
+static halljoy::observation::Source g_sayoObservation{halljoy::observation::KeySpace::Position};
 static std::array<std::atomic<uint16_t>,3> g_sayoPhysicalMilli{};
 static std::array<std::atomic<uint16_t>,3> g_sayoIndexToHid{};
 static auto& g_sayoLayoutToken=halljoy::sayo::layout::token;
@@ -99,6 +100,7 @@ static void SayoRecordObservedDepth(uint8_t index, uint16_t raw)
 
 static void Sayo_ResetKeyState()
 {
+    g_sayoObservation.Clear();
     halljoy::native_layout::Clear(g_sayoLayoutToken.exchange(0));
     g_sayoConfigRead.store(false);
     g_sayoO3cCandidate.store(false);
@@ -189,7 +191,9 @@ static void SayoParseDepthResponse(const uint8_t* data, DWORD len, ULONGLONG now
     }
     for (size_t i=0;i<raw.size();++i) {
         SayoRecordObservedDepth(static_cast<uint8_t>(i),raw[i]);
-        g_sayoPhysicalMilli[i].store(so3c::Normalize(raw[i]),std::memory_order_relaxed);
+        const auto value=so3c::Normalize(raw[i]);
+        const auto previous=g_sayoPhysicalMilli[i].exchange(value,std::memory_order_relaxed);
+        g_sayoObservation.Publish(static_cast<std::uint16_t>(i+1),SayoMappedHid(i),value,previous);
     }
     g_sayoLastDepthMs.store(nowMs,std::memory_order_release);
     g_sayoDepthPackets.fetch_add(1,std::memory_order_relaxed);

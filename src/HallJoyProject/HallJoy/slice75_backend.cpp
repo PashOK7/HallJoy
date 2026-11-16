@@ -577,6 +577,6 @@ const NativeAnalogBackendDescriptor &Slice75_GetNativeBackendDescriptor() {
       &Connected,
       &Owns,
       &Get,
-      &Telemetry};
+      &Telemetry, nullptr, +[](halljoy::observation::Sink sink) { (Remapped() ? g_assigned : g_factory).Observations(sink); }};
   return d;
 }

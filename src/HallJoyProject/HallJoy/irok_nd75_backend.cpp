@@ -93,6 +93,7 @@ std::atomic<bool> g_present{ false }, g_connected{ false };
 std::mutex g_serviceMutex, g_handleMutex, g_signalMutex;
 HANDLE g_thread = nullptr, g_wake = nullptr;
 HANDLE g_activeHandle = INVALID_HANDLE_VALUE;
+halljoy::observation::Source g_observation;
 std::array<std::atomic<std::uint16_t>, 256> g_milli{};
 std::array<std::atomic<std::uint8_t>, 256> g_owned{};
 std::atomic<std::uint32_t> g_inputBytes{ 0 }, g_outputBytes{ 0 };
@@ -471,6 +472,7 @@ bool EnsureClaim(const Candidate& candidate, Proof* proof)
 
 void Clear()
 {
+    g_observation.Clear();
     bool changed = false;
     for (auto& value : g_milli)
         if (value.exchange(0, std::memory_order_relaxed)) changed = true;
@@ -499,6 +501,7 @@ void Publish(const irok_nd75::LiveEvent& event, const Proof& proof,
         return;
     }
     const auto old = g_milli[hid].exchange(milli, std::memory_order_relaxed);
+    g_observation.Publish(hid,hid,milli,old);
     if ((old == 0) != (milli == 0))
     {
         if (milli) g_active.fetch_add(1, std::memory_order_relaxed);
@@ -947,6 +950,6 @@ const NativeAnalogBackendDescriptor& IrokNd75_GetNativeBackendDescriptor()
         &Owns,
         &Get,
         &Telemetry,
-    };
+     nullptr, +[](halljoy::observation::Sink sink) { g_observation.Visit(sink,&Owns,&Get); }};
     return descriptor;
 }

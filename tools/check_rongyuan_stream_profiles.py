@@ -128,6 +128,14 @@ aliases={(a['board'],a['vid'],a['pid']):(a.get('canonical_board',a['board']),a['
          for a in json.loads((ROOT/'docs/research/usb-identity-audit/approved-aliases.json').read_bytes())['aliases']}
 for device in confirmed:
     board,pid=aliases.get((device['board'],12625,device['pid']),(device['board'],device['pid']))
+    if device.get('transport')=='receiver':
+        # Receiver5038 is shared: this exception follows exact remote3365 proof,
+        # never a USB-only alias. Production-image tests execute the Model gate.
+        assert (device['board'],device['pid'],device['brand'],device['model'])==(3365,0x5038,'EPOMAKER','HE108')
+        receiver=(ROOT/'src/HallJoyProject/HallJoy/rongyuan_receiver_client.h').read_text(encoding='utf-8')
+        assert 'return vid==0x3151 && pid==0x5038 && board==3365;' in receiver
+        assert '(keydous || He108Trial(vid,pid,board)) ? ry_stream::Find(board,0x3151,0x5030)' in receiver
+        pid=0x5030
     matches=[m for m in profiles if m['board']==board and m['pid']==pid]
     assert len(matches)==1 and (matches[0]['brand'],matches[0]['model'])==(device['brand'],device['model'])
     spec=json.loads((ROOT/'tools/layout_catalog.json').read_bytes())['brands'][device['brand']]

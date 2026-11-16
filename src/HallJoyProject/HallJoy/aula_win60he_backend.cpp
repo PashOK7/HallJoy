@@ -278,6 +278,7 @@ bool InjectStopTimeout() noexcept
 #endif
 }
 
+halljoy::observation::Source g_observation;
 std::array<std::atomic<std::uint16_t>, halljoy::keycode::kCount> g_milli{};
 std::array<std::atomic<std::uint8_t>, halljoy::keycode::kCount> g_owned{};
 std::atomic<std::uint16_t> g_vendorId{ 0 };
@@ -1808,6 +1809,7 @@ bool BuildProbeResult(
 
 void ClearPublishedValues(bool clearOwnership, bool clearLayout = true)
 {
+    g_observation.Clear();
     if (clearLayout)
         halljoy::native_layout::Clear(g_verifiedLayoutToken.exchange(0, std::memory_order_acq_rel));
     bool changed = false;
@@ -1870,7 +1872,9 @@ bool PublishMatrix(
         if (g_owned[hid].load(std::memory_order_relaxed) == 0)
             continue;
         const auto next = snapshot.milli[hid];
-        if (g_milli[hid].exchange(next, std::memory_order_relaxed) != next)
+        const auto oldMidiValue = g_milli[hid].exchange(next, std::memory_order_relaxed);
+        g_observation.Publish(static_cast<std::uint16_t>(hid),static_cast<std::uint16_t>(hid),next,oldMidiValue);
+        if (oldMidiValue != next)
             changed = true;
     }
     g_activeKeys.store(snapshot.activeKeys, std::memory_order_relaxed);
@@ -3126,6 +3130,6 @@ const NativeAnalogBackendDescriptor& AulaWin60He_GetNativeBackendDescriptor()
         &AulaWin60He_OwnsHid,
         &AulaWin60He_GetMilli,
         &FillTelemetry,
-    };
+     nullptr, +[](halljoy::observation::Sink sink) { g_observation.Visit(sink,&AulaWin60He_OwnsHid,&AulaWin60He_GetMilli); }};
     return descriptor;
 }

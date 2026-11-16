@@ -5,6 +5,8 @@
 #include <windows.h>
 #endif
 #include "rongyuan_receiver_client.h"
+#include "rongyuan_receiver_sync_cases.h"
+#include "keyboard_tester_session_cases.h"
 #include "physical_analog_state.h"
 #include "keyboard_communication_health.h"
 #include "generated/layout_pipeline/identities.h"
@@ -63,6 +65,7 @@ struct Fake {
   }
 };
 int main(){
+  for(unsigned scenario=0;scenario<11;++scenario)assert(tester_cases::He108RfCase(scenario));
   assert(Identity(0x3151,0x5038,0xffff,2,65,2));
   assert(!Identity(0x3151,0x5030,0xffff,2,65,2));
   assert(!Identity(0x3151,0x5038,0xff00,2,65,2));
@@ -233,5 +236,6 @@ int main(){
     Fake offline;offline.online=false;Client missing(offline);bool issued=false;
     assert(!missing.Page(0,100,page,[&]{issued=true;}) && !issued);
   }
+  const auto syncCases=receiver_sync_cases::Run();assert(syncCases.positive==22 && syncCases.negative==8);
   std::cout<<"RONGYUAN_RECEIVER=PASS exact remote proof, raw controls, stale drain, 4 pages, multikey holds/releases, no partial publication, cancellation, 29 I/O failures/cancellations, no fixed wait, cached target, late-reply recovery, stream enable/disable, snapshot order, 30s quiet hold/idle, online heartbeat, offline/stale clearing and no false warning, blocked inbox recovery, send-time table tickets and late-stream protection\n";
 }

@@ -1,4 +1,5 @@
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
 
 #include "runtime_supervisor.h"
@@ -6,7 +7,11 @@
 #include <mutex>
 
 #include "backend.h"
+#ifndef HALLJOY_DISABLE_MIDI
+#include "midi_output.h"
+#endif
 #include "debug_log.h"
+#include "support_log.h"
 #include "realtime_loop.h"
 #include "stability_trace.h"
 #include "worker_join_policy.h"
@@ -20,13 +25,26 @@ std::mutex g_mutex;
 HANDLE g_stopEvent = nullptr;
 HANDLE g_thread = nullptr;
 halljoy::lifecycle::WorkerLifecycle g_lifecycle;
+volatile LONG g_optionalWake = 0;
 
 DWORD RuntimeSupervisorBody() noexcept
 {
     bool outputFailureLogged = false;
-    while (g_stopEvent && WaitForSingleObject(g_stopEvent,
-        kRuntimeSupervisorPeriodMs) != WAIT_OBJECT_0)
+#ifndef HALLJOY_DISABLE_MIDI
+    bool midiFailureLogged = false;
+#endif
+    while (g_stopEvent && WaitForSingleObject(g_stopEvent, 0) != WAIT_OBJECT_0)
     {
+        LONG observed = InterlockedCompareExchange(&g_optionalWake, 0, 0);
+#ifndef HALLJOY_DISABLE_MIDI
+        // Reconcile before waiting: a profile change before supervisor startup
+        // cannot lose its only notification.
+        const bool midiReady = MidiOutput_Reconcile();
+        if (!midiReady && !midiFailureLogged) SupportLog_Event("midi.lifecycle_failed", 1);
+        midiFailureLogged = !midiReady;
+#endif
+        WaitOnAddress(&g_optionalWake, &observed, sizeof(observed), kRuntimeSupervisorPeriodMs);
+        if (WaitForSingleObject(g_stopEvent, 0) == WAIT_OBJECT_0) break;
         if (!RealtimeLoop_IsRunning())
         {
             StabilityTrace_Write(L"WARN", L"runtime-supervisor",
@@ -91,6 +109,12 @@ DWORD WINAPI RuntimeSupervisorThreadProc(void*) noexcept
 }
 }
 
+void RuntimeSupervisor_NotifyOptionalOutputs() noexcept
+{
+    InterlockedIncrement(&g_optionalWake);
+    WakeByAddressAll(const_cast<LONG*>(&g_optionalWake));
+}
+
 bool RuntimeSupervisor_Start() noexcept
 {
     const std::lock_guard<std::mutex> lock(g_mutex);
@@ -149,6 +173,7 @@ halljoy::lifecycle::StopResult RuntimeSupervisor_Stop() noexcept
             ERROR_INVALID_HANDLE);
     }
     SetEvent(g_stopEvent);
+    RuntimeSupervisor_NotifyOptionalOutputs();
     const DWORD wait = WaitForSingleObject(g_thread, kRuntimeSupervisorJoinTimeoutMs);
     const DWORD waitError = wait == WAIT_FAILED ? GetLastError() :
         (wait == WAIT_TIMEOUT ? ERROR_TIMEOUT : ERROR_SUCCESS);

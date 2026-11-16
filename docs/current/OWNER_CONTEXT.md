@@ -1,4 +1,3 @@
-> 2026-11-07 PUBLISHED stable/latest 1.6.15: https://github.com/PashOK7/HallJoy/releases/tag/v1.6.15 (commit 72f827d, EXE 59b3886d). See RELEASE_1.6.15_PUBLICATION_2026-11-07.md.
 # HallJoy — действующий контекст владельца
 
 Актуализировано 2026-10-31 по запросу адаптировать рабочий контур для Codex.
@@ -40,8 +39,8 @@
   установленном протоколе/реализации; конкретные технические ограничения сохранять.
   При выполнении критериев агент сам синхронизирует статус, доверяя названию модели
   от тестировщика, без лишнего повторного запроса подтверждения.
-- Yellow — полный включённый путь: идентификация, независимый аналог, бинды и
-  геймпад. Исследование или выключенный backend не являются yellow. Generic admission
+- Yellow — идентификация, независимый аналог всех клавиш, бинды и геймпад.
+  C35B исключён (2026-11-07). Исследование или выключенный backend не являются yellow. Generic admission
   требует безопасной идентификации до команд, доказательства протокола, живого
   чтения и отсутствия межпротокольной коллизии. Bare vendor usage page недостаточен.
   Отказанную идентичность не опрашивать бесконечно:
@@ -89,6 +88,8 @@
 
 ## Сборка, lifecycle и публикация
 
+- HallJoy остаётся портативным: один EXE без установки. Установщик строго опционален;
+  отдельная команда без NSIS в обычной сборке. [Правило](../development/WINDOWS_INSTALLER.md), [PR11](PR11_OPTIONAL_INSTALLER_2026-11-15.md).
 - Одна обычная выдача: `build/bin/Release/x64/HallJoy.exe`, все одобренные функции,
   включая limited MAD68 V2 Dual с red warning без forced logging. Полный каталог
   проверяется независимо в самом кандидате, не ожиданием из того же manifest.
@@ -120,18 +121,12 @@
 
 ## Текущий baseline и отложенные направления
 
-Последняя публикация по локальной записи —
-[1.6.14, 2026-10-31](RELEASE_1.6.14_PUBLICATION_2026-10-31.md), release commit
-`915c141`. При публикации GitHub подтвердил latest/stable и хеши четырёх assets;
-актуальное состояние позже проверять live. EXE/хеш читать через
-`python tools/project_context.py --hash-exe`, версию — из `version.h`.
-
-В 1.6.14 вошли [ATTACK SHARK retry/diagnostics](ATTACK_SHARK_R82HE_LOG27_2026-10-31.md),
-[RT75 Pro Supported](YUNZII_RT75PRO_2026-10-28.md),
-[Mix 87 III другие версии](MCHOSE_MIX87III_FIRMWARE_VERSION_2026-10-29.md),
-[K552-M и K686 HE Supported](REDRAGON_TESTER_FEEDBACK_2026-10-31.md),
-[AULA AG75 Supported](AULA_AG75_2026-10-29.md). K552-M ISO подтверждён пользователем
-в игре и Gamepad Tester; R82 HE остаётся experimental до нового ответа тестировщика.
+Публикация по локальной записи: [1.6.15](RELEASE_1.6.15_PUBLICATION_2026-11-07.md); latest проверять live. EXE/хеш: `project_context.py --hash-exe`; версия: `version.h`.
+[MIDI M2](MIDI_M2_TOUCH_2026-11-15.md), [настройки](MIDI_SETTINGS_UI_2026-11-15.md): отдельная вкладка с живым графиком при MIDI on. Default: 1 pad, MIDI off. Musical gate open.
+2026-11-15: владелец запросил обычный тестовый EXE и следующий релиз без MIDI.
+Код MIDI доступен для разработки с /p:HallJoyMidi=true. Обычная сборка оставляет
+данные прежних MIDI-профилей для совместимости. GitHub-релиз после ручной проверки
+владельца. [Состояние MIDI](../development/MIDI_ROADMAP.md).
 
 K4 с HJO использует onboard; pad исчезает вне HallJoy, permanent pad не согласован.
 [Радиопроба](K4_WIRELESS_GAMEPAD_2026-10-24.md) откатана к проводной рабочей прошивке;
@@ -147,62 +142,60 @@ wireless Route A ещё не реализован. Аппаратные дейс
 не поддерживаются. RT75/RT80 и Apex Pro TKL 2023 отличать от соседних ревизий.
 [Apex TKL Gen3](STEELSERIES_APEX_PRO_TKL_GEN3_REVERSE_2026-11-06.md): Experimental.
 Wired ANSI 1.19.7. Обратный отклик после кривой; Roblox ждёт A/B-теста.
-[HZ-94](EYOOSO_HZ94_REVIEW_2026-11-07.md): тест ANSI94, без анонса, ждёт отчёт.
+[HZ-94](KEYBOARD_FEEDBACK_LOG39_41_2026-11-08.md): USB ANSI подтверждён в игре; Supported sync.
 [K70 PRO TKL](CORSAIR_K70_PRO_TKL_2026-11-07.md): Supported USB 1.12.54; ISO log34 confirmed.
 
 Рабочий порядок: [AGENT_WORKFLOW](../development/AGENT_WORKFLOW.md).
 
-2026-10-31 [R82 HE / log 27](ATTACK_SHARK_R82HE_LOG27_2026-10-31.md): исправлены
-потеря найденного интерфейса при повторном скане и watchdog при metadata retry;
-обычный лог получил стадии discovery/open/identity/travel. Native suite и release
-gates PASS. Новый обычный EXE: SHA-256 `054f8f1f…05dcb8e4`, версия всё ещё 1.6.13.0;
-маркер discovery_revision=2. Аппаратный результат ожидается, статус experimental
-и Sheet не менялись; передавать один EXE, получать HallJoy.log через Open log.
-
-2026-10-31 [Redragon feedback](REDRAGON_TESTER_FEEDBACK_2026-10-31.md): K552-M ISO
-подтверждён в Enter the Gungeon и Gamepad Tester; по K686BG-RGB владелец передал
-«всё идеально работает». Обе модели переведены в Supported, точные профили и
-региональные раскладки сохранены. UI/game-conflict замечания K552-M отдельно;
-пакет Redragon 2.06 — контекст теста, не доказанная обязательная зависимость.
-Sheet C671/C675 = Supported, readback и общий аудит 281 yellow / 86 Supported PASS.
-Native suite и release gates PASS. Локальный EXE до 1.6.14: SHA-256 `da162065…ae3f3beb`,
-1.6.13.0; включает предыдущий R82 fix (discovery_revision=2). Локально, не опубликован.
+[R82 HE](ATTACK_SHARK_R82HE_LOG27_2026-10-31.md): Experimental, discovery rev2, ретест pending. [Redragon](REDRAGON_TESTER_FEEDBACK_2026-10-31.md): K552-M ISO/K686BG-RGB Supported, Sheet/build PASS.
 
 2026-11-02 [CORSAIR VANGUARD PRO 96](CORSAIR_VANGUARD_PRO96_2026-11-02.md):
-limited stock 2.8.171 C6-calibration/C7-snapshot route for exact 1B1C:2B0E;
-ANSI/ISO/JIS, BR excluded (sensor0 collision). Formal firmware assessment
-LIMITED_ONLY; native protocol33, per-key analog and common bindings/gamepad enabled.
-Temporary exclusive read session closes SESSION to avoid switch-settings reload;
-never open missing ID004B, never send calibration-start/configuration writes.
-
-Revision2 admission/logging review fixed permanent rejection on transient HID
-metadata failures, added named parser refusal reasons, actual request/I/O/version
-context, metadata-only collection counts and aggregate raw-motion/depth/releases.
-Bounded evidence survives history rollover/Open log; records fit the real writer.
-Short-test milestones plus 30-second/end summaries; no forced logging or raw keys.
-Cached native suite, actual writer retention and final production Win32 session
-checks PASS; ordinary full-catalog/profile/layout/recovery release gates PASS.
-
-Historical revision2 EXE:85f159f0 (1.6.14.0), supersedes b7ead6f0; full hash
-in the linked report. Current EXE: project_context.py --hash-exe.
-Built-in ANSI/ISO/JIS auto-selection in v1.6.15. Log23 proves stock 2.8.171
-ISO, saved calibration, 97 keys, 5,026 snapshots and 0
-backend failures. Physical depth/release observed. Hold/range, simultaneous
-input, virtual pad and typing still need functional testing. Live Main!C183
-verified yellow on 2026-11-04, Implemented; awaiting hardware testing.
+limited stock2.8.171 C6-calibration/C7-snapshot, exact1B1C:2B0E, protocol33.
+ANSI/ISO/JIS; BR excluded(sensor0 collision). Close SESSION after each read to
+avoid settings reload; no004B open, calibration-start or configuration writes.
+Log23 proves ISO/saved calibration/97 keys/5026 snapshots/0 failures;
+hold/range/gamepad/typing still need functional testing. Sheet C183 yellow.
+Detailed revision2 admission, lifecycle and exact-image checks in linked report.
 
 2026-11-05 [ZENITH PRO](RAMPAGE_ZENITH_PRO_2026-11-05.md): US driver board2310; test pending.
 
 2026-11-05 [AK680 MAX HE](AJAZZ_AK680MAX_SUPPORTED_2026-11-05.md): Supported per tester/owner; Sheet/build PASS.
 
-2026-11-07 [NJ98 V4S](KEYDOUS_NJ98_V4S_LOG31_2026-11-07.md): RF rev5 подтверждает поток пакетом и ограничивает срок стартовых данных. Experimental.
+[F68](FREEWOLF_F68_2026-11-07.md): Supported USB ANSI (2026-11-07).
+
+[SU75 revision identities](EVERGLIDE_SU75_REVISIONS_2026-11-14.md): XS117/V1=1CA6:3002; seller V2/Ultra XS125=1CA6:3007.
+2026-11-15 [SU75 implementation](EVERGLIDE_SU75_IMPLEMENTATION_2026-11-15.md): V1/V2 automatic ANSI presets after board+live proof; physical channels retained through unbound/remapped metadata; cached ordinary-log identity/release aggregates. Existing admission/statuses retained; ordinary EXE6a12acdd installed. Release/image/layout/profile/recovery gates PASS. One shared menu entry; manual legacy names preserved. No GitHub publication or physical V2 result.
+
+2026-11-16 [NJ98 RF rev8](KEYDOUS_NJ98_V4S_COMMAND_HANDOFF_2026-11-16.md): late pages applied; vendor10ms command handoff restored. RF retest pending; USB confirmed.
 
 2026-11-03 [IPI Flash 75 PRO / Gemini Seven-Star](IPI_FLASH75PRO_TESTER_FEEDBACK_2026-11-03.md):
-owner relays everything works; log28: FLASH75 Pro, wired 1CA6:1A10, native SparkLink,
-353121 updates / 0 failures. Hardware confirmation accepted. Exact preset missing:
-keep generic/experimental, manual layout; no Supported until exact geometry and
-catalog/Sheet gates. No runtime/EXE change. Google Drive/Sheets connected and
-read/write verified 2026-11-03: new Main!A386:C386 IPI / QBZ / Flash 75 PRO /
-Gemini Seven-Star -> Implemented; layout pending (yellow). New dropdown choice
-avoids falsely calling the confirmed unit untested. Full structure, 86 Supported
-and all 283 yellow notices PASS; see SHEETS_RECONNECT_2026-11-03.md. No notes/comments.
+owner confirms it works; log28 wired1CA6:1A10 SparkLink,353121 updates/0 failures.
+Exact preset missing: no Supported until geometry/catalog/Sheet gates.
+Main!A386:C386 IPI/QBZ alias, yellow Implemented; layout pending. Drive/Sheets
+read/write and structure verified; details in SHEETS_RECONNECT_2026-11-03.md.
+
+2026-11-13 [ARDOR Viper](ARDOR_VIPER_2026-11-13.md): raw82-channel0x23
+trial replaces lossy events. Tester confirmed operation 11-15. ANSI auto-layout
+and no manual calibration. Depth scale remains provisional; Main!C61 yellow.
+
+2026-11-13 [Akko 5087 V3 HE](AKKO_5087_V3_HE_2026-11-13.md): точный3131 /3151:5029,
+read-only E5/FE full matrix87 + встроенная ANSI/автовыбор; калькулятор display-only.
+Официальный драйвер называет3131 V3 HE; старое имя community не основание отказа.
+Без ручной калибровки/событий/записи настроек. Соседние прошивки replay PASS;
+точный3131 бинарник не получен, физические range/releases pending. Experimental.
+EXE9d55f0fd,25 image-сценариев и полные build/profile/recovery gates PASS.
+Sheet C35 yellow;284 notices/91 Supported-layouts live PASS.
+2026-11-16 [F75 HE](AULA_F75_HE_2026-11-13.md): red; stock trials off, research retained; Sheet C134 verified.
+[Akko MOD007 V5 HE](AKKO_MOD007_V5_HE_2026-11-16.md): log58=3113/5029; read-only matrix +80-key ANSI; physical test pending.
+2026-11-14 [BOOM68-USB](BOOM68_USB_2026-11-14.md): Supported USB stock1.10 ANSI.
+Tester confirmed. Log shows67 channels,9 exercised/9 released,3 simultaneous.
+Sheet Main!C482 green. Trial notice retained for the alternate status getter.
+2026-11-14 [MCHOSE GT75](MCHOSE_GT75_2026-11-14.md): exact3837:302D USB,
+V108 firmware acquired/replayed; E0 absent, separate04/05/06 protocol36.
+81 magnetic A0 channels includingFn +83-control ANSI auto-layout. Guarded debug
+bit persists in flash; restore owned bit on exit, preserve pre-enabled. Source
+cutoff<=9/bottomsnap5, physical typing/loss/range pending; LIMITED_ONLY review.
+EXE605d4556:27 GT75 session cases +3 isolated Win32 I/O cases;8-family/full
+catalog/profile/recovery PASS. Main!C548 yellow. Tester confirmed operation 11-14,
+log pending.
+2026-11-16 [1.6.16 prep](RELEASE_1.6.16_PREPARATION_2026-11-16.md): 3 support updates, CPU90%; no publish.

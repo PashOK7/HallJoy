@@ -13,7 +13,8 @@ The reference is no longer a single page. The contract is shared by:
 - Gamepad Tester;
 - Global settings;
 - Input Overlay;
-- Mouse settings.
+- Mouse settings;
+- MIDI settings, visible only for an enabled MIDI device.
 
 ## Shared viewport contract
 
@@ -24,7 +25,7 @@ The reference is no longer a single page. The contract is shared by:
 - `CustomPageScrollController` owns wheel remainder, scrollbar thumb capture,
   track paging and cancellation;
 - `CustomPageSurface_HandleScrollMessage` is the only active wheel/thumb/track
-  state machine for the six pages;
+  state machine for these pages;
 - layout and hit-test rectangles are content coordinates;
 - `CustomPageSurface_ClientToContent` and
   `CustomPageSurface_ContentToClient` are the coordinate boundary;
@@ -73,6 +74,12 @@ semantics. In particular:
 
 These compatibility HWNDs are transitional internal objects, not members of
 the visual layout. New visible scroll content must not be added as child HWNDs.
+
+MIDI settings use the same split via `CustomPageSurface_Paint`. The retained
+content includes the curve, labels and controls. The viewport overlay draws the
+last strike and live bound-key depth at the existing UI cadence. Telemetry
+invalidates those regions only. Pointer drags preview a local profile draft,
+then publish and save one edit on mouse release. Capture loss cancels the draft.
 
 ## State and invalidation
 

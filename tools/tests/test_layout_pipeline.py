@@ -1,4 +1,5 @@
 import copy
+import re
 import json
 import sys
 import tempfile
@@ -42,6 +43,25 @@ class LayoutPipelineTests(unittest.TestCase):
         report=copy.deepcopy(self.reports[0]);report['keys'][1]['x']=0
         with self.assertRaises(ValueError): p.validate_report(report)
 
+    def test_display_only_controls_are_explicit(self):
+        report=dict(name='Test',status='ready',unresolved=[],keys=[
+            dict(label='Cal',hid=0,displayOnly=True,x=0,y=0,w=40,h=40)])
+        p.validate_report(report)
+        report['keys'][0].pop('displayOnly')
+        with self.assertRaises(ValueError): p.validate_report(report)
+        report['keys'][0].update(displayOnly=True,hid=4)
+        with self.assertRaises(ValueError): p.validate_report(report)
+
+    def test_akko_5087_factory_and_visible_controls(self):
+        reports=p.reports_for(p.read_catalog()['Akko'])
+        report=next(r for r in reports if r['id']=='akko_5087_v3_he_ansi')
+        p.validate_report(report)
+        self.assertEqual(len(report['keys']),88)
+        self.assertEqual(sum(k['hid']>0 for k in report['keys']),87)
+        self.assertIn(231,[k['hid'] for k in report['keys']])
+        self.assertNotIn(101,[k['hid'] for k in report['keys']])
+        self.assertEqual(report['identity']['products'],['AKKO5087V3HE-3131'])
+
     def test_compound_contour(self):
         report=dict(name='Test',status='ready',unresolved=[],keys=[
             dict(label='Enter',hid=40,x=0,y=0,w=60,h=90,notchW=20,notchY=42),
@@ -73,7 +93,27 @@ class LayoutPipelineTests(unittest.TestCase):
         a=p.normalized_products('Aula',self.reports)
         self.assertEqual(a,p.normalized_products('Aula',self.reports))
         self.assertIn(b'SI2828KZHEARGB',a['generated/identities.inc'])
-        self.assertEqual(len([k for k in a if k.endswith('.ini')]),6)
+        self.assertEqual(len([k for k in a if k.endswith('.ini')]),8)
+
+    def test_f75_variants_match_all_factory_channels(self):
+        reports={r['id']:r for r in self.reports}
+        old=reports['aula_f75_he_legacy_ansi'];new=reports['aula_f75_he_current_ansi']
+        factory=(p.ROOT/'src/HallJoyProject/HallJoy/aula_f75_factory.h').read_text(encoding='utf-8')
+        values=[int(x) for x in re.search(r'Factory=\{([^}]+)',factory).group(1).split(',')]
+        expected={x for x in values if x}
+        self.assertEqual(len(values),128);self.assertEqual(len(expected),80)
+        for report in (old,new):
+            p.validate_report(report)
+            self.assertEqual(len(report['keys']),80)
+            self.assertEqual({k['hid'] for k in report['keys']},expected)
+            self.assertTrue(report['identity']['requiresVerifiedSession'])
+            self.assertEqual(report['identity']['protocol'],'aula-f75')
+        a={k['hid']:(k['x'],k['y']) for k in old['keys']}
+        b={k['hid']:(k['x'],k['y']) for k in new['keys']}
+        self.assertEqual(a[1033],b[228]);self.assertEqual(a[228],b[1033])
+        self.assertNotEqual(a[1033],b[1033])
+        self.assertEqual(old['identity']['products'],['F75HE-38A6-2729-ANSI'])
+        self.assertEqual(new['identity']['products'],['F75HE-38A6-2742-ANSI','F75HE-0C45-FEFE-ANSI'])
 
     def test_max_independent_geometry(self):
         report=self.reports[2]
@@ -223,6 +263,19 @@ class FinalLayoutBatchTests(unittest.TestCase):
             if 'Tenkeyless' in r['model']:
                 self.assertFalse({70,71,72,83} & set(keys))
             p.validate_report(r)
+
+    def test_gt75_exact_physical_map(self):
+        reports=p.reports_for(p.read_catalog()['MCHOSE'])
+        gt=next(r for r in reports if r['id']=='mchose_gt75_ansi')
+        self.assertEqual(len(gt['keys']),83)
+        physical={k['hid'] for k in gt['keys'] if k['hid']}
+        self.assertEqual(len(physical),81)
+        self.assertIn(1033,physical)
+        header=(p.ROOT/'src/HallJoyProject/HallJoy/mchose_gt75_factory.h').read_text(encoding='utf-8')
+        factory=[int(x) for x in re.search(r'Factory=\{([^}]+)',header)[1].split(',')]
+        self.assertEqual(physical,set(factory)-{0})
+        self.assertTrue(all(k.get('displayOnly') for k in gt['keys'] if not k['hid']))
+        self.assertEqual(gt['identity']['products'],['GT75-3837-302D-ANSI'])
 
     def test_plus_identity_is_distinct(self):
         reports=p.reports_for(p.read_catalog()['Wooting'])

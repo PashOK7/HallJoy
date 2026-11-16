@@ -96,6 +96,7 @@ std::atomic<bool> g_mapReady{false};
 std::atomic<std::uint32_t> g_mappedKeys{0}, g_maxRaw{3250};
 std::array<std::atomic<std::uint8_t>, 256> g_hidAtKeyIndex{};
 std::array<std::atomic<bool>, 256> g_hasHid{};
+halljoy::observation::Source g_observation;
 std::array<std::atomic<std::uint16_t>, 256> g_milli{};
 std::mutex g_serviceMutex, g_handleMutex;
 HANDLE g_thread = nullptr, g_wake = nullptr, g_activeHandle = INVALID_HANDLE_VALUE;
@@ -344,12 +345,13 @@ bool DecodeKeyboardTriplet(std::uint8_t type, std::uint8_t middle, std::uint8_t 
 
 void ClearVisualAnalog()
 {
+    g_observation.Clear();
     g_mapReady.store(false, std::memory_order_release); g_mappedKeys.store(0, std::memory_order_release); g_maxRaw.store(3250, std::memory_order_release);
     for (std::size_t i = 0; i < g_hidAtKeyIndex.size(); ++i)
     {
         g_hidAtKeyIndex[i].store(0, std::memory_order_relaxed);
         g_hasHid[i].store(false, std::memory_order_relaxed);
-        g_milli[i].store(0, std::memory_order_relaxed);
+        g_observation.Store(g_milli[i],static_cast<std::uint16_t>(i),0, std::memory_order_relaxed);
     }
 }
 
@@ -409,7 +411,7 @@ void PublishVisualAnalog(std::uint8_t keyIndex, std::uint16_t raw12)
     const auto maxRaw = g_maxRaw.load(std::memory_order_acquire);
     if (!hid || !maxRaw) return;
     const auto milli = static_cast<std::uint16_t>(std::min<std::uint32_t>(1000, (static_cast<std::uint32_t>(raw12) * 1000u + maxRaw / 2u) / maxRaw));
-    g_milli[hid].store(milli, std::memory_order_release);
+    g_observation.Store(g_milli[hid],static_cast<std::uint16_t>(hid),milli, std::memory_order_release);
 }
 
 void ProcessStreamReport(const StreamReport& report, DWORD bytes, Stats* stats)
@@ -570,6 +572,6 @@ void Telemetry(NativeAnalogBackendTelemetry* out)
 
 const NativeAnalogBackendDescriptor& Mad68DualTrial_GetNativeBackendDescriptor()
 {
-    static const NativeAnalogBackendDescriptor descriptor{kNativeAnalogBackendAbiVersion, sizeof(NativeAnalogBackendDescriptor), "mad68-dual-trial", L"MADLIONS MAD 68 V2 Dual limited analog trial", NativeAnalogProtocol::Mad68DualTrial, NativeAnalogStartPhase::BeforeUap, NativeAnalogBackendFlag_StreamTransport | NativeAnalogBackendFlag_ReversibleControlProbe, &Prepare, &Start, &Stop, &Notify, &Present, &Connected, &Owns, &Get, &Telemetry};
+    static const NativeAnalogBackendDescriptor descriptor{kNativeAnalogBackendAbiVersion, sizeof(NativeAnalogBackendDescriptor), "mad68-dual-trial", L"MADLIONS MAD 68 V2 Dual limited analog trial", NativeAnalogProtocol::Mad68DualTrial, NativeAnalogStartPhase::BeforeUap, NativeAnalogBackendFlag_StreamTransport | NativeAnalogBackendFlag_ReversibleControlProbe, &Prepare, &Start, &Stop, &Notify, &Present, &Connected, &Owns, &Get, &Telemetry, nullptr, +[](halljoy::observation::Sink sink) { g_observation.Visit(sink,&Owns,&Get); }};
     return descriptor;
 }

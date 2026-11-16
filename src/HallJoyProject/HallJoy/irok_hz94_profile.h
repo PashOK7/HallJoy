@@ -34,20 +34,32 @@ inline constexpr std::uint16_t HostCode(std::uint8_t hid) noexcept
 
 struct MapEvidence
 {
-    unsigned assigned = 0, factory = 0, outside = 0;
-    bool Admitted() const noexcept { return assigned >= 60 && outside == 0; }
+    unsigned assigned = 0, factory = 0, outside = 0, unknown = 0;
 };
 
-inline MapEvidence InspectMap(const irok_nd75::PositionToHid& map) noexcept
+inline MapEvidence InspectMap(const irok_nd75::PositionToHid& map,
+    const irok_nd75::PositionToHid& factory = kFactoryMap) noexcept
 {
     MapEvidence evidence{};
     for (std::size_t pos = 0; pos < map.size(); ++pos)
     {
         if (!map[pos]) continue;
         ++evidence.assigned;
-        evidence.factory += map[pos] == kFactoryMap[pos];
-        evidence.outside += kFactoryMap[pos] == 0;
+        evidence.factory += map[pos] == factory[pos];
+        evidence.outside += factory[pos] == 0;
+        evidence.unknown += map[pos] < 4 || (map[pos] > 0xe7 && map[pos] != 0xfa);
     }
     return evidence;
+}
+
+// Identity proves the board; the assignment table is mutable user metadata.
+// Only the exact physical matrix controls subscription and source ownership.
+inline irok_nd75::PositionToHid PhysicalAssignments(const irok_nd75::PositionToHid& raw,
+    const irok_nd75::PositionToHid& factory = kFactoryMap) noexcept
+{
+    auto result = raw;
+    for (std::size_t pos = 0; pos < result.size(); ++pos)
+        if (!factory[pos] || result[pos] < 4 || (result[pos] > 0xe7 && result[pos] != 0xfa)) result[pos] = 0;
+    return result;
 }
 }

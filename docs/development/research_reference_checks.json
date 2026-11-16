@@ -44,7 +44,7 @@
       },
       {
         "path": "docs/development/keyboard_support_notices.json",
-        "sha256": "067f18f228d282a7964848c2dcf4238c4d2c11ce90268c31666447ae39d355f1",
+        "sha256": "65d49fae0543579e8f9defe281aebe49a7ae8cdc6b9fcb029b537bf2c86ad3cd",
         "private": false
       },
       {
@@ -1324,17 +1324,22 @@
       },
       {
         "path": "docs/research/usb-identity-audit/approved-aliases.json",
-        "sha256": "f28ac9c10fe959c46bd19361726d3d0d6d877f4a39ebb091f7a68138080fa6bd",
+        "sha256": "0c379fff2f9a2482758a01589181c3e4fa5615eb2a728e7a498955e54835ee89",
+        "private": false
+      },
+      {
+        "path": "src/HallJoyProject/HallJoy/rongyuan_receiver_client.h",
+        "sha256": "e590fadd42c1cb0d74ace817e06efea95f80a00fee34d52ff1de4b0809da7d04",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/rongyuan_stream_protocol.h",
-        "sha256": "9722b34700ff605c3b277640fff7e9cb3c74ee74ce51296da4f99c09a4767e58",
+        "sha256": "8186fcbc1377cb9d948dcb90099cf41abcc569c026cad8935956bf7911d5a7ba",
         "private": false
       },
       {
         "path": "tools/check_rongyuan_stream_profiles.py",
-        "sha256": "a1ca2a48369660fc2922a3970754f9d0929121ebb4fa1c1f698f2ecc8cd618ed",
+        "sha256": "20ed191141f650df1b580fc890fb523f852ebf12281486958c814e391029bdb4",
         "private": false
       },
       {
@@ -1359,7 +1364,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "09df0b8f960dbe0adf3995adc33efa42f4f3eb7d85db3e59e49c6f915c580008",
+        "sha256": "a6f745eee0bb003e9a3afbe788ee34c2f526e199a05c05e139100098b0042aa8",
         "private": false
       },
       {
@@ -1369,7 +1374,7 @@
       },
       {
         "path": "tools/layout_pipeline.py",
-        "sha256": "8d7d888e69dc5831abd340153d5c2b6fad766defd301083bdd2fd16f8196cac2",
+        "sha256": "075c96c55124cdbc80e75c99cd0750c466b0594b2906f4346813e3093beac749",
         "private": false
       }
     ],
@@ -1401,7 +1406,7 @@
       },
       {
         "path": "tools/layout_pipeline.py",
-        "sha256": "8d7d888e69dc5831abd340153d5c2b6fad766defd301083bdd2fd16f8196cac2",
+        "sha256": "075c96c55124cdbc80e75c99cd0750c466b0594b2906f4346813e3093beac749",
         "private": false
       },
       {
@@ -1438,7 +1443,7 @@
       },
       {
         "path": "tools/layout_pipeline.py",
-        "sha256": "8d7d888e69dc5831abd340153d5c2b6fad766defd301083bdd2fd16f8196cac2",
+        "sha256": "075c96c55124cdbc80e75c99cd0750c466b0594b2906f4346813e3093beac749",
         "private": false
       }
     ],
@@ -1512,7 +1517,7 @@
       },
       {
         "path": "tools/layout_pipeline.py",
-        "sha256": "8d7d888e69dc5831abd340153d5c2b6fad766defd301083bdd2fd16f8196cac2",
+        "sha256": "075c96c55124cdbc80e75c99cd0750c466b0594b2906f4346813e3093beac749",
         "private": false
       }
     ],
@@ -1924,7 +1929,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "09df0b8f960dbe0adf3995adc33efa42f4f3eb7d85db3e59e49c6f915c580008",
+        "sha256": "a6f745eee0bb003e9a3afbe788ee34c2f526e199a05c05e139100098b0042aa8",
         "private": false
       },
       {
@@ -1934,7 +1939,7 @@
       },
       {
         "path": "tools/layout_pipeline.py",
-        "sha256": "8d7d888e69dc5831abd340153d5c2b6fad766defd301083bdd2fd16f8196cac2",
+        "sha256": "075c96c55124cdbc80e75c99cd0750c466b0594b2906f4346813e3093beac749",
         "private": false
       }
     ],
@@ -2056,7 +2061,7 @@
       },
       {
         "path": "tools/layout_pipeline.py",
-        "sha256": "8d7d888e69dc5831abd340153d5c2b6fad766defd301083bdd2fd16f8196cac2",
+        "sha256": "075c96c55124cdbc80e75c99cd0750c466b0594b2906f4346813e3093beac749",
         "private": false
       }
     ],
@@ -2123,7 +2128,7 @@
       },
       {
         "path": "tools/layout_pipeline.py",
-        "sha256": "8d7d888e69dc5831abd340153d5c2b6fad766defd301083bdd2fd16f8196cac2",
+        "sha256": "075c96c55124cdbc80e75c99cd0750c466b0594b2906f4346813e3093beac749",
         "private": false
       }
     ],
@@ -2180,7 +2185,7 @@
       },
       {
         "path": "tools/layout_pipeline.py",
-        "sha256": "8d7d888e69dc5831abd340153d5c2b6fad766defd301083bdd2fd16f8196cac2",
+        "sha256": "075c96c55124cdbc80e75c99cd0750c466b0594b2906f4346813e3093beac749",
         "private": false
       },
       {
@@ -2212,7 +2217,7 @@
       },
       {
         "path": "tools/layout_pipeline.py",
-        "sha256": "8d7d888e69dc5831abd340153d5c2b6fad766defd301083bdd2fd16f8196cac2",
+        "sha256": "075c96c55124cdbc80e75c99cd0750c466b0594b2906f4346813e3093beac749",
         "private": false
       },
       {
@@ -2309,7 +2314,7 @@
       },
       {
         "path": "tools/layout_pipeline.py",
-        "sha256": "8d7d888e69dc5831abd340153d5c2b6fad766defd301083bdd2fd16f8196cac2",
+        "sha256": "075c96c55124cdbc80e75c99cd0750c466b0594b2906f4346813e3093beac749",
         "private": false
       },
       {
@@ -2496,7 +2501,7 @@
       },
       {
         "path": "tools/layout_pipeline.py",
-        "sha256": "8d7d888e69dc5831abd340153d5c2b6fad766defd301083bdd2fd16f8196cac2",
+        "sha256": "075c96c55124cdbc80e75c99cd0750c466b0594b2906f4346813e3093beac749",
         "private": false
       },
       {
@@ -2508,7 +2513,12 @@
     "build_everglide_layouts.py": [
       {
         "path": "docs/research/everglide-layout-reports/everglide_su75_pro_ansi.json",
-        "sha256": "a266b840b407ed631e7bdca4853650979eaa748aa2b67b3d5cf69a7480f2547b",
+        "sha256": "c33a80647e139f3292835db841786e781dc6cbb73bcbbb16378bde68b3d91e4a",
+        "private": false
+      },
+      {
+        "path": "docs/research/everglide-layout-reports/everglide_su75_pro_v2_ansi.json",
+        "sha256": "50f1bc16080a19d285c7dc079723f094a01b17ee5aa40c0a39a9cc19e2bf54e8",
         "private": false
       },
       {
@@ -2517,8 +2527,13 @@
         "private": false
       },
       {
+        "path": "docs/research/everglide-layout-sources/su75-revision-identities.json",
+        "sha256": "514b4d5bd8e60d997e7c170ed840439419c9c767c341f02082aaf94f3f645a77",
+        "private": false
+      },
+      {
         "path": "tools/build_everglide_layouts.py",
-        "sha256": "6d510cea40348dab68cc94e5dc5164071137896d7dbec6287dc633fc5380a2b7",
+        "sha256": "7b138ca6455ed4daa6d306d11eb5b227ce29a08e95f2201719053b4901533251",
         "private": false
       }
     ],
@@ -3094,6 +3109,16 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/Akko 5087 V3 HE ANSI.ini",
+        "sha256": "3676dfb1fbcd3ea73e19359319855c34b1dc7e01b74bbffa219352ff9efdb294",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/Akko MOD007 V5 HE ANSI.ini",
+        "sha256": "4362ae5f60bf976ffb34168710764c340533b2fa1a6102880eebccfa5587bd4c",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/Akko MOD007B V3 HE + MOD007S V3 HE ANSI.ini",
         "sha256": "a5f65958833229f5928b3512cfdee6586fb424692100b706e80de78c2da751fe",
         "private": false
@@ -3101,6 +3126,26 @@
       {
         "path": "docs/exports/layout-pipeline/Akko Ray68 HE ANSI.ini",
         "sha256": "1db8ad0ca7dfb7f1e18f19e3790f52564b33bfafa4148c931b847a63fbcdbb3e",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/akko_5087_v3_he_ansi-review.json",
+        "sha256": "36cfcafe5b9a89f1f987ff60f3c0a491c0ff9119c0476c0122d3820786c350a3",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/akko_mod007_v5_he_ansi-review.json",
+        "sha256": "c79d8f3a677123b273bef3458de308f6f3e7fd05b352bbc830697aea3262aca9",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/ARDOR GAMING Viper ANSI.ini",
+        "sha256": "6837f0e0f8f3fb392b3d975dbc2810867bc8fbeca967265da6ae79dd5d49bee1",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/ardor_viper_ansi-review.json",
+        "sha256": "90c2b7d95a8b957d100b29da8226e8c99377310bdf60ed4ce023a0b18b38bcd4",
         "private": false
       },
       {
@@ -3379,6 +3424,16 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/Aula F75 HE (2729) ANSI.ini",
+        "sha256": "df35520a2ef0b0140876b03b378801d7a0dcba3e7d0cff565bffb192e13caeec",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/Aula F75 HE (2742 and 2.4G) ANSI.ini",
+        "sha256": "2dc5cf22b84879a7ff6fe04801b5b0bb088861d294333db2c36ce54cd02ef425",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/Aula HERO84 HE ANSI.ini",
         "sha256": "307ccd020978f48bac72de82ffefd6886b72ed7c0af1e6bc8ae6d630f3fe79d4",
         "private": false
@@ -3406,6 +3461,16 @@
       {
         "path": "docs/exports/layout-pipeline/aula_ag75_ansi-review.json",
         "sha256": "8422202b7acb9d4c1a360b44c72ee7494c88f93f4a6472ce8dad65f371e0ca8a",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/aula_f75_he_current_ansi-review.json",
+        "sha256": "0b2a9a7ec68adadc83a220fd016b3694055fc3632fa2271e8fcd74f6f948eaeb",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/aula_f75_he_legacy_ansi-review.json",
+        "sha256": "ac43feab75ff768395a1dcac89ce7b150d4500c6d67fafaddd5f2c880cc173c3",
         "private": false
       },
       {
@@ -3619,8 +3684,18 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/Everglide SU75 Pro V2 (SU75 Ultra) ANSI.ini",
+        "sha256": "9f959ce70db8799c2cba92f840d677e4fddbe1b44bdfaa7bb64dd68bcbce5be0",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/everglide_su75_pro_ansi-review.json",
-        "sha256": "e5b633ca2632144ba43173d4cc7d976fd1ffd841f0fe052345f28259ea7b9a07",
+        "sha256": "73e726d69ebb49ac585f24b3522baf7223241556878a030c69305fa0520c5c43",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/everglide_su75_pro_v2_ansi-review.json",
+        "sha256": "5d5115ec0faea28026ebe9e02fddda33cf933b775992cd4495921910879569d9",
         "private": false
       },
       {
@@ -3646,6 +3721,16 @@
       {
         "path": "docs/exports/layout-pipeline/FL ESPORTS MK870 HE + X80 HE ANSI.ini",
         "sha256": "f4e0a33052a8becdb401e504ccd39ff6575be606d1dd8cd378e04c9d912fcc92",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/FREEWOLF F68 ANSI.ini",
+        "sha256": "f35bc3bd2317f4763f914360831b3b04870155ea1ab984f9c932e4defbb4e14d",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/freewolf_f68_ansi-review.json",
+        "sha256": "1f032e533a1c12869dd9aa95daeeb6130b925857d890419c71993b1ecacaefd7",
         "private": false
       },
       {
@@ -3716,6 +3801,26 @@
       {
         "path": "docs/exports/layout-pipeline/gravastar_v75_pro_ansi-review.json",
         "sha256": "d1a88dfc58f15df81a90a9e743cbde6f2028cc1791f620d7d4e7d6b185d7e66e",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/HATOR Skyfall 80 MAG Ultima 8K Wireless ANSI.ini",
+        "sha256": "a1b9f03b89d789ce357ca23af9eb19c1a87c2d771c4b849881c82d1d94bdb96d",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/HATOR Skyfall 80 MAG Ultima 8K Wireless ISO.ini",
+        "sha256": "31965ca87d83d6eed2e91e60d3757eb66c9da075a61c49e8f3db6367fd0a7ca9",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/hator_skyfall_80_mag_ultima_ansi-review.json",
+        "sha256": "16ed3f735b061cc41591d8b5478aa24e347e6b8da220b57ace9d190c66a45a86",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/hator_skyfall_80_mag_ultima_iso-review.json",
+        "sha256": "29c4d12dcaa5c86b9e46d7976061cfa162d0cd0dbf3b8993ca90de03dcd27a5e",
         "private": false
       },
       {
@@ -3854,6 +3959,16 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/LANGTU BOOM68-USB ANSI.ini",
+        "sha256": "641b23b0b442a6800057e57f4c4907621a89cc3cdd18ae06ad3750213132a86a",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/langtu_boom68_usb_ansi-review.json",
+        "sha256": "9a47cdbaa0dcf66aeb38f281d8fe3cf1c17b5f629ace905564f1a754efc8aaf4",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/Logitech G PRO X TKL RAPID ANSI.ini",
         "sha256": "e80c1c8ba94443c9e00a026cb92e47db7ef6125d7057f7b5d77197a23bb85b9a",
         "private": false
@@ -3934,8 +4049,18 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/MCHOSE Ace 68 GT ANSI.ini",
+        "sha256": "d29cab8dcf7ed480589632a1bfdd7611ae61ae01e6f034f3762332e4b8438ad4",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/MCHOSE Ace 75 8K ANSI.ini",
         "sha256": "a392402e477502b46dd17981acc9243faa8b6abd887d4d0d451ccaa311632d6f",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/MCHOSE GT75 ANSI.ini",
+        "sha256": "1bc925e87a1138b694c907b0da90d5f77d513d087658396a3b9749fa15b661c4",
         "private": false
       },
       {
@@ -3950,7 +4075,7 @@
       },
       {
         "path": "docs/exports/layout-pipeline/mchose_ace_60_ansi-review.json",
-        "sha256": "ebe681d869ca3215a744ffc394bb67df3cf637d5c91563e80bc4d4ca293c6608",
+        "sha256": "40e585a3d77ac2f45f326c79bc07b8f652f8a80c49bb3337cbddd94d906fd658",
         "private": false
       },
       {
@@ -3964,8 +4089,18 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/mchose_ace_68_gt_ansi-review.json",
+        "sha256": "78836293a691632df1f0bcd638e05e596f200839fe8a494fe5a061a9f9fa2097",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/mchose_ace_75_8k_ansi-review.json",
         "sha256": "a5dd46d0383fdea35ef1091618c84541cbacd2c0b5013c06b023ba28fa3aa09e",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/mchose_gt75_ansi-review.json",
+        "sha256": "ce752e1f0c760b8dfe0cfce01e02486afaf7709430ed1db36e7f89b552a1725e",
         "private": false
       },
       {
@@ -3999,6 +4134,11 @@
         "private": false
       },
       {
+        "path": "docs/exports/layout-pipeline/MonsGeek FUN60 Pro ANSI.ini",
+        "sha256": "85881ec48b2d1e4d5d97d412efd5e764d0c4c1859e1c94ca33ca66965f7b6f78",
+        "private": false
+      },
+      {
         "path": "docs/exports/layout-pipeline/MonsGeek FUN60 Ultra TMR ANSI.ini",
         "sha256": "85881ec48b2d1e4d5d97d412efd5e764d0c4c1859e1c94ca33ca66965f7b6f78",
         "private": false
@@ -4021,6 +4161,11 @@
       {
         "path": "docs/exports/layout-pipeline/MonsGeek M2 V5 HE ANSI.ini",
         "sha256": "66274a0061d20a09ad23fb20b1fa3c708367316dc4dd528eeecc5ed08ca0692c",
+        "private": false
+      },
+      {
+        "path": "docs/exports/layout-pipeline/monsgeek_fun60_pro_ansi-review.json",
+        "sha256": "04c7c2fd3e64b452f6ac41ce1605d564fcda282010e2f4bcc28636108cc4e0d0",
         "private": false
       },
       {
@@ -4849,6 +4994,21 @@
         "private": false
       },
       {
+        "path": "docs/research/akko-5087-v3-he-ansi.json",
+        "sha256": "36cfcafe5b9a89f1f987ff60f3c0a491c0ff9119c0476c0122d3820786c350a3",
+        "private": false
+      },
+      {
+        "path": "docs/research/akko-mod007-v5-he-ansi.json",
+        "sha256": "c79d8f3a677123b273bef3458de308f6f3e7fd05b352bbc830697aea3262aca9",
+        "private": false
+      },
+      {
+        "path": "docs/research/ardor-viper-ansi.json",
+        "sha256": "90c2b7d95a8b957d100b29da8226e8c99377310bdf60ed4ce023a0b18b38bcd4",
+        "private": false
+      },
+      {
         "path": "docs/research/atk-family-layout-reports/atk_68v2pro_ansi.json",
         "sha256": "34816c2f3b52125677a98e98c4c868625b9b8fc8b1483baebce92d2df21c8c55",
         "private": false
@@ -5314,6 +5474,16 @@
         "private": false
       },
       {
+        "path": "docs/research/aula-f75-he-current-ansi.json",
+        "sha256": "0b2a9a7ec68adadc83a220fd016b3694055fc3632fa2271e8fcd74f6f948eaeb",
+        "private": false
+      },
+      {
+        "path": "docs/research/aula-f75-he-legacy-ansi.json",
+        "sha256": "ac43feab75ff768395a1dcac89ce7b150d4500c6d67fafaddd5f2c880cc173c3",
+        "private": false
+      },
+      {
         "path": "docs/research/aula-layout-sources/SI2825HEARGB.json",
         "sha256": "382093db92fd092a52440e40c68969c767257921123f92d53a5d408a1c60c153",
         "private": false
@@ -5455,12 +5625,22 @@
       },
       {
         "path": "docs/research/everglide-layout-reports/everglide_su75_pro_ansi.json",
-        "sha256": "a266b840b407ed631e7bdca4853650979eaa748aa2b67b3d5cf69a7480f2547b",
+        "sha256": "c33a80647e139f3292835db841786e781dc6cbb73bcbbb16378bde68b3d91e4a",
+        "private": false
+      },
+      {
+        "path": "docs/research/everglide-layout-reports/everglide_su75_pro_v2_ansi.json",
+        "sha256": "50f1bc16080a19d285c7dc079723f094a01b17ee5aa40c0a39a9cc19e2bf54e8",
         "private": false
       },
       {
         "path": "docs/research/everglide-layout-sources/su75-pro-geometry.json",
         "sha256": "2b7f6a0b76488e93593a89d0bf2b9389ce0d9702d0d70276438afcd485c38a8a",
+        "private": false
+      },
+      {
+        "path": "docs/research/everglide-layout-sources/su75-revision-identities.json",
+        "sha256": "514b4d5bd8e60d997e7c170ed840439419c9c767c341f02082aaf94f3f645a77",
         "private": false
       },
       {
@@ -6234,6 +6414,11 @@
         "private": false
       },
       {
+        "path": "docs/research/langtu-boom68-usb-ansi.json",
+        "sha256": "9a47cdbaa0dcf66aeb38f281d8fe3cf1c17b5f629ace905564f1a754efc8aaf4",
+        "private": false
+      },
+      {
         "path": "docs/research/lemokey-layout-sources/908920336.json",
         "sha256": "9efcbb1e621c5defce1d02a2399f99091068a8cb35d6a33367e523aaebbc248d",
         "private": false
@@ -6297,6 +6482,11 @@
         "path": "docs/research/madlions-layout-sources/vue-draggable-plus-cdvt9v0M.js",
         "sha256": "efd01837485ec46bd6d7bec74d88d2ee8116365b33b8b900380ea9194be09834",
         "private": true
+      },
+      {
+        "path": "docs/research/mchose-gt75-ansi.json",
+        "sha256": "ce752e1f0c760b8dfe0cfce01e02486afaf7709430ed1db36e7f89b552a1725e",
+        "private": false
       },
       {
         "path": "docs/research/melgeek-layout-reports/melgeek_made68air_ansi.json",
@@ -6567,6 +6757,16 @@
         "path": "docs/research/remaining-layout-sources-20260914/ipi-vendor-bytech-Dmk7DNgV.js",
         "sha256": "5c51ebb210ae87614d9ab5412695e592066a535489687e480e464878d43ea022",
         "private": true
+      },
+      {
+        "path": "docs/research/rongyuan-layouts/freewolf_f68_ansi.json",
+        "sha256": "1f032e533a1c12869dd9aa95daeeb6130b925857d890419c71993b1ecacaefd7",
+        "private": false
+      },
+      {
+        "path": "docs/research/rongyuan-layouts/monsgeek_fun60_pro_ansi.json",
+        "sha256": "04c7c2fd3e64b452f6ac41ce1605d564fcda282010e2f4bcc28636108cc4e0d0",
+        "private": false
       },
       {
         "path": "docs/research/rongyuan-layouts/ry_layout_2255.json",
@@ -6999,8 +7199,18 @@
         "private": false
       },
       {
+        "path": "docs/research/supported-gap-layout-reports/hator_skyfall_80_mag_ultima_ansi.json",
+        "sha256": "16ed3f735b061cc41591d8b5478aa24e347e6b8da220b57ace9d190c66a45a86",
+        "private": false
+      },
+      {
+        "path": "docs/research/supported-gap-layout-reports/hator_skyfall_80_mag_ultima_iso.json",
+        "sha256": "29c4d12dcaa5c86b9e46d7976061cfa162d0cd0dbf3b8993ca90de03dcd27a5e",
+        "private": false
+      },
+      {
         "path": "docs/research/supported-gap-layout-reports/mchose_ace_60_ansi.json",
-        "sha256": "ebe681d869ca3215a744ffc394bb67df3cf637d5c91563e80bc4d4ca293c6608",
+        "sha256": "40e585a3d77ac2f45f326c79bc07b8f652f8a80c49bb3337cbddd94d906fd658",
         "private": false
       },
       {
@@ -7011,6 +7221,11 @@
       {
         "path": "docs/research/supported-gap-layout-reports/mchose_ace_68_ansi.json",
         "sha256": "44cfe12e3b08c0d8d89ff9bd443bf1ecdcd84438ca8619176d1822b8143d7e75",
+        "private": false
+      },
+      {
+        "path": "docs/research/supported-gap-layout-reports/mchose_ace_68_gt_ansi.json",
+        "sha256": "78836293a691632df1f0bcd638e05e596f200839fe8a494fe5a061a9f9fa2097",
         "private": false
       },
       {
@@ -7049,8 +7264,23 @@
         "private": false
       },
       {
+        "path": "docs/research/supported-gap-layout-sources/hator_skyfall_80_mag_ultima_ansi.json",
+        "sha256": "538bfab8e9b27a6e434b65768631d02ad36c7f1cb961f6de94ea40b8d2dd4ed4",
+        "private": false
+      },
+      {
+        "path": "docs/research/supported-gap-layout-sources/hator_skyfall_80_mag_ultima_iso.json",
+        "sha256": "983589db879014f533a3892c0467cebc001d5d41535bfab92bca42cb7649e0f5",
+        "private": false
+      },
+      {
         "path": "docs/research/supported-gap-layout-sources/illumipc-SG8994HERGB.json",
         "sha256": "1b5c7edbcd2a227236b62907f4381c0b16eec93e1705920195d320374cc0f89f",
+        "private": false
+      },
+      {
+        "path": "docs/research/supported-gap-layout-sources/mchose_ace_68_gt_ansi.json",
+        "sha256": "a1d62623cd0dc68d55e9ebc1d20c237f0e6b5874b34cd5935958d5ce5a7a43e8",
         "private": false
       },
       {
@@ -7194,6 +7424,11 @@
         "private": false
       },
       {
+        "path": "src/HallJoyProject/HallJoy/aula_f75_factory.h",
+        "sha256": "2ebf3abece776501fb19ff84d567fa1bfdc66d8c5d5ffaa9f392d39f5cb5a0fc",
+        "private": false
+      },
+      {
         "path": "src/HallJoyProject/HallJoy/aula_w669_protocol.cpp",
         "sha256": "a2f13e11f98568178d35612c6385963aa5e7d1f7c6e5bfad4654ad42421ff539",
         "private": false
@@ -7210,22 +7445,22 @@
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.h",
-        "sha256": "2b4e483841266465282e31c377166bce985e024928188127a08101a42cb76437",
+        "sha256": "298df91bbed1d0dc826e33f92c33f1c3643a7f1faa9b1ce7f6034a9bfcfdae03",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.inc",
-        "sha256": "9c76ec5dc4c519a7a7701aab392b9242cd469805e16be5af496e0b849aa2502e",
+        "sha256": "87f3baf6b135ae2ee47b37a80401c7eecf1b3af47621a9a11939001920aeda98",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/layouts.h",
-        "sha256": "2d747e943e6c98beb11b71904816cf7e0fe477329b7c168bc227aa8018672d5c",
+        "sha256": "fb7b11566a4b69892faf86c0e505ffcf4168ea734f0820cd54a5e8573827ad3e",
         "private": false
       },
       {
         "path": "src/HallJoyProject/HallJoy/generated/layout_pipeline/presets.inc",
-        "sha256": "e7fdd6315b0df74e16045d6c4ce057497e975a989f824f4f7d5ee5bee3d51d0c",
+        "sha256": "a2f62d3ff4181a7b0c4345eb17fa4e71dbba505c49be2f120a5213be1d9535ad",
         "private": false
       },
       {
@@ -7246,6 +7481,11 @@
       {
         "path": "src/HallJoyProject/HallJoy/lemokey_catalog_layouts.h",
         "sha256": "ee2c80ae691f0a21638755fb1820cd22bf785f5c3dad0ab53de37a8ee20530b2",
+        "private": false
+      },
+      {
+        "path": "src/HallJoyProject/HallJoy/mchose_gt75_factory.h",
+        "sha256": "19747b32686800509c763e0ed0f4fa847c502d4d1c49be1cd2e98f78cd1637c7",
         "private": false
       },
       {
@@ -7305,7 +7545,7 @@
       },
       {
         "path": "tools/layout_catalog.json",
-        "sha256": "09df0b8f960dbe0adf3995adc33efa42f4f3eb7d85db3e59e49c6f915c580008",
+        "sha256": "a6f745eee0bb003e9a3afbe788ee34c2f526e199a05c05e139100098b0042aa8",
         "private": false
       },
       {
@@ -7315,7 +7555,7 @@
       },
       {
         "path": "tools/layout_pipeline.py",
-        "sha256": "8d7d888e69dc5831abd340153d5c2b6fad766defd301083bdd2fd16f8196cac2",
+        "sha256": "075c96c55124cdbc80e75c99cd0750c466b0594b2906f4346813e3093beac749",
         "private": false
       },
       {
@@ -7340,12 +7580,12 @@
       },
       {
         "path": "tools/research_layout_checks.py",
-        "sha256": "760f4d7014e0f57834053bec7315966326211b82685becb9e822358d5b6a8ef1",
+        "sha256": "56874bdd11528f62b4c3146dcc2aaded6067a8cff2e80b89c2e5222f23c0c718",
         "private": false
       },
       {
         "path": "tools/tests/test_layout_pipeline.py",
-        "sha256": "5bf2df3a74a0d0e26e0d8c7cb1ea9112f4e85b44a0633bed24ca9b4caaff3845",
+        "sha256": "db88abedc262ebc69655ce09a03961ba6dbab7eedd78ad13a6a1c1f1e0173769",
         "private": false
       }
     ]

@@ -9,6 +9,8 @@ from run_native_backend_checks import find_cxx, compile_and_run_many, run
 def main():
     root=Path(__file__).resolve().parents[1]
     hall=root/"src/HallJoyProject/HallJoy";tests=hall.parent/"tests"
+    run([sys.executable,str(root/"tools/check_tester_delivery.py")])
+    run([sys.executable,str(tests/"tester_delivery_audit.py")])
     run([sys.executable,str(tests/"support_diagnostics_audit.py")])
     run([sys.executable,str(tests/"support_log_static_audit.py")])
     run([sys.executable,str(tests/"native_backend_architecture_static_audit.py")])

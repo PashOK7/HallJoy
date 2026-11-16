@@ -207,6 +207,6 @@ const NativeAnalogBackendDescriptor& Tartarus_GetNativeBackendDescriptor() {
  static const NativeAnalogBackendDescriptor d{kNativeAnalogBackendAbiVersion,sizeof(NativeAnalogBackendDescriptor),
  "razer-tartarus",L"Razer Tartarus Pro (experimental)",NativeAnalogProtocol::TartarusPro,
  NativeAnalogStartPhase::BeforeUap,NativeAnalogBackendFlag_StreamTransport|NativeAnalogBackendFlag_ReadOnlyProbe,
- &Prepare,&Start,&Stop,&Notify,&Present,&Connected,&Owns,&Get,&Telemetry};
+ &Prepare,&Start,&Stop,&Notify,&Present,&Connected,&Owns,&Get,&Telemetry, nullptr, +[](halljoy::observation::Sink sink) { g_values.Observations(sink); }};
  return d;
 }

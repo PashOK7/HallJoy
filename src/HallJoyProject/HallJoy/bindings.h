@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include "midi_profile.h"
 
 // NOTE: We support "many keys per GAMEPAD BUTTON" for the complete HallJoy
 // key-code space, including Soup/UAP extended Fn/OEM codes.
@@ -134,6 +135,7 @@ bool Bindings_IsHidBound(uint16_t hid);
 // Complete prepared profile value; publication is guarded by profile_runtime_gate.
 #include "analog_key_codes.h"
 struct BindingsSnapshot {
+    std::shared_ptr<const halljoy::midi::Profile> midi = halljoy::midi::defaults;
     std::array<std::array<AxisBinding, 4>, BINDINGS_MAX_GAMEPADS> axes{};
     std::array<std::array<uint16_t, 2>, BINDINGS_MAX_GAMEPADS> triggers{};
     std::array<std::array<std::array<uint64_t, halljoy::keycode::kMaskChunkCount>, 15>,

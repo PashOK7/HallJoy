@@ -36,6 +36,13 @@
 #include <ViGEm/Client.h>
 
 #include "backend.h"
+#ifndef HALLJOY_DISABLE_MIDI
+#include "midi_output.h"
+#endif
+#include "analog_observation_snapshot.h"
+#include "output_startup_policy.h"
+#include "runtime_supervisor.h"
+#include "support_log.h"
 #include "alumix104_backend.h"
 #include "native_layout_devices.h"
 #include "analog_key_codes.h"
@@ -1288,6 +1295,16 @@ bool Backend_EnsureOutputRuntimeHealthy()
         return false;
 
     auto status = g_vigemOutputRuntime.GetStatus();
+    if (status.state == halljoy::vigem_output::OutputRuntimeState::Stopped && status.restartSafe) {
+        static ULONGLONG nextStartMs = 0;
+        const auto now = GetTickCount64();
+        if (now < nextStartMs) return false;
+        nextStartMs = now + 1000;
+        // A missing gamepad driver may have failed before the input/MIDI runtime
+        // started. Keep its retry local rather than tearing down working MIDI.
+        if (!VigemOutput_Start()) return false;
+        status = g_vigemOutputRuntime.GetStatus();
+    }
     if (status.state == halljoy::vigem_output::OutputRuntimeState::Faulted ||
         !status.restartSafe)
     {
@@ -2712,6 +2729,12 @@ bool Backend_Init()
     }
     StabilityTrace_Write(L"INFO", L"backend", L"init.begin");
     DebugLog_Write(L"[backend.init] begin");
+#ifndef HALLJOY_DISABLE_MIDI
+    if (!MidiOutput_Stop()) {
+        g_lastInitIssues.store(BackendInitIssue_Unknown, std::memory_order_release);
+        return false;
+    }
+#endif
     const bool previousOutputStopped = VigemOutput_Stop();
     if (!previousOutputStopped)
     {
@@ -2871,10 +2894,29 @@ bool Backend_Init()
             initIssues &= ~BackendInitIssue_Unknown;
     }
 
-    const auto vigemStart = halljoy::perf::Now();
-    const bool vigemStarted = initIssues == BackendInitIssue_None && VigemOutput_Start();
-    halljoy::perf::Span("backend.vigem_start", 0, vigemStart);
-    if (initIssues == BackendInitIssue_None && !vigemStarted)
+#ifndef HALLJOY_DISABLE_MIDI
+    MidiOutput_SetLifecycleWake(&RuntimeSupervisor_NotifyOptionalOutputs);
+    halljoy::observation::wake.store(&RealtimeLoop_NotifyInputChanged,std::memory_order_release);
+    halljoy::observation::captureChanged.store(&AnalogHostClient_SetObservationCapture,std::memory_order_release);
+#endif
+    halljoy::outputs::StartupResult outputs{};
+    if (initIssues == BackendInitIssue_None) {
+        const auto startGamepad = [&] {
+            const auto began = halljoy::perf::Now();
+            const bool ready = VigemOutput_Start();
+            halljoy::perf::Span("backend.vigem_start", 0, began);
+            return ready;
+        };
+#ifdef HALLJOY_DISABLE_MIDI
+        outputs.admitted = outputs.gamepad = startGamepad();
+#else
+        outputs = halljoy::outputs::Start(halljoy::midi::NeedsAnalog(), startGamepad, [] { return MidiOutput_Start(); });
+        if (!outputs.gamepad && outputs.admitted)
+            SupportLog_Event("output.gamepad_unavailable", g_vigemLastErr.load(), SupportLog_Data(1));
+        if (outputs.admitted && !outputs.midi) SupportLog_Event("midi.start_failed", GetLastError());
+#endif
+    }
+    if (initIssues == BackendInitIssue_None && !outputs.admitted)
     {
         const VIGEM_ERROR error = g_vigemLastErr.load(std::memory_order_acquire);
         initIssues |= error == VIGEM_ERROR_BUS_NOT_FOUND
@@ -2919,7 +2961,11 @@ bool Backend_Init()
     StabilityTrace_Write(L"INFO", L"backend", L"init.ok",
         L"native_ready=%d uap_result=%d vigem_ok=%d pads=%d", nativeReady ? 1 : 0, wootingInit,
         g_vigemOk.load(std::memory_order_acquire) ? 1 : 0, g_virtualPadCount.load(std::memory_order_acquire));
-    DebugLog_Write(L"[backend.init] success");
+#ifdef HALLJOY_DISABLE_MIDI
+    DebugLog_Write(L"[backend.init] success gamepad_ready=%u", unsigned(outputs.gamepad));
+#else
+    DebugLog_Write(L"[backend.init] success gamepad_ready=%u midi_ready=%u", unsigned(outputs.gamepad), unsigned(outputs.midi));
+#endif
     return true;
 }
 
@@ -2934,6 +2980,9 @@ void Backend_SetRuntimeAdmission(bool admitted) noexcept
 {
     g_runtimeAdmission.store(admitted, std::memory_order_release);
     KeychronOnboard_SetAdmission(admitted);
+#ifndef HALLJOY_DISABLE_MIDI
+    if (!admitted) MidiOutput_Panic();
+#endif
 }
 
 bool Backend_IsRuntimeAdmissionOpen() noexcept
@@ -2945,6 +2994,13 @@ bool Backend_Shutdown()
 {
     StabilityTrace_Write(L"INFO", L"backend", L"shutdown.begin");
     DebugLog_Write(L"[backend] shutdown");
+#ifndef HALLJOY_DISABLE_MIDI
+    if (!MidiOutput_Stop()) {
+        StabilityTrace_WriteCritical(L"ERROR", L"backend", L"shutdown.blocked",
+            L"component=midi-output dependent_cleanup_skipped=1");
+        return false;
+    }
+#endif
     // Pause also runs this shutdown. A K4 parked by pause stays parked so the
     // next resume reopens it without re-enumeration; process exit releases it
     // (AppShutdownNoThrow, after the engine owner stopped).
@@ -3010,6 +3066,9 @@ bool Backend_Shutdown()
 
 void Backend_ResetPublishedStateAfterRealtimeFault() noexcept
 {
+#ifndef HALLJOY_DISABLE_MIDI
+    MidiOutput_Panic();
+#endif
 #if defined(HALLJOY_TITAN68_TURBO_DIAGNOSTIC) || defined(HALLJOY_ROG_AZOTH96HE_DIAGNOSTIC)
     // The diagnostic is deliberately transport-only.  In particular, a
     // realtime fault must not cause its recovery path to create a ViGEm
@@ -3066,6 +3125,9 @@ void Backend_ResetPublishedStateAfterRealtimeFault() noexcept
 
 static void Backend_ProfileTransition() noexcept
 {
+#ifndef HALLJOY_DISABLE_MIDI
+    MidiOutput_Panic();
+#endif
     ResetPersistentFilteredCache();
     g_qualifiedReportBuilderState = {};
     g_providerV2ShadowReportBuilderState = {};
@@ -3106,6 +3168,17 @@ void Backend_Tick()
         // Monitor only: firmware owns mapping and gamepad output.
         static uint64_t seenFrame=~uint64_t{0},seenCurve=0;
         const auto frame=KeychronOnboard_MonitorGeneration(),curve=BackendCurve_GetGeneration();
+#ifndef HALLJOY_DISABLE_MIDI
+        const auto& midiSource = KeychronOnboard_GetNativeBackendDescriptor();
+        MidiOutput_Tick([](void* context, std::uint16_t hid) -> halljoy::midi::Input {
+            const auto& source = *static_cast<const NativeAnalogBackendDescriptor*>(context);
+            return {source.getMilli(hid), source.isConnected() && source.ownsHid(hid)};
+        }, const_cast<NativeAnalogBackendDescriptor*>(&midiSource),
+        +[](void* context,halljoy::observation::Sink sink) {
+            const auto& source=*static_cast<const NativeAnalogBackendDescriptor*>(context);
+            if(source.isConnected() && source.getObservations) source.getObservations(sink);
+        });
+#endif
         if(frame==seenFrame && curve==seenCurve) return;
         seenFrame=frame;seenCurve=curve;
         const auto& source=KeychronOnboard_GetNativeBackendDescriptor();
@@ -3343,6 +3416,24 @@ void Backend_Tick()
         }
     }
 
+#ifndef HALLJOY_DISABLE_MIDI
+    // MIDI observes raw analog directly, before inversion/curves and independent of pad count/UI.
+    MidiOutput_Tick([](void* context, std::uint16_t hid) -> halljoy::midi::Input {
+        auto& source = *static_cast<HidCache*>(context);
+        if (MouseBind_IsPseudoHid(hid)) return {}; // No digital depth synthesis.
+        const float raw = ReadRaw01Cached(hid, source);
+        const auto& native = ReadNativeCached(hid, source);
+        const bool available = native.owned ||
+            (source.hasAuthoritativeProviderV2 ? source.providerV2Raw.owned.test(hid) :
+             source.wootingReady && g_knownDeviceCount.load(std::memory_order_relaxed) > 0);
+        return {static_cast<int>(std::clamp(std::lround(raw * 1000.f), 0l, 1000l)), available};
+    }, &cache,+[](void*,halljoy::observation::Sink sink) {
+        NativeAnalogBackends_VisitObservations(sink);
+        if(AnalogHostClient_IsInitialised())
+            if(const auto tracker=halljoy::observation::uap.load(std::memory_order_acquire)) tracker->Visit(sink);
+    });
+
+#endif
     // One immutable, deduplicated subscription for both independent consumers.
     const auto tracked = g_trackingSnapshot.load(std::memory_order_acquire);
     const int cnt = tracked ? tracked->count : 0;
@@ -4443,6 +4534,7 @@ bool BackendNative_SparkOwnsHid(std::uint16_t hidUsage)
 {
     if (hidUsage == 0 || hidUsage >= kSparkKeyCount || !BackendNative_SparkPresent())
         return false;
+    if(g_sparkModelToken.load()) {bool owned=false;(void)SparkModelValue(hidUsage,&owned);return owned;}
     for (const auto& mapped : g_sparkRowColToHid)
     {
         if (mapped.load(std::memory_order_relaxed) == hidUsage)
@@ -4453,6 +4545,7 @@ bool BackendNative_SparkOwnsHid(std::uint16_t hidUsage)
 
 std::uint16_t BackendNative_SparkGetMilli(std::uint16_t hidUsage)
 {
+    if(g_sparkModelToken.load())return SparkModelValue(hidUsage);
     return hidUsage < g_sparkAnalogMilli.size()
         ? g_sparkAnalogMilli[hidUsage].load(std::memory_order_relaxed)
         : 0;
@@ -4490,6 +4583,8 @@ bool BackendNative_SparkGetSnapshotV2(halljoy::native_analog_snapshot::OutputV1 
         source.ownedHid = owned.data();
         source.codeCount = owned.size();
         source.milli = milli.data();
+        const auto modelToken=g_sparkModelToken.load();
+        const bool modelRemap=halljoy::native_layout::UsesRemapping(modelToken);
         if (connected)
         {
             int effectiveRows = std::clamp(g_sparkRowCount.load(std::memory_order_relaxed),
@@ -4507,13 +4602,17 @@ bool BackendNative_SparkGetSnapshotV2(halljoy::native_analog_snapshot::OutputV1 
                 {
                     const auto index = static_cast<std::size_t>(row) *
                         kSparkColsPerRow + static_cast<std::size_t>(col);
-                    const std::uint16_t hid = g_sparkRowColToHid[index]
-                        .load(std::memory_order_relaxed);
-                    if (hid != 0)
+                    if(modelToken && !halljoy::sparklink::su75::FactoryHid(index))continue;
+                    const std::uint16_t hid = modelToken && !modelRemap
+                        ?halljoy::sparklink::su75::FactoryHid(index)
+                        :g_sparkRowColToHid[index].load(std::memory_order_relaxed);
+                    if (hid != 0) {
                         owned[hid] = 1;
+                        if(modelToken && index<g_sparkPhysicalMilli.size())milli[hid]=std::max(milli[hid],g_sparkPhysicalMilli[index].load());
+                    }
                 }
             }
-            for (std::size_t hid = 1; hid < milli.size(); ++hid)
+            if(!modelToken)for (std::size_t hid = 1; hid < milli.size(); ++hid)
                 milli[hid] = g_sparkAnalogMilli[hid].load(std::memory_order_relaxed);
         }
         const std::uint64_t after = g_sparkPublicationSequence.load(std::memory_order_acquire);
@@ -4540,6 +4639,7 @@ void BackendNative_SparkTelemetry(NativeAnalogBackendTelemetry* out)
     out->usagePage = g_sparkUsagePage.load(std::memory_order_relaxed);
     out->verifiedLayoutToken = out->connected ? halljoy::sparklink::ExperimentalToken(
         out->vendorId,out->productId,out->usagePage) : 0;
+    if(out->connected && g_sparkRouteOkSeq.load()!=0 && g_sparkModelToken.load())out->verifiedLayoutToken=g_sparkModelToken.load();
     out->usage = kSparkKnownUsage;
     out->mappedKeys = static_cast<std::uint32_t>(SparkActiveRowCount() * kSparkColsPerRow);
     std::uint32_t active = 0;
@@ -4661,6 +4761,7 @@ const NativeAnalogBackendDescriptor& BackendNative_GetSparkDescriptor()
         &BackendNative_SparkGetMilli,
         &BackendNative_SparkTelemetry,
         &BackendNative_SparkGetSnapshotV2,
+        +[](halljoy::observation::Sink sink) { g_sparkObservation.Visit(sink,&BackendNative_SparkOwnsHid,&BackendNative_SparkGetMilli); },
     };
     return descriptor;
 }
@@ -4695,6 +4796,11 @@ const NativeAnalogBackendDescriptor& BackendNative_GetSayoDescriptor()
         &BackendNative_SayoOwnsHid,
         &BackendNative_SayoGetMilli,
         &BackendNative_SayoTelemetry,
+        nullptr,
+        +[](halljoy::observation::Sink sink) {
+            for(unsigned i=0;i<g_sayoPhysicalMilli.size();++i)
+                g_sayoObservation.Baseline(sink,static_cast<std::uint16_t>(i+1),SayoMappedHid(i),g_sayoPhysicalMilli[i].load());
+        },
     };
     return descriptor;
 }
@@ -4766,3 +4872,5 @@ bool Backend_TestSparkFnPublication() {
 
 void Backend_GetAnalogTelemetry(BackendAnalogTelemetry* out) { CollectAnalogTelemetry(out, false); }
 void Backend_GetAnalogDiagnosticTelemetry(BackendAnalogTelemetry* out) { CollectAnalogTelemetry(out, true); }
+
+#include "sparklink_su75_self_test.h"

@@ -28,6 +28,8 @@
 #include "rongyuan_stream_reconcile.h"
 #include "rongyuan_stream_protocol.h"
 #include "rongyuan_receiver_client.h"
+#include "rongyuan_receiver_start.h"
+#include "keydous_rf_release_trace.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -51,6 +53,12 @@ std::atomic<std::uint32_t> g_avgUs{0}, g_maxUs{0};
 std::atomic<unsigned> g_board{0}, g_units{0}, g_mapped{0}, g_vid{0}, g_pid{0};
 std::atomic<bool> g_receiver{false};
 halljoy::ry_receiver::Liveness g_rfLiveness;
+namespace rftrace=halljoy::keydous_rf_trace;
+std::mutex g_rfPublication;
+rftrace::State g_rfTrace;
+unsigned g_rfTraceSession=0;
+bool g_rfTraceActive=false;
+std::atomic<unsigned> g_rfTraceBad{0},g_rfTraceOther{0},g_rfTraceIo{0};
 std::atomic<unsigned> g_topology{0}; // device changes; resets identity retries
 std::mutex g_service, g_activeLock;
 HANDLE g_thread = nullptr, g_wake = nullptr, g_active = INVALID_HANDLE_VALUE;
@@ -238,7 +246,7 @@ std::vector<Candidate> Enumerate(bool log, unsigned* visible = nullptr) {
     HIDD_ATTRIBUTES a{};
     a.Size = sizeof(a);
     if (!HidD_GetAttributes(meta.v, &a))continue;
-    const bool receiver=a.VendorID==0x3151 && a.ProductID==0x5038;
+    const bool receiver=halljoy::ry_receiver::Candidate(a.VendorID,a.ProductID);
     if (!receiver && !mg::Candidate(a.VendorID,a.ProductID))continue;
     ++matching;
     PHIDP_PREPARSED_DATA pp = nullptr;
@@ -247,9 +255,19 @@ std::vector<Candidate> Enumerate(bool log, unsigned* visible = nullptr) {
     HIDP_CAPS caps{};
     const NTSTATUS status = HidP_GetCaps(pp, &caps);
     bool input=false;
-    if(status==HIDP_STATUS_SUCCESS && caps.UsagePage==0xffff && caps.Usage==1 && caps.InputReportByteLength==32 && caps.NumberInputValueCaps==1) {
-      HIDP_VALUE_CAPS value{};USHORT count=1;
-      input=HidP_GetValueCaps(HidP_Input,&value,&count,pp)==HIDP_STATUS_SUCCESS && count==1 && value.ReportID==5 && value.BitSize==8 && value.ReportCount==31;
+    if(status==HIDP_STATUS_SUCCESS && caps.UsagePage==0xffff && caps.Usage==1 && caps.InputReportByteLength==32) {
+      bool report5=false;
+      if(caps.NumberInputValueCaps){
+        std::vector<HIDP_VALUE_CAPS> values(caps.NumberInputValueCaps);USHORT count=caps.NumberInputValueCaps;
+        if(HidP_GetValueCaps(HidP_Input,values.data(),&count,pp)==HIDP_STATUS_SUCCESS)
+          report5=halljoy::ry_receiver::DeclaresReport5(values.data(),count);
+      }
+      if(!report5 && caps.NumberInputButtonCaps){
+        std::vector<HIDP_BUTTON_CAPS> buttons(caps.NumberInputButtonCaps);USHORT count=caps.NumberInputButtonCaps;
+        if(HidP_GetButtonCaps(HidP_Input,buttons.data(),&count,pp)==HIDP_STATUS_SUCCESS)
+          report5=halljoy::ry_receiver::DeclaresReport5(buttons.data(),count);
+      }
+      input=halljoy::ry_receiver::StreamCollection(caps.UsagePage,caps.Usage,caps.InputReportByteLength,report5);
     }
     HidD_FreePreparsedData(pp);
     const bool exact = status == HIDP_STATUS_SUCCESS &&
@@ -269,9 +287,30 @@ std::vector<Candidate> Enumerate(bool log, unsigned* visible = nullptr) {
       const unsigned interfaceNumber=path.find(L"mi_02")!=std::wstring::npos?2u:~0u;
       const bool admitted=status==HIDP_STATUS_SUCCESS && halljoy::ry_receiver::Identity(
           a.VendorID,a.ProductID,caps.UsagePage,caps.Usage,caps.FeatureReportByteLength,interfaceNumber);
-      static std::atomic<bool> logged{false};
-      if(admitted && !logged.exchange(true))SupportLog_Evidence(
-          "evidence.rongyuan.rf discovery revision=2 vid=3151 pid=5038 interface=2 feature=65 remote_identity_required=1",true);
+      if(a.VendorID==0x379a && status==HIDP_STATUS_SUCCESS && interfaceNumber==2){
+        const auto signature=(std::uint64_t(caps.UsagePage)<<32)|(std::uint64_t(caps.Usage)<<16)|caps.FeatureReportByteLength;
+        static std::atomic<std::uint64_t> lastHatorCaps{~0ull};
+        if(lastHatorCaps.exchange(signature)!=signature){
+          char evidence[208]{};
+          _snprintf_s(evidence,_TRUNCATE,"evidence.hator.rf discovery pid=1804 interface=2 page=%04x usage=%04x feature=%u admitted=%u",
+                      caps.UsagePage,caps.Usage,caps.FeatureReportByteLength,admitted?1:0);
+          SupportLog_Evidence(evidence,true);
+        }
+      }else{
+        static std::atomic<bool> logged{false};
+        if(admitted && !logged.exchange(true))SupportLog_Evidence(
+            "evidence.rongyuan.rf discovery revision=2 vid=3151 pid=5038 interface=2 feature=65 remote_identity_required=1",true);
+        if(status==HIDP_STATUS_SUCCESS && interfaceNumber==2){
+          const auto signature=(std::uint64_t(caps.UsagePage)<<32)|(std::uint64_t(caps.Usage)<<16)|caps.FeatureReportByteLength;
+          static std::atomic<std::uint64_t> lastSharedCaps{~0ull};
+          if(lastSharedCaps.exchange(signature)!=signature){
+            char evidence[176]{};
+            _snprintf_s(evidence,_TRUNCATE,"evidence.rongyuan.rf collection pid=5038 interface=2 page=%04x usage=%04x feature=%u admitted=%u",
+                caps.UsagePage,caps.Usage,caps.FeatureReportByteLength,admitted?1u:0u);
+            SupportLog_Evidence(evidence,true);
+          }
+        }
+      }
       GUID container{};DEVPROPTYPE type=0;DWORD bytesNeeded=0;
       const bool grouped=SetupDiGetDevicePropertyW(set,&dev,&DEVPKEY_Device_ContainerId,&type,
           reinterpret_cast<PBYTE>(&container),sizeof(container),&bytesNeeded,0) && type==DEVPROP_TYPE_GUID;
@@ -293,7 +332,8 @@ std::vector<Candidate> Enumerate(bool log, unsigned* visible = nullptr) {
   for(auto c:out)if(c.receiver && c.control) {
     unsigned matches=0;
     if(!IsEqualGUID(c.container,GUID{}))for(const auto& input:out)
-      if(input.receiver && input.input && IsEqualGUID(input.container,c.container)) {c.inputPath=input.path;++matches;}
+      if(input.receiver && input.input && input.attributes.VendorID==c.attributes.VendorID &&
+         input.attributes.ProductID==c.attributes.ProductID && IsEqualGUID(input.container,c.container)) {c.inputPath=input.path;++matches;}
     if(matches!=1)c.inputPath.clear();
     static unsigned lastMatches=~0u;
     if(matches!=lastMatches){lastMatches=matches;char evidence[128]{};
@@ -323,16 +363,30 @@ struct ReceiverIO {
   bool Check(){if(!cleanup && g_stop.load()){SetLastError(ERROR_OPERATION_ABORTED);return false;}return true;}
   std::uint64_t ClockUs(){return static_cast<std::uint64_t>(NowUs());}
   void YieldBusy(){SwitchToThread();}
+  void WaitDispatch(unsigned remainingUs){Sleep(std::max<DWORD>(1,(remainingUs+999)/1000));}
   void Status(bool online){g_rfLiveness.Status(GetTickCount64(),online);}
+  void DrainedPage(unsigned page,const halljoy::ry_receiver::Report& reply) noexcept {
+    std::lock_guard<std::mutex> lock(g_rfPublication);
+    if(!g_rfTraceActive)return;
+    const auto now=GetTickCount64();
+    auto& tracePage=g_rfTrace.pages[page];
+    halljoy::rongyuan::Values values{};
+    tracePage.drainedMs=now;
+    tracePage.drainedProblem=halljoy::ry_receiver::ParsePage(reply,page,g_rfTrace.units,values);
+    if(!tracePage.drainedProblem)
+      for(unsigned i=0;i<values.size();++i)g_rfTrace.slots[page*32+i].Drained(values[i],now);
+  }
 };
 class Session {
 public:
   const mg::Model *model = nullptr;
   unsigned board = 0; // reported by the keyboard; an alias may use another board's profile
   unsigned units = 0;
-  explicit Session(const Candidate &c) : candidate(c) {}
+  explicit Session(const Candidate &c) : candidate(c),radio(radioIo,c.attributes.VendorID==0x379a,
+      c.receiver && c.attributes.VendorID==0x3151 && c.attributes.ProductID==0x5038
+        ?halljoy::ry_receiver::Client<ReceiverIO>::kRemoteDispatchUs:0) {}
   ~Session() {
-    DisableStream();
+    DisableStream(true);
     std::lock_guard<std::mutex> lock(g_activeLock);
     if (g_active == handle.v)
       g_active = INVALID_HANDLE_VALUE;
@@ -406,24 +460,28 @@ public:
     return input && HidD_SetNumInputBuffers(input.v,128) && HidD_FlushQueue(input.v);
   }
   bool Enable() {
-    auto command=mg::Request(0x1b,1);
+    auto command=Command(0x1b,1);
     enabled=true; // Also restore if a timed-out write reached the device.
     return Send(command);
   }
-  void DisableStream(){
+  void DisableStream(bool final=false){
     if(!enabled)return;
     const bool cleanup=radioIo.cleanup;const unsigned timeout=radio.timeoutUs;
-    radioIo.cleanup=true;radio.timeoutUs=100000;auto disable=mg::Request(0x1b,0);
-    const bool restored=Send(disable);if(restored)enabled=false;
+    radioIo.cleanup=true;radio.timeoutUs=100000;auto disable=Command(0x1b,0);
+    const bool restored=candidate.receiver && final?radio.EndStream(disable):Send(disable);if(restored)enabled=false;
     radioIo.cleanup=cleanup;radio.timeoutUs=timeout;
     if(candidate.receiver)SupportLog_Evidence(restored?"evidence.rongyuan.rf stream_cleanup sent=1":"evidence.rongyuan.rf stream_cleanup sent=0",true);
   }
   HANDLE Input() const {return input.v;}
   unsigned VendorId() const {return candidate.attributes.VendorID;}
   unsigned ProductId() const {return candidate.attributes.ProductID;}
+  mg::Report Command(std::uint8_t op,std::uint8_t a=0,std::uint8_t b=0,std::uint8_t page=0) const {
+    return VendorId()==0x379a && (ProductId()==0x1803 || ProductId()==0x1804)
+        ?mg::HatorRequest(op,a,b,page):mg::Request(op,a,b,page);
+  }
   bool Match(const mg::Report& r) {
     const auto answered=mg::Board(r);
-    const bool match=(candidate.receiver?halljoy::ry_receiver::Model(answered):
+    const bool match=(candidate.receiver?halljoy::ry_receiver::Model(answered,VendorId(),ProductId()):
         mg::Find(answered,candidate.attributes.VendorID,candidate.attributes.ProductID))!=nullptr;
     if(answered && !match) identityRejected=true;
     if(answered && !match && answered!=lastRejectedBoard){lastRejectedBoard=answered;
@@ -437,9 +495,10 @@ public:
   bool Poisoned() const {return poisoned;}
   // Command of the last feature request sent (support log on admission failure).
   unsigned LastCommand() const {return lastCommand;}
-  const mg::Model* Model(const mg::Report& r) {return candidate.receiver?halljoy::ry_receiver::Model(mg::Board(r)):
+  const mg::Model* Model(const mg::Report& r) {return candidate.receiver?halljoy::ry_receiver::Model(mg::Board(r),VendorId(),ProductId()):
       mg::Find(mg::Board(r),candidate.attributes.VendorID,candidate.attributes.ProductID);}
   bool Receiver() const{return candidate.receiver;}
+  bool He108Trial() const{return Receiver() && halljoy::ry_receiver::He108Trial(VendorId(),ProductId(),board);}
   auto& Radio(){return radio;}
 
 private:
@@ -457,7 +516,7 @@ private:
   bool identityRejected=false;
   Handle handle,input;
   ReceiverIO radioIo{handle.v};
-  halljoy::ry_receiver::Client<ReceiverIO> radio{radioIo};
+  halljoy::ry_receiver::Client<ReceiverIO> radio;
   bool enabled=false;
   bool poisoned = false;
 };
@@ -471,24 +530,32 @@ void Clear() {
 }
 bool Proof(Session &s) {
   mg::Report r{};
-  if (!s.Query(mg::Request(0x8f), r,
+  if (!s.Query(s.Command(0x8f), r,
                [&](const auto &x) { return s.Match(x); }))
     return false;
   s.model = s.Model(r);
   s.board = mg::Board(r);
+  if(s.Receiver() && (s.He108Trial() || rftrace::Matches(s.VendorId(),s.ProductId(),s.board))) {
+    if(s.He108Trial())SupportLog_Evidence("evidence.he108.rf trial revision=2 board=3365 receiver=3151:5038 stream_first=1",true);
+    const bool synced=s.Radio().BeginResponseSync();
+    char syncLine[200]{};
+    _snprintf_s(syncLine,_TRUNCATE,"evidence.rongyuan.rf sync_probe revision=7 confirmed=%u stage=%u receiver_version=%08x stream_attempt_allowed=1",
+        synced?1:0,static_cast<unsigned>(s.Radio().stage),s.Radio().sync.version);
+    SupportLog_Evidence(syncLine,true);
+  }
   const unsigned usbVersion = r[8] | (r[9] << 8);
   unsigned version=usbVersion,radioVersion=0;
   mg::Report rf{};
   // Manufacturer scaling uses the radio/controller firmware when present,
   // even on wired USB. Do not derive travel units from USB bcdDevice.
-  if(s.Query(mg::Request(0x80),rf,[](const auto& x){return x[1]==0x80;},true)) {
+  if(s.Query(s.Command(0x80),rf,[](const auto& x){return x[1]==0x80;},true)) {
     const unsigned radio=rf[2] | (rf[3]<<8);
     if(radio && radio!=65535)version=radioVersion=radio;
   }
   mg::Report features{};
   // Old firmware has no E6 reply marker: use its documented version scale.
   s.Query(
-      mg::Request(0xe6), features,
+      s.Command(0xe6), features,
       [](const auto &x) { return x[1] == 0xe6 && x[2] == 0xaa; }, true);
   s.units = mg::ModelUnits(*s.model, version, features);
   char evidence[240]{};
@@ -500,18 +567,34 @@ bool Proof(Session &s) {
   return true;
 }
 bool Map(Session &s) {
-  mg::Report r{};
-  if (!s.Query(mg::Request(0x84, 255), r,
-               [](const auto &x) { return x[1] == 0x84 && x[2] < 8; }))
-    return false;
-  const auto profile = r[2];
   mg::Matrix assigned{};
-  for (unsigned page = 0; page < 8; ++page) {
-    if (!s.Query(
-            mg::Request(0x8a, profile, 255, static_cast<std::uint8_t>(page)), r,
-            mg::ValidAssignments))
-      return false;
-    std::copy(r.begin() + 1, r.end(), assigned.begin() + 64 * page);
+  if(s.He108Trial()){
+    assigned=s.model->matrix;
+    s.Radio().StreamOnlyForPendingMetadata();
+    SupportLog_Evidence("evidence.he108.rf mapping factory=1 live_remaps=0",true);
+  }else if(s.Receiver() && s.VendorId()==0x379a && mg::HatorUltima(s.board)){
+    // Factory physical channels are independent of optional live assignment
+    // metadata. Start analog without an eight-page profile transaction.
+    assigned=s.model->matrix;
+    SupportLog_Evidence("evidence.hator mapping factory=1 live_remaps=0",true);
+  }else{
+    const bool keydous=s.Receiver() && rftrace::Matches(s.VendorId(),s.ProductId(),s.board);
+    const auto readAssignments=[&]{
+      mg::Report r{};
+      if(!s.Query(s.Command(0x84,255),r,[](const auto& x){return x[1]==0x84 && x[2]<8;}))return false;
+      const auto profile=r[2];
+      for(unsigned page=0;page<8;++page){
+        if(!s.Query(s.Command(0x8a,profile,255,static_cast<std::uint8_t>(page)),r,mg::ValidAssignments))return false;
+        std::copy(r.begin()+1,r.end(),assigned.begin()+64*page);
+      }
+      return true;
+    };
+    if((keydous && !s.Radio().ResponseSyncActive()) || !readAssignments()){
+      if(!keydous)return false;
+      assigned=s.model->matrix;
+      s.Radio().StreamOnlyForPendingMetadata();
+      SupportLog_Evidence("evidence.rongyuan.rf map_unavailable action=continue factory_channels=1 live_remaps=0",true);
+    }
   }
   std::array<halljoy::native_layout::Key, 128> keys{};
   unsigned count = 0;
@@ -532,9 +615,14 @@ bool Map(Session &s) {
   }
   const auto token =
       halljoy::layout_identity::Token("rongyuan-stream", s.model->product);
-  if (token && !halljoy::native_layout::Publish(token, keys.data(), count))
-    return false;
-  g_token.store(token);
+  const bool layoutPublished=token && halljoy::native_layout::Publish(token,keys.data(),count);
+  if(token && !layoutPublished){
+    if((s.VendorId()!=0x379a || !mg::HatorUltima(s.board)) &&
+       !s.He108Trial() && !rftrace::Matches(s.VendorId(),s.ProductId(),s.board))return false;
+    SupportLog_Evidence(s.VendorId()==0x379a?"evidence.hator layout publish_failed=1 analog_continues=1":
+        "evidence.rongyuan.rf layout publish_failed=1 analog_continues=1",true);
+  }
+  g_token.store(layoutPublished?token:0);
   g_board.store(s.board); // Telemetry resolves the model with the device's own identity.
   g_vid.store(s.VendorId());g_pid.store(s.ProductId());
   g_units.store(s.units);
@@ -575,7 +663,7 @@ unsigned __stdcall Reconciler(void* arg) {
     }
     const auto seqs=g_reconcile.Before(static_cast<unsigned>(page));
     mg::Report reply{};halljoy::rongyuan::Values table{};
-    if(!ctx.session->Query(mg::Request(0xe5,0xfe,1,static_cast<std::uint8_t>(page)),reply,
+    if(!ctx.session->Query(ctx.session->Command(0xe5,0xfe,1,static_cast<std::uint8_t>(page)),reply,
         [&](const auto& x){return halljoy::rongyuan::ParseTravel(x,ctx.units,table);},true)) {
       // Tester log 2026-10-21: after 29 s of good reads one reply was not ready within the
       // exchange window (error 13). That is the firmware being busy, not a missing command:
@@ -658,22 +746,83 @@ void ReceiverEvidence(Session& s,unsigned phase,DWORD error) {
   SupportLog_Evidence(line,true);
 }
 
+// Runs on the support writer, independent of control and interrupt I/O.
+void WriteKeydousRfTrace() noexcept {
+  struct Reading {unsigned hid=0,physical=0,effective=0;};
+  rftrace::State snapshot;
+  std::array<Reading,rftrace::kSlots> readings{};
+  bool connected=false,streaming=false;
+  unsigned bad=0,other=0,ioError=0;
+  {
+    std::lock_guard<std::mutex> lock(g_rfPublication);
+    if(!g_rfTraceActive)return;
+    snapshot=g_rfTrace;
+    const bool remapped=Remapped();
+    const auto& map=remapped?g_slotAssigned:g_slotFactory;
+    const auto& published=remapped?g_assigned:g_factory;
+    const auto now=GetTickCount64();
+    streaming=g_rfLiveness.Streaming();
+    connected=g_connected.load() && g_rfLiveness.Connected(now,g_last.load());
+    bad=g_rfTraceBad.load();other=g_rfTraceOther.load();ioError=g_rfTraceIo.load();
+    for(unsigned slot=0;slot<readings.size();++slot) {
+      const auto hid=map[slot];
+      if(!hid)continue;
+      const auto physical=published.PhysicalMilli(static_cast<std::uint8_t>(slot+1));
+      readings[slot]={hid,physical,0};
+      if(connected && (physical || snapshot.slots[slot].streamCount))
+        readings[slot].effective=published.Read(hid,now,halljoy::ry_receiver::Liveness::kFreshMs,streaming).milli;
+    }
+  }
+  static unsigned previousSession=0,nextSlot=0;
+  static std::array<rftrace::Slot,rftrace::kSlots> previous{};
+  static std::array<unsigned,rftrace::kSlots> previousHid{};
+  const bool first=previousSession!=snapshot.session;
+  if(first){previousSession=snapshot.session;nextSlot=0;previous={};previousHid={};}
+  char line[640]{};
+  _snprintf_s(line,_TRUNCATE,"trace.keydous_rf.health revision=%u session=%u units=%u connected=%u streaming=%u rejected=%u other=%u io_error=%u",
+      rftrace::kRevision,snapshot.session,snapshot.units,connected?1:0,streaming?1:0,bad,other,ioError);
+  SupportLog_Trace(line);
+  rftrace::FormatControl(line,sizeof line,snapshot.session,snapshot.control);
+  SupportLog_Trace(line);
+  rftrace::FormatProgress(line,sizeof line,snapshot.session,snapshot.control);
+  SupportLog_Trace(line);
+  for(unsigned page=0;page<snapshot.pages.size();++page) {
+    rftrace::FormatPage(line,sizeof line,snapshot.session,page,snapshot.pages[page]);
+    SupportLog_Trace(line);
+  }
+  // Limit logging only. Sample collection and analog I/O run at their original pace.
+  unsigned emitted=0,visited=0;
+  for(;visited<readings.size() && emitted<12;++visited) {
+    const unsigned slot=(nextSlot+visited)%static_cast<unsigned>(readings.size());
+    const auto& current=snapshot.slots[slot];
+    const auto& read=readings[slot];
+    if(!read.hid || !InputTrace_IsBound(static_cast<std::uint16_t>(read.hid)))continue;
+    if(previousHid[slot]==read.hid && !current.appliedRaw && !read.physical && !previous[slot].appliedRaw &&
+       current.streamCount==previous[slot].streamCount && current.skippedZeroMs==previous[slot].skippedZeroMs &&
+       current.drainedMs==previous[slot].drainedMs)continue;
+    rftrace::FormatSlot(line,sizeof line,snapshot.session,slot,read.hid,current,read.physical,read.effective);
+    SupportLog_Trace(line);++emitted;previous[slot]=current;previousHid[slot]=read.hid;
+  }
+  nextSlot=(nextSlot+visited)%static_cast<unsigned>(readings.size());
+}
+
 // A pending interrupt read is consumed on its own thread. Feature/table traffic
 // never sits between a received depth packet and publication to the gamepad.
 class ReceiverStreamPump {
  public:
-  std::mutex publication;
+  std::mutex& publication=g_rfPublication;
   halljoy::ry_receiver::StreamOrder order;
   std::atomic<unsigned> packets{0},malformed{0},ioError{0},maxGapUs{0};
-  explicit ReceiverStreamPump(Session& session):s(session){}
+  DWORD startError=ERROR_SUCCESS;
+  explicit ReceiverStreamPump(Session& session,bool trace):s(session),trace_(trace){}
   ~ReceiverStreamPump(){Stop();}
   bool Start(){
     stop=CreateEventW(nullptr,TRUE,FALSE,nullptr);
-    if(!stop || !s.OpenInput())return false;
+    if(!stop || !s.OpenInput()){startError=GetLastError();return false;}
     thread=reinterpret_cast<HANDLE>(_beginthreadex(nullptr,0,Entry,this,0,nullptr));
-    if(!thread)return false;
+    if(!thread){startError=GetLastError();return false;}
     // Session remembers even an ambiguous enable so its destructor disables it.
-    return s.Enable();
+    const bool enabled=s.Enable();if(!enabled)startError=GetLastError();return enabled;
   }
   void Stop(){
     if(stop)SetEvent(stop);
@@ -682,6 +831,7 @@ class ReceiverStreamPump {
   }
  private:
   Session& s;
+  const bool trace_;
   HANDLE stop=nullptr,thread=nullptr;
   static unsigned __stdcall Entry(void* arg){return static_cast<ReceiverStreamPump*>(arg)->Read();}
   unsigned Read(){
@@ -689,23 +839,46 @@ class ReceiverStreamPump {
     SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_HIGHEST);
     std::array<unsigned char,32> data{};HidIoOperation read(s.Input());
     LONGLONG previous=0;ULONGLONG nextSummary=0;
+    const bool trial=s.He108Trial();
+    std::array<unsigned,128> trialDepth{};
+    unsigned held=0,peakHeld=0,released=0,positivePackets=0,depthChanges=0;
+    bool trialShapeLogged=false;
     while(!g_stop.load() && WaitForSingleObject(stop,0)!=WAIT_OBJECT_0){
       DWORD error=0,done=0;
       const auto started=read.StartRead(data.data(),static_cast<DWORD>(data.size()),&error);
-      if(started==HidIoOperation::StartResult::Failed){ioError.store(error);break;}
+      if(started==HidIoOperation::StartResult::Failed){ioError.store(error);if(trace_)g_rfTraceIo.store(error);break;}
       if(started==HidIoOperation::StartResult::Pending){
         const HANDLE waits[]={read.Event(),stop};
         if(WaitForMultipleObjects(2,waits,FALSE,INFINITE)!=WAIT_OBJECT_0){read.CancelAndDrain(&done,&error);break;}
       }
-      if(!read.Finish(&done,&error,false)){if(!g_stop.load())ioError.store(error);break;}
-      if(done==32 && data[0]==5 && data[1]!=0x1b)continue;
+      if(!read.Finish(&done,&error,false)){
+        if(!g_stop.load()){ioError.store(error);if(trace_)g_rfTraceIo.store(error);}
+        break;
+      }
+      const bool other=done==32 && data[0]==5 && data[1]!=0x1b;
       mg::Sample sample{};
-      if(!mg::Parse(data.data(),done,sample) || sample.raw>6*s.units){++malformed;continue;}
+      const bool parsed=mg::Parse(data.data(),done,sample);
+      if(!parsed || sample.raw>6*s.units){
+        if(other && trace_)++g_rfTraceOther;
+        if(!other && trace_)++g_rfTraceBad;
+        const unsigned bad=other?0u:++malformed;
+        if(trial && !trialShapeLogged){
+          char line[180]{};
+          _snprintf_s(line,_TRUNCATE,"evidence.he108.rf stream_shape bytes=%lu report5=%u opcode_1b=%u slot_valid=%u depth_in_range=%u malformed=%u",
+              done,done && data[0]==5,done>1 && data[1]==0x1b,parsed,parsed && sample.raw<=6*s.units,bad);
+          SupportLog_Evidence(line,true);
+          trialShapeLogged=true;
+        }
+        continue;
+      }
       const auto now=NowUs();unsigned received=0;
       {std::lock_guard<std::mutex> lock(publication);
         std::uint16_t hid=0;unsigned milli=0;
         const auto tick=GetTickCount64();
-        if(g_slotFactory[sample.slot] && Publish(sample,*s.model,tick,hid,milli,false,true)){
+        const bool mapped=g_slotFactory[sample.slot]!=0;
+        if(trace_ && mapped)g_rfTrace.slots[sample.slot].Stream(sample.raw,tick);
+        if(mapped && Publish(sample,*s.model,tick,hid,milli,false,true)){
+          if(trace_)g_rfTrace.slots[sample.slot].Applied(rftrace::Source::Stream,sample.raw,tick);
           order.Event(sample.slot,sample.raw);
           g_rfLiveness.Status(tick,true);
           received=++packets;
@@ -713,6 +886,26 @@ class ReceiverStreamPump {
           g_connected.store(true);
           if(previous)maxGapUs.store(std::max(maxGapUs.load(),static_cast<unsigned>(std::min<LONGLONG>(0xffffffffll,now-previous))));
           previous=now;
+        }
+      }
+      if(trial && received){
+        auto& old=trialDepth[sample.slot];
+        const bool release=old && !sample.raw;
+        const bool newPress=!old && sample.raw;
+        const bool varying=old && sample.raw && old!=sample.raw;
+        if(sample.raw)++positivePackets;
+        if(release){--held;++released;}
+        if(newPress)++held;
+        if(varying)++depthChanges;
+        old=sample.raw;
+        const bool newPeak=held>peakHeld;
+        peakHeld=std::max(peakHeld,held);
+        if(received==1 || (sample.raw && positivePackets==1) || (release && released==1) ||
+           (varying && depthChanges==1) || (newPeak && peakHeld<=8)){
+          char line[208]{};
+          _snprintf_s(line,_TRUNCATE,"evidence.he108.rf stream_travel packets=%u positive_packets=%u peak_simultaneous=%u releases=%u varying_depth=%u",
+              received,positivePackets,peakHeld,released,depthChanges);
+          SupportLog_Evidence(line,true);
         }
       }
       const auto tick=GetTickCount64();
@@ -737,15 +930,48 @@ bool RunReceiver(const Candidate& c,bool& identityRejected) {
     ReceiverEvidence(s,phase,GetLastError());identityRejected=s.IdentityRejected();Clear();return false;
   }
   if(!NativeAnalogRouting_Claim(c.attributes.VendorID,c.attributes.ProductID,c.path.c_str(),NativeAnalogProtocol::RongYuanStream) &&
-     !NativeAnalogRouting_IsClaimedBy(c.path.c_str(),NativeAnalogProtocol::RongYuanStream)){Clear();return false;}
+     !NativeAnalogRouting_IsClaimedBy(c.path.c_str(),NativeAnalogProtocol::RongYuanStream)){
+    ReceiverEvidence(s,6,ERROR_SHARING_VIOLATION);Clear();return false;
+  }
   g_receiver.store(true);g_avgUs.store(0);g_maxUs.store(0);
   const unsigned topology=g_topology.load();
-  ReceiverStreamPump stream(s);
+  const bool trace=rftrace::Matches(c.attributes.VendorID,c.attributes.ProductID,s.board);
+  struct TraceLifetime {
+    bool active;
+    void Stop() noexcept {
+      if(!active)return;
+      std::lock_guard<std::mutex> lock(g_rfPublication);
+      g_rfTraceActive=false;active=false;
+      SupportLog_SetReceiverTraceProvider(nullptr);
+    }
+    ~TraceLifetime(){Stop();}
+  } traceLifetime{trace};
+  ReceiverStreamPump stream(s,trace);
+  if(trace){
+    {
+      std::lock_guard<std::mutex> lock(stream.publication);
+      g_rfTrace={};g_rfTrace.session=++g_rfTraceSession;g_rfTrace.units=s.units;
+      g_rfTraceBad.store(0);g_rfTraceOther.store(0);g_rfTraceIo.store(0);
+      g_rfTraceActive=true;
+    }
+    SupportLog_Trace("trace.keydous_rf.begin revision=8 board=3793 receiver=3151:5038 scope=bound_slots");
+    SupportLog_SetReceiverTraceProvider(&WriteKeydousRfTrace);
+  }
   const bool streamEligible=!c.inputPath.empty();
   bool streamActive=false,streamAttempted=false;
-  // Seed all keys from genuine depth BEFORE entering delta mode. Otherwise
-  // streaming can occupy the command channel needed for initial table admission.
-  SupportLog_Evidence("evidence.rongyuan.rf bootstrap revision=5 initial_depth_before_stream=1 fixed_delay_us=0",true);
+  if(halljoy::ry_receiver::StartBeforeTable(s.VendorId(),s.ProductId(),s.board,streamEligible,
+      streamAttempted,streamActive,stream,[&]{g_rfLiveness.StopStream();s.DisableStream();})){
+    const auto error=streamActive?ERROR_SUCCESS:stream.startError;
+    char initial[224]{};
+    _snprintf_s(initial,_TRUNCATE,"evidence.he108.rf bootstrap revision=2 stream_first=1 input_present=%u stream_requested=%u error=%lu table_fallback=1",
+        streamEligible?1:0,streamActive?1:0,error);
+    SupportLog_Evidence(initial,true);
+  }
+  // Other receivers seed the table first. HE108 already attempted its independent
+  // input source above, so a missing E5 response cannot prevent1B subscription.
+  char bootstrap[176]{};
+  _snprintf_s(bootstrap,_TRUNCATE,"evidence.rongyuan.rf bootstrap revision=9 initial_depth_before_stream=%u remote_dispatch_us=%u",s.He108Trial()?0:1,s.Radio().DispatchUs());
+  SupportLog_Evidence(bootstrap,true);
   unsigned pages=0,sweeps=0,peak=0,releases=0,everPositive=0,varying=0,transients=0;
   unsigned page=0,tableAdjustments=0,zeroFixes=0,superseded=0,zeroReports=0,reportedZeros=0;
   ULONGLONG nextSummary=0,nextZeroReport=0;
@@ -753,6 +979,13 @@ bool RunReceiver(const Candidate& c,bool& identityRejected) {
   std::array<std::uint16_t,128> previous{};
   std::array<bool,128> positive{},moved{};
   unsigned initialMappedMin=0xffff,initialNonkeyPositive=0,initialRepeatedPages=0;
+  unsigned tableMilestones=0,tableActive=0,tablePeak=0;
+  std::array<bool,128> tableHeld{};
+  unsigned he108Waits=0,lastHe108Stage=~0u;
+  // Page() resumes a timed-out request without sending it again. Keep its
+  // publication ticket until that response is consumed, even across retries.
+  halljoy::ry_receiver::StreamOrder::Ticket ticket{};
+  bool retainTable=false;
   while(!g_stop.load() && topology==g_topology.load()) {
     if(streamActive && (stream.ioError.load() || stream.malformed.load()>=16)){
       stream.Stop();g_rfLiveness.StopStream();s.DisableStream();streamActive=false;
@@ -760,16 +993,69 @@ bool RunReceiver(const Candidate& c,bool& identityRejected) {
       char reason[144]{};_snprintf_s(reason,_TRUNCATE,"evidence.rongyuan.rf stream_fallback io_error=%u malformed=%u",stream.ioError.load(),stream.malformed.load());
       SupportLog_Evidence(reason,true);
     }
-    halljoy::ry_receiver::StreamOrder::Ticket ticket{};
-    bool retainTable=false;
     halljoy::rongyuan::Values values{};
+    if(trace){
+      std::lock_guard<std::mutex> lock(stream.publication);
+      g_rfTrace.pages[page].Begin(GetTickCount64());
+    }
     SetLastError(ERROR_SUCCESS);
-    if(!s.Radio().Page(page,s.units,values,[&]{
+    const bool pageOk=s.Radio().Page(page,s.units,values,[&]{
       std::lock_guard<std::mutex> lock(stream.publication);
       ticket=stream.order.Before(page);
       retainTable=g_rfLiveness.Streaming();
-    })) {
-      ReceiverEvidence(s,4,GetLastError());
+      if(trace)g_rfTrace.pages[page].Sent(GetTickCount64());
+    });
+    const auto pageError=GetLastError();
+    if(trace){
+      const auto& radio=s.Radio();const auto& f7=radio.lastStatus;
+      const unsigned status=(f7.online?1u:0u)|(f7.send?2u:0u)|(f7.read?4u:0u)|(f7.boot?8u:0u);
+      std::lock_guard<std::mutex> lock(stream.publication);
+      const auto& sync=radio.sync;
+      g_rfTrace.control={sync.attempts,sync.acks,sync.failures,sync.markerReads,sync.statusWaits,sync.fetchWaits,sync.version,
+          static_cast<unsigned>(radio.stage),sync.lastKind,sync.reason,sync.abandonedCommand,radio.ResponseSyncActive(),radio.FetchOutstanding(),
+          radio.resumedPages,radio.dispatchWaits,radio.DispatchUs(),radio.PendingPage(),s.Radio().PendingAgeUs()};
+      g_rfTrace.pages[page].Finish(pageOk,static_cast<unsigned>(radio.stage),pageError,
+          radio.snapshotProblem,radio.drains,status,radio.HasPendingReply(),GetTickCount64());
+    }
+    if(!pageOk) {
+      ReceiverEvidence(s,4,pageError);
+      if(s.He108Trial()){
+        const auto stage=static_cast<unsigned>(s.Radio().stage);++he108Waits;
+        if(stage!=lastHe108Stage || !(he108Waits&(he108Waits-1))){
+          lastHe108Stage=stage;char line[256]{};
+          _snprintf_s(line,_TRUNCATE,"evidence.he108.rf wait revision=2 page=%u stage=%u pending_page=%u pending_age_us=%llu stream_requested=%u stream_packets=%u stream_io=%u",
+              page,stage,s.Radio().PendingPage(),static_cast<unsigned long long>(s.Radio().PendingAgeUs()),streamActive?1:0,stream.packets.load(),stream.ioError.load());
+          SupportLog_Evidence(line,true);
+        }
+      }
+      const bool he108Fallback=s.He108Trial() && s.Radio().TrialNeedsStreamFallback();
+      if(!streamAttempted && (he108Fallback || ((trace || s.He108Trial()) &&
+          !s.Radio().ResponseSyncActive() && s.Radio().ResponseSyncUnconfirmed()))){
+        streamAttempted=true;
+        streamActive=streamEligible && stream.Start();
+        const DWORD error=streamActive?ERROR_SUCCESS:GetLastError();
+        if(!streamActive){stream.Stop();g_rfLiveness.StopStream();s.DisableStream();}
+        char fallback[240]{};
+        if(s.He108Trial()){
+          _snprintf_s(fallback,_TRUNCATE,"evidence.he108.rf stream_fallback accepted_pages=%u stream_eligible=%u stream_requested=%u error=%lu",
+              pages,streamEligible?1:0,streamActive?1:0,error);
+        }else{
+          _snprintf_s(fallback,_TRUNCATE,"evidence.rongyuan.rf sync_unavailable revision=7 table_published=0 stream_eligible=%u stream_requested=%u error=%lu action=continue",
+              streamEligible?1:0,streamActive?1:0,error);
+        }
+        SupportLog_Evidence(fallback,true);
+      }
+      if((trace || s.He108Trial()) && s.Radio().ResponseSyncUnconfirmed()){
+        // A missing optional marker is not a keyboard rejection. Keep the real
+        // interrupt source alive, maintain RF liveness, and do not hammer F0 or
+        // mislabel an unowned cached response as depth. A new session can probe.
+        if(!s.Radio().MaintainLink()){
+          ReceiverEvidence(s,9,GetLastError());
+          if(!halljoy::ry_receiver::Client<ReceiverIO>::Transient(s.Radio().stage)){++g_bad;break;}
+        }
+        ++transients;continue;
+      }
+      if(he108Fallback && streamActive)continue;
       if(halljoy::ry_receiver::Client<ReceiverIO>::Transient(s.Radio().stage)) {
         // Ready=0 is normal flow control, not a failed analog packet. Malformed
         // status is still an error; either case retains the bounded live session.
@@ -797,20 +1083,38 @@ bool RunReceiver(const Candidate& c,bool& identityRejected) {
       for(unsigned i=0;i<32;++i) {
         const unsigned slot=page*32+i,value=values[i];
         if(!mg::Decode(s.model->matrix.data()+4*slot))continue;
-        if(!stream.order.Accept(page,i,ticket)){++superseded;continue;}
+        const bool accepted=stream.order.Accept(page,i,ticket);
+        if(trace)g_rfTrace.slots[slot].Table(value,accepted,g_rfTrace.pages[page].attempts,now);
+        if(!accepted){++superseded;continue;}
         const unsigned published=stream.order.Current(slot);
         if(stream.packets.load() && published!=value){++tableAdjustments;if(published && !value)++zeroFixes;}
         peak=std::max(peak,value);
         if(value && !positive[slot]){positive[slot]=true;++everPositive;}
         if(pages>=4 && value!=previous[slot] && !moved[slot]){moved[slot]=true;++varying;}
         if(published && !value)++releases;
+        if(s.He108Trial() && tableHeld[slot]!=(value!=0)){
+          tableHeld[slot]=value!=0;
+          if(value)++tableActive;else --tableActive;
+        }
         std::uint16_t hid=0;unsigned milli=0;
-        Publish({slot,value},*s.model,now,hid,milli,false,retainTable);
+        if(Publish({slot,value},*s.model,now,hid,milli,false,retainTable) && trace)
+          g_rfTrace.slots[slot].Applied(rftrace::Source::Table,value,now);
         stream.order.Table(slot,value);
         previous[slot]=static_cast<std::uint16_t>(value);
       }
       ++pages;
       if(pages>=4){g_last.store(now);g_connected.store(true);}
+    }
+    if(s.He108Trial()){
+      if(pages>=4)tablePeak=std::max(tablePeak,tableActive);
+      const unsigned milestones=(pages>=4?1u:0u)|(everPositive?2u:0u)|(varying?4u:0u)|(releases?8u:0u)|(tablePeak>=2?16u:0u);
+      if(milestones!=tableMilestones){
+        tableMilestones=milestones;
+        char line[192]{};
+        _snprintf_s(line,_TRUNCATE,"evidence.he108.rf table_travel pages=%u positive_slots=%u varying_slots=%u releases=%u peak_cached_active=%u",
+            pages,everPositive,varying,releases,tablePeak);
+        SupportLog_Evidence(line,true);
+      }
     }
     if(zeroFixes!=reportedZeros && (zeroReports<8 || now>=nextZeroReport)){
       ++zeroReports;reportedZeros=zeroFixes;nextZeroReport=now+30000;
@@ -828,6 +1132,12 @@ bool RunReceiver(const Candidate& c,bool& identityRejected) {
       streamAttempted=true;SetLastError(ERROR_SUCCESS);
       streamActive=streamEligible && stream.Start();
       const DWORD streamError=streamActive?ERROR_SUCCESS:GetLastError();
+      if(trace){
+        char traceLine[144]{};
+        _snprintf_s(traceLine,_TRUNCATE,"trace.keydous_rf.subscribe session=%u eligible=%u requested=%u error=%lu",
+                    g_rfTraceSession,streamEligible?1:0,streamActive?1:0,streamError);
+        SupportLog_Trace(traceLine);
+      }
       // Sending 1B does not prove the remote stream. The reader confirms it.
       if(!streamActive){stream.Stop();g_rfLiveness.StopStream();s.DisableStream();}
       char initial[220]{};
@@ -836,8 +1146,8 @@ bool RunReceiver(const Candidate& c,bool& identityRejected) {
           everPositive,initialMappedMin,peak,initialNonkeyPositive,initialRepeatedPages);
       SupportLog_Evidence(initial,true);
       char mode[288]{};
-      _snprintf_s(mode,_TRUNCATE,"evidence.rongyuan.rf mode revision=5 fixed_delay_us=0 bootstrap_pages=4 stream_eligible=%u stream_requested=%u stream_start_error=%lu table_mode=per_page liveness=f7 stream_hold=confirmed_delta table_order=send_time",
-                  streamEligible?1:0,streamActive?1:0,streamError);
+      _snprintf_s(mode,_TRUNCATE,"evidence.rongyuan.rf mode revision=8 remote_dispatch_us=%u bootstrap_pages=4 stream_eligible=%u stream_requested=%u stream_start_error=%lu table_mode=per_page liveness=f7 stream_hold=confirmed_delta table_order=original_send_time",
+                  s.Radio().DispatchUs(),streamEligible?1:0,streamActive?1:0,streamError);
       SupportLog_Evidence(mode,true);
     }
     if(!page && sweeps && (sweeps==1 || sweeps==8 || now>=nextSummary)) {
@@ -861,11 +1171,18 @@ bool RunReceiver(const Candidate& c,bool& identityRejected) {
   }
   stream.Stop(); // join/cancel the input request before maps/session can disappear
   g_rfLiveness.StopStream();
-  s.DisableStream();
+  s.DisableStream(true);
   char end[224]{};
   _snprintf_s(end,_TRUNCATE,"evidence.rongyuan.rf end revision=2 board=%u sweeps=%u pages=%u stream_packets=%u transients=%u releases=%u stop=%u topology_changed=%u",
       s.board,sweeps,pages,stream.packets.load(),transients,releases,g_stop.load()?1:0,topology!=g_topology.load()?1:0);
   SupportLog_Evidence(end,true);
+  if(trace){
+    char traceLine[176]{};
+    _snprintf_s(traceLine,_TRUNCATE,"trace.keydous_rf.end session=%u pages=%u stream_packets=%u zero_corrections=%u",
+                g_rfTraceSession,pages,stream.packets.load(),zeroFixes);
+    SupportLog_Trace(traceLine);
+  }
+  traceLifetime.Stop();
   Clear();return false;
 }
 
@@ -901,10 +1218,18 @@ bool Run(const Candidate &c, bool &identityRejected) {
      !NativeAnalogRouting_IsClaimedBy(c.inputPath.c_str(),NativeAnalogProtocol::RongYuanStream)) {Clear();return false;}
   if(!s.Enable()) {++g_bad;SupportLog_Event("rongyuan.start_failed",s.board,SupportLog_Win32(GetLastError()));DebugLog_Write(L"[rongyuan.stream] start command failed error=%lu",GetLastError());Clear();return false;}
   g_present.store(true);
-  g_connected.store(true);
-  SupportLog_Event("rongyuan.connected",s.board,SupportLog_Data(s.units));
-  DebugLog_Write(L"[rongyuan.stream] connected board=%u keys=%u "
+  // This legacy F68 revision is identified, but its live stream still needs hardware proof.
+  bool awaitingTravel=s.board==2634 && s.ProductId()==0x5029;
+  bool logFirstInput=awaitingTravel;
+  if(awaitingTravel) {
+    SupportLog_Event("rongyuan.stream_enabled",s.board,SupportLog_Data(s.ProductId()));
+  } else {
+    g_connected.store(true);
+    SupportLog_Event("rongyuan.connected",s.board,SupportLog_Data(s.units));
+  }
+  DebugLog_Write(L"[rongyuan.stream] %ls board=%u keys=%u "
                  L"units_per_mm=%u experimental=1",
+                 awaitingTravel ? L"awaiting travel" : L"connected",
                  s.model->board, g_mapped.load(), s.units);
   {
     static unsigned readerLines=0;
@@ -950,11 +1275,20 @@ bool Run(const Candidate &c, bool &identityRejected) {
     if(g_stop.load() || failed) {read.CancelAndDrain(&done,&error);break;}
     if(!read.Finish(&done,&error,false)) {endReason=3;endError=error;++g_bad;break;}
     const LONGLONG sampleUs=NowUs();
+    if(logFirstInput && done) {
+      logFirstInput=false;
+      SupportLog_Event("rongyuan.first_input",done,SupportLog_Data(report[0]==5));
+    }
     // RID5 also carries vendor notifications unrelated to key travel.
     if(done==32 && report[0]==5 && report[1]!=0x1b)continue;
     mg::Sample sample{};
     std::uint16_t hid=0;unsigned milli=0;
     const bool published=mg::Parse(report.data(),done,sample) && Publish(sample,*s.model,GetTickCount64(),hid,milli);
+    if(awaitingTravel && published && g_last.load()) {
+      awaitingTravel=false;
+      g_connected.store(true);
+      SupportLog_Event("rongyuan.connected",s.board,SupportLog_Data(s.units));
+    }
     if(published && hid) {
       DrainOsKeys(); // Windows events up to now first, so their order against this sample holds.
       halljoy::ry_stream::PressRecord record{};
@@ -1150,7 +1484,9 @@ void Telemetry(NativeAnalogBackendTelemetry *out) {
   out->usage = 2;
   out->mappedKeys = Connected() ? g_mapped.load() : 0;
   if(out->connected)for(unsigned hid=1;hid<halljoy::physical_analog::kHidCount;++hid)if(ReadPublished(g_factory,static_cast<std::uint16_t>(hid),GetTickCount64()).milli)++out->activeKeys;
-  const auto *model = g_receiver.load()?halljoy::ry_receiver::Model(g_board.load()):mg::Find(g_board.load(),g_vid.load(),g_pid.load());
+  const auto *model = g_receiver.load()?halljoy::ry_receiver::Model(g_board.load(),g_vid.load(),g_pid.load()):mg::Find(g_board.load(),g_vid.load(),g_pid.load());
+  if(g_receiver.load() && model && halljoy::ry_receiver::He108Trial(g_vid.load(),g_pid.load(),model->board))
+    wcsncpy_s(out->deviceName,L"EPOMAKER HE108",_TRUNCATE);
   out->nominalRawLevels =
       model ? model->rangeUm * g_units.load() / 1000 + 1 : 0;
   out->inputReportBytes = g_receiver.load() && !g_rfLiveness.Streaming()?65:32;
@@ -1213,7 +1549,7 @@ RongYuanStream_GetNativeBackendDescriptor() {
       kNativeAnalogBackendAbiVersion,
       sizeof(NativeAnalogBackendDescriptor),
       "rongyuan-stream",
-      L"RongYuan USB / NJ98 V4S receiver (experimental)",
+      L"RongYuan USB / 2.4 GHz receiver (experimental)",
       NativeAnalogProtocol::RongYuanStream,
       NativeAnalogStartPhase::BeforeUap,
       NativeAnalogBackendFlag_ReadOnlyProbe,
@@ -1225,6 +1561,6 @@ RongYuanStream_GetNativeBackendDescriptor() {
       &Connected,
       &Owns,
       &Get,
-      &Telemetry};
+      &Telemetry, nullptr, +[](halljoy::observation::Sink sink) { (Remapped() ? g_assigned : g_factory).Observations(sink); }};
   return d;
 }

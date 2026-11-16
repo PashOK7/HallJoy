@@ -78,3 +78,27 @@ Private-desktop regression checks distinct pause icon and tooltip, duplicate-sta
 coalescing, Explorer restart retaining pause, and restoring the original icon on
 resume. Evidence: .local/tray-pause-profile-20260927.log and
 .local/tray-pause-release-20260927.log. Visual appearance remains owner-evaluated.
+
+
+## 2026-11-09 — Alt+Tab window availability report
+
+A tester reports that after switching to a game, the HallJoy window could
+not be brought back while controller input still worked. The new downloads
+checked for this report are copies of the earlier keyboard test logs.
+No trace of the affected HallJoy session is available locally.
+
+Focus loss cancels shortcut capture. Hide-to-tray requires an explicit
+minimize/close action with the corresponding setting enabled. The normal
+second launch sends a bounded request for the running main window to show.
+This is a useful comparison with the taskbar and Alt+Tab. Successful
+restoration demonstrates that the UI handled that request. Failure alone
+can mean an unresponsive UI, a missing window or a failed activation.
+Windows "Not responding" provides separate evidence about the message pump.
+
+Triage on the affected build: record version, game and fullscreen mode,
+try taskbar or the same EXE while the original process is still running,
+and record whether Windows labels HallJoy "Not responding". With Enable
+logging selected before reproduction, preserve the ordinary HallJoy.log
+from its data folder before restarting. The ordinary log can correlate
+engine and support events but does not identify a blocked UI call on its
+own. No runtime diagnosis is established by the screenshot.

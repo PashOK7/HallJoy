@@ -1,3 +1,13 @@
+> 2026-11-16 owner-approved Supported update for1.6.16: EPOMAKER HE108 over USB and2.4GHz, MonsGeek FUN60 Pro over USB, and MCHOSE Ace68 Air II/III over USB. Positive tester reports supersede the earlier pending-trial descriptions below. Exact built-in layouts and automatic identities are retained/added; testing notices are removed only for these tuples. Ace68 Air2 and Everglide SU75 Pro V2 are separate models and are not promoted by this feedback. [Release preparation and scope](current/RELEASE_1.6.16_PREPARATION_2026-11-16.md).
+
+> 2026-11-14 **LANGTU BOOM68-USB ANSI — Supported** on USB stock firmware 1.10. Tester confirmed it works. The log verified the stock RAM route and all 67 physical channels, up to three keys active together and every exercised key returning to zero. The status getter on other firmware retains the trial notice. [Hardware evidence](current/BOOM68_USB_2026-11-14.md).
+
+> 2026-11-14 **MCHOSE GT75 USB ANSI — Experimental**. Exact3837:302D backend uses04/05 state and a guarded06 debug-bit transaction;81 physical A0 channels includingFn, built-in auto-layout. V1.08 branch replay passes. The tester reported the November 14 build works on their keyboard. Detailed HallJoy.log and functional coverage remain pending. Source suppresses depths<=9 and snaps the last5 units to full. Normal exit restores HallJoy-owned debug flag; crash can leave it enabled. [Review](current/MCHOSE_GT75_2026-11-14.md).
+
+> 2026-11-16 **Akko MOD007 V5 HE board3113** — Experimental USB3151:5029 E5/FE snapshots,80 physical keys and automatic ANSI layout. Log58 identifies this newer revision; the old2453 stream implementation remains separate. Retained4mm reference; stock firmware filters depth below20 raw units. Physical range/typing/gamepad confirmation pending. [Review](current/AKKO_MOD007_V5_HE_2026-11-16.md).
+
+> 2026-11-16 **AULA F75 HE — No usable analog found** (red). The owner ended stock trials after wired/receiver1.55 returned68 echoes and66 ACKs without depth, and deeper current-configurator/firmware review found no selected usable stock path. Normal builds show an exact-model red notice and do not issue F75 vendor requests. BOOM68-USB stays enabled. Research and in-memory firmware experiments are retained; this is not a proof of permanent impossibility. [Evidence](current/AULA_F75_HE_2026-11-13.md).
+
 > 2026-09-28 Alumix 104 Yotei physical log47: the full 65-byte capture identifies the unknown FF68:61 class as strongly correlated with the already known selected-key 55FB sample. All 36 captures retaining a sensor index match the latest selected index; 687/861 unknown reports have zero bodies. This is no independent per-key matrix proof, and the selected stream is still stale during multi-key holds (108/117 windows). Exact model stays Research incomplete (gray); no support/gamepad promotion. The writer mislabeled a cleanup snapshot request as a banner event; this is corrected. See [the current investigation](current/ALUMIX104_YOTEI_LOG37_2026-09-27.md).
 > 2026-09-28 Alumix104 revised research EXE after log46: exact FF68:61 changed unknown frames now enter ordinary HallJoy.log as bounded full 65-byte HEX payloads with nearby selected-sensor reference, so their 12 changing bytes can be decoded instead of merely counted. This raw-packet capture is limited to exact104 and disclosed in the window/log. Full ordinary build and diagnostics passed; physical result pending. Research incomplete status stays unchanged. See [the current investigation](current/ALUMIX104_YOTEI_LOG37_2026-09-27.md).
 > 2026-09-28 Alumix104 physical log46: the new ordinary diagnostic found one variable unknown report class on FF68:61, but its 359 frames (305 zero body) are not decoded per-key depths. Among seven exact-product HID collections, FF67:61 has feature/output reports but no input stream. The selected 55FB path remained insufficient in 17/24 multi-letter freshness windows; no gamepad output was published. Exact-model Research incomplete status remains unchanged. See [the current investigation](current/ALUMIX104_YOTEI_LOG37_2026-09-27.md).
@@ -25,6 +35,12 @@
 > 2026-10-21: Womier SK75 TMR (board 2518, 3151:5030, USB) is Supported: a user reports it works perfectly (relayed by the owner). Built-in automatic layout "Womier SK75 TMR ANSI" (81 keys, RongYuan client geometry). Board 3804 (Europe revision, RAlt instead of RCtrl) has no source geometry: it streams the same way but keeps the testing notice and manual layout. IROK Mars68 Pro (board 2438, 3151:5029) is newly implemented on the RongYuan stream (client class on the same stream parent as FUN60 Ultra TMR), automatic 68-key layout, testing notice; awaiting a tester log. [Details](current/RONGYUAN_MARS68_SK75_FUN60_2026-10-21.md)
 > 2026-10-11: MonsGeek FUN60 Ultra TMR (board 2352, 3151:5029, USB) is Supported: the tester's keyboard streams analog through the RongYuan stream path (61 keys, automatic layout). Full-travel scale stays 4 mm for hot-swapped 4 mm switches; with 3.5 mm switches the user sets the end deadzone. [Details](current/FUN60_ULTRA_2352_2026-10-10.md).
 > 2026-09-26 (1.6.4): EPOMAKER HE108 (USB) is Supported following tester confirmation relayed by the owner. This supersedes its historical experimental entries below. Seven additional EPOMAKER layout presets; HE68 Mag geometry remains unresolved. [Details](current/EPOMAKER_HE108_2026-09-26.md).
+
+> 2026-11-16: HE108 wireless feedback is negative; removing the missing-source banner did not mean working analog. No new log. Code review reproduces a pending E5 bootstrap preventing the1B stream attempt. USB support is retained;2.4GHz remains an unconfirmed trial. [Review and limits](current/EPOMAKER_HE108_RF_LOG54_2026-11-15.md#november16-screenshot-feedback--no-new-log).
+
+> The revision2 tester integration starts the HE108 interrupt stream before optional table reads, handles terminal cleanup with an unanswered page, accepts split report capability descriptions and keeps a yellow wireless Open log notice after model proof. USB remains Supported; physical2.4GHz retest is pending. [Implementation](current/EPOMAKER_HE108_RF_LOG54_2026-11-15.md#revision2-stream-first-tester-build--2026-11-16).
+
+> Log61 after reboot supersedes the log60 open conflict: exact HE1083365/0504 and receiver0802 identified, both stream-first starts send successfully, but no stream packets or positive table depth are observed in saved evidence. Later tester feedback confirms wireless analog works after PC reboot; the zero-valued log intervals do not negate that result. The existing wireless trial notice remains for unverified multikey/release/startup behavior; USB stays confirmed. [Latest confirmation](current/EPOMAKER_HE108_RF_LOG54_2026-11-15.md#tester-confirms-wireless-analog-after-reboot--2026-11-16). [Evidence](current/EPOMAKER_HE108_RF_LOG54_2026-11-15.md#log61-after-reboot--open-succeeds-no-depth-observed-2026-11-16).
 
 > 2026-09-24 visual layout update: [41 existing experimental models](current/ALL_YELLOW_LAYOUTS_2026-09-24.md) gain exact ANSI presets and automatic selection. Some revisions/regions remain manual; protocol support statuses below are unchanged.
 
@@ -62,10 +78,13 @@ to synthesize analogue depth.
 | Aula (experimental, wired USB) | **HERO84 HE**, **HERO 68 HE**, **HERO 68 Air**, **HERO 68 MINI**, **HERO 99 HE**, **WIN 68 HE Ultra**, **WIN 60 HE PRO**, **WIN 68 HE PRO**, **WIN 68 HE MAX**, **HERO 68 HE PRO** | Complete input paths enabled with yellow notices. Known protocols, exact identities and automatic layouts; remaining range/firmware behavior awaits hardware feedback. No tester is required to use them. |
 | ATTACK SHARK | **R85 HE**, **X65 Pro**, **X82 HE** | X82 HE (board 3086, wired USB `3151:5029`; the vendor catalog lists `3151:5030`, also admitted): a user's 1.6.12 log shows the keyboard connected, 83 keys, about 27,000 updates, 0 failures, and a bound key driving the gamepad trigger through its full range; automatic layout "ATTACK SHARK X82 HE ANSI"; no testing notice. R85 HE: tester-confirmed wired analog, enabled in 1.6.2 with shared HID access; no testing notice. R85 Ultra remains experimental. X65 Pro: tester-confirmed analogue input and gameplay, including external gamepad output with Block Bound Keys enabled. |
 | Chilkey (experimental, wired USB) | **Slice75 HE** | Native full-matrix travel,80 keys including Fn, automatic ANSI layout and live base assignments. Official1.1.7.3 firmware/protocol review; no physical test. Default3.3mm scale, alternate switches unverified. |
-| Everglide (wired USB) | **SU75 Pro** (`1CA6:3002`) | Supported after tester confirmation (2026-10-02: connected, 126 mapped keys, 26,217 updates, 0 failures). SparkLink V2 platform (official driver xsyd.top, catalog class public v2): same device-info, layout and row-travel commands as the supported IROK/EWEADN SparkLink boards; exact identity admission. Key assignments are read from the keyboard. Built-in 81-key layout "Everglide SU75 Pro ANSI" (manual selection; SparkLink publishes no layout identity). No testing notice. [Details](current/EVERGLIDE_SU75PRO_2026-10-02.md) |
+| Everglide (wired USB) | **SU75 Pro** (`1CA6:3002`) | Supported after tester confirmation (2026-10-02: connected, 126 mapped keys, 26,217 updates, 0 failures). SparkLink V2 platform (official driver xsyd.top, catalog class public v2): same device-info, layout and row-travel commands as the supported IROK/EWEADN SparkLink boards; exact identity admission. Key assignments are read from the keyboard. Built-in 81-key layout "Everglide SU75 Pro ANSI", automatically selected after board00300002 and live-depth proof. No testing notice. Producer firmware identifies this as the XS117 platform (V1 PCB). The seller's V2 PCB is marked SU75 Ultra: `1CA6:3007` / XS125, already admitted through the existing generic SparkLink V2 path with a yellow notice; a dedicated 81-key V2 ANSI preset is automatically selected after board00300007 and live-depth proof. Both proved SU75 identities retain physical analog through disabled/remapped assignments. See [implementation](current/EVERGLIDE_SU75_IMPLEMENTATION_2026-11-15.md). This does not extend the named Supported status to V2. [Original evidence](current/EVERGLIDE_SU75PRO_2026-10-02.md); [revision/firmware check](current/EVERGLIDE_SU75_REVISIONS_2026-11-14.md) |
+| E-YOOSO (wired USB, ANSI) | **HZ-94** | Exact 7187_AUSXHERGB identity, 94 independent physical channels and automatic ANSI preset. Tester confirms Cyberpunk gameplay and analog Gamepad Tester response on 0416:7372, firmware V1_13_05. Log39: full reported range, simultaneous input, releases and zero backend failures. [Evidence](current/KEYBOARD_FEEDBACK_LOG39_41_2026-11-08.md). |
+| FREEWOLF (wired USB) | **F68** | Supported by owner decision. Board 2634 on 3151:5029 and 3151:5030 uses the RongYuan stream and the automatic 67-key FREEWOLF F68 ANSI preset. The tester confirmed accurate travel on 3151:5029 with USB firmware 4.02 and 111,583 valid updates without backend failures. [Details](current/FREEWOLF_F68_2026-11-07.md) |
 | Weikav (wired USB) | **EG75 HE** (`1CA6:5A01`) | Supported after a tester log (2026-10-26, HallJoy 1.6.12: connected through the generic SparkLink V2 path, 126 mapped keys, ~76,800 updates, 0 failures, full travel on the bound keys). SparkLink V2 platform (official driver 星闪悦动 / SparkLink PlayJoy; identity on the vendor's official keyboard list): same device-info, layout and row-travel commands as Everglide SU75 Pro; now an exact identity, no "not in the list" notice. Key assignments are read from the keyboard. Built-in 80-key layout "Weikav EG75 HE ANSI" (manual selection; SparkLink publishes no layout identity). [Details](current/WEIKAV_EG75HE_2026-10-26.md) |
 | AULA (wired USB) | **AG75** (`38A6:28DE/28DF/28E0/28E1/28F0/28F1/28F2`) | Supported after a user report (2026-10-29, latest GitHub release: connected through the generic SparkLink V2 path, gamepad output working, Ultra edition). SparkLink V2 platform (AULA web driver on the SparkLink template); the PIDs are the official driver's AG75 list, all on the vendor's official keyboard list; now an exact identity, no "not in the list" notice. Key assignments are read from the keyboard. Built-in 81-key layout "Aula AG75 ANSI" from the official top view (manual selection; SparkLink publishes no layout identity). [Details](current/AULA_AG75_2026-10-29.md) |
 | EPOMAKER (experimental, wired USB) | **G84 HE** | Two exact board revisions; native read-only depth snapshots,84 keys including Fn, automatic ANSI layout and base assignments. Default3.5mm scale; hardware/switch validation pending. |
+| Akko (experimental, wired USB) | **5087 V3 HE, board3131 / 3151:5029** | Read-only full-matrix E5/FE depth;87 keyboard positions including Fn, built-in ANSI auto-selection. Stock3.5mm normalization; exact target firmware and physical range/release validation pending. The calculator action is display-only. [Investigation](current/AKKO_5087_V3_HE_2026-11-13.md). |
 | MonsGeek (experimental, wired USB) | **M1 V5 HE** | Exact HE board admission; native read-only depth snapshots,82 keys including Fn, automatic ANSI layout and base assignments. Default3.6mm scale; hardware/switch validation pending. TMR and wireless receivers are not included. |
 | Irok | **MG75 Max**, **MG75 Pro (experimental)**, **NA87** | NA87 support added in 1.5.3, with tester feedback and logs. **NA87 Pro is a different model; exact JingTai V1 USB revisions now have local experimental support (see below).** MG75 Pro uses native SparkLink V1 travel reads with automatic layout and base-layer remaps; hardware testing is pending and an amber Discord testing notice is shown. |
 | Redragon | **K673RGB-M**, **K673WB-RGB-M** | Exact W669 profiles exist for K673RGB-M BR/UK and K673WB-RGB-M US. BR has physical evidence; UK/US have source-profile and automated evidence. Other compatible magnetic models may work but are untested. |
@@ -74,8 +93,10 @@ to synthesize analogue depth.
 | ATK (experimental, wired USB) | **EDGE 60 HE**, **60 RX**, **EDGE 63 HE**, **RS63 Air**, **RS6**, **RS6 Ultra**, **RS6+**, **RS6 Ultra+**, **RS6 Cube**, **68 V3**, **68 RX**, **RS6 Air**, **EDGE 75 HE**, **RS7 V2**, **RS7 V2 Ultra**, **RS7 Air**, **RS7 Turbo**, **RS7**, **68 V2 Pro** | Same `02 96 1C` travel buffer as Hex80 (ATK hub: BITYUAN and DUCKBREAD controllers), read-only; exact PIDs from the ATK hub; matrix size from the hub device filter; automatic layouts. Yellow notice; no tester yet. 75% boards: one top-row key without a reliable identity is not mapped. Not included: 68, 68 V2 (different controller), 68 V2 S, 75, RS7 Pro. [Details](current/ATK_HEX80_FAMILY_2026-10-01.md). |
 | MCHOSE (wired USB) | **Jet 75 II** | Supported after tester confirmation (2026-10-02, "works perfectly", firmware 1.17). Exact `41E4:211A`; any firmware version whose protocol data checks pass (version is logged). Same M HUB analog report and saved analog-mode flag as Mix 87 III: enabled automatically at start/resume, disabled at pause/exit; 79 keys plus Fn, automatic ANSI layout; no testing notice. If the keyboard was just flashed or factory reset, it restarts once when the mode changes. [Details](current/MCHOSE_JET75_2026-10-02.md) |
 | MCHOSE (wired USB) | **Ace 68 Air III** | Supported after tester confirmation (2026-10-05, HallJoy 1.6.7: connected, 67 keys, 0 failures). Exact `41E4:2132`; any firmware version whose protocol data checks pass (version is logged; tester firmware 1.16). Mix 87 III analog report and saved analog-mode flag: enabled automatically at start/resume, disabled at pause/exit; 67 keys plus Fn, automatic Ace 68 ANSI layout; no testing notice. Ace 68 Air II and Air 2 remain experimental. [Details](current/MCHOSE_ARM_FAMILY_2026-10-02.md) |
+| MCHOSE (experimental, wired USB) | **Ace 60** | `41E4:2101`, stock 1.20 build Jan 10 2026, 61 channels and automatic ANSI layout. Enables the saved analog flag after checking the settings, restores its own flag on normal exit and keeps existing valid streams on other firmware. Tester log confirms live USB analog and proportional gamepad output on 1.20. Typing, normal-exit restoration and activation on other builds remain open. [Details](current/MCHOSE_ACE60_IMPLEMENTATION_2026-11-15.md) |
 | MCHOSE (wired USB) | **Ace 60 Pro** | Supported after a user's log (2026-10-24, HallJoy 1.6.12 tester build): exact `41E4:2103`, firmware 1.18; profile base resolved by the firmware's own boot rule, analog mode enabled, 60 keys, 0 failures, bound WASD keys drive the left stick through the full range. Automatic "MCHOSE Ace 60 ANSI" layout; no testing notice. Ace 60 Pro Nordic, Ace 60X I and II remain experimental. [Details](current/TESTER_LOGS_ACE60PRO_TS61_2026-10-24.md) |
-| MCHOSE (experimental, wired USB) | **Ace 68** (I `41E4:2114`, II `41E4:2116` "Ace68-II", III `3837:3003`), **Ace 68 Air** (II, 2), **Ace 68 V2 III**, **Ace 68 Turbo 8K**, **Ace 75 8K**, **Ace 60 Pro Nordic** (ISO), **Ace 60X I**, **Ace 60X II**, **Jet 75 I**, **Mix 87 I**, **Zero75X** | Same M HUB analog report and saved analog-mode flag as Jet 75 II (RISC-V boards) or Mix 87 III (ARM boards); every official firmware image was compared with the supported model (commands, writer and flag; ARM writers replayed in an emulator). Enabled automatically at start/resume, disabled at pause/exit; automatic layouts. Any firmware version whose protocol data checks pass. Yellow notice; no tester yet. Not included: Ace 60 (ARM, different build), Ace 68 GT, Ace 68 Turbo 16K, Ace 75 16K, Jet 75 III, GOD 60. [RISC-V](current/MCHOSE_RISCV_FAMILY_2026-10-02.md), [ARM](current/MCHOSE_ARM_FAMILY_2026-10-02.md) |
+| MCHOSE (wired USB) | **Ace 68 GT** | Supported on 3837:3007, MI_01, with automatic GT ANSI layout. Stock 1.16 confirmed by tester. Firmware 1.13 and 117A use the same reviewed activation path. HallJoy checks the active profile and reboot flag, verifies its write by readback and attempts to restore its own change on normal exit. Other versions can supply A0 if already streaming. [Details](current/MCHOSE_FAMILY_SURVEY_2026-10-02.md#recovery-image-and-hardware-confirmation) |
+| MCHOSE (experimental, wired USB) | **Ace 68** (I `41E4:2114`, II `41E4:2116` "Ace68-II", III `3837:3003`), **Ace 68 Air** (II, 2), **Ace 68 V2 III**, **Ace 68 Turbo 8K**, **Ace 75 8K**, **Ace 60 Pro Nordic** (ISO), **Ace 60X I**, **Ace 60X II**, **Jet 75 I**, **Mix 87 I**, **Zero75X** | Same M HUB analog report and saved analog-mode flag as Jet 75 II (RISC-V boards) or Mix 87 III (ARM boards); every official firmware image was compared with the supported model (commands, writer and flag; ARM writers replayed in an emulator). Enabled automatically at start/resume, disabled at pause/exit; automatic layouts. Any firmware version whose protocol data checks pass. Yellow notice; no tester yet. Not included: Ace 60 (ARM, different build), Ace 68 Turbo 16K, Ace 75 16K, Jet 75 III, GOD 60. [RISC-V](current/MCHOSE_RISCV_FAMILY_2026-10-02.md), [ARM](current/MCHOSE_ARM_FAMILY_2026-10-02.md) |
 | MADLIONS (wired USB) | **MAD68 HE V2 Flagship** | Supported after tester confirmation (2026-09-30): analog, gameplay and Pause/Resume. Exact `373B:1125` on the Hex80-family `02 96 1C` travel buffer (firmware V103, 5x15 matrix, 68 keys including Fn), read-only; fixed 3.30 mm scale from firmware; automatic MAD68HE ANSI layout; no testing notice. Not the MAD 68 V2 Dual (`28E9:3265`). [Details](current/MAD68_HE_V2_FLAGSHIP_2026-09-30.md). |
 | SayoDevice | **O3C** | O3C depth is tested. Automatic layout always has three independent keys, labelled from device bindings or Key 1/2/3 if unavailable. Manual layout uses Z/X/C. New binding reads await device validation. Other SayoDevice models are unconfirmed. |
 | Royal Kludge (wired USB) | **RK68 HE** (`372E:10BF`) and **RK68 HE UK** (`372E:10C0`, ISO) | Same BY (hubx) platform and read-only addressed protocol as the IPI boards: exact UUID, live key map and device calibration are read at start; automatic ANSI/ISO layouts. RK68 HE firmware is not published: its key IDs come from the official RK web driver and equal the firmware ID tables of three published BY 68-key images. Supported after tester confirmation (2026-10-02: connected, 68 keys, 17,982 updates, 0 failures); no testing notice. The UK (ISO) unit shares the protocol and ships its own built-in layout. [Details](current/RK68HE_HUBX_2026-10-02.md) |
@@ -237,11 +258,15 @@ with exact manufacturer ANSI (7153USHEXYXCPARGB) and Brazilian
 reads, live independent travel events, firmware-reported range, start/stop and
 HallJoy bindings/gamepad output are enabled; hardware validation is pending.
 
-Experimental Logitech G PRO X TKL RAPID (`046D:C35B`) and PRO X2 RAPID (`046D:C364`)
-(2026-10-05): HID++ 2.0 feature `0x1B08` live key-depth stream in 0.1 mm steps,
-switched on while HallJoy runs and off at pause/exit; no settings are written.
-The stream may drop events during fast typing (source report); PRO X2 RAPID key ids
-are verified through the log. Automatic TKL layouts (the X2 without Pause/PgUp/PgDn). [Details](current/LOGITECH_RAPID_2026-10-05.md)
+Experimental Logitech G PRO X2 RAPID (`046D:C364`): HID++ feature `0x1B08` v2
+reports simultaneous key depths. The tester log verifies all 84 key IDs. The
+built-in ANSI TKL preset is selected automatically. [Details](current/LOGITECH_RAPID_2026-10-05.md)
+
+Logitech G PRO X TKL RAPID (`046D:C35B`) is unsupported with the reviewed stock
+firmware. On 170.4.20 the analog stream omitted W's release during an A+W
+test, leaving the virtual stick engaged. The device needs a verified source of
+independent simultaneous key depths before admission can be reconsidered.
+[Log 35 analysis](current/LOGITECH_RAPID_2026-10-05.md#log-35-release-missing-from-the-analog-stream-with-ordered-reads-2026-11-07)
 
 Experimental MelGeek MADE68 Air (`0416:0114`, 2026-10-12): live key travel for all 68 keys through the
 vendor report mode (`set_report` 2 on the vendor collection `FF60:61`, the mode the MelGeek HIVE configurator uses on its
@@ -307,9 +332,8 @@ Diablo IV / Need for Speed Heat input compatibility remain separate open reports
   Default3.5mm scale per official SDK, live base assignments, manual layouts.
   Enabled analog/bindings/gamepad with yellow notice. No physical-device tests.
   RA68 on the separate HuoChaiRen protocol is NOT included. MG75 Max stays confirmed.
-- MCHOSE Ace60 remains research-only: investigated firmware1.20 activates analog
-  diagnostics by writing flash configuration. No automatic production activation
-  or experimental support claim is made for it.
+- The later [Ace 60 integration](current/MCHOSE_ACE60_IMPLEMENTATION_2026-11-15.md)
+  supersedes the September research-only status.
 
 
 ## Additional local experimental USB support (2026-09-24)
@@ -400,6 +424,23 @@ ceiling seen in the earlier wired log with this profile. Revision5 requires an
 actual depth packet to confirm streaming. Earlier table samples retain a bounded
 lifetime even after another key confirms the stream. See the
 [November 7 retest](current/KEYDOUS_NJ98_V4S_LOG31_2026-11-07.md).
+[November11 revision6 report](current/KEYDOUS_NJ98_V4S_LOG51_2026-11-14.md)
+shows a26s residual in both stream and accepted table replies. Saved received
+zeros are applied; no skipped table zero is recorded. The exact RF/firmware/cache
+cause remains unresolved. Wireless stays Experimental; no three-key cap is inferred.
+[Revision7 host fix](current/KEYDOUS_NJ98_V4S_F7FC_FIX_2026-11-14.md) confirms
+F7/FC response replacement without blind waits or rejecting status-looking depth
+pages. Unconfirmed marker/metadata transport still attempts genuine1B input and
+records the table limitation. No claim that upstream residuals are fixed.
+[Revision7 tester result, November16](current/KEYDOUS_NJ98_V4S_LOG59_2026-11-16.md)
+confirms working response synchronization but remaining4+ key sticking. A remote
+reply wait blocks full-table repair for at least41s while streaming continues;
+saved received zeros are applied. RF remains Experimental; USB confirmation retained.
+[Revision8](current/KEYDOUS_NJ98_V4S_COMMAND_HANDOFF_2026-11-16.md) applies late
+pages under their original stream-order ticket and restores the manufacturer10ms
+remote-command handoff interval after reproducing a single-mailbox overwrite.
+Independent interrupt input remains unpaced. Physical RF retest is pending;
+this is not proof that genuine RF loss or source-cache residuals are fixed.
 See [wired implementation](current/KEYDOUS_NJ98_V4S_2026-11-05.md),
 [initial receiver](current/KEYDOUS_NJ98_V4S_WIRELESS_2026-11-05.md) and
 [gaming correction/evidence](current/KEYDOUS_NJ98_V4S_GAMING_2026-11-05.md).
@@ -508,7 +549,7 @@ Experimental wired USB support; detection, analog input, bindings and gamepad ou
 | DSPIXEL Magic 80 | 3714 | 3.3 |
 | HATOR Skyfall 65 MAG Ultima 8K Wireless | 2876, 2919, 2920 | 3.5 |
 | HATOR Skyfall 65 MAG Ultra 8K | 2917, 2918 | 3.5 |
-| HATOR Skyfall 80 MAG Ultima 8K Wireless | 2800, 2857, 2858 | 3.5 |
+| HATOR Skyfall 80 MAG Ultima 8K Wireless | 2800, 2857, 2858, 3627, 3628, 3629 | 3.5 |
 | HATOR Skyfall 80 MAG Ultra 8K | 2853, 2856 | 3.5 |
 | KiiBOOM Cybrix29 | 2886 | 4.0 |
 | MAMBASNAKE M82 HE | 2335 | 3.4 |
@@ -532,7 +573,6 @@ Experimental wired USB support, enabled detection/analog/bindings/gamepad with y
 | EWEADN ZAP68 HE | 2348, 2426, 3035, 3036 |
 | EWEADN ZAP68 Ultra HE | 2554, 2510 |
 | EWEADN ZAP87 HE | 3011 |
-| FREEWOLF F68 | 2634 |
 | FREEWOLF F68 PRO | 2594 |
 | GAMEBOOSTER RAPID HE | 3278 |
 | Oniverse Maegnus | 3267 |
@@ -894,3 +934,27 @@ Google Sheet synchronized 2026-11-03: new IPI / QBZ / Flash 75 PRO / Gemini
 Seven-Star row, Main!A386:C386, Implemented; layout pending (yellow). Dropdown,
 32px row, outlines and base/effective colors verified. No Supported promotion.
 See [Sheet readback](current/SHEETS_RECONNECT_2026-11-03.md).
+
+## ARDOR GAMING Viper wired trial
+
+Local experimental support for exact M484 / GK8163HERGB, USB 0416:7372,
+FF1B:0091, 64-byte reports. Built-in 82-key ANSI geometry is automatically
+selected after live depth proof. Physical channels remain independent of
+remapped, disabled, duplicated or unavailable assignment metadata.
+
+The current local trial reads all 82 physical channels from full 0x23 raw ADC
+rows. It unsubscribes stock events: their shared pending slot loses simultaneous
+changes/releases in the reviewed 1.13.06 image. Rows update immediately; a later
+row supplies current state even if an earlier report was lost. No release timer,
+digital release substitution, added smoothing or manual calibration is used.
+
+Range conversion remains provisional: firmware 1.13.06 initializes its lower
+reference to150; HallJoy measures an upper reference as each channel's observed
+maximum. These are not saved per-device calibration values. A key held on first
+observation can initially have an incomplete range, and sensor drift/noise or a
+different saved lower reference can affect accuracy. Ordinary Open log includes
+aggregate row, motion, range, saturation and reference-return evidence. On
+November 15 the owner reported that the tester said the trial works well.
+Measured multikey coverage and depth accuracy remain open.
+No calibration, persistent configuration or firmware writes are performed.
+See [investigation](current/ARDOR_VIPER_2026-11-13.md).

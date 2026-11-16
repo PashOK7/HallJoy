@@ -187,11 +187,37 @@ def build_and_package(version):
     return package, exe
 
 
+def publication_context(original, version, today, record_name, exe):
+    """Replace the prepared route; do not overflow the bounded owner ledger."""
+    text = original.decode('utf8')
+    entry = f'{today} [{version}]({record_name}): published; EXE {exe[:8]}; CPU90%.\n'
+    pattern = r'^\d{4}-\d{2}-\d{2} \[' + re.escape(version) + r' prep\].*(?:\n|$)'
+    text, count = re.subn(pattern, lambda _: entry, text, count=1, flags=re.M)
+    if not count:
+        text += entry
+    route = r'(Публикация по локальной записи: )\[[^\]]+\]\([^)]+\)'
+    text = re.sub(route, lambda m: m[1] + f'[{version}]({record_name})', text, count=1)
+    result = text.encode('utf8')
+    if len(result) > 20480:
+        raise SystemExit('Publication context exceeds20480bytes; compact the prepared route before publishing')
+    return result
+
+
 def publish(clone, version, title, package, exe, transfer_counts):
+    today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3))).date().isoformat()
+    record = ROOT / f'docs/current/RELEASE_{version}_PUBLICATION_{today}.md'
+    if record.exists():
+        raise SystemExit('Publication record already exists; inspect the existing release before resuming')
+    context = ROOT / 'docs/current/OWNER_CONTEXT.md'
+    context_before = context.read_bytes()
+    context_after = publication_context(context_before,version,today,record.name,exe)
+    state_before = STATE.read_bytes() if STATE.exists() else None
     git(clone, 'commit', '-q', '-m', f'Release {version}: {title.split(": ", 1)[-1]}')
     commit = git(clone, 'rev-parse', '--short', 'HEAD').strip()
     git(clone, 'tag', '-a', f'v{version}', '-m', f'HallJoy {version}')
+    run(sys.executable, 'tools/check_publication_inputs.py', '--root', clone)
     git(clone, 'push', '-q', 'origin', 'main')
+    run(sys.executable, 'tools/check_publication_inputs.py', '--root', clone)
     git(clone, 'push', '-q', 'origin', f'v{version}')
     notes = ROOT / f'docs/releases/RELEASE_NOTES_v{version}.md'
     run('gh', 'release', 'create', f'v{version}', '--repo', REPO, '--title', title,
@@ -202,9 +228,7 @@ def publish(clone, version, title, package, exe, transfer_counts):
         local = 'sha256:' + hashlib.sha256((package / name).read_bytes()).hexdigest()
         if digests.get(name) != local:
             raise SystemExit(f'Uploaded {name} differs from the package ({digests.get(name)} != {local})')
-    today = datetime.date.today().isoformat()
-    record = ROOT / f'docs/current/RELEASE_{version}_PUBLICATION_{today}.md'
-    record.write_bytes(f'''# HallJoy {version} publication — {today}
+    record_data = f'''# HallJoy {version} publication — {today}
 
 Title: {title}. Published with `tools/release.py`.
 
@@ -214,11 +238,13 @@ Title: {title}. Published with `tools/release.py`.
 - Native suite and build_release.ps1: PASS. Workspace = clone for every tracked file.
 - EXE SHA-256 `{exe}`, version {full_version(version)}. Server-side SHA-256 of {", ".join(ASSETS)} equals the package.
 - Clean-checkout tests: GitHub CI (Windows) on {commit}.
-'''.encode('utf8'))
+'''.encode('utf8')
+    if record.exists() or context.read_bytes() != context_before:
+        raise SystemExit('Publication documentation changed during upload')
+    with record.open('xb') as output:
+        output.write(record_data)
+    context.write_bytes(context_after)
     context = ROOT / 'docs/current/OWNER_CONTEXT.md'
-    entry = (f'> {today} PUBLISHED stable/latest {version}: https://github.com/{REPO}/releases/tag/v{version} '
-             f'(commit {commit}, EXE {exe[:8]}). See {record.name}.\n')
-    context.write_bytes(entry.encode('utf8') + context.read_bytes())
     for path in (record, context):
         rel = path.relative_to(ROOT)
         data = path.read_bytes()
@@ -227,9 +253,13 @@ Title: {title}. Published with `tools/release.py`.
             path.write_bytes(data)
         (clone / rel).write_bytes(data)
     git(clone, 'add', '-A')
+    scan_private(clone)
     git(clone, 'commit', '-q', '-m', f'Record {version} publication [skip ci]')
+    run(sys.executable, 'tools/check_publication_inputs.py', '--root', clone)
     git(clone, 'push', '-q', 'origin', 'main')
     head = git(clone, 'rev-parse', 'HEAD').strip()
+    if (STATE.read_bytes() if STATE.exists() else None) != state_before:
+        raise SystemExit('Publication state changed during upload')
     STATE.write_text(json.dumps({'main': head, 'version': version}))
     return commit
 

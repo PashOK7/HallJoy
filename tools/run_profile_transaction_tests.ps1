@@ -9,7 +9,7 @@ if (-not $SkipBuild) {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
     $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\amd64\MSBuild.exe' | Select-Object -First 1
     if (-not $msbuild) { throw 'MSBuild x64 was not found.' }
-    & $msbuild $project /t:Build /p:Configuration=Release /p:Platform=x64 /p:HallJoyAnalogSimulator=true /m /v:minimal /nologo
+    & python (Join-Path $root 'tools/build_cpu_budget.py') --run $msbuild $project /t:Build /p:Configuration=Release /p:Platform=x64 /p:HallJoyAnalogSimulator=true /m /v:minimal /nologo
     if ($LASTEXITCODE -ne 0) { throw 'Profile test simulator build failed.' }
 }
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) ('HJProfileTest-' + [guid]::NewGuid().ToString('N'))

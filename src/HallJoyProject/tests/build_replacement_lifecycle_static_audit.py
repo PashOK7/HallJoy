@@ -8,7 +8,9 @@ close = (root / 'tools/close_project_halljoy.ps1').read_text(encoding='utf-8-sig
 guard = (root / 'src/HallJoyProject/HallJoy/instance_guard.cpp').read_text(encoding='utf-8-sig')
 assert 'close_project_halljoy' not in project and 'close_project_halljoy' not in runner
 assert 'ReleaseCandidate' in build
-assert build.index('& $msbuild') < build.index('foreach ($check') < build.index('publish_halljoy_build.ps1')
+assert build.index('build_cpu_budget.py') < build.index('foreach ($check') < build.index('publish_halljoy_build.ps1')
+assert '--run $msbuild $project' in build
+assert '& $msbuild' not in build # Compilation cannot bypass the shared CPU budget.
 assert install.index('Candidate matches installed EXE') < install.index('-InspectOnly')
 assert '[IO.File]::Replace($pending, $target, $backup)' in install
 assert 'finally {' in install and '$state.WasRunning' in install

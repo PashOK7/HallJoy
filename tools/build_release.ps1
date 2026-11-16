@@ -4,8 +4,9 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'build_environment.ps1')
-# Incremental builds can reuse the verified runtime and an existing C++ toolchain.
-$null = Initialize-HallJoyBuildEnvironment -PythonPath $PythonPath
+# Incremental MSVC builds can use g++ for portable checks and cached UAP.
+# Clang discovery is not a prerequisite for this path.
+$buildEnvironment = Initialize-HallJoyBuildEnvironment -PythonPath $PythonPath
 $vigem = (Get-Content -LiteralPath (Join-Path $root 'tools/dependency-lock.json') -Raw | ConvertFrom-Json).binaryInputs.vigemClient
 $vigemPath = Join-Path $root $vigem.path
 if ((Get-Item -LiteralPath $vigemPath).Length -ne $vigem.size -or (Get-FileHash -LiteralPath $vigemPath -Algorithm SHA256).Hash -ne $vigem.sha256) {
@@ -29,14 +30,28 @@ $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer
 $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\amd64\MSBuild.exe' | Select-Object -First 1
 if (-not $msbuild) { throw 'MSBuild x64 was not found.' }
 # Compilation and linked-image checks never touch the installed EXE.
-& $msbuild $project /m /p:Configuration=Release /p:Platform=x64 /p:HallJoyMad68ProRNative=true /p:HallJoyKeychronOnboardExperimental=true /p:HallJoyAttackSharkR85Diagnostic=false /p:HallJoyAttackSharkProDiagnostic=false /p:HallJoyAjazzDiagnostic=false /p:HallJoyInputPathDiagnostic=false "/p:OutDir=$candidateDir\" /verbosity:minimal /nologo
+& python (Join-Path $root 'tools/build_cpu_budget.py') --run $msbuild $project /m /p:Configuration=Release /p:Platform=x64 /p:HallJoyMad68ProRNative=true /p:HallJoyKeychronOnboardExperimental=true /p:HallJoyAttackSharkR85Diagnostic=false /p:HallJoyAttackSharkProDiagnostic=false /p:HallJoyAjazzDiagnostic=false /p:HallJoyInputPathDiagnostic=false "/p:OutDir=$candidateDir\" /verbosity:minimal /nologo
 if ($LASTEXITCODE -ne 0) { throw 'Release build failed; running HallJoy was not touched.' }
 $candidate = Join-Path $candidateDir 'HallJoy.exe'
+# WinMM is still used for joystick and timer APIs. Verify MIDI-specific
+# entry points and feature text are absent from the ordinary candidate.
+$imageEncoding = [Text.Encoding]::GetEncoding(28591)
+$image = $imageEncoding.GetString([IO.File]::ReadAllBytes($candidate))
+foreach ($marker in @('midiOutGetNumDevs', 'midiOutOpen', 'midiOutShortMsg', 'midi.lifecycle_failed')) {
+    if ($image.Contains($marker)) { throw "Unexpected MIDI output code in candidate: $marker" }
+}
+foreach ($marker in @('Add MIDI Device', 'MIDI settings', 'MIDI velocity curve')) {
+    $encoded = $imageEncoding.GetString([Text.Encoding]::Unicode.GetBytes($marker))
+    if ($image.Contains($encoded)) { throw "Unexpected MIDI UI in candidate: $marker" }
+}
+Write-Output 'GAMEPAD_ONLY_IMAGE=PASS MIDI imports and UI absent'
 foreach ($check in @('--halljoy-require-full-catalog', '--halljoy-require-k4-onboard', '--halljoy-support-self-test', '--halljoy-shark-self-test', '--halljoy-mini60-self-test', '--halljoy-redsquare-probe-self-test', '--halljoy-na87-native-self-test', '--halljoy-verify-embedded-vigem-installer')) {
     $process = Start-Process -FilePath $candidate -ArgumentList $check -WindowStyle Hidden -PassThru
     if (-not $process.WaitForExit(30000)) { Stop-Process -InputObject $process -Force; throw "Candidate check timed out: $check" }
     if ($process.ExitCode -ne 0) { throw "Candidate check failed: $check ($($process.ExitCode)); running HallJoy was not touched." }
 }
+& python (Join-Path $root 'tools/check_tester_delivery.py') --exe $candidate
+if ($LASTEXITCODE -ne 0) { throw 'Tester admission end-to-end gate failed; running HallJoy was not touched.' }
 & python (Join-Path $root 'tools/verify_embedded_licenses.py') $candidate
 if ($LASTEXITCODE -ne 0) { throw 'Embedded legal resources verification failed.' }
 # Rebuilds the simulator from the same sources and checks the compiled layout

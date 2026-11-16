@@ -9,6 +9,10 @@
 int main()
 {
     using namespace halljoy::keyboard_support;
+    // Owner-confirmed HE108 RF: no trial banner in either connection state.
+    for(bool connected:{false,true})
+        assert(!ResearchNotice(22,0x3151,0x5038,true,connected,false,L"EPOMAKER HE108"));
+    assert(!ResearchNotice(22,0x3151,0x5030,true,true,false,L"EPOMAKER HE108"));
     // No warning for startup, unsupported devices, idle input or one unplug.
     CommunicationHealth health;
     assert(!health.Observe(100,true,false));
@@ -118,6 +122,13 @@ int main()
         SetSearchObservation(false,true,mask);assert(GetStatusSnapshot().frozenModels==0);
     }
     // Red Sheet rows: exact identities only; shared PIDs need the product string.
+    for(unsigned pid : {0x2729u,0x2742u}) {
+        const auto f75=FindUnsupported(0x38a6,pid,L"AULA F75 HE");
+        assert(f75 && std::wcscmp(UnsupportedName(f75),L"AULA F75 HE")==0);
+    }
+    assert(FindUnsupported(0x0c45,0xfefe,L"AULA F75 HE DONGLE"));
+    assert(!FindUnsupported(0x0c45,0xfefe,L"MINI 60 HE PRO DONGLE"));
+    assert(!FindUnsupported(0x0c45,0x80b5,L"BOOM68-USB"));
     const unsigned ak820=FindUnsupported(0x0c45,0x80b1,L"AK820MAX");
     assert(ak820 && std::wcscmp(UnsupportedName(ak820),L"AJAZZ AK820 MAX HE (Sonix 0C45:80B1)")==0);
     assert(FindUnsupported(0x0c45,0x80b1,L"AK820MAX  ")==ak820); // padded USB string
@@ -127,6 +138,9 @@ int main()
     assert(FindUnsupported(0x0c45,0x80c1,L"AJAZZ AK680 V2") && FindUnsupported(0x0c45,0x80c1,L"AJAZZ KEYBOARD")==0);
     assert(FindUnsupported(0x0c45,0x80bc,L"AJAZZ AK680 V2") && FindUnsupported(0x0c45,0x80c2,L"AJAZZ AK680 V2"));
     assert(std::wcscmp(UnsupportedName(FindUnsupported(0x1b1c,0x1bc0,L"")),L"Corsair K70 MAX")==0);
+    const auto proXTklRapid = FindUnsupported(0x046d,0xc35b,L"PRO X RAPID");
+    assert(proXTklRapid && std::wcscmp(UnsupportedName(proXTklRapid),L"Logitech G PRO X TKL RAPID")==0);
+    assert(!FindUnsupported(0x046d,0xc364,L"PRO X2 RAPID"));
     assert(std::wcscmp(UnsupportedName(FindUnsupported(0x28e9,0x31fd,L"")),L"MADLIONS TITAN 68 Turbo")==0);
     assert(FindUnsupported(0x28e9,0x3265,L"")==0); // MAD 68 V2 Dual keeps its limited-analog notice
     assert(FindUnsupported(0x3151,0x4035,L"RT80") && FindUnsupported(0x3151,0x4035,L"AGK75")==0);
@@ -159,6 +173,12 @@ int main()
     // Alumix 68 is switched off (owner decision 2026-10-12): no catalog notice group is generated for it.
     assert(NativeNotice(31,0,true,0x80a2)==0 && NativeNotice(31,0,false,0x80a2)==0);
     assert(NativeNotice(22,0x5F95BAB8BCAB36D1ull,true,0x5030)==0);
+    assert(NativeNotice(22,0x5F95BAB8BCAB36D1ull,true,0x5038)==0);
+    for(auto pid:{0x502du,0x5029u,0x5030u})assert(NativeNotice(22,0x8c54fbb83457e44bull,true,pid)==0);
+    assert(NativeNotice(22,0x8c54fbb83457e44bull,true,0x5038)==RongYuanStream);
+    assert(NativeNotice(29,0xC19BC9D40FAC0AA4ull,true,0x2120)==0);
+    assert(NativeNotice(29,0xC19BC9D40FAC0AA4ull,true,0x2116)==MchoseFamily);
+
     // AK680 MAX shares geometry/token with ALUX68. Only its own USB PIDs
     // lose the testing notice; ALUX68 (5030) and unknown products keep it.
     assert(NativeNotice(22,0xE8EB300245326B1Cull,true,0x502d)==0);

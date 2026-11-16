@@ -813,6 +813,6 @@ const NativeAnalogBackendDescriptor& AulaW669_GetNativeBackendDescriptor()
         L"AULA W669 adaptive", NativeAnalogProtocol::AulaW669, NativeAnalogStartPhase::BeforeUap,
         NativeAnalogBackendFlag_StreamTransport | NativeAnalogBackendFlag_ReadOnlyProbe |
             NativeAnalogBackendFlag_ReversibleControlProbe | NativeAnalogBackendFlag_DynamicVidPid,
-        &Prepare, &Start, &Stop, &Notify, &Present, &Connected, &Owns, &Get, &Telemetry };
+        &Prepare, &Start, &Stop, &Notify, &Present, &Connected, &Owns, &Get, &Telemetry , nullptr, +[](halljoy::observation::Sink sink) { g_physical.Observations(sink); }};
     return d;
 }

@@ -13,6 +13,7 @@ def check():
     header=(ROOT/'src/HallJoyProject/HallJoy/rongyuan_stream_protocol.h').read_text(encoding='utf8')
     body=re.search(r'kUsbAliases\[\]=\{(.*?)\};',header,re.S)[1]
     actual={tuple(map(int,x)) for x in re.findall(r'\{(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\}',body)}
+    ledger=json.loads((DATA/'catalog-comparison.json').read_bytes())
     expected=set()
     for a in evidence['aliases']:
         # canonical_board differs only for a revision whose official class carries
@@ -21,6 +22,29 @@ def check():
         key=tuple(a[k] for k in ('board','vid','pid','canonical_vid','canonical_pid'))+(canonical_board,)
         assert key not in expected;expected.add(key)
         canonical=next(p for p in profiles if (p['board'],p['vid'],p['pid'])==(canonical_board,a['canonical_vid'],a['canonical_pid']))
+        if a.get('kind')=='legacy-driver-stream':
+            assert key==(2634,12625,20521,12625,20528,2634)
+            assert re.fullmatch(r'[a-f0-9]{64}',a['tester_log_sha256'])
+            diff=next(d for d in ledger['differences'] if (d['board'],d['vid'],d['pid'])==key[:3])
+            source=diff['evidence'][0]
+            assert 'id:2634,vid:12625,pid:20521,' in source['record']
+            assert 'name:"ry5088_freewolf_f68_8k_dm"' in source['record']
+            assert hashlib.sha256(bytes(canonical['matrix'])).hexdigest()==a['matrix_sha256']
+            path=ROOT/source['source']
+            if path.exists():
+                raw=path.read_bytes()
+                assert hashlib.sha256(raw).hexdigest()==source['sha256']
+                text=raw.decode('utf-8')
+                assert source['record'] in text
+                matrix=json.loads(re.search(r'\bi2a=(\[[0-9,]+\])',text)[1])
+                assert matrix==canonical['matrix']
+                assert 'case"ry5088_freewolf_f68_8k_dm":return new A2a(e)' in text
+                for leaf,parent in (('A2a','Kka'),('Kka','kba'),('kba','Uga'),('Uga','YHe')):
+                    body=re.search(r'\b'+leaf+r'=function\(e\).*?\}\('+parent+r'\)',text)[0]
+                    assert 'setKeyMagnetismReport' not in body
+                assert '"FEA_CMD_SET_MAGNETISM_REPOR",27' in text
+                assert 'e.FEA_CMD_SET_MAGNETISM_REPOR,a[1]=Number(r)' in text
+            continue
         record=a['source_record']['record']
         if a.get('kind')=='device-log':
             # No registry lists the observed tuple: the official record carries the catalog
@@ -62,7 +86,6 @@ def check():
     assert 'e[0]=this.FEA_CMD_SET_MAGNETISM_REPOR,e[1]=Number(t)' in proto
     assert 'class k extends t{' in evidence['parent_class']
     assert 'from"./26f7a06d.js"' in evidence['parent_import']
-    ledger=json.loads((DATA/'catalog-comparison.json').read_bytes())
     assert all(x.get('decision') and x.get('evidence') for x in ledger['differences'])
     assert sum(x['decision'].startswith('approved:') for x in ledger['differences'])==len(expected)
     # Current catalog source must still match its recorded digest when available.

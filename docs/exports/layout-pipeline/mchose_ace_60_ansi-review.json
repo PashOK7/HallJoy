@@ -508,6 +508,7 @@
   "identity": {
     "protocol": "mchose-ace60",
     "products": [
+      "ACE60-41E4-2101",
       "ACE60PRO-41E4-2103",
       "ACE60XI-41E4-2126",
       "ACE60XII-41E4-2112"

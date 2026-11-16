@@ -41,7 +41,7 @@ int main(){
   for(const auto& m:ry::kModels){
     std::set<unsigned> keys;unsigned fn=0;
     for(unsigned i=0;i<128;++i){auto hid=ry::Decode(m.matrix->data()+4*i);if(hid)keys.insert(hid);if(hid==0x409)fn=i;}
-    assert(keys.size()==(m.board==2819?82:84));assert(fn==(m.board==2819?65:71));
+    assert(keys.size()==(m.board==2819?82:m.board==3131?87:m.board==3113?80:84));assert(fn==(m.board==2819?65:71));
     auto token=halljoy::layout_identity::Token("rongyuan-snapshot",m.product);
     assert(token && halljoy::keyboard_support::NativeNotice(21,token,true)==32768);
   }

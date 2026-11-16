@@ -1959,6 +1959,6 @@ const NativeAnalogBackendDescriptor& AddressedAnalog_GetNativeBackendDescriptor(
         &AddressedAnalog_OwnsHid,
         &AddressedAnalog_GetMilli,
         &AddressedAnalog_FillGenericTelemetry,
-    };
+     nullptr, +[](halljoy::observation::Sink sink) { (halljoy::native_layout::UsesRemapping(g_verifiedLayoutToken.load()) ? g_publication : g_factoryPublication).Observations(sink); }};
     return descriptor;
 }

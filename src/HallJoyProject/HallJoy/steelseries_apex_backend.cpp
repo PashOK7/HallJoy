@@ -457,6 +457,6 @@ const NativeAnalogBackendDescriptor& SteelSeriesApex_GetNativeBackendDescriptor(
  static const NativeAnalogBackendDescriptor d{kNativeAnalogBackendAbiVersion,sizeof(NativeAnalogBackendDescriptor),
  "steelseries_apex",L"SteelSeries Apex Pro",NativeAnalogProtocol::SteelSeriesApex,
  NativeAnalogStartPhase::BeforeUap,NativeAnalogBackendFlag_PolledTransport|NativeAnalogBackendFlag_ReadOnlyProbe,
- &Prepare,&Start,&Stop,&Notify,&Present,&Connected,&Owns,&Get,&Telemetry};
+ &Prepare,&Start,&Stop,&Notify,&Present,&Connected,&Owns,&Get,&Telemetry, nullptr, +[](halljoy::observation::Sink sink) { ActiveValues().Observations(sink); }};
  return d;
 }

@@ -394,6 +394,6 @@ const NativeAnalogBackendDescriptor& RedSquareAlumix68_GetNativeBackendDescripto
         NativeAnalogProtocol::RedSquareAlumix68,
         NativeAnalogStartPhase::AfterRealtime,
         NativeAnalogBackendFlag_PolledTransport,
-        nullptr, &Start, &Stop, &Notify, &Present, &Connected, &Owns, &Get, &Telemetry};
+        nullptr, &Start, &Stop, &Notify, &Present, &Connected, &Owns, &Get, &Telemetry, nullptr, +[](halljoy::observation::Sink sink) { g_depth.Observations(sink); }};
     return d;
 }

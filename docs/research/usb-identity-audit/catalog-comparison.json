@@ -142,7 +142,7 @@
       "board": 2634,
       "vid": 12625,
       "pid": 20521,
-      "decision": "hold: matching factory map but changed internal class identity and older protocol evidence",
+      "decision": "approved: exact F68 tester identity and legacy OEM 1B stream enable, matching factory map; live mapped input required before connection",
       "evidence": [
         {
           "source": ".local/research/attackshark-pro/iot-main_68eaf5ce.js",

@@ -489,6 +489,6 @@ const NativeAnalogBackendDescriptor& CorsairK70Tkl_GetNativeBackendDescriptor() 
         kNativeAnalogBackendAbiVersion, sizeof(NativeAnalogBackendDescriptor), kBackendId,
         L"CORSAIR K70 PRO TKL", kProtocol, NativeAnalogStartPhase::AfterRealtime,
         NativeAnalogBackendFlag_PolledTransport | NativeAnalogBackendFlag_ReadOnlyProbe,
-        nullptr, &Start, &Stop, &Notify, &Present, &Connected, &Owns, &Get, &Telemetry};
+        nullptr, &Start, &Stop, &Notify, &Present, &Connected, &Owns, &Get, &Telemetry, nullptr, +[](halljoy::observation::Sink sink) { g_values.Observations(sink); }};
     return descriptor;
 }

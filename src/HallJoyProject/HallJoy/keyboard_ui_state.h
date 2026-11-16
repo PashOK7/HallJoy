@@ -26,4 +26,7 @@ extern HWND g_hPageTester;
 extern HWND g_hPageGlobal;
 extern HWND g_hPageInputOverlay;
 extern HWND g_hPageMouse;
+#ifndef HALLJOY_DISABLE_MIDI
+extern HWND g_hPageMidi;
+#endif
 extern int  g_activeSubTab;

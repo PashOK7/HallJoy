@@ -14,6 +14,7 @@
 #include "physical_analog_state.h"
 #include "realtime_loop.h"
 #include "settings.h"
+#include "midi_profile.h"
 #include "profile_runtime_gate.h"
 #include "support_log.h"
 #include "worker_exception_barrier.h"
@@ -194,6 +195,8 @@ unsigned Body() {
         const auto sessionStart=GetTickCount64();
         auto nextProfile=uint64_t{0};
         auto appliedRevision=uint64_t{0};
+        std::weak_ptr<halljoy::observation::Journal> previousCapture;
+        std::uint64_t previousObservedUs=0;
         while(!stopping.load() && healthy) {
             const auto now=GetTickCount64();
             const bool enabled=admitted.load() && Settings_GetVirtualGamepadsEnabled();
@@ -226,20 +229,27 @@ unsigned Body() {
             healthy=client.KeepAlive();
             if(!healthy) failedStep=StepKeepAlive;
             const bool shortcutsNeedAnalog=halljoy::shortcuts::NeedsAnalog();
-            if(healthy && (now<monitorUntil.load() || shortcutsNeedAnalog)) {
+            const bool midiNeedsAnalog=admitted.load() && halljoy::midi::NeedsAnalog();
+            if(healthy && (now<monitorUntil.load() || shortcutsNeedAnalog || midiNeedsAnalog)) {
                 std::array<uint16_t,HJO_SLOTS> depth{};
                 healthy=client.Depth(depth);
                 if(!healthy) failedStep=StepDepth;
                 if(healthy) {
                     const auto stamp=GetTickCount64();
+                    const auto capture=halljoy::observation::enabled.load(std::memory_order_relaxed)
+                        ?halljoy::observation::current.load(std::memory_order_acquire):nullptr;
+                    const auto observedUs=capture?halljoy::observation::NowUs():0;
+                    const auto priorUs=capture && previousCapture.lock()==capture?previousObservedUs:0;
                     for(unsigned i=0;i<HJO_SLOTS;++i) if(kSlotHid[i])
-                        values.Publish(static_cast<uint8_t>(i+1),static_cast<uint16_t>((uint32_t(depth[i])*1000+32767)/65535),stamp);
+                        values.Publish(static_cast<uint8_t>(i+1),static_cast<uint16_t>((uint32_t(depth[i])*1000+32767)/65535),
+                            stamp,false,observedUs,priorUs);
+                    previousCapture=capture;previousObservedUs=observedUs;
                     lastFrame.store(stamp);updates.fetch_add(1);RealtimeLoop_NotifyInputChanged();
                 }
             }
             // Hidden UI needs no matrix reads unless a configured shortcut
             // still needs analog input. Pause/exit stop this worker entirely.
-            if(healthy && GetTickCount64()>=monitorUntil.load() && !shortcutsNeedAnalog) WaitForSingleObject(cancel,20);
+            if(healthy && GetTickCount64()>=monitorUntil.load() && !shortcutsNeedAnalog && !midiNeedsAnalog) WaitForSingleObject(cancel,20);
         }
         halljoy::perf::Mark("k4.loop_exit",healthy?1:0);
         Clear();
@@ -366,7 +376,7 @@ const NativeAnalogBackendDescriptor& KeychronOnboard_GetNativeBackendDescriptor(
     static const NativeAnalogBackendDescriptor d{kNativeAnalogBackendAbiVersion,sizeof(NativeAnalogBackendDescriptor),
         "keychron-k4-onboard-hjo1",L"Keychron K4 HE onboard",NativeAnalogProtocol::KeychronOnboard,
         NativeAnalogStartPhase::BeforeUap,NativeAnalogBackendFlag_PolledTransport|NativeAnalogBackendFlag_ReadOnlyProbe,
-        Prepare,Start,Stop,Notify,Present,Connected,Owns,Get,Telemetry};
+        Prepare,Start,Stop,Notify,Present,Connected,Owns,Get,Telemetry, nullptr, +[](halljoy::observation::Sink sink) { values.Observations(sink); }};
     return d;
 }
 

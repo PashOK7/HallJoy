@@ -1,7 +1,11 @@
 #pragma once
 
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #include <cstdint>
 #include <type_traits>
@@ -13,7 +17,7 @@
 namespace HallJoyAnalogHost
 {
     constexpr std::uint32_t kMagic = 0x39414A48u; // "HJA9"
-    constexpr std::uint32_t kVersion = 15;
+    constexpr std::uint32_t kVersion = 16;
     constexpr std::uint32_t kMaxKeys = HallJoyDenseSnapshot::kKeyCount;
     constexpr std::uint32_t kMaxDevices = HallJoyPluginTelemetry::kMaxDevices;
 
@@ -131,6 +135,15 @@ namespace HallJoyAnalogHost
         alignas(8) volatile LONG64 totalSuccessfulPolls;
         alignas(8) volatile LONG64 snapshotGeneration;
         alignas(8) volatile LONG64 snapshotTimestampUs;
+
+        // Optional MIDI received-publication history. Bulk storage is a separate
+        // mapping created only on explicit capture, never part of normal IPC.
+        volatile LONG observationCaptureWanted;
+        volatile LONG observationHistoryError;
+        alignas(8) volatile LONG64 observationHistoryGeneration;
+        // Single-transfer handle slot: child atomically claims ownership; parent
+        // reclaims an unclaimed handle when capture stops or a request changes.
+        alignas(8) volatile LONG64 observationHistoryHandle;
 
         volatile LONG deviceTelemetryCount;
         // Development-only child-host C++ fault injection. Production keeps 0.

@@ -728,7 +728,7 @@ const NativeAnalogBackendDescriptor &AulaHero84He_GetNativeBackendDescriptor()
                                                  &Connected,
                                                  &Owns,
                                                  &Get,
-                                                 &Telemetry};
+                                                 &Telemetry, nullptr, +[](halljoy::observation::Sink sink) { (Remapped() ? g_physical : g_factory).Observations(sink); }};
     return d;
 }
 

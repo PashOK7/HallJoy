@@ -537,7 +537,7 @@ if ($vigemInstallerSignature.Status -ne 'Valid' -or
 Write-Host "Embedded ViGEmBus installer: exact hash and Nefarius signature verified." -ForegroundColor DarkGray
 
 Write-Host 'Building the embedded UAP with capability-validated native routing...' -ForegroundColor Cyan
-& powershell -NoProfile -ExecutionPolicy Bypass -File $pluginBuild `
+& python (Join-Path $root 'tools/build_cpu_budget.py') --run powershell -NoProfile -ExecutionPolicy Bypass -File $pluginBuild `
     -ExcludeMad68ProRNative -DependencyLock $dependencyLockPath
 if ($LASTEXITCODE -ne 0) { throw "Plugin build failed: $LASTEXITCODE" }
 
@@ -607,7 +607,7 @@ if (-not $msbuild) {
 
 # Rebuild owns compiler intermediates; never recursively erase adjacent runtime data.
 Write-Host "Building $targetName.exe with MAD68 + Hex80 + Addressed + Aula + Spark + Sayo + UAP..." -ForegroundColor Cyan
-$buildOutput = @(& $msbuild $project `
+$buildOutput = @(& python (Join-Path $root 'tools/build_cpu_budget.py') --run $msbuild $project `
     '/t:Rebuild' `
     "/p:OutDir=$outDir\" `
     '/p:Configuration=Release' `
@@ -698,6 +698,8 @@ $preservedRuntimeNames = @(
 New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 & python (Join-Path $root 'tools/verify_embedded_licenses.py') $exe
 if ($LASTEXITCODE -ne 0) { throw 'Embedded legal resources verification failed.' }
+& python (Join-Path $root 'tools/check_tester_delivery.py') --exe $exe
+if ($LASTEXITCODE -ne 0) { throw 'Tester admission end-to-end gate failed; running HallJoy was not touched.' }
 & (Join-Path $PSScriptRoot 'publish_halljoy_build.ps1') -CandidatePath $exe -TargetPath (Join-Path $releaseDir 'HallJoy.exe')
 Copy-Item -LiteralPath $dependencyLockPath -Destination $releaseDir -Force
 Copy-Item -LiteralPath $thirdPartyNoticesPath -Destination $releaseDir -Force

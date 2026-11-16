@@ -30,6 +30,7 @@
 #include <cstring>
 #include <vector>
 #include <memory>
+#include <optional>
 #include <cwctype>
 
 #ifdef min
@@ -58,6 +59,9 @@
 
 #include "backend.h"
 #include "gamepad_render.h"
+#ifndef HALLJOY_DISABLE_MIDI
+#include "midi_tester.h"
+#endif
 #include "gamepad_latency.h"
 #include "ui_theme.h"
 #include "settings.h"
@@ -199,10 +203,19 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
         RECT rcClient{};
         GetClientRect(hWnd, &rcClient);
 
-        int padCount = std::clamp(Backend_GetVirtualGamepadCount(), 1, 4);
+        int padCount = Backend_GetVirtualGamepadsEnabled() ? std::clamp(Backend_GetVirtualGamepadCount(), 1, 4) : 0;
         int cols = (padCount >= 3) ? 2 : padCount;
         cols = std::max(1, cols);
         int rows = (padCount + cols - 1) / cols;
+#ifndef HALLJOY_DISABLE_MIDI
+        std::optional<MidiTelemetry> midiData;
+        const bool showMidi = halljoy::midi::NeedsAnalog();
+        if (showMidi) { midiData.emplace(); MidiOutput_GetTelemetry(*midiData); }
+        const int midiHeight = showMidi ? MidiTester_Height(hWnd, *midiData) : 0;
+#else
+        constexpr bool showMidi = false;
+        constexpr int midiHeight = 0;
+#endif
 
         const int margin = S(hWnd, 12);
         const int toolbar = HALLJOY_CAMERA_LATENCY_TEST_ENABLED ? S(hWnd, 36) : 0;
@@ -217,11 +230,13 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
         int availW = std::max(1, clientW - margin * 2 - cardGap * (cols - 1));
         const int minCardH = S(hWnd, 156);
         int availH = std::max(minCardH * rows,
-            clientH - toolbar - margin * 2 - analogInfoH - (showAnalogInfo ? cardGap : 0) - cardGap * (rows - 1));
+            clientH - toolbar - margin * 2 - analogInfoH - (showAnalogInfo ? cardGap : 0) -
+            midiHeight - (showMidi ? cardGap : 0) - cardGap * std::max(0, rows - 1));
         int cardW = std::max(1, availW / cols);
-        int cardH = std::max(1, availH / rows);
+        int cardH = rows ? std::max(1, availH / rows) : 0;
+        const int padsHeight = rows * cardH + cardGap * std::max(0, rows - 1);
         const int contentHeight = toolbar + margin * 2 + analogInfoH +
-            (showAnalogInfo ? cardGap : 0) + rows * cardH + cardGap * (rows - 1);
+            (showAnalogInfo ? cardGap : 0) + padsHeight + midiHeight + (showMidi ? cardGap : 0);
         if (state)
         {
             CustomPageSurface_SetState(&state->surface, state->surface.scrollY, contentHeight);
@@ -473,6 +488,15 @@ LRESULT CALLBACK KeyboardSubpages_TesterPageProc(HWND hWnd, UINT msg, WPARAM wPa
             textLine(x0, y, L"Buttons: " + GamepadRender_ButtonsToString(r.wButtons), lineH);
         }
 
+#ifndef HALLJOY_DISABLE_MIDI
+        if (showMidi) {
+            const int top = toolbar + margin - scrollY + analogInfoH + (showAnalogInfo ? cardGap : 0) +
+                padsHeight + (rows ? cardGap : 0);
+            RECT midiCard{margin, top, clientW - margin, top + midiHeight};
+            const auto& midi = *midiData;
+            MidiTester_Draw(hWnd, memDC, midiCard, midi);
+        }
+#endif
         if (state)
             CustomPageSurface_DrawScrollbar(hWnd, memDC, &state->surface, state->scroll.draggingThumb);
 

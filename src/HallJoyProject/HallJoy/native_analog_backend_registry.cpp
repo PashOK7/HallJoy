@@ -282,6 +282,13 @@ bool NativeAnalogBackends_AnyConnected()
     return false;
 }
 
+void NativeAnalogBackends_VisitObservations(halljoy::observation::Sink sink)
+{
+    for (const auto* descriptor : kCatalog)
+        if (descriptor->getObservations && descriptor->isConnected())
+            descriptor->getObservations(sink);
+}
+
 NativeAnalogReadResult NativeAnalogBackends_ReadMilli(std::uint16_t hidUsage)
 {
     NativeAnalogReadResult result{};

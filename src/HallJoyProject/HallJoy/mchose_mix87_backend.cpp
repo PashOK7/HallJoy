@@ -34,6 +34,7 @@ struct Handle {
 struct Candidate {std::wstring path;const tp::Model* model=&tp::Models[0];};
 std::atomic<bool> g_stop{false},g_running{false},g_present{false},g_connected{false};
 std::atomic<std::uint64_t> g_good{0},g_bad{0},g_last{0};
+halljoy::observation::Source g_observation;
 std::array<std::atomic<std::uint16_t>,256> g_values{};
 std::array<std::atomic<bool>,256> g_owned{};
 std::mutex g_service,g_control;
@@ -47,7 +48,8 @@ int g_request=-1;
 // At most one automatic enable attempt per worker generation. Recovery reads
 // may continue, but repeated faults must never become a flash-write loop.
 bool g_autoAttempted=false;
-void Clear(){g_connected.store(false);for(auto& v:g_values)v.store(0);}
+void Clear(){
+    g_observation.Clear();g_connected.store(false);for(auto& v:g_values)v.store(0);}
 void SetState(Mix87ModeState state){std::lock_guard<std::mutex> l(g_control);g_mode.state=state;}
 void Failure(const char* stage,SupportLogDetail detail){++g_bad;SupportLog_Event(stage,0,detail);halljoy::keyboard_support::ReportCommunicationAnomaly(27);}
 std::vector<Candidate> Enumerate(){
@@ -270,7 +272,7 @@ void Run(const Candidate& c){
         if(!enabled)continue;
         tp::Sample sample{};
         if(tp::Decode(report,map,sample,exact341)){
-            g_values[sample.hid].store(sample.milli);g_last.store(GetTickCount64());++g_good;g_connected.store(true);
+            g_observation.Store(g_values[sample.hid],static_cast<std::uint16_t>(sample.hid),sample.milli);g_last.store(GetTickCount64());++g_good;g_connected.store(true);
         }else if(report[0]==0xa0 && report[1]==0x10){Failure("mix87.invalid_analog",SupportLog_Protocol(1));return;}
     }
 }
@@ -330,5 +332,5 @@ const NativeAnalogBackendDescriptor& MchoseMix87_GetNativeBackendDescriptor(){
     static const NativeAnalogBackendDescriptor d{kNativeAnalogBackendAbiVersion,sizeof(NativeAnalogBackendDescriptor),
         "mchose_mix87",L"MCHOSE M HUB (Mix87 III family) analog",NativeAnalogProtocol::MchoseMix87,
         NativeAnalogStartPhase::AfterRealtime,NativeAnalogBackendFlag_StreamTransport|NativeAnalogBackendFlag_ReadOnlyProbe,
-        nullptr,&Start,&Stop,&Notify,&Present,&Connected,&Owns,&Get,&Telemetry};return d;
+        nullptr,&Start,&Stop,&Notify,&Present,&Connected,&Owns,&Get,&Telemetry, nullptr, +[](halljoy::observation::Sink sink) { g_observation.Visit(sink,&Owns,&Get); }};return d;
 }

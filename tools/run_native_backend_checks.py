@@ -52,6 +52,8 @@ def compile_command(cxx: str, output: Path, sources: list[Path], include: Path) 
         if output.name == "vigem_child_transport"
         else []
     )
+    if output.name == "midi_output_windows":
+        extra_compile_args += ["-DHALLJOY_MIDI_OUTPUT_TEST"]
     if output.name == "instance_guard_windows":
         extra_compile_args += ["-DHALLJOY_INSTANCE_GUARD_TEST"]
     if output.name == "input_path_log_windows":
@@ -75,6 +77,7 @@ def compile_command(cxx: str, output: Path, sources: list[Path], include: Path) 
         *(["-ladvapi32", "-luser32"] if os.name == "nt" else []),
         *(["-lsetupapi", "-lcfgmgr32", "-lhid", "-lshell32", "-lole32", "-luuid"] if output.name in ("support_log_windows", "input_path_log_windows", "native_layout_devices_windows", "mad68_dual_trial_session", "mchose_mix87_session", "mchose_jet75_session", "alumix104_session", "corsair_vanguard_session") else []),
         *(["-lbcrypt"] if output.name == "mchose_mix87_session" else []),
+        *(["-lwinmm", "-lsynchronization"] if output.name == "midi_output_windows" else []),
         "-o",
         str(output),
     ]
@@ -193,6 +196,9 @@ def _build(command: list[str], output: Path) -> str:
 
 def compile_and_run_many(cxx: str, out: Path, tests: list[tuple[str, list[Path]]], include: Path) -> None:
     """Compile all tests in parallel, then run each binary sequentially."""
+    # Also covers standalone callers such as check_support_diagnostics.py.
+    from build_cpu_budget import apply_current
+    apply_current()
     jobs = [(name, compile_command(cxx, out / name, sources, include)) for name, sources in tests]
     failures = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, os.cpu_count() or 1)) as pool:
@@ -241,6 +247,8 @@ def main() -> int:
     parser.add_argument("--static-only", action="store_true", help="skip portable C++ compilation")
     parser.add_argument("--require-compiler", action="store_true", help="fail when g++/clang++ is unavailable")
     args = parser.parse_args()
+    from build_cpu_budget import apply_current
+    apply_current()
 
     root = Path(__file__).resolve().parents[1]
     project_root = root / "src" / "HallJoyProject"
@@ -254,6 +262,8 @@ def main() -> int:
     run([sys.executable, str(root / "tools" / "generate_corsair_vanguard.py")])
     run([sys.executable, "-m", "unittest", "discover", "-s", str(root / "tools/tests"),
          "-p", "test_project_context.py"], cwd=root)
+    run([sys.executable, "-m", "unittest", "discover", "-s", str(root / "tools/tests"),
+         "-p", "test_build_cpu_budget.py"], cwd=root)
     run([sys.executable, str(root / "tools" / "test_block_keys_group.py")])
     run([sys.executable, str(root / "tools" / "research_reference_checks.py")])
     run([sys.executable, str(project_root / "tools" / "validate_addressed_protocol_backend.py")])
@@ -290,6 +300,8 @@ def main() -> int:
             ("layout_editor_model", [tests / "layout_editor_model_test.cpp"]),
             ("layout_sort", [tests / "layout_sort_test.cpp"]),
             ("layout_identity", [tests / "layout_identity_test.cpp"]),
+            ("aula_f75_protocol", [tests / "aula_f75_protocol_test.cpp"]),
+            ("mchose_gt75_protocol", [tests / "mchose_gt75_protocol_test.cpp"]),
             ("remap_hint_motion", [tests / "remap_hint_motion_test.cpp"]),
             ("digital_keyboard_state", [tests / "digital_keyboard_state_test.cpp"]),
             ("input_privilege_warning", [tests / "input_privilege_warning_test.cpp"]),
@@ -434,6 +446,12 @@ def main() -> int:
                 tests / "extended_key_bindings_test.cpp",
                 hall / "bindings.cpp",
             ]),
+            ("hz94_admission", [tests / "hz94_admission_test.cpp", hall / "irok_nd75_protocol.cpp"]),
+            ("midi_setup", [tests / "midi_setup_test.cpp", hall / "bindings.cpp"]),
+            ("midi_engine", [tests / "midi_engine_test.cpp"]),
+            ("midi_touch", [tests / "midi_touch_test.cpp"]),
+            ("midi_observation", [tests / "midi_observation_test.cpp"]),
+            ("midi_observation_stream", [tests / "midi_observation_stream_test.cpp"]),
             ("axis_multikey_bindings", [
                 tests / "axis_multikey_bindings_test.cpp",
                 hall / "bindings.cpp",
@@ -525,6 +543,8 @@ def main() -> int:
             fixed_tests.append(("instance_guard_windows", [
                 tests / "instance_guard_windows_test.cpp", hall / "instance_guard.cpp"
             ]))
+            fixed_tests.append(("midi_output_windows", [tests / "midi_output_windows_test.cpp", hall / "midi_output.cpp"]))
+            fixed_tests.append(("midi_observation_host_windows", [tests / "midi_observation_host_windows_test.cpp"]))
             fixed_tests.append(("profile_loader_windows", [
                 tests / "profile_loader_windows_test.cpp", hall / "profile_ini.cpp", hall / "bindings.cpp"
             ]))
@@ -555,6 +575,7 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except subprocess.CalledProcessError as exc:
+        print(f"TEST/BUILD FAILED exit={exc.returncode} (0x{exc.returncode & 0xffffffff:08X}): {exc.cmd}", file=sys.stderr, flush=True)
         raise SystemExit(exc.returncode)
     except subprocess.TimeoutExpired as exc:
         raise SystemExit(f"TEST/BUILD TIMEOUT (not a pass): {exc.cmd}")

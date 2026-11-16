@@ -26,6 +26,7 @@ using halljoy::analog_simulator::PhaseName;
 constexpr wchar_t kActivationArgument[] = L"--halljoy-simulate-analog=script";
 constexpr DWORD kUpdateIntervalMs = 10;
 
+halljoy::observation::Source g_observation;
 std::array<std::atomic<std::uint16_t>, 256> g_milli{};
 std::atomic<bool> g_enabled{false};
 std::atomic<bool> g_running{false};
@@ -57,6 +58,7 @@ bool HasExactArgument(const wchar_t* argument = kActivationArgument) noexcept
 
 void ClearValues() noexcept
 {
+    g_observation.Clear();
     for (auto& value : g_milli)
         value.store(0, std::memory_order_release);
 }
@@ -68,6 +70,7 @@ void Publish(const halljoy::analog_simulator::Snapshot& snapshot) noexcept
     {
         const std::uint16_t old =
             g_milli[i].exchange(snapshot.milli[i], std::memory_order_acq_rel);
+        g_observation.Publish(static_cast<std::uint16_t>(i),static_cast<std::uint16_t>(i),snapshot.milli[i],old);
         changed = changed || old != snapshot.milli[i];
     }
 
@@ -251,7 +254,7 @@ const NativeAnalogBackendDescriptor& AnalogSimulator_GetNativeBackendDescriptor(
         &OwnsHid,
         &GetMilli,
         &GetTelemetry,
-    };
+     nullptr, +[](halljoy::observation::Sink sink) { g_observation.Visit(sink,&OwnsHid,&GetMilli,256); }};
     return descriptor;
 }
 

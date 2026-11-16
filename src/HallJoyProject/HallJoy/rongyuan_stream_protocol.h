@@ -273,8 +273,22 @@ inline constexpr Model kModels[]={
 // canonical board's identical factory matrix and stream parent (FUN60 Pro 2304:
 // MonsGeek web driver class `extends k`, matrix equal to 2600's; 2026-10-07).
 struct UsbAlias { unsigned board,vid,pid,canonicalVid,canonicalPid,canonicalBoard; };
-inline constexpr UsbAlias kUsbAliases[]={{2683,12625,20528,12625,20521,2683},{2704,12625,20528,12625,20521,2704},{2398,14154,41506,12625,20528,2398},{2304,12625,20525,12625,20521,2600},{2307,12625,20528,12625,20521,2352},{3613,12625,20528,12625,20564,3613}};
+inline constexpr UsbAlias kUsbAliases[]={{2683,12625,20528,12625,20521,2683},{2704,12625,20528,12625,20521,2704},{2398,14154,41506,12625,20528,2398},{2304,12625,20525,12625,20521,2600},{2307,12625,20528,12625,20521,2352},{3613,12625,20528,12625,20564,3613},{2634,12625,20521,12625,20528,2634}};
+inline Report HatorRequest(std::uint8_t command,std::uint8_t a=0,std::uint8_t b=0,std::uint8_t page=0) noexcept {
+ // SyncHUB Bit7 puts the checksum at payload index 7 (report ID is separate).
+ Report report{};report[1]=command;report[2]=a;report[3]=b;report[4]=page;
+ report[8]=static_cast<std::uint8_t>(255u-command-a-b-page);
+ return report;
+}
+inline bool HatorUltima(unsigned board) noexcept {
+ switch(board){case 2800:case 2857:case 2858:case 3627:case 3628:case 3629:return true;default:return false;}
+}
 inline const Model* Find(unsigned board,unsigned vid,unsigned pid) noexcept {
+ // SyncHUB HTK3880 PCB revisions with identical 512-byte factory matrices.
+ if(vid==0x379a && pid==0x1803){
+  if(board==3627 || board==3628)board=2857;
+  if(board==3629)board=2858;
+ }
  for(const auto& a:kUsbAliases)if(a.board==board && a.vid==vid && a.pid==pid){board=a.canonicalBoard;vid=a.canonicalVid;pid=a.canonicalPid;break;}
  for(const auto& m:kModels)if(m.board==board && m.vid==vid && m.pid==pid)return &m;return nullptr;
 }

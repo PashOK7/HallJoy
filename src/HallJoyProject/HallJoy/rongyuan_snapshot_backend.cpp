@@ -21,6 +21,10 @@
 #include <array>
 #include <atomic>
 #include <cwctype>
+#include <chrono>
+#include <cstdio>
+#include <shellapi.h>
+#include <thread>
 #include <mutex>
 #include <process.h>
 #include <string>
@@ -38,9 +42,11 @@ std::atomic<bool> g_busy{false};
 std::atomic<std::uint64_t> g_token{0}, g_ok{0}, g_bad{0}, g_last{0};
 std::atomic<std::uint32_t> g_avgUs{0}, g_maxUs{0};
 std::atomic<unsigned> g_board{0}, g_units{0}, g_mapped{0};
+std::atomic<std::uint64_t> g_topology{0};
 std::mutex g_service, g_activeLock;
 HANDLE g_thread = nullptr, g_wake = nullptr, g_active = INVALID_HANDLE_VALUE;
 halljoy::physical_analog::Publication g_factory, g_assigned;
+#include "rongyuan_snapshot_evidence.h"
 bool Remapped() {
   return halljoy::native_layout::UsesRemapping(g_token.load());
 }
@@ -78,23 +84,31 @@ struct Candidate {
   std::wstring path;
   HIDD_ATTRIBUTES attributes{};
   HIDP_CAPS caps{};
+  bool privatePipe = false; // Explicit isolated self-test transport only.
 };
 
-bool Feature(HANDLE h, bool write, mg::Report &data) {
+bool Feature(HANDLE h, bool write, mg::Report &data, bool privatePipe, DWORD& error) {
   HidIoOperation op(h);
-  DWORD error = 0, done = 0;
-  const auto start = op.StartControl(
-      write ? IOCTL_HID_SET_FEATURE : IOCTL_HID_GET_FEATURE, data.data(), 65,
-      write ? nullptr : data.data(), write ? 0 : 65, &error);
+  DWORD done = 0;
+  error = ERROR_SUCCESS;
+  const auto start = privatePipe
+      ? (write ? op.StartWrite(data.data(),65,&error) : op.StartRead(data.data(),65,&error))
+      : op.StartControl(write ? IOCTL_HID_SET_FEATURE : IOCTL_HID_GET_FEATURE,
+                        data.data(),65,write ? nullptr : data.data(),write ? 0 : 65,&error);
   if (start == HidIoOperation::StartResult::Failed)
     return false;
   if (start == HidIoOperation::StartResult::Pending &&
       op.Wait(50) != WAIT_OBJECT_0) {
     op.CancelAndDrain(&done, &error);
+    error=WAIT_TIMEOUT;
     return false;
   }
-  return op.Finish(&done, &error, false) &&
-         (write || (done == 64 && data[0] == 0));
+  if(!op.Finish(&done,&error,false)) return false;
+  if(!write && (done != (privatePipe?65u:64u) || data[0]!=0)) {
+    Record("feature_frame","short_or_report_id",0,0,ERROR_INVALID_DATA,done|(unsigned(data[0])<<16));
+    error=ERROR_INVALID_DATA;return false;
+  }
+  return true;
 }
 
 std::vector<Candidate> Enumerate(bool log) {
@@ -132,7 +146,7 @@ std::vector<Candidate> Enumerate(bool log) {
     HIDD_ATTRIBUTES a{};
     a.Size = sizeof(a);
     if (!HidD_GetAttributes(meta.v, &a) || a.VendorID != mg::kVendorId ||
-        a.ProductID != mg::kProductId)
+        (a.ProductID != mg::kProductId && a.ProductID != 0x5029))
       continue;
     PHIDP_PREPARSED_DATA pp = nullptr;
     if (!HidD_GetPreparsedData(meta.v, &pp))
@@ -149,6 +163,9 @@ std::vector<Candidate> Enumerate(bool log) {
           L"exact=%d",
           static_cast<unsigned long long>(HashPath(detail->DevicePath)),
           a.VersionNumber, exact ? 1 : 0);
+    if (a.ProductID==0x5029 && log)
+      Record("collection",exact?"eligible":"wrong_collection",0,0,0,
+             (unsigned(caps.FeatureReportByteLength)<<16)|caps.Usage);
     if (exact)
       out.push_back({detail->DevicePath, a, caps});
   }
@@ -160,6 +177,10 @@ class Session {
 public:
   const mg::Model *model = nullptr;
   unsigned units = 0;
+  bool rejectedIdentity = false;
+  bool privatePipe() const {return candidate.privatePipe;}
+  unsigned pid() const {return candidate.attributes.ProductID;}
+  bool Healthy() const {return !poisoned;}
   explicit Session(const Candidate &c) : candidate(c) {}
   ~Session() {
     std::lock_guard<std::mutex> lock(g_activeLock);
@@ -179,30 +200,56 @@ public:
   template <class Validate>
   bool Query(const mg::Report &request, mg::Report &reply, Validate valid,
              bool optional = false) {
-    if (poisoned || g_stop.load())
+    if (poisoned || g_stop.load()) {
+      Record("request",g_stop.load()?"cancelled":"transport_poisoned",request[1],request[4]);
       return false;
+    }
     auto tx = request;
-    if (!Feature(handle.v, true, tx))
-      return poisoned = true, false;
+    DWORD error=0;
+    if (!Feature(handle.v, true, tx,candidate.privatePipe,error)) {
+      Record(optional?"metadata_set":"feature_set","io_failed",request[1],request[4],error);
+      if(!optional) poisoned=true;
+      return false;
+    }
     const auto deadline = GetTickCount64() + 50;
     do {
       reply = {};
-      if (!Feature(handle.v, false, reply))
-        return poisoned = true, false;
+      if (!Feature(handle.v, false, reply,candidate.privatePipe,error)) {
+        Record(optional?"metadata_get":"feature_get","io_failed",request[1],request[4],error);
+        if(!optional) poisoned=true;
+        return false;
+      }
       if (valid(reply))
         return true;
-      if (g_wake)
+      // Retry only an observed unready shared-buffer reply, not valid samples.
+      if (g_wake && !candidate.privatePipe)
         WaitForSingleObject(g_wake, 1);
     } while (!g_stop.load() && GetTickCount64() < deadline);
-    if (!optional)
-      poisoned = true;
+    Record(optional?"metadata_reply":"protocol_reply",g_stop.load()?"cancelled":"invalid_or_unready",
+           request[1],request[4],0,unsigned(reply[0])|(unsigned(reply[1])<<8));
+    if (!optional) poisoned = true;
     return false;
   }
+  static unsigned slotForEvidence(unsigned page,unsigned i) {return page*32+i;}
   bool Travel(unsigned page, mg::Values &values) {
-    mg::Report r{};
+    mg::Report r{};bool reported=false;
     return Query(
         mg::Request(0xe5, 0xfe, 1, static_cast<std::uint8_t>(page)), r,
-        [&](const auto &x) { return mg::ParseTravel(x, units, values); });
+        [&](const auto &x) {
+          if(model && mg::PhysicalMetadata(model->board)) {
+            if(x[0] || !units || page>=4) return false;
+            mg::Values next{};
+            for(unsigned i=0;i<32;++i) {
+              next[i]=std::uint16_t(x[1+2*i]|(x[2+2*i]<<8));
+              if(mg::Decode(model->matrix->data()+(page*32+i)*4) && next[i]>6*units) {
+                if(!reported) {Record("depth_frame","physical_value_out_of_scale_or_unready",0xe5,page,0,slotForEvidence(page,i));reported=true;}
+                return false;
+              }
+            }
+            values=next;return true;
+          }
+          return mg::ParseTravel(x,units,values);
+        });
   }
 
 private:
@@ -218,62 +265,80 @@ void Clear() {
   g_last.store(0);
 }
 bool Proof(Session &s) {
+  Record("identity","attempt",0x8f);
   mg::Report r{};
-  if (!s.Query(mg::Request(0x8f), r,
-               [](const auto &x) { return mg::Find(mg::Board(x)); }))
-    return false;
-  s.model = mg::Find(mg::Board(r));
-  const unsigned version = r[8] | (r[9] << 8);
-  mg::Report features{};
-  // Old firmware has no E6 reply marker: use its documented version scale.
-  s.Query(
-      mg::Request(0xe6), features,
-      [](const auto &x) { return x[1] == 0xe6 && x[2] == 0xaa; }, true);
-  s.units = mg::Units(version, features);
-  if (!s.units)
-    return false;
-  for (unsigned page = 0; page < 4; ++page) {
-    mg::Values v{};
-    if (!s.Travel(page, v))
-      return false;
+  if (!s.Query(mg::Request(0x8f),r,[](const auto& x){return mg::Board(x)!=0;})) return false;
+  s.model=mg::Find(mg::Board(r));
+  if(!s.model || s.model->pid!=s.pid()) {
+    s.rejectedIdentity=true;
+    Record("identity","foreign_board_or_pid",0x8f,0,0,mg::Board(r));return false;
   }
-  return true;
+  const unsigned version=r[8]|(unsigned(r[9])<<8);
+  if(mg::PhysicalMetadata(s.model->board)) {
+    mg::Report repeated{};
+    if(!s.Query(mg::Request(0x8f),repeated,[](const auto& x){return mg::Board(x)!=0;}) ||
+       mg::Board(repeated)!=s.model->board) {
+      s.rejectedIdentity=true;
+      Record("identity","inconsistent_board",0x8f,0,0,mg::Board(repeated));return false;
+    }
+    std::lock_guard<std::mutex> lock(g_evidenceLock);
+    const auto revision=g_evidence.revision+1;g_evidence={};g_evidence.revision=revision;
+    g_evidence.board=s.model->board;g_evidence.pid=s.pid();g_evidence.usb=version;
+  }
+  mg::Report features{};
+  const bool featureReply=s.Query(mg::Request(0xe6),features,
+      [](const auto& x){return x[0]==0 && x[1]==0xe6 && x[2]==0xaa;},true);
+  if(!featureReply) features={};
+  s.units=mg::Units(version,features);
+  Record("precision",featureReply?"feature_reply":"documented_legacy_version",0xe6,0,0,s.units);
+  if(!s.units) {s.rejectedIdentity=true;Record("precision","unsupported_units",0xe6,0,0,features[3]);return false;}
+  if(mg::PhysicalMetadata(s.model->board)) {
+    std::lock_guard<std::mutex> lock(g_evidenceLock);g_evidence.units=s.units;
+  }
+  for(unsigned page=0;page<4;++page) {
+    mg::Values v{};Record("proof_page","attempt",0xe5,page);
+    if(!s.Travel(page,v)) return false;
+    Record("proof_page","valid_including_zero",0xe5,page);
+  }
+  Record("proof","ready",0xe5,0,0,s.model->board);return true;
 }
 bool Map(Session &s) {
-  mg::Report r{};
-  if (!s.Query(mg::Request(0x84, 255), r,
-               [](const auto &x) { return x[1] == 0x84 && x[2] < 8; }))
-    return false;
-  const auto profile = r[2];
-  mg::Matrix assigned{};
-  for (unsigned page = 0; page < 8; ++page) {
-    if (!s.Query(
-            mg::Request(0x8a, profile, 255, static_cast<std::uint8_t>(page)), r,
-            mg::ValidAssignments))
-      return false;
-    std::copy(r.begin() + 1, r.end(), assigned.begin() + 64 * page);
+  const bool permissive=mg::PhysicalMetadata(s.model->board);
+  mg::Report r{};mg::Matrix assigned{};
+  bool available=s.Query(mg::Request(0x84,255),r,
+      [](const auto& x){return x[0]==0 && x[1]==0x84 && x[2]<8;},permissive);
+  if(available) {
+    const auto profile=r[2];
+    for(unsigned page=0;page<8;++page) {
+      if(!s.Query(mg::Request(0x8a,profile,255,static_cast<std::uint8_t>(page)),r,
+                  mg::ValidAssignments,permissive)) {available=false;break;}
+      std::copy(r.begin()+1,r.end(),assigned.begin()+64*page);
+    }
   }
-  std::array<halljoy::native_layout::Key, 128> keys{};
-  unsigned count = 0;
-  for (unsigned slot = 0; slot < 128; ++slot) {
-    const auto factory = mg::Decode(s.model->matrix->data() + slot * 4);
-    if (!factory)
-      continue;
-    const auto action = mg::Decode(assigned.data() + slot * 4);
-    const auto id = static_cast<std::uint8_t>(slot + 1);
-    if (!g_factory.Bind(id, factory) ||
-        (action && !g_assigned.Bind(id, action)))
-      return false;
-    keys[count++] = {factory, action};
+  if(!available && !permissive) return false;
+  if(!available) assigned=*s.model->matrix;
+  Record("map_policy",available?"assignments_available":"physical_factory_continue",0x8a);
+  std::array<halljoy::native_layout::Key,128> keys{};unsigned count=0;
+  for(unsigned slot=0;slot<128;++slot) {
+    const auto factory=mg::Decode(s.model->matrix->data()+slot*4);
+    if(!factory) continue;
+    const auto action=mg::Decode(assigned.data()+slot*4);
+    const auto id=static_cast<std::uint8_t>(slot+1);
+    if(!g_factory.Bind(id,factory) || (action && !g_assigned.Bind(id,action))) {
+      Record("publication","invalid_physical_binding",0,0,0,slot);return false;
+    }
+    keys[count++]={factory,action};
   }
-  const auto token =
-      halljoy::layout_identity::Token("rongyuan-snapshot", s.model->product);
-  if (!halljoy::native_layout::Publish(token, keys.data(), count))
-    return false;
-  g_token.store(token);
-  g_board.store(s.model->board);
-  g_units.store(s.units);
-  g_mapped.store(count);
+  const auto token=halljoy::layout_identity::Token("rongyuan-snapshot",s.model->product);
+  const bool cached=halljoy::native_layout::Publish(token,keys.data(),count);
+  if(!cached && !permissive) return false;
+  Record("layout",cached?"published":"cache_unavailable_continue",0,0,0,count);
+  g_token.store(token);g_board.store(s.model->board);g_units.store(s.units);g_mapped.store(count);
+  if(permissive) {g_avgUs=0;g_maxUs=0;}
+  if(permissive) {
+    std::lock_guard<std::mutex> lock(g_evidenceLock);
+    g_evidence.mapped=count;g_evidence.metadata=available?1:0;g_evidence.layout=cached?1:0;
+  }
   return true;
 }
 void Publish(unsigned page, const mg::Values &values, std::uint64_t now) {
@@ -289,16 +354,25 @@ void Publish(unsigned page, const mg::Values &values, std::uint64_t now) {
     g_factory.Publish(id, value, now);
     g_assigned.Publish(id, value, now);
   }
+  if(mg::PhysicalMetadata(model->board)) ObservePage(page,values,*model);
   g_last.store(now);
   ++g_ok;
 }
 bool Run(const Candidate &c) {
   Clear();
+  if(g_stop.load()) {Record("request","cancelled");return false;}
+  if(c.attributes.VendorID!=mg::kVendorId ||
+     (c.attributes.ProductID!=mg::kProductId && c.attributes.ProductID!=0x5029) ||
+     (c.caps.UsagePage!=0xffff && c.caps.UsagePage!=0xff00) ||
+      c.caps.Usage!=2 || c.caps.FeatureReportByteLength!=65) {
+    Record("collection","wrong_collection");return false;
+  }
   Session s(c);
   const char *phase = "open";
   const bool opened = s.Open();
   const DWORD openError = opened ? ERROR_SUCCESS : GetLastError();
   g_busy.store(!opened && NativeAnalog_IsAccessBusyError(openError));
+  Record("open",opened?"success":"failed",0,0,openError);
   if (!opened) {
     // Once per distinct error: the worker retries every second.
     static std::atomic<DWORD> lastError{ERROR_SUCCESS};
@@ -312,37 +386,50 @@ bool Run(const Candidate &c) {
     DebugLog_Write(L"[rongyuan.snapshot] admission failed phase=%hs error=%lu",
                    phase, opened ? GetLastError() : openError);
     Clear();
-    return false;
+    Record("cleanup","input_cleared_handle_closes");
+    return s.rejectedIdentity;
   }
-  if (!NativeAnalogRouting_Claim(mg::kVendorId, mg::kProductId, c.path.c_str(),
+  if (!NativeAnalogRouting_Claim(mg::kVendorId, c.attributes.ProductID, c.path.c_str(),
                                  NativeAnalogProtocol::RongYuanSnapshot) &&
       !NativeAnalogRouting_IsClaimedBy(
           c.path.c_str(), NativeAnalogProtocol::RongYuanSnapshot)) {
+    Record("routing","ownership_collision");
     Clear();
     return false;
   }
   g_present.store(true);
   g_connected.store(true);
+  Record("polling","started",0xe5,0,0,s.model->board);
   DebugLog_Write(L"[rongyuan.snapshot] connected board=%u keys=%u "
                  L"units_per_mm=%u experimental=1",
                  s.model->board, g_mapped.load(), s.units);
   auto logAt = GetTickCount64() + 5000;
   auto last = GetTickCount64();
   unsigned half = 0;
+  auto sweepStart=std::chrono::steady_clock::now();
   while (!g_stop.load()) {
     mg::Values values{};
     if (!s.Travel(half, values)) {
       ++g_bad;
-      break;
+      {std::lock_guard<std::mutex> lock(g_evidenceLock);++g_evidence.rejected;}
+      Record("depth","read_failed",0xe5,half);break;
     }
     const auto now = GetTickCount64();
     Publish(half, values, now);
-    const auto us = static_cast<std::uint32_t>(
-        std::min<ULONGLONG>(0xffffffffull, (now - last) * 1000));
-    last = now;
-    const auto prev = g_avgUs.load();
-    g_avgUs.store(prev ? (prev * 7 + us) / 8 : us);
-    g_maxUs.store(std::max(g_maxUs.load(), us));
+    if(mg::PhysicalMetadata(s.model->board)) {
+      if(half==3) {
+        const auto stamp=std::chrono::steady_clock::now();
+        const auto us=static_cast<std::uint32_t>(std::max<std::int64_t>(1,
+          std::chrono::duration_cast<std::chrono::microseconds>(stamp-sweepStart).count()));
+        const auto prev=g_avgUs.load();g_avgUs.store(prev?(prev*7+us)/8:us);
+        g_maxUs.store(std::max(g_maxUs.load(),us));sweepStart=stamp;
+      }
+    } else {
+      const auto us=static_cast<std::uint32_t>(std::min<ULONGLONG>(0xffffffffull,(now-last)*1000));
+      const auto prev=g_avgUs.load();g_avgUs.store(prev?(prev*7+us)/8:us);
+      g_maxUs.store(std::max(g_maxUs.load(),us));
+    }
+    last=now;
     if (now >= logAt) {
       DebugLog_Write(
           L"[rongyuan.snapshot] health half_updates=%llu failures=%llu "
@@ -353,19 +440,24 @@ bool Run(const Candidate &c) {
       logAt = now + 5000;
     }
     half = (half + 1) % 4;
-    if (g_wake)
+    if (g_wake && !mg::PhysicalMetadata(s.model->board))
       WaitForSingleObject(g_wake, 1);
   }
   DebugLog_Write(
       L"[rongyuan.snapshot] session ended stop=%d error=%lu failures=%llu",
       g_stop.load() ? 1 : 0, GetLastError(),
       static_cast<unsigned long long>(g_bad.load()));
+  WriteSnapshotEvidence();
   Clear();
+  Record("cleanup","input_cleared_handle_closes");
   return false;
 }
 unsigned __stdcall Worker(void *) {
   try {
+    std::vector<std::wstring> declined;
+    auto topology=g_topology.load();
     while (!g_stop.load()) {
+      if(topology!=g_topology.load()) {topology=g_topology.load();declined.clear();}
       const auto candidates = Enumerate(false);
       g_present.store(!candidates.empty());
       for (const auto &c : candidates) {
@@ -375,7 +467,9 @@ unsigned __stdcall Worker(void *) {
             !NativeAnalogRouting_IsClaimedBy(
                 c.path.c_str(), NativeAnalogProtocol::RongYuanSnapshot))
           continue;
-        Run(c);
+        if(std::find(declined.begin(),declined.end(),c.path)!=declined.end()) continue;
+        // An unrelated identity is not reopened once per second while on the bus.
+        if(Run(c)) declined.push_back(c.path);
         if (g_stop.load())
           break;
       }
@@ -396,6 +490,7 @@ bool Prepare() {
   if (g_thread)
     return g_present.load();
   g_stop.store(false);
+  SupportLog_SetRongyuanEvidenceProvider(&WriteSnapshotEvidence);
   bool any = false;
   for (const auto &c : Enumerate(true)) {
     if (NativeAnalogRouting_IsClaimed(c.path.c_str()) &&
@@ -406,7 +501,7 @@ bool Prepare() {
     if (!s.Open() || !Proof(s))
       continue;
     any =
-        NativeAnalogRouting_Claim(mg::kVendorId, mg::kProductId, c.path.c_str(),
+        NativeAnalogRouting_Claim(mg::kVendorId, c.attributes.ProductID, c.path.c_str(),
                                   NativeAnalogProtocol::RongYuanSnapshot) ||
         any;
   }
@@ -418,6 +513,7 @@ bool Start() {
   if (g_thread)
     return g_running.load();
   g_stop.store(false);
+  SupportLog_SetRongyuanEvidenceProvider(&WriteSnapshotEvidence);
   g_wake = CreateEventW(nullptr, FALSE, FALSE, nullptr);
   if (!g_wake)
     return false;
@@ -458,9 +554,11 @@ Stop(halljoy::lifecycle::GenerationId generation) {
   CloseHandle(g_wake);
   g_wake = nullptr;
   Clear();
+  SupportLog_SetRongyuanEvidenceProvider(nullptr);
   return NativeAnalogBackendStopJoined(generation);
 }
 void Notify() {
+  ++g_topology;
   std::lock_guard<std::mutex> lock(g_service);
   if (g_wake)
     SetEvent(g_wake);
@@ -485,7 +583,8 @@ void Telemetry(NativeAnalogBackendTelemetry *out) {
   out->accessBusy = out->present && !out->connected && g_busy.load();
   out->verifiedLayoutToken = Connected() ? g_token.load() : 0;
   out->vendorId = mg::kVendorId;
-  out->productId = mg::kProductId;
+  const auto* actualModel=mg::Find(g_board.load());
+  out->productId = actualModel?actualModel->pid:mg::kProductId;
   out->usagePage = 0xffff;
   out->usage = 2;
   out->mappedKeys = Connected() ? g_mapped.load() : 0;
@@ -509,6 +608,7 @@ void Telemetry(NativeAnalogBackendTelemetry *out) {
                L"%s: USB matrix snapshots; hardware/range validation pending",
                model ? model->name : L"RongYuan");
 }
+#include "rongyuan_snapshot_self_test.h"
 } // namespace
 const NativeAnalogBackendDescriptor &
 RongYuanSnapshot_GetNativeBackendDescriptor() {
@@ -516,7 +616,7 @@ RongYuanSnapshot_GetNativeBackendDescriptor() {
       kNativeAnalogBackendAbiVersion,
       sizeof(NativeAnalogBackendDescriptor),
       "rongyuan-snapshot",
-      L"MonsGeek / EPOMAKER USB (experimental)",
+      L"Akko / MonsGeek / EPOMAKER USB (experimental)",
       NativeAnalogProtocol::RongYuanSnapshot,
       NativeAnalogStartPhase::BeforeUap,
       NativeAnalogBackendFlag_PolledTransport |
@@ -529,6 +629,17 @@ RongYuanSnapshot_GetNativeBackendDescriptor() {
       &Connected,
       &Owns,
       &Get,
-      &Telemetry};
+      &Telemetry, nullptr, +[](halljoy::observation::Sink sink) { (Remapped() ? g_assigned : g_factory).Observations(sink); }};
   return d;
+}
+bool RongYuanSnapshot_TryRunSelfTest(int& result) noexcept {
+  int argc=0;auto argv=CommandLineToArgvW(GetCommandLineW(),&argc);
+  const bool mod007=argv && argc==2 && wcscmp(argv[1],L"--halljoy-akko3113-self-test")==0;
+  const bool selected=mod007 || (argv && argc==2 && wcscmp(argv[1],L"--halljoy-akko3131-self-test")==0);
+  if(argv) LocalFree(argv);
+  if(!selected) return false;
+  bool pass=false;
+  try {pass=SnapshotSelfTest(mod007?3113u:3131u);} catch(...) {pass=false;}
+  wprintf(L"%ls=%ls scenarios=14 negatives=11 physical_channels=%u proof_to_subscribe=1 first_sample=1 multikey=1 release=1 cleanup=1 metadata_optional=1 read_only=1 hardware_opened=0\n",mod007?L"AKKO3113_SELF_TEST":L"AKKO3131_SELF_TEST",pass?L"PASS":L"FAIL",mod007?80u:87u);
+  result=pass?0:10;return true;
 }

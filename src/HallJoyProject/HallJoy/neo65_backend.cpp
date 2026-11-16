@@ -218,6 +218,6 @@ const NativeAnalogBackendDescriptor& Neo65_GetNativeBackendDescriptor() {
  static const NativeAnalogBackendDescriptor d{kNativeAnalogBackendAbiVersion,sizeof(NativeAnalogBackendDescriptor),
  "neo65",L"Neo65 SONIC HE+ (experimental)",NativeAnalogProtocol::Neo65,
  NativeAnalogStartPhase::BeforeUap,NativeAnalogBackendFlag_PolledTransport|NativeAnalogBackendFlag_ReadOnlyProbe,
- &Prepare,&Start,&Stop,&Notify,&Present,&Connected,&Owns,&Get,&Telemetry};
+ &Prepare,&Start,&Stop,&Notify,&Present,&Connected,&Owns,&Get,&Telemetry, nullptr, +[](halljoy::observation::Sink sink) { g_values.Observations(sink); }};
  return d;
 }

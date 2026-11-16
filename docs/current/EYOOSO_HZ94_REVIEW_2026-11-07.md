@@ -1,5 +1,16 @@
 # E-YOOSO HZ-94 wired investigation — 2026-11-07
 
+2026-11-08: [log39 and tester gameplay confirmation](KEYBOARD_FEEDBACK_LOG39_41_2026-11-08.md) supersede the waiting-for-report conclusion below. HZ-94 USB ANSI is hardware-confirmed; Supported synchronization is recorded in that report. Earlier refusal/trial sections remain historical.
+
+Latest implementation: [admission fix, 2026-11-08](HZ94_ADMISSION_FIX_2026-11-08.md).
+The discovery-revision-1 sections below describe the superseded tester build,
+including the incorrect map and first-nonzero admission requirements.
+
+[Log 38 analysis, 2026-11-08](EYOOSO_HZ94_LOG38_2026-11-08.md): identity and
+capability succeed; exact map admission refuses ten extra table assignments.
+The trial stops before analog subscription. No support promotion or code fix
+was made during that read-only investigation.
+
 The tester reports no analog in HallJoy. The complete private
 HallJoy (32).log matches the posted header at 2026-11-07T00:57:35Z. Its SHA-256
 is `bcf26cdd9e9d08d5bdfc37c791f9c0d0611ee21e95f756bff29b6d12bea25135`.

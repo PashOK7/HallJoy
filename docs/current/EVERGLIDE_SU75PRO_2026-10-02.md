@@ -1,5 +1,10 @@
 # Everglide SU75 Pro: experimental support (2026-10-02)
 
+> Revision evidence updated: [2026-11-14 exact firmware review](EVERGLIDE_SU75_REVISIONS_2026-11-14.md).
+> V1/XS117 = 1CA6:3002; the seller's pictured V2/SU75 Ultra/XS125 = 1CA6:3007,
+> already admitted by the enabled generic SparkLink v2 path. Earlier unknown-PID
+> conclusions below are historical; neither model currently has automatic layout selection.
+
 Owner request: analyse the tester log `message (12).txt` (HallJoy 1.6.6.0,
 2026-10-02 17:27 UTC) for an Everglide SU75 Pro. Static work only; research
 files in `.local/research/everglide-20261002/` (local only).

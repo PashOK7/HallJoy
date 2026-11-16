@@ -659,7 +659,9 @@
   ],
   "identity": {
     "protocol": "sparklink",
-    "products": []
+    "products": [
+      "SU75PRO-3002-00300002-ANSI"
+    ]
   },
   "sources": [
     {
@@ -670,7 +672,7 @@
   ],
   "notes": [
     "Transcribed from the official driver key map (81 keys), 42 px keys on a 44 px pitch.",
-    "SparkLink V2 1CA6:3002; manual selection (SparkLink publishes no layout token).",
+    "SparkLink V2 1CA6:3002 / board00300002; automatic selection after live analog proof.",
     "Fn uses HallJoy code 0x409 (SparkLink 0xF101)."
   ]
 }

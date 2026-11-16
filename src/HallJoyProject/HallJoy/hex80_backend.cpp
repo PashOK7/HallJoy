@@ -92,6 +92,7 @@ std::mutex g_signalMutex;
 std::mutex g_activeSessionMutex;
 HANDLE g_activeSessionHandle = INVALID_HANDLE_VALUE;
 
+halljoy::observation::Source g_observation;
 std::array<std::atomic<std::uint16_t>, hex80::kHidCount> g_milli{};
 std::array<std::atomic<std::uint64_t>, hex80::kHidCount> g_sampleMs{};
 std::array<std::atomic<std::uint16_t>, hex80::kHidCount> g_travel{};
@@ -525,6 +526,7 @@ void ResetTelemetry()
 
 void ClearPublishedValues() noexcept
 {
+    g_observation.Clear();
     bool changed = false;
     for (std::size_t hid = 1; hid < g_milli.size(); ++hid)
     {
@@ -627,6 +629,7 @@ bool RunSession(const Candidate& candidate)
                 if (entry.hid == 0 || entry.hid >= hex80::kHidCount) continue;
                 g_travel[entry.hid].store(entry.travel, std::memory_order_relaxed);
                 const auto previous = g_milli[entry.hid].exchange(entry.milli, std::memory_order_relaxed);
+                g_observation.Publish(entry.hid,entry.hid,entry.milli,previous);
                 g_sampleMs[entry.hid].store(GetTickCount64(), std::memory_order_release);
                 if (previous != entry.milli) changed = true;
                 if (g_observed[entry.hid].exchange(1, std::memory_order_relaxed) == 0)
@@ -1053,6 +1056,6 @@ const NativeAnalogBackendDescriptor& Hex80_GetNativeBackendDescriptor()
         &Hex80_OwnsHid,
         &Hex80_GetMilli,
         &Hex80_FillGenericTelemetry,
-    };
+     nullptr, +[](halljoy::observation::Sink sink) { g_observation.Visit(sink,&Hex80_OwnsHid,&Hex80_GetMilli); }};
     return descriptor;
 }

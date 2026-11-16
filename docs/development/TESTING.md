@@ -4,6 +4,14 @@ Current workflow: 2026-10-31. Run from HallJoy-main. Read
 [active context](../current/OWNER_CONTEXT.md) and [build guide](BUILD_README.txt).
 Scripts define current gates; old release-readiness records describe their candidates.
 
+## Keyboard tester delivery
+
+Before a tester EXE, follow [TESTER_BUILD_CONTRACT](TESTER_BUILD_CONTRACT.md).
+The normal release wrapper validates registered end-to-end admission receipts on
+the exact candidate, before installation, and records its hash. Metadata-only
+variations must reach analog subscription/read; justified hard refusals must have
+negative cases and ordinary-log reasons. See `tester_delivery_cases.json`.
+
 ## Ordinary source change
 
 Run each once, with the exact-input test cache enabled:
@@ -83,3 +91,18 @@ publication authorization. Check publication inputs in the cleaned Git checkout,
 not the extracted workspace.
 [Historical guide](../archive/TESTING_BEFORE_2026-09-20.md) retains older qualification
 and soak evidence. Those dates/targets are not additional release gates.
+
+
+Windows CPU budget (2026-11-16)
+------------------------------
+Compiler trees and the native test runner share one Windows job with a90% CPU
+hard cap and BelowNormal priority. Entry points: BUILD.cmd/full build, ordinary
+build_release.ps1, profile simulator, UAP build and run_native_backend_checks.py.
+The wrapper joins before starting a compiler; children inherit the same job, so
+nested entries do not multiply caps. A retained job handle preserves the limit
+after the helper exits. An unavailable limit fails explicitly before compiling.
+MSBuild node reuse is disabled for these wrapped invocations. The build publisher
+and its restored ordinary HallJoy process stay outside the compiler job. Other
+programs can still contribute additional CPU load. Query/readback tests cover
+child/grandchild inheritance, repeated join, priority, arguments and exit codes.
+See tools/build_cpu_budget.py and build_cpu_budget.ps1; no extra install required.

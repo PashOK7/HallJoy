@@ -52,6 +52,7 @@ struct Candidate { std::wstring longPath, shortPath; const lr::Model* model = nu
 std::atomic<bool> g_stop{false}, g_running{false}, g_present{false}, g_connected{false};
 std::atomic<std::uint64_t> g_good{0}, g_bad{0}, g_last{0};
 std::atomic<unsigned> g_travel{0};
+halljoy::observation::Source g_observation;
 std::array<std::atomic<std::uint16_t>, 0x500> g_values{};
 std::atomic<const lr::Model*> g_model{&lr::kModels[1]};
 std::atomic<std::uint16_t> g_pid{0};
@@ -115,6 +116,7 @@ struct Capture {
 };
 
 void Clear() {
+    g_observation.Clear();
     g_connected.store(false);
     for (auto& v : g_values) v.store(0);
     for (auto& v : g_learnedOwned) v.store(false);
@@ -153,6 +155,9 @@ std::vector<Candidate> Enumerate() {
         HIDD_ATTRIBUTES a{}; a.Size = sizeof(a);
         if (!HidD_GetAttributes(h.v, &a)) continue;
         if (a.VendorID != lr::kVendorId) continue;
+        // PRO X TKL RAPID v0 can omit a key's release while another key
+        // moves. Exclude C35B before exact and generic analog admission.
+        if (a.ProductID == 0xc35b) continue;
         const auto* model = lr::FindModel(a.VendorID, a.ProductID);
         const std::uint16_t pid = a.ProductID;
         PHIDP_PREPARSED_DATA data = nullptr;
@@ -409,7 +414,7 @@ void Run(const Candidate& c) {
             // Logged with the pair so the static table can take it over.
             SupportLog_Event("logitech.learned_key", (std::uint64_t{id} << 16) | hid);
             if (hid < g_values.size()) {
-                g_values[hid].store(lr::ToMilli(depth[id], format.travel));
+                g_observation.Store(g_values[hid],static_cast<std::uint16_t>(hid),lr::ToMilli(depth[id], format.travel));
                 g_learnedOwned[hid].store(true);
             }
         });
@@ -440,7 +445,7 @@ void Run(const Candidate& c) {
             lastDepth[id] = depth;
             const auto hid = v2Table[id] ? v2Table[id] : learner.learned[id];
             if (!hid) { if (depth) unmappedId(id); return; }
-            g_values[hid].store(lr::ToMilli(depth, format.travel));
+            g_observation.Store(g_values[hid],static_cast<std::uint16_t>(hid),lr::ToMilli(depth, format.travel));
         });
         learn(keys.depth, now);
         g_last.store(now); ++g_good;
@@ -465,7 +470,7 @@ void Run(const Candidate& c) {
         learn(v0Depth, now);
         const auto hid = v0Table[ev.keyId] ? v0Table[ev.keyId] : learner.learned[ev.keyId];
         if (!hid) { unmappedId(ev.keyId); return; }
-        g_values[hid].store(lr::ToMilli(ev.depth, format.travel));
+        g_observation.Store(g_values[hid],static_cast<std::uint16_t>(hid),lr::ToMilli(ev.depth, format.travel));
         g_last.store(now); ++g_good;
     };
 
@@ -660,6 +665,6 @@ const NativeAnalogBackendDescriptor& LogitechRapid_GetNativeBackendDescriptor() 
     static const NativeAnalogBackendDescriptor d{kNativeAnalogBackendAbiVersion, sizeof(NativeAnalogBackendDescriptor),
         "logitech_rapid", L"Logitech G RAPID (HID++ analog)", NativeAnalogProtocol::LogitechRapid,
         NativeAnalogStartPhase::AfterRealtime, NativeAnalogBackendFlag_StreamTransport,
-        nullptr, &Start, &Stop, &Notify, &Present, &Connected, &Owns, &Get, &Telemetry};
+        nullptr, &Start, &Stop, &Notify, &Present, &Connected, &Owns, &Get, &Telemetry, nullptr, +[](halljoy::observation::Sink sink) { g_observation.Visit(sink,&Owns,&Get); }};
     return d;
 }

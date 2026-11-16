@@ -70,17 +70,20 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 **AULA:** AG75, WIN 60 HE MAX, WIN 60 HE, WIN 68 HE, KP-TE153, MINI 60 HE (USB), MINI 60 HE Pro, MINI 60 HE MAX (USB)  
 **CORSAIR:** K70 PRO TKL (USB, stock firmware 1.12.54, ANSI / ISO / JIS)  
 **DrunkDeer:** A75, A75 Pro, G60, G65, G75  
-**EPOMAKER:** HE108 (USB), HE65 V2 (USB), HE75 V2 TMR (USB)  
-**Everglide:** SU75 Pro  
+**E-YOOSO:** HZ-94 (USB, ANSI)  
+**EPOMAKER:** HE108 (USB / 2.4 GHz), HE65 V2 (USB), HE75 V2 TMR (USB)  
+**Everglide:** SU75 Pro (USB, `1CA6:3002`; [V1/V2 details](docs/current/EVERGLIDE_SU75_REVISIONS_2026-11-14.md))  
+**FREEWOLF:** F68 (USB)  
 **GamaKay:** TK75 HE V2 (USB)  
 **GravaStar:** Mercury V75  
 **IPI:** QBZ75, Aurora 75  
 **IROK:** MG75 Max, NA87  
 **Keychron:** Q1 HE, Q2 HE (ANSI), Q3 HE, Q4 HE (ANSI), Q5 HE, Q6 HE, Q12 HE, Q1 HE 8K, Q3 HE 8K, Q5 HE 8K, Q6 HE 8K, K2 HE, K3 HE, K4 HE, K6 HE (ANSI), K8 HE, K10 HE — requires compatible [custom firmware](https://analogsense.org/firmware/).  
+**LANGTU:** BOOM68-USB (USB, stock firmware 1.10, ANSI)  
 **Lemokey:** P1 HE  
 **MADLIONS:** MAD 68 Pro R, MAD60HE, MAD68 HE V2 Flagship, MAD68HE, MAD68R  
-**MCHOSE:** Ace 60 Pro, Ace 68 Air III, Jet 75 II, Mix 87 III  
-**MonsGeek:** FUN60 Ultra TMR (USB), M1 V5 TMR (USB), M2 V5 HE (USB)  
+**MCHOSE:** Ace 60 Pro, Ace 68 Air (II / III), Ace 68 GT, Jet 75 II, Mix 87 III  
+**MonsGeek:** FUN60 Pro (USB), FUN60 Ultra TMR (USB), M1 V5 TMR (USB), M2 V5 HE (USB)  
 **NuPhy:** Air60 HE, Air75 HE, Field75 HE  
 **Razer:** Huntsman V2 Analog, Huntsman Mini Analog, Huntsman V3 Pro, Huntsman V3 Pro Mini, Huntsman V3 Pro Tenkeyless  
 **Redragon:** K673RGB-M, K686 HE, Kumara RT Magnetic K552-M  
@@ -93,6 +96,12 @@ See the [full keyboard list and support statuses](https://docs.google.com/spread
 **Wooting:** 60HE, 60HE+, 60HE v2 (including Split), 80HE, 80HE+ (including Split), One, Two, Two HE, UwU, UwU RGB  
 **YUNZII:** RT75 Pro (USB)
 
+Everglide SU75 Pro V2 / SU75 Ultra (`1CA6:3007`) uses the existing generic SparkLink v2 path with a yellow protocol-match notice. Both SU75 revisions include automatic ANSI layouts; [revision details](docs/current/EVERGLIDE_SU75_IMPLEMENTATION_2026-11-15.md).
+
+AULA F75 HE is currently unsupported: no usable analog path was found on the
+reviewed stock firmware. Stock trials are disabled; research is retained.
+See [the findings](docs/current/AULA_F75_HE_2026-11-13.md).
+
 ### Experimental support
 
 These keyboards have remaining hardware-testing, layout or firmware limitations.
@@ -101,10 +110,10 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 
 **AIM1:** MATATAKI (US)  
 **AJAZZ:** AK680MC, ALUX60, ALUX68 AIR, ALUX68 PRO, NS67, NS67 PRO, NS87  
-**Akko:** MOD 007 V5 HE, MOD007B V3 HE, MOD007S V3 HE, Ray68 HE, TAC75 HE  
+**Akko:** 5087 V3 HE (board 3131, USB), MOD 007 V5 HE, MOD007B V3 HE, MOD007S V3 HE, Ray68 HE, TAC75 HE  
 **ANGRYSHARK:** Final 75  
 **ANTGAMER:** AGK75 PRO, AGK75 U2, AGK87  
-**ARDOR GAMING:** Radiant  
+**ARDOR GAMING:** Radiant, Viper  
 **ASTROMEDA:** AMGK80-001  
 **ATK:** 60 RX, 68 RX, 68 V2 Pro, 68 V3, EDGE 60 HE, EDGE 63 HE, EDGE 75 HE, RS6, RS6 Air, RS6 Cube, RS6 Ultra, RS6 Ultra+, RS6+, RS63 Air, RS7, RS7 Air, RS7 Turbo, RS7 V2, RS7 V2 Ultra  
 **ATTACK SHARK:** Beat75, K85, K85 Pro HE, R68 HE, R82 HE, R82 Pro HE, R85 Ultra, R86 Pro HE, R98 GT, R98 HE, R98 Pro, R98 Ultra, X60 HE, X65, X65 HE, X68 HE, X68 MAX, X68 Pro HE, X68 Ultra, X82 Pro HE, X820 Pro, X85 Ultra, X87 Ultra, X96 HE, X98 HE  
@@ -124,7 +133,7 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **EvoFox:** Ronin HS65  
 **EWEADN:** DEEP68 HE, DEEP68 Pro HE, DEEP80 HE (magnetic version), DEEP80 Max HE (magnetic version), DEEP80 Pro HE (magnetic version), DK63 HE, DK63 Star HE, DK68 HE, DK68 Pro HE, DK68 Star HE, DK68 V2 HE, DK75 E HE, DK75 HE, DK75 Pro HE, DK80 HE, ES68, ES68 EVO, ES68 Lite, Gamma75 HE (EXX collaboration), SEEK75, SMART 875 HE, V99 (magnetic version), X87HE, ZAP68 HE, ZAP68 SE, ZAP68 Ultra HE, ZAP87 HE  
 **FL ESPORTS:** Blend HE, D75 HE, D98 HE, FL750 (magnetic version), Flame65S, GP75 HE, GP87 HE, MK870 HE, NX108, NX68 Pro, X80 HE  
-**FREEWOLF:** F68, F68 PRO  
+**FREEWOLF:** F68 PRO  
 **Fuego:** GKB904  
 **Funbey:** AST V68, Coke V68  
 **Fury:** Kanabo K6  
@@ -151,17 +160,17 @@ gamepad output are implemented. HallJoy shows a yellow notice for these models.
 **Koda:** A68  
 **KYSONA:** KM82 HE  
 **LinkerFoo:** LF67R1  
-**Logitech G:** PRO X TKL RAPID, PRO X2 RAPID  
+**Logitech G:** PRO X2 RAPID  
 **LOMZ:** 75S  
 **M4G:** MAG 68 HE  
 **MageGee:** AIR68, Captain87 JIS, MK-BOX (magnetic version)  
 **MAMBASNAKE:** M82 HE, X60 HE  
-**MCHOSE:** Ace 60 Pro Nordic, Ace 60X I, Ace 60X II, Ace 68 (I, II, III), Ace 68 Air (II, 2), Ace 68 Turbo 8K, Ace 68 V2 III, Ace 75 8K, Jet 75 I, Mix 87 I, Zero75X  
+**MCHOSE:** Ace 60 (USB, verified activation on stock 1.20), Ace 60 Pro Nordic, Ace 60X I, Ace 60X II, Ace 68 (I, II, III), Ace 68 Air 2, Ace 68 Turbo 8K, Ace 68 V2 III, Ace 75 8K, GT75, Jet 75 I, Mix 87 I, Zero75X  
 **MechLands:** M75  
 **MEETION:** Magic A68, Magic A75  
 **MelGeek:** MADE68 Air  
 **MICROPACK:** K-68M  
-**MonsGeek:** FUN60 Pro, FUN68 HE, FUN75, M1 V5 HE, M3 V5 HE  
+**MonsGeek:** FUN68 HE, FUN75, M1 V5 HE, M3 V5 HE  
 **MSI:** STRIKE 700 HE  
 **Neo:** Neo65 Sonic HE+ (ANSI / ISO)  
 **Ninjadog:** Varna Atlas  
@@ -271,6 +280,7 @@ Commercial licensing inquiries: Discord **`pash.ok`**. Third-party components
 and their licenses are listed in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+Optional setup packaging is available for users who prefer installation.
 HallJoy remains a standalone EXE; the installer is built separately and is never
 required. See [optional installer packaging](docs/development/WINDOWS_INSTALLER.md).
 [Portable helpers and backups](docs/PORTABLE.md) · [input and privacy](docs/INPUT_AND_PRIVACY.md) · [driving example](docs/DRIVING_SETUP.md).

@@ -1080,6 +1080,6 @@ const NativeAnalogBackendDescriptor& MelGeekMade68Air_GetNativeBackendDescriptor
         NativeAnalogProtocol::MelGeekMade68Air,
         NativeAnalogStartPhase::AfterRealtime,
         NativeAnalogBackendFlag_StreamTransport | NativeAnalogBackendFlag_ReversibleControlProbe,
-        nullptr, &Start, &Stop, &Notify, &Present, &Connected, &Owns, &Get, &Telemetry};
+        nullptr, &Start, &Stop, &Notify, &Present, &Connected, &Owns, &Get, &Telemetry, nullptr, +[](halljoy::observation::Sink sink) { g_depth.Observations(sink); }};
     return d;
 }

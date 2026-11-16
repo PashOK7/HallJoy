@@ -58,6 +58,99 @@ static std::wstring MaskToCsvForPad(int padIndex, GameButton b)
     return s;
 }
 
+template<class Put>
+static bool WriteMidiProfile(const halljoy::midi::Profile& midi, Put&& put) {
+    bool ok = put(L"Midi", L"Enabled", midi.enabled ? L"1" : L"0");
+    ok &= put(L"Midi", L"Octave", std::to_wstring(midi.paletteOctave));
+    ok &= put(L"Midi", L"Channel", std::to_wstring(midi.paletteChannel));
+    ok &= put(L"Midi", L"PortUtf16", halljoy::midi::EncodePort(midi.port));
+    if(midi.touchVersion==1)ok &= put(L"Midi", L"Touch", std::to_wstring(midi.touch));
+    ok &= put(L"Midi", L"AttackMilli", std::to_wstring(midi.attackMilli));
+    ok &= put(L"Midi", L"DepthPressure", midi.depthPressure ? L"1" : L"0");
+    ok &= put(L"Midi", L"TouchVersion", std::to_wstring(midi.touchVersion));
+    ok &= put(L"Midi", L"ReleaseMilli", std::to_wstring(midi.releaseMilli));
+    ok &= put(L"Midi", L"NoiseMilli", std::to_wstring(midi.noiseMilli));
+    ok &= put(L"Midi",L"VelocityAxisMaximum",std::to_wstring(midi.velocityAxisMaximum));
+    if(midi.touchVersion==1) {
+        ok &= put(L"Midi", L"FullSpeedMilli", std::to_wstring(midi.fullSpeedMilli));
+        for(unsigned i=1;i<4;++i)
+            ok &= put(L"Midi",(L"Velocity"+std::to_wstring(i*25)).c_str(),std::to_wstring(midi.velocityCurve[i]));
+    }else{
+        for(unsigned i=0;i<5;++i) {
+            ok &= put(L"Midi",(L"VelocityX"+std::to_wstring(i)).c_str(),std::to_wstring(midi.velocitySpeed[i]));
+            ok &= put(L"Midi",(L"VelocityY"+std::to_wstring(i)).c_str(),std::to_wstring(midi.velocityCurve[i]));
+        }
+    }
+    for (std::size_t hid = 1; hid < midi.keys.size(); ++hid)
+        if (midi.keys[hid]) ok &= put(L"Midi", (L"K" + std::to_wstring(hid)).c_str(), std::to_wstring(midi.keys[hid]));
+    return ok;
+}
+
+static bool ReadMidiProfile(const wchar_t* path, halljoy::midi::Profile& midi) {
+    // A pre-MIDI profile starts from the current factory curve on first enable.
+    wchar_t presence[4]{};
+    if (!GetPrivateProfileSectionW(L"Midi", presence, 4, path)) return true;
+    auto number = [&](const wchar_t* key, unsigned maximum, unsigned fallback, unsigned& out) {
+        std::wstring value;
+        if (!halljoy::ini::Read(path, L"Midi", key, value)) return false;
+        if (value.empty()) { out = fallback; return true; }
+        std::uint32_t parsed = 0;
+        if (!halljoy::ini::Unsigned(value, maximum, parsed)) return false;
+        out = parsed; return true;
+    };
+    unsigned enabled = 0, channel = 0, attack = 200, pressure = 1;
+    std::int32_t octave = 4;
+    std::wstring encodedPort;
+    if (!number(L"Enabled", 1, 0, enabled) || !halljoy::ini::ReadSigned(path, L"Midi", L"Octave", -1, 9, 4, octave) ||
+        !number(L"Channel", 15, 0, channel) ||
+        !number(L"AttackMilli", 1000, 200, attack) || attack < 1 ||
+        !number(L"DepthPressure", 1, 1, pressure) ||
+        !halljoy::ini::Read(path, L"Midi", L"PortUtf16", encodedPort) ||
+        !halljoy::midi::DecodePort(encodedPort, midi.port))
+        return false;
+    midi.enabled = enabled != 0; midi.paletteOctave = octave;
+    midi.paletteChannel = channel; midi.attackMilli = attack; midi.depthPressure = pressure != 0;
+    unsigned touchVersion = 1, release = 50, noise = 2;
+    if (!number(L"TouchVersion", 2, 1, touchVersion) ||
+        !number(L"ReleaseMilli", 999, 50, release) ||
+        !number(L"NoiseMilli", 50, 2, noise) ||
+        !number(L"VelocityAxisMaximum", 1000000000,
+            halljoy::midi::kDefaultVelocityAxisMaximum, midi.velocityAxisMaximum)) return false;
+    midi.touchVersion = touchVersion;
+    midi.releaseMilli = static_cast<int>(release);
+    midi.noiseMilli = static_cast<int>(noise);
+    if(touchVersion==1) {
+        unsigned touch=1;
+        if(attack<100 || attack>800 || !number(L"Touch",2,1,touch) ||
+           !number(L"FullSpeedMilli",1000000000,0,midi.fullSpeedMilli))return false;
+        midi.touch=static_cast<int>(touch);
+        midi.velocityCurve={0,500,707,866,1000};
+        for(unsigned i=1;i<4;++i) {
+            unsigned point=0;
+            if(!number((L"Velocity"+std::to_wstring(i*25)).c_str(),1000,
+                static_cast<unsigned>(midi.velocityCurve[i]),point))return false;
+            midi.velocityCurve[i]=static_cast<int>(point);
+        }
+    }else{
+        // Existing v2 files with incomplete coordinates used these fallbacks.
+        // The writer always saves all five coordinates of a new curve.
+        constexpr unsigned legacySpeedDefaults[] = {0, 25000, 50000, 75000, 100000};
+        for(unsigned i=0;i<5;++i) {
+            unsigned level=0;
+            if(!number((L"VelocityX"+std::to_wstring(i)).c_str(),1000000000,legacySpeedDefaults[i],midi.velocitySpeed[i]) ||
+               !number((L"VelocityY"+std::to_wstring(i)).c_str(),1000,static_cast<unsigned>(midi.velocityCurve[i]),level))return false;
+            midi.velocityCurve[i]=static_cast<int>(level);
+        }
+    }
+    if (!halljoy::midi::ValidTouch(midi)) return false;
+    for (std::size_t hid = 1; hid < midi.keys.size(); ++hid) {
+        unsigned value = 0;
+        if (!number((L"K" + std::to_wstring(hid)).c_str(), halljoy::midi::kAddressCount, 0, value)) return false;
+        midi.keys[hid] = static_cast<std::uint16_t>(value);
+    }
+    return true;
+}
+
 // NEW: Optimized saving using streams instead of slow WritePrivateProfileString
 static bool Profile_SaveIni_Internal(const wchar_t* path)
 {
@@ -126,6 +219,12 @@ static bool Profile_SaveIni_Internal(const wchar_t* path)
         f << L"\n";
     }
 
+    f << L"[Midi]\n";
+    const auto midi = halljoy::midi::Get();
+    WriteMidiProfile(*midi, [&](const wchar_t*, const wchar_t* key, const std::wstring& value) {
+        if (!value.empty()) f << key << L"=" << value << L"\n";
+        return true;
+    });
     f.flush();
     if (!f.good())
     {
@@ -300,7 +399,9 @@ bool Profile_PrepareIni(const wchar_t* path, BindingsSnapshot& out) {
                 !ParseCodes(codes, candidate.buttons[p][b])) return false;
         }
     }
-    if (!recognized) return false;
+    auto midi = std::make_shared<halljoy::midi::Profile>();
+    if (!recognized || !ReadMidiProfile(path, *midi)) return false;
+    candidate.midi = std::move(midi);
     out = candidate;
     return true;
 }
@@ -317,6 +418,11 @@ bool Profile_LoadIni(const wchar_t* path) {
 // Writes into the caller-owned temporary settings file: one atomic replacement
 // commits settings and bindings together. Never truncates or replaces the file.
 bool Profile_WriteBindingsSections(const wchar_t* path) {
+    const auto midi = halljoy::midi::Get();
+    bool midiOk = halljoy::ini::WriteBatch::Put(L"Midi", nullptr, nullptr, path) != FALSE;
+    midiOk &= WriteMidiProfile(*midi, [&](const wchar_t* section, const wchar_t* key, const std::wstring& value) {
+        return halljoy::ini::WriteBatch::Put(section, key, value.c_str(), path) != FALSE;
+    });
     bool ok = halljoy::ini::WriteBatch::Put(L"HallJoyProfile", L"BundleVersion", L"1", path) != FALSE;
     const auto pads = std::to_wstring(BINDINGS_MAX_GAMEPADS);
     ok &= halljoy::ini::WriteBatch::Put(L"General", L"Pads", pads.c_str(), path) != FALSE;
@@ -338,14 +444,18 @@ bool Profile_WriteBindingsSections(const wchar_t* path) {
             ok &= halljoy::ini::WriteBatch::Put(buttons.c_str(), kButtons[b],
                 MaskToCsvForPad(p, static_cast<GameButton>(b)).c_str(), path) != FALSE;
     }
-    return ok;
+    return ok && midiOk;
 }
 
 bool Profile_WriteBindingsSnapshot(const wchar_t* path, const BindingsSnapshot& snapshot) {
     auto put = [&](const std::wstring& section, const wchar_t* key, const std::wstring& value) {
         return WritePrivateProfileStringW(section.c_str(), key, value.c_str(), path) != FALSE;
     };
-    bool ok = put(L"HallJoyProfile", L"BundleVersion", L"1");
+    bool ok = WritePrivateProfileStringW(L"Midi", nullptr, nullptr, path) != FALSE;
+    ok &= WriteMidiProfile(*snapshot.midi, [&](const wchar_t* section, const wchar_t* key, const std::wstring& value) {
+        return put(section, key, value);
+    });
+    ok &= put(L"HallJoyProfile", L"BundleVersion", L"1");
     ok &= put(L"General", L"Pads", std::to_wstring(BINDINGS_MAX_GAMEPADS));
     for (int p=0; p<BINDINGS_MAX_GAMEPADS; ++p) {
         const auto prefix = L"Pad" + std::to_wstring(p+1);

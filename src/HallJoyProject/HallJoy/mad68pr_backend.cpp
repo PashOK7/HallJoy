@@ -227,6 +227,7 @@ std::atomic<ULONGLONG> g_activationEpochMs{0};
 std::atomic<ULONGLONG> g_lastOrderedSweepMs{0};
 
 std::array<std::atomic<std::uint16_t>, 256> g_raw{};
+halljoy::observation::Source g_observation;
 std::array<std::atomic<std::uint16_t>, 256> g_milli{};
 std::array<std::atomic<std::uint16_t>, 256> g_threshold{};
 std::array<std::atomic<std::uint16_t>, 256> g_baseline{};
@@ -1237,7 +1238,7 @@ bool ProcessPayload(
             const std::uint16_t previousHidRaw =
                 g_raw[hid].load(std::memory_order_acquire);
             g_raw[hid].store(sample.raw, std::memory_order_release);
-            g_milli[hid].store(sample.milli, std::memory_order_release);
+            g_observation.Store(g_milli[hid],static_cast<std::uint16_t>(hid),sample.milli, std::memory_order_release);
             g_threshold[hid].store(sample.threshold, std::memory_order_release);
             g_baseline[hid].store(sample.baseline, std::memory_order_release);
             g_keyState[hid].store(sample.state, std::memory_order_release);
@@ -1859,6 +1860,7 @@ void ObserveDigitalEvents(DigitalWatch& digital, SessionStats& stats)
 
 void ResetSessionPublished() noexcept
 {
+    g_observation.Clear();
     g_streamConnected.store(false, std::memory_order_release);
     g_publishMode.store(static_cast<int>(PublishMode::None), std::memory_order_release);
     g_lastA0Ms.store(0, std::memory_order_release);
@@ -2743,6 +2745,6 @@ const NativeAnalogBackendDescriptor& Mad68ProR_GetNativeBackendDescriptor()
         &Mad68ProR_OwnsHid,
         &Mad68ProR_GetMilli,
         &Mad68ProR_FillGenericTelemetry,
-    };
+     nullptr, +[](halljoy::observation::Sink sink) { g_observation.Visit(sink,&Mad68ProR_OwnsHid,&Mad68ProR_GetMilli); }};
     return descriptor;
 }

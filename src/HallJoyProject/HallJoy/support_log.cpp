@@ -55,6 +55,13 @@ std::atomic<bool> researchPending{false};
 std::atomic<HWND> uiWindow{nullptr};
 std::atomic<DWORD> lastError{0};
 std::atomic<SupportLogInputConfigProvider> inputConfigProvider{nullptr};
+std::atomic<SupportLogReceiverTraceProvider> receiverTraceProvider{nullptr};
+std::atomic<SupportLogDeviceEvidenceProvider> deviceEvidenceProvider{nullptr};
+std::atomic<SupportLogDeviceEvidenceProvider> rongyuanEvidenceProvider{nullptr};
+std::atomic<SupportLogDeviceEvidenceProvider> aulaF75EvidenceProvider{nullptr};
+std::atomic<SupportLogDeviceEvidenceProvider> mchoseGt75EvidenceProvider{nullptr};
+std::atomic<SupportLogDeviceEvidenceProvider> sparkEvidenceProvider{nullptr};
+std::atomic<SupportLogDeviceEvidenceProvider> midiEvidenceProvider{nullptr};
 HANDLE worker = nullptr, stopEvent = nullptr;
 std::wstring testMirrorDirectory;
 std::wstring testDirectory; // Optional isolated destination for real writer tests.
@@ -149,6 +156,12 @@ const char* LifecycleName(unsigned state) noexcept {
     return state<std::size(names)?names[state]:"unknown";
 }
 void Snapshot() {
+    if (const auto provider=deviceEvidenceProvider.load()) provider();
+    if (const auto provider=rongyuanEvidenceProvider.load()) provider();
+    if (const auto provider=aulaF75EvidenceProvider.load()) provider();
+    if (const auto provider=mchoseGt75EvidenceProvider.load()) provider();
+    if (const auto provider=sparkEvidenceProvider.load()) provider();
+    if (const auto provider=midiEvidenceProvider.load()) provider();
     BackendAnalogTelemetry t{}; Backend_GetAnalogDiagnosticTelemetry(&t);
     char line[kLineBytes]{};
     static std::uint64_t sequence=0;
@@ -233,6 +246,7 @@ DWORD WINAPI Run(void*) noexcept {
         unsigned ticks = 0;
         Enqueue("session.begin version=" HALLJOY_VERSION_STRING_FULL " schema=2 privacy=no_keys_no_input_values_no_serials_no_paths; support absence is not proof of an unsupported keyboard");
         for (;;) {
+            const bool finalPass=stopping.load();
 #if defined(HALLJOY_INPUT_PATH_DIAGNOSTIC)
             const bool continuous = true;
             char pathLine[kLineBytes]{};
@@ -277,6 +291,8 @@ DWORD WINAPI Run(void*) noexcept {
             const bool mirrorEnabled = continuous || previousContinuous;
             previousIncident = incident; previousContinuous = continuous;
             ++ticks;
+            if (const auto provider=receiverTraceProvider.load()) provider();
+            if (const auto provider=midiEvidenceProvider.load()) provider();
             size_t count;
             AcquireSRWLockExclusive(&queueLock);
             count = queued;
@@ -362,7 +378,7 @@ DWORD WINAPI Run(void*) noexcept {
                                 const bool rawHidPayload=std::any_of(researchEvidence.begin(),researchEvidence.end(),[](const Line& line){
                                     return strstr(line.data(),"HallJoy RedSquare unknown packet trace v2;")!=nullptr;
                                 });
-                                sprintf_s(header.data(),header.size(),"HallJoy " HALLJOY_VERSION_STRING_FULL " support report schema=2 utc=%04u-%02u-%02uT%02u:%02u:%02uZ bounded_history=512 bounded_state=512 no_keyboard_text=1 raw_hid_payload=%u bound_key_trace=%u",snapshotUtc.wYear,snapshotUtc.wMonth,snapshotUtc.wDay,snapshotUtc.wHour,snapshotUtc.wMinute,snapshotUtc.wSecond,rawHidPayload?1u:0u,traceEvidence.empty()?0u:1u);
+                                sprintf_s(header.data(),header.size(),"HallJoy " HALLJOY_VERSION_STRING_FULL " support report schema=2 utc=%04u-%02u-%02uT%02u:%02u:%02uZ bounded_history=512 bounded_state=512 no_keyboard_text=1 raw_hid_payload=%u bound_key_trace=%u midi_velocity_trace=%u",snapshotUtc.wYear,snapshotUtc.wMonth,snapshotUtc.wDay,snapshotUtc.wHour,snapshotUtc.wMinute,snapshotUtc.wSecond,rawHidPayload?1u:0u,traceEvidence.empty()?0u:1u,midiEvidenceProvider.load()?1u:0u);
                                 ok=WriteLine(file,header); fileBytes=DWORD(strlen(header.data())+2);
                                 for (const auto& line : researchEvidence) { if (!ok || !(ok=WriteLine(file,line))) break; fileBytes += DWORD(strlen(line.data())+2); }
                                 for (size_t e = 0, st = 0; ok && (e < history.size() || st < stateHistory.size());) {
@@ -414,7 +430,12 @@ DWORD WINAPI Run(void*) noexcept {
             }
             Error(destinations[0].error ? destinations[0].error : destinations[1].error);
 #endif
-            if (stopping.load()) break;
+            // Stop can arrive after this iteration captured its snapshot request.
+            // Always perform one complete pass that starts after Stop was observed.
+            if (stopping.load()) {
+                if(finalPass)break;
+                continue;
+            }
             if (WaitForSingleObject(stopEvent, 1000) == WAIT_OBJECT_0) stopping=true;
         }
     } catch (...) { Error(ERROR_UNHANDLED_EXCEPTION); return 1; }
@@ -452,6 +473,8 @@ bool SupportLog_Stop() noexcept {
     uiWindow=nullptr;
     if(!worker) return true;
     SupportLog_Event("session.end",0);
+    // The owner requested MIDI capture. Persist the final batch on normal exit.
+    if(midiEvidenceProvider.load()) (void)SupportLog_RequestSnapshot();
     stopping=true; SetEvent(stopEvent);
     if(WaitForSingleObject(worker,5000)!=WAIT_OBJECT_0) return false;
     CloseHandle(worker); CloseHandle(stopEvent); worker=nullptr; stopEvent=nullptr; return true;
@@ -477,6 +500,27 @@ void SupportLog_SetWindow(HWND window) noexcept { uiWindow=window; }
 DWORD SupportLog_LastError() noexcept { return lastError.load(); }
 std::uint64_t SupportLog_RequestSnapshot() noexcept { return ++requestedSnapshot; }
 void SupportLog_SetInputConfigProvider(SupportLogInputConfigProvider provider) noexcept { inputConfigProvider.store(provider); }
+void SupportLog_SetReceiverTraceProvider(SupportLogReceiverTraceProvider provider) noexcept {
+    receiverTraceProvider.store(provider);
+}
+void SupportLog_SetMidiEvidenceProvider(SupportLogDeviceEvidenceProvider provider) noexcept {
+    midiEvidenceProvider.store(provider);
+}
+void SupportLog_SetSparkEvidenceProvider(SupportLogDeviceEvidenceProvider provider) noexcept {
+    sparkEvidenceProvider.store(provider);
+}
+void SupportLog_SetMchoseGt75EvidenceProvider(SupportLogDeviceEvidenceProvider provider) noexcept {
+    mchoseGt75EvidenceProvider.store(provider);
+}
+void SupportLog_SetAulaF75EvidenceProvider(SupportLogDeviceEvidenceProvider provider) noexcept {
+    aulaF75EvidenceProvider.store(provider);
+}
+void SupportLog_SetRongyuanEvidenceProvider(SupportLogDeviceEvidenceProvider provider) noexcept {
+    rongyuanEvidenceProvider.store(provider);
+}
+void SupportLog_SetDeviceEvidenceProvider(SupportLogDeviceEvidenceProvider provider) noexcept {
+    deviceEvidenceProvider.store(provider);
+}
 void SupportLog_Trace(const char* record) noexcept {
     if (!record || strncmp(record, "trace.", 6) != 0) return;
     Enqueue(record);

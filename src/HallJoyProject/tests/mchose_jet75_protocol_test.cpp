@@ -23,16 +23,21 @@ int main(){
     assert(count==79 && allowed[0x29] && allowed[0xe5] && !allowed[0x48] && !allowed[0xe7]);
     {   // Model table: exact VID:PID per reviewed image, no duplicates.
         assert(FindModel(0x41e4,0x211a)==&Models[0] && FindModel(0x41e4,0x2116)==&Models[1]);
-        assert(std::size(Models)==11);
+        assert(std::size(Models)==13);
+        assert(FindModel(0x41e4,0x2101)->Ace60() && !FindModel(0x41e4,0x2103)->Ace60());
         for(std::size_t i=0;i<std::size(Models);++i){
             assert(FindModel(Models[i].vid,Models[i].pid)==&Models[i] && Models[i].keyCount>=60);
             const auto m=Allowed(Models[i]);unsigned c=0;for(bool k:m)c+=k;assert(c==Models[i].keyCount);
             for(std::size_t j=0;j<i;++j)assert(Models[i].vid!=Models[j].vid || Models[i].pid!=Models[j].pid);
         }
         // Not in the table: ARM / other-core revisions and the Ace 60 (ARM) board.
-        for(unsigned pid:{0x2101u,0x2132u,0x3003u,0x300au,0x3024u,0x3028u,0x303cu,0x3007u,0x3026u,0x300du})
+        for(unsigned pid:{0x2132u,0x3003u,0x300au,0x3024u,0x3028u,0x303cu,0x3026u,0x300du})
             assert(!FindModel(0x41e4,static_cast<std::uint16_t>(pid)) && !FindModel(0x3837,static_cast<std::uint16_t>(pid)));
-        assert(!FindModel(0x3837,0x2116));
+        assert(!FindModel(0x3837,0x2116) && !FindModel(0x41e4,0x3007));
+        const auto* gt=FindModel(0x3837,0x3007);
+        assert(gt && gt->Ace68Gt() && gt->reviewed==0x0113 && gt->keyCount==67);
+        const auto gtKeys=Allowed(*gt);
+        assert(gtKeys[0xe4] && gtKeys[0xe6] && !gtKeys[0xe7] && gtKeys[0x49] && gtKeys[0x4c]);
         const auto nordic=Allowed(*FindModel(0x3837,0x3002));assert(nordic[0x64] && nordic[0x65] && !nordic[0x49]);
         const auto mix=Allowed(*FindModel(0x41e4,0x2122));assert(mix[0x46] && mix[0x48] && mix[0x4d] && mix[0x35]);
         assert(Models[0].freshFlashReboot && Models[1].freshFlashReboot && FindModel(0x41e4,0x211c)->freshFlashReboot);
@@ -132,5 +137,5 @@ int main(){
                         scenario==5?ChangeResult::ReservedData:ChangeResult::Uncertain));
         assert(writes==(scenario<2 || scenario==5?0u:1u));
     }
-    printf("Jet75 protocol PASS: %u preserving flag transactions, base index, reboot-on-write, no-op, stale profile, lost ACK, ignored write, failed readback, foreign format, framing/version/depth range/modifiers, 11-model table, per-model reboot rule, firmware base rules\n",cases);
+    printf("Jet75 protocol PASS: %u preserving flag transactions, base index, reboot-on-write, no-op, stale profile, lost ACK, ignored write, failed readback, foreign format, framing/version/depth range/modifiers, %zu-model table, per-model reboot rule, firmware base rules\n",cases,std::size(Models));
 }

@@ -18,6 +18,11 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <ItemDefinitionGroup Condition="'$(HallJoyMidi)'!='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>HALLJOY_DISABLE_MIDI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalOptions>/utf-8 /we4828 %(AdditionalOptions)</AdditionalOptions>
@@ -511,6 +516,13 @@
     <ClInclude Include="remap_guide.h" />
     <ClInclude Include="remap_icons.h" />
     <ClInclude Include="remap_panel.h" />
+    <ClInclude Include="midi_profile.h" />
+    <ClInclude Include="midi_engine.h" />
+    <ClInclude Include="midi_touch.h" />
+    <ClInclude Include="midi_settings_page.h" />
+    <ClInclude Include="midi_output.h" />
+    <ClInclude Include="midi_tester.h" />
+    <ClInclude Include="midi_event_queue.h" />
     <ClInclude Include="remap_hint_motion.h" />
     <ClInclude Include="window_placement_policy.h" />
     <ClInclude Include="window_placement_windows.h" />
@@ -661,6 +673,17 @@
     <ClCompile Include="neo65_backend.cpp" />
     <ClCompile Include="corsair_vanguard_backend.cpp" />
     <ClCompile Include="corsair_k70_tkl_backend.cpp" />
+    <ClCompile Include="aula_f75_backend.cpp" />
+    <ClCompile Include="mchose_gt75_backend.cpp" />
+    <ClInclude Include="mchose_gt75_backend.h" />
+    <ClInclude Include="mchose_gt75_client.h" />
+    <ClInclude Include="mchose_gt75_protocol.h" />
+    <ClInclude Include="mchose_gt75_factory.h" />
+    <ClInclude Include="mchose_gt75_self_test.h" />
+    <ClInclude Include="aula_f75_backend.h" />
+    <ClInclude Include="aula_f75_client.h" />
+    <ClInclude Include="aula_f75_protocol.h" />
+    <ClInclude Include="aula_f75_factory.h" />
     <ClInclude Include="corsair_k70_tkl_protocol.h" />
     <ClInclude Include="corsair_vanguard_backend.h" />
     <ClInclude Include="corsair_vanguard_protocol.h" />
@@ -672,6 +695,7 @@
     <ClCompile Include="mchose_jet75_backend.cpp" />
     <ClInclude Include="mchose_jet75_backend.h" />
     <ClInclude Include="mchose_jet75_protocol.h" />
+    <ClInclude Include="mchose_ace60_protocol.h" />
     <ClCompile Include="steelseries_apex_backend.cpp" />
     <ClInclude Include="steelseries_apex_backend.h" />
     <ClInclude Include="steelseries_apex_protocol.h" />
@@ -718,6 +742,8 @@
     <ClCompile Include="remap_guide.cpp" />
     <ClCompile Include="remap_icons.cpp" />
     <ClCompile Include="remap_panel.cpp" />
+    <ClCompile Include="midi_output.cpp" Condition="'$(HallJoyMidi)'=='true'" />
+    <ClCompile Include="midi_settings_page.cpp" Condition="'$(HallJoyMidi)'=='true'" />
     <ClCompile Include="remap_startselect.cpp" />
     <ClCompile Include="remap_sticks.cpp" />
     <ClCompile Include="remap_triggers.cpp" />

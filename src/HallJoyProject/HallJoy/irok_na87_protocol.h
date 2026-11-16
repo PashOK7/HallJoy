@@ -19,8 +19,10 @@ class MapReader {
     unsigned rows_ = 0;
     bool conflict_ = false;
     bool allowDuplicateHids_ = false;
+    bool assignmentMetadataOnly_ = false;
 public:
-    explicit MapReader(bool allowDuplicateHids = false) : allowDuplicateHids_(allowDuplicateHids) {}
+    explicit MapReader(bool allowDuplicateHids = false, bool assignmentMetadataOnly = false)
+        : allowDuplicateHids_(allowDuplicateHids), assignmentMetadataOnly_(assignmentMetadataOnly) {}
     bool Feed(const Report& r) noexcept {
         if (r[0]!=1 || r[1]!=0x10 || r[2]!=0 || r[5]!=22) return false;
         unsigned row=6;
@@ -35,6 +37,9 @@ public:
     }
     bool Complete() const noexcept {
         if (rows_!=63 || conflict_) return false;
+        // Enable only after an exact board identity with an independent physical
+        // matrix is proven. Empty/remapped/default assignment bytes cannot deny analog.
+        if (assignmentMetadataOnly_) return true;
         std::array<bool,256> seen{}; unsigned count=0;
         for (auto hid:map_) {
             if (!hid) continue;

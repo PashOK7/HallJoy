@@ -1,4 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #include <shellapi.h>
 #include "perf_trace.h"
@@ -11,7 +14,12 @@
 #include "aula_hero84he_backend.h"
 #include "attackshark_pro_diagnostic.h"
 #include "irok_na87_backend.h"
+#include "rongyuan_snapshot_backend.h"
+#include "aula_f75_backend.h"
+#include "mchose_gt75_backend.h"
 #include "native_analog_backend_registry.h"
+#include "backend.h"
+#include "keyboard_tester_session_cases.h"
 #include <objidl.h>
 #include <gdiplus.h>
 #include <strsafe.h>
@@ -207,7 +215,24 @@ int WINAPI wWinMain(
         wcscmp(supportArgv[1],L"--halljoy-require-k4-onboard")==0;
     const bool fullCatalogTest=supportArgv && supportArgc==2 &&
         wcscmp(supportArgv[1],L"--halljoy-require-full-catalog")==0;
+    const bool hatorTest=supportArgv && supportArgc==2 &&
+        wcscmp(supportArgv[1],L"--halljoy-hator-ultima-self-test")==0;
+    const bool gtTest=supportArgv && supportArgc==2 &&
+        wcscmp(supportArgv[1],L"--halljoy-ace68gt-self-test")==0;
+    const bool ace60Test=supportArgv && supportArgc==2 &&
+        wcscmp(supportArgv[1],L"--halljoy-ace60-self-test")==0;
+    const bool su75Test=supportArgv && supportArgc==2 && wcscmp(supportArgv[1],L"--halljoy-spark-su75-self-test")==0;
+    const bool keydousRfTest=supportArgv && supportArgc==2 &&
+        wcscmp(supportArgv[1],L"--halljoy-keydous-rf-trace-self-test")==0;
+    const bool he108RfTest=supportArgv && supportArgc==2 &&
+        wcscmp(supportArgv[1],L"--halljoy-he108-rf-self-test")==0;
     if(supportArgv)LocalFree(supportArgv);
+    if(he108RfTest)return halljoy::tester_cases::He108Rf();
+    if(su75Test)return Backend_TestSparkSu75()?0:10;
+    if(keydousRfTest)return halljoy::tester_cases::KeydousRf();
+    if(hatorTest)return halljoy::tester_cases::Hator();
+    if(gtTest)return halljoy::tester_cases::Ace68Gt();
+    if(ace60Test)return halljoy::tester_cases::Ace60();
     if(fullCatalogTest) {
         if(!NativeAnalogBackends_CatalogIsValid())return 92;
         // Independent release expectation, not generated from the compiled catalog.
@@ -226,12 +251,15 @@ int WINAPI wWinMain(
             NativeAnalogProtocol::Alumix104Yotei, NativeAnalogProtocol::MchoseJet75,
             NativeAnalogProtocol::LogitechRapid, NativeAnalogProtocol::RedSquareAlumix68,
             NativeAnalogProtocol::MelGeekMade68Air, NativeAnalogProtocol::CorsairVanguard,
-            NativeAnalogProtocol::CorsairK70Tkl};
+            NativeAnalogProtocol::CorsairK70Tkl, NativeAnalogProtocol::AulaF75, NativeAnalogProtocol::MchoseGt75};
         for(const auto protocol:required){
             bool found=false;
             for(std::size_t i=0;i<NativeAnalogBackends_Count();++i){
                 const auto* d=NativeAnalogBackends_Descriptor(i);
-                if(d && d->protocol==protocol)found=true;
+                if(d && d->protocol==protocol) {
+                    found=true;
+                    if(!d->getObservations) return 200+static_cast<int>(protocol);
+                }
             }
             if(!found)return 100+static_cast<int>(protocol);
         }
@@ -254,6 +282,9 @@ int WINAPI wWinMain(
     if (Mini60Diagnostic_TryRunCommand(na87Exit)) return na87Exit;
     if (Na87Diagnostic_TryRunCommand(na87Exit)) return na87Exit;
     if (IrokNa87_TryRunSelfTest(na87Exit)) return na87Exit;
+    if (RongYuanSnapshot_TryRunSelfTest(na87Exit)) return na87Exit;
+    if (AulaF75_TryRunSelfTest(na87Exit)) return na87Exit;
+    if (MchoseGt75_TryRunSelfTest(na87Exit)) return na87Exit;
 
     // This is deliberately after every same-image child-role branch above,
     // but before a provider, data root, logger or qualification report can be

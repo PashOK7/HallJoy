@@ -6,12 +6,13 @@
 #include "native_analog_routing.h"
 #include "native_analog_snapshot_adapter.h"
 #include "worker_lifecycle.h"
+#include "analog_observation.h"
 
 // Internal ABI for HallJoy native analogue protocol modules.
 // A new protocol implementation owns its USB/HID transport and publishes only
 // normalized [0..1000] values. The common backend owns curves, bindings, SOCD,
 // UI snapshots and ViGEm scheduling.
-static constexpr std::uint32_t kNativeAnalogBackendAbiVersion = 4;
+static constexpr std::uint32_t kNativeAnalogBackendAbiVersion = 5;
 static constexpr std::size_t kNativeAnalogBackendStatusChars = 160;
 
 enum class NativeAnalogStartPhase : std::uint8_t
@@ -99,6 +100,8 @@ struct NativeAnalogBackendDescriptor
     // must not perform source arbitration; legacy getMilli remains available
     // until RM-11 changes the consumer policy.
     bool (*getSnapshotV2)(halljoy::native_analog_snapshot::OutputV1 output) = nullptr;
+    // Opt-in MIDI route: explicit physical source/baseline, no legacy cross-device max.
+    void (*getObservations)(halljoy::observation::Sink sink) = nullptr;
 };
 
 inline bool NativeAnalogBackendDescriptor_IsValid(const NativeAnalogBackendDescriptor& d)

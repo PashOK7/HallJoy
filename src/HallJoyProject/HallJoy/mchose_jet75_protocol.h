@@ -106,11 +106,21 @@ inline constexpr std::uint8_t Mix87Keys[]={
     4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,
     40,41,42,43,44,45,46,47,48,49,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,
     75,76,77,78,79,80,81,82,101,0xe0,0xe1,0xe2,0xe3,0xe4,0xe5,0xe6};
+// Ace 68 GT stock 1.13 uses this exact immutable 80-slot descriptor table.
+inline constexpr std::uint8_t Ace68GtKeys[]={
+    0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x10,0x11,0x12,0x13,
+    0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,0x20,0x21,0x22,0x23,
+    0x24,0x25,0x26,0x27,0x28,0x29,0x2a,0x2b,0x2c,0x2d,0x2e,0x2f,0x30,0x31,0x33,0x34,
+    0x36,0x37,0x38,0x39,0x49,0x4b,0x4c,0x4e,0x4f,0x50,0x51,0x52,0xe0,0xe1,0xe2,0xe3,
+    0xe4,0xe5,0xe6,
+};
 struct Model {
     std::uint16_t vid,pid,reviewed;const wchar_t* name;const wchar_t* shortName;const char* layoutProtocol;const char* layoutProduct;
     const std::uint8_t* keys;std::size_t keyCount;
     bool freshFlashReboot; // writer resets the MCU while settings byte 0 bit 0 is set
     BaseRule baseRule;     // boot-time active profile selection (see Profile)
+    constexpr bool Ace60() const noexcept {return vid==0x41e4 && pid==0x2101;}
+    constexpr bool Ace68Gt() const noexcept {return vid==0x3837 && pid==0x3007;}
 };
 // USB product strings in quotes where the M HUB catalog name differs.
 inline constexpr Model Models[]={
@@ -120,11 +130,13 @@ inline constexpr Model Models[]={
     {0x41e4,0x2118,0x0109,L"MCHOSE Jet 75 I",L"Jet 75 I","mchose-jet75","JET75I-41E4-2118",Keys,std::size(Keys),false,BaseRule::BoundedUnchecked},
     {0x41e4,0x2114,0x0109,L"MCHOSE Ace 68 (Ace68-I)",L"Ace 68","mchose-ace68","ACE68I-41E4-2114",Ace68Keys,std::size(Ace68Keys),false,BaseRule::BoundedUnchecked},
     {0x41e4,0x2120,0x0117,L"MCHOSE Ace 68 Air II",L"Ace 68 Air II","mchose-ace68","ACE68AIRII-41E4-2120",Ace68Keys,std::size(Ace68Keys),false,BaseRule::Bounded},
+    {0x41e4,0x2101,0x0120,L"MCHOSE Ace 60",L"Ace 60","mchose-ace60","ACE60-41E4-2101",Ace60Keys,std::size(Ace60Keys),false,BaseRule::Counted},
     {0x41e4,0x2103,0x0118,L"MCHOSE Ace 60 Pro",L"Ace 60 Pro","mchose-ace60","ACE60PRO-41E4-2103",Ace60Keys,std::size(Ace60Keys),false,BaseRule::Bounded},
     {0x41e4,0x2126,0x0105,L"MCHOSE Ace 60X I",L"Ace 60X I","mchose-ace60","ACE60XI-41E4-2126",Ace60Keys,std::size(Ace60Keys),false,BaseRule::BoundedUnchecked},
     {0x41e4,0x2112,0x0104,L"MCHOSE Ace 60X II",L"Ace 60X II","mchose-ace60","ACE60XII-41E4-2112",Ace60Keys,std::size(Ace60Keys),false,BaseRule::Bounded},
     {0x3837,0x3002,0x0107,L"MCHOSE Ace 60 Pro Nordic",L"Ace 60 Pro Nordic","mchose-ace60","ACE60PRONORDIC-3837-3002",Ace60NordicKeys,std::size(Ace60NordicKeys),false,BaseRule::Bounded},
     {0x41e4,0x2122,0x0112,L"MCHOSE Mix 87 I",L"Mix 87 I","mchose-mix87","MIX87I-41E4-2122",Mix87Keys,std::size(Mix87Keys),false,BaseRule::BoundedUnchecked},
+    {0x3837,0x3007,0x0113,L"MCHOSE Ace 68 GT",L"Ace 68 GT","mchose-ace68","ACE68GT-3837-3007",Ace68GtKeys,std::size(Ace68GtKeys),true,BaseRule::Bounded},
 };
 inline const Model* FindModel(std::uint16_t vid,std::uint16_t pid) noexcept {
     for(const auto& m:Models)if(m.vid==vid && m.pid==pid)return &m;

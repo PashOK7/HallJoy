@@ -1,8 +1,12 @@
 [CmdletBinding()]
-param([string]$OutputDirectory)
+param([string]$OutputDirectory, [string]$PythonPath)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'build_environment.ps1')
+$buildEnvironment = Initialize-HallJoyBuildEnvironment -PythonPath $PythonPath
+# Python launching PS5 can inherit PS7 module paths. Use this host's module.
+Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Archive/Microsoft.PowerShell.Archive.psd1') -Force -ErrorAction Stop
 $release = Join-Path $root 'build/bin/Release/x64'
 $exe = Join-Path $release 'HallJoy.exe'
 $version = (Get-Item -LiteralPath $exe).VersionInfo.ProductVersion

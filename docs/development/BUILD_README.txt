@@ -81,3 +81,18 @@ in this extracted workspace or push a stale mirror.
 GitHub checks run on Windows for push/PR; the separate production build job is
 manual workflow_dispatch. CI is the clean-checkout run; do not duplicate it locally.
 See docs/development/TESTING.md and current OWNER_CONTEXT before delivery.
+
+
+Windows CPU budget (2026-11-16)
+------------------------------
+Compiler trees and the native test runner share one Windows job with a90% CPU
+hard cap and BelowNormal priority. Entry points: BUILD.cmd/full build, ordinary
+build_release.ps1, profile simulator, UAP build and run_native_backend_checks.py.
+The wrapper joins before starting a compiler; children inherit the same job, so
+nested entries do not multiply caps. A retained job handle preserves the limit
+after the helper exits. An unavailable limit fails explicitly before compiling.
+MSBuild node reuse is disabled for these wrapped invocations. The build publisher
+and its restored ordinary HallJoy process stay outside the compiler job. Other
+programs can still contribute additional CPU load. Query/readback tests cover
+child/grandchild inheritance, repeated join, priority, arguments and exit codes.
+See tools/build_cpu_budget.py and build_cpu_budget.ps1; no extra install required.

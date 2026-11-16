@@ -1,5 +1,37 @@
 # Support diagnostics contract (schema 2)
 
+## MIDI velocity investigation, 2026-11-15
+
+The owner requested capture of occasional soft notes during rapid MIDI playing.
+The scoped `evidence.midi.*` records include only MIDI-bound keys and their
+travel/timing, calculated velocity, active sensitivity settings and MIDI output
+results. A 256-record try-lock ring reports overwrite and contention loss.
+The existing log worker formats records and Open log includes the latest data.
+Revision 2 requests snapshots from captured MIDI note events and saves the final
+MIDI batch at normal exit. This scoped persistence implements the owner's explicit
+MIDI logging request and does not enable continuous logging for other input.
+Enabled MIDI owns the capture. Disabled startup creates no trace allocation or
+polling. Export retains already captured data after MIDI stops. The ordinary
+privacy limits continue for all other inputs.
+[Capture fields and software checks](../current/MIDI_VELOCITY_DIAGNOSTICS_2026-11-15.md).
+
+## Tester admission evidence — owner decision 2026-11-08
+
+[TESTER_BUILD_CONTRACT](TESTER_BUILD_CONTRACT.md) is mandatory. A known device
+must not stop before analog because unproven metadata expectations differ.
+Witmod revision2 records map_policy action=continue with physical channel count,
+ignored nonphysical assignments and unknown assignment count. Raw assignment
+values, key codes and paths are not logged. Hard refusals name stage/reason:
+identity mismatch, transport failure, unsupported scale or routing collision.
+Missing, conflicting or malformed assignment metadata records map_unavailable
+with action=continue and assigned_aliases=unavailable; only the proven physical
+matrix is used. Malformed metadata envelopes get bounded structural fields,
+without payload dumps. proof_ready and subscribe distinguish successful
+admission from stream start. First valid zero depth is accepted as live protocol
+proof; quiet streams are not failed merely for being zero. Ordinary bounded
+travel/refusal/cleanup evidence remains available with continuous logging off.
+
+
 ## ATTACK SHARK discovery revision 2 — 2026-10-31
 
 Ordinary `evidence.shark.*` records reconstruct allowlisted numeric fields from
@@ -433,3 +465,48 @@ format (owner rule 2026-10-06). See `docs/current/LOGITECH_RAPID_2026-10-05.md`.
   `logitech.generic_model` replaces `logitech.model` for such a session.
 - The UI notice `GenericProtocol` is driven by telemetry `genericProtocol`.
 See `docs/current/GENERIC_PROTOCOL_SUPPORT_2026-10-07.md`.
+
+## Keydous NJ98-CP V4S receiver release trace — 2026-11-09
+
+RF diagnostic revision 6 adds trace.keydous_rf.* to the existing
+bound-key trace for the exact 3151:5038/3793 receiver session. Bound slots
+show received/applied stream zeros, table zero acceptance and supersession,
+late replies discarded by existing command cleanup, and physical/effective
+publication. Four page rows describe send and response timestamps,
+readiness, pending replies, failures and drains. These are scalar values
+for bound channels only. No raw packet, text, path or serial is logged.
+
+The existing log worker collects the records once per tick. Continuous
+append includes these rows immediately in its normal batch, and Open log
+retains them in its bounded 4000-row trace window. The callback never
+forces a file. A production-image fake-radio test exercises multikey
+input, genuine stream and table releases, hold, superseded zero, late
+drain, malformed response and cleanup. The Win32 log test verifies
+append, snapshot retention and disabled logging behavior.
+
+## ARDOR Viper matrix trial — 2026-11-13
+
+The exact GK8163HERGB worker reads raw 0x23 rows for all 82 physical positions;
+stock depth events are unsubscribed and never publish output. Current aggregate
+state is collected before each requested snapshot through the independent
+SupportLog_SetDeviceEvidenceProvider, with no HID I/O or required test duration.
+
+viper_current revision2 identifies raw output, frame/row coverage, changes,
+rejected envelopes, sample/zero-transition/peak/current counts. viper_range
+explicitly says calibrated=0 and model=factory150_observed_max. It records
+convertible channels, reference increases/returns, channels reaching full output,
+aggregate reference/observed extrema and invalid ADC samples. These per-field
+atomic reads are not a transactional snapshot. A reference return is a measured
+ADC relation, not proof of physical release; ordinary noise can create it.
+
+Factory 150 comes from the exact 1.13.06 initializer; observed maxima are provisional
+relative references, not read saved calibration or proof of a released startup.
+For keys already bound to a gamepad, the existing bound-input trace exception
+also includes trace.viper_matrix with raw ADC, scaled reference/lower value,
+published permille and calibrated=0. This lets Open log distinguish a sensor
+reading from range conversion and downstream pad filtering. Unbound keys have
+no per-key trace; no text, path, serial or raw HID packet is included. These
+cached per-field samples are explicitly non-transactional. No manual calibration
+is required. The log cannot establish absolute travel accuracy or rule out a
+different saved calibration from these aggregates alone. Tester behavior and
+physical observations remain required. Continuous logging stays optional.

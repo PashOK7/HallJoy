@@ -1,0 +1,1295 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "hz94-admission",
+      "model": "E-YOOSO HZ-94",
+      "argument": "--halljoy-hz94-admission-self-test",
+      "marker": "HZ94_ADMISSION_SELF_TEST",
+      "positive_cases": [
+        "factory94",
+        "log38_104_94_10_reconstruction",
+        "nonphysical_unknown_bytes",
+        "all_aliases_132",
+        "all_unbound",
+        "single_bound",
+        "unknown_physical_assignment_codes",
+        "physical_remap",
+        "incomplete_assignment_transaction",
+        "conflicting_assignment_transaction",
+        "no_assignment_response",
+        "malformed_assignment_response"
+      ],
+      "negative_cases": [
+        "foreign_identity",
+        "unsupported_scale",
+        "transport_open_failure"
+      ],
+      "hard_refusals": [
+        {
+          "condition": "foreign_identity",
+          "basis": "Commands require exact 7187_AUSXHERGB identity; the 7186 neighbor has a different physical matrix."
+        },
+        {
+          "condition": "unsupported_scale",
+          "basis": "Reviewed live decoder is 0..40; an incompatible capability has no established conversion."
+        },
+        {
+          "condition": "transport_open_failure",
+          "basis": "No handle exists for the reviewed I/O."
+        }
+      ],
+      "metadata_only": [
+        "assignment_count",
+        "extra_slots",
+        "unknown_assignment_bytes",
+        "duplicate_assignments",
+        "disabled_assignments",
+        "layout_cache",
+        "missing_row",
+        "inconsistent_duplicate_row",
+        "assignment_reply_envelope"
+      ],
+      "required_receipt": {
+        "scenarios": 12,
+        "negatives": 3,
+        "physical_channels": 94,
+        "proof_to_subscribe": 1,
+        "first_sample": 1,
+        "multikey": 1,
+        "release": 1,
+        "cleanup": 1,
+        "hardware_opened": 0
+      },
+      "files": [
+        "src/HallJoyProject/HallJoy/irok_hz94_profile.h",
+        "src/HallJoyProject/HallJoy/irok_hz94_admission_cases.h",
+        "src/HallJoyProject/HallJoy/irok_na87_protocol.h",
+        "src/HallJoyProject/HallJoy/irok_na87_backend.cpp",
+        "src/HallJoyProject/tests/hz94_admission_test.cpp"
+      ]
+    },
+    {
+      "id": "hator-ultima",
+      "model": "HATOR Skyfall 80 MAG Ultima 8K Wireless",
+      "argument": "--halljoy-hator-ultima-self-test",
+      "marker": "HATOR_ULTIMA_SELF_TEST",
+      "positive_cases": [
+        "2800_ansi",
+        "2857_ansi",
+        "2858_iso",
+        "3627_ansi",
+        "3628_ansi",
+        "3629_iso"
+      ],
+      "negative_cases": [
+        "wrong_collection",
+        "foreign_remote_board",
+        "radio_offline",
+        "radio_bootloader",
+        "malformed_status",
+        "cancelled",
+        "invalid_depth_frame"
+      ],
+      "hard_refusals": [
+        {
+          "condition": "wrong_collection",
+          "basis": "The receiver USB control path is FFFF:0002 with ID0 plus 64 feature bytes on MI_02."
+        },
+        {
+          "condition": "foreign_remote_board",
+          "basis": "Shared receiver has to identify an HTK3880-family PCB before analog commands."
+        },
+        {
+          "condition": "radio_offline",
+          "basis": "Receiver reports its paired keyboard is offline and cannot exchange commands."
+        },
+        {
+          "condition": "radio_bootloader",
+          "basis": "Receiver reports updater state, where keyboard analog commands are not admitted."
+        },
+        {
+          "condition": "malformed_status",
+          "basis": "Flow-control fields are invalid, so ownership and pending replies cannot be established."
+        },
+        {
+          "condition": "cancelled",
+          "basis": "A cancelled session must stop before sending a new feature request."
+        },
+        {
+          "condition": "invalid_depth_frame",
+          "basis": "A snapshot outside the selected transport scale is not a valid input sample."
+        }
+      ],
+      "metadata_only": [
+        "live_assignments",
+        "extra_factory_slots",
+        "layout_cache"
+      ],
+      "required_receipt": {
+        "scenarios": 6,
+        "negatives": 7,
+        "proof_to_subscribe": 1,
+        "first_sample": 1,
+        "multikey": 1,
+        "release": 1,
+        "cleanup": 1,
+        "hardware_opened": 0
+      },
+      "files": [
+        "src/HallJoyProject/HallJoy/rongyuan_receiver_client.h",
+        "src/HallJoyProject/HallJoy/rongyuan_stream_backend.cpp",
+        "src/HallJoyProject/HallJoy/rongyuan_stream_protocol.h",
+        "src/HallJoyProject/HallJoy/keyboard_tester_session_cases.h"
+      ]
+    },
+    {
+      "id": "ace68gt",
+      "model": "MCHOSE Ace 68 GT",
+      "argument": "--halljoy-ace68gt-self-test",
+      "marker": "ACE68GT_SELF_TEST",
+      "positive_cases": [
+        "reviewed_writer",
+        "profile_count_ignored",
+        "pre_enabled_preserved",
+        "firmware_profile_fallback",
+        "reviewed_0116_enable_receive_restore",
+        "reviewed_117a_enable_receive_restore"
+      ],
+      "negative_cases": [
+        "reboot_armed",
+        "bad_profile_magic",
+        "unreviewed_writer",
+        "profile_race",
+        "probe_unavailable",
+        "wrong_interface",
+        "malformed_trial_info",
+        "activation_already_attempted",
+        "unexpected_write_readback"
+      ],
+      "hard_refusals": [
+        {
+          "condition": "reboot_armed",
+          "basis": "A stored settings flag predicts an MCU reset during activation, so no persistent write is issued."
+        },
+        {
+          "condition": "bad_profile_magic",
+          "basis": "The writer target lacks the firmware profile signature; passive input remains available."
+        },
+        {
+          "condition": "unreviewed_writer",
+          "basis": "Unknown 06 side effects do not authorize a persistent write; A0 reading is still attempted."
+        },
+        {
+          "condition": "profile_race",
+          "basis": "Concurrent profile changes invalidate the stable active-profile transaction."
+        },
+        {
+          "condition": "probe_unavailable",
+          "basis": "An incomplete settings read cannot prove the active profile and reboot flag."
+        },
+        {
+          "condition": "wrong_interface",
+          "basis": "Only the official unnumbered IN/OUT collection on MI_01 can carry GT commands."
+        },
+        {
+          "condition": "malformed_trial_info",
+          "basis": "A corrupt opcode-03 reply cannot identify a firmware for a persistent write. Passive input remains available."
+        },
+        {
+          "condition": "activation_already_attempted",
+          "basis": "An ambiguous persistent operation must not cause repeated automatic flash writes in the same worker generation."
+        },
+        {
+          "condition": "unexpected_write_readback",
+          "basis": "Unexpected saved data after a write cannot count as verified activation, even with a matching acknowledgement."
+        }
+      ],
+      "metadata_only": [
+        "variable_version_length",
+        "projected_profile_byte",
+        "unused_profile_count"
+      ],
+      "required_receipt": {
+        "scenarios": 6,
+        "negatives": 9,
+        "proof_to_subscribe": 1,
+        "first_sample": 1,
+        "multikey": 1,
+        "release": 1,
+        "cleanup": 1,
+        "hardware_opened": 0
+      },
+      "files": [
+        "src/HallJoyProject/HallJoy/mchose_ace68gt_protocol.h",
+        "src/HallJoyProject/HallJoy/mchose_jet75_backend.cpp",
+        "src/HallJoyProject/HallJoy/mchose_jet75_protocol.h",
+        "src/HallJoyProject/HallJoy/keyboard_tester_session_cases.h"
+      ]
+    },
+    {
+      "id": "mchose-ace60",
+      "model": "MCHOSE Ace 60 (41E4:2101)",
+      "argument": "--halljoy-ace60-self-test",
+      "marker": "ACE60_SELF_TEST",
+      "positive_cases": [
+        "stock120",
+        "count_fallback_duplicate_slots",
+        "preenabled_preserved",
+        "other_version_passive",
+        "unknown_build_passive",
+        "corrupt_info_passive"
+      ],
+      "negative_cases": [
+        "reset_armed",
+        "bad_profile_magic",
+        "out_of_table_profile",
+        "profile_race",
+        "read_unavailable",
+        "attempt_already_spent",
+        "cancelled",
+        "unverified_readback",
+        "foreign_identity",
+        "wrong_framing"
+      ],
+      "hard_refusals": [
+        {
+          "condition": "reset_armed",
+          "basis": "The verified 1.20 dispatcher reaches an additional saved write when the reset flag is set."
+        },
+        {
+          "condition": "bad_profile_magic",
+          "basis": "A saved configuration without the expected profile signature cannot authorize a persistent write."
+        },
+        {
+          "condition": "out_of_table_profile",
+          "basis": "An index outside the four-byte table cannot prove the current flash record."
+        },
+        {
+          "condition": "profile_race",
+          "basis": "Disagreeing reads invalidate the safe write target and must leave passive reception available."
+        },
+        {
+          "condition": "read_unavailable",
+          "basis": "An incomplete settings snapshot proves neither profile identity nor reset state."
+        },
+        {
+          "condition": "attempt_already_spent",
+          "basis": "Prevent a second persistent write after one failed or interrupted activation attempt in a generation."
+        },
+        {
+          "condition": "cancelled",
+          "basis": "A user shutdown request cancels activation before sending a state-changing command."
+        },
+        {
+          "condition": "unverified_readback",
+          "basis": "An unchanged or divergent flag after writing is not proof of activation."
+        },
+        {
+          "condition": "foreign_identity",
+          "basis": "The Pro and bootloader products cannot receive the Ace 60 runtime commands."
+        },
+        {
+          "condition": "wrong_framing",
+          "basis": "Only the reviewed unnumbered 64-byte payload collection can carry this protocol."
+        }
+      ],
+      "metadata_only": [
+        "unknown_build_passive",
+        "profile_tail",
+        "repeated_table_entries",
+        "alternate_switch_maximum"
+      ],
+      "required_receipt": {
+        "scenarios": 6,
+        "negatives": 10,
+        "physical_channels": 61,
+        "proof_to_subscribe": 1,
+        "first_sample": 1,
+        "multikey": 1,
+        "release": 1,
+        "cleanup": 1,
+        "hardware_opened": 0
+      },
+      "files": [
+        "src/HallJoyProject/HallJoy/mchose_ace60_protocol.h",
+        "src/HallJoyProject/HallJoy/mchose_jet75_backend.cpp",
+        "src/HallJoyProject/HallJoy/keyboard_tester_session_cases.h"
+      ]
+    },
+    {
+      "id": "he108-rf",
+      "model": "EPOMAKER HE108 2.4 GHz",
+      "argument": "--halljoy-he108-rf-self-test",
+      "marker": "HE108_RF_SELF_TEST",
+      "positive_cases": [
+        "synced_depth_and_stream",
+        "missing_marker_stream",
+        "malformed_depth_stream",
+        "never_ready_table_after_stream_started",
+        "no_interrupt_collection_table_fallback",
+        "missing_optional_metadata_stream_first",
+        "split_report_caps_all104_notice"
+      ],
+      "negative_cases": [
+        "foreign_board",
+        "receiver_offline",
+        "wrong_collection",
+        "cancel_before_stream_enable"
+      ],
+      "hard_refusals": [
+        {
+          "condition": "foreign_board",
+          "basis": "3151:5038 is shared; only paired board 3365 selects HE108."
+        },
+        {
+          "condition": "receiver_offline",
+          "basis": "The local status must report a paired online keyboard before sending keyboard commands."
+        },
+        {
+          "condition": "wrong_collection",
+          "basis": "The OEM entry designates MI_02 FFFF:0002 as the feature control collection."
+        },
+        {
+          "condition": "cancel_before_stream_enable",
+          "basis": "Cancellation must not enable input; the attempted-enable cleanup runs and no depth is fabricated."
+        }
+      ],
+      "metadata_only": [
+        "live_assignments",
+        "layout_publication",
+        "receiver_firmware_marker_for_interrupt_stream",
+        "input_capability_segmentation",
+        "optional_initial_table_readiness"
+      ],
+      "required_receipt": {
+        "scenarios": 7,
+        "negatives": 4,
+        "proof_to_subscribe": 1,
+        "first_sample": 1,
+        "multikey": 1,
+        "release": 1,
+        "cleanup": 1,
+        "layout": 1,
+        "hardware_opened": 0,
+        "stream_before_table": 1,
+        "pending_cleanup": 1,
+        "supported_no_notice": 1,
+        "physical_channels": 104
+      },
+      "files": [
+        "src/HallJoyProject/HallJoy/rongyuan_receiver_client.h",
+        "src/HallJoyProject/HallJoy/rongyuan_stream_backend.cpp",
+        "src/HallJoyProject/HallJoy/keyboard_tester_session_cases.h",
+        "src/HallJoyProject/HallJoy/generated/layout_pipeline/identities.h",
+        "src/HallJoyProject/HallJoy/rongyuan_receiver_start.h",
+        "src/HallJoyProject/HallJoy/keyboard_support_status.h",
+        "src/HallJoyProject/HallJoy/keyboard_page_main.cpp"
+      ]
+    },
+    {
+      "id": "keydous-rf-trace",
+      "model": "Keydous NJ98-CP V4S TMR",
+      "argument": "--halljoy-keydous-rf-trace-self-test",
+      "marker": "KEYDOUS_RF_TRACE_SELF_TEST",
+      "positive_cases": [
+        "stream_zero",
+        "table_repairs_missing_stream_zero",
+        "quiet_hold_table_nonzero",
+        "superseded_table_zero",
+        "sync_no_delay",
+        "delayed_f7",
+        "delayed_fc",
+        "delayed_marker",
+        "unknown_receiver_version",
+        "precision1000",
+        "identical_pages",
+        "matrix_identical_to_f7",
+        "matrix_like_low_tag_f0",
+        "zero_matrix",
+        "unsupported_marker_stream_attempt",
+        "late_fc_recovery",
+        "stale_initial_marker",
+        "marker_without_echo_stream_attempt",
+        "pending_optional_metadata_stream_attempt",
+        "request_echo_stream_attempt",
+        "late_read_ready_zero_published",
+        "late_fc_zero_published",
+        "late_page_preserves_newer_stream",
+        "late_all97_release",
+        "mailbox_overwrite_counterexample_and_handoff",
+        "progress_fields_retained"
+      ],
+      "negative_cases": [
+        "foreign_board",
+        "missing_read_ready",
+        "malformed_depth",
+        "malformed_synchronized_depth",
+        "unfinished_fc",
+        "control_io_failure",
+        "control_cancelled",
+        "pending_page_precision_changed",
+        "cancel_during_dispatch_cleanup",
+        "cancel_during_late_resume",
+        "malformed_late_page"
+      ],
+      "hard_refusals": [
+        {
+          "condition": "foreign_board",
+          "basis": "The receiver has a shared USB PID and must prove the exact remote NJ98 V4S board before depth reads."
+        },
+        {
+          "condition": "missing_read_ready",
+          "basis": "A pending radio command with no read-ready status cannot be treated as a complete snapshot."
+        },
+        {
+          "condition": "malformed_depth",
+          "basis": "A response above the selected transport scale cannot be applied as genuine depth."
+        },
+        {
+          "condition": "malformed_synchronized_depth",
+          "basis": "An owned reply beyond the reviewed depth scale cannot be published."
+        },
+        {
+          "condition": "unfinished_fc",
+          "basis": "A staged FC with no completed replacement has no owned snapshot; preserve prior publication and pending page."
+        },
+        {
+          "condition": "control_io_failure",
+          "basis": "Any failed control operation prevents claiming a complete synchronized page."
+        },
+        {
+          "condition": "control_cancelled",
+          "basis": "Cancellation at each control boundary must preserve prior publication and stop the transaction."
+        },
+        {
+          "condition": "pending_page_precision_changed",
+          "basis": "An in-flight page must retain its original decoder scale; production keeps units fixed for the session."
+        },
+        {
+          "condition": "cancel_during_dispatch_cleanup",
+          "basis": "A cancelled ambiguous enable must not claim success; cleanup still disables the stream."
+        },
+        {
+          "condition": "cancel_during_late_resume",
+          "basis": "Cancellation must not publish a late page or send a duplicate request."
+        },
+        {
+          "condition": "malformed_late_page",
+          "basis": "A resumed reply has the same bounds/units requirements as an immediate reply."
+        }
+      ],
+      "metadata_only": [
+        "binding_scope",
+        "stream_silence",
+        "full_sweep_cadence",
+        "receiver_firmware_version",
+        "matrix_status_shape",
+        "identical_pages",
+        "unsupported_optional_marker_stream_path"
+      ],
+      "required_receipt": {
+        "scenarios": 26,
+        "negatives": 11,
+        "proof_to_subscribe": 1,
+        "first_sample": 1,
+        "multikey": 1,
+        "release": 1,
+        "cleanup": 1,
+        "hardware_opened": 0,
+        "sync_scenarios": 22,
+        "sync_negatives": 8,
+        "late_page_publication": 1,
+        "mailbox_handoff": 1
+      },
+      "files": [
+        "src/HallJoyProject/HallJoy/keydous_rf_release_trace.h",
+        "src/HallJoyProject/HallJoy/rongyuan_stream_backend.cpp",
+        "src/HallJoyProject/HallJoy/rongyuan_receiver_client.h",
+        "src/HallJoyProject/HallJoy/keyboard_tester_session_cases.h",
+        "src/HallJoyProject/HallJoy/support_log.cpp",
+        "src/HallJoyProject/HallJoy/rongyuan_receiver_sync_cases.h",
+        "src/HallJoyProject/tests/rongyuan_receiver_test.cpp"
+      ]
+    },
+    {
+      "id": "viper-admission",
+      "model": "ARDOR GAMING Viper GK8163HERGB",
+      "argument": "--halljoy-viper-admission-self-test",
+      "marker": "VIPER_ADMISSION_SELF_TEST",
+      "positive_cases": [
+        "factory82",
+        "extra_assignments",
+        "nonphysical_unknown_bytes",
+        "all_aliases_132",
+        "all_unbound",
+        "single_bound",
+        "unknown_physical_assignment_codes",
+        "physical_remap",
+        "incomplete_assignment_transaction",
+        "conflicting_assignment_transaction",
+        "no_assignment_response",
+        "malformed_assignment_response",
+        "firmware_1_13_06",
+        "firmware_unpinned_padded",
+        "event_scale_is_metadata_for_raw_matrix",
+        "missing_capability_reply_is_metadata"
+      ],
+      "negative_cases": [
+        "foreign_product_white_revision",
+        "foreign_product_suffix",
+        "foreign_controller",
+        "transport_open_failure"
+      ],
+      "hard_refusals": [
+        {
+          "condition": "foreign_product_white_revision",
+          "basis": "Only exact M484/GK8163HERGB has reviewed physical geometry and command semantics."
+        },
+        {
+          "condition": "foreign_product_suffix",
+          "basis": "A different product does not establish the exact reviewed M484/GK8163HERGB physical matrix and raw command semantics."
+        },
+        {
+          "condition": "foreign_controller",
+          "basis": "The same product text on an unrelated controller does not prove M484 semantics."
+        },
+        {
+          "condition": "transport_open_failure",
+          "basis": "No reviewed I/O can occur without an opened transport."
+        }
+      ],
+      "metadata_only": [
+        "assignment_count",
+        "extra_slots",
+        "unknown_assignment_bytes",
+        "duplicate_assignments",
+        "disabled_assignments",
+        "layout_cache",
+        "missing_row",
+        "inconsistent_duplicate_row",
+        "assignment_reply_envelope",
+        "firmware_version_string",
+        "event_capability_scale",
+        "missing_event_capability_reply"
+      ],
+      "required_receipt": {
+        "scenarios": 16,
+        "negatives": 4,
+        "physical_channels": 82,
+        "proof_to_subscribe": 1,
+        "first_sample": 1,
+        "multikey": 1,
+        "release": 1,
+        "cleanup": 1,
+        "hardware_opened": 0
+      },
+      "files": [
+        "src/HallJoyProject/HallJoy/irok_viper_profile.h",
+        "src/HallJoyProject/HallJoy/irok_na87_backend.cpp",
+        "src/HallJoyProject/HallJoy/irok_hz94_profile.h",
+        "src/HallJoyProject/HallJoy/irok_na87_protocol.h",
+        "docs/research/ardor-viper-ansi.json",
+        "src/HallJoyProject/HallJoy/support_log.h",
+        "src/HallJoyProject/HallJoy/support_log.cpp",
+        "src/HallJoyProject/tests/support_log_windows_test.cpp"
+      ]
+    },
+    {
+      "id": "akko3131",
+      "model": "Akko 5087 V3 HE (3131)",
+      "argument": "--halljoy-akko3131-self-test",
+      "marker": "AKKO3131_SELF_TEST",
+      "positive_cases": [
+        "tester_3131_factory",
+        "all_aliases",
+        "all_unbound",
+        "single_bound",
+        "unknown_actions",
+        "physical_remap",
+        "nonphysical_poison",
+        "malformed_assignment",
+        "missing_profile",
+        "legacy_no_feature",
+        "precision_1000",
+        "layout_cache_full",
+        "incomplete_assignments",
+        "new_firmware_version"
+      ],
+      "negative_cases": [
+        "foreign_board",
+        "foreign_pid",
+        "wrong_collection",
+        "transport_open_failure",
+        "unsupported_units",
+        "invalid_depth",
+        "echo_only_depth",
+        "short_feature",
+        "inconsistent_board",
+        "ownership_collision",
+        "cancelled"
+      ],
+      "hard_refusals": [
+        {
+          "condition": "foreign_board",
+          "basis": "Only the exact manufacturer board3131 has the reviewed factory matrix and inherited RY5088 getter."
+        },
+        {
+          "condition": "foreign_pid",
+          "basis": "Board3131 is admitted on manufacturer USB3151:5029; a conflicting PID requires separate evidence."
+        },
+        {
+          "condition": "wrong_collection",
+          "basis": "Only the vendor feature collection with usage2 and65-byte feature framing carries the reviewed requests."
+        },
+        {
+          "condition": "transport_open_failure",
+          "basis": "Without an opened handle no reviewed feature transaction can be performed."
+        },
+        {
+          "condition": "unsupported_units",
+          "basis": "An explicit E6 precision code outside the documented enum has no established conversion."
+        },
+        {
+          "condition": "invalid_depth",
+          "basis": "Out-of-scale data at a physical sensor is not an established calibrated depth sample."
+        },
+        {
+          "condition": "echo_only_depth",
+          "basis": "An unprocessed shared request buffer is not a live depth reply."
+        },
+        {
+          "condition": "short_feature",
+          "basis": "An incomplete feature transfer cannot establish a complete page or correct framing."
+        },
+        {
+          "condition": "inconsistent_board",
+          "basis": "Changing identity within one exclusive session does not establish the intended target."
+        },
+        {
+          "condition": "ownership_collision",
+          "basis": "A target already claimed by another protocol cannot be driven concurrently."
+        },
+        {
+          "condition": "cancelled",
+          "basis": "Stop must prevent any further device request and clear input."
+        }
+      ],
+      "metadata_only": [
+        "firmware_version",
+        "assignments",
+        "assignment_count",
+        "duplicate_assignments",
+        "all_unbound",
+        "unknown_assignment_actions",
+        "nonphysical_slots",
+        "partial_assignment_transaction",
+        "layout_cache",
+        "optional_legacy_features"
+      ],
+      "required_receipt": {
+        "scenarios": 14,
+        "negatives": 11,
+        "physical_channels": 87,
+        "proof_to_subscribe": 1,
+        "first_sample": 1,
+        "multikey": 1,
+        "release": 1,
+        "cleanup": 1,
+        "hardware_opened": 0
+      },
+      "files": [
+        "src/HallJoyProject/HallJoy/rongyuan_snapshot_backend.cpp",
+        "src/HallJoyProject/HallJoy/rongyuan_snapshot_protocol.h",
+        "src/HallJoyProject/HallJoy/rongyuan_snapshot_evidence.h",
+        "src/HallJoyProject/HallJoy/rongyuan_snapshot_self_test.h",
+        "docs/research/akko-5087-v3-he-ansi.json",
+        "src/HallJoyProject/HallJoy/support_log.cpp",
+        "src/HallJoyProject/tests/support_log_windows_test.cpp"
+      ]
+    },
+    {
+      "id": "aula-f75",
+      "model": "AULA F75 HE USB / 2.4 GHz",
+      "argument": "--halljoy-aula-f75-self-test",
+      "marker": "AULA_F75_SELF_TEST",
+      "positive_cases": [
+        "usb_2729",
+        "usb_2742",
+        "radio_65",
+        "radio_33",
+        "all_aliases",
+        "all_unbound",
+        "single_assignment",
+        "unknown_actions",
+        "physical_remap",
+        "missing_assignments",
+        "partial_assignments",
+        "unknown_firmware_metadata",
+        "missing_info",
+        "layout_cache_full",
+        "echo68_monitor66",
+        "no68_monitor66",
+        "monitor_no_ack_live_sample",
+        "radio_local_info",
+        "radio_echo68_monitor33",
+        "out_of_scale68_monitor66",
+        "all_zero_first_reply",
+        "monitor_mixed_frames_then_depth"
+      ],
+      "negative_cases": [
+        "foreign_usb",
+        "foreign_receiver_name",
+        "wrong_collection",
+        "foreign_remote",
+        "open_failure",
+        "cancelled",
+        "partial_transfers",
+        "ownership_collision",
+        "invalid_stream_range",
+        "radio_disconnect",
+        "ack_only_no_analog"
+      ],
+      "hard_refusals": [
+        {
+          "condition": "foreign_usb",
+          "basis": "Only official exact F75 USB tuples have reviewed command semantics; a neighboring PID is not admitted."
+        },
+        {
+          "condition": "foreign_receiver_name",
+          "basis": "The shared FEFE receiver ID requires the exact manufacturer F75 HE Dongle name before vendor commands."
+        },
+        {
+          "condition": "wrong_collection",
+          "basis": "The manufacturer unnumbered FF60/FF68 usage61 IN/OUT collection is required for these frames."
+        },
+        {
+          "condition": "foreign_remote",
+          "basis": "An explicit different remote identity establishes a different keyboard; F75 commands must not continue."
+        },
+        {
+          "condition": "open_failure",
+          "basis": "Without an opened handle no reviewed transaction can run. The concrete Windows error is logged."
+        },
+        {
+          "condition": "cancelled",
+          "basis": "Cancellation must prevent new requests and release all published input and reversible monitor state."
+        },
+        {
+          "condition": "partial_transfers",
+          "basis": "A short or report-ID-conflicting transfer is not a complete valid analog frame and cannot publish input."
+        },
+        {
+          "condition": "ownership_collision",
+          "basis": "A target already claimed by another native protocol must not be driven concurrently."
+        },
+        {
+          "condition": "invalid_stream_range",
+          "basis": "A depth or stroke outside the reviewed transport scale cannot be published as calibrated analog."
+        },
+        {
+          "condition": "ack_only_no_analog",
+          "basis": "A monitor ACK without an actual depth sample cannot establish an analog source; listening is not a connected source."
+        },
+        {
+          "condition": "radio_disconnect",
+          "basis": "The manufacturer receiver disconnect event means the remote source is no longer online; input is cleared."
+        }
+      ],
+      "metadata_only": [
+        "firmware_version",
+        "manufacturer_field",
+        "precision_and_frame_metadata",
+        "assignments",
+        "unknown_actions",
+        "all_unbound",
+        "duplicate_assignments",
+        "extra_slots",
+        "layout_cache",
+        "missing_device_info_reply",
+        "monitor_ack_without_live_depth"
+      ],
+      "required_receipt": {
+        "scenarios": 22,
+        "negatives": 11,
+        "physical_channels": 80,
+        "proof_to_subscribe": 1,
+        "first_sample": 1,
+        "multikey": 1,
+        "release": 1,
+        "cleanup": 1,
+        "hardware_opened": 0,
+        "hotplug_cancel": 1,
+        "wired_priority": 1,
+        "unrelated_topology": 1,
+        "monitor_frame_evidence": 1,
+        "digital_reference_only": 1
+      },
+      "files": [
+        "src/HallJoyProject/HallJoy/aula_f75_backend.cpp",
+        "src/HallJoyProject/HallJoy/aula_f75_backend.h",
+        "src/HallJoyProject/HallJoy/aula_f75_client.h",
+        "src/HallJoyProject/HallJoy/aula_f75_protocol.h",
+        "src/HallJoyProject/HallJoy/aula_f75_factory.h",
+        "src/HallJoyProject/HallJoy/aula_f75_self_test.h",
+        "src/HallJoyProject/tests/aula_f75_protocol_test.cpp",
+        "src/HallJoyProject/HallJoy/support_log.cpp",
+        "src/HallJoyProject/HallJoy/keyboard_layout.cpp",
+        "src/HallJoyProject/tests/support_log_windows_test.cpp",
+        "docs/research/aula-f75-he-legacy-ansi.json",
+        "docs/research/aula-f75-he-current-ansi.json"
+      ]
+    },
+    {
+      "id": "mchose-gt75",
+      "model": "MCHOSE GT75 ANSI",
+      "argument": "--halljoy-mchose-gt75-self-test",
+      "marker": "MCHOSE_GT75_SELF_TEST",
+      "positive_cases": [
+        "factory81_fn",
+        "unknown_firmware",
+        "missing_info",
+        "unused_count",
+        "unused_base_magic",
+        "effective_profile_fallback",
+        "preenabled_preserved",
+        "settings_unavailable_passive",
+        "invalid_profile_passive",
+        "reset_armed_passive",
+        "lost_write_ack_readback",
+        "cleanup_after_profile_change",
+        "layout_cache_full",
+        "new_declared_maximum",
+        "missing_base_passive",
+        "attempt_spent_passive",
+        "unknown_frames_continue",
+        "quiet_hold_retained"
+      ],
+      "negative_cases": [
+        "foreign_id",
+        "boot_id",
+        "wrong_collection",
+        "open_failure",
+        "cancelled",
+        "partial_transfer",
+        "ownership_collision",
+        "invalid_depth",
+        "cancel_after_read"
+      ],
+      "hard_refusals": [
+        {
+          "condition": "foreign_id",
+          "basis": "Only exact manufacturer GT75 3837:302D is commanded."
+        },
+        {
+          "condition": "boot_id",
+          "basis": "Boot PID302F is not a normal GT75 control interface."
+        },
+        {
+          "condition": "wrong_collection",
+          "basis": "Reviewed framing requires usage1:0 and65-byte reports."
+        },
+        {
+          "condition": "open_failure",
+          "basis": "No handle exists for safe I/O."
+        },
+        {
+          "condition": "cancelled",
+          "basis": "Cancellation stops normal requests and restores owned settings with bounded cleanup."
+        },
+        {
+          "condition": "partial_transfer",
+          "basis": "An incomplete frame cannot prove a sensor measurement."
+        },
+        {
+          "condition": "ownership_collision",
+          "basis": "Two native protocols must not drive one target concurrently."
+        },
+        {
+          "condition": "invalid_depth",
+          "basis": "Zero declared maximum or depth greater than maximum has no meaningful analog conversion."
+        },
+        {
+          "condition": "cancel_after_read",
+          "basis": "A completion racing cancellation must not publish a new source or sensor value. Owned debug state still receives bounded cleanup."
+        }
+      ],
+      "metadata_only": [
+        "firmware_version",
+        "base_count",
+        "unused_base_magic",
+        "missing_info",
+        "missing_settings",
+        "missing_base",
+        "layout_cache",
+        "unknown_descriptors",
+        "stored_profile_invalid_write_only",
+        "reset_armed_write_only"
+      ],
+      "required_receipt": {
+        "scenarios": 18,
+        "negatives": 9,
+        "physical_channels": 81,
+        "proof_to_subscribe": 1,
+        "first_sample": 1,
+        "multikey": 1,
+        "release": 1,
+        "cleanup": 1,
+        "hotplug_cancel": 1,
+        "unrelated_topology": 1,
+        "hardware_opened": 0
+      },
+      "files": [
+        "src/HallJoyProject/HallJoy/mchose_gt75_backend.cpp",
+        "src/HallJoyProject/HallJoy/mchose_gt75_backend.h",
+        "src/HallJoyProject/HallJoy/mchose_gt75_client.h",
+        "src/HallJoyProject/HallJoy/mchose_gt75_protocol.h",
+        "src/HallJoyProject/HallJoy/mchose_gt75_factory.h",
+        "src/HallJoyProject/HallJoy/mchose_gt75_self_test.h",
+        "src/HallJoyProject/tests/mchose_gt75_protocol_test.cpp",
+        "docs/research/mchose-gt75-ansi.json",
+        "src/HallJoyProject/HallJoy/keyboard_layout.cpp",
+        "src/HallJoyProject/HallJoy/support_log.cpp"
+      ]
+    },
+    {
+      "id": "boom68-usb",
+      "argument": "--halljoy-boom68-self-test",
+      "marker": "BOOM68_SELF_TEST",
+      "hard_refusals": [
+        {
+          "condition": "foreign_descriptor",
+          "basis": "Only the exact USB tuple and BOOM68-USB product identify this target. The vendor also lists another supplier for this PID."
+        },
+        {
+          "condition": "wrong_framing",
+          "basis": "The reviewed unnumbered Sonix collection framing is required for request ownership."
+        },
+        {
+          "condition": "open_failure",
+          "basis": "No handle exists for the reviewed read-only transfer."
+        },
+        {
+          "condition": "cancelled",
+          "basis": "Cancellation must stop before issuing vendor commands."
+        },
+        {
+          "condition": "partial_transfer",
+          "basis": "A partial reply cannot establish a complete sensor page."
+        },
+        {
+          "condition": "ownership_collision",
+          "basis": "Another provider already owns this HID collection."
+        },
+        {
+          "condition": "invalid_depth_units",
+          "basis": "An impossible depth word cannot be accepted from a RAM page."
+        },
+        {
+          "condition": "unproven_68_echo",
+          "basis": "A mismatching ROM plus an echoed status request establishes no analog route."
+        },
+        {
+          "condition": "ambiguous_physical_channels",
+          "basis": "A missing physical channel invalidates the RAM map and an echoed status cannot replace it."
+        },
+        {
+          "condition": "invalid_status_units",
+          "basis": "A changed ROM reply with impossible status depth has no proven conversion."
+        },
+        {
+          "condition": "cancel_after_read",
+          "basis": "A completion racing cancellation cannot publish live values."
+        },
+        {
+          "condition": "matrix_reply_unavailable",
+          "basis": "A failed matrix request cannot establish a connected source."
+        },
+        {
+          "condition": "other_product_same_pid",
+          "basis": "The PID is shared by multiple suppliers. Another product name cannot select BOOM68."
+        },
+        {
+          "condition": "echoed_rom_read",
+          "basis": "A copied request body cannot establish the reviewed RAM layout."
+        }
+      ],
+      "metadata_only": [
+        "firmware_version",
+        "assignments_missing",
+        "duplicate_assignments",
+        "unbound_assignments",
+        "unknown_actions",
+        "remaps",
+        "extra_metadata_slots",
+        "layout_cache",
+        "axis_default"
+      ],
+      "required_receipt": {
+        "scenarios": 18,
+        "negatives": 14,
+        "physical_channels": 67,
+        "proof_to_subscribe": 1,
+        "first_sample": 1,
+        "multikey": 1,
+        "release": 1,
+        "cleanup": 1,
+        "readonly": 1,
+        "monitor_commands": 0,
+        "log_fields_retained": 1,
+        "hardware_opened": 0,
+        "device_info_commands": 0
+      },
+      "files": [
+        "src/HallJoyProject/HallJoy/boom68_client.h",
+        "src/HallJoyProject/HallJoy/boom68_factory.h",
+        "src/HallJoyProject/HallJoy/boom68_fixture.h",
+        "src/HallJoyProject/HallJoy/boom68_self_test.h",
+        "src/HallJoyProject/HallJoy/sonix_trial_evidence.h",
+        "src/HallJoyProject/HallJoy/aula_f75_backend.cpp",
+        "docs/research/langtu-boom68-usb-ansi.json"
+      ],
+      "model": "LANGTU BOOM68-USB",
+      "positive_cases": [
+        "stock_matrix",
+        "duplicate_assignments",
+        "all_unbound",
+        "missing_assignments",
+        "default_map",
+        "unknown_actions",
+        "remap",
+        "unrecognized_descriptor_version",
+        "short_report_matrix",
+        "single_remap",
+        "layout_cache_full",
+        "zero_depth_first",
+        "new_code_status68",
+        "unavailable_rom_status68",
+        "different_physical_channel_order",
+        "extra_unmapped_channel",
+        "default_axis",
+        "alternate_axis"
+      ],
+      "negative_cases": [
+        "foreign_descriptor",
+        "wrong_framing",
+        "open_failure",
+        "cancelled",
+        "partial_transfer",
+        "ownership_collision",
+        "invalid_depth_units",
+        "unproven_68_echo",
+        "ambiguous_physical_channels",
+        "invalid_status_units",
+        "cancel_after_read",
+        "matrix_reply_unavailable",
+        "other_product_same_pid",
+        "echoed_rom_read"
+      ]
+    },
+    {
+      "id": "spark-su75",
+      "model": "Everglide SU75 Pro / SU75 Pro V2 (SU75 Ultra)",
+      "argument": "--halljoy-spark-su75-self-test",
+      "marker": "SPARK_SU75_SELF_TEST",
+      "positive_cases": [
+        "v1_factory",
+        "v1_all_unbound",
+        "v1_all_aliases",
+        "v1_unknown_assignments",
+        "v1_remap",
+        "v1_missing_layout_row",
+        "v1_extra_nonphysical_assignments",
+        "v1_sparse",
+        "v1_firmware_metadata",
+        "v1_unknown_board_keeps_analog",
+        "v2_factory",
+        "v2_all_unbound",
+        "v2_all_aliases",
+        "v2_unknown_assignments",
+        "v2_remap",
+        "v2_missing_layout_row",
+        "v2_extra_nonphysical_assignments",
+        "v2_sparse",
+        "v2_firmware_metadata",
+        "v2_unknown_board_keeps_analog"
+      ],
+      "negative_cases": [
+        "foreign_vid",
+        "wrong_page",
+        "wrong_usage",
+        "not_keyboard",
+        "wrong_route_row",
+        "transport_read_failure"
+      ],
+      "hard_refusals": [
+        {
+          "condition": "foreign_vid",
+          "basis": "SparkLink commands are limited to the official VID/PID identity list."
+        },
+        {
+          "condition": "wrong_page",
+          "basis": "The reviewed channel is FFB0:0001; other vendor collections are not equivalent."
+        },
+        {
+          "condition": "wrong_usage",
+          "basis": "The reviewed vendor collection uses usage1; another collection is not the channel."
+        },
+        {
+          "condition": "not_keyboard",
+          "basis": "Device-info type1 is required to establish a keyboard speaking this protocol."
+        },
+        {
+          "condition": "wrong_route_row",
+          "basis": "A mismatched row echo cannot be interpreted as the requested physical sensors."
+        },
+        {
+          "condition": "transport_read_failure",
+          "basis": "No payload was received from the transport; synthetic depth must not be substituted."
+        }
+      ],
+      "metadata_only": [
+        "firmware_version",
+        "pcb_version",
+        "unbound_assignments",
+        "aliases",
+        "remaps",
+        "unknown_assignments",
+        "missing_layout_row",
+        "unknown_board_layout_only"
+      ],
+      "required_receipt": {
+        "scenarios": 20,
+        "negatives": 6,
+        "physical_channels": 81,
+        "proof_to_subscribe": 1,
+        "first_sample": 1,
+        "multikey": 1,
+        "release": 1,
+        "cleanup": 1,
+        "hardware_opened": 0
+      },
+      "files": [
+        "src/HallJoyProject/HallJoy/backend_sparklink.inc",
+        "src/HallJoyProject/HallJoy/backend.cpp",
+        "src/HallJoyProject/HallJoy/sparklink_su75.h",
+        "src/HallJoyProject/HallJoy/sparklink_su75_self_test.h"
+      ]
+    },
+    {
+      "id": "akko3113",
+      "model": "Akko MOD007 V5 HE (3113)",
+      "argument": "--halljoy-akko3113-self-test",
+      "marker": "AKKO3113_SELF_TEST",
+      "positive_cases": [
+        "tester_3113_factory",
+        "all_aliases",
+        "all_unbound",
+        "single_bound",
+        "unknown_actions",
+        "physical_remap",
+        "nonphysical_poison",
+        "malformed_assignment",
+        "missing_profile",
+        "legacy_no_feature",
+        "precision_1000",
+        "layout_cache_full",
+        "incomplete_assignments",
+        "new_firmware_version"
+      ],
+      "negative_cases": [
+        "foreign_board",
+        "foreign_pid",
+        "wrong_collection",
+        "transport_open_failure",
+        "unsupported_units",
+        "invalid_depth",
+        "echo_only_depth",
+        "short_feature",
+        "inconsistent_board",
+        "ownership_collision",
+        "cancelled"
+      ],
+      "hard_refusals": [
+        {
+          "condition": "foreign_board",
+          "basis": "Only exact manufacturer board3113 / USB3151:5029 is added here; unknown boards must not inherit its physical map."
+        },
+        {
+          "condition": "foreign_pid",
+          "basis": "The official board3113 tuple is3151:5029; conflicting PIDs require their own reviewed implementation."
+        },
+        {
+          "condition": "wrong_collection",
+          "basis": "Only the vendor feature collection with usage2 and65-byte feature framing carries the reviewed requests."
+        },
+        {
+          "condition": "transport_open_failure",
+          "basis": "Without an opened handle no reviewed feature transaction can be performed."
+        },
+        {
+          "condition": "unsupported_units",
+          "basis": "An explicit E6 precision code outside the documented enum has no established conversion."
+        },
+        {
+          "condition": "invalid_depth",
+          "basis": "Out-of-scale data at a physical sensor is not an established calibrated depth sample."
+        },
+        {
+          "condition": "echo_only_depth",
+          "basis": "An unprocessed shared request buffer is not a live depth reply."
+        },
+        {
+          "condition": "short_feature",
+          "basis": "An incomplete feature transfer cannot establish a complete page or correct framing."
+        },
+        {
+          "condition": "inconsistent_board",
+          "basis": "Changing identity within one exclusive session does not establish the intended target."
+        },
+        {
+          "condition": "ownership_collision",
+          "basis": "A target already claimed by another protocol cannot be driven concurrently."
+        },
+        {
+          "condition": "cancelled",
+          "basis": "Stop must prevent any further device request and clear input."
+        }
+      ],
+      "metadata_only": [
+        "firmware_version",
+        "assignments",
+        "assignment_count",
+        "duplicate_assignments",
+        "all_unbound",
+        "unknown_assignment_actions",
+        "nonphysical_slots",
+        "partial_assignment_transaction",
+        "layout_cache",
+        "optional_legacy_features"
+      ],
+      "required_receipt": {
+        "scenarios": 14,
+        "negatives": 11,
+        "physical_channels": 80,
+        "proof_to_subscribe": 1,
+        "first_sample": 1,
+        "multikey": 1,
+        "release": 1,
+        "cleanup": 1,
+        "hardware_opened": 0,
+        "metadata_optional": 1,
+        "read_only": 1
+      },
+      "files": [
+        "src/HallJoyProject/HallJoy/rongyuan_snapshot_backend.cpp",
+        "src/HallJoyProject/HallJoy/rongyuan_snapshot_protocol.h",
+        "src/HallJoyProject/HallJoy/rongyuan_snapshot_evidence.h",
+        "src/HallJoyProject/HallJoy/rongyuan_snapshot_self_test.h",
+        "docs/research/akko-mod007-v5-he-ansi.json",
+        "src/HallJoyProject/HallJoy/support_log.cpp",
+        "src/HallJoyProject/tests/support_log_windows_test.cpp"
+      ]
+    }
+  ]
+}

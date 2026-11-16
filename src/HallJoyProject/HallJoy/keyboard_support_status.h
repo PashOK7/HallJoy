@@ -15,7 +15,7 @@ inline constexpr NoticeMask LimitedModels = Mad68DualLimited | Mix87Limited | Co
 // the device is on the bus but its firmware version was not recognized, so the
 // RAM depth path is withheld (the yellow notice then asks for the log).
 inline NoticeMask ResearchNotice(unsigned protocol, unsigned vid, unsigned pid,
-                               bool present, bool connected, bool accessBusy=false) noexcept {
+                               bool present, bool connected, bool accessBusy=false, std::wstring_view={}) noexcept {
     if (protocol == 33 && vid == 0x1b1c && pid == 0x2b0e && present && !connected && !accessBusy)
         return CorsairVanguardPending;
     if (protocol == 34 && vid == 0x1b1c && pid == 0x2b14 && present && !connected && !accessBusy)

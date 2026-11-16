@@ -43,7 +43,7 @@ require(host, "EXTENDED_STARTUPINFO_PRESENT", "extended process startup is enabl
 require(host, "command.data(), nullptr, nullptr, TRUE", "CreateProcess enables explicit handle inheritance")
 require(host, "BCryptGenRandom(", "launch generation token uses the system CSPRNG")
 
-require(shared, "kVersion = 15", "shared schema version records fixed-payload removal")
+require(shared, "kVersion = 16", "shared schema version records optional received-publication history control")
 require(shared, "providerV2PlaneDualCoherent", "shared schema independently labels the variable-plane dual capture")
 require(shared, "providerV2PlaneStatus", "shared schema carries only bounded V2-plane control state")
 require(shared, "volatile LONG ownerPid", "shared schema binds the owner PID")

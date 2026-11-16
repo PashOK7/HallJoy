@@ -31,6 +31,11 @@ extern bool KeyboardSubpages_TestLayoutEditor();
 extern bool KeyboardSubpages_TestLayoutPicker();
 extern bool KeyboardLayout_TestCatalogInventory();
 extern bool KeySettingsPanel_TestHiddenControls();
+#ifdef HALLJOY_DISABLE_MIDI
+extern bool RemapPanel_TestGamepadOnly();
+#else
+extern bool MidiSettingsPage_TestInteractions();
+#endif
 namespace {
 void Check(bool value, const char* reason) { if (!value) throw std::runtime_error(reason); }
 void Write(const fs::path& path, const std::string& value) {
@@ -491,6 +496,32 @@ bool HallJoy_RunProfileTransactionTests() {
         result << "overlay_layout_selection_and_persistence=PASS layout_editor_production_events=PASS\n";
         Check(KeySettingsPanel_TestHiddenControls(), "configuration sync exposed hidden backing controls");
         result << "configuration_hidden_controls_layout_selection_resize=PASS\n";
+#ifdef HALLJOY_DISABLE_MIDI
+        BindingsSnapshot beforeMidiTest;
+        Bindings_Capture(beforeMidiTest);
+        const auto midiProfile = root / "prior-midi-profile.ini";
+        Write(midiProfile, "[Pad1_Axes]\nLX_Plus=26\n[Midi]\nEnabled=1\n"
+            "TouchVersion=2\nPortUtf16=0058\nK4=61\n");
+        Check(Profile_LoadIni(midiProfile.c_str()), "prior MIDI profile failed to load");
+        Check(!halljoy::midi::NeedsAnalog() && !Bindings_IsHidBound(4) &&
+              Bindings_GetAxis(Axis::LX).plusHid() == 26, "MIDI leaked into active bindings");
+        Bindings_ClearHid(4);
+        Check(RemapPanel_TestGamepadOnly(), "gamepad-only Remap hit testing failed");
+        BindingsSnapshot saved;
+        Bindings_Capture(saved);
+        const auto savedProfile = root / "saved-midi-compat.ini";
+        Write(savedProfile, "[HallJoyPersistence]\nSchemaVersion=1\nKind=ProfileSettings\n");
+        BindingsSnapshot reopened;
+        Check(Profile_WriteBindingsSnapshot(savedProfile.c_str(), saved) &&
+              Profile_PrepareIni(savedProfile.c_str(), reopened), "compatibility round trip failed");
+        Check(reopened.midi->enabled && reopened.midi->keys[4] == 61 &&
+              reopened.midi->port == L"X", "dormant MIDI profile data was lost");
+        Bindings_Apply(beforeMidiTest);
+        result << "gamepad_only_remap_and_dormant_profile_roundtrip=PASS\n";
+#else
+        Check(MidiSettingsPage_TestInteractions(), "MIDI settings interaction/retained viewport test failed");
+        result << "midi_settings_curve_thresholds_scroll_cache_preserves_routes=PASS\n";
+#endif
         Check(halljoy::profiles::test::Run(), "game profile catalog/activation/recovery tests failed");
         Check(ProfilesPage_Test(), "profiles page browse/scroll/selection tests failed");
         Check(CustomPage_TestPrintTree(), "page snapshot (print tree) tests failed");

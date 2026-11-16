@@ -116,7 +116,9 @@ require(global_page, "Global_SetScrollY", "Global settings owns themed scrolling
 require(subpages, "OverlayPage_SetScrollY", "Input Overlay owns themed scrolling")
 require(subpages, "Config_SetScrollY", "Configuration owns themed scrolling")
 require(subpages, "MouseCustom_PageProc", "Mouse settings owns themed scrolling")
-require(subpages, "int cardH = std::max(1, availH / rows);", "Gamepad Tester adapts cards instead of overflowing")
+require(subpages, "int cardH = rows ? std::max(1, availH / rows) : 0;", "Gamepad Tester adapts cards and avoids division by zero at 0/4")
+require(subpages, "Backend_GetVirtualGamepadsEnabled() ?", "Gamepad Tester honors disabled gamepads")
+require(subpages, "MidiTester_Draw(hWnd, memDC, midiCard, midi)", "MIDI Tester uses the existing tester surface at 0/4")
 
 if subpages.count("FactoryReset_Request(&error)") != 1:
     raise SystemExit("FAIL: factory reset UI action exists outside the intended Global page")

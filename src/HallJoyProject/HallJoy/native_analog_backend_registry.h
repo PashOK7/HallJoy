@@ -51,6 +51,7 @@ void NativeAnalogBackends_NotifyDeviceChange();
 
 bool NativeAnalogBackends_AnyProtocolDevicePresent();
 bool NativeAnalogBackends_AnyConnected();
+void NativeAnalogBackends_VisitObservations(halljoy::observation::Sink sink);
 NativeAnalogReadResult NativeAnalogBackends_ReadMilli(std::uint16_t hidUsage);
 
 // Reads one backend's source-preserving common V2 snapshot.  The caller picks

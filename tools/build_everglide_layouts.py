@@ -17,6 +17,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'docs/research/everglide-layout-sources/su75-pro-geometry.json'
 REPORT = ROOT / 'docs/research/everglide-layout-reports/everglide_su75_pro_ansi.json'
+REVISION_SOURCE = ROOT / 'docs/research/everglide-layout-sources/su75-revision-identities.json'
+V2_REPORT = REPORT.with_name("everglide_su75_pro_v2_ansi.json")
 
 # (label, HID usage, x in units, width in units) per row, from the screenshot.
 ROWS = [
@@ -66,11 +68,11 @@ def report_bytes(source_sha):
     assert len(keys) == 81 and len({k['hid'] for k in keys}) == 81
     report = {'schema': 1, 'id': 'everglide_su75_pro_ansi', 'brand': 'Everglide', 'model': 'SU75 Pro',
               'variant': 'ANSI', 'name': 'Everglide SU75 Pro ANSI', 'status': 'ready', 'unresolved': [],
-              'keys': keys, 'identity': {'protocol': 'sparklink', 'products': []},
+              'keys': keys, 'identity': {'protocol': 'sparklink', 'products': ['SU75PRO-3002-00300002-ANSI']},
               'sources': [{'path': SOURCE.relative_to(ROOT).as_posix(), 'sha256': source_sha,
                            'url': EVIDENCE[0]['url']}],
               'notes': ['Transcribed from the official driver key map (81 keys), 42 px keys on a 44 px pitch.',
-                        'SparkLink V2 1CA6:3002; manual selection (SparkLink publishes no layout token).',
+                        'SparkLink V2 1CA6:3002 / board00300002; automatic selection after live analog proof.',
                         'Fn uses HallJoy code 0x409 (SparkLink 0xF101).']}
     return (json.dumps(report, indent=1) + '\n').encode()
 
@@ -81,13 +83,25 @@ def main():
     args = parser.parse_args()
     source = source_bytes()
     report = report_bytes(hashlib.sha256(source).hexdigest())
-    for path, data in ((SOURCE, source), (REPORT, report)):
+    import copy
+    revisions = json.loads(REVISION_SOURCE.read_bytes())
+    assert len(revisions['versions']) == 9
+    factory = [[1033 if x == 0xf101 else x for x in row if x] for row in revisions['matrix']]
+    assert factory == [[key[1] for key in row] for row in ROWS]
+    first = json.loads(report)
+    second = copy.deepcopy(first)
+    second.update(id='everglide_su75_pro_v2_ansi', model='SU75 Pro V2 / SU75 Ultra', name='Everglide SU75 Pro V2 (SU75 Ultra) ANSI')
+    second['identity']['products'] = ['SU75ULTRA-3007-00300007-ANSI']
+    second['sources'].append({'path': REVISION_SOURCE.relative_to(ROOT).as_posix(), 'sha256': hashlib.sha256(REVISION_SOURCE.read_bytes()).hexdigest(), 'url': revisions['pcb_source']})
+    second['notes'] = ['Exact XS125 1CA6:3007 / board00300007; automatic selection after live analog proof.', 'All 81 factory keys and physical arrangement match the SU75 Pro ANSI transcription.', 'Fn uses HallJoy code 0x409 (SparkLink 0xF101).']
+    v2 = (json.dumps(second, indent=1) + '\n').encode()
+    for path, data in ((SOURCE, source), (REPORT, report), (V2_REPORT, v2)):
         if args.write:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
         elif path.read_bytes() != data:
             raise SystemExit('Out of date: ' + path.relative_to(ROOT).as_posix())
-    print('EVERGLIDE_LAYOUTS=PASS models=1 keys=81 sha256=' + hashlib.sha256(report).hexdigest())
+    print('EVERGLIDE_LAYOUTS=PASS models=2 keys=162 sha256=' + hashlib.sha256(report).hexdigest())
 
 
 if __name__ == '__main__':

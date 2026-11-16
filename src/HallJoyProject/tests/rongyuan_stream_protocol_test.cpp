@@ -1,4 +1,5 @@
 #include "rongyuan_stream_protocol.h"
+#include "generated/layout_pipeline/identities.h"
 #include "rongyuan_identity_budget.h"
 #include "rongyuan_press_timing.h"
 #include "rongyuan_stream_reconcile.h"
@@ -44,6 +45,16 @@ int main() {
   assert(Find(alias.board,alias.vid,alias.pid)==Find(alias.canonicalBoard,alias.canonicalVid,alias.canonicalPid));
   assert(Find(alias.board,alias.vid,alias.pid) && !Find(alias.board,alias.vid^1,alias.pid));
  }
+ // The legacy F68 uses the same exact geometry as its canonical board profile.
+ const auto* f68=Find(2634,0x3151,0x5029);
+ assert(f68 && f68==Find(2634,0x3151,0x5030));
+ const auto f68Token=layout_identity::Token("rongyuan-stream",f68->product);
+ assert(f68Token && std::wstring_view(layout_identity::Match(f68Token))==L"FREEWOLF F68 ANSI");
+ assert(!keyboard_support::NativeNotice(22,f68Token,true,0x5029) &&
+        !keyboard_support::NativeNotice(22,f68Token,true,0x5030));
+ assert(keyboard_support::NativeNotice(22,f68Token,true,0x502f)==keyboard_support::RongYuanStream);
+ assert(!Find(2594,0x3151,0x5029));
+ assert(!layout_identity::Token("rongyuan-stream","RY1B-2594"));
  // FUN60 Pro board 2304 (3151:502D) uses the 2600 profile: all 61 keys,
  // including [ ' \ in slots 68/69/80 (official matrix identical to 2600).
  const Model* fun60=Find(2304,0x3151,0x502d);

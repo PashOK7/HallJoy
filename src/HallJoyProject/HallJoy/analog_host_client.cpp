@@ -26,6 +26,10 @@
 #include <vector>
 
 #include "analog_host_client.h"
+#include "analog_observation_snapshot.h"
+#include "analog_observation_provider.h"
+#include "analog_host_observation_parent.h"
+#include "provider_v2_controller_shadow.h"
 #include "coherent_telemetry_cache.h"
 #include "debug_event_handles.h"
 #include "analog_host_shared.h"
@@ -901,6 +905,7 @@ namespace
         std::uint64_t snapshotTimestampUs = 0;
         int pluginTelemetryCount = 0;
         ULONGLONG nextTelemetryRefresh = 0;
+        halljoy::observation::host_history::Child observationHistory;
 
         for (;;)
         {
@@ -908,6 +913,7 @@ namespace
                 WaitForSingleObject(ownerProcess, 0) == WAIT_OBJECT_0)
                 break;
 
+            observationHistory.Refresh(*shared);
             HostSetCheckpoint(shared, Checkpoint_WaitForPoll);
             if (api.waitForSnapshotUpdate)
             {
@@ -1251,6 +1257,14 @@ namespace
                 ++consecutivePluginErrors;
             }
 
+            observationHistory.Capture(*shared,[&](auto put) {
+                if(result<0) return; // Explicit empty frame fences lost devices.
+                if(providerPlaneDualCoherent)
+                    halljoy::observation::VisitProviderObservations(buffers->providerPlaneHeader,
+                        buffers->providerPlaneDevices.data(),buffers->providerPlaneSamples.data(),put);
+                else halljoy::observation::VisitDenseObservations(buffers->validDenseDevices.data(),
+                    static_cast<unsigned>(validDenseDeviceCount),snapshotTimestampUs,put);
+            });
             HostSetCheckpoint(shared, Checkpoint_PublishSnapshot);
             PublishSnapshot(
                 shared, buffers->validCodes.data(), buffers->validValues.data(),
@@ -2547,6 +2561,7 @@ namespace
             Sleep(INFINITE);
         }
 #endif
+        halljoy::observation::host_history::Parent observationHistory(*g_client.shared,g_client.job);
         HANDLE waits[2] = { g_client.stopEvent, g_client.snapshotEvent };
         while (!g_client.stopping.load(std::memory_order_acquire))
         {
@@ -2556,6 +2571,22 @@ namespace
             if (result == WAIT_OBJECT_0 + 1)
             {
                 (void)CaptureProviderPlaneIntoBroker();
+                const bool capturing=halljoy::observation::enabled.load(std::memory_order_acquire);
+                const auto tracker=capturing ? halljoy::observation::uap.load(std::memory_order_acquire) : nullptr;
+                const bool ordered=observationHistory.Update(tracker,g_client.expectedHostPid.load());
+                if (tracker && !ordered) {
+                    halljoy::uap_parent_snapshot::SnapshotV1 snapshot{};
+                    if(AnalogHostClient_CaptureTickSnapshot(&snapshot)) {
+                        auto lease=g_client.providerSnapshotBroker.Acquire();
+                        const bool coherent=lease && halljoy::provider_v2_shadow::MatchesCapturedPublication(lease.Metadata(),snapshot);
+                        if(!snapshot.providerV2PlaneDualCoherent || coherent)
+                            tracker->Frame(g_client.nonce ^ g_client.expectedHostPid.load(),snapshot.publicationGeneration,[&](auto put) {
+                                if(coherent) halljoy::observation::VisitProviderObservations(lease.Header(),lease.Devices(),lease.Samples(),put);
+                                else halljoy::observation::VisitDenseObservations(snapshot.denseDevices.data(),snapshot.denseDeviceCount,
+                                    snapshot.publicationTimestampUs,put);
+                            });
+                    }
+                }
                 RealtimeLoop_NotifyInputChanged();
             }
             else
@@ -2811,6 +2842,7 @@ namespace
         g_client.shared->magic = kMagic;
         g_client.shared->version = kVersion;
         g_client.shared->structSize = sizeof(SharedState);
+        g_client.shared->observationCaptureWanted = halljoy::observation::enabled.load(std::memory_order_acquire) ? 1 : 0;
         InterlockedExchange(&g_client.shared->ownerPid, static_cast<LONG>(g_client.ownerPid));
         InterlockedExchange64(&g_client.shared->launchNonce, static_cast<LONG64>(g_client.nonce));
         g_client.shared->status = Status_Stopped;
@@ -2993,6 +3025,14 @@ int AnalogHostClient_Initialise()
         InterlockedCompareExchange(&g_client.shared->status, 0, 0),
         CheckpointName(InterlockedCompareExchange(&g_client.shared->checkpoint, 0, 0)));
     return WootingAnalogResult_Failure;
+}
+
+void AnalogHostClient_SetObservationCapture(bool enabled) noexcept
+{
+    AcquireSRWLockShared(&g_client.lock);
+    if(g_client.shared) InterlockedExchange(&g_client.shared->observationCaptureWanted,enabled?1:0);
+    if(g_client.snapshotEvent) SetEvent(g_client.snapshotEvent);
+    ReleaseSRWLockShared(&g_client.lock);
 }
 
 bool AnalogHostClient_IsInitialised()

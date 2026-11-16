@@ -19,6 +19,7 @@ for current records and preserved decisions. No application/device is started.
 | Protocol / firmware | [Behavior review](development/FIRMWARE_BEHAVIOR_REVIEW.md), [foundation](current/FIRMWARE_FOUNDATION.md), [corpus](current/FIRMWARE_CORPUS.md) | `native_analog_backends.def`, `firmware_inspect.py` |
 | Logs / tester issue | [Diagnostics contract](development/SUPPORT_DIAGNOSTICS_CONTRACT.md) | `analyze_support_log.py`, `support_log.cpp`, `input_trace.cpp` |
 | UI / scrolling | [UI architecture](development/CUSTOM_UI_ARCHITECTURE.md), [transitions](current/TAB_TRANSITIONS_2026-10-03.md) | `custom_page_surface.h`, `custom_page_controls.h` |
+| MIDI | [Final product contract and roadmap](development/MIDI_ROADMAP.md), [current runtime](current/MIDI_RUNTIME_2026-11-08.md), [M2 touch](current/MIDI_M2_TOUCH_2026-11-15.md), [MIDI settings UI](current/MIDI_SETTINGS_UI_2026-11-15.md) | `midi_touch.h`, `midi_output.cpp`, `midi_settings_page.cpp` |
 | Profiles / persistence | [Profiles v2](current/GAME_PROFILES_V2_2026-10-03.md), [recovery](current/STARTUP_PROFILE_RECOVERY_2026-09-11.md) | `global_profiles.cpp`, `profile_ini.cpp`, `settings_ini.cpp` |
 | K4 onboard / wireless | [Onboard](current/K4_ONBOARD_ONLY_2026-10-03.md), [wireless](current/K4_WIRELESS_GAMEPAD_2026-10-24.md) | `keychron_onboard_backend.cpp`, `firmware/` |
 | Optional installer / portable helpers | [Packaging](development/WINDOWS_INSTALLER.md), [portable data](PORTABLE.md) | `build_windows_installer.ps1`; default BUILD remains EXE-only |
@@ -34,6 +35,8 @@ are under `tools/`. The focused command prints verified repository-relative path
   values. A remote/latest claim requires a live GitHub read.
 - [AG75](current/AULA_AG75_2026-10-29.md),
   [Mix 87 III](current/MCHOSE_MIX87III_FIRMWARE_VERSION_2026-10-29.md),
+  [GT75](current/MCHOSE_GT75_2026-11-14.md),
+  [Ace 60](current/MCHOSE_ACE60_IMPLEMENTATION_2026-11-15.md),
   [K552-M](current/REDRAGON_KUMARA_K552M_2026-10-28.md),
   [RT75 Pro](current/YUNZII_RT75PRO_2026-10-28.md),
   [X82 HE retry](current/X82HE_BUSY_INVENTORY_2026-10-26.md).

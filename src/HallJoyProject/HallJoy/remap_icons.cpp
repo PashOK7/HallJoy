@@ -10,6 +10,7 @@
 #pragma comment(lib, "gdiplus.lib")
 
 #include "remap_icons.h"
+#include "midi_profile.h"
 #include "remap_abxy.h"
 #include "remap_startselect.h"
 #include "remap_bumpers.h"
@@ -95,6 +96,22 @@ const RemapIconDef& RemapIcons_Get(int idx)
 {
     static_assert(sizeof(g_icons) / sizeof(g_icons[0]) > 0);
     const int n = RemapIcons_Count();
+#ifndef HALLJOY_DISABLE_MIDI
+    if (idx >= n && idx < n + static_cast<int>(halljoy::midi::kAddressCount)) {
+        struct MidiGlyphs {
+            std::array<std::wstring, halljoy::midi::kAddressCount> labels;
+            std::array<RemapIconDef, halljoy::midi::kAddressCount> defs;
+            MidiGlyphs() {
+                for (unsigned a = 0; a < halljoy::midi::kAddressCount; ++a) {
+                    labels[a] = halljoy::midi::NoteName(a % 128);
+                    defs[a] = {labels[a].c_str(), BindingAction_Midi(a), RGB(178, 150, 240), false};
+                }
+            }
+        };
+        static const MidiGlyphs midi;
+        return midi.defs[static_cast<std::size_t>(idx - n)];
+    }
+#endif
     if (idx < 0)
         idx = 0;
     else if (idx >= n)
@@ -250,7 +267,7 @@ void RemapIcons_DrawGlyphAA(HDC hdc, const RECT& rc, int iconIdx, bool brightFil
     fmt.SetLineAlignment(StringAlignmentCenter);
     fmt.SetFormatFlags(StringFormatFlagsNoWrap);
 
-    float fs = std::clamp(w * 0.38f, 10.0f, 16.0f);
+    float fs = std::clamp(w * (BindingAction_IsMidi(def.action) ? 0.29f : 0.38f), 8.0f, 16.0f);
     Font font(L"Segoe UI", fs, FontStyleBold, UnitPixel);
     g.DrawString(def.label, -1, &font, r, &fmt, &txt);
 }

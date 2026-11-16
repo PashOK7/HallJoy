@@ -35,6 +35,9 @@ static BOOL FakeRead(HANDLE,LPVOID buf,DWORD n,LPDWORD,LPOVERLAPPED o){
     if(!pending){if(!rebooting)StreamStep(p);if(!p[0]){SetLastError(WAIT_TIMEOUT);return FALSE;}return TRUE;}
     pending=false;std::memcpy(p,req.data(),64);p[0]=0xaa;
     if(req[1]==3 && scenario==13){p[8]=0x21;p[9]=1;std::memcpy(p+10,"Nov  8 2025,15:59:23",20);}
+    else if(req[1]==3 && scenario>=17){
+        p[8]=scenario==18?0x32:0x20;p[9]=1;std::memcpy(p+10,"Jan 10 2026,14:58:22",20);
+    }
     else if(req[1]==3){p[8]=0x16;p[9]=scenario==11?2:1;std::memcpy(p+10,"Aug 28 2025,10:45:06",20);}
     if(req[1]==4)for(unsigned i=0;i<req[4];++i)p[8+i]=req[5]+i<6?base[req[5]+i]:0;
     if(req[1]==5)for(unsigned i=0;i<req[4];++i)p[8+i]=settings[req[5]+i];
@@ -55,6 +58,20 @@ static BOOL FakeRead(HANDLE,LPVOID buf,DWORD n,LPDWORD,LPOVERLAPPED o){
 #undef GetOverlappedResult
 void StreamStep(unsigned char* p){
     ++stream;
+    if(scenario>=17){
+        if(scenario==19){assert(!Connected());StopTest();return;}
+        p[0]=0xa0;p[1]=16;p[3]=26;p[15]=170;
+        if(stream==1){assert(!Connected());return;} // zero depth proves the real source
+        assert(Connected());
+        if(stream==2){p[7]=85;return;}
+        if(stream==3){assert(Get(26)==500);p[1]=0xf0;p[2]=0xff;p[3]=1;p[7]=170;return;}
+        if(stream==4){assert(Get(26)==500 && Get(halljoy::keycode::kFn)==1000);return;}
+        assert(Get(26)==0 && Get(halljoy::keycode::kFn)==1000);
+        NativeAnalogBackendTelemetry t{};Telemetry(&t);
+        assert(t.connected && t.productId==0x2101 && t.mappedKeys==61 && t.activeKeys==1);
+        assert(t.verifiedLayoutToken==halljoy::layout_identity::Token("mchose-ace60","ACE60-41E4-2101"));
+        StopTest();return;
+    }
     assert(Connected()); // live before the first key report (idle keyboard)
     if(scenario==16){
         // A key outside the reviewed set is ignored; the session and later keys continue.
@@ -85,6 +102,7 @@ void StreamStep(unsigned char* p){
 }
 void StopTest(){g_stop.store(true);}
 void SupportLog_Event(const char*,std::uint64_t,SupportLogDetail) noexcept{}
+void SupportLog_Evidence(const char*,bool) noexcept{}
 namespace halljoy::keyboard_support {void ReportCommunicationAnomaly(unsigned) noexcept{}}
 bool NativeAnalogRouting_Claim(std::uint16_t,std::uint16_t,const wchar_t*,NativeAnalogProtocol){return true;}
 bool NativeAnalogRouting_IsClaimedBy(const wchar_t*,NativeAnalogProtocol){return false;}
@@ -161,5 +179,14 @@ int main(){
     {   Session session(Candidate{L"synthetic"});halljoy::jet75::Base value{};
         pending=false;assert(!session.ReadBase(value,true,GetTickCount64()));
         assert(GetLastError()==WAIT_TIMEOUT && !pending); }
+    for(scenario=17;scenario<=19;++scenario){
+        Reset();g_aceAttempted=false;g_stop.store(false);
+        if(scenario==19)settings[0]|=1;
+        Candidate candidate{L"synthetic",halljoy::jet75::FindModel(0x41e4,0x2101)};
+        Run(candidate);
+        assert(writes==(scenario==17?2u:0u) && stream==(scenario==19?1u:5u));
+        assert(!(settings[7]&8) && !Connected() && Get(halljoy::keycode::kFn)==0);
+    }
+    puts("Ace60 lifecycle PASS: reviewed enable and restore, future-version live read, reset flag left alone, zero first sample, Fn, chord, release, layout token");
     puts("Jet75 lifecycle PASS: auto-enable, pre-enabled no redundant enable, normal/early stop cleanup, ambiguous enable cleanup, protocol not answered, newer firmware admitted, foreign layout not written, stream rejection, stop during write, disconnect, profile switch, reboot-on-write reconnect, no flash retry loop, Ace68-II model, older writer without reboot, Ace 60 Pro firmware base rule, unresolvable base not written, unknown key ignored");
 }

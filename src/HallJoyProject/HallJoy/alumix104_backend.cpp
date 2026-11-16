@@ -1081,7 +1081,7 @@ const NativeAnalogBackendDescriptor& Alumix104_GetNativeBackendDescriptor() {
             NativeAnalogBackendFlag_ReversibleControlProbe |
             NativeAnalogBackendFlag_RequiresRawInput,
         nullptr, &Start, &Stop, &Notify, &Present, &Connected, &Owns, &Get,
-        &Telemetry};
+        &Telemetry, nullptr, +[](halljoy::observation::Sink sink) { g_depth.Observations(sink); }};
     return descriptor;
 }
 

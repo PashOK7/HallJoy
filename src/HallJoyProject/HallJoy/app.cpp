@@ -14,6 +14,7 @@
 #include "logitech_rapid_backend.h"
 #include "melgeek_made68air_backend.h"
 #include "rongyuan_stream_backend.h"
+#include "aula_f75_backend.h"
 #include "irok_na87_diagnostic.h"
 #include "aula_mini60_diagnostic.h"
 #include "drunkdeer_nuphy_probe.h"
@@ -1784,6 +1785,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                 LogitechRapid_ObserveRawKey(ri->header.hDevice, hid, isDown);
                 MelGeekMade68Air_ObserveRawKey(ri->header.hDevice, hid, isDown);
                 RongYuanStream_ObserveRawKey(ri->header.hDevice, hid, isDown);
+                AulaF75_ObserveRawKey(ri->header.hDevice, hid, isDown);
                 InputTrace_OsKey(reinterpret_cast<std::uintptr_t>(ri->header.hDevice), hid, isDown);
                 if (isDown)
                     halljoy::input_privilege::detector.Digital(hid, false, GetTickCount64());
@@ -2296,10 +2298,14 @@ int App_Run(HINSTANCE hInst, int nCmdShow)
     }
 #endif
 
-    // Real UI run from here on (test modes returned above): the first D3D
-    // device and DirectWrite fonts load in parallel with settings, profiles
-    // and window creation instead of blocking the first UI frame.
-    halljoy::keyboard_canvas::WarmUpAsync();
+    // Real UI runs warm D3D/fonts in parallel with profile initialization.
+    // A file-only profile probe below must not create even a hidden warm-up
+    // window or initialize graphics/third-party window hooks.
+    bool fileOnlyProfileStartup = false;
+#if defined(HALLJOY_ANALOG_SIMULATOR)
+    fileOnlyProfileStartup = wcsstr(GetCommandLineW(), L"--halljoy-test-profile-startup-only") != nullptr;
+#endif
+    if (!fileOnlyProfileStartup) halljoy::keyboard_canvas::WarmUpAsync();
     const auto profileStart = halljoy::perf::Now();
     const auto startupProfile = GlobalProfiles_InitializeStartup();
     halljoy::perf::Span("app.profiles_startup", 0, profileStart);

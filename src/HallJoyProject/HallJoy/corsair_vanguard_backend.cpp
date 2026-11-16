@@ -366,6 +366,6 @@ const NativeAnalogBackendDescriptor& CorsairVanguard_GetNativeBackendDescriptor(
     static const NativeAnalogBackendDescriptor descriptor{kNativeAnalogBackendAbiVersion,sizeof(NativeAnalogBackendDescriptor),
         "corsair_vanguard",L"CORSAIR VANGUARD PRO 96 (experimental stock analog)",NativeAnalogProtocol::CorsairVanguard,
         NativeAnalogStartPhase::AfterRealtime,NativeAnalogBackendFlag_PolledTransport|NativeAnalogBackendFlag_ReadOnlyProbe,
-        nullptr,&Start,&Stop,&Notify,&Present,&Connected,&Owns,&Get,&Telemetry};
+        nullptr,&Start,&Stop,&Notify,&Present,&Connected,&Owns,&Get,&Telemetry, nullptr, +[](halljoy::observation::Sink sink) { g_values.Observations(sink); }};
     return descriptor;
 }

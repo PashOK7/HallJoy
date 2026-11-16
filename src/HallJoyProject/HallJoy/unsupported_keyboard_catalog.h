@@ -9,7 +9,11 @@ inline constexpr UnsupportedKeyboard kUnsupportedKeyboards[] = {
     {0x0C45, 0x80C1, L"AJAZZ AK680 V2", L"AJAZZ AK680 V2"},
     {0x0C45, 0x80C2, L"AJAZZ AK680 V2", L"AJAZZ AK680 V2"},
     {0x0C45, 0x80B1, L"AK820MAX", L"AJAZZ AK820 MAX HE (Sonix 0C45:80B1)"},
+    {0x38A6, 0x2729, L"AULA F75 HE", L"AULA F75 HE"},
+    {0x38A6, 0x2742, L"AULA F75 HE", L"AULA F75 HE"},
+    {0x0C45, 0xFEFE, L"AULA F75 HE DONGLE", L"AULA F75 HE"},
     {0x1B1C, 0x1BC0, nullptr, L"Corsair K70 MAX"},
+    {0x046D, 0xC35B, L"PRO X RAPID", L"Logitech G PRO X TKL RAPID"},
     {0x28E9, 0x31FD, nullptr, L"MADLIONS TITAN 68 Turbo"},
     {0x3151, 0x4035, L"RT80", L"YUNZII RT80"},
 };
